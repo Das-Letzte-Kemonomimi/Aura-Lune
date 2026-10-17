@@ -43,7 +43,26 @@ import {
   ChevronDown,
   FolderPlus,
   ListPlus,
+  Activity,
 } from 'lucide-react';
+
+interface EqualizerPreset {
+  name: string;
+  bands: number[];
+}
+
+const EQUALIZER_BANDS = [
+  { freq: '31 Hz', label: 'Sub-bass' },
+  { freq: '62 Hz', label: 'Bass' },
+  { freq: '125 Hz', label: 'Mid-bass' },
+  { freq: '250 Hz', label: 'Low Mids' },
+  { freq: '500 Hz', label: 'Mids' },
+  { freq: '1 kHz', label: 'Upper Mids' },
+  { freq: '2 kHz', label: 'Presence' },
+  { freq: '4 kHz', label: 'Treble' },
+  { freq: '8 kHz', label: 'High Treble' },
+  { freq: '16 kHz', label: 'Air' },
+];
 
 interface QueueItem {
   id: string;
@@ -144,6 +163,9 @@ interface PlaybackStatus {
   loop_mode?: 'None' | 'Track' | 'Queue';
   shuffle?: boolean;
   current_track?: QueueItem | null;
+  equalizer_enabled?: boolean;
+  equalizer_bands?: number[];
+  spectrum?: number[];
 }
 
 interface AudioCardProfile {
@@ -218,7 +240,14 @@ export default function App() {
       supports_formants: false,
       description: 'Lekki silnik SoundTouch (niski narzut CPU, natywna integracja w GStreamer)',
     },
+    equalizer_enabled: true,
+    equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    spectrum: Array(16).fill(0.05),
   });
+
+  // Stan korektora graficznego EQ & Spectrum
+  const [eqPresets, setEqPresets] = useState<EqualizerPreset[]>([]);
+  const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Płaski (Flat)');
 
   const [cards, setCards] = useState<AudioCard[]>([]);
   const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'dsp' | 'devices' | 'transcode' | 'themes'>('player');
@@ -278,7 +307,7 @@ export default function App() {
   const [presets, setPresets] = useState<DspPresetRecord[]>([]);
   const [newPresetName, setNewPresetName] = useState('');
 
-  // Odpytywanie statusu odtwarzacza
+  // Odpytywanie statusu odtwarzacza & widma FFT
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -293,8 +322,15 @@ export default function App() {
     };
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 250);
+    const interval = setInterval(fetchStatus, 100);
     return () => clearInterval(interval);
+  }, []);
+
+  // Wczytanie fabrycznych presetów korektora EQ
+  useEffect(() => {
+    invoke<EqualizerPreset[]>('get_equalizer_presets')
+      .then((presets) => setEqPresets(presets))
+      .catch((err) => console.warn('Błąd pobierania presetów EQ:', err));
   }, []);
 
   const refreshQueue = async () => {
@@ -989,6 +1025,55 @@ export default function App() {
     }
   };
 
+  const handleEqBandChange = async (bandIndex: number, gainDb: number) => {
+    try {
+      await invoke('set_equalizer_band', { band: bandIndex, gainDb });
+      setStatus((prev) => {
+        const newBands = [...(prev.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
+        newBands[bandIndex] = gainDb;
+        return { ...prev, equalizer_bands: newBands };
+      });
+    } catch (e: any) {
+      console.error('Błąd zmiany pasma EQ:', e);
+    }
+  };
+
+  const handleEqToggle = async () => {
+    const newEnabled = status.equalizer_enabled === false ? true : false;
+    try {
+      await invoke('set_equalizer_enabled', { enabled: newEnabled });
+      setStatus((prev) => ({ ...prev, equalizer_enabled: newEnabled }));
+      showMessage(newEnabled ? 'Włączono korektor graficzny (EQ)' : 'Wyłączono korektor graficzny (EQ Bypass)');
+    } catch (e: any) {
+      showMessage(`Błąd przełączania EQ: ${e}`, true);
+    }
+  };
+
+  const handleApplyEqPreset = async (presetName: string) => {
+    setSelectedEqPreset(presetName);
+    const preset = eqPresets.find((p) => p.name === presetName);
+    if (!preset) return;
+    try {
+      await invoke('set_equalizer_bands', { bands: preset.bands });
+      setStatus((prev) => ({ ...prev, equalizer_bands: preset.bands }));
+      showMessage(`Zastosowano profil korektora: ${preset.name}`);
+    } catch (e: any) {
+      showMessage(`Błąd aplikowania presetu EQ: ${e}`, true);
+    }
+  };
+
+  const handleResetEq = async () => {
+    const flatBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    try {
+      await invoke('set_equalizer_bands', { bands: flatBands });
+      setSelectedEqPreset('Płaski (Flat)');
+      setStatus((prev) => ({ ...prev, equalizer_bands: flatBands }));
+      showMessage('Zresetowano pasma korektora do 0 dB (Flat)');
+    } catch (e: any) {
+      showMessage(`Błąd resetowania EQ: ${e}`, true);
+    }
+  };
+
   const handleVolumeChange = async (volume: number) => {
     try {
       await invoke('set_volume', { volume });
@@ -1318,6 +1403,39 @@ export default function App() {
                 <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--accent-pink)' }}>
                   {status.current_track?.artist || 'Brak wykonawcy'} {status.current_track?.album ? `• ${status.current_track.album}` : ''}
                 </p>
+              </div>
+
+              {/* Mini Spectrum Wave Visualizer */}
+              <div
+                style={{
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  marginBottom: '16px',
+                  padding: '4px 10px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '10px',
+                }}
+              >
+                {(status.spectrum && status.spectrum.length > 0 ? status.spectrum : Array(16).fill(0.05)).map((magnitude, i) => {
+                  const heightPercent = Math.max(8, Math.round(magnitude * 100));
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        width: '10px',
+                        height: `${heightPercent}%`,
+                        background: 'linear-gradient(to top, var(--accent-pink), var(--accent-purple), var(--accent-cyan))',
+                        borderRadius: '3px',
+                        transition: 'height 0.08s ease-out',
+                        boxShadow: magnitude > 0.35 ? '0 0 8px rgba(255, 77, 148, 0.7)' : 'none',
+                        opacity: status.state === 'Playing' ? 0.95 : 0.2,
+                      }}
+                    />
+                  );
+                })}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -2415,6 +2533,188 @@ export default function App() {
                     {r === 1.0 ? '1.0x' : `${r}x`}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* SEKCJA 3: 10-PASMOWY KOREKTOR GRAFICZNY (EQUALIZER) */}
+            <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sliders size={18} color="var(--accent-pink)" /> 10-Pasmowy Korektor Graficzny (IIR EQ)
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Precyzyjne kształtowanie pasm od 31 Hz do 16 kHz (zakres: -24 dB do +12 dB)
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Wybór presetu EQ */}
+                  <select
+                    value={selectedEqPreset}
+                    onChange={(e) => handleApplyEqPreset(e.target.value)}
+                    className="glass-card"
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(0,0,0,0.4)',
+                      color: '#fff',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {eqPresets.map((preset) => (
+                      <option key={preset.name} value={preset.name} style={{ background: '#181824', color: '#fff' }}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Przycisk Reset EQ */}
+                  <button
+                    onClick={handleResetEq}
+                    className="glass-card"
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Reset (0 dB)
+                  </button>
+
+                  {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
+                  <button
+                    onClick={handleEqToggle}
+                    className="glass-card"
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: status.equalizer_enabled !== false ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
+                      border: status.equalizer_enabled !== false ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                      color: status.equalizer_enabled !== false ? 'var(--accent-pink)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    {status.equalizer_enabled !== false ? '● EQ WŁĄCZONY' : '○ EQ BYPASS'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 10 pionowych suwaków korektora */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(10, 1fr)',
+                  gap: '8px',
+                  background: 'rgba(0,0,0,0.25)',
+                  padding: '20px 12px',
+                  borderRadius: '16px',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {EQUALIZER_BANDS.map((band, idx) => {
+                  const gain = (status.equalizer_bands && status.equalizer_bands[idx]) ?? 0;
+                  return (
+                    <div
+                      key={band.freq}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          color: gain > 0 ? 'var(--accent-pink)' : gain < 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        }}
+                      >
+                        {gain > 0 ? `+${gain.toFixed(1)}` : gain.toFixed(1)}
+                      </span>
+
+                      {/* Pionowy suwak */}
+                      <input
+                        type="range"
+                        min={-24}
+                        max={12}
+                        step={0.5}
+                        value={gain}
+                        disabled={status.equalizer_enabled === false}
+                        onChange={(e) => handleEqBandChange(idx, Number(e.target.value))}
+                        style={{
+                          writingMode: 'vertical-lr',
+                          direction: 'rtl',
+                          width: '28px',
+                          height: '140px',
+                          cursor: status.equalizer_enabled === false ? 'not-allowed' : 'pointer',
+                          opacity: status.equalizer_enabled === false ? 0.4 : 1,
+                        }}
+                      />
+
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}>
+                        {band.freq}
+                      </span>
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                        {band.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SEKCJA 4: NEONOWY ANALIZATOR WIDMA FFT (SPECTRUM VISUALIZER) */}
+            <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Activity size={18} color="var(--accent-cyan)" /> Neonowy Analizator Widma FFT (Live Spectrum)
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  16 pasm częstotliwościowych | GStreamer FFT Analyzer
+                </span>
+              </div>
+
+              <div
+                style={{
+                  height: '110px',
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  borderRadius: '16px',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: '6px',
+                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+                }}
+              >
+                {(status.spectrum && status.spectrum.length > 0 ? status.spectrum : Array(16).fill(0.05)).map((magnitude, i) => {
+                  const heightPercent = Math.max(4, Math.round(magnitude * 100));
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        flex: 1,
+                        height: `${heightPercent}%`,
+                        background: 'linear-gradient(to top, var(--accent-pink), var(--accent-purple), var(--accent-cyan))',
+                        borderRadius: '4px 4px 1px 1px',
+                        transition: 'height 0.08s ease-out',
+                        boxShadow: magnitude > 0.3 ? '0 0 10px rgba(56, 189, 248, 0.6)' : 'none',
+                        opacity: status.state === 'Playing' ? 0.95 : 0.25,
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
