@@ -1,0 +1,15 @@
+[package]
+name = "audio-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+domain = { path = "../domain" }
+dsp-api = { path = "../dsp-api" }
+gstreamer.workspace = true
+gstreamer-audio.workspace = true
+glib.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
