@@ -32,7 +32,44 @@ import {
   Globe,
   CheckCircle,
   X,
+  SkipBack,
+  SkipForward,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  ListMusic,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  FolderPlus,
+  ListPlus,
 } from 'lucide-react';
+
+interface QueueItem {
+  id: string;
+  track_id: number | null;
+  uri: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  duration_ms: number;
+}
+
+interface PlaybackQueue {
+  items: QueueItem[];
+  current_index: number | null;
+  loop_mode: 'None' | 'Track' | 'Queue';
+  shuffle: boolean;
+  shuffle_order: number[];
+  shuffle_cursor: number;
+}
+
+interface Playlist {
+  id: number;
+  name: string;
+  created_at: number;
+  track_count: number;
+}
 
 interface ReleaseCandidateDto {
   mbid: string;
@@ -104,6 +141,9 @@ interface PlaybackStatus {
   rate_ratio: number;
   engine: 'SoundTouch' | 'RubberBand';
   capabilities: DspCapabilities;
+  loop_mode?: 'None' | 'Track' | 'Queue';
+  shuffle?: boolean;
+  current_track?: QueueItem | null;
 }
 
 interface AudioCardProfile {
@@ -181,7 +221,26 @@ export default function App() {
   });
 
   const [cards, setCards] = useState<AudioCard[]>([]);
-  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'dsp' | 'devices' | 'transcode' | 'themes'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'dsp' | 'devices' | 'transcode' | 'themes'>('player');
+
+  // Stan kolejki odtwarzania (Etap 7)
+  const [queue, setQueue] = useState<PlaybackQueue>({
+    items: [],
+    current_index: null,
+    loop_mode: 'None',
+    shuffle: false,
+    shuffle_order: [],
+    shuffle_cursor: 0,
+  });
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+
+  // Stan playlist (Etap 7)
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<TrackRecord[]>([]);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [trackToAddToPlaylist, setTrackToAddToPlaylist] = useState<TrackRecord | null>(null);
   const [transcodeOutput, setTranscodeOutput] = useState('tests/fixtures/converted_sample.opus');
   const [transcodeFormat, setTranscodeFormat] = useState<'Opus' | 'Flac' | 'Wav'>('Opus');
   const [transcodeBitrate, setTranscodeBitrate] = useState(192);
@@ -225,6 +284,9 @@ export default function App() {
       try {
         const res = await invoke<PlaybackStatus>('get_status');
         setStatus(res);
+        if (res.current_track && res.current_track.track_id) {
+          setActiveTrackId(res.current_track.track_id);
+        }
       } catch (e) {
         // Ignoruj błędy gdy backend nie jest jeszcze zainicjalizowany
       }
@@ -234,6 +296,24 @@ export default function App() {
     const interval = setInterval(fetchStatus, 250);
     return () => clearInterval(interval);
   }, []);
+
+  const refreshQueue = async () => {
+    try {
+      const q = await invoke<PlaybackQueue>('get_queue');
+      setQueue(q);
+    } catch (e: any) {
+      console.warn('Błąd pobierania kolejki:', e);
+    }
+  };
+
+  const refreshPlaylists = async () => {
+    try {
+      const list = await invoke<Playlist[]>('list_playlists');
+      setPlaylists(list);
+    } catch (e: any) {
+      console.warn('Błąd pobierania playlist:', e);
+    }
+  };
 
   // Pobieranie listy urządzeń audio i biblioteki
   const refreshDevices = async () => {
@@ -397,6 +477,8 @@ export default function App() {
     loadLibrary();
     loadPresets();
     loadThemes();
+    refreshQueue();
+    refreshPlaylists();
   }, []);
 
   const showMessage = (msg: string, isError = false) => {
@@ -595,6 +677,236 @@ export default function App() {
       await invoke('seek', { positionMs: val });
     } catch (e: any) {
       showMessage(`Błąd seek: ${e}`, true);
+    }
+  };
+
+  // ===================================
+  // OBSŁUGA KOLEJKI ODTWARZANIA (ETAP 7)
+  // ===================================
+
+  const handleNext = async () => {
+    try {
+      const nextItem = await invoke<QueueItem | null>('play_next');
+      await refreshQueue();
+      if (nextItem) {
+        showMessage(`Następny utwór: ${nextItem.title}`);
+      } else {
+        showMessage('Koniec kolejki odtwarzania');
+      }
+    } catch (e: any) {
+      showMessage(`Błąd przejścia do następnego utworu: ${e}`, true);
+    }
+  };
+
+  const handlePrevious = async () => {
+    try {
+      const prevItem = await invoke<QueueItem | null>('play_previous');
+      await refreshQueue();
+      if (prevItem) {
+        showMessage(`Poprzedni utwór: ${prevItem.title}`);
+      }
+    } catch (e: any) {
+      showMessage(`Błąd cofania: ${e}`, true);
+    }
+  };
+
+  const handleToggleShuffle = async () => {
+    try {
+      const newShuffle = await invoke<boolean>('toggle_shuffle');
+      await refreshQueue();
+      showMessage(newShuffle ? 'Włączono tryb losowy (Shuffle: WŁ)' : 'Wyłączono tryb losowy (Shuffle: WYŁ)');
+    } catch (e: any) {
+      showMessage(`Błąd zmiany trybu losowego: ${e}`, true);
+    }
+  };
+
+  const handleCycleLoopMode = async () => {
+    try {
+      const modes: ('None' | 'Queue' | 'Track')[] = ['None', 'Queue', 'Track'];
+      const currentIdx = modes.indexOf(queue.loop_mode);
+      const nextMode = modes[(currentIdx + 1) % modes.length];
+      await invoke('set_loop_mode', { mode: nextMode });
+      await refreshQueue();
+      const labels = { None: 'Wyłączona', Queue: 'Cała kolejka', Track: 'Pojedynczy utwór' };
+      showMessage(`Tryb powtarzania (Loop): ${labels[nextMode]}`);
+    } catch (e: any) {
+      showMessage(`Błąd zmiany pętli: ${e}`, true);
+    }
+  };
+
+  const handlePlayQueueIndex = async (index: number) => {
+    try {
+      const item = await invoke<QueueItem | null>('play_queue_index', { index });
+      await refreshQueue();
+      if (item) {
+        showMessage(`Odtwarzanie: ${item.title}`);
+      }
+    } catch (e: any) {
+      showMessage(`Błąd wyboru utworu z kolejki: ${e}`, true);
+    }
+  };
+
+  const handleRemoveFromQueue = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await invoke('remove_from_queue', { id });
+      await refreshQueue();
+      showMessage('Usunięto utwór z kolejki');
+    } catch (err: any) {
+      showMessage(`Błąd usuwania z kolejki: ${err}`, true);
+    }
+  };
+
+  const handleMoveQueueItem = async (fromIdx: number, toIdx: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (toIdx < 0 || toIdx >= queue.items.length) return;
+    try {
+      await invoke('reorder_queue', { fromIdx, toIdx });
+      await refreshQueue();
+    } catch (err: any) {
+      showMessage(`Błąd przesuwania utworu: ${err}`, true);
+    }
+  };
+
+  const handleClearQueue = async () => {
+    try {
+      await invoke('clear_queue');
+      await refreshQueue();
+      showMessage('Wyczyszczono kolejkę odtwarzania');
+    } catch (e: any) {
+      showMessage(`Błąd czyszczenia kolejki: ${e}`, true);
+    }
+  };
+
+  const handleAddTrackToQueue = async (track: TrackRecord, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const item: QueueItem = {
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      track_id: track.id,
+      uri: track.path,
+      title: track.title,
+      artist: track.artist,
+      album: track.album_artist || null,
+      duration_ms: track.duration_ms,
+    };
+    try {
+      await invoke('add_to_queue', { item });
+      await refreshQueue();
+      showMessage(`Dodano '${track.title}' na koniec kolejki`);
+    } catch (err: any) {
+      showMessage(`Błąd dodawania do kolejki: ${err}`, true);
+    }
+  };
+
+  const handleAddTrackNextToQueue = async (track: TrackRecord, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const item: QueueItem = {
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      track_id: track.id,
+      uri: track.path,
+      title: track.title,
+      artist: track.artist,
+      album: track.album_artist || null,
+      duration_ms: track.duration_ms,
+    };
+    try {
+      await invoke('add_next_to_queue', { item });
+      await refreshQueue();
+      showMessage(`Ustawiono '${track.title}' jako następny utwór`);
+    } catch (err: any) {
+      showMessage(`Błąd dodawania do kolejki: ${err}`, true);
+    }
+  };
+
+  const handlePlayAllTracks = async (trackList: TrackRecord[], startIndex = 0) => {
+    if (trackList.length === 0) return;
+    const items: QueueItem[] = trackList.map((t, idx) => ({
+      id: `q-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+      track_id: t.id,
+      uri: t.path,
+      title: t.title,
+      artist: t.artist,
+      album: t.album_artist || null,
+      duration_ms: t.duration_ms,
+    }));
+    try {
+      await invoke('set_queue', { items, startIndex });
+      await refreshQueue();
+      showMessage(`Załadowano ${items.length} utworów do kolejki odtwarzania`);
+    } catch (err: any) {
+      showMessage(`Błąd kolejkowania listy: ${err}`, true);
+    }
+  };
+
+  // ===================================
+  // OBSŁUGA PLAYLIST (ETAP 7)
+  // ===================================
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) {
+      showMessage('Podaj nazwę nowej playlisty', true);
+      return;
+    }
+    try {
+      await invoke('create_playlist', { name: newPlaylistName.trim() });
+      setNewPlaylistName('');
+      await refreshPlaylists();
+      showMessage(`Utworzono playlistę '${newPlaylistName.trim()}'`);
+    } catch (err: any) {
+      showMessage(`Błąd tworzenia playlisty: ${err}`, true);
+    }
+  };
+
+  const handleDeletePlaylist = async (playlistId: number, name: string) => {
+    try {
+      await invoke('delete_playlist', { playlistId });
+      if (selectedPlaylist?.id === playlistId) {
+        setSelectedPlaylist(null);
+        setPlaylistTracks([]);
+      }
+      await refreshPlaylists();
+      showMessage(`Usunięto playlistę '${name}'`);
+    } catch (err: any) {
+      showMessage(`Błąd usuwania playlisty: ${err}`, true);
+    }
+  };
+
+  const handleOpenPlaylist = async (pl: Playlist) => {
+    setSelectedPlaylist(pl);
+    try {
+      const tr = await invoke<TrackRecord[]>('get_playlist_tracks', { playlistId: pl.id });
+      setPlaylistTracks(tr);
+    } catch (err: any) {
+      showMessage(`Błąd otwierania playlisty: ${err}`, true);
+    }
+  };
+
+  const handleAddTrackToPlaylist = async (playlistId: number, trackId: number) => {
+    try {
+      await invoke('add_track_to_playlist', { playlistId, trackId });
+      setShowPlaylistModal(false);
+      setTrackToAddToPlaylist(null);
+      await refreshPlaylists();
+      if (selectedPlaylist?.id === playlistId) {
+        const tr = await invoke<TrackRecord[]>('get_playlist_tracks', { playlistId });
+        setPlaylistTracks(tr);
+      }
+      showMessage('Dodano utwór do playlisty');
+    } catch (err: any) {
+      showMessage(`Błąd dodawania do playlisty: ${err}`, true);
+    }
+  };
+
+  const handleRemoveTrackFromPlaylist = async (playlistId: number, trackId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await invoke('remove_track_from_playlist', { playlistId, trackId });
+      const tr = await invoke<TrackRecord[]>('get_playlist_tracks', { playlistId });
+      setPlaylistTracks(tr);
+      await refreshPlaylists();
+      showMessage('Usunięto utwór z playlisty');
+    } catch (err: any) {
+      showMessage(`Błąd usuwania utworu z playlisty: ${err}`, true);
     }
   };
 
@@ -814,6 +1126,23 @@ export default function App() {
             Biblioteka ({tracks.length})
           </button>
           <button
+            onClick={() => setActiveTab('playlists')}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: activeTab === 'playlists' ? 'var(--accent-purple)' : 'transparent',
+              color: '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <ListPlus size={15} />
+            Playlisty ({playlists.length})
+          </button>
+          <button
             onClick={() => setActiveTab('dsp')}
             style={{
               padding: '8px 14px',
@@ -868,6 +1197,25 @@ export default function App() {
           >
             <Palette size={15} />
             Motywy
+          </button>
+          <button
+            onClick={() => setIsQueueOpen(!isQueueOpen)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: isQueueOpen ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+              border: isQueueOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+              color: isQueueOpen ? 'var(--accent-pink)' : '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            <ListMusic size={15} />
+            Kolejka ({queue.items.length})
           </button>
         </nav>
       </header>
@@ -963,6 +1311,15 @@ export default function App() {
                 marginBottom: '24px',
               }}
             >
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
+                  {status.current_track?.title || filePath.split('/').pop() || 'Auralune Player'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--accent-pink)' }}>
+                  {status.current_track?.artist || 'Brak wykonawcy'} {status.current_track?.album ? `• ${status.current_track.album}` : ''}
+                </p>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   Status: <strong style={{ color: status.state === 'Playing' ? 'var(--accent-green)' : 'var(--text-muted)' }}>{status.state}</strong>
@@ -989,7 +1346,7 @@ export default function App() {
                   title="Zapisz zakładkę odtwarzania"
                   className="glass-card"
                   style={{
-                    padding: '8px 14px',
+                    padding: '8px 12px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
@@ -997,26 +1354,72 @@ export default function App() {
                     fontSize: '0.8rem',
                   }}
                 >
-                  <Bookmark size={16} /> Zapisz zakładkę
+                  <Bookmark size={15} /> Zakładka
                 </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* Shuffle Button */}
                   <button
-                    onClick={handleStop}
+                    onClick={handleToggleShuffle}
+                    title={queue.shuffle ? 'Tryb losowy (WŁ)' : 'Tryb losowy (WYŁ)'}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: queue.shuffle ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255,255,255,0.06)',
+                      border: queue.shuffle ? '1px solid var(--accent-cyan)' : 'none',
+                      color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Shuffle size={18} />
+                  </button>
+
+                  {/* Previous Button */}
+                  <button
+                    onClick={handlePrevious}
+                    title="Poprzedni utwór"
                     style={{
                       width: '44px',
                       height: '44px',
                       borderRadius: '50%',
                       background: 'rgba(255,255,255,0.08)',
+                      border: 'none',
                       color: '#fff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <SkipBack size={20} />
+                  </button>
+
+                  {/* Stop Button */}
+                  <button
+                    onClick={handleStop}
+                    title="Zatrzymaj"
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: 'none',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
                     }}
                   >
                     <Square size={18} />
                   </button>
 
+                  {/* Play / Pause Button */}
                   <button
                     onClick={handlePlayPause}
                     style={{
@@ -1024,14 +1427,61 @@ export default function App() {
                       height: '64px',
                       borderRadius: '50%',
                       background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                      border: 'none',
                       color: '#fff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       boxShadow: 'var(--shadow-glow)',
+                      cursor: 'pointer',
                     }}
                   >
                     {status.state === 'Playing' ? <Pause size={28} /> : <Play size={28} style={{ marginLeft: '4px' }} />}
+                  </button>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={handleNext}
+                    title="Następny utwór"
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: 'none',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <SkipForward size={20} />
+                  </button>
+
+                  {/* Repeat Button */}
+                  <button
+                    onClick={handleCycleLoopMode}
+                    title={`Tryb pętli: ${queue.loop_mode === 'Track' ? 'Utwór' : queue.loop_mode === 'Queue' ? 'Kolejka' : 'Wyłączony'}`}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
+                      border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : 'none',
+                      color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    {queue.loop_mode === 'Track' ? <Repeat1 size={18} /> : <Repeat size={18} />}
+                    {queue.loop_mode === 'Queue' && (
+                      <span style={{ position: 'absolute', bottom: '4px', right: '4px', width: '5px', height: '5px', borderRadius: '50%', background: 'var(--accent-pink)' }} />
+                    )}
                   </button>
                 </div>
 
@@ -1205,68 +1655,127 @@ export default function App() {
 
             {/* Widok 1: Tabela utworów */}
             {librarySubView === 'tracks' && (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '10px 12px' }}>#</th>
-                      <th style={{ padding: '10px 12px' }}>Tytuł</th>
-                      <th style={{ padding: '10px 12px' }}>Wykonawca</th>
-                      <th style={{ padding: '10px 12px' }}>Format</th>
-                      <th style={{ padding: '10px 12px' }}>Jakość</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tracks.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                          Biblioteka jest pusta. Kliknij 'Skanuj przyrostowo' powyżej.
-                        </td>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Łącznie: {tracks.length} utworów</span>
+                  {tracks.length > 0 && (
+                    <button
+                      onClick={() => handlePlayAllTracks(tracks, 0)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        border: 'none',
+                      }}
+                    >
+                      <Play size={14} /> Graj wszystkie w kolejce
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px 12px' }}>#</th>
+                        <th style={{ padding: '10px 12px' }}>Tytuł</th>
+                        <th style={{ padding: '10px 12px' }}>Wykonawca</th>
+                        <th style={{ padding: '10px 12px' }}>Format</th>
+                        <th style={{ padding: '10px 12px' }}>Jakość</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>Akcje</th>
                       </tr>
-                    ) : (
-                      tracks.map((t, idx) => (
-                        <tr
-                          key={t.id}
-                          onClick={() => handlePlayLibraryTrack(t)}
-                          className="glass-card"
-                          style={{
-                            cursor: 'pointer',
-                            background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                            borderBottom: '1px solid rgba(255,255,255,0.03)',
-                          }}
-                        >
-                          <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                            {t.track_no || idx + 1}
-                          </td>
-                          <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
-                            {t.title}
-                          </td>
-                          <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
-                          <td style={{ padding: '12px' }}>
-                            <span
-                              style={{
-                                background: 'rgba(255,255,255,0.08)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem',
-                                fontFamily: 'var(--font-mono)',
-                              }}
-                            >
-                              {t.format}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                            {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
-                          </td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                            {formatTime(t.duration_ms)}
+                    </thead>
+                    <tbody>
+                      {tracks.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            Biblioteka jest pusta. Kliknij 'Skanuj przyrostowo' powyżej.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        tracks.map((t, idx) => (
+                          <tr
+                            key={t.id}
+                            onClick={() => handlePlayLibraryTrack(t)}
+                            className="glass-card"
+                            style={{
+                              cursor: 'pointer',
+                              background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                              borderBottom: '1px solid rgba(255,255,255,0.03)',
+                            }}
+                          >
+                            <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                              {t.track_no || idx + 1}
+                            </td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
+                              {t.title}
+                            </td>
+                            <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span
+                                style={{
+                                  background: 'rgba(255,255,255,0.08)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontFamily: 'var(--font-mono)',
+                                }}
+                              >
+                                {t.format}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                              {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                              {formatTime(t.duration_ms)}
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handlePlayAllTracks(tracks, idx); }}
+                                  title="Graj od tego utworu w kolejce"
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <Play size={15} />
+                                </button>
+                                <button
+                                  onClick={(e) => handleAddTrackToQueue(t, e)}
+                                  title="Dodaj na koniec kolejki"
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <Plus size={15} />
+                                </button>
+                                <button
+                                  onClick={(e) => handleAddTrackNextToQueue(t, e)}
+                                  title="Graj jako następny w kolejce"
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <ListPlus size={15} />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setTrackToAddToPlaylist(t); setShowPlaylistModal(true); }}
+                                  title="Dodaj do playlisty..."
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-amber)', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <FolderPlus size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -1334,6 +1843,27 @@ export default function App() {
                       </div>
 
                       <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+                        <button
+                          onClick={() => {
+                            const albumTracks = tracks.filter((t) => t.album_id === album.id);
+                            handlePlayAllTracks(albumTracks);
+                          }}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.08)',
+                            color: 'var(--accent-pink)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                          }}
+                          title="Odtwórz cały album w kolejce"
+                        >
+                          <Play size={13} /> Graj
+                        </button>
                         <button
                           onClick={() => handleOpenMbModal(album)}
                           style={{
@@ -2552,7 +3082,450 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* ZAKŁADKA: PLAYLISTY (ETAP 7) */}
+        {activeTab === 'playlists' && (
+          <div className="glass-panel" style={{ padding: '28px', maxWidth: '960px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <ListMusic size={20} color="var(--accent-pink)" /> Twoje Playlisty ({playlists.length})
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Zarządzaj swoimi kompilacjami i odtwarzaj w kolejce z SQLite.
+                </p>
+              </div>
+
+              {/* Nowa playlista input */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Nazwa nowej playlisty..."
+                  value={newPlaylistName}
+                  onChange={(e) => setNewPlaylistName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(0,0,0,0.3)',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                  }}
+                />
+                <button
+                  onClick={handleCreatePlaylist}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    border: 'none',
+                  }}
+                >
+                  <Plus size={16} /> Dodaj
+                </button>
+              </div>
+            </div>
+
+            {/* Siatka playlist lub szczegóły wybranej playlisty */}
+            {selectedPlaylist ? (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div>
+                    <button
+                      onClick={() => { setSelectedPlaylist(null); setPlaylistTracks([]); }}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', fontSize: '0.8rem', padding: 0, marginBottom: '6px' }}
+                    >
+                      ← Powrót do listy playlist
+                    </button>
+                    <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>{selectedPlaylist.name}</h3>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {playlistTracks.length} utworów • Utworzono: {new Date(selectedPlaylist.created_at * 1000).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => handlePlayAllTracks(playlistTracks)}
+                      disabled={playlistTracks.length === 0}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: playlistTracks.length === 0 ? 'default' : 'pointer',
+                        opacity: playlistTracks.length === 0 ? 0.5 : 1,
+                        border: 'none',
+                      }}
+                    >
+                      <Play size={16} /> Odtwórz playlistę
+                    </button>
+                    <button
+                      onClick={() => handleDeletePlaylist(selectedPlaylist.id, selectedPlaylist.name)}
+                      className="glass-card"
+                      style={{ padding: '8px 14px', color: '#ff6b81', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Trash2 size={16} /> Usuń playlistę
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tabela utworów w wybranej playliście */}
+                {playlistTracks.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    Playlista jest pusta. Dodaj utwory z Biblioteki klikając przycisk "+" przy utworze.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '10px 12px' }}>#</th>
+                          <th style={{ padding: '10px 12px' }}>Tytuł</th>
+                          <th style={{ padding: '10px 12px' }}>Wykonawca</th>
+                          <th style={{ padding: '10px 12px' }}>Format</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center' }}>Akcje</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {playlistTracks.map((t, idx) => (
+                          <tr
+                            key={`${t.id}-${idx}`}
+                            className="glass-card"
+                            style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+                          >
+                            <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{t.title}</td>
+                            <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}>
+                                {t.format}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{formatTime(t.duration_ms)}</td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                <button
+                                  onClick={() => handlePlayAllTracks(playlistTracks, idx)}
+                                  title="Graj od tego miejsca"
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}
+                                >
+                                  <Play size={16} />
+                                </button>
+                                <button
+                                  onClick={(e) => handleAddTrackToQueue(t, e)}
+                                  title="Dodaj na koniec kolejki"
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer' }}
+                                >
+                                  <Plus size={16} />
+                                </button>
+                                <button
+                                  onClick={(e) => handleRemoveTrackFromPlaylist(selectedPlaylist.id, t.id, e)}
+                                  title="Usuń z playlisty"
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                {playlists.length === 0 ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
+                    <ListMusic size={44} style={{ opacity: 0.3, marginBottom: '14px' }} />
+                    <p style={{ margin: 0, fontSize: '0.95rem' }}>Brak utworzonych playlist.</p>
+                    <p style={{ fontSize: '0.8rem', marginTop: '6px', opacity: 0.7 }}>Wpisz nazwę u góry i kliknij "Dodaj", aby utworzyć nową playlistę.</p>
+                  </div>
+                ) : (
+                  playlists.map((pl) => (
+                    <div
+                      key={pl.id}
+                      className="glass-card"
+                      style={{
+                        padding: '20px',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onClick={() => handleOpenPlaylist(pl)}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>{pl.name}</h4>
+                          <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)' }}>
+                            {pl.track_count} {pl.track_count === 1 ? 'utwór' : 'utworów'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Utworzono: {new Date(pl.created_at * 1000).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>Otwórz playlistę →</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(pl.id, pl.name); }}
+                          title="Usuń playlistę"
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </main>
+
+      {/* Szuflada kolejki odtwarzania (Drawer) */}
+      {isQueueOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: '420px',
+            maxWidth: '90vw',
+            background: 'rgba(15, 12, 28, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderLeft: '1px solid var(--border-accent)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
+          }}
+        >
+          {/* Nagłówek szuflady */}
+          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ListMusic size={22} color="var(--accent-pink)" />
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Kolejka odtwarzania</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {queue.items.length} {queue.items.length === 1 ? 'utwór' : 'utworów'} • {queue.loop_mode !== 'None' ? `Pętla: ${queue.loop_mode}` : 'Brak pętli'}
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {queue.items.length > 0 && (
+                <button
+                  onClick={handleClearQueue}
+                  title="Wyczyść całą kolejkę"
+                  className="glass-card"
+                  style={{ padding: '6px 10px', fontSize: '0.75rem', color: '#ff6b81', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Trash2 size={14} /> Wyczyść
+                </button>
+              )}
+              <button
+                onClick={() => setIsQueueOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+
+          {/* Lista pozycji w kolejce */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {queue.items.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                <Music size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>Kolejka jest pusta</p>
+                <p style={{ fontSize: '0.8rem', marginTop: '6px', opacity: 0.7 }}>
+                  Dodaj utwory z biblioteki lub wybierz playlistę
+                </p>
+              </div>
+            ) : (
+              queue.items.map((item, idx) => {
+                const isCurrent = idx === queue.current_index;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handlePlayQueueIndex(idx)}
+                    className="glass-card"
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer',
+                      background: isCurrent ? 'rgba(255, 77, 148, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isCurrent ? '1px solid var(--accent-pink)' : '1px solid rgba(255, 255, 255, 0.06)',
+                      boxShadow: isCurrent ? '0 0 16px rgba(255, 77, 148, 0.25)' : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ width: '24px', textAlign: 'center', color: isCurrent ? 'var(--accent-pink)' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: isCurrent ? 700 : 400 }}>
+                      {isCurrent && status.state === 'Playing' ? (
+                        <Zap size={16} color="var(--accent-pink)" />
+                      ) : (
+                        idx + 1
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: isCurrent ? '#fff' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.title}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: isCurrent ? 'var(--accent-cyan)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.artist} {item.album ? `• ${item.album}` : ''}
+                      </p>
+                    </div>
+
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      {formatTime(item.duration_ms)}
+                    </span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <button
+                        disabled={idx === 0}
+                        onClick={(e) => handleMoveQueueItem(idx, idx - 1, e)}
+                        title="Przesuń wyżej"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: idx === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
+                          cursor: idx === 0 ? 'default' : 'pointer',
+                          padding: '4px',
+                        }}
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                      <button
+                        disabled={idx === queue.items.length - 1}
+                        onClick={(e) => handleMoveQueueItem(idx, idx + 1, e)}
+                        title="Przesuń niżej"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: idx === queue.items.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
+                          cursor: idx === queue.items.length - 1 ? 'default' : 'pointer',
+                          padding: '4px',
+                        }}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => handleRemoveFromQueue(item.id, e)}
+                        title="Usuń z kolejki"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '4px',
+                        }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal dodawania utworu do playlisty */}
+      {showPlaylistModal && trackToAddToPlaylist && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              padding: '28px',
+              width: '450px',
+              maxWidth: '90vw',
+              borderRadius: '16px',
+              border: '1px solid var(--border-accent)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FolderPlus size={18} color="var(--accent-purple)" /> Dodaj do playlisty
+              </h3>
+              <button
+                onClick={() => { setShowPlaylistModal(false); setTrackToAddToPlaylist(null); }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Wybierz playlistę dla utworu: <strong style={{ color: 'var(--accent-pink)' }}>{trackToAddToPlaylist.title}</strong>
+            </p>
+
+            {playlists.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Brak utworzonych playlist. Najpierw utwórz playlistę w zakładce Playlisty.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                {playlists.map((pl) => (
+                  <button
+                    key={pl.id}
+                    onClick={() => handleAddTrackToPlaylist(pl.id, trackToAddToPlaylist.id)}
+                    className="glass-card"
+                    style={{
+                      padding: '12px 16px',
+                      textAlign: 'left',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>{pl.name}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{pl.track_count} utworów</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

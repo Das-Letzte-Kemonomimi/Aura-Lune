@@ -106,12 +106,29 @@ impl RootInterface for AuraluneMprisHandler {
 impl PlayerInterface for AuraluneMprisHandler {
     async fn next(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Next()");
+        if let Ok(Some(item)) = self.engine.play_next() {
+            self.set_track_info(MprisTrackInfo {
+                title: item.title,
+                artist: item.artist,
+                album: item.album.unwrap_or_default(),
+                duration_ms: item.duration_ms,
+                art_url: None,
+            });
+        }
         Ok(())
     }
 
     async fn previous(&self) -> fdo::Result<()> {
-        info!("MPRIS D-Bus: Previous() - restart utworu");
-        let _ = self.engine.seek(Duration::from_millis(0));
+        info!("MPRIS D-Bus: Previous()");
+        if let Ok(Some(item)) = self.engine.play_previous() {
+            self.set_track_info(MprisTrackInfo {
+                title: item.title,
+                artist: item.artist,
+                album: item.album.unwrap_or_default(),
+                duration_ms: item.duration_ms,
+                art_url: None,
+            });
+        }
         Ok(())
     }
 
@@ -180,10 +197,21 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn loop_status(&self) -> fdo::Result<LoopStatus> {
-        Ok(LoopStatus::None)
+        let status = match self.engine.loop_mode() {
+            domain::LoopMode::None => LoopStatus::None,
+            domain::LoopMode::Track => LoopStatus::Track,
+            domain::LoopMode::Queue => LoopStatus::Playlist,
+        };
+        Ok(status)
     }
 
-    async fn set_loop_status(&self, _loop_status: LoopStatus) -> mpris_server::zbus::Result<()> {
+    async fn set_loop_status(&self, loop_status: LoopStatus) -> mpris_server::zbus::Result<()> {
+        let mode = match loop_status {
+            LoopStatus::None => domain::LoopMode::None,
+            LoopStatus::Track => domain::LoopMode::Track,
+            LoopStatus::Playlist => domain::LoopMode::Queue,
+        };
+        self.engine.set_loop_mode(mode);
         Ok(())
     }
 
@@ -197,10 +225,11 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn shuffle(&self) -> fdo::Result<bool> {
-        Ok(false)
+        Ok(self.engine.shuffle())
     }
 
-    async fn set_shuffle(&self, _shuffle: bool) -> mpris_server::zbus::Result<()> {
+    async fn set_shuffle(&self, shuffle: bool) -> mpris_server::zbus::Result<()> {
+        self.engine.set_shuffle(shuffle);
         Ok(())
     }
 
