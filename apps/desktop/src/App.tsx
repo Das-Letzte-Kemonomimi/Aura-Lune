@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Play,
@@ -47,6 +47,7 @@ import {
   Settings,
   Info,
   SlidersHorizontal,
+  Maximize2,
 } from 'lucide-react';
 
 interface EqualizerPreset {
@@ -299,6 +300,40 @@ export default function App() {
   const [tracks, setTracks] = useState<TrackRecord[]>([]);
   const [albums, setAlbums] = useState<AlbumRecord[]>([]);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
+
+  // Stan wyszukiwania i filtrów biblioteki
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryFormatFilter, setLibraryFormatFilter] = useState<'all' | 'flac' | 'mp3' | 'opus' | 'wav' | 'lossless'>('all');
+  const [isScanFolderOpen, setIsScanFolderOpen] = useState(false);
+
+  // Filtrowane listy dla widoku biblioteki
+  const filteredTracks = useMemo(() => {
+    return tracks.filter((t) => {
+      const q = librarySearch.trim().toLowerCase();
+      const albumTitle = t.album_id ? albums.find((a) => a.id === t.album_id)?.title.toLowerCase() : '';
+      const matchesQuery =
+        !q ||
+        t.title.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q) ||
+        (albumTitle && albumTitle.includes(q)) ||
+        t.path.toLowerCase().includes(q);
+      if (!matchesQuery) return false;
+      if (libraryFormatFilter === 'all') return true;
+      if (libraryFormatFilter === 'lossless') {
+        const fmt = t.format.toLowerCase();
+        return fmt.includes('flac') || fmt.includes('wav') || fmt.includes('alac') || (t.bit_depth && t.bit_depth >= 16);
+      }
+      return t.format.toLowerCase().includes(libraryFormatFilter);
+    });
+  }, [tracks, albums, librarySearch, libraryFormatFilter]);
+
+  const filteredAlbums = useMemo(() => {
+    return albums.filter((a) => {
+      const q = librarySearch.trim().toLowerCase();
+      if (!q) return true;
+      return a.title.toLowerCase().includes(q) || a.album_artist.toLowerCase().includes(q);
+    });
+  }, [albums, librarySearch]);
 
   // Aktualnie odtwarzany utwór i powiązana okładka albumu
   const currentPlayingTrack = tracks.find(
@@ -2074,7 +2109,7 @@ const renderDevicesSection = () => (
       )}
 
       {/* Główna zawartość */}
-      <main style={{ flex: 1, overflowY: 'auto' }}>
+      <main style={{ flex: 1, overflowY: 'auto', paddingBottom: activeTab !== 'player' ? '88px' : '0' }}>
         {/* ZAKŁADKA 1: ODTWARZACZ (NOWOCZESNY WIDOK HI-FI DESKTOP) */}
         {activeTab === 'player' && (
           <div className="glass-panel" style={{ padding: '24px 28px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -2676,146 +2711,311 @@ const renderDevicesSection = () => (
         {/* ZAKŁADKA 2: BIBLIOTEKA (ETAP 2) */}
         {activeTab === 'library' && (
           <div className="glass-panel" style={{ padding: '28px', maxWidth: '960px', margin: '0 auto' }}>
+            {/* Nagłówek biblioteki: tytuł, statystyka i przyciski akcji */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Music size={20} color="var(--accent-purple)" /> Lokalna Biblioteka Muzyczna (SQLite)
-              </h2>
-              <button
-                onClick={loadLibrary}
-                className="glass-card"
-                style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
-              >
-                <RefreshCw size={14} /> Odśwież widok
-              </button>
-            </div>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 700 }}>
+                  <Music size={22} color="var(--accent-purple)" /> Biblioteka Muzyczna
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: 'rgba(168, 85, 247, 0.2)',
+                      color: 'var(--accent-purple)',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                    }}
+                  >
+                    {filteredTracks.length !== tracks.length ? `${filteredTracks.length} z ${tracks.length}` : `${tracks.length} utworów`}
+                  </span>
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Lokalna baza SQLite • Automatyczna indeksacja metadanych, formatów i okładek
+                </p>
+              </div>
 
-            {/* Panel skanera przyrostowego */}
-            <div
-              style={{
-                background: 'rgba(0,0,0,0.25)',
-                padding: '18px',
-                borderRadius: '14px',
-                border: '1px solid var(--border-subtle)',
-                marginBottom: '24px',
-              }}
-            >
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
-                Katalog muzyki do skanowania (FLAC, MP3, OGG, Opus, WAV):
-              </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  value={scanFolder}
-                  onChange={(e) => setScanFolder(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.85rem',
-                  }}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
-                  onClick={handleScanLibrary}
-                  disabled={isScanning}
+                  onClick={() => setIsScanFolderOpen(!isScanFolderOpen)}
+                  className="glass-card"
                   style={{
-                    padding: '10px 20px',
-                    borderRadius: '10px',
-                    background: isScanning ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                    color: '#fff',
-                    fontWeight: 600,
+                    padding: '8px 14px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    gap: '6px',
+                    color: isScanFolderOpen ? 'var(--accent-cyan)' : '#fff',
+                    border: isScanFolderOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                    background: isScanFolderOpen ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
                   }}
+                  title="Rozwiń panel konfiguracji skanowania katalogów"
                 >
-                  <FolderOpen size={16} /> {isScanning ? 'Skanowanie...' : 'Skanuj przyrostowo'}
+                  <FolderOpen size={14} /> Skanuj katalog...
+                </button>
+                <button
+                  onClick={loadLibrary}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: '#fff',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                  }}
+                  title="Odśwież utwory i albumy z bazy SQLite"
+                >
+                  <RefreshCw size={14} /> Odśwież
                 </button>
               </div>
-
-              {scanResult && (
-                <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'var(--accent-green)' }}>
-                  ✓ Przeskanowano: {scanResult.total_files_found} plików | Zindeksowano: {scanResult.new_or_updated_tracks} | Pominięto bez zmian: {scanResult.skipped_unchanged}
-                </p>
-              )}
             </div>
 
-            {/* Statystyki biblioteki */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
-              <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Music size={28} color="var(--accent-pink)" />
+            {/* Rozwijany panel skanera katalogu (niewidoczny domyślnie, nie marnuje miejsca) */}
+            {isScanFolderOpen && (
+              <div
+                className="glass-card"
+                style={{
+                  padding: '16px 18px',
+                  borderRadius: '14px',
+                  border: '1px solid var(--border-accent)',
+                  marginBottom: '20px',
+                  background: 'rgba(0,0,0,0.4)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    Ścieżka katalogu muzycznego na dysku (FLAC, MP3, OGG, Opus, WAV):
+                  </label>
+                  <button
+                    onClick={() => setIsScanFolderOpen(false)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    type="text"
+                    value={scanFolder}
+                    onChange={(e) => setScanFolder(e.target.value)}
+                    placeholder="Wprowadź ścieżkę do katalogu, np. /home/user/Music"
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      background: 'rgba(0,0,0,0.3)',
+                      color: '#fff',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                  <button
+                    onClick={handleScanLibrary}
+                    disabled={isScanning}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      background: isScanning ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
+                      color: '#fff',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: isScanning ? 'default' : 'pointer',
+                      border: 'none',
+                    }}
+                  >
+                    <FolderOpen size={15} /> {isScanning ? 'Skanowanie...' : 'Uruchom skanowanie'}
+                  </button>
+                </div>
+                {scanResult && (
+                  <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: 'var(--accent-green)' }}>
+                    ✓ Przeskanowano: {scanResult.total_files_found} plików | Zindeksowano: {scanResult.new_or_updated_tracks} | Pominięto bez zmian: {scanResult.skipped_unchanged}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Kompaktowe statystyki biblioteki */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '18px' }}>
+              <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Music size={22} color="var(--accent-pink)" />
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Utwory</span>
-                  <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>{tracks.length}</p>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Utwory w bazie</span>
+                  <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{tracks.length}</p>
                 </div>
               </div>
 
-              <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Disc size={28} color="var(--accent-purple)" />
+              <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Disc size={22} color="var(--accent-purple)" />
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Albumy</span>
-                  <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>{albums.length}</p>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Albumy</span>
+                  <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{albums.length}</p>
                 </div>
               </div>
 
-              <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Clock size={28} color="var(--accent-cyan)" />
+              <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Clock size={22} color="var(--accent-cyan)" />
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Łączny czas</span>
-                  <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Łączny czas trwania</span>
+                  <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
                     {formatTime(tracks.reduce((acc, t) => acc + t.duration_ms, 0))}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Przełącznik widoku: Utwory / Albumy i Okładki (Etap 6) */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
-              <button
-                onClick={() => setLibrarySubView('tracks')}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  background: librarySubView === 'tracks' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Music size={15} /> Utwory ({tracks.length})
-              </button>
-              <button
-                onClick={() => setLibrarySubView('albums')}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  background: librarySubView === 'albums' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Disc size={15} /> Albumy & Okładki ({albums.length})
-              </button>
+            {/* Pasek narzędziowy: widoki Utwory/Albumy, Live Search i filtry formatów */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                marginBottom: '18px',
+                background: 'rgba(0,0,0,0.2)',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              {/* Przełącznik widoku: Utwory vs Albumy */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={() => setLibrarySubView('tracks')}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    background: librarySubView === 'tracks' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Music size={14} /> Utwory ({filteredTracks.length})
+                </button>
+                <button
+                  onClick={() => setLibrarySubView('albums')}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    background: librarySubView === 'albums' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Disc size={14} /> Albumy ({filteredAlbums.length})
+                </button>
+              </div>
+
+              {/* Pole wyszukiwania Live Search */}
+              <div style={{ position: 'relative', flex: '1 1 200px' }}>
+                <Search
+                  size={14}
+                  style={{
+                    position: 'absolute',
+                    left: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Filtruj utwory, wykonawców, albumy..."
+                  value={librarySearch}
+                  onChange={(e) => setLibrarySearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '7px 30px 7px 32px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(0,0,0,0.3)',
+                    color: '#fff',
+                    fontSize: '0.8rem',
+                  }}
+                />
+                {librarySearch && (
+                  <button
+                    onClick={() => setLibrarySearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              {/* Filtry formatów audio */}
+              <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                {(['all', 'flac', 'mp3', 'opus', 'wav', 'lossless'] as const).map((fmt) => {
+                  const label =
+                    fmt === 'all'
+                      ? 'Wszystkie'
+                      : fmt === 'lossless'
+                      ? 'Lossless'
+                      : fmt.toUpperCase();
+                  const isSelected = libraryFormatFilter === fmt;
+                  return (
+                    <button
+                      key={fmt}
+                      onClick={() => setLibraryFormatFilter(fmt)}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        background: isSelected ? 'var(--accent-purple)' : 'rgba(255, 255, 255, 0.05)',
+                        color: isSelected ? '#fff' : 'var(--text-secondary)',
+                        border: isSelected ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Widok 1: Tabela utworów */}
             {librarySubView === 'tracks' && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Łącznie: {tracks.length} utworów</span>
-                  {tracks.length > 0 && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {filteredTracks.length !== tracks.length
+                      ? `Wyniki wyszukiwania: ${filteredTracks.length} z ${tracks.length} utworów`
+                      : `Łącznie: ${tracks.length} utworów`}
+                  </span>
+                  {filteredTracks.length > 0 && (
                     <button
-                      onClick={() => handlePlayAllTracks(tracks, 0)}
+                      onClick={() => handlePlayAllTracks(filteredTracks, 0)}
                       style={{
                         padding: '6px 14px',
                         borderRadius: '8px',
@@ -2830,7 +3030,7 @@ const renderDevicesSection = () => (
                         border: 'none',
                       }}
                     >
-                      <Play size={14} /> Graj wszystkie w kolejce
+                      <Play size={14} /> Graj przefiltrowane w kolejce
                     </button>
                   )}
                 </div>
@@ -2849,14 +3049,16 @@ const renderDevicesSection = () => (
                       </tr>
                     </thead>
                     <tbody>
-                      {tracks.length === 0 ? (
+                      {filteredTracks.length === 0 ? (
                         <tr>
-                          <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            Biblioteka jest pusta. Kliknij 'Skanuj przyrostowo' powyżej.
+                          <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            {tracks.length === 0
+                              ? "Biblioteka jest pusta. Kliknij 'Skanuj katalog' powyżej, aby dodać muzykę."
+                              : "Brak utworów pasujących do kryteriów filtra / wyszukiwania."}
                           </td>
                         </tr>
                       ) : (
-                        tracks.map((t, idx) => (
+                        filteredTracks.map((t, idx) => (
                           <tr
                             key={t.id}
                             onClick={() => handlePlayLibraryTrack(t)}
@@ -2868,7 +3070,11 @@ const renderDevicesSection = () => (
                             }}
                           >
                             <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                              {t.track_no || idx + 1}
+                              {activeTrackId === t.id && status.state === 'Playing' ? (
+                                <Zap size={14} color="var(--accent-pink)" />
+                              ) : (
+                                t.track_no || idx + 1
+                              )}
                             </td>
                             <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
                               {t.title}
@@ -2877,14 +3083,27 @@ const renderDevicesSection = () => (
                             <td style={{ padding: '12px' }}>
                               <span
                                 style={{
-                                  background: 'rgba(255,255,255,0.08)',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
+                                  background:
+                                    (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
+                                      ? 'rgba(6, 182, 212, 0.2)'
+                                      : 'rgba(255,255,255,0.08)',
+                                  color:
+                                    (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
+                                      ? 'var(--accent-cyan)'
+                                      : 'inherit',
+                                  padding: '2px 7px',
+                                  borderRadius: '5px',
                                   fontSize: '0.7rem',
                                   fontFamily: 'var(--font-mono)',
+                                  fontWeight: 600,
+                                  border:
+                                    (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
+                                      ? '1px solid rgba(6, 182, 212, 0.35)'
+                                      : 'none',
                                 }}
                               >
                                 {t.format}
+                                {(t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? ' Hi-Res' : ''}
                               </span>
                             </td>
                             <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
@@ -2896,7 +3115,7 @@ const renderDevicesSection = () => (
                             <td style={{ padding: '12px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handlePlayAllTracks(tracks, idx); }}
+                                  onClick={(e) => { e.stopPropagation(); handlePlayAllTracks(filteredTracks, idx); }}
                                   title="Graj od tego utworu w kolejce"
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
                                 >
@@ -2937,12 +3156,12 @@ const renderDevicesSection = () => (
             {/* Widok 2: Siatka albumów i okładek (Etap 6) */}
             {librarySubView === 'albums' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-                {albums.length === 0 ? (
+                {filteredAlbums.length === 0 ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '20px' }}>
-                    Brak zaindeksowanych albumów w bibliotece.
+                    {albums.length === 0 ? "Brak zaindeksowanych albumów w bibliotece." : "Brak albumów pasujących do wyszukiwania."}
                   </p>
                 ) : (
-                  albums.map((album) => (
+                  filteredAlbums.map((album) => (
                     <div
                       key={album.id}
                       className="glass-card"
@@ -3979,6 +4198,281 @@ const renderDevicesSection = () => (
           </div>
         )}
       </main>
+
+      {/* Pływający dolny dok odtwarzacza (Mini-Player) — widoczny w zakładkach innych niż Odtwarzacz */}
+      {activeTab !== 'player' && (status.state === 'Playing' || status.state === 'Paused' || currentPlayingTrack || status.current_track || filePath) && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '76px',
+            background: 'rgba(15, 12, 28, 0.94)',
+            backdropFilter: 'blur(24px)',
+            borderTop: '1px solid var(--border-accent)',
+            boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.65)',
+            zIndex: 900,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 24px',
+            gap: '16px',
+          }}
+        >
+          {/* Lewa strona: Mini okładka, Tytuł, Wykonawca i format — kliknięcie przełącza do pełnego Odtwarzacza */}
+          <div
+            onClick={() => setActiveTab('player')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              minWidth: '220px',
+              maxWidth: '30%',
+              cursor: 'pointer',
+            }}
+            title="Kliknij, aby otworzyć pełny ekran Odtwarzacza"
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                flexShrink: 0,
+                background: currentCover
+                  ? `url("${currentCover}") center/cover no-repeat`
+                  : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              {!currentCover && (
+                <Disc
+                  size={24}
+                  color="#fff"
+                  style={{
+                    animation: status.state === 'Playing' ? 'spin 4s linear infinite' : 'none',
+                  }}
+                />
+              )}
+            </div>
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {currentPlayingTrack?.title || status.current_track?.title || filePath.split('/').pop() || 'Brak utworu'}
+              </p>
+              <p
+                style={{
+                  margin: '2px 0 0 0',
+                  fontSize: '0.76rem',
+                  color: 'var(--text-secondary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {currentPlayingTrack?.artist || status.current_track?.artist || 'Nieznany wykonawca'}
+                {currentPlayingTrack?.format && (
+                  <span
+                    style={{
+                      marginLeft: '6px',
+                      fontSize: '0.68rem',
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      background: 'rgba(6, 182, 212, 0.15)',
+                      color: 'var(--accent-cyan)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {currentPlayingTrack.format}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Środek: Sterowanie odtwarzaniem i pasek pozycji */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '6px',
+              flex: 1,
+              maxWidth: '560px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button
+                onClick={handlePrevious}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Poprzedni utwór"
+              >
+                <SkipBack size={18} />
+              </button>
+              <button
+                onClick={handlePlayPause}
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                  border: 'none',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 16px rgba(255, 77, 148, 0.45)',
+                }}
+                title={status.state === 'Playing' ? 'Wstrzymaj' : 'Odtwórz'}
+              >
+                {status.state === 'Playing' ? <Pause size={18} fill="#fff" /> : <Play size={18} fill="#fff" style={{ marginLeft: '2px' }} />}
+              </button>
+              <button
+                onClick={handleNext}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Następny utwór"
+              >
+                <SkipForward size={18} />
+              </button>
+            </div>
+
+            {/* Suwak pozycji */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '36px', textAlign: 'right' }}>
+                {formatTime(status.position_ms)}
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={status.duration_ms || 100}
+                value={status.position_ms}
+                onChange={(e) => handleSeek(Number(e.target.value))}
+                style={{
+                  flex: 1,
+                  height: '4px',
+                  accentColor: 'var(--accent-pink)',
+                  cursor: 'pointer',
+                }}
+              />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '36px' }}>
+                {formatTime(status.duration_ms || 0)}
+              </span>
+            </div>
+          </div>
+
+          {/* Prawa strona: Wskaźniki DSP, Głośność i Maksymalizacja */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '220px', justifyContent: 'flex-end' }}>
+            {/* Wskaźniki pitch/tempo */}
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {status.pitch_semitones !== 0 && (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 7px',
+                    borderRadius: '6px',
+                    background: 'rgba(255, 77, 148, 0.15)',
+                    color: 'var(--accent-pink)',
+                    fontWeight: 600,
+                  }}
+                  title="Wysokość dźwięku (pitch shift)"
+                >
+                  {status.pitch_semitones > 0 ? `+${status.pitch_semitones}` : status.pitch_semitones} st
+                </span>
+              )}
+              {status.tempo_ratio !== 1.0 && (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 7px',
+                    borderRadius: '6px',
+                    background: 'rgba(6, 182, 212, 0.15)',
+                    color: 'var(--accent-cyan)',
+                    fontWeight: 600,
+                  }}
+                  title="Mnożnik tempa (tempo stretch)"
+                >
+                  {status.tempo_ratio.toFixed(2)}x
+                </span>
+              )}
+            </div>
+
+            {/* Suwak głośności */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => handleVolumeChange(status.volume === 0 ? 1.0 : 0)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+                title={status.volume === 0 ? 'Wyciszony (kliknij by przywrócić)' : 'Głośność'}
+              >
+                {status.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1.5}
+                step={0.01}
+                value={status.volume}
+                onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                style={{
+                  width: '65px',
+                  height: '4px',
+                  accentColor: 'var(--accent-purple)',
+                  cursor: 'pointer',
+                }}
+              />
+            </div>
+
+            {/* Przycisk przejścia do pełnego ekranu Odtwarzacza */}
+            <button
+              onClick={() => setActiveTab('player')}
+              className="glass-card"
+              style={{
+                padding: '6px 8px',
+                borderRadius: '8px',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.75rem',
+              }}
+              title="Otwórz pełny widok Odtwarzacza"
+            >
+              <Maximize2 size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Szuflada kolejki odtwarzania (Drawer) */}
       {isQueueOpen && (
