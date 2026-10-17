@@ -47,6 +47,32 @@ body {
     radial-gradient(circle at 85% 75%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
     radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.05) 0%, transparent 60%);
   background-attachment: fixed;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dynamiczne tło anime z kontrolowanym rozmyciem i nakładką */
+.anime-bg-layer {
+  position: fixed;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(var(--bg-blur, 8px));
+  transition: filter 0.25s ease, background-image 0.4s ease;
+  pointer-events: none;
+}
+
+.anime-overlay-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, var(--bg-overlay, 0.4));
+  transition: background 0.25s ease;
+  pointer-events: none;
 }
 
 /* Glassmorphism utility */

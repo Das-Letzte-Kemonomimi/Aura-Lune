@@ -7,7 +7,7 @@
 use audio_engine::{AudioEngine, DeviceManager, Transcoder};
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::transcode::ExportFormat;
-use domain::PlaybackState;
+use domain::{PlaybackState, Theme};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
 use serde::{Deserialize, Serialize};
@@ -376,6 +376,148 @@ fn get_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<Option<u64>
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn list_themes(state: State<'_, AppState>) -> Result<Vec<Theme>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_themes().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move {
+            let active_id = db
+                .get_app_setting("active_theme_id")
+                .await?
+                .unwrap_or_else(|| "cyber-kitsune".to_string());
+            if let Some(theme) = db.get_theme(&active_id).await? {
+                Ok(theme)
+            } else {
+                db.get_theme("cyber-kitsune").await?.ok_or_else(|| {
+                    storage::StorageError::Migration("Nie znaleziono domyślnego motywu".to_string())
+                })
+            }
+        })
+        .map_err(|e: storage::StorageError| e.to_string())
+}
+
+#[tauri::command]
+fn set_active_theme(theme_id: String, state: State<'_, AppState>) -> Result<Theme, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move {
+            let theme = db.get_theme(&theme_id).await?.ok_or_else(|| {
+                storage::StorageError::Migration(format!("Motyw '{}' nie istnieje", theme_id))
+            })?;
+            db.set_app_setting("active_theme_id", &theme_id).await?;
+            Ok(theme)
+        })
+        .map_err(|e: storage::StorageError| e.to_string())
+}
+
+#[tauri::command]
+fn save_theme(theme: Theme, state: State<'_, AppState>) -> Result<(), String> {
+    theme.validate()?;
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.save_theme(&theme).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_theme_background(
+    theme_id: String,
+    background_ref: Option<String>,
+    overlay_opacity: f32,
+    blur_radius: f32,
+    state: State<'_, AppState>,
+) -> Result<Theme, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move {
+            let mut theme = db.get_theme(&theme_id).await?.ok_or_else(|| {
+                storage::StorageError::Migration(format!("Motyw '{}' nie istnieje", theme_id))
+            })?;
+            theme.background_ref = background_ref;
+            theme.overlay_opacity = overlay_opacity;
+            theme.blur_radius = blur_radius;
+            theme.validate().map_err(storage::StorageError::Migration)?;
+            db.save_theme(&theme).await?;
+            Ok(theme)
+        })
+        .map_err(|e: storage::StorageError| e.to_string())
+}
+
+#[tauri::command]
+fn export_theme_json(theme_id: String, state: State<'_, AppState>) -> Result<String, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move {
+            let theme = db.get_theme(&theme_id).await?.ok_or_else(|| {
+                storage::StorageError::Migration(format!("Motyw '{}' nie istnieje", theme_id))
+            })?;
+            serde_json::to_string_pretty(&theme)
+                .map_err(|e| storage::StorageError::Migration(e.to_string()))
+        })
+        .map_err(|e: storage::StorageError| e.to_string())
+}
+
+#[tauri::command]
+fn import_theme_json(json_content: String, state: State<'_, AppState>) -> Result<Theme, String> {
+    let theme: Theme =
+        serde_json::from_str(&json_content).map_err(|e| format!("Błąd parsowania JSON: {}", e))?;
+    theme.validate()?;
+    let db = state.db.clone();
+    let theme_clone = theme.clone();
+    state
+        .rt
+        .block_on(async move {
+            db.save_theme(&theme_clone).await?;
+            db.set_app_setting("active_theme_id", &theme_clone.id)
+                .await?;
+            Ok::<(), storage::StorageError>(())
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(theme)
+}
+
+#[tauri::command]
+fn upload_background_image(file_path: String) -> Result<String, String> {
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() {
+        return Err("Wskazany plik nie istnieje".to_string());
+    }
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        _ => return Err("Obsługiwane są wyłącznie pliki graficzne PNG, JPG lub WebP".to_string()),
+    };
+
+    let bytes = std::fs::read(path).map_err(|e| format!("Błąd odczytu pliku: {}", e))?;
+    if bytes.len() > 15 * 1024 * 1024 {
+        return Err("Plik graficzny jest zbyt duży (maks. 15 MB)".to_string());
+    }
+
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{};base64,{}", mime, b64))
+}
+
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -469,6 +611,14 @@ pub fn run() {
             save_bookmark,
             get_bookmark,
             update_mpris_metadata,
+            list_themes,
+            get_active_theme,
+            set_active_theme,
+            save_theme,
+            update_theme_background,
+            export_theme_json,
+            import_theme_json,
+            upload_background_image,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

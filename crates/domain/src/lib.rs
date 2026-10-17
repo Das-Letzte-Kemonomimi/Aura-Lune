@@ -1,5 +1,8 @@
 pub mod device;
+pub mod theme;
 pub mod transcode;
+
+pub use theme::{default_themes, Theme, ThemeTokens};
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
