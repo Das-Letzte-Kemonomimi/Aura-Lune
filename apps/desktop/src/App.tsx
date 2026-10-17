@@ -1819,20 +1819,18 @@ const renderDevicesSection = () => (
   const renderAboutSection = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px', margin: '0 auto' }}>
       <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-        <div
+        <img
+          src="/auralune_icon.png"
+          alt="Auralune Logo"
           style={{
             width: '64px',
             height: '64px',
             borderRadius: '16px',
-            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--shadow-glow)',
+            objectFit: 'cover',
+            boxShadow: '0 0 24px rgba(168, 85, 247, 0.55)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
           }}
-        >
-          <Sparkles size={32} color="#fff" />
-        </div>
+        />
         <div>
           <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Auralune Kitsune Player</h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -1923,20 +1921,18 @@ const renderDevicesSection = () => (
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
+          <img
+            src="/auralune_icon.png"
+            alt="Auralune Logo"
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: 'var(--shadow-glow)',
+              objectFit: 'cover',
+              boxShadow: '0 0 16px rgba(168, 85, 247, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
             }}
-          >
-            <Sparkles size={22} color="#fff" />
-          </div>
+          />
           <div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
               Auralune <span style={{ color: 'var(--accent-pink)', fontSize: '0.9rem' }}>狐 Kitsune</span>
