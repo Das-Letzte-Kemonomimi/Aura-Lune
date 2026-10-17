@@ -152,6 +152,22 @@ impl Database {
                 rate_ratio REAL NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS themes (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                schema_version INTEGER NOT NULL,
+                tokens_json TEXT NOT NULL,
+                background_ref TEXT,
+                overlay_opacity REAL NOT NULL,
+                blur_radius REAL NOT NULL,
+                attribution TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
             CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
             CREATE INDEX IF NOT EXISTS idx_tracks_path ON tracks(path);
@@ -160,6 +176,21 @@ impl Database {
         )
         .execute(&self.pool)
         .await?;
+
+        // Inicjalizacja domyślnych motywów anime, jeśli tabela jest pusta
+        let theme_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM themes;")
+            .fetch_one(&self.pool)
+            .await?;
+
+        if theme_count == 0 {
+            for theme in domain::default_themes() {
+                self.save_theme(&theme).await?;
+            }
+            if self.get_app_setting("active_theme_id").await?.is_none() {
+                self.set_app_setting("active_theme_id", "cyber-kitsune")
+                    .await?;
+            }
+        }
 
         Ok(())
     }
@@ -392,6 +423,125 @@ impl Database {
 
         Ok(deleted_count)
     }
+
+    /// Zapisuje lub aktualizuje motyw w bazie danych.
+    pub async fn save_theme(&self, theme: &domain::Theme) -> Result<(), StorageError> {
+        theme.validate().map_err(StorageError::Migration)?;
+        let tokens_json = serde_json::to_string(&theme.tokens)
+            .map_err(|e| StorageError::Migration(e.to_string()))?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO themes (
+                id, name, schema_version, tokens_json, background_ref, overlay_opacity, blur_radius, attribution
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                schema_version = excluded.schema_version,
+                tokens_json = excluded.tokens_json,
+                background_ref = excluded.background_ref,
+                overlay_opacity = excluded.overlay_opacity,
+                blur_radius = excluded.blur_radius,
+                attribution = excluded.attribution;
+            "#,
+        )
+        .bind(&theme.id)
+        .bind(&theme.name)
+        .bind(theme.schema_version as i64)
+        .bind(&tokens_json)
+        .bind(&theme.background_ref)
+        .bind(theme.overlay_opacity as f64)
+        .bind(theme.blur_radius as f64)
+        .bind(&theme.attribution)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Pobiera motyw po ID.
+    pub async fn get_theme(&self, id: &str) -> Result<Option<domain::Theme>, StorageError> {
+        let row = sqlx::query(
+            "SELECT id, name, schema_version, tokens_json, background_ref, overlay_opacity, blur_radius, attribution FROM themes WHERE id = ?1 LIMIT 1;"
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(r) = row {
+            let tokens_json: String = r.get("tokens_json");
+            let tokens: domain::ThemeTokens = serde_json::from_str(&tokens_json)
+                .map_err(|e| StorageError::Migration(e.to_string()))?;
+
+            Ok(Some(domain::Theme {
+                id: r.get("id"),
+                name: r.get("name"),
+                schema_version: r.get::<i64, _>("schema_version") as u32,
+                tokens,
+                background_ref: r.get("background_ref"),
+                overlay_opacity: r.get::<f64, _>("overlay_opacity") as f32,
+                blur_radius: r.get::<f64, _>("blur_radius") as f32,
+                attribution: r.get("attribution"),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Pobiera listę wszystkich dostępnych motywów.
+    pub async fn list_themes(&self) -> Result<Vec<domain::Theme>, StorageError> {
+        let rows = sqlx::query(
+            "SELECT id, name, schema_version, tokens_json, background_ref, overlay_opacity, blur_radius, attribution FROM themes ORDER BY id;"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut themes = Vec::with_capacity(rows.len());
+        for r in rows {
+            let tokens_json: String = r.get("tokens_json");
+            let tokens: domain::ThemeTokens = serde_json::from_str(&tokens_json)
+                .map_err(|e| StorageError::Migration(e.to_string()))?;
+
+            themes.push(domain::Theme {
+                id: r.get("id"),
+                name: r.get("name"),
+                schema_version: r.get::<i64, _>("schema_version") as u32,
+                tokens,
+                background_ref: r.get("background_ref"),
+                overlay_opacity: r.get::<f64, _>("overlay_opacity") as f32,
+                blur_radius: r.get::<f64, _>("blur_radius") as f32,
+                attribution: r.get("attribution"),
+            });
+        }
+
+        Ok(themes)
+    }
+
+    /// Zapisuje ustawienie aplikacji (klucz-wartość).
+    pub async fn set_app_setting(&self, key: &str, value: &str) -> Result<(), StorageError> {
+        sqlx::query(
+            r#"
+            INSERT INTO app_settings (key, value) VALUES (?1, ?2)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            "#,
+        )
+        .bind(key)
+        .bind(value)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Pobiera ustawienie aplikacji.
+    pub async fn get_app_setting(&self, key: &str) -> Result<Option<String>, StorageError> {
+        let row = sqlx::query("SELECT value FROM app_settings WHERE key = ?1 LIMIT 1;")
+            .bind(key)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(row.map(|r| r.get("value")))
+    }
 }
 
 #[cfg(test)]
@@ -457,5 +607,33 @@ mod tests {
         assert_eq!(presets.len(), 1);
         assert_eq!(presets[0].name, "Nightcore");
         assert_eq!(presets[0].pitch_semitones, 3.0);
+
+        // 6. Test motywów anime i tokenów
+        let themes = db.list_themes().await.unwrap();
+        assert_eq!(themes.len(), 4); // 4 domyślne motywy zainicjowane migracją
+        let active = db.get_app_setting("active_theme_id").await.unwrap();
+        assert_eq!(active, Some("cyber-kitsune".to_string()));
+
+        let cyber = db.get_theme("cyber-kitsune").await.unwrap();
+        assert!(cyber.is_some());
+        let mut custom = cyber.unwrap();
+        custom.id = "custom-synth".to_string();
+        custom.name = "Custom Synth".to_string();
+        custom.overlay_opacity = 0.65;
+        custom.blur_radius = 16.0;
+        db.save_theme(&custom).await.unwrap();
+
+        let fetched_custom = db.get_theme("custom-synth").await.unwrap().unwrap();
+        assert_eq!(fetched_custom.name, "Custom Synth");
+        assert_eq!(fetched_custom.overlay_opacity, 0.65);
+        assert_eq!(fetched_custom.blur_radius, 16.0);
+
+        db.set_app_setting("active_theme_id", "custom-synth")
+            .await
+            .unwrap();
+        assert_eq!(
+            db.get_app_setting("active_theme_id").await.unwrap(),
+            Some("custom-synth".to_string())
+        );
     }
 }

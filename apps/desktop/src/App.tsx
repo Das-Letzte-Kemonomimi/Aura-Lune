@@ -21,7 +21,44 @@ import {
   Bookmark,
   RotateCcw,
   Save,
+  Palette,
+  Image as ImageIcon,
+  Upload,
+  Download,
+  Copy,
+  Check,
+  Trash2,
 } from 'lucide-react';
+
+interface ThemeTokens {
+  bg_deep: string;
+  bg_surface: string;
+  bg_surface_hover: string;
+  bg_card: string;
+  border_subtle: string;
+  border_accent: string;
+  accent_pink: string;
+  accent_purple: string;
+  accent_cyan: string;
+  accent_green: string;
+  accent_amber: string;
+  text_primary: string;
+  text_secondary: string;
+  text_muted: string;
+  shadow_glow: string;
+  shadow_card: string;
+}
+
+interface Theme {
+  id: string;
+  name: string;
+  schema_version: number;
+  tokens: ThemeTokens;
+  background_ref: string | null;
+  overlay_opacity: number;
+  blur_radius: number;
+  attribution: string | null;
+}
 
 interface DspCapabilities {
   engine: 'SoundTouch' | 'RubberBand';
@@ -129,11 +166,22 @@ export default function App() {
   });
 
   const [cards, setCards] = useState<AudioCard[]>([]);
-  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'dsp' | 'devices' | 'transcode'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'dsp' | 'devices' | 'transcode' | 'themes'>('player');
   const [transcodeOutput, setTranscodeOutput] = useState('tests/fixtures/converted_sample.opus');
   const [transcodeFormat, setTranscodeFormat] = useState<'Opus' | 'Flac' | 'Wav'>('Opus');
   const [transcodeBitrate, setTranscodeBitrate] = useState(192);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  // Stan motywów Anime (Etap 5)
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [currentTheme, setCurrentTheme] = useState<Theme | null>(null);
+  const [themeOverlay, setThemeOverlay] = useState<number>(0.4);
+  const [themeBlur, setThemeBlur] = useState<number>(8.0);
+  const [themeBgImage, setThemeBgImage] = useState<string | null>(null);
+  const [customBgPath, setCustomBgPath] = useState<string>('');
+  const [jsonExportContent, setJsonExportContent] = useState<string>('');
+  const [jsonImportContent, setJsonImportContent] = useState<string>('');
+  const [copiedJson, setCopiedJson] = useState<boolean>(false);
 
   // Stan biblioteki
   const [scanFolder, setScanFolder] = useState('tests/fixtures');
@@ -184,10 +232,147 @@ export default function App() {
     }
   };
 
+  const applyThemeToDom = (theme: Theme) => {
+    const root = document.documentElement;
+    const t = theme.tokens;
+    root.style.setProperty('--bg-deep', t.bg_deep);
+    root.style.setProperty('--bg-surface', t.bg_surface);
+    root.style.setProperty('--bg-surface-hover', t.bg_surface_hover);
+    root.style.setProperty('--bg-card', t.bg_card);
+    root.style.setProperty('--border-subtle', t.border_subtle);
+    root.style.setProperty('--border-accent', t.border_accent);
+    root.style.setProperty('--accent-pink', t.accent_pink);
+    root.style.setProperty('--accent-purple', t.accent_purple);
+    root.style.setProperty('--accent-cyan', t.accent_cyan);
+    root.style.setProperty('--accent-green', t.accent_green);
+    root.style.setProperty('--accent-amber', t.accent_amber);
+    root.style.setProperty('--text-primary', t.text_primary);
+    root.style.setProperty('--text-secondary', t.text_secondary);
+    root.style.setProperty('--text-muted', t.text_muted);
+    root.style.setProperty('--shadow-glow', t.shadow_glow);
+    root.style.setProperty('--shadow-card', t.shadow_card);
+
+    root.style.setProperty('--bg-overlay', `${theme.overlay_opacity}`);
+    root.style.setProperty('--bg-blur', `${theme.blur_radius}px`);
+
+    setThemeOverlay(theme.overlay_opacity);
+    setThemeBlur(theme.blur_radius);
+    setThemeBgImage(theme.background_ref);
+    setCurrentTheme(theme);
+  };
+
+  const loadThemes = async () => {
+    try {
+      const active = await invoke<Theme>('get_active_theme');
+      applyThemeToDom(active);
+      const all = await invoke<Theme[]>('list_themes');
+      setThemes(all);
+    } catch (e: any) {
+      console.warn('Błąd ładowania motywów:', e);
+    }
+  };
+
+  const handleSelectTheme = async (themeId: string) => {
+    try {
+      const t = await invoke<Theme>('set_active_theme', { themeId });
+      applyThemeToDom(t);
+      showMessage(`Aktywowano motyw '${t.name}'`);
+    } catch (e: any) {
+      showMessage(`Błąd aktywacji motywu: ${e}`, true);
+    }
+  };
+
+  const handleUploadBgImage = async () => {
+    if (!customBgPath.trim()) {
+      showMessage('Podaj ścieżkę do pliku graficznego PNG/JPG/WebP', true);
+      return;
+    }
+    try {
+      const dataUri = await invoke<string>('upload_background_image', { filePath: customBgPath.trim() });
+      setThemeBgImage(dataUri);
+      if (currentTheme) {
+        const updated = await invoke<Theme>('update_theme_background', {
+          themeId: currentTheme.id,
+          backgroundRef: dataUri,
+          overlayOpacity: themeOverlay,
+          blurRadius: themeBlur,
+        });
+        applyThemeToDom(updated);
+        await loadThemes();
+        showMessage('Zaktualizowano tło anime z pliku!');
+      }
+    } catch (e: any) {
+      showMessage(`Błąd wczytywania tła: ${e}`, true);
+    }
+  };
+
+  const handleRemoveBgImage = async () => {
+    if (!currentTheme) return;
+    try {
+      setThemeBgImage(null);
+      const updated = await invoke<Theme>('update_theme_background', {
+        themeId: currentTheme.id,
+        backgroundRef: null,
+        overlayOpacity: themeOverlay,
+        blurRadius: themeBlur,
+      });
+      applyThemeToDom(updated);
+      await loadThemes();
+      showMessage('Usunięto tło, przywrócono czysty gradient motywu');
+    } catch (e: any) {
+      showMessage(`Błąd usuwania tła: ${e}`, true);
+    }
+  };
+
+  const handleSaveBackgroundSettings = async () => {
+    if (!currentTheme) return;
+    try {
+      const updated = await invoke<Theme>('update_theme_background', {
+        themeId: currentTheme.id,
+        backgroundRef: themeBgImage,
+        overlayOpacity: themeOverlay,
+        blurRadius: themeBlur,
+      });
+      applyThemeToDom(updated);
+      await loadThemes();
+      showMessage('Zapisano parametry tła (overlay i blur) w motywie');
+    } catch (e: any) {
+      showMessage(`Błąd zapisu parametrów tła: ${e}`, true);
+    }
+  };
+
+  const handleExportTheme = async () => {
+    if (!currentTheme) return;
+    try {
+      const json = await invoke<string>('export_theme_json', { themeId: currentTheme.id });
+      setJsonExportContent(json);
+      showMessage(`Wygenerowano JSON dla motywu '${currentTheme.name}'`);
+    } catch (e: any) {
+      showMessage(`Błąd eksportu motywu: ${e}`, true);
+    }
+  };
+
+  const handleImportTheme = async () => {
+    if (!jsonImportContent.trim()) {
+      showMessage('Wklej treść JSON motywu do zaimportowania', true);
+      return;
+    }
+    try {
+      const imported = await invoke<Theme>('import_theme_json', { jsonContent: jsonImportContent.trim() });
+      applyThemeToDom(imported);
+      await loadThemes();
+      setJsonImportContent('');
+      showMessage(`Pomyślnie zaimportowano i aktywowano motyw '${imported.name}'`);
+    } catch (e: any) {
+      showMessage(`Błąd importu motywu: ${e}`, true);
+    }
+  };
+
   useEffect(() => {
     refreshDevices();
     loadLibrary();
     loadPresets();
+    loadThemes();
   }, []);
 
   const showMessage = (msg: string, isError = false) => {
@@ -443,7 +628,22 @@ export default function App() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px', position: 'relative' }}>
+      {/* Dynamiczne tło anime z kontrolowanym rozmyciem i nakładką */}
+      <div
+        className="anime-bg-layer"
+        style={{
+          backgroundImage: themeBgImage ? `url("${themeBgImage}")` : undefined,
+          display: themeBgImage ? 'block' : 'none',
+        }}
+      />
+      <div
+        className="anime-overlay-layer"
+        style={{
+          display: themeBgImage ? 'block' : 'none',
+        }}
+      />
+
       {/* Pasek górny / Nagłówek */}
       <header
         style={{
@@ -544,6 +744,23 @@ export default function App() {
             }}
           >
             Eksport & Opus
+          </button>
+          <button
+            onClick={() => setActiveTab('themes')}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: activeTab === 'themes' ? 'var(--accent-purple)' : 'transparent',
+              color: '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Palette size={15} />
+            Motywy
           </button>
         </nav>
       </header>
@@ -1490,6 +1707,428 @@ export default function App() {
               >
                 Rozpocznij konwersję (GStreamer)
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Zakładka: Motywy Anime & Custom Backgrounds (Etap 5) */}
+        {activeTab === 'themes' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <Palette size={26} color="var(--accent-purple)" />
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                  Anime Theme Studio & Personalizacja Wizualna
+                </h2>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                Głęboka personalizacja bez utraty czytelności: wybieraj dopracowane presety anime,
+                ustawiaj własne tapety z dynamicznym rozmyciem i nakładką przyciemniającą oraz
+                eksportuj/importuj motywy w bezpiecznym formacie JSON (bez ryzyka kodu obcego).
+              </p>
+            </div>
+
+            {/* Siatka presetów Anime */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {themes.map((t) => {
+                const isActive = currentTheme?.id === t.id;
+                return (
+                  <div
+                    key={t.id}
+                    className="glass-card"
+                    style={{
+                      padding: '20px',
+                      borderRadius: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      border: isActive ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+                      boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
+                      background: isActive ? 'var(--bg-surface-hover)' : 'var(--bg-card)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {t.name}
+                      </h3>
+                      {isActive && (
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '20px',
+                            background: 'var(--accent-purple)',
+                            color: '#fff',
+                          }}
+                        >
+                          Aktywny
+                        </span>
+                      )}
+                    </div>
+
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {t.attribution || 'Motyw wbudowany Auralune'}
+                    </p>
+
+                    {/* Próbnik kolorów tokenów */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                      <div
+                        title={`Tło: ${t.tokens.bg_deep}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.bg_deep,
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      />
+                      <div
+                        title={`Karta: ${t.tokens.bg_card}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.bg_card,
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      />
+                      <div
+                        title={`Akcent Róż: ${t.tokens.accent_pink}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.accent_pink,
+                        }}
+                      />
+                      <div
+                        title={`Akcent Fiolet: ${t.tokens.accent_purple}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.accent_purple,
+                        }}
+                      />
+                      <div
+                        title={`Akcent Cyjan: ${t.tokens.accent_cyan}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.accent_cyan,
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => handleSelectTheme(t.id)}
+                      disabled={isActive}
+                      style={{
+                        marginTop: '8px',
+                        padding: '10px',
+                        borderRadius: '10px',
+                        background: isActive
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        color: isActive ? 'var(--text-muted)' : '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {isActive ? 'Bieżący motyw' : 'Aktywuj motyw'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Menedżer własnego tła anime */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <ImageIcon size={22} color="var(--accent-cyan)" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                  Własna Tapeta Anime & Sterowanie Czytelnością
+                </h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Ścieżka do lokalnego pliku obrazu (PNG, JPG, WebP):
+                    </label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input
+                        type="text"
+                        value={customBgPath}
+                        onChange={(e) => setCustomBgPath(e.target.value)}
+                        placeholder="/home/user/Obrazy/anime_wallpaper.png"
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: '1px solid var(--border-subtle)',
+                          color: '#fff',
+                          fontSize: '0.85rem',
+                        }}
+                      />
+                      <button
+                        onClick={handleUploadBgImage}
+                        style={{
+                          padding: '10px 18px',
+                          borderRadius: '10px',
+                          background: 'var(--accent-purple)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Upload size={16} />
+                        Wczytaj
+                      </button>
+                    </div>
+                  </div>
+
+                  {themeBgImage && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(0,0,0,0.25)', padding: '12px', borderRadius: '12px' }}>
+                      <div
+                        style={{
+                          width: '60px',
+                          height: '42px',
+                          borderRadius: '8px',
+                          backgroundImage: `url("${themeBgImage}")`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Własne tło aktywne
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Bezpiecznie załadowane w pamięci aplikacji
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleRemoveBgImage}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: 'rgba(244, 63, 94, 0.2)',
+                          color: 'var(--accent-pink)',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        Usuń tło
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSaveBackgroundSettings}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: 'var(--shadow-glow)',
+                    }}
+                  >
+                    <Save size={16} />
+                    Zapisz ustawienia tła w motywie
+                  </button>
+                </div>
+
+                {/* Suwaki Overlay i Blur */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Nakładka przyciemniająca (Overlay Opacity):
+                      </label>
+                      <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>
+                        {Math.round(themeOverlay * 100)}%
+                      </strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.0}
+                      max={0.9}
+                      step={0.05}
+                      value={themeOverlay}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setThemeOverlay(val);
+                        document.documentElement.style.setProperty('--bg-overlay', `${val}`);
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      Gwarancja kontrastu: przyciemnia jasne ilustracje w tle, chroniąc czytelność tekstu.
+                    </p>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Promień rozmycia tła (Blur Radius):
+                      </label>
+                      <strong style={{ color: 'var(--accent-purple)', fontSize: '0.9rem' }}>
+                        {themeBlur} px
+                      </strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={30}
+                      step={1}
+                      value={themeBlur}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setThemeBlur(val);
+                        document.documentElement.style.setProperty('--bg-blur', `${val}px`);
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      Rozmywa tło za oknem odtwarzacza, eksponując stylizację cyber-glassmorphismu.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bezpieczny Import i Eksport JSON */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <Download size={22} color="var(--accent-pink)" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                  Przenośność Motywów (Bezpieczny format JSON)
+                </h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Eksport */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Eksport aktywnego motywu:
+                    </label>
+                    <button
+                      onClick={handleExportTheme}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--accent-purple)',
+                        color: '#fff',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Generuj JSON
+                    </button>
+                  </div>
+                  <textarea
+                    readOnly
+                    value={jsonExportContent}
+                    placeholder="Kliknij 'Generuj JSON', aby wyeksportować bieżący motyw..."
+                    rows={6}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--accent-cyan)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      resize: 'none',
+                    }}
+                  />
+                  {jsonExportContent && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(jsonExportContent);
+                        setCopiedJson(true);
+                        setTimeout(() => setCopiedJson(false), 2000);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {copiedJson ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                      {copiedJson ? 'Skopiowano do schowka!' : 'Kopiuj treść JSON'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Import */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Import motywu z pliku JSON:
+                  </label>
+                  <textarea
+                    value={jsonImportContent}
+                    onChange={(e) => setJsonImportContent(e.target.value)}
+                    placeholder='Wklej tutaj definicję motywu JSON (musi zawierać schema_version: 1)...'
+                    rows={6}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--border-subtle)',
+                      color: '#fff',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      resize: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={handleImportTheme}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                      color: '#fff',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <Upload size={16} />
+                    Zweryfikuj i zaimportuj motyw
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
