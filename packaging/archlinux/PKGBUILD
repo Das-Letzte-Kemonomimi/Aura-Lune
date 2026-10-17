@@ -45,13 +45,10 @@ prepare() {
 build() {
     cd "$srcdir/$pkgname-$pkgver" || cd "$srcdir/Auralune-$pkgver" || return 0
     
-    # 1. Budowanie frontendu React + Vite
+    # Budowanie aplikacji w trybie release z wbudowanym frontendem
     cd apps/desktop
-    npm run build
+    npx tauri build --no-bundle
     cd ../..
-
-    # 2. Budowanie binarki produkcyjnej Rust
-    cargo build --release --locked -p auralune-desktop
 }
 
 package() {
