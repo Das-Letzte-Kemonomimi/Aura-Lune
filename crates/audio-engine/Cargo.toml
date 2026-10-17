@@ -7,6 +7,8 @@ license.workspace = true
 [dependencies]
 domain = { path = "../domain" }
 dsp-api = { path = "../dsp-api" }
+dsp-rubberband = { path = "../dsp-rubberband" }
+dsp-soundtouch = { path = "../dsp-soundtouch" }
 gstreamer.workspace = true
 gstreamer-audio.workspace = true
 glib.workspace = true

@@ -25,6 +25,50 @@ pub enum DspEngine {
     RubberBand,
 }
 
+/// Zdolności i ograniczenia wybranego silnika DSP.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DspCapabilities {
+    pub engine: DspEngine,
+    pub name: String,
+    pub min_pitch_semitones: f64,
+    pub max_pitch_semitones: f64,
+    pub min_tempo_ratio: f64,
+    pub max_tempo_ratio: f64,
+    pub supports_formants: bool,
+    pub description: String,
+}
+
+impl DspEngine {
+    pub fn capabilities(&self) -> DspCapabilities {
+        match self {
+            DspEngine::SoundTouch => DspCapabilities {
+                engine: *self,
+                name: "SoundTouch".to_string(),
+                min_pitch_semitones: -12.0,
+                max_pitch_semitones: 12.0,
+                min_tempo_ratio: 0.5,
+                max_tempo_ratio: 2.0,
+                supports_formants: false,
+                description:
+                    "Lekki silnik SoundTouch (niski narzut CPU, natywna integracja w GStreamer)"
+                        .to_string(),
+            },
+            DspEngine::RubberBand => DspCapabilities {
+                engine: *self,
+                name: "Rubber Band".to_string(),
+                min_pitch_semitones: -24.0,
+                max_pitch_semitones: 24.0,
+                min_tempo_ratio: 0.25,
+                max_tempo_ratio: 4.0,
+                supports_formants: true,
+                description:
+                    "Precyzyjny silnik Rubber Band R3 (wysoka jakość transjentów, formanty)"
+                        .to_string(),
+            },
+        }
+    }
+}
+
 /// Format strumienia audio dla procesora DSP.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AudioFormat {

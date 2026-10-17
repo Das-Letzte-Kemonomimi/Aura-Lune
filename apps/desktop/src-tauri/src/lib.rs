@@ -8,13 +8,14 @@ use audio_engine::{AudioEngine, DeviceManager, Transcoder};
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::transcode::ExportFormat;
 use domain::PlaybackState;
+use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use storage::{AlbumRecord, ArtistRecord, Database, TrackRecord};
+use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, TrackRecord};
 use tauri::{Manager, State};
 use tracing::{error, info};
 
@@ -34,6 +35,8 @@ pub struct PlaybackStatusDto {
     pub pitch_semitones: f64,
     pub tempo_ratio: f64,
     pub rate_ratio: f64,
+    pub engine: DspEngine,
+    pub capabilities: DspCapabilities,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,6 +93,102 @@ fn set_tempo(tempo_ratio: f64, state: State<'_, AppState>) -> Result<(), String>
 }
 
 #[tauri::command]
+fn set_rate(rate_ratio: f64, state: State<'_, AppState>) -> Result<(), String> {
+    state
+        .engine
+        .set_rate_ratio(rate_ratio)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, String> {
+    let current = state.engine.dsp_params();
+    let reset_params = DspParams::new(current.engine, 0.0, 1.0, 1.0).map_err(|e| e.to_string())?;
+    state
+        .engine
+        .set_dsp_params(reset_params)
+        .map_err(|e| e.to_string())?;
+    Ok(get_status(state))
+}
+
+#[tauri::command]
+fn set_dsp_engine(
+    engine: DspEngine,
+    state: State<'_, AppState>,
+) -> Result<PlaybackStatusDto, String> {
+    info!("Tauri command: set_dsp_engine({:?})", engine);
+    state
+        .engine
+        .set_dsp_engine(engine)
+        .map_err(|e| e.to_string())?;
+    Ok(get_status(state))
+}
+
+#[tauri::command]
+fn get_dsp_capabilities(state: State<'_, AppState>) -> DspCapabilities {
+    state.engine.dsp_capabilities()
+}
+
+#[tauri::command]
+fn save_dsp_preset(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+    let dsp = state.engine.dsp_params();
+    let db = state.db.clone();
+    let engine_str = match dsp.engine {
+        DspEngine::SoundTouch => "SoundTouch",
+        DspEngine::RubberBand => "RubberBand",
+    };
+
+    state
+        .rt
+        .block_on(async move {
+            db.save_dsp_preset(
+                &name,
+                engine_str,
+                dsp.pitch_semitones,
+                dsp.tempo_ratio,
+                dsp.rate_ratio,
+            )
+            .await
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_dsp_presets(state: State<'_, AppState>) -> Result<Vec<DspPresetRecord>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_dsp_presets().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn load_dsp_preset(
+    preset: DspPresetRecord,
+    state: State<'_, AppState>,
+) -> Result<PlaybackStatusDto, String> {
+    let engine = if preset.engine.eq_ignore_ascii_case("RubberBand") {
+        DspEngine::RubberBand
+    } else {
+        DspEngine::SoundTouch
+    };
+
+    let params = DspParams::new(
+        engine,
+        preset.pitch_semitones,
+        preset.tempo_ratio,
+        preset.rate_ratio,
+    )
+    .map_err(|e| e.to_string())?;
+
+    state
+        .engine
+        .set_dsp_params(params)
+        .map_err(|e| e.to_string())?;
+    Ok(get_status(state))
+}
+
+#[tauri::command]
 fn set_volume(volume: f64, state: State<'_, AppState>) -> Result<(), String> {
     state.engine.set_volume(volume).map_err(|e| e.to_string())
 }
@@ -104,6 +203,7 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         .unwrap_or(0);
     let dur_ms = state.engine.duration().map(|d| d.as_millis() as u64);
     let dsp = state.engine.dsp_params();
+    let capabilities = state.engine.dsp_capabilities();
 
     PlaybackStatusDto {
         state: state.engine.state(),
@@ -113,6 +213,8 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         pitch_semitones: dsp.pitch_semitones,
         tempo_ratio: dsp.tempo_ratio,
         rate_ratio: dsp.rate_ratio,
+        engine: dsp.engine,
+        capabilities,
     }
 }
 
@@ -271,6 +373,13 @@ pub fn run() {
             seek,
             set_pitch,
             set_tempo,
+            set_rate,
+            reset_dsp,
+            set_dsp_engine,
+            get_dsp_capabilities,
+            save_dsp_preset,
+            list_dsp_presets,
+            load_dsp_preset,
             set_volume,
             get_status,
             list_devices,
