@@ -19,8 +19,7 @@ BINARY="${ROOT_DIR}/target/release/auralune-desktop"
 if [ ! -f "$BINARY" ]; then
     echo "Brak skompilowanego pliku binarnego w trybie release. Kompilacja..."
     export PATH="$HOME/.cargo/bin:$PATH"
-    (cd "${ROOT_DIR}/apps/desktop" && npm run build)
-    (cd "${ROOT_DIR}" && cargo build --release --locked -p auralune-desktop)
+    (cd "${ROOT_DIR}/apps/desktop" && npx tauri build --no-bundle)
 fi
 
 echo "--> Kopiowanie binarki do AppDir..."
