@@ -1,6 +1,7 @@
 //! Główny potok odtwarzacza GStreamer z dynamicznym procesorem DSP.
 
 use crate::error::AudioEngineError;
+use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::PlaybackState;
 use dsp_api::{semitones_to_pitch_ratio, DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
@@ -39,6 +40,7 @@ struct PipelineInner {
 #[derive(Clone)]
 pub struct AudioEngine {
     inner: Arc<Mutex<PipelineInner>>,
+    queue: Arc<Mutex<PlaybackQueue>>,
 }
 
 impl AudioEngine {
@@ -131,7 +133,8 @@ impl AudioEngine {
             dsp_params: DspParams::default(),
         }));
 
-        Ok(Self { inner })
+        let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
+        Ok(Self { inner, queue })
     }
 
     /// Ładuje plik lokalny lub URI do odtwarzania.
@@ -397,8 +400,17 @@ impl AudioEngine {
                 match msg.view() {
                     MessageView::Eos(..) => {
                         info!("Otrzymano komunikat EOS (koniec strumienia)");
-                        let mut inner = self.inner.lock().unwrap();
-                        inner.state = PlaybackState::Stopped;
+                        {
+                            let mut inner = self.inner.lock().unwrap();
+                            inner.state = PlaybackState::Stopped;
+                        }
+                        // Automatyczne przejście do następnego utworu w kolejce
+                        if let Ok(Some(next_track)) = self.play_next() {
+                            info!(
+                                "Kolejka: automatyczne przejście po EOS do utworu: {}",
+                                next_track.title
+                            );
+                        }
                         events.push(PlayerEvent::Eos);
                     }
                     MessageView::Error(err) => {
@@ -449,5 +461,151 @@ impl AudioEngine {
             }
         }
         events
+    }
+
+    // ==========================================
+    // METODY OBSŁUGI KOLEJKI ODTWARZANIA (QUEUE)
+    // ==========================================
+
+    /// Zwraca kopię bieżącego stanu kolejki odtwarzania.
+    pub fn queue(&self) -> PlaybackQueue {
+        self.queue.lock().unwrap().clone()
+    }
+
+    /// Ustawia nową zawartość kolejki i opcjonalnie rozpoczyna odtwarzanie od wskazanego indeksu.
+    pub fn set_queue(
+        &self,
+        items: Vec<QueueItem>,
+        start_index: Option<usize>,
+    ) -> Result<Option<QueueItem>, AudioEngineError> {
+        let active_item = {
+            let mut q = self.queue.lock().unwrap();
+            q.set_items(items, start_index);
+            q.current_item().cloned()
+        };
+
+        if let Some(item) = &active_item {
+            self.load_uri(&item.uri)?;
+            self.play()?;
+        }
+        Ok(active_item)
+    }
+
+    /// Dodaje utwór na koniec bieżącej kolejki.
+    pub fn add_to_queue(&self, item: QueueItem) {
+        let mut q = self.queue.lock().unwrap();
+        q.add_item(item);
+    }
+
+    /// Wstawia utwór jako następny po bieżącym.
+    pub fn add_next_to_queue(&self, item: QueueItem) {
+        let mut q = self.queue.lock().unwrap();
+        q.add_next(item);
+    }
+
+    /// Usuwa utwór z kolejki po unikalnym identyfikatorze.
+    pub fn remove_from_queue(&self, id: &str) -> Option<QueueItem> {
+        let mut q = self.queue.lock().unwrap();
+        q.remove_item(id)
+    }
+
+    /// Zmienia kolejność utworu w kolejce.
+    pub fn move_in_queue(&self, from: usize, to: usize) -> bool {
+        let mut q = self.queue.lock().unwrap();
+        q.move_item(from, to)
+    }
+
+    /// Czyści całą kolejkę odtwarzania.
+    pub fn clear_queue(&self) {
+        let mut q = self.queue.lock().unwrap();
+        q.clear();
+    }
+
+    /// Odtwarza utwór ze wskazanego indeksu w kolejce.
+    pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
+        let item = {
+            let mut q = self.queue.lock().unwrap();
+            if index < q.items.len() {
+                q.current_index = Some(index);
+                q.current_item().cloned()
+            } else {
+                None
+            }
+        };
+
+        if let Some(item) = &item {
+            self.load_uri(&item.uri)?;
+            self.play()?;
+        }
+        Ok(item)
+    }
+
+    /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle.
+    pub fn play_next(&self) -> Result<Option<QueueItem>, AudioEngineError> {
+        let next_item = {
+            let mut q = self.queue.lock().unwrap();
+            q.next().cloned()
+        };
+
+        match next_item {
+            Some(item) => {
+                self.load_uri(&item.uri)?;
+                self.play()?;
+                Ok(Some(item))
+            }
+            None => {
+                self.stop()?;
+                Ok(None)
+            }
+        }
+    }
+
+    /// Przechodzi do poprzedniego utworu w kolejce (lub resetuje bieżący, jeśli grał > 3s).
+    pub fn play_previous(&self) -> Result<Option<QueueItem>, AudioEngineError> {
+        if let Some(pos) = self.position() {
+            if pos.as_secs() >= 3 {
+                self.seek(Duration::from_millis(0))?;
+                let q = self.queue.lock().unwrap();
+                return Ok(q.current_item().cloned());
+            }
+        }
+
+        let prev_item = {
+            let mut q = self.queue.lock().unwrap();
+            q.previous().cloned()
+        };
+
+        match prev_item {
+            Some(item) => {
+                self.load_uri(&item.uri)?;
+                self.play()?;
+                Ok(Some(item))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Ustawia tryb powtarzania (None, Track, Queue).
+    pub fn set_loop_mode(&self, mode: LoopMode) {
+        let mut q = self.queue.lock().unwrap();
+        q.set_loop_mode(mode);
+    }
+
+    /// Pobiera aktualny tryb powtarzania.
+    pub fn loop_mode(&self) -> LoopMode {
+        let q = self.queue.lock().unwrap();
+        q.loop_mode
+    }
+
+    /// Włącza lub wyłącza tryb odtwarzania losowego (Shuffle).
+    pub fn set_shuffle(&self, enabled: bool) {
+        let mut q = self.queue.lock().unwrap();
+        q.set_shuffle(enabled);
+    }
+
+    /// Pobiera stan trybu odtwarzania losowego (Shuffle).
+    pub fn shuffle(&self) -> bool {
+        let q = self.queue.lock().unwrap();
+        q.shuffle
     }
 }

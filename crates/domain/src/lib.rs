@@ -1,7 +1,11 @@
 pub mod device;
+pub mod playlist;
+pub mod queue;
 pub mod theme;
 pub mod transcode;
 
+pub use playlist::Playlist;
+pub use queue::{LoopMode, PlaybackQueue, QueueItem};
 pub use theme::{default_themes, Theme, ThemeTokens};
 
 use serde::{Deserialize, Serialize};

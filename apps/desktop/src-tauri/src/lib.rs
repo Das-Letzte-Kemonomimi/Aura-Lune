@@ -6,8 +6,9 @@
 
 use audio_engine::{AudioEngine, DeviceManager, Transcoder};
 use domain::device::{AudioCard, BluetoothCodec};
+use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::transcode::ExportFormat;
-use domain::{PlaybackState, Theme};
+use domain::{PlaybackState, Playlist, Theme};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
 use metadata::{CoverArtArchiveClient, MusicBrainzClient, ReleaseCandidateDto};
@@ -41,6 +42,9 @@ pub struct PlaybackStatusDto {
     pub rate_ratio: f64,
     pub engine: DspEngine,
     pub capabilities: DspCapabilities,
+    pub loop_mode: LoopMode,
+    pub shuffle: bool,
+    pub current_track: Option<QueueItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -269,6 +273,9 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
     let dsp = state.engine.dsp_params();
     let capabilities = state.engine.dsp_capabilities();
 
+    let q = state.engine.queue();
+    let current_track = q.current_item().cloned();
+
     PlaybackStatusDto {
         state: state.engine.state(),
         position_ms: pos_ms,
@@ -279,6 +286,9 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         rate_ratio: dsp.rate_ratio,
         engine: dsp.engine,
         capabilities,
+        loop_mode: q.loop_mode,
+        shuffle: q.shuffle,
+        current_track,
     }
 }
 
@@ -617,6 +627,225 @@ fn auto_fetch_album_cover(
     })
 }
 
+fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        let track_info = desktop_integration::MprisTrackInfo {
+            title: item.title.clone(),
+            artist: item.artist.clone(),
+            album: item.album.clone().unwrap_or_default(),
+            duration_ms: item.duration_ms,
+            art_url: None,
+        };
+        state.rt.spawn(async move {
+            m.update_track(track_info).await;
+            m.update_playback_status(PlaybackState::Playing).await;
+        });
+    }
+}
+
+fn persist_queue_state(state: &AppState) {
+    let queue = state.engine.queue();
+    let db = state.db.clone();
+    state.rt.spawn(async move {
+        if let Err(e) = db.save_queue_state(&queue).await {
+            tracing::warn!("Nie udało się zapisać stanu kolejki: {}", e);
+        }
+    });
+}
+
+#[tauri::command]
+fn get_queue(state: State<'_, AppState>) -> PlaybackQueue {
+    state.engine.queue()
+}
+
+#[tauri::command]
+fn set_queue(
+    items: Vec<QueueItem>,
+    start_index: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<Option<QueueItem>, String> {
+    info!("Tauri command: set_queue ({} utworów)", items.len());
+    let active = state
+        .engine
+        .set_queue(items, start_index)
+        .map_err(|e| e.to_string())?;
+    if let Some(item) = &active {
+        sync_mpris_from_queue_item(item, &state);
+    }
+    persist_queue_state(&state);
+    Ok(active)
+}
+
+#[tauri::command]
+fn add_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: add_to_queue('{}')", item.title);
+    state.engine.add_to_queue(item);
+    persist_queue_state(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn add_next_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: add_next_to_queue('{}')", item.title);
+    state.engine.add_next_to_queue(item);
+    persist_queue_state(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn remove_from_queue(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: remove_from_queue('{}')", id);
+    state.engine.remove_from_queue(&id);
+    persist_queue_state(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn reorder_queue(
+    from_idx: usize,
+    to_idx: usize,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    info!("Tauri command: reorder_queue({} -> {})", from_idx, to_idx);
+    let res = state.engine.move_in_queue(from_idx, to_idx);
+    persist_queue_state(&state);
+    Ok(res)
+}
+
+#[tauri::command]
+fn clear_queue(state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: clear_queue()");
+    state.engine.clear_queue();
+    persist_queue_state(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn play_queue_index(index: usize, state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
+    info!("Tauri command: play_queue_index({})", index);
+    let active = state.engine.play_index(index).map_err(|e| e.to_string())?;
+    if let Some(item) = &active {
+        sync_mpris_from_queue_item(item, &state);
+    }
+    persist_queue_state(&state);
+    Ok(active)
+}
+
+#[tauri::command]
+fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
+    info!("Tauri command: play_next()");
+    let next_item = state.engine.play_next().map_err(|e| e.to_string())?;
+    if let Some(item) = &next_item {
+        sync_mpris_from_queue_item(item, &state);
+    }
+    persist_queue_state(&state);
+    Ok(next_item)
+}
+
+#[tauri::command]
+fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
+    info!("Tauri command: play_previous()");
+    let prev_item = state.engine.play_previous().map_err(|e| e.to_string())?;
+    if let Some(item) = &prev_item {
+        sync_mpris_from_queue_item(item, &state);
+    }
+    persist_queue_state(&state);
+    Ok(prev_item)
+}
+
+#[tauri::command]
+fn set_loop_mode(mode: LoopMode, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_loop_mode({:?})", mode);
+    state.engine.set_loop_mode(mode);
+    persist_queue_state(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, String> {
+    let current = state.engine.shuffle();
+    let new_val = !current;
+    info!("Tauri command: toggle_shuffle({} -> {})", current, new_val);
+    state.engine.set_shuffle(new_val);
+    persist_queue_state(&state);
+    Ok(new_val)
+}
+
+#[tauri::command]
+fn create_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+    info!("Tauri command: create_playlist('{}')", name);
+    state
+        .rt
+        .block_on(async { state.db.create_playlist(&name).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_playlist(playlist_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: delete_playlist({})", playlist_id);
+    state
+        .rt
+        .block_on(async { state.db.delete_playlist(playlist_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_playlists(state: State<'_, AppState>) -> Result<Vec<Playlist>, String> {
+    state
+        .rt
+        .block_on(async { state.db.list_playlists().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_track_to_playlist(
+    playlist_id: i64,
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: add_track_to_playlist(playlist: {}, track: {})",
+        playlist_id, track_id
+    );
+    state
+        .rt
+        .block_on(async { state.db.add_track_to_playlist(playlist_id, track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_track_from_playlist(
+    playlist_id: i64,
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: remove_track_from_playlist(playlist: {}, track: {})",
+        playlist_id, track_id
+    );
+    state
+        .rt
+        .block_on(async {
+            state
+                .db
+                .remove_track_from_playlist(playlist_id, track_id)
+                .await
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_playlist_tracks(
+    playlist_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, String> {
+    state
+        .rt
+        .block_on(async { state.db.get_playlist_tracks(playlist_id).await })
+        .map_err(|e| e.to_string())
+}
+
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -653,6 +882,22 @@ pub fn run() {
                         .await
                         .expect("Błąd otwarcia bazy SQLite")
                 });
+
+                // Przywrócenie ostatniego stanu kolejki odtwarzania z bazy danych
+                if let Ok(Some(saved_queue)) = rt.block_on(async { db.load_queue_state().await }) {
+                    info!(
+                        "Wczytano zapisany stan kolejki ({} utworów)",
+                        saved_queue.items.len()
+                    );
+                    let loop_mode = saved_queue.loop_mode;
+                    let shuffle = saved_queue.shuffle;
+                    let items = saved_queue.items;
+                    let current_index = saved_queue.current_index;
+                    let _ = engine.set_queue(items, current_index);
+                    engine.set_loop_mode(loop_mode);
+                    engine.set_shuffle(shuffle);
+                    let _ = engine.pause();
+                }
 
                 let scanner = LibraryScanner::new(&cache_dir);
                 let mb = Arc::new(MusicBrainzClient::new());
@@ -725,6 +970,24 @@ pub fn run() {
             search_musicbrainz_releases,
             fetch_and_apply_cover,
             auto_fetch_album_cover,
+            get_queue,
+            set_queue,
+            add_to_queue,
+            add_next_to_queue,
+            remove_from_queue,
+            reorder_queue,
+            clear_queue,
+            play_queue_index,
+            play_next,
+            play_previous,
+            set_loop_mode,
+            toggle_shuffle,
+            create_playlist,
+            delete_playlist,
+            list_playlists,
+            add_track_to_playlist,
+            remove_track_from_playlist,
+            get_playlist_tracks,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
