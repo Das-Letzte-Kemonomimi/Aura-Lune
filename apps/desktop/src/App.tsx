@@ -44,6 +44,9 @@ import {
   FolderPlus,
   ListPlus,
   Activity,
+  Settings,
+  Info,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface EqualizerPreset {
@@ -251,6 +254,9 @@ export default function App() {
 
   const [cards, setCards] = useState<AudioCard[]>([]);
   const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'dsp' | 'devices' | 'transcode' | 'themes'>('player');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'themes' | 'devices' | 'transcode' | 'about'>('themes');
+  const [isQuickLoadOpen, setIsQuickLoadOpen] = useState(false);
 
   // Stan kolejki odtwarzania (Etap 7)
   const [queue, setQueue] = useState<PlaybackQueue>({
@@ -294,6 +300,24 @@ export default function App() {
   const [albums, setAlbums] = useState<AlbumRecord[]>([]);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
 
+  // Aktualnie odtwarzany utwór i powiązana okładka albumu
+  const currentPlayingTrack = tracks.find(
+    (t) => t.id === activeTrackId || (status.current_track?.track_id && t.id === status.current_track.track_id)
+  ) || null;
+  const currentAlbum = currentPlayingTrack && currentPlayingTrack.album_id
+    ? albums.find((a) => a.id === currentPlayingTrack.album_id)
+    : null;
+  const currentCover = currentAlbum?.cover_path || null;
+
+  // Automatyczne przekierowanie starych zakładek do okna Ustawień
+  useEffect(() => {
+    if (activeTab === 'themes' || activeTab === 'devices' || activeTab === 'transcode') {
+      setSettingsTab(activeTab);
+      setIsSettingsOpen(true);
+      setActiveTab('player');
+    }
+  }, [activeTab]);
+
   // Stan MusicBrainz i Cover Art Archive (Etap 6)
   const [librarySubView, setLibrarySubView] = useState<'tracks' | 'albums'>('tracks');
   const [selectedAlbumForMb, setSelectedAlbumForMb] = useState<AlbumRecord | null>(null);
@@ -323,7 +347,8 @@ export default function App() {
 
     fetchStatus();
     const interval = setInterval(fetchStatus, 100);
-    return () => clearInterval(interval);
+  
+  return () => clearInterval(interval);
   }, []);
 
   // Wczytanie fabrycznych presetów korektora EQ
@@ -1131,6 +1156,746 @@ export default function App() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+const renderDevicesSection = () => (
+<div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Radio size={20} color="var(--accent-green)" /> Karty PipeWire, Pro Audio & Kodeki Bluetooth
+              </h2>
+              <button
+                onClick={refreshDevices}
+                className="glass-card"
+                style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
+              >
+                <RefreshCw size={14} /> Odśwież
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {cards.map((card) => (
+                <div key={card.name} className="glass-card" style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {card.is_bluetooth ? <Headphones size={18} color="var(--accent-cyan)" /> : <Zap size={18} color="var(--accent-amber)" />}
+                      <span style={{ fontWeight: 600 }}>{card.description}</span>
+                    </div>
+
+                    {card.profiles.some((p) => p.is_pro_audio) && (
+                      <span
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: 'var(--accent-green)',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                        }}
+                      >
+                        PRO AUDIO READY
+                      </span>
+                    )}
+                  </div>
+
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: '10px' }}>
+                    ID: {card.name} | Aktywny profil: {card.active_profile || 'brak'}
+                  </p>
+
+                  {/* Akcje Pro Audio */}
+                  {card.profiles.some((p) => p.is_pro_audio) && (
+                    <div style={{ marginBottom: '8px' }}>
+                      <button
+                        onClick={() => handleEnableProAudio(card.name)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          background: card.active_profile === 'pro-audio' ? 'var(--accent-green)' : 'rgba(255,255,255,0.08)',
+                          color: '#fff',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {card.active_profile === 'pro-audio' ? '✓ Tryb Pro Audio aktywny' : 'Włącz Pro Audio (Bit-Perfect Direct ALSA)'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Kodeki Bluetooth */}
+                  {card.is_bluetooth && (
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                        Wybór kodeka Bluetooth (A2DP):
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {card.profiles
+                          .filter((p) => p.bluetooth_codec)
+                          .map((p) => (
+                            <button
+                              key={p.name}
+                              onClick={() => handleSetBluetoothCodec(card.name, p.bluetooth_codec!)}
+                              style={{
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                background: card.active_profile === p.name ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.06)',
+                                color: '#fff',
+                                fontSize: '0.75rem',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {p.bluetooth_codec === 'Ldac'
+                                ? 'Sony LDAC (High-Res 990 kbps)'
+                                : p.bluetooth_codec === 'AptxHd'
+                                ? 'aptX HD'
+                                : p.bluetooth_codec === 'SbcXq'
+                                ? 'SBC-XQ (High Quality)'
+                                : p.bluetooth_codec}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+  );
+
+  const renderTranscodeSection = () => (
+<div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileAudio size={20} color="var(--accent-pink)" /> Nieniszczący konwerter formatów (Opus, FLAC, WAV)
+            </h2>
+
+            {/* Baner bezpieczeństwa */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                marginBottom: '24px',
+              }}
+            >
+              <ShieldCheck size={24} color="var(--accent-green)" />
+              <div>
+                <strong style={{ color: 'var(--accent-green)', fontSize: '0.85rem' }}>Gwarancja nienaruszalności plików:</strong>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Aplikacja nigdy nie modyfikuje ani nie usuwa oryginalnego pliku z dysku. Konwersja tworzy nowy plik docelowy.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Plik źródłowy:
+                </label>
+                <input
+                  type="text"
+                  value={filePath}
+                  onChange={(e) => setFilePath(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(0,0,0,0.3)',
+                    color: '#fff',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Ścieżka pliku wyjściowego:
+                </label>
+                <input
+                  type="text"
+                  value={transcodeOutput}
+                  onChange={(e) => setTranscodeOutput(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(0,0,0,0.3)',
+                    color: '#fff',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                  Format docelowy:
+                </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {(['Opus', 'Flac', 'Wav'] as const).map((fmt) => (
+                    <button
+                      key={fmt}
+                      onClick={() => {
+                        setTranscodeFormat(fmt);
+                        const base = filePath.substring(0, filePath.lastIndexOf('.')) || filePath;
+                        setTranscodeOutput(`${base}.${fmt.toLowerCase()}`);
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        background: transcodeFormat === fmt ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {fmt === 'Opus' ? 'Ogg Opus' : fmt === 'Flac' ? 'FLAC (Bezstratny)' : 'WAV PCM'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {transcodeFormat === 'Opus' && (
+                <div>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Bitrate Opus: <strong style={{ color: 'var(--accent-cyan)' }}>{transcodeBitrate} kbps</strong>
+                  </label>
+                  <input
+                    type="range"
+                    min={64}
+                    max={320}
+                    step={32}
+                    value={transcodeBitrate}
+                    onChange={(e) => setTranscodeBitrate(Number(e.target.value))}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={handleTranscode}
+                style={{
+                  marginTop: '12px',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  boxShadow: 'var(--shadow-glow)',
+                }}
+              >
+                Rozpocznij konwersję (GStreamer)
+              </button>
+            </div>
+          </div>
+  );
+
+  const renderThemesSection = () => (
+<div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <Palette size={26} color="var(--accent-purple)" />
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                  Anime Theme Studio & Personalizacja Wizualna
+                </h2>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                Głęboka personalizacja bez utraty czytelności: wybieraj dopracowane presety anime,
+                ustawiaj własne tapety z dynamicznym rozmyciem i nakładką przyciemniającą oraz
+                eksportuj/importuj motywy w bezpiecznym formacie JSON (bez ryzyka kodu obcego).
+              </p>
+            </div>
+
+            {/* Siatka presetów Anime */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {themes.map((t) => {
+                const isActive = currentTheme?.id === t.id;
+                return (
+                  <div
+                    key={t.id}
+                    className="glass-card"
+                    style={{
+                      padding: '20px',
+                      borderRadius: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      border: isActive ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+                      boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
+                      background: isActive ? 'var(--bg-surface-hover)' : 'var(--bg-card)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {t.name}
+                      </h3>
+                      {isActive && (
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '20px',
+                            background: 'var(--accent-purple)',
+                            color: '#fff',
+                          }}
+                        >
+                          Aktywny
+                        </span>
+                      )}
+                    </div>
+
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {t.attribution || 'Motyw wbudowany Auralune'}
+                    </p>
+
+                    {/* Próbnik kolorów tokenów */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                      <div
+                        title={`Tło: ${t.tokens.bg_deep}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.bg_deep,
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      />
+                      <div
+                        title={`Karta: ${t.tokens.bg_card}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.bg_card,
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      />
+                      <div
+                        title={`Akcent Róż: ${t.tokens.accent_pink}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.accent_pink,
+                        }}
+                      />
+                      <div
+                        title={`Akcent Fiolet: ${t.tokens.accent_purple}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.accent_purple,
+                        }}
+                      />
+                      <div
+                        title={`Akcent Cyjan: ${t.tokens.accent_cyan}`}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: t.tokens.accent_cyan,
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => handleSelectTheme(t.id)}
+                      disabled={isActive}
+                      style={{
+                        marginTop: '8px',
+                        padding: '10px',
+                        borderRadius: '10px',
+                        background: isActive
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        color: isActive ? 'var(--text-muted)' : '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {isActive ? 'Bieżący motyw' : 'Aktywuj motyw'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Menedżer własnego tła anime */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <ImageIcon size={22} color="var(--accent-cyan)" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                  Własna Tapeta Anime & Sterowanie Czytelnością
+                </h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                      Ścieżka do lokalnego pliku obrazu (PNG, JPG, WebP):
+                    </label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input
+                        type="text"
+                        value={customBgPath}
+                        onChange={(e) => setCustomBgPath(e.target.value)}
+                        placeholder="/home/user/Obrazy/anime_wallpaper.png"
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: '1px solid var(--border-subtle)',
+                          color: '#fff',
+                          fontSize: '0.85rem',
+                        }}
+                      />
+                      <button
+                        onClick={handleUploadBgImage}
+                        style={{
+                          padding: '10px 18px',
+                          borderRadius: '10px',
+                          background: 'var(--accent-purple)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Upload size={16} />
+                        Wczytaj
+                      </button>
+                    </div>
+                  </div>
+
+                  {themeBgImage && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(0,0,0,0.25)', padding: '12px', borderRadius: '12px' }}>
+                      <div
+                        style={{
+                          width: '60px',
+                          height: '42px',
+                          borderRadius: '8px',
+                          backgroundImage: `url("${themeBgImage}")`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Własne tło aktywne
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Bezpiecznie załadowane w pamięci aplikacji
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleRemoveBgImage}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: 'rgba(244, 63, 94, 0.2)',
+                          color: 'var(--accent-pink)',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        Usuń tło
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSaveBackgroundSettings}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: 'var(--shadow-glow)',
+                    }}
+                  >
+                    <Save size={16} />
+                    Zapisz ustawienia tła w motywie
+                  </button>
+                </div>
+
+                {/* Suwaki Overlay i Blur */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Nakładka przyciemniająca (Overlay Opacity):
+                      </label>
+                      <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>
+                        {Math.round(themeOverlay * 100)}%
+                      </strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.0}
+                      max={0.9}
+                      step={0.05}
+                      value={themeOverlay}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setThemeOverlay(val);
+                        document.documentElement.style.setProperty('--bg-overlay', `${val}`);
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      Gwarancja kontrastu: przyciemnia jasne ilustracje w tle, chroniąc czytelność tekstu.
+                    </p>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Promień rozmycia tła (Blur Radius):
+                      </label>
+                      <strong style={{ color: 'var(--accent-purple)', fontSize: '0.9rem' }}>
+                        {themeBlur} px
+                      </strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={30}
+                      step={1}
+                      value={themeBlur}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setThemeBlur(val);
+                        document.documentElement.style.setProperty('--bg-blur', `${val}px`);
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      Rozmywa tło za oknem odtwarzacza, eksponując stylizację cyber-glassmorphismu.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bezpieczny Import i Eksport JSON */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <Download size={22} color="var(--accent-pink)" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                  Przenośność Motywów (Bezpieczny format JSON)
+                </h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Eksport */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Eksport aktywnego motywu:
+                    </label>
+                    <button
+                      onClick={handleExportTheme}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--accent-purple)',
+                        color: '#fff',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Generuj JSON
+                    </button>
+                  </div>
+                  <textarea
+                    readOnly
+                    value={jsonExportContent}
+                    placeholder="Kliknij 'Generuj JSON', aby wyeksportować bieżący motyw..."
+                    rows={6}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--accent-cyan)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      resize: 'none',
+                    }}
+                  />
+                  {jsonExportContent && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(jsonExportContent);
+                        setCopiedJson(true);
+                        setTimeout(() => setCopiedJson(false), 2000);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {copiedJson ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                      {copiedJson ? 'Skopiowano do schowka!' : 'Kopiuj treść JSON'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Import */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Import motywu z pliku JSON:
+                  </label>
+                  <textarea
+                    value={jsonImportContent}
+                    onChange={(e) => setJsonImportContent(e.target.value)}
+                    placeholder='Wklej tutaj definicję motywu JSON (musi zawierać schema_version: 1)...'
+                    rows={6}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--border-subtle)',
+                      color: '#fff',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      resize: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={handleImportTheme}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                      color: '#fff',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <Upload size={16} />
+                    Zweryfikuj i zaimportuj motyw
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+  );
+
+  const renderAboutSection = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px', margin: '0 auto' }}>
+      <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: 'var(--shadow-glow)',
+          }}
+        >
+          <Sparkles size={32} color="#fff" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Auralune Kitsune Player</h3>
+          <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.85rem', fontWeight: 600 }}>
+            Wersja 0.1.0 • Linux High-Fidelity Audio Desktop Player
+          </p>
+          <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+            Łączy elastyczność foobar2000 z wygodą Powerampa oraz unikalną estetyką anime i glassmorphismu.
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div className="glass-card" style={{ padding: '16px' }}>
+          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+            Silnik Audio & Routing
+          </span>
+          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: '#fff' }}>
+            GStreamer + PipeWire Pro Audio
+          </p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            Bezpośrednia integracja z PipeWire, automatyczna negocjacja formatów i niska latencja.
+          </p>
+        </div>
+
+        <div className="glass-card" style={{ padding: '16px' }}>
+          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+            Przetwarzanie DSP w czasie rzeczywistym
+          </span>
+          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+            SoundTouch & Rubber Band
+          </p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            Niezależna zmiana tempa, wysokości (pitch) i szybkości z 10-pasmowym korektorem graficznym.
+          </p>
+        </div>
+
+        <div className="glass-card" style={{ padding: '16px' }}>
+          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+            Biblioteka & Metadane
+          </span>
+          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-purple)' }}>
+            SQLite (sqlx) + Cover Art Archive
+          </p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            W pełni lokalna baza z przyrostowym skanerem i asynchronicznym pobieraniem okładek.
+          </p>
+        </div>
+
+        <div className="glass-card" style={{ padding: '16px' }}>
+          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+            Licencja & Otwarty Kod
+          </span>
+          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-green)' }}>
+            GPL-3.0-or-later
+          </p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            Aplikacja wolna i otwarta, stworzona z myślą o społeczności Linuksa.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px', position: 'relative' }}>
       {/* Dynamiczne tło anime z kontrolowanym rozmyciem i nakładką */}
@@ -1182,12 +1947,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* Zakładki */}
-        <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px' }}>
+        {/* Zakładki główne aplikacji */}
+        <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
           <button
             onClick={() => setActiveTab('player')}
             style={{
-              padding: '8px 14px',
+              padding: '8px 16px',
               borderRadius: '8px',
               background: activeTab === 'player' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -1200,7 +1965,7 @@ export default function App() {
           <button
             onClick={() => setActiveTab('library')}
             style={{
-              padding: '8px 14px',
+              padding: '8px 16px',
               borderRadius: '8px',
               background: activeTab === 'library' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -1213,7 +1978,7 @@ export default function App() {
           <button
             onClick={() => setActiveTab('playlists')}
             style={{
-              padding: '8px 14px',
+              padding: '8px 16px',
               borderRadius: '8px',
               background: activeTab === 'playlists' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -1230,48 +1995,9 @@ export default function App() {
           <button
             onClick={() => setActiveTab('dsp')}
             style={{
-              padding: '8px 14px',
+              padding: '8px 16px',
               borderRadius: '8px',
               background: activeTab === 'dsp' ? 'var(--accent-purple)' : 'transparent',
-              color: '#fff',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-            }}
-          >
-            Panel DSP
-          </button>
-          <button
-            onClick={() => setActiveTab('devices')}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: activeTab === 'devices' ? 'var(--accent-purple)' : 'transparent',
-              color: '#fff',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-            }}
-          >
-            Pro Audio & Bluetooth
-          </button>
-          <button
-            onClick={() => setActiveTab('transcode')}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: activeTab === 'transcode' ? 'var(--accent-purple)' : 'transparent',
-              color: '#fff',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-            }}
-          >
-            Eksport & Opus
-          </button>
-          <button
-            onClick={() => setActiveTab('themes')}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: activeTab === 'themes' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
               fontSize: '0.85rem',
               fontWeight: 600,
@@ -1280,9 +2006,13 @@ export default function App() {
               gap: '6px',
             }}
           >
-            <Palette size={15} />
-            Motywy
+            <SlidersHorizontal size={15} />
+            Korektor & DSP
           </button>
+        </nav>
+
+        {/* Narzędzia i Ustawienia po prawej */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => setIsQueueOpen(!isQueueOpen)}
             style={{
@@ -1302,7 +2032,32 @@ export default function App() {
             <ListMusic size={15} />
             Kolejka ({queue.items.length})
           </button>
-        </nav>
+
+          <button
+            onClick={() => {
+              setSettingsTab('themes');
+              setIsSettingsOpen(true);
+            }}
+            className="glass-card"
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              color: isSettingsOpen ? 'var(--accent-purple)' : '#fff',
+              border: isSettingsOpen ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+              background: isSettingsOpen ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+            }}
+            title="Otwórz ustawienia, motywy anime i konfigurację audio"
+          >
+            <Settings size={15} />
+            Ustawienia
+          </button>
+        </div>
       </header>
 
       {/* Komunikat powiadomień */}
@@ -1324,314 +2079,600 @@ export default function App() {
 
       {/* Główna zawartość */}
       <main style={{ flex: 1, overflowY: 'auto' }}>
-        {/* ZAKŁADKA 1: ODTWARZACZ */}
+        {/* ZAKŁADKA 1: ODTWARZACZ (NOWOCZESNY WIDOK HI-FI DESKTOP) */}
         {activeTab === 'player' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileAudio size={20} color="var(--accent-cyan)" /> Wybór i ładowanie utworu
-            </h2>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <input
-                type="text"
-                value={filePath}
-                onChange={(e) => setFilePath(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'rgba(0,0,0,0.3)',
-                  color: '#fff',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.85rem',
-                }}
-              />
-              <button
-                onClick={() => handleLoadFile(filePath)}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  color: '#fff',
-                  fontWeight: 600,
-                }}
-              >
-                Załaduj
-              </button>
-            </div>
-
-            {/* Szybkie presety testowe */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '30px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Próbki testowe:</span>
-              <button
-                onClick={() => {
-                  setFilePath('tests/fixtures/test_sine_440hz.wav');
-                  handleLoadFile('tests/fixtures/test_sine_440hz.wav');
-                }}
-                className="glass-card"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}
-              >
-                WAV 440 Hz Sinus
-              </button>
-              <button
-                onClick={() => {
-                  setFilePath('tests/fixtures/test_sine_440hz.opus');
-                  handleLoadFile('tests/fixtures/test_sine_440hz.opus');
-                }}
-                className="glass-card"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', color: 'var(--accent-cyan)' }}
-              >
-                Opus 48 kHz
-              </button>
-            </div>
-
-            {/* Wizualizacja odtwarzania */}
-            <div
-              style={{
-                background: 'rgba(0,0,0,0.25)',
-                padding: '24px',
-                borderRadius: '16px',
-                border: '1px solid var(--border-subtle)',
-                marginBottom: '24px',
-              }}
-            >
-              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
-                  {status.current_track?.title || filePath.split('/').pop() || 'Auralune Player'}
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--accent-pink)' }}>
-                  {status.current_track?.artist || 'Brak wykonawcy'} {status.current_track?.album ? `• ${status.current_track.album}` : ''}
-                </p>
-              </div>
-
-              {/* Mini Spectrum Wave Visualizer */}
-              <div
-                style={{
-                  height: '42px',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'center',
-                  gap: '5px',
-                  marginBottom: '16px',
-                  padding: '4px 10px',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '10px',
-                }}
-              >
-                {(status.spectrum && status.spectrum.length > 0 ? status.spectrum : Array(16).fill(0.05)).map((magnitude, i) => {
-                  const heightPercent = Math.max(8, Math.round(magnitude * 100));
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        width: '10px',
-                        height: `${heightPercent}%`,
-                        background: 'linear-gradient(to top, var(--accent-pink), var(--accent-purple), var(--accent-cyan))',
-                        borderRadius: '3px',
-                        transition: 'height 0.08s ease-out',
-                        boxShadow: magnitude > 0.35 ? '0 0 8px rgba(255, 77, 148, 0.7)' : 'none',
-                        opacity: status.state === 'Playing' ? 0.95 : 0.2,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Status: <strong style={{ color: status.state === 'Playing' ? 'var(--accent-green)' : 'var(--text-muted)' }}>{status.state}</strong>
-                </span>
-                <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
-                  {formatTime(status.position_ms)} / {status.duration_ms ? formatTime(status.duration_ms) : '--:--'}
-                </span>
-              </div>
-
-              {/* Pasek postępu */}
-              <input
-                type="range"
-                min={0}
-                max={status.duration_ms || 100}
-                value={status.position_ms}
-                onChange={(e) => handleSeek(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '20px' }}
-              />
-
-              {/* Przyciski sterowania */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  onClick={handleSaveBookmark}
-                  title="Zapisz zakładkę odtwarzania"
-                  className="glass-card"
+          <div className="glass-panel" style={{ padding: '24px 28px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
                   style={{
-                    padding: '8px 12px',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    color: activeTrackId ? 'var(--accent-amber)' : 'var(--text-muted)',
-                    fontSize: '0.8rem',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    background: 'rgba(6, 182, 212, 0.12)',
+                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                    color: 'var(--accent-cyan)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
                   }}
                 >
-                  <Bookmark size={15} /> Zakładka
+                  <Radio size={13} /> PipeWire Hi-Fi • {status.engine}
+                </span>
+
+                {status.equalizer_enabled && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 9px',
+                      borderRadius: '20px',
+                      background: 'rgba(168, 85, 247, 0.15)',
+                      border: '1px solid rgba(168, 85, 247, 0.35)',
+                      color: 'var(--accent-purple)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    10-Band EQ
+                  </span>
+                )}
+              </div>
+
+              {/* Dyskretne otwieranie pliku zamiast wielkiego pola tekstowego */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setIsQuickLoadOpen(!isQuickLoadOpen)}
+                  className="glass-card"
+                  style={{
+                    padding: '7px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: isQuickLoadOpen ? 'var(--accent-pink)' : 'var(--text-secondary)',
+                    border: isQuickLoadOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                  title="Wczytaj plik z dysku lub wybierz próbkę testową"
+                >
+                  <FolderOpen size={15} />
+                  <span>Otwórz plik...</span>
                 </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {/* Shuffle Button */}
-                  <button
-                    onClick={handleToggleShuffle}
-                    title={queue.shuffle ? 'Tryb losowy (WŁ)' : 'Tryb losowy (WYŁ)'}
+                {/* Zwijany elegancki dropdown szybkiego ładowania */}
+                {isQuickLoadOpen && (
+                  <div
+                    className="glass-panel"
                     style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: queue.shuffle ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255,255,255,0.06)',
-                      border: queue.shuffle ? '1px solid var(--accent-cyan)' : 'none',
-                      color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
+                      position: 'absolute',
+                      right: 0,
+                      top: '100%',
+                      marginTop: '8px',
+                      width: '380px',
+                      padding: '16px',
+                      zIndex: 50,
+                      boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65)',
+                      border: '1px solid var(--border-accent)',
+                      borderRadius: '14px',
+                      background: 'var(--bg-surface)',
                     }}
                   >
-                    <Shuffle size={18} />
-                  </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>Ścieżka do pliku audio</span>
+                      <button
+                        onClick={() => setIsQuickLoadOpen(false)}
+                        style={{ background: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
 
-                  {/* Previous Button */}
-                  <button
-                    onClick={handlePrevious}
-                    title="Poprzedni utwór"
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                      <input
+                        type="text"
+                        value={filePath}
+                        onChange={(e) => setFilePath(e.target.value)}
+                        placeholder="tests/fixtures/test_sine_440hz.wav"
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-subtle)',
+                          background: 'rgba(0,0,0,0.4)',
+                          color: '#fff',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          handleLoadFile(filePath);
+                          setIsQuickLoadOpen(false);
+                        }}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                          color: '#fff',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        Wczytaj
+                      </button>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                        Próbki testowe silnika:
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            setFilePath('tests/fixtures/test_sine_440hz.wav');
+                            handleLoadFile('tests/fixtures/test_sine_440hz.wav');
+                            setIsQuickLoadOpen(false);
+                          }}
+                          className="glass-card"
+                          style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}
+                        >
+                          WAV 440 Hz
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFilePath('tests/fixtures/test_sine_440hz.opus');
+                            handleLoadFile('tests/fixtures/test_sine_440hz.opus');
+                            setIsQuickLoadOpen(false);
+                          }}
+                          className="glass-card"
+                          style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-cyan)', textAlign: 'center' }}
+                        >
+                          Opus 48 kHz
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: '28px', alignItems: 'center' }}>
+              {/* Kolumna lewa: Okładka / Winyl */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div
+                  style={{
+                    width: '220px',
+                    height: '220px',
+                    borderRadius: '20px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: currentCover
+                      ? `url("${currentCover}") center/cover no-repeat`
+                      : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.14)',
+                    boxShadow: status.state === 'Playing' ? '0 0 25px rgba(244, 63, 94, 0.35)' : 'var(--shadow-card)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'box-shadow 0.4s ease',
+                  }}
+                >
+                  {!currentCover && (
+                    <div
+                      style={{
+                        width: '188px',
+                        height: '188px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, #0b0f19 35%, #182032 50%, #0f172a 75%, #050811 100%)',
+                        border: '2px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5)',
+                        animation: status.state === 'Playing' ? 'spin 12s linear infinite' : 'none',
+                      }}
+                    >
+                      {/* Centrum winylu z logo Kitsune */}
+                      <div
+                        style={{
+                          width: '64px',
+                          height: '64px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '3px solid rgba(0,0,0,0.6)',
+                          boxShadow: '0 0 10px rgba(244, 63, 94, 0.5)',
+                        }}
+                      >
+                        <Disc size={28} color="#fff" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Badge formatu na okładce */}
+                  <div
                     style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.08)',
-                      border: 'none',
+                      position: 'absolute',
+                      bottom: '10px',
+                      right: '10px',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(0, 0, 0, 0.78)',
+                      backdropFilter: 'blur(8px)',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      color: 'var(--accent-cyan)',
+                      border: '1px solid rgba(6, 182, 212, 0.35)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {status.current_track?.duration_ms ? 'HI-RES AUDIO' : 'PIPEWIRE'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Kolumna prawa: Tytuł, Wykonawca, Spektrogram, Seeker i Przyciski */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background:
+                          status.state === 'Playing'
+                            ? 'var(--accent-green)'
+                            : status.state === 'Paused'
+                            ? 'var(--accent-amber)'
+                            : 'var(--text-muted)',
+                        boxShadow: status.state === 'Playing' ? '0 0 8px var(--accent-green)' : 'none',
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: 'var(--text-muted)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {status.state === 'Playing' ? 'Teraz odtwarzane' : status.state === 'Paused' ? 'Wstrzymano' : 'Zatrzymano'}
+                    </span>
+                  </div>
+
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: '1.35rem',
+                      fontWeight: 800,
                       color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
+                      letterSpacing: '-0.02em',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    <SkipBack size={20} />
-                  </button>
-
-                  {/* Stop Button */}
-                  <button
-                    onClick={handleStop}
-                    title="Zatrzymaj"
+                    {status.current_track?.title || filePath.split('/').pop() || 'Auralune Audio Player'}
+                  </h3>
+                  <p
                     style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.08)',
-                      border: 'none',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
+                      margin: '4px 0 0 0',
+                      fontSize: '0.88rem',
+                      color: 'var(--accent-pink)',
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    <Square size={18} />
-                  </button>
-
-                  {/* Play / Pause Button */}
-                  <button
-                    onClick={handlePlayPause}
-                    style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                      border: 'none',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: 'var(--shadow-glow)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {status.state === 'Playing' ? <Pause size={28} /> : <Play size={28} style={{ marginLeft: '4px' }} />}
-                  </button>
-
-                  {/* Next Button */}
-                  <button
-                    onClick={handleNext}
-                    title="Następny utwór"
-                    style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.08)',
-                      border: 'none',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <SkipForward size={20} />
-                  </button>
-
-                  {/* Repeat Button */}
-                  <button
-                    onClick={handleCycleLoopMode}
-                    title={`Tryb pętli: ${queue.loop_mode === 'Track' ? 'Utwór' : queue.loop_mode === 'Queue' ? 'Kolejka' : 'Wyłączony'}`}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
-                      border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : 'none',
-                      color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      position: 'relative',
-                    }}
-                  >
-                    {queue.loop_mode === 'Track' ? <Repeat1 size={18} /> : <Repeat size={18} />}
-                    {queue.loop_mode === 'Queue' && (
-                      <span style={{ position: 'absolute', bottom: '4px', right: '4px', width: '5px', height: '5px', borderRadius: '50%', background: 'var(--accent-pink)' }} />
-                    )}
-                  </button>
+                    {status.current_track?.artist || 'Wybierz utwór z biblioteki lub otwórz plik'} {status.current_track?.album ? `• ${status.current_track.album}` : ''}
+                  </p>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {status.volume === 0 ? <VolumeX size={18} color="var(--text-muted)" /> : <Volume2 size={18} color="var(--text-secondary)" />}
+                {/* Mini Spectrum Wave Visualizer */}
+                <div
+                  style={{
+                    height: '38px',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    background: 'rgba(0,0,0,0.3)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  {(status.spectrum && status.spectrum.length > 0 ? status.spectrum : Array(24).fill(0.04)).map((magnitude, i) => {
+                    const heightPercent = Math.max(8, Math.round(magnitude * 100));
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          flex: 1,
+                          height: `${heightPercent}%`,
+                          background: 'linear-gradient(to top, var(--accent-pink), var(--accent-purple), var(--accent-cyan))',
+                          borderRadius: '2px',
+                          transition: 'height 0.08s ease-out',
+                          boxShadow: magnitude > 0.35 ? '0 0 8px rgba(255, 77, 148, 0.7)' : 'none',
+                          opacity: status.state === 'Playing' ? 0.95 : 0.2,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Pasek postępu */}
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '6px',
+                      fontSize: '0.78rem',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <span>{formatTime(status.position_ms)}</span>
+                    <span>{status.duration_ms ? formatTime(status.duration_ms) : '--:--'}</span>
+                  </div>
                   <input
                     type="range"
                     min={0}
-                    max={1}
-                    step={0.01}
-                    value={status.volume}
-                    onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                    style={{ width: '80px' }}
+                    max={status.duration_ms || 100}
+                    value={status.position_ms}
+                    onChange={(e) => handleSeek(Number(e.target.value))}
+                    style={{ width: '100%' }}
                   />
+                </div>
+
+                {/* Przyciski sterowania odtwarzaniem */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button
+                    onClick={handleSaveBookmark}
+                    title="Zapisz zakładkę odtwarzania"
+                    className="glass-card"
+                    style={{
+                      padding: '6px 10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      color: activeTrackId ? 'var(--accent-amber)' : 'var(--text-muted)',
+                      fontSize: '0.75rem',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <Bookmark size={14} /> Zakładka
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Shuffle Button */}
+                    <button
+                      onClick={handleToggleShuffle}
+                      title={queue.shuffle ? 'Tryb losowy (WŁ)' : 'Tryb losowy (WYŁ)'}
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: queue.shuffle ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255,255,255,0.06)',
+                        border: queue.shuffle ? '1px solid var(--accent-cyan)' : 'none',
+                        color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Shuffle size={16} />
+                    </button>
+
+                    {/* Previous Button */}
+                    <button
+                      onClick={handlePrevious}
+                      title="Poprzedni utwór"
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.08)',
+                        border: 'none',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <SkipBack size={18} />
+                    </button>
+
+                    {/* Stop Button */}
+                    <button
+                      onClick={handleStop}
+                      title="Zatrzymaj"
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.08)',
+                        border: 'none',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Square size={16} />
+                    </button>
+
+                    {/* Play / Pause Button */}
+                    <button
+                      onClick={handlePlayPause}
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        border: 'none',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'var(--shadow-glow)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {status.state === 'Playing' ? <Pause size={24} /> : <Play size={24} style={{ marginLeft: '3px' }} />}
+                    </button>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={handleNext}
+                      title="Następny utwór"
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.08)',
+                        border: 'none',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <SkipForward size={18} />
+                    </button>
+
+                    {/* Repeat Button */}
+                    <button
+                      onClick={handleCycleLoopMode}
+                      title={`Tryb pętli: ${queue.loop_mode === 'Track' ? 'Utwór' : queue.loop_mode === 'Queue' ? 'Kolejka' : 'Wyłączony'}`}
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
+                        border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : 'none',
+                        color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        position: 'relative',
+                      }}
+                    >
+                      {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
+                      {queue.loop_mode === 'Queue' && (
+                        <span style={{ position: 'absolute', bottom: '3px', right: '3px', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent-pink)' }} />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Volume Slider */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {status.volume === 0 ? <VolumeX size={16} color="var(--text-muted)" /> : <Volume2 size={16} color="var(--text-secondary)" />}
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={status.volume}
+                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                      style={{ width: '70px' }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Aktywne wskaźniki DSP */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div className="glass-card" style={{ padding: '14px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pitch Shift:</span>
-                <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--accent-pink)' }}>
-                  {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} półtonów
-                </p>
+            {/* ZINTEGROWANY MINI-PASEK DSP (Zastępuje dawne puste wielkie karty z Image 2) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '10px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderRadius: '12px',
+                background: 'rgba(0,0,0,0.28)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  DSP:
+                </span>
+
+                {/* Pitch Chip */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Pitch:</span>
+                  <span style={{ color: 'var(--accent-pink)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                    {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st
+                  </span>
+                  {status.pitch_semitones !== 0 && (
+                    <button
+                      onClick={() => handlePitchChange(0)}
+                      title="Resetuj wysokość dźwięku do 0.0"
+                      style={{ background: 'none', color: 'var(--text-muted)', padding: '2px', cursor: 'pointer', display: 'flex' }}
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Tempo Chip */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Tempo:</span>
+                  <span style={{ color: 'var(--accent-cyan)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                    {status.tempo_ratio.toFixed(2)}x
+                  </span>
+                  {status.tempo_ratio !== 1 && (
+                    <button
+                      onClick={() => handleTempoChange(1.0)}
+                      title="Resetuj tempo do 1.0x"
+                      style={{ background: 'none', color: 'var(--text-muted)', padding: '2px', cursor: 'pointer', display: 'flex' }}
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="glass-card" style={{ padding: '14px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mnożnik tempa:</span>
-                <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
-                  {status.tempo_ratio.toFixed(2)}x
-                </p>
-              </div>
+
+              {/* Szybkie przejście do pełnego korektora DSP */}
+              <button
+                onClick={() => setActiveTab('dsp')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  color: 'var(--accent-purple)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  padding: '5px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Sliders size={13} />
+                <span>Korektor & Efekty DSP &rarr;</span>
+              </button>
             </div>
           </div>
         )}
@@ -2723,669 +3764,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ZAKŁADKA 4: PRO AUDIO & BLUETOOTH */}
-        {activeTab === 'devices' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Radio size={20} color="var(--accent-green)" /> Karty PipeWire, Pro Audio & Kodeki Bluetooth
-              </h2>
-              <button
-                onClick={refreshDevices}
-                className="glass-card"
-                style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
-              >
-                <RefreshCw size={14} /> Odśwież
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {cards.map((card) => (
-                <div key={card.name} className="glass-card" style={{ padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {card.is_bluetooth ? <Headphones size={18} color="var(--accent-cyan)" /> : <Zap size={18} color="var(--accent-amber)" />}
-                      <span style={{ fontWeight: 600 }}>{card.description}</span>
-                    </div>
-
-                    {card.profiles.some((p) => p.is_pro_audio) && (
-                      <span
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.2)',
-                          color: 'var(--accent-green)',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(16, 185, 129, 0.4)',
-                        }}
-                      >
-                        PRO AUDIO READY
-                      </span>
-                    )}
-                  </div>
-
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: '10px' }}>
-                    ID: {card.name} | Aktywny profil: {card.active_profile || 'brak'}
-                  </p>
-
-                  {/* Akcje Pro Audio */}
-                  {card.profiles.some((p) => p.is_pro_audio) && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <button
-                        onClick={() => handleEnableProAudio(card.name)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          background: card.active_profile === 'pro-audio' ? 'var(--accent-green)' : 'rgba(255,255,255,0.08)',
-                          color: '#fff',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {card.active_profile === 'pro-audio' ? '✓ Tryb Pro Audio aktywny' : 'Włącz Pro Audio (Bit-Perfect Direct ALSA)'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Kodeki Bluetooth */}
-                  {card.is_bluetooth && (
-                    <div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                        Wybór kodeka Bluetooth (A2DP):
-                      </span>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {card.profiles
-                          .filter((p) => p.bluetooth_codec)
-                          .map((p) => (
-                            <button
-                              key={p.name}
-                              onClick={() => handleSetBluetoothCodec(card.name, p.bluetooth_codec!)}
-                              style={{
-                                padding: '5px 10px',
-                                borderRadius: '6px',
-                                background: card.active_profile === p.name ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.06)',
-                                color: '#fff',
-                                fontSize: '0.75rem',
-                                fontWeight: 500,
-                              }}
-                            >
-                              {p.bluetooth_codec === 'Ldac'
-                                ? 'Sony LDAC (High-Res 990 kbps)'
-                                : p.bluetooth_codec === 'AptxHd'
-                                ? 'aptX HD'
-                                : p.bluetooth_codec === 'SbcXq'
-                                ? 'SBC-XQ (High Quality)'
-                                : p.bluetooth_codec}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ZAKŁADKA 5: EKSPORT & TRANSKODOWANIE */}
-        {activeTab === 'transcode' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileAudio size={20} color="var(--accent-pink)" /> Nieniszczący konwerter formatów (Opus, FLAC, WAV)
-            </h2>
-
-            {/* Baner bezpieczeństwa */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '14px 18px',
-                borderRadius: '12px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                marginBottom: '24px',
-              }}
-            >
-              <ShieldCheck size={24} color="var(--accent-green)" />
-              <div>
-                <strong style={{ color: 'var(--accent-green)', fontSize: '0.85rem' }}>Gwarancja nienaruszalności plików:</strong>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Aplikacja nigdy nie modyfikuje ani nie usuwa oryginalnego pliku z dysku. Konwersja tworzy nowy plik docelowy.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Plik źródłowy:
-                </label>
-                <input
-                  type="text"
-                  value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.85rem',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Ścieżka pliku wyjściowego:
-                </label>
-                <input
-                  type="text"
-                  value={transcodeOutput}
-                  onChange={(e) => setTranscodeOutput(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.85rem',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
-                  Format docelowy:
-                </label>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {(['Opus', 'Flac', 'Wav'] as const).map((fmt) => (
-                    <button
-                      key={fmt}
-                      onClick={() => {
-                        setTranscodeFormat(fmt);
-                        const base = filePath.substring(0, filePath.lastIndexOf('.')) || filePath;
-                        setTranscodeOutput(`${base}.${fmt.toLowerCase()}`);
-                      }}
-                      style={{
-                        padding: '10px 20px',
-                        borderRadius: '10px',
-                        background: transcodeFormat === fmt ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                        color: '#fff',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {fmt === 'Opus' ? 'Ogg Opus' : fmt === 'Flac' ? 'FLAC (Bezstratny)' : 'WAV PCM'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {transcodeFormat === 'Opus' && (
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Bitrate Opus: <strong style={{ color: 'var(--accent-cyan)' }}>{transcodeBitrate} kbps</strong>
-                  </label>
-                  <input
-                    type="range"
-                    min={64}
-                    max={320}
-                    step={32}
-                    value={transcodeBitrate}
-                    onChange={(e) => setTranscodeBitrate(Number(e.target.value))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              )}
-
-              <button
-                onClick={handleTranscode}
-                style={{
-                  marginTop: '12px',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  boxShadow: 'var(--shadow-glow)',
-                }}
-              >
-                Rozpocznij konwersję (GStreamer)
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Zakładka: Motywy Anime & Custom Backgrounds (Etap 5) */}
-        {activeTab === 'themes' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                <Palette size={26} color="var(--accent-purple)" />
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  Anime Theme Studio & Personalizacja Wizualna
-                </h2>
-              </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                Głęboka personalizacja bez utraty czytelności: wybieraj dopracowane presety anime,
-                ustawiaj własne tapety z dynamicznym rozmyciem i nakładką przyciemniającą oraz
-                eksportuj/importuj motywy w bezpiecznym formacie JSON (bez ryzyka kodu obcego).
-              </p>
-            </div>
-
-            {/* Siatka presetów Anime */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {themes.map((t) => {
-                const isActive = currentTheme?.id === t.id;
-                return (
-                  <div
-                    key={t.id}
-                    className="glass-card"
-                    style={{
-                      padding: '20px',
-                      borderRadius: '16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
-                      border: isActive ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-                      boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
-                      background: isActive ? 'var(--bg-surface-hover)' : 'var(--bg-card)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {t.name}
-                      </h3>
-                      {isActive && (
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '20px',
-                            background: 'var(--accent-purple)',
-                            color: '#fff',
-                          }}
-                        >
-                          Aktywny
-                        </span>
-                      )}
-                    </div>
-
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {t.attribution || 'Motyw wbudowany Auralune'}
-                    </p>
-
-                    {/* Próbnik kolorów tokenów */}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-                      <div
-                        title={`Tło: ${t.tokens.bg_deep}`}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: t.tokens.bg_deep,
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      />
-                      <div
-                        title={`Karta: ${t.tokens.bg_card}`}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: t.tokens.bg_card,
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      />
-                      <div
-                        title={`Akcent Róż: ${t.tokens.accent_pink}`}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: t.tokens.accent_pink,
-                        }}
-                      />
-                      <div
-                        title={`Akcent Fiolet: ${t.tokens.accent_purple}`}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: t.tokens.accent_purple,
-                        }}
-                      />
-                      <div
-                        title={`Akcent Cyjan: ${t.tokens.accent_cyan}`}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: t.tokens.accent_cyan,
-                        }}
-                      />
-                    </div>
-
-                    <button
-                      onClick={() => handleSelectTheme(t.id)}
-                      disabled={isActive}
-                      style={{
-                        marginTop: '8px',
-                        padding: '10px',
-                        borderRadius: '10px',
-                        background: isActive
-                          ? 'rgba(255,255,255,0.06)'
-                          : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        color: isActive ? 'var(--text-muted)' : '#fff',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {isActive ? 'Bieżący motyw' : 'Aktywuj motyw'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Menedżer własnego tła anime */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <ImageIcon size={22} color="var(--accent-cyan)" />
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                  Własna Tapeta Anime & Sterowanie Czytelnością
-                </h3>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                      Ścieżka do lokalnego pliku obrazu (PNG, JPG, WebP):
-                    </label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input
-                        type="text"
-                        value={customBgPath}
-                        onChange={(e) => setCustomBgPath(e.target.value)}
-                        placeholder="/home/user/Obrazy/anime_wallpaper.png"
-                        style={{
-                          flex: 1,
-                          padding: '10px 14px',
-                          borderRadius: '10px',
-                          background: 'rgba(0,0,0,0.3)',
-                          border: '1px solid var(--border-subtle)',
-                          color: '#fff',
-                          fontSize: '0.85rem',
-                        }}
-                      />
-                      <button
-                        onClick={handleUploadBgImage}
-                        style={{
-                          padding: '10px 18px',
-                          borderRadius: '10px',
-                          background: 'var(--accent-purple)',
-                          color: '#fff',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        <Upload size={16} />
-                        Wczytaj
-                      </button>
-                    </div>
-                  </div>
-
-                  {themeBgImage && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(0,0,0,0.25)', padding: '12px', borderRadius: '12px' }}>
-                      <div
-                        style={{
-                          width: '60px',
-                          height: '42px',
-                          borderRadius: '8px',
-                          backgroundImage: `url("${themeBgImage}")`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Własne tło aktywne
-                        </p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          Bezpiecznie załadowane w pamięci aplikacji
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleRemoveBgImage}
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          background: 'rgba(244, 63, 94, 0.2)',
-                          color: 'var(--accent-pink)',
-                          fontSize: '0.8rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <Trash2 size={14} />
-                        Usuń tło
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleSaveBackgroundSettings}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '10px',
-                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: 'var(--shadow-glow)',
-                    }}
-                  >
-                    <Save size={16} />
-                    Zapisz ustawienia tła w motywie
-                  </button>
-                </div>
-
-                {/* Suwaki Overlay i Blur */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Nakładka przyciemniająca (Overlay Opacity):
-                      </label>
-                      <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>
-                        {Math.round(themeOverlay * 100)}%
-                      </strong>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.0}
-                      max={0.9}
-                      step={0.05}
-                      value={themeOverlay}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        setThemeOverlay(val);
-                        document.documentElement.style.setProperty('--bg-overlay', `${val}`);
-                      }}
-                      style={{ width: '100%' }}
-                    />
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      Gwarancja kontrastu: przyciemnia jasne ilustracje w tle, chroniąc czytelność tekstu.
-                    </p>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Promień rozmycia tła (Blur Radius):
-                      </label>
-                      <strong style={{ color: 'var(--accent-purple)', fontSize: '0.9rem' }}>
-                        {themeBlur} px
-                      </strong>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={30}
-                      step={1}
-                      value={themeBlur}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value, 10);
-                        setThemeBlur(val);
-                        document.documentElement.style.setProperty('--bg-blur', `${val}px`);
-                      }}
-                      style={{ width: '100%' }}
-                    />
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      Rozmywa tło za oknem odtwarzacza, eksponując stylizację cyber-glassmorphismu.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bezpieczny Import i Eksport JSON */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <Download size={22} color="var(--accent-pink)" />
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                  Przenośność Motywów (Bezpieczny format JSON)
-                </h3>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-                {/* Eksport */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Eksport aktywnego motywu:
-                    </label>
-                    <button
-                      onClick={handleExportTheme}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        background: 'var(--accent-purple)',
-                        color: '#fff',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Generuj JSON
-                    </button>
-                  </div>
-                  <textarea
-                    readOnly
-                    value={jsonExportContent}
-                    placeholder="Kliknij 'Generuj JSON', aby wyeksportować bieżący motyw..."
-                    rows={6}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--accent-cyan)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      resize: 'none',
-                    }}
-                  />
-                  {jsonExportContent && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(jsonExportContent);
-                        setCopiedJson(true);
-                        setTimeout(() => setCopiedJson(false), 2000);
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      {copiedJson ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                      {copiedJson ? 'Skopiowano do schowka!' : 'Kopiuj treść JSON'}
-                    </button>
-                  )}
-                </div>
-
-                {/* Import */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Import motywu z pliku JSON:
-                  </label>
-                  <textarea
-                    value={jsonImportContent}
-                    onChange={(e) => setJsonImportContent(e.target.value)}
-                    placeholder='Wklej tutaj definicję motywu JSON (musi zawierać schema_version: 1)...'
-                    rows={6}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid var(--border-subtle)',
-                      color: '#fff',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      resize: 'none',
-                    }}
-                  />
-                  <button
-                    onClick={handleImportTheme}
-                    style={{
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                      color: '#fff',
-                      fontWeight: 600,
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <Upload size={16} />
-                    Zweryfikuj i zaimportuj motyw
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ZAKŁADKA: PLAYLISTY (ETAP 7) */}
         {activeTab === 'playlists' && (
           <div className="glass-panel" style={{ padding: '28px', maxWidth: '960px', margin: '0 auto' }}>
@@ -3755,6 +4133,182 @@ export default function App() {
                 );
               })
             )}
+          </div>
+        </div>
+      )}
+
+            {/* OKNO MODALNE USTAWIEŃ I PERSONALIZACJI */}
+      {isSettingsOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+          onClick={() => setIsSettingsOpen(false)}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '940px',
+              maxHeight: '88vh',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: '20px',
+              border: '1px solid var(--border-accent)',
+              overflow: 'hidden',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
+              background: 'var(--bg-deep)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Nagłówek okna ustawień */}
+            <div
+              style={{
+                padding: '16px 24px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: 'rgba(0, 0, 0, 0.35)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)',
+                  }}
+                >
+                  <Settings size={18} color="#fff" />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#fff' }}>Ustawienia Auralune</h2>
+                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Personalizacja motywu anime, audio PipeWire, konwersja i diagnostyka
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="glass-card"
+                style={{ padding: '6px 10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                title="Zamknij ustawienia"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Pasek zakładek ustawień */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '10px 24px',
+                background: 'rgba(0, 0, 0, 0.2)',
+                borderBottom: '1px solid var(--border-subtle)',
+                overflowX: 'auto',
+              }}
+            >
+              <button
+                onClick={() => setSettingsTab('themes')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: settingsTab === 'themes' ? 'var(--accent-purple)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+              >
+                <Palette size={15} />
+                Motywy & Wygląd
+              </button>
+              <button
+                onClick={() => setSettingsTab('devices')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: settingsTab === 'devices' ? 'var(--accent-purple)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+              >
+                <Radio size={15} />
+                Audio & Urządzenia
+              </button>
+              <button
+                onClick={() => setSettingsTab('transcode')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: settingsTab === 'transcode' ? 'var(--accent-purple)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+              >
+                <FileAudio size={15} />
+                Eksport & Opus
+              </button>
+              <button
+                onClick={() => setSettingsTab('about')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: settingsTab === 'about' ? 'var(--accent-purple)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+              >
+                <Info size={15} />
+                O programie
+              </button>
+            </div>
+
+            {/* Treść wybranej pod-zakładki ustawień */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+              {settingsTab === 'themes' && renderThemesSection()}
+              {settingsTab === 'devices' && renderDevicesSection()}
+              {settingsTab === 'transcode' && renderTranscodeSection()}
+              {settingsTab === 'about' && renderAboutSection()}
+            </div>
           </div>
         </div>
       )}
