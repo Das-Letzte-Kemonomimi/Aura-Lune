@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Domyślne uprawnienia dla Auralune",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

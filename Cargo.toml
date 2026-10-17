@@ -5,6 +5,7 @@ members = [
     "crates/dsp-api",
     "crates/audio-engine",
     "crates/cli-spike",
+    "apps/desktop/src-tauri",
 ]
 
 [workspace.package]
