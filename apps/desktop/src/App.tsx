@@ -3873,7 +3873,6 @@ const renderDevicesSection = () => (
                     borderRadius: '14px',
                     border: status.engine === 'SoundTouch' ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
                     background: status.engine === 'SoundTouch' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(0,0,0,0.2)',
-                    transition: 'all var(--transition-fast)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -3892,13 +3891,8 @@ const renderDevicesSection = () => (
                     </span>
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    Niski narzut obliczeniowy, natywna integracja w potoku GStreamer. Zakres pitch: ±12 st, tempo: 0.5x – 2.0x.
+                    Niski narzut obliczeniowy, natywna integracja w potoku GStreamer.
                   </p>
-                  {status.engine === 'SoundTouch' && (
-                    <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--accent-purple)', fontWeight: 600 }}>
-                      ● Aktywny silnik odtwarzacza
-                    </div>
-                  )}
                 </div>
 
                 {/* Karta Rubber Band */}
@@ -3911,32 +3905,14 @@ const renderDevicesSection = () => (
                     borderRadius: '14px',
                     border: status.engine === 'RubberBand' ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
                     background: status.engine === 'RubberBand' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(0,0,0,0.2)',
-                    transition: 'all var(--transition-fast)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>Rubber Band R3</span>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(236, 72, 153, 0.2)',
-                        color: 'var(--accent-pink)',
-                      }}
-                    >
-                      AUDIOFILE R3
-                    </span>
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    Precyzyjny silnik R3, zachowanie formantów, czystość transjentów perkusji. Zakres pitch: ±24 st, tempo: 0.25x – 4.0x.
+                    Precyzyjny silnik R3.
                   </p>
-                  {status.engine === 'RubberBand' && (
-                    <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--accent-pink)', fontWeight: 600 }}>
-                      ● Aktywny silnik odtwarzacza
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -3955,27 +3931,131 @@ const renderDevicesSection = () => (
                 fontSize: '0.8rem',
               }}
             >
-              <span>
-                Silnik: <strong style={{ color: 'var(--accent-cyan)' }}>{status.capabilities?.name || 'SoundTouch'}</strong>
-              </span>
-              <span>
-                Zakres Pitch:{' '}
-                <strong style={{ color: 'var(--accent-pink)' }}>
-                  {status.capabilities?.min_pitch_semitones ?? -12} do +{status.capabilities?.max_pitch_semitones ?? 12} st
-                </strong>
-              </span>
-              <span>
-                Zakres Tempo:{' '}
-                <strong style={{ color: 'var(--accent-cyan)' }}>
-                  {status.capabilities?.min_tempo_ratio ?? 0.5}x – {status.capabilities?.max_tempo_ratio ?? 2.0}x
-                </strong>
-              </span>
-              <span>
-                Formanty:{' '}
-                <strong style={{ color: status.capabilities?.supports_formants ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                  {status.capabilities?.supports_formants ? 'Wspierane' : 'Brak'}
-                </strong>
-              </span>
+              <span>Silnik: {status.capabilities?.name || 'SoundTouch'}</span>
+            </div>
+
+            {/* Suwak Pitch Shift z ergonomicznymi przyciskami */}
+            <div style={{ marginBottom: '28px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Wysokość dźwięku (Pitch Shift):</label>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600 }}>
+                  {(status.pitch_semitones ?? 0) > 0 ? `+${(status.pitch_semitones ?? 0).toFixed(1)}` : (status.pitch_semitones ?? 0).toFixed(1)} st (
+                  {Math.round((status.pitch_semitones ?? 0) * 100)} cents) | Współczynnik:{' '}
+                  {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
+                </span>
+              </div>
+              <input
+                type="range"
+                min={status.capabilities?.min_pitch_semitones ?? -12}
+                max={status.capabilities?.max_pitch_semitones ?? 12}
+                step={0.5}
+                value={status.pitch_semitones ?? 0}
+                onChange={(e) => handlePitchChange(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: '12px' }}
+              />
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[-12, -7, -2, 0, 2, 7, 12].map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => handlePitchChange(st)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      background: st === 0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                      border: st === 0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                      color: st === 0 ? 'var(--accent-cyan)' : '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {st === 0 ? '0 st' : st > 0 ? `+${st}` : st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Suwak Tempo (Time Stretch) z ergonomicznymi przyciskami */}
+            <div style={{ marginBottom: '28px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Tempo (Time Stretch bez zmiany wysokości):</label>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                  {(status.tempo_ratio ?? 1).toFixed(2)}x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
+                </span>
+              </div>
+              <input
+                type="range"
+                min={status.capabilities?.min_tempo_ratio ?? 0.5}
+                max={status.capabilities?.max_tempo_ratio ?? 2.0}
+                step={0.05}
+                value={status.tempo_ratio ?? 1}
+                onChange={(e) => handleTempoChange(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: '12px' }}
+              />
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[0.75, 1.0, 1.25, 1.5, 1.75].map((tr) => (
+                  <button
+                    key={tr}
+                    onClick={() => handleTempoChange(tr)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      background: tr === 1.0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                      border: tr === 1.0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                      color: tr === 1.0 ? 'var(--accent-cyan)' : '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {tr === 1.0 ? '1.0x (Normal)' : `${tr}x`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Suwak Szybkości (Rate) */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                  Szybkość (Rate - analogowa modulacja taśmy / winylu):
+                </label>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600 }}>
+                  {(status.rate_ratio ?? 1).toFixed(2)}x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={2.0}
+                step={0.05}
+                value={status.rate_ratio ?? 1}
+                onChange={(e) => handleRateChange(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: '12px' }}
+              />
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[0.8, 0.9, 1.0, 1.1, 1.2].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => handleRateChange(r)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      background: r === 1.0 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                      border: r === 1.0 ? '1px solid var(--accent-amber)' : '1px solid var(--border-subtle)',
+                      color: r === 1.0 ? 'var(--accent-amber)' : '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {r === 1.0 ? '1.0x' : `${r}x`}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Menedżer presetów DSP (SQLite) */}
@@ -3991,7 +4071,7 @@ const renderDevicesSection = () => (
               <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
                 Presety DSP (Zapis w bazie SQLite):
               </label>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: presets.length > 0 ? '12px' : '0' }}>
                 <input
                   type="text"
                   placeholder="Nazwa presetu (np. Nightcore +3st, Chillout 0.85x)..."
@@ -4019,20 +4099,19 @@ const renderDevicesSection = () => (
                     alignItems: 'center',
                     gap: '6px',
                     fontSize: '0.8rem',
+                    cursor: 'pointer',
                   }}
                 >
                   <Save size={14} /> Zapisz preset
                 </button>
               </div>
 
-              {/* Lista zapisanych presetów */}
               {presets.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {presets.map((p) => (
                     <button
                       key={p.id}
                       onClick={() => handleLoadPreset(p)}
-                      className="glass-card"
                       style={{
                         padding: '6px 12px',
                         fontSize: '0.75rem',
@@ -4041,6 +4120,10 @@ const renderDevicesSection = () => (
                         alignItems: 'center',
                         gap: '6px',
                         color: '#fff',
+                        background: 'rgba(25, 28, 48, 0.7)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
                       }}
                     >
                       <Sparkles size={12} color="var(--accent-pink)" />
@@ -4052,121 +4135,6 @@ const renderDevicesSection = () => (
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Suwak Pitch Shift */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Wysokość dźwięku (Pitch Shift):</label>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600 }}>
-                  {(status.pitch_semitones ?? 0) > 0 ? `+${(status.pitch_semitones ?? 0).toFixed(1)}` : (status.pitch_semitones ?? 0).toFixed(1)} st (
-                  {Math.round((status.pitch_semitones ?? 0) * 100)} cents) | Współczynnik:{' '}
-                  {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
-                </span>
-              </div>
-              <input
-                type="range"
-                min={status.capabilities?.min_pitch_semitones ?? -12}
-                max={status.capabilities?.max_pitch_semitones ?? 12}
-                step={0.5}
-                value={status.pitch_semitones ?? 0}
-                onChange={(e) => handlePitchChange(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[-12, -7, -2, 0, 2, 7, 12].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => handlePitchChange(st)}
-                    className="glass-card"
-                    style={{
-                      flex: 1,
-                      padding: '6px 0',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: st === 0 ? 'var(--accent-cyan)' : '#fff',
-                    }}
-                  >
-                    {st === 0 ? '0 st' : st > 0 ? `+${st}` : st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Suwak Tempo (Time Stretch) */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Tempo (Time Stretch bez zmiany wysokości):</label>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600 }}>
-                  {(status.tempo_ratio ?? 1).toFixed(2)}x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
-                </span>
-              </div>
-              <input
-                type="range"
-                min={status.capabilities?.min_tempo_ratio ?? 0.5}
-                max={status.capabilities?.max_tempo_ratio ?? 2.0}
-                step={0.05}
-                value={status.tempo_ratio ?? 1}
-                onChange={(e) => handleTempoChange(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[0.75, 1.0, 1.25, 1.5, 1.75].map((tr) => (
-                  <button
-                    key={tr}
-                    onClick={() => handleTempoChange(tr)}
-                    className="glass-card"
-                    style={{
-                      flex: 1,
-                      padding: '6px 0',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: tr === 1.0 ? 'var(--accent-cyan)' : '#fff',
-                    }}
-                  >
-                    {tr === 1.0 ? '1.0x (Normal)' : `${tr}x`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Suwak Szybkości (Rate - zmiana tempa i wysokości jednocześnie) */}
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                  Szybkość (Rate - analogowa modulacja taśmy / winylu):
-                </label>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600 }}>
-                  {(status.rate_ratio ?? 1).toFixed(2)}x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.5}
-                max={2.0}
-                step={0.05}
-                value={status.rate_ratio ?? 1}
-                onChange={(e) => handleRateChange(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[0.8, 0.9, 1.0, 1.1, 1.2].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => handleRateChange(r)}
-                    className="glass-card"
-                    style={{
-                      flex: 1,
-                      padding: '6px 0',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: r === 1.0 ? 'var(--accent-amber)' : '#fff',
-                    }}
-                  >
-                    {r === 1.0 ? '1.0x' : `${r}x`}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* SEKCJA 3: 10-PASMOWY KOREKTOR GRAFICZNY (EQUALIZER) */}
@@ -4186,7 +4154,6 @@ const renderDevicesSection = () => (
                   <select
                     value={selectedEqPreset}
                     onChange={(e) => handleApplyEqPreset(e.target.value)}
-                    className="glass-card"
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -4207,13 +4174,14 @@ const renderDevicesSection = () => (
                   {/* Przycisk Reset EQ */}
                   <button
                     onClick={handleResetEq}
-                    className="glass-card"
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       color: 'var(--text-secondary)',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid var(--border-subtle)',
                       cursor: 'pointer',
                     }}
                   >
@@ -4223,7 +4191,6 @@ const renderDevicesSection = () => (
                   {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
                   <button
                     onClick={handleEqToggle}
-                    className="glass-card"
                     style={{
                       padding: '6px 14px',
                       borderRadius: '8px',
@@ -4233,7 +4200,6 @@ const renderDevicesSection = () => (
                       border: status.equalizer_enabled !== false ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
                       color: status.equalizer_enabled !== false ? 'var(--accent-pink)' : 'var(--text-muted)',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease',
                     }}
                   >
                     {status.equalizer_enabled !== false ? '● EQ WŁĄCZONY' : '○ EQ BYPASS'}
@@ -4241,7 +4207,7 @@ const renderDevicesSection = () => (
                 </div>
               </div>
 
-              {/* 10 pasm w przejrzystym, ergonomicznym układzie 2-kolumnowym (odpornym na błędy WebKitGTK) */}
+              {/* 10 pasm w ergonomicznym układzie 2-kolumnowym */}
               <div
                 style={{
                   display: 'grid',
@@ -4258,12 +4224,14 @@ const renderDevicesSection = () => (
                   return (
                     <div
                       key={band.freq}
-                      className="glass-card"
                       style={{
                         padding: '10px 14px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '6px',
+                        background: 'rgba(25, 28, 48, 0.6)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '8px',
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4334,7 +4302,7 @@ const renderDevicesSection = () => (
                   boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
                 }}
               >
-                {(status.spectrum && status.spectrum.length > 0 ? status.spectrum : Array(16).fill(0.05)).map((magnitude, i) => {
+                {(status.spectrum ?? Array(16).fill(0.05)).map((magnitude: number, i: number) => {
                   const heightPercent = Math.max(4, Math.round(magnitude * 100));
                   return (
                     <div
@@ -4344,8 +4312,6 @@ const renderDevicesSection = () => (
                         height: `${heightPercent}%`,
                         background: 'linear-gradient(to top, var(--accent-pink), var(--accent-purple), var(--accent-cyan))',
                         borderRadius: '4px 4px 1px 1px',
-                        transition: 'height 0.08s ease-out',
-                        boxShadow: magnitude > 0.3 ? '0 0 10px rgba(56, 189, 248, 0.6)' : 'none',
                         opacity: status.state === 'Playing' ? 0.95 : 0.25,
                       }}
                     />
