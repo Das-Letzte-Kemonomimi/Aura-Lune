@@ -5,6 +5,8 @@ members = [
     "crates/dsp-api",
     "crates/audio-engine",
     "crates/cli-spike",
+    "crates/storage",
+    "crates/library",
     "apps/desktop/src-tauri",
 ]
 
@@ -25,3 +27,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio", "migrate", "macros"] }
+tokio = { version = "1", features = ["full"] }
+lofty = "0.25"
+walkdir = "2.5"
+sha2 = "0.10"
+hex = "0.4"

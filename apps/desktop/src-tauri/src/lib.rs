@@ -1,21 +1,28 @@
 //! Backend desktopowy Auralune (Tauri 2).
 //!
 //! ZGODNIE Z ZASADĄ ARCHITEKTONICZNĄ:
-//! Wątek audio i surowe próbki PCM są odizolowane od WebView.
-//! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem i odczytu statusu.
+//! Wątek audio i surowe próbki PCM są całkowicie odizolowane od WebView i bazy danych.
+//! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem, odpytywania stanu i indeksowania.
 
 use audio_engine::{AudioEngine, DeviceManager, Transcoder};
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::transcode::ExportFormat;
 use domain::PlaybackState;
+use library::LibraryScanner;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::State;
+use storage::{AlbumRecord, ArtistRecord, Database, TrackRecord};
+use tauri::{Manager, State};
 use tracing::{error, info};
 
 pub struct AppState {
     pub engine: Arc<AudioEngine>,
+    pub db: Arc<Database>,
+    pub scanner: Arc<LibraryScanner>,
+    pub rt: Arc<tokio::runtime::Runtime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +34,14 @@ pub struct PlaybackStatusDto {
     pub pitch_semitones: f64,
     pub tempo_ratio: f64,
     pub rate_ratio: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanSummaryDto {
+    pub total_files_found: usize,
+    pub new_or_updated_tracks: usize,
+    pub skipped_unchanged: usize,
+    pub errors: usize,
 }
 
 #[tauri::command]
@@ -130,6 +145,74 @@ fn transcode_file(
     Transcoder::transcode(&input_path, &output_path, format).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn scan_library(folder_path: String, state: State<'_, AppState>) -> Result<ScanSummaryDto, String> {
+    info!("Tauri command: scan_library('{}')", folder_path);
+    let scanner = state.scanner.clone();
+    let db = state.db.clone();
+
+    let summary = state
+        .rt
+        .block_on(async move { scanner.scan_directory(&folder_path, &db).await })
+        .map_err(|e| e.to_string())?;
+
+    Ok(ScanSummaryDto {
+        total_files_found: summary.total_files_found,
+        new_or_updated_tracks: summary.new_or_updated_tracks,
+        skipped_unchanged: summary.skipped_unchanged,
+        errors: summary.errors,
+    })
+}
+
+#[tauri::command]
+fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_tracks().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecord>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_albums().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_library_artists(state: State<'_, AppState>) -> Result<Vec<ArtistRecord>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_artists().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_bookmark(
+    track_id: i64,
+    position_ms: u64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.save_bookmark(track_id, position_ms).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.get_bookmark(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -137,6 +220,8 @@ pub fn run() {
                 .add_directive(tracing::Level::INFO.into()),
         )
         .init();
+
+    let rt = Arc::new(tokio::runtime::Runtime::new().expect("Błąd tworzenia runtime tokio"));
 
     let engine = match AudioEngine::new() {
         Ok(e) => Arc::new(e),
@@ -146,10 +231,38 @@ pub fn run() {
         }
     };
 
-    let app_state = AppState { engine };
-
     tauri::Builder::default()
-        .manage(app_state)
+        .setup({
+            let rt = rt.clone();
+            let engine = engine.clone();
+            move |app| {
+                let data_dir = app
+                    .path()
+                    .app_data_dir()
+                    .unwrap_or_else(|_| PathBuf::from("."));
+                let _ = fs::create_dir_all(&data_dir);
+                let db_path = data_dir.join("auralune_library.db");
+                let cache_dir = data_dir.join("cache");
+
+                let db = rt.block_on(async {
+                    Database::open(&db_path)
+                        .await
+                        .expect("Błąd otwarcia bazy SQLite")
+                });
+
+                let scanner = LibraryScanner::new(&cache_dir);
+
+                let app_state = AppState {
+                    engine,
+                    db: Arc::new(db),
+                    scanner: Arc::new(scanner),
+                    rt,
+                };
+
+                app.manage(app_state);
+                Ok(())
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             load_file,
             play,
@@ -165,6 +278,12 @@ pub fn run() {
             set_bluetooth_codec,
             enable_pro_audio,
             transcode_file,
+            scan_library,
+            get_library_tracks,
+            get_library_albums,
+            get_library_artists,
+            save_bookmark,
+            get_bookmark,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

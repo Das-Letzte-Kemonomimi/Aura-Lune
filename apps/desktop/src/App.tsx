@@ -14,6 +14,11 @@ import {
   Sparkles,
   RefreshCw,
   Zap,
+  FolderOpen,
+  Music,
+  Disc,
+  Clock,
+  Bookmark,
 } from 'lucide-react';
 
 interface PlaybackStatus {
@@ -43,6 +48,39 @@ interface AudioCard {
   profiles: AudioCardProfile[];
 }
 
+interface TrackRecord {
+  id: number;
+  path: string;
+  title: string;
+  artist: string;
+  album_artist: string | null;
+  album_id: number | null;
+  disc_no: number | null;
+  track_no: number | null;
+  duration_ms: number;
+  format: string;
+  sample_rate: number;
+  channels: number;
+  bit_depth: number | null;
+  file_size: number;
+  modified_time: number;
+}
+
+interface AlbumRecord {
+  id: number;
+  title: string;
+  album_artist: string;
+  year: number | null;
+  cover_path: string | null;
+}
+
+interface ScanSummaryDto {
+  total_files_found: number;
+  new_or_updated_tracks: number;
+  skipped_unchanged: number;
+  errors: number;
+}
+
 export default function App() {
   const [filePath, setFilePath] = useState('tests/fixtures/test_sine_440hz.wav');
   const [status, setStatus] = useState<PlaybackStatus>({
@@ -56,11 +94,19 @@ export default function App() {
   });
 
   const [cards, setCards] = useState<AudioCard[]>([]);
-  const [activeTab, setActiveTab] = useState<'player' | 'dsp' | 'devices' | 'transcode'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'dsp' | 'devices' | 'transcode'>('player');
   const [transcodeOutput, setTranscodeOutput] = useState('tests/fixtures/converted_sample.opus');
   const [transcodeFormat, setTranscodeFormat] = useState<'Opus' | 'Flac' | 'Wav'>('Opus');
   const [transcodeBitrate, setTranscodeBitrate] = useState(192);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  // Stan biblioteki
+  const [scanFolder, setScanFolder] = useState('tests/fixtures');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanSummaryDto | null>(null);
+  const [tracks, setTracks] = useState<TrackRecord[]>([]);
+  const [albums, setAlbums] = useState<AlbumRecord[]>([]);
+  const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
 
   // Odpytywanie statusu odtwarzacza
   useEffect(() => {
@@ -78,19 +124,30 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Pobieranie listy urządzeń audio
+  // Pobieranie listy urządzeń audio i biblioteki
   const refreshDevices = async () => {
     try {
       const res = await invoke<AudioCard[]>('list_devices');
       setCards(res);
-      showMessage('Zaktualizowano listę kart audio i urządzeń Bluetooth');
     } catch (e: any) {
-      showMessage(`Błąd pobierania urządzeń: ${e}`, true);
+      console.warn('Błąd odpytywania kart:', e);
+    }
+  };
+
+  const loadLibrary = async () => {
+    try {
+      const t = await invoke<TrackRecord[]>('get_library_tracks');
+      setTracks(t);
+      const a = await invoke<AlbumRecord[]>('get_library_albums');
+      setAlbums(a);
+    } catch (e: any) {
+      console.warn('Błąd ładowania biblioteki:', e);
     }
   };
 
   useEffect(() => {
     refreshDevices();
+    loadLibrary();
   }, []);
 
   const showMessage = (msg: string, isError = false) => {
@@ -98,7 +155,63 @@ export default function App() {
     setTimeout(() => setInfoMessage(null), 4000);
   };
 
-  // Obsługa komend odtwarzacza
+  // Obsługa skanera biblioteki
+  const handleScanLibrary = async () => {
+    setIsScanning(true);
+    try {
+      const summary = await invoke<ScanSummaryDto>('scan_library', { folderPath: scanFolder });
+      setScanResult(summary);
+      await loadLibrary();
+      showMessage(
+        `Skanowanie ukończone: ${summary.new_or_updated_tracks} zindeksowano, ${summary.skipped_unchanged} pominięto (bez zmian).`
+      );
+    } catch (e: any) {
+      showMessage(`Błąd skanowania biblioteki: ${e}`, true);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Odtwarzanie utworu z biblioteki z obsługą zakładek
+  const handlePlayLibraryTrack = async (track: TrackRecord) => {
+    try {
+      setActiveTrackId(track.id);
+      setFilePath(track.path);
+      await invoke('load_file', { path: track.path });
+
+      // Sprawdź czy jest zapisana zakładka (bookmark)
+      const bookmark = await invoke<number | null>('get_bookmark', { trackId: track.id });
+      if (bookmark && bookmark > 2000) {
+        await invoke('seek', { positionMs: bookmark });
+        showMessage(`Wznowiono utwór '${track.title}' od pozycji ${formatTime(bookmark)}`);
+      } else {
+        showMessage(`Rozpoczęto odtwarzanie: ${track.title} (${track.artist})`);
+      }
+
+      await invoke('play');
+    } catch (e: any) {
+      showMessage(`Błąd odtwarzania utworu: ${e}`, true);
+    }
+  };
+
+  // Zapis zakładki dla aktywnego utworu
+  const handleSaveBookmark = async () => {
+    if (!activeTrackId) {
+      showMessage('Najpierw wybierz utwór z biblioteki', true);
+      return;
+    }
+    try {
+      await invoke('save_bookmark', {
+        trackId: activeTrackId,
+        positionMs: status.position_ms,
+      });
+      showMessage(`Zapisano pozycję (${formatTime(status.position_ms)}) jako zakładkę.`);
+    } catch (e: any) {
+      showMessage(`Błąd zapisu zakładki: ${e}`, true);
+    }
+  };
+
+  // Sterowanie odtwarzaczem
   const handleLoadFile = async (path: string) => {
     try {
       await invoke('load_file', { path });
@@ -196,6 +309,7 @@ export default function App() {
       });
 
       showMessage(`Pomyślnie przekonwertowano do ${transcodeOutput}! Oryginał pozostał nienaruszony.`);
+      await loadLibrary();
     } catch (e: any) {
       showMessage(`Błąd transkodowania: ${e}`, true);
     }
@@ -245,11 +359,11 @@ export default function App() {
         </div>
 
         {/* Zakładki */}
-        <nav style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px' }}>
+        <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px' }}>
           <button
             onClick={() => setActiveTab('player')}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: '8px',
               background: activeTab === 'player' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -260,9 +374,22 @@ export default function App() {
             Odtwarzacz
           </button>
           <button
+            onClick={() => setActiveTab('library')}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: activeTab === 'library' ? 'var(--accent-purple)' : 'transparent',
+              color: '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+            }}
+          >
+            Biblioteka ({tracks.length})
+          </button>
+          <button
             onClick={() => setActiveTab('dsp')}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: '8px',
               background: activeTab === 'dsp' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -275,7 +402,7 @@ export default function App() {
           <button
             onClick={() => setActiveTab('devices')}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: '8px',
               background: activeTab === 'devices' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -288,7 +415,7 @@ export default function App() {
           <button
             onClick={() => setActiveTab('transcode')}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: '8px',
               background: activeTab === 'transcode' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
@@ -320,6 +447,7 @@ export default function App() {
 
       {/* Główna zawartość */}
       <main style={{ flex: 1, overflowY: 'auto' }}>
+        {/* ZAKŁADKA 1: ODTWARZACZ */}
         {activeTab === 'player' && (
           <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '1.2rem', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -411,41 +539,59 @@ export default function App() {
               />
 
               {/* Przyciski sterowania */}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button
-                  onClick={handleStop}
+                  onClick={handleSaveBookmark}
+                  title="Zapisz zakładkę odtwarzania"
+                  className="glass-card"
                   style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
+                    padding: '8px 14px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    gap: '6px',
+                    color: activeTrackId ? 'var(--accent-amber)' : 'var(--text-muted)',
+                    fontSize: '0.8rem',
                   }}
                 >
-                  <Square size={18} />
+                  <Bookmark size={16} /> Zapisz zakładkę
                 </button>
 
-                <button
-                  onClick={handlePlayPause}
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: 'var(--shadow-glow)',
-                  }}
-                >
-                  {status.state === 'Playing' ? <Pause size={28} /> : <Play size={28} style={{ marginLeft: '4px' }} />}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <button
+                    onClick={handleStop}
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Square size={18} />
+                  </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '20px' }}>
+                  <button
+                    onClick={handlePlayPause}
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: 'var(--shadow-glow)',
+                    }}
+                  >
+                    {status.state === 'Playing' ? <Pause size={28} /> : <Play size={28} style={{ marginLeft: '4px' }} />}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {status.volume === 0 ? <VolumeX size={18} color="var(--text-muted)" /> : <Volume2 size={18} color="var(--text-secondary)" />}
                   <input
                     type="range"
@@ -478,7 +624,173 @@ export default function App() {
           </div>
         )}
 
-        {/* Zakładka DSP */}
+        {/* ZAKŁADKA 2: BIBLIOTEKA (ETAP 2) */}
+        {activeTab === 'library' && (
+          <div className="glass-panel" style={{ padding: '28px', maxWidth: '960px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Music size={20} color="var(--accent-purple)" /> Lokalna Biblioteka Muzyczna (SQLite)
+              </h2>
+              <button
+                onClick={loadLibrary}
+                className="glass-card"
+                style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
+              >
+                <RefreshCw size={14} /> Odśwież widok
+              </button>
+            </div>
+
+            {/* Panel skanera przyrostowego */}
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                padding: '18px',
+                borderRadius: '14px',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '24px',
+              }}
+            >
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                Katalog muzyki do skanowania (FLAC, MP3, OGG, Opus, WAV):
+              </label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  value={scanFolder}
+                  onChange={(e) => setScanFolder(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(0,0,0,0.3)',
+                    color: '#fff',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                  }}
+                />
+                <button
+                  onClick={handleScanLibrary}
+                  disabled={isScanning}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '10px',
+                    background: isScanning ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
+                    color: '#fff',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <FolderOpen size={16} /> {isScanning ? 'Skanowanie...' : 'Skanuj przyrostowo'}
+                </button>
+              </div>
+
+              {scanResult && (
+                <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'var(--accent-green)' }}>
+                  ✓ Przeskanowano: {scanResult.total_files_found} plików | Zindeksowano: {scanResult.new_or_updated_tracks} | Pominięto bez zmian: {scanResult.skipped_unchanged}
+                </p>
+              )}
+            </div>
+
+            {/* Statystyki biblioteki */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
+              <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Music size={28} color="var(--accent-pink)" />
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Utwory</span>
+                  <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>{tracks.length}</p>
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Disc size={28} color="var(--accent-purple)" />
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Albumy</span>
+                  <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>{albums.length}</p>
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Clock size={28} color="var(--accent-cyan)" />
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Łączny czas</span>
+                  <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                    {formatTime(tracks.reduce((acc, t) => acc + t.duration_ms, 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabela utworów */}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '10px 12px' }}>#</th>
+                    <th style={{ padding: '10px 12px' }}>Tytuł</th>
+                    <th style={{ padding: '10px 12px' }}>Wykonawca</th>
+                    <th style={{ padding: '10px 12px' }}>Format</th>
+                    <th style={{ padding: '10px 12px' }}>Jakość</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tracks.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Biblioteka jest pusta. Kliknij 'Skanuj przyrostowo' powyżej.
+                      </td>
+                    </tr>
+                  ) : (
+                    tracks.map((t, idx) => (
+                      <tr
+                        key={t.id}
+                        onClick={() => handlePlayLibraryTrack(t)}
+                        className="glass-card"
+                        style={{
+                          cursor: 'pointer',
+                          background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                          borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        }}
+                      >
+                        <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                          {t.track_no || idx + 1}
+                        </td>
+                        <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
+                          {t.title}
+                        </td>
+                        <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
+                        <td style={{ padding: '12px' }}>
+                          <span
+                            style={{
+                              background: 'rgba(255,255,255,0.08)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            {t.format}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                          {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                          {formatTime(t.duration_ms)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ZAKŁADKA 3: DSP */}
         {activeTab === 'dsp' && (
           <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '1.2rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -561,7 +873,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Zakładka Pro Audio & Bluetooth */}
+        {/* ZAKŁADKA 4: PRO AUDIO & BLUETOOTH */}
         {activeTab === 'devices' && (
           <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -666,7 +978,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Zakładka Transkodowanie & Opus */}
+        {/* ZAKŁADKA 5: EKSPORT & TRANSKODOWANIE */}
         {activeTab === 'transcode' && (
           <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '1.2rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>

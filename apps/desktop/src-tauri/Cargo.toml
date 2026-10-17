@@ -13,6 +13,9 @@ tauri = { version = "2", features = [] }
 audio-engine = { path = "../../../crates/audio-engine" }
 domain = { path = "../../../crates/domain" }
 dsp-api = { path = "../../../crates/dsp-api" }
+storage = { path = "../../../crates/storage" }
+library = { path = "../../../crates/library" }
+tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
