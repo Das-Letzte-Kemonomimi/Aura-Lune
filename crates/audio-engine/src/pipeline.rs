@@ -1,6 +1,7 @@
 //! Główny potok odtwarzacza GStreamer z dynamicznym procesorem DSP.
 
 use crate::error::AudioEngineError;
+use domain::equalizer::EqualizerState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::PlaybackState;
 use dsp_api::{semitones_to_pitch_ratio, DspCapabilities, DspEngine, DspParams};
@@ -22,6 +23,7 @@ pub enum PlayerEvent {
     Error(String),
     Warning(String),
     Buffering(i32),
+    Spectrum(Vec<f32>),
 }
 
 /// Wewnętrzny stan potoku audio.
@@ -30,10 +32,13 @@ struct PipelineInner {
     uri_decoder: Option<gst::Element>,
     audioconvert_in: gst::Element,
     pitch: gst::Element,
+    equalizer: gst::Element,
+    _spectrum: gst::Element,
     volume: gst::Element,
     _sink: gst::Element,
     state: PlaybackState,
     dsp_params: DspParams,
+    equalizer_state: EqualizerState,
 }
 
 /// Bezpieczny wielowątkowo kontroler potoku audio.
@@ -64,6 +69,21 @@ impl AudioEngine {
             .name("dsp_pitch")
             .build()
             .map_err(|_| AudioEngineError::MissingElement("pitch"))?;
+
+        let equalizer = gst::ElementFactory::make("equalizer-10bands")
+            .name("equalizer_10bands")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("equalizer-10bands"))?;
+
+        let spectrum = gst::ElementFactory::make("spectrum")
+            .name("spectrum_analyzer")
+            .property("bands", 16u32)
+            .property("threshold", -60i32)
+            .property("interval", 50_000_000u64)
+            .property("message-magnitude", true)
+            .property("post-messages", true)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("spectrum"))?;
 
         let audioconvert_out = gst::ElementFactory::make("audioconvert")
             .name("audioconvert_out")
@@ -98,17 +118,21 @@ impl AudioEngine {
             &audioconvert_in,
             &audioresample,
             &pitch,
+            &equalizer,
+            &spectrum,
             &audioconvert_out,
             &volume,
             &sink,
         ])?;
 
         // Połączenie elementów przetwarzania audio:
-        // audioconvert_in -> audioresample -> pitch -> audioconvert_out -> volume -> sink
+        // audioconvert_in -> audioresample -> pitch -> equalizer -> spectrum -> audioconvert_out -> volume -> sink
         gst::Element::link_many([
             &audioconvert_in,
             &audioresample,
             &pitch,
+            &equalizer,
+            &spectrum,
             &audioconvert_out,
             &volume,
             &sink,
@@ -127,10 +151,13 @@ impl AudioEngine {
             uri_decoder: None,
             audioconvert_in,
             pitch,
+            equalizer,
+            _spectrum: spectrum,
             volume,
             _sink: sink,
             state: PlaybackState::Stopped,
             dsp_params: DspParams::default(),
+            equalizer_state: EqualizerState::default(),
         }));
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
@@ -456,11 +483,92 @@ impl AudioEngine {
                             }
                         }
                     }
+                    MessageView::Element(elem_msg) => {
+                        if let Some(structure) = elem_msg.structure() {
+                            if structure.name() == "spectrum" {
+                                if let Ok(val) = structure.value("magnitude") {
+                                    if let Ok(list) = val.get::<gst::ArrayRef>() {
+                                        let magnitudes: Vec<f32> = list
+                                            .as_slice()
+                                            .iter()
+                                            .filter_map(|v| {
+                                                v.get::<f32>().ok().or_else(|| {
+                                                    v.get::<f64>().ok().map(|d| d as f32)
+                                                })
+                                            })
+                                            .map(|db| ((db + 60.0) / 60.0).clamp(0.0, 1.0))
+                                            .collect();
+                                        if !magnitudes.is_empty() {
+                                            events.push(PlayerEvent::Spectrum(magnitudes));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
         }
         events
+    }
+
+    // ==========================================
+    // METODY OBSŁUGI KOREKTORA GRAFICZNEGO (EQ)
+    // ==========================================
+
+    /// Zwraca aktualne wzmocnienia 10 pasm korektora graficznego (w dB).
+    pub fn get_equalizer_bands(&self) -> [f64; 10] {
+        let inner = self.inner.lock().unwrap();
+        inner.equalizer_state.bands
+    }
+
+    /// Sprawdza, czy korektor graficzny jest włączony.
+    pub fn is_equalizer_enabled(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner.equalizer_state.enabled
+    }
+
+    /// Włącza lub wyłącza korektor graficzny (bypass bez usuwania z potoku).
+    pub fn set_equalizer_enabled(&self, enabled: bool) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.equalizer_state.enabled = enabled;
+        for i in 0..10 {
+            let val = if enabled {
+                inner.equalizer_state.bands[i]
+            } else {
+                0.0
+            };
+            inner.equalizer.set_property(&format!("band{}", i), val);
+        }
+    }
+
+    /// Ustawia wzmocnienie pojedynczego pasma korektora graficznego (w dB: -24.0 do +12.0).
+    pub fn set_equalizer_band(&self, band: usize, gain_db: f64) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        if inner.equalizer_state.set_band(band, gain_db) {
+            let clamped = inner.equalizer_state.bands[band];
+            if inner.equalizer_state.enabled {
+                inner
+                    .equalizer
+                    .set_property(&format!("band{}", band), clamped);
+            }
+        }
+        Ok(())
+    }
+
+    /// Ustawia wzmocnienia wszystkich 10 pasm korektora graficznego jednocześnie.
+    pub fn set_equalizer_bands(&self, bands: &[f64; 10]) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        for (i, &gain) in bands.iter().enumerate() {
+            inner.equalizer_state.set_band(i, gain);
+            if inner.equalizer_state.enabled {
+                inner
+                    .equalizer
+                    .set_property(&format!("band{}", i), inner.equalizer_state.bands[i]);
+            }
+        }
+        Ok(())
     }
 
     // ==========================================

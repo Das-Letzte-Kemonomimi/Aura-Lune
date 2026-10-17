@@ -4,8 +4,9 @@
 //! Wątek audio i surowe próbki PCM są całkowicie odizolowane od WebView i bazy danych.
 //! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem, odpytywania stanu i indeksowania.
 
-use audio_engine::{AudioEngine, DeviceManager, Transcoder};
+use audio_engine::{AudioEngine, DeviceManager, PlayerEvent, Transcoder};
 use domain::device::{AudioCard, BluetoothCodec};
+use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::transcode::ExportFormat;
 use domain::{PlaybackState, Playlist, Theme};
@@ -15,7 +16,7 @@ use metadata::{CoverArtArchiveClient, MusicBrainzClient, ReleaseCandidateDto};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, TrackRecord};
 use tauri::{Manager, State};
@@ -29,6 +30,7 @@ pub struct AppState {
     pub mpris: Option<Arc<desktop_integration::MprisController>>,
     pub mb: Arc<MusicBrainzClient>,
     pub cover_archive: Arc<CoverArtArchiveClient>,
+    pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +47,9 @@ pub struct PlaybackStatusDto {
     pub loop_mode: LoopMode,
     pub shuffle: bool,
     pub current_track: Option<QueueItem>,
+    pub equalizer_enabled: bool,
+    pub equalizer_bands: [f64; 10],
+    pub spectrum: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -263,7 +268,14 @@ fn update_mpris_metadata(
 
 #[tauri::command]
 fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
-    let _ = state.engine.poll_events();
+    let events = state.engine.poll_events();
+    for event in events {
+        if let PlayerEvent::Spectrum(mags) = event {
+            if let Ok(mut s) = state.latest_spectrum.lock() {
+                *s = mags;
+            }
+        }
+    }
     let pos_ms = state
         .engine
         .position()
@@ -275,6 +287,11 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
 
     let q = state.engine.queue();
     let current_track = q.current_item().cloned();
+    let spectrum = state
+        .latest_spectrum
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or_default();
 
     PlaybackStatusDto {
         state: state.engine.state(),
@@ -289,7 +306,43 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         loop_mode: q.loop_mode,
         shuffle: q.shuffle,
         current_track,
+        equalizer_enabled: state.engine.is_equalizer_enabled(),
+        equalizer_bands: state.engine.get_equalizer_bands(),
+        spectrum,
     }
+}
+
+#[tauri::command]
+fn set_equalizer_band(band: usize, gain_db: f64, state: State<'_, AppState>) -> Result<(), String> {
+    info!(
+        "Tauri command: set_equalizer_band({}, {} dB)",
+        band, gain_db
+    );
+    state
+        .engine
+        .set_equalizer_band(band, gain_db)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_equalizer_bands(bands: [f64; 10], state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_equalizer_bands({:?})", bands);
+    state
+        .engine
+        .set_equalizer_bands(&bands)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_equalizer_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_equalizer_enabled({})", enabled);
+    state.engine.set_equalizer_enabled(enabled);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_equalizer_presets() -> Vec<EqualizerPreset> {
+    EqualizerPreset::default_presets()
 }
 
 #[tauri::command]
@@ -924,6 +977,7 @@ pub fn run() {
                     mpris,
                     mb,
                     cover_archive,
+                    latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
                 };
 
                 app.manage(app_state);
@@ -947,6 +1001,10 @@ pub fn run() {
             load_dsp_preset,
             set_volume,
             get_status,
+            set_equalizer_band,
+            set_equalizer_bands,
+            set_equalizer_enabled,
+            get_equalizer_presets,
             list_devices,
             set_device_profile,
             set_bluetooth_codec,

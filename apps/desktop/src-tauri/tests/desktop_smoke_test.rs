@@ -31,5 +31,9 @@ fn test_desktop_backend_smoke() {
     engine.set_pitch_semitones(2.0).expect("Pitch shift +2 st");
     assert_eq!(engine.dsp_params().pitch_semitones, 2.0);
 
+    // Weryfikacja korektora EQ
+    engine.set_equalizer_band(0, 4.0).expect("EQ band 0 gain");
+    assert_eq!(engine.get_equalizer_bands()[0], 4.0);
+
     engine.stop().expect("Stop w teście dymnym");
 }

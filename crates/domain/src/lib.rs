@@ -1,9 +1,11 @@
 pub mod device;
+pub mod equalizer;
 pub mod playlist;
 pub mod queue;
 pub mod theme;
 pub mod transcode;
 
+pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
 pub use playlist::Playlist;
 pub use queue::{LoopMode, PlaybackQueue, QueueItem};
 pub use theme::{default_themes, Theme, ThemeTokens};
