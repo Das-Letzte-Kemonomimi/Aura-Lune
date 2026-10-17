@@ -10,6 +10,7 @@ use domain::transcode::ExportFormat;
 use domain::{PlaybackState, Theme};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
+use metadata::{CoverArtArchiveClient, MusicBrainzClient, ReleaseCandidateDto};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -25,6 +26,8 @@ pub struct AppState {
     pub scanner: Arc<LibraryScanner>,
     pub rt: Arc<tokio::runtime::Runtime>,
     pub mpris: Option<Arc<desktop_integration::MprisController>>,
+    pub mb: Arc<MusicBrainzClient>,
+    pub cover_archive: Arc<CoverArtArchiveClient>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -518,6 +521,102 @@ fn upload_background_image(file_path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
+#[tauri::command]
+fn search_musicbrainz_releases(
+    album: String,
+    artist: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<ReleaseCandidateDto>, String> {
+    info!(
+        "Tauri command: search_musicbrainz_releases('{}', '{}')",
+        album, artist
+    );
+    let mb = state.mb.clone();
+    state
+        .rt
+        .block_on(async move { mb.search_releases(&album, &artist).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fetch_and_apply_cover(
+    album_id: i64,
+    mbid: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: fetch_and_apply_cover(album_id: {}, mbid: '{}')",
+        album_id, mbid
+    );
+    let cover_archive = state.cover_archive.clone();
+    let db = state.db.clone();
+
+    state.rt.block_on(async move {
+        let path = cover_archive
+            .fetch_and_cache_cover(&mbid)
+            .await
+            .map_err(|e| e.to_string())?;
+        let path_str = path.to_string_lossy().to_string();
+
+        db.update_album_cover(album_id, &path_str, Some(&mbid))
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        Ok(format!("data:image/jpeg;base64,{}", b64))
+    })
+}
+
+#[tauri::command]
+fn auto_fetch_album_cover(
+    album_id: i64,
+    album_title: String,
+    artist: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    info!(
+        "Tauri command: auto_fetch_album_cover('{}', '{}')",
+        album_title, artist
+    );
+    let mb = state.mb.clone();
+    let cover_archive = state.cover_archive.clone();
+    let db = state.db.clone();
+
+    state.rt.block_on(async move {
+        let candidates = mb
+            .search_releases(&album_title, &artist)
+            .await
+            .map_err(|e| e.to_string())?;
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+
+        let best = &candidates[0];
+        if best.score >= 85 {
+            match cover_archive.fetch_and_cache_cover(&best.mbid).await {
+                Ok(path) => {
+                    let path_str = path.to_string_lossy().to_string();
+                    db.update_album_cover(album_id, &path_str, Some(&best.mbid))
+                        .await
+                        .map_err(|e| e.to_string())?;
+
+                    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+                    use base64::Engine;
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    return Ok(Some(format!("data:image/jpeg;base64,{}", b64)));
+                }
+                Err(e) => {
+                    tracing::warn!("Nie udało się pobrać okładki dla MBID {}: {}", best.mbid, e);
+                }
+            }
+        }
+
+        Ok(None)
+    })
+}
+
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -556,6 +655,8 @@ pub fn run() {
                 });
 
                 let scanner = LibraryScanner::new(&cache_dir);
+                let mb = Arc::new(MusicBrainzClient::new());
+                let cover_archive = Arc::new(CoverArtArchiveClient::new(&cache_dir));
 
                 let mpris = rt.block_on(async {
                     match desktop_integration::MprisController::start(engine.clone()).await {
@@ -576,6 +677,8 @@ pub fn run() {
                     scanner: Arc::new(scanner),
                     rt,
                     mpris,
+                    mb,
+                    cover_archive,
                 };
 
                 app.manage(app_state);
@@ -619,6 +722,9 @@ pub fn run() {
             export_theme_json,
             import_theme_json,
             upload_background_image,
+            search_musicbrainz_releases,
+            fetch_and_apply_cover,
+            auto_fetch_album_cover,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
