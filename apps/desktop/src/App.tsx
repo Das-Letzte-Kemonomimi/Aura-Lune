@@ -2323,24 +2323,24 @@ export default function App() {
               }}
             >
               <span>
-                Silnik: <strong style={{ color: 'var(--accent-cyan)' }}>{status.capabilities.name}</strong>
+                Silnik: <strong style={{ color: 'var(--accent-cyan)' }}>{status.capabilities?.name || 'SoundTouch'}</strong>
               </span>
               <span>
                 Zakres Pitch:{' '}
                 <strong style={{ color: 'var(--accent-pink)' }}>
-                  {status.capabilities.min_pitch_semitones} do +{status.capabilities.max_pitch_semitones} st
+                  {status.capabilities?.min_pitch_semitones ?? -12} do +{status.capabilities?.max_pitch_semitones ?? 12} st
                 </strong>
               </span>
               <span>
                 Zakres Tempo:{' '}
                 <strong style={{ color: 'var(--accent-cyan)' }}>
-                  {status.capabilities.min_tempo_ratio}x – {status.capabilities.max_tempo_ratio}x
+                  {status.capabilities?.min_tempo_ratio ?? 0.5}x – {status.capabilities?.max_tempo_ratio ?? 2.0}x
                 </strong>
               </span>
               <span>
                 Formanty:{' '}
-                <strong style={{ color: status.capabilities.supports_formants ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                  {status.capabilities.supports_formants ? 'Wspierane' : 'Brak'}
+                <strong style={{ color: status.capabilities?.supports_formants ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                  {status.capabilities?.supports_formants ? 'Wspierane' : 'Brak'}
                 </strong>
               </span>
             </div>
@@ -2426,17 +2426,17 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Wysokość dźwięku (Pitch Shift):</label>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600 }}>
-                  {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st (
-                  {Math.round(status.pitch_semitones * 100)} cents) | Współczynnik:{' '}
-                  {(2 ** (status.pitch_semitones / 12)).toFixed(3)}x
+                  {(status.pitch_semitones ?? 0) > 0 ? `+${(status.pitch_semitones ?? 0).toFixed(1)}` : (status.pitch_semitones ?? 0).toFixed(1)} st (
+                  {Math.round((status.pitch_semitones ?? 0) * 100)} cents) | Współczynnik:{' '}
+                  {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
                 </span>
               </div>
               <input
                 type="range"
-                min={status.capabilities.min_pitch_semitones}
-                max={status.capabilities.max_pitch_semitones}
+                min={status.capabilities?.min_pitch_semitones ?? -12}
+                max={status.capabilities?.max_pitch_semitones ?? 12}
                 step={0.5}
-                value={status.pitch_semitones}
+                value={status.pitch_semitones ?? 0}
                 onChange={(e) => handlePitchChange(Number(e.target.value))}
                 style={{ width: '100%', marginBottom: '12px' }}
               />
@@ -2465,15 +2465,15 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Tempo (Time Stretch bez zmiany wysokości):</label>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600 }}>
-                  {status.tempo_ratio.toFixed(2)}x ({Math.round(status.tempo_ratio * 100)}%)
+                  {(status.tempo_ratio ?? 1).toFixed(2)}x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
                 </span>
               </div>
               <input
                 type="range"
-                min={status.capabilities.min_tempo_ratio}
-                max={status.capabilities.max_tempo_ratio}
+                min={status.capabilities?.min_tempo_ratio ?? 0.5}
+                max={status.capabilities?.max_tempo_ratio ?? 2.0}
                 step={0.05}
-                value={status.tempo_ratio}
+                value={status.tempo_ratio ?? 1}
                 onChange={(e) => handleTempoChange(Number(e.target.value))}
                 style={{ width: '100%', marginBottom: '12px' }}
               />
@@ -2504,7 +2504,7 @@ export default function App() {
                   Szybkość (Rate - analogowa modulacja taśmy / winylu):
                 </label>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600 }}>
-                  {status.rate_ratio.toFixed(2)}x ({Math.round(status.rate_ratio * 100)}%)
+                  {(status.rate_ratio ?? 1).toFixed(2)}x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
                 </span>
               </div>
               <input
@@ -2512,7 +2512,7 @@ export default function App() {
                 min={0.5}
                 max={2.0}
                 step={0.05}
-                value={status.rate_ratio}
+                value={status.rate_ratio ?? 1}
                 onChange={(e) => handleRateChange(Number(e.target.value))}
                 style={{ width: '100%', marginBottom: '12px' }}
               />
@@ -2608,14 +2608,14 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 10 pionowych suwaków korektora */}
+              {/* 10 pasm w przejrzystym, ergonomicznym układzie 2-kolumnowym (odpornym na błędy WebKitGTK) */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(10, 1fr)',
-                  gap: '8px',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '12px',
                   background: 'rgba(0,0,0,0.25)',
-                  padding: '20px 12px',
+                  padding: '16px',
                   borderRadius: '16px',
                   border: '1px solid var(--border-subtle)',
                 }}
@@ -2625,25 +2625,38 @@ export default function App() {
                   return (
                     <div
                       key={band.freq}
+                      className="glass-card"
                       style={{
+                        padding: '10px 14px',
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
+                        gap: '6px',
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: '0.7rem',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          color: gain > 0 ? 'var(--accent-pink)' : gain < 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                        }}
-                      >
-                        {gain > 0 ? `+${gain.toFixed(1)}` : gain.toFixed(1)}
-                      </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginRight: '6px' }}>
+                            {band.freq}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            ({band.label})
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: gain > 0 ? 'rgba(255, 77, 148, 0.2)' : gain < 0 ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.06)',
+                            color: gain > 0 ? 'var(--accent-pink)' : gain < 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                          }}
+                        >
+                          {gain > 0 ? `+${gain.toFixed(1)} dB` : `${gain.toFixed(1)} dB`}
+                        </span>
+                      </div>
 
-                      {/* Pionowy suwak */}
                       <input
                         type="range"
                         min={-24}
@@ -2653,21 +2666,11 @@ export default function App() {
                         disabled={status.equalizer_enabled === false}
                         onChange={(e) => handleEqBandChange(idx, Number(e.target.value))}
                         style={{
-                          writingMode: 'vertical-lr',
-                          direction: 'rtl',
-                          width: '28px',
-                          height: '140px',
+                          width: '100%',
                           cursor: status.equalizer_enabled === false ? 'not-allowed' : 'pointer',
                           opacity: status.equalizer_enabled === false ? 0.4 : 1,
                         }}
                       />
-
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}>
-                        {band.freq}
-                      </span>
-                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
-                        {band.label}
-                      </span>
                     </div>
                   );
                 })}
