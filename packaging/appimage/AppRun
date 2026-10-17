@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+
+# AppRun — punkt wejścia AppImage dla Auralune (Kitsune Player)
+APPDIR="$(dirname "$(readlink -f "$0")")"
+
+# Konfiguracja zmiennych środowiskowych dla bibliotek współdzielonych
+export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${APPDIR}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="${APPDIR}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+# Zapewnienie ścieżek dla wtyczek GStreamer
+if [ -d "${APPDIR}/usr/lib/gstreamer-1.0" ]; then
+    export GST_PLUGIN_SYSTEM_PATH_1_0="${APPDIR}/usr/lib/gstreamer-1.0:${GST_PLUGIN_SYSTEM_PATH_1_0}"
+fi
+
+# Uruchomienie aplikacji
+exec "${APPDIR}/usr/bin/auralune" "$@"
