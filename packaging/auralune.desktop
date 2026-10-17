@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=Auralune
+GenericName=Music Player
+GenericName[pl]=Odtwarzacz muzyki
+Comment=Poweramp & foobar2000 inspired Linux music player with anime aesthetics and real-time DSP
+Comment[pl]=Inspirowany Powerampem i foobar2000 odtwarzacz muzyki dla Linuksa z estetyką anime i silnikiem DSP
+Exec=auralune %U
+Icon=auralune
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/flac;audio/mpeg;audio/ogg;audio/opus;audio/x-wav;audio/aac;audio/m4a;audio/x-m4a;
+StartupNotify=true
+StartupWMClass=auralune
+Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
