@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Play,
@@ -48,6 +48,8 @@ import {
   Info,
   SlidersHorizontal,
   Maximize2,
+  ArrowUpDown,
+  Keyboard,
 } from 'lucide-react';
 
 interface EqualizerPreset {
@@ -334,6 +336,67 @@ export default function App() {
       return a.title.toLowerCase().includes(q) || a.album_artist.toLowerCase().includes(q);
     });
   }, [albums, librarySearch]);
+
+  // Stan sortowania biblioteki (Etap: Sortowanie utworów i albumów)
+  const [sortField, setSortField] = useState<'default' | 'title' | 'artist' | 'duration' | 'format' | 'date'>('default');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: 'default' | 'title' | 'artist' | 'duration' | 'format' | 'date') => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedTracks = useMemo(() => {
+    if (sortField === 'default') return filteredTracks;
+    const list = [...filteredTracks];
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'title':
+          cmp = a.title.localeCompare(b.title);
+          break;
+        case 'artist':
+          cmp = a.artist.localeCompare(b.artist);
+          break;
+        case 'duration':
+          cmp = a.duration_ms - b.duration_ms;
+          break;
+        case 'format':
+          cmp = a.format.localeCompare(b.format);
+          break;
+        case 'date':
+          cmp = (a.modified_time || 0) - (b.modified_time || 0);
+          break;
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [filteredTracks, sortField, sortOrder]);
+
+  const [albumSortField, setAlbumSortField] = useState<'title' | 'artist' | 'year'>('title');
+  const [albumSortOrder, setAlbumSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const sortedAlbums = useMemo(() => {
+    const list = [...filteredAlbums];
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (albumSortField === 'title') {
+        cmp = a.title.localeCompare(b.title);
+      } else if (albumSortField === 'artist') {
+        cmp = a.album_artist.localeCompare(b.album_artist);
+      } else if (albumSortField === 'year') {
+        cmp = (a.year || 0) - (b.year || 0);
+      }
+      return albumSortOrder === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [filteredAlbums, albumSortField, albumSortOrder]);
+
+  const librarySearchInputRef = useRef<HTMLInputElement>(null);
 
   // Aktualnie odtwarzany utwór i powiązana okładka albumu
   const currentPlayingTrack = tracks.find(
@@ -1191,6 +1254,146 @@ export default function App() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  // ============================================
+  // OBSŁUGA GLOBALNYCH SKRÓTÓW KLAWISZOWYCH
+  // ============================================
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      const isInputActive = activeTag === 'input' || activeTag === 'textarea';
+
+      // Klawisz Escape zamyka okna modalne, szufladę kolejki lub usuwa focus z pól tekstowych
+      if (e.key === 'Escape') {
+        if (isInputActive) {
+          (document.activeElement as HTMLElement).blur();
+        }
+        setIsSettingsOpen(false);
+        setIsQueueOpen(false);
+        setIsQuickLoadOpen(false);
+        setShowPlaylistModal(false);
+        setIsScanFolderOpen(false);
+        return;
+      }
+
+      // Jeśli użytkownik wprowadza tekst, nie przechwytujemy skrótów odtwarzacza
+      if (isInputActive) {
+        return;
+      }
+
+      // Spacja: Odtwarzaj / Wstrzymaj (Play / Pause)
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handlePlayPause();
+        return;
+      }
+
+      // Strzałka w prawo: przewijanie do przodu o 5s (lub Następny przy Ctrl)
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) {
+          handleNext();
+        } else {
+          const currentPos = statusRef.current.position_ms;
+          const duration = statusRef.current.duration_ms || 3600000;
+          const newPos = Math.min(duration, currentPos + 5000);
+          handleSeek(newPos);
+          showMessage(`Seek: +5s (${formatTime(newPos)})`);
+        }
+        return;
+      }
+
+      // Strzałka w lewo: przewijanie w tył o 5s (lub Poprzedni przy Ctrl)
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) {
+          handlePrevious();
+        } else {
+          const currentPos = statusRef.current.position_ms;
+          const newPos = Math.max(0, currentPos - 5000);
+          handleSeek(newPos);
+          showMessage(`Seek: -5s (${formatTime(newPos)})`);
+        }
+        return;
+      }
+
+      // Strzałka w górę: Głośność +5%
+      if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        const newVol = Math.min(1.5, Math.round((statusRef.current.volume + 0.05) * 100) / 100);
+        handleVolumeChange(newVol);
+        showMessage(`Głośność: ${Math.round(newVol * 100)}%`);
+        return;
+      }
+
+      // Strzałka w dół: Głośność -5%
+      if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        const newVol = Math.max(0, Math.round((statusRef.current.volume - 0.05) * 100) / 100);
+        handleVolumeChange(newVol);
+        showMessage(`Głośność: ${Math.round(newVol * 100)}%`);
+        return;
+      }
+
+      // Klawisz M: Mute / Unmute
+      if (e.code === 'KeyM') {
+        e.preventDefault();
+        const currentVol = statusRef.current.volume;
+        const newVol = currentVol === 0 ? 1.0 : 0;
+        handleVolumeChange(newVol);
+        showMessage(newVol === 0 ? 'Wyciszono dźwięk (Mute)' : 'Przywrócono dźwięk');
+        return;
+      }
+
+      // Klawisz N: Następny utwór
+      if (e.code === 'KeyN') {
+        e.preventDefault();
+        handleNext();
+        return;
+      }
+
+      // Klawisz P: Poprzedni utwór
+      if (e.code === 'KeyP') {
+        e.preventDefault();
+        handlePrevious();
+        return;
+      }
+
+      // Klawisz Q: Przełącznik szuflady kolejki
+      if (e.code === 'KeyQ') {
+        e.preventDefault();
+        setIsQueueOpen((prev) => !prev);
+        return;
+      }
+
+      // Klawisz F lub Ctrl+F: Skocz do wyszukiwarki w Bibliotece
+      if ((e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && e.code === 'KeyF')) {
+        e.preventDefault();
+        setActiveTab('library');
+        setTimeout(() => {
+          librarySearchInputRef.current?.focus();
+        }, 50);
+        return;
+      }
+
+      // Cyfry 1-4: Szybkie przełączanie widoków aplikacji
+      if (e.key === '1') {
+        setActiveTab('player');
+      } else if (e.key === '2') {
+        setActiveTab('library');
+      } else if (e.key === '3') {
+        setActiveTab('playlists');
+      } else if (e.key === '4') {
+        setActiveTab('dsp');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
 const renderDevicesSection = () => (
 <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -1924,6 +2127,57 @@ const renderDevicesSection = () => (
           <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             Aplikacja wolna i otwarta, stworzona z myślą o społeczności Linuksa.
           </p>
+        </div>
+      </div>
+
+      {/* Karta Skrótów Klawiszowych */}
+      <div className="glass-card" style={{ padding: '20px' }}>
+        <h4 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
+          <Keyboard size={18} color="var(--accent-pink)" /> Domyślne skróty klawiszowe
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px', fontSize: '0.8rem' }}>
+          {[
+            { key: 'Spacja', desc: 'Odtwarzaj / Wstrzymaj (Play / Pause)' },
+            { key: '← / →', desc: 'Przewijanie utworu o ±5 sekund' },
+            { key: 'Ctrl + ← / →', desc: 'Poprzedni / Następny utwór z kolejki' },
+            { key: '↑ / ↓', desc: 'Zwiększenie / Zmniejszenie głośności o 5%' },
+            { key: 'M', desc: 'Wyciszenie dźwięku (Mute / Unmute)' },
+            { key: 'N / P', desc: 'Następny (Next) / Poprzedni (Prev) utwór' },
+            { key: 'Q', desc: 'Otwórz / Zamknij szufladę kolejki' },
+            { key: 'F lub Ctrl+F', desc: 'Przejdź do wyszukiwarki w Bibliotece' },
+            { key: '1, 2, 3, 4', desc: 'Przełącz zakładkę (1:Player, 2:Bibl, 3:Playl, 4:DSP)' },
+            { key: 'Esc', desc: 'Zamknij aktywne okno modalne lub szufladę' },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+              }}
+            >
+              <span style={{ color: 'var(--text-secondary)' }}>{item.desc}</span>
+              <kbd
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '5px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  color: 'var(--accent-pink)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                }}
+              >
+                {item.key}
+              </kbd>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -2937,8 +3191,9 @@ const renderDevicesSection = () => (
                   }}
                 />
                 <input
+                  ref={librarySearchInputRef}
                   type="text"
-                  placeholder="Filtruj utwory, wykonawców, albumy..."
+                  placeholder="Filtruj utwory, wykonawców, albumy... (skrót: F)"
                   value={librarySearch}
                   onChange={(e) => setLibrarySearch(e.target.value)}
                   style={{
@@ -3002,6 +3257,50 @@ const renderDevicesSection = () => (
                   );
                 })}
               </div>
+
+              {/* Kontrola sortowania */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+                <ArrowUpDown size={13} color="var(--text-muted)" />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Sortuj:</span>
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value as any)}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(0,0,0,0.4)',
+                    border: '1px solid var(--border-subtle)',
+                    color: '#fff',
+                    fontSize: '0.72rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="default">Domyślnie (#)</option>
+                  <option value="title">Tytuł</option>
+                  <option value="artist">Wykonawca</option>
+                  <option value="duration">Czas trwania</option>
+                  <option value="format">Format audio</option>
+                  <option value="date">Data dodania</option>
+                </select>
+                {sortField !== 'default' && (
+                  <button
+                    onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      color: 'var(--accent-cyan)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                    title={sortOrder === 'asc' ? 'Rosnąco (kliknij by zmienić)' : 'Malejąco (kliknij by zmienić)'}
+                  >
+                    {sortOrder === 'asc' ? '▲' : '▼'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Widok 1: Tabela utworów */}
@@ -3009,13 +3308,14 @@ const renderDevicesSection = () => (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {filteredTracks.length !== tracks.length
-                      ? `Wyniki wyszukiwania: ${filteredTracks.length} z ${tracks.length} utworów`
+                    {sortedTracks.length !== tracks.length
+                      ? `Wyniki wyszukiwania: ${sortedTracks.length} z ${tracks.length} utworów`
                       : `Łącznie: ${tracks.length} utworów`}
+                    {sortField !== 'default' && ` • Sortowanie: ${sortField} (${sortOrder === 'asc' ? 'rosnąco' : 'malejąco'})`}
                   </span>
-                  {filteredTracks.length > 0 && (
+                  {sortedTracks.length > 0 && (
                     <button
-                      onClick={() => handlePlayAllTracks(filteredTracks, 0)}
+                      onClick={() => handlePlayAllTracks(sortedTracks, 0)}
                       style={{
                         padding: '6px 14px',
                         borderRadius: '8px',
@@ -3030,7 +3330,7 @@ const renderDevicesSection = () => (
                         border: 'none',
                       }}
                     >
-                      <Play size={14} /> Graj przefiltrowane w kolejce
+                      <Play size={14} /> Graj posortowane w kolejce
                     </button>
                   )}
                 </div>
@@ -3039,17 +3339,47 @@ const renderDevicesSection = () => (
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '10px 12px' }}>#</th>
-                        <th style={{ padding: '10px 12px' }}>Tytuł</th>
-                        <th style={{ padding: '10px 12px' }}>Wykonawca</th>
-                        <th style={{ padding: '10px 12px' }}>Format</th>
+                        <th
+                          onClick={() => handleSort('default')}
+                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          title="Kliknij, aby przywrócić domyślną kolejność"
+                        >
+                          # {sortField === 'default' && '•'}
+                        </th>
+                        <th
+                          onClick={() => handleSort('title')}
+                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          title="Kliknij, aby posortować wg tytułu"
+                        >
+                          Tytuł {sortField === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                        </th>
+                        <th
+                          onClick={() => handleSort('artist')}
+                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          title="Kliknij, aby posortować wg wykonawcy"
+                        >
+                          Wykonawca {sortField === 'artist' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                        </th>
+                        <th
+                          onClick={() => handleSort('format')}
+                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          title="Kliknij, aby posortować wg formatu"
+                        >
+                          Format {sortField === 'format' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                        </th>
                         <th style={{ padding: '10px 12px' }}>Jakość</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
+                        <th
+                          onClick={() => handleSort('duration')}
+                          style={{ padding: '10px 12px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                          title="Kliknij, aby posortować wg długości"
+                        >
+                          Długość {sortField === 'duration' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                        </th>
                         <th style={{ padding: '10px 12px', textAlign: 'center' }}>Akcje</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTracks.length === 0 ? (
+                      {sortedTracks.length === 0 ? (
                         <tr>
                           <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             {tracks.length === 0
@@ -3058,7 +3388,7 @@ const renderDevicesSection = () => (
                           </td>
                         </tr>
                       ) : (
-                        filteredTracks.map((t, idx) => (
+                        sortedTracks.map((t, idx) => (
                           <tr
                             key={t.id}
                             onClick={() => handlePlayLibraryTrack(t)}
@@ -3115,7 +3445,7 @@ const renderDevicesSection = () => (
                             <td style={{ padding: '12px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handlePlayAllTracks(filteredTracks, idx); }}
+                                  onClick={(e) => { e.stopPropagation(); handlePlayAllTracks(sortedTracks, idx); }}
                                   title="Graj od tego utworu w kolejce"
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
                                 >
@@ -3155,13 +3485,59 @@ const renderDevicesSection = () => (
 
             {/* Widok 2: Siatka albumów i okładek (Etap 6) */}
             {librarySubView === 'albums' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-                {filteredAlbums.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '20px' }}>
-                    {albums.length === 0 ? "Brak zaindeksowanych albumów w bibliotece." : "Brak albumów pasujących do wyszukiwania."}
-                  </p>
-                ) : (
-                  filteredAlbums.map((album) => (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {sortedAlbums.length !== albums.length
+                      ? `Wyniki wyszukiwania: ${sortedAlbums.length} z ${albums.length} albumów`
+                      : `Łącznie: ${albums.length} albumów`}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ArrowUpDown size={13} color="var(--text-muted)" />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Sortuj albumy:</span>
+                    <select
+                      value={albumSortField}
+                      onChange={(e) => setAlbumSortField(e.target.value as any)}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(0,0,0,0.4)',
+                        border: '1px solid var(--border-subtle)',
+                        color: '#fff',
+                        fontSize: '0.72rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="title">Tytuł albumu (A-Z)</option>
+                      <option value="artist">Wykonawca (A-Z)</option>
+                      <option value="year">Rok wydania</option>
+                    </select>
+                    <button
+                      onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '6px',
+                        padding: '4px 8px',
+                        color: 'var(--accent-cyan)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                      title={albumSortOrder === 'asc' ? 'Rosnąco' : 'Malejąco'}
+                    >
+                      {albumSortOrder === 'asc' ? '▲' : '▼'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                  {sortedAlbums.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '20px' }}>
+                      {albums.length === 0 ? "Brak zaindeksowanych albumów w bibliotece." : "Brak albumów pasujących do wyszukiwania."}
+                    </p>
+                  ) : (
+                    sortedAlbums.map((album) => (
                     <div
                       key={album.id}
                       className="glass-card"
@@ -3275,7 +3651,8 @@ const renderDevicesSection = () => (
                   ))
                 )}
               </div>
-            )}
+            </div>
+          )}
 
             {/* Modal dopasowywania wydań MusicBrainz (Etap 6) */}
             {selectedAlbumForMb && (
