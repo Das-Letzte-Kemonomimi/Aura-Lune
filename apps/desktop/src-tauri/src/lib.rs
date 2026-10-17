@@ -24,6 +24,7 @@ pub struct AppState {
     pub db: Arc<Database>,
     pub scanner: Arc<LibraryScanner>,
     pub rt: Arc<tokio::runtime::Runtime>,
+    pub mpris: Option<Arc<desktop_integration::MprisController>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,17 +56,38 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn play(state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.play().map_err(|e| e.to_string())
+    state.engine.play().map_err(|e| e.to_string())?;
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.update_playback_status(PlaybackState::Playing).await;
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
 fn pause(state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.pause().map_err(|e| e.to_string())
+    state.engine.pause().map_err(|e| e.to_string())?;
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.update_playback_status(PlaybackState::Paused).await;
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
 fn stop(state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.stop().map_err(|e| e.to_string())
+    state.engine.stop().map_err(|e| e.to_string())?;
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.update_playback_status(PlaybackState::Stopped).await;
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -73,7 +95,14 @@ fn seek(position_ms: u64, state: State<'_, AppState>) -> Result<(), String> {
     state
         .engine
         .seek(Duration::from_millis(position_ms))
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.emit_seeked(position_ms).await;
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -190,7 +219,39 @@ fn load_dsp_preset(
 
 #[tauri::command]
 fn set_volume(volume: f64, state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.set_volume(volume).map_err(|e| e.to_string())
+    state.engine.set_volume(volume).map_err(|e| e.to_string())?;
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.update_volume(volume).await;
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn update_mpris_metadata(
+    title: String,
+    artist: String,
+    album: String,
+    duration_ms: u64,
+    art_url: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.update_track(desktop_integration::MprisTrackInfo {
+                title,
+                artist,
+                album,
+                duration_ms,
+                art_url,
+            })
+            .await;
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -354,11 +415,25 @@ pub fn run() {
 
                 let scanner = LibraryScanner::new(&cache_dir);
 
+                let mpris = rt.block_on(async {
+                    match desktop_integration::MprisController::start(engine.clone()).await {
+                        Ok(controller) => {
+                            info!("Zainicjalizowano serwis MPRIS D-Bus: org.mpris.MediaPlayer2.auralune");
+                            Some(Arc::new(controller))
+                        }
+                        Err(e) => {
+                            tracing::warn!("MPRIS D-Bus niedostępny w tej sesji: {}", e);
+                            None
+                        }
+                    }
+                });
+
                 let app_state = AppState {
                     engine,
                     db: Arc::new(db),
                     scanner: Arc::new(scanner),
                     rt,
+                    mpris,
                 };
 
                 app.manage(app_state);
@@ -393,6 +468,7 @@ pub fn run() {
             get_library_artists,
             save_bookmark,
             get_bookmark,
+            update_mpris_metadata,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
