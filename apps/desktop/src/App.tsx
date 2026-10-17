@@ -19,7 +19,29 @@ import {
   Disc,
   Clock,
   Bookmark,
+  RotateCcw,
+  Save,
 } from 'lucide-react';
+
+interface DspCapabilities {
+  engine: 'SoundTouch' | 'RubberBand';
+  name: string;
+  min_pitch_semitones: number;
+  max_pitch_semitones: number;
+  min_tempo_ratio: number;
+  max_tempo_ratio: number;
+  supports_formants: boolean;
+  description: string;
+}
+
+interface DspPresetRecord {
+  id: number;
+  name: string;
+  engine: string;
+  pitch_semitones: number;
+  tempo_ratio: number;
+  rate_ratio: number;
+}
 
 interface PlaybackStatus {
   state: 'Playing' | 'Paused' | 'Stopped';
@@ -29,6 +51,8 @@ interface PlaybackStatus {
   pitch_semitones: number;
   tempo_ratio: number;
   rate_ratio: number;
+  engine: 'SoundTouch' | 'RubberBand';
+  capabilities: DspCapabilities;
 }
 
 interface AudioCardProfile {
@@ -91,6 +115,17 @@ export default function App() {
     pitch_semitones: 0.0,
     tempo_ratio: 1.0,
     rate_ratio: 1.0,
+    engine: 'SoundTouch',
+    capabilities: {
+      engine: 'SoundTouch',
+      name: 'SoundTouch',
+      min_pitch_semitones: -12.0,
+      max_pitch_semitones: 12.0,
+      min_tempo_ratio: 0.5,
+      max_tempo_ratio: 2.0,
+      supports_formants: false,
+      description: 'Lekki silnik SoundTouch (niski narzut CPU, natywna integracja w GStreamer)',
+    },
   });
 
   const [cards, setCards] = useState<AudioCard[]>([]);
@@ -107,6 +142,10 @@ export default function App() {
   const [tracks, setTracks] = useState<TrackRecord[]>([]);
   const [albums, setAlbums] = useState<AlbumRecord[]>([]);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
+
+  // Stan presetów DSP (Etap 3)
+  const [presets, setPresets] = useState<DspPresetRecord[]>([]);
+  const [newPresetName, setNewPresetName] = useState('');
 
   // Odpytywanie statusu odtwarzacza
   useEffect(() => {
@@ -148,6 +187,7 @@ export default function App() {
   useEffect(() => {
     refreshDevices();
     loadLibrary();
+    loadPresets();
   }, []);
 
   const showMessage = (msg: string, isError = false) => {
@@ -262,6 +302,69 @@ export default function App() {
       await invoke('set_tempo', { tempoRatio });
     } catch (e: any) {
       showMessage(`Błąd tempo: ${e}`, true);
+    }
+  };
+
+  const handleRateChange = async (rateRatio: number) => {
+    try {
+      await invoke('set_rate', { rateRatio });
+      showMessage(`Ustawiono szybkość odtwarzania (rate) na: ${rateRatio.toFixed(2)}x`);
+    } catch (e: any) {
+      showMessage(`Błąd szybkości: ${e}`, true);
+    }
+  };
+
+  const handleResetDsp = async () => {
+    try {
+      const res = await invoke<PlaybackStatus>('reset_dsp');
+      setStatus(res);
+      showMessage('Zresetowano parametry DSP do wartości fabrycznych (1.0x / 0.0 st)');
+    } catch (e: any) {
+      showMessage(`Błąd resetu DSP: ${e}`, true);
+    }
+  };
+
+  const handleEngineChange = async (engine: 'SoundTouch' | 'RubberBand') => {
+    try {
+      const res = await invoke<PlaybackStatus>('set_dsp_engine', { engine });
+      setStatus(res);
+      showMessage(`Przełączono silnik DSP na: ${res.capabilities.name}`);
+    } catch (e: any) {
+      showMessage(`Błąd zmiany silnika DSP: ${e}`, true);
+    }
+  };
+
+  const loadPresets = async () => {
+    try {
+      const list = await invoke<DspPresetRecord[]>('list_dsp_presets');
+      setPresets(list);
+    } catch (e: any) {
+      console.warn('Błąd ładowania presetów:', e);
+    }
+  };
+
+  const handleSavePreset = async () => {
+    if (!newPresetName.trim()) {
+      showMessage('Podaj nazwę dla presetu DSP', true);
+      return;
+    }
+    try {
+      await invoke('save_dsp_preset', { name: newPresetName.trim() });
+      showMessage(`Zapisano preset '${newPresetName.trim()}' w bazie danych SQLite`);
+      setNewPresetName('');
+      await loadPresets();
+    } catch (e: any) {
+      showMessage(`Błąd zapisu presetu: ${e}`, true);
+    }
+  };
+
+  const handleLoadPreset = async (preset: DspPresetRecord) => {
+    try {
+      const res = await invoke<PlaybackStatus>('load_dsp_preset', { preset });
+      setStatus(res);
+      showMessage(`Załadowano preset: ${preset.name} (${preset.engine})`);
+    } catch (e: any) {
+      showMessage(`Błąd ładowania presetu: ${e}`, true);
     }
   };
 
@@ -790,25 +893,246 @@ export default function App() {
           </div>
         )}
 
-        {/* ZAKŁADKA 3: DSP */}
+        {/* ZAKŁADKA 3: DSP STUDIO (ETAP 3) */}
         {activeTab === 'dsp' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sliders size={20} color="var(--accent-purple)" /> Procesor DSP czasu rzeczywistego (SoundTouch / Rubber Band)
-            </h2>
+          <div className="glass-panel" style={{ padding: '28px', maxWidth: '880px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sliders size={20} color="var(--accent-purple)" /> Studio DSP & Wymienne Silniki
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Niezależna modyfikacja wysokości dźwięku, tempa i prędkości w czasie rzeczywistym
+                </p>
+              </div>
+              <button
+                onClick={handleResetDsp}
+                className="glass-card"
+                style={{
+                  padding: '8px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: 'var(--accent-cyan)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                }}
+              >
+                <RotateCcw size={14} /> Resetuj DSP (1.0x / 0 st)
+              </button>
+            </div>
 
-            {/* Suwak Pitch */}
+            {/* Wybór silnika DSP: SoundTouch vs Rubber Band */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '10px', fontWeight: 600 }}>
+                Wybór rdzenia DSP (Architektura ADR 0004):
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                {/* Karta SoundTouch */}
+                <div
+                  onClick={() => handleEngineChange('SoundTouch')}
+                  className="glass-card"
+                  style={{
+                    padding: '16px',
+                    cursor: 'pointer',
+                    borderRadius: '14px',
+                    border: status.engine === 'SoundTouch' ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+                    background: status.engine === 'SoundTouch' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(0,0,0,0.2)',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>SoundTouch</span>
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        color: 'var(--accent-cyan)',
+                      }}
+                    >
+                      LOW CPU
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Niski narzut obliczeniowy, natywna integracja w potoku GStreamer. Zakres pitch: ±12 st, tempo: 0.5x – 2.0x.
+                  </p>
+                  {status.engine === 'SoundTouch' && (
+                    <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--accent-purple)', fontWeight: 600 }}>
+                      ● Aktywny silnik odtwarzacza
+                    </div>
+                  )}
+                </div>
+
+                {/* Karta Rubber Band */}
+                <div
+                  onClick={() => handleEngineChange('RubberBand')}
+                  className="glass-card"
+                  style={{
+                    padding: '16px',
+                    cursor: 'pointer',
+                    borderRadius: '14px',
+                    border: status.engine === 'RubberBand' ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                    background: status.engine === 'RubberBand' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(0,0,0,0.2)',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>Rubber Band R3</span>
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(236, 72, 153, 0.2)',
+                        color: 'var(--accent-pink)',
+                      }}
+                    >
+                      AUDIOFILE R3
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Precyzyjny silnik R3, zachowanie formantów, czystość transjentów perkusji. Zakres pitch: ±24 st, tempo: 0.25x – 4.0x.
+                  </p>
+                  {status.engine === 'RubberBand' && (
+                    <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--accent-pink)', fontWeight: 600 }}>
+                      ● Aktywny silnik odtwarzacza
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Pasek telemetrii silnika */}
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px',
+                fontSize: '0.8rem',
+              }}
+            >
+              <span>
+                Silnik: <strong style={{ color: 'var(--accent-cyan)' }}>{status.capabilities.name}</strong>
+              </span>
+              <span>
+                Zakres Pitch:{' '}
+                <strong style={{ color: 'var(--accent-pink)' }}>
+                  {status.capabilities.min_pitch_semitones} do +{status.capabilities.max_pitch_semitones} st
+                </strong>
+              </span>
+              <span>
+                Zakres Tempo:{' '}
+                <strong style={{ color: 'var(--accent-cyan)' }}>
+                  {status.capabilities.min_tempo_ratio}x – {status.capabilities.max_tempo_ratio}x
+                </strong>
+              </span>
+              <span>
+                Formanty:{' '}
+                <strong style={{ color: status.capabilities.supports_formants ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                  {status.capabilities.supports_formants ? 'Wspierane' : 'Brak'}
+                </strong>
+              </span>
+            </div>
+
+            {/* Menedżer presetów DSP (SQLite) */}
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                padding: '16px',
+                borderRadius: '14px',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '28px',
+              }}
+            >
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                Presety DSP (Zapis w bazie SQLite):
+              </label>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                <input
+                  type="text"
+                  placeholder="Nazwa presetu (np. Nightcore +3st, Chillout 0.85x)..."
+                  value={newPresetName}
+                  onChange={(e) => setNewPresetName(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(0,0,0,0.3)',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                  }}
+                />
+                <button
+                  onClick={handleSavePreset}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                    color: '#fff',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <Save size={14} /> Zapisz preset
+                </button>
+              </div>
+
+              {/* Lista zapisanych presetów */}
+              {presets.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {presets.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleLoadPreset(p)}
+                      className="glass-card"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#fff',
+                      }}
+                    >
+                      <Sparkles size={12} color="var(--accent-pink)" />
+                      <span>{p.name}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                        ({p.pitch_semitones > 0 ? `+${p.pitch_semitones}` : p.pitch_semitones}st, {p.tempo_ratio}x)
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Suwak Pitch Shift */}
             <div style={{ marginBottom: '28px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Wysokość dźwięku (Pitch Shift):</label>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600 }}>
-                  {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st ({Math.round(status.pitch_semitones * 100)} cents)
+                  {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st (
+                  {Math.round(status.pitch_semitones * 100)} cents) | Współczynnik:{' '}
+                  {(2 ** (status.pitch_semitones / 12)).toFixed(3)}x
                 </span>
               </div>
               <input
                 type="range"
-                min={-12}
-                max={12}
+                min={status.capabilities.min_pitch_semitones}
+                max={status.capabilities.max_pitch_semitones}
                 step={0.5}
                 value={status.pitch_semitones}
                 onChange={(e) => handlePitchChange(Number(e.target.value))}
@@ -828,14 +1152,14 @@ export default function App() {
                       color: st === 0 ? 'var(--accent-cyan)' : '#fff',
                     }}
                   >
-                    {st === 0 ? 'Reset' : st > 0 ? `+${st}` : st}
+                    {st === 0 ? '0 st' : st > 0 ? `+${st}` : st}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Suwak Tempo */}
-            <div style={{ marginBottom: '20px' }}>
+            {/* Suwak Tempo (Time Stretch) */}
+            <div style={{ marginBottom: '28px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Tempo (Time Stretch bez zmiany wysokości):</label>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600 }}>
@@ -844,8 +1168,8 @@ export default function App() {
               </div>
               <input
                 type="range"
-                min={0.5}
-                max={2.0}
+                min={status.capabilities.min_tempo_ratio}
+                max={status.capabilities.max_tempo_ratio}
                 step={0.05}
                 value={status.tempo_ratio}
                 onChange={(e) => handleTempoChange(Number(e.target.value))}
@@ -866,6 +1190,45 @@ export default function App() {
                     }}
                   >
                     {tr === 1.0 ? '1.0x (Normal)' : `${tr}x`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Suwak Szybkości (Rate - zmiana tempa i wysokości jednocześnie) */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                  Szybkość (Rate - analogowa modulacja taśmy / winylu):
+                </label>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600 }}>
+                  {status.rate_ratio.toFixed(2)}x ({Math.round(status.rate_ratio * 100)}%)
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={2.0}
+                step={0.05}
+                value={status.rate_ratio}
+                onChange={(e) => handleRateChange(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: '12px' }}
+              />
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[0.8, 0.9, 1.0, 1.1, 1.2].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => handleRateChange(r)}
+                    className="glass-card"
+                    style={{
+                      flex: 1,
+                      padding: '6px 0',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: r === 1.0 ? 'var(--accent-amber)' : '#fff',
+                    }}
+                  >
+                    {r === 1.0 ? '1.0x' : `${r}x`}
                   </button>
                 ))}
               </div>

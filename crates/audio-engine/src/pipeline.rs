@@ -2,7 +2,7 @@
 
 use crate::error::AudioEngineError;
 use domain::PlaybackState;
-use dsp_api::{semitones_to_pitch_ratio, DspParams};
+use dsp_api::{semitones_to_pitch_ratio, DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
@@ -347,6 +347,34 @@ impl AudioEngine {
     pub fn dsp_params(&self) -> DspParams {
         let inner = self.inner.lock().unwrap();
         inner.dsp_params
+    }
+
+    /// Przełącza silnik DSP (SoundTouch lub Rubber Band).
+    pub fn set_dsp_engine(&self, engine: DspEngine) -> Result<(), AudioEngineError> {
+        let current = self.dsp_params();
+        if current.engine == engine {
+            return Ok(());
+        }
+
+        let mut updated = current;
+        updated.engine = engine;
+
+        let caps = engine.capabilities();
+        updated.pitch_semitones = updated
+            .pitch_semitones
+            .clamp(caps.min_pitch_semitones, caps.max_pitch_semitones);
+        updated.tempo_ratio = updated
+            .tempo_ratio
+            .clamp(caps.min_tempo_ratio, caps.max_tempo_ratio);
+
+        self.set_dsp_params(updated)?;
+        info!("Przełączono silnik DSP na {}", caps.name);
+        Ok(())
+    }
+
+    /// Zwraca właściwości i ograniczenia aktualnego silnika DSP.
+    pub fn dsp_capabilities(&self) -> DspCapabilities {
+        self.dsp_params().engine.capabilities()
     }
 
     /// Zwraca aktualny stan odtwarzacza.
