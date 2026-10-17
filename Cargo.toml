@@ -9,6 +9,7 @@ members = [
     "crates/library",
     "crates/dsp-rubberband",
     "crates/dsp-soundtouch",
+    "crates/desktop-integration",
     "apps/desktop/src-tauri",
 ]
 

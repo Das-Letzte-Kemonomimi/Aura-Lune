@@ -229,6 +229,15 @@ export default function App() {
       }
 
       await invoke('play');
+
+      // Publikacja metadanych do systemowego D-Bus MPRIS (KDE/GNOME/playerctl)
+      await invoke('update_mpris_metadata', {
+        title: track.title,
+        artist: track.artist,
+        album: 'Auralune Library',
+        durationMs: track.duration_ms,
+        artUrl: null,
+      });
     } catch (e: any) {
       showMessage(`Błąd odtwarzania utworu: ${e}`, true);
     }
@@ -255,6 +264,14 @@ export default function App() {
   const handleLoadFile = async (path: string) => {
     try {
       await invoke('load_file', { path });
+      const filename = path.split('/').pop() || path;
+      await invoke('update_mpris_metadata', {
+        title: filename,
+        artist: 'Plik lokalny',
+        album: 'Auralune Player',
+        durationMs: 0,
+        artUrl: null,
+      });
       showMessage(`Załadowano plik: ${path}`);
     } catch (e: any) {
       showMessage(`Błąd ładowania pliku: ${e}`, true);
