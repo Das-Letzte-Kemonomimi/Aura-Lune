@@ -16,6 +16,7 @@ dsp-api = { path = "../../../crates/dsp-api" }
 storage = { path = "../../../crates/storage" }
 library = { path = "../../../crates/library" }
 desktop-integration = { path = "../../../crates/desktop-integration" }
+metadata = { path = "../../../crates/metadata" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

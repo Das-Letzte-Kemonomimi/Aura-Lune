@@ -28,7 +28,21 @@ import {
   Copy,
   Check,
   Trash2,
+  Search,
+  Globe,
+  CheckCircle,
+  X,
 } from 'lucide-react';
+
+interface ReleaseCandidateDto {
+  mbid: string;
+  title: string;
+  artist: string;
+  date: string | null;
+  country: string | null;
+  track_count: number | null;
+  score: number;
+}
 
 interface ThemeTokens {
   bg_deep: string;
@@ -133,6 +147,7 @@ interface AlbumRecord {
   album_artist: string;
   year: number | null;
   cover_path: string | null;
+  release_mbid?: string | null;
 }
 
 interface ScanSummaryDto {
@@ -190,6 +205,15 @@ export default function App() {
   const [tracks, setTracks] = useState<TrackRecord[]>([]);
   const [albums, setAlbums] = useState<AlbumRecord[]>([]);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
+
+  // Stan MusicBrainz i Cover Art Archive (Etap 6)
+  const [librarySubView, setLibrarySubView] = useState<'tracks' | 'albums'>('tracks');
+  const [selectedAlbumForMb, setSelectedAlbumForMb] = useState<AlbumRecord | null>(null);
+  const [mbSearchTitle, setMbSearchTitle] = useState('');
+  const [mbSearchArtist, setMbSearchArtist] = useState('');
+  const [mbCandidates, setMbCandidates] = useState<ReleaseCandidateDto[]>([]);
+  const [isSearchingMb, setIsSearchingMb] = useState(false);
+  const [isFetchingCover, setIsFetchingCover] = useState(false);
 
   // Stan presetów DSP (Etap 3)
   const [presets, setPresets] = useState<DspPresetRecord[]>([]);
@@ -394,6 +418,89 @@ export default function App() {
       showMessage(`Błąd skanowania biblioteki: ${e}`, true);
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  // Obsługa wyszukiwania wydań w MusicBrainz i pobierania okładek (Etap 6)
+  const handleOpenMbModal = (album: AlbumRecord) => {
+    setSelectedAlbumForMb(album);
+    setMbSearchTitle(album.title);
+    setMbSearchArtist(album.album_artist);
+    setMbCandidates([]);
+  };
+
+  const handleSearchMusicBrainz = async () => {
+    if (!mbSearchTitle.trim()) {
+      showMessage('Podaj tytuł albumu do wyszukania', true);
+      return;
+    }
+    setIsSearchingMb(true);
+    try {
+      const candidates = await invoke<ReleaseCandidateDto[]>('search_musicbrainz_releases', {
+        album: mbSearchTitle.trim(),
+        artist: mbSearchArtist.trim(),
+      });
+      setMbCandidates(candidates);
+      if (candidates.length === 0) {
+        showMessage('Nie znaleziono pasujących wydań w MusicBrainz', true);
+      } else {
+        showMessage(`Znaleziono ${candidates.length} wydań w MusicBrainz`);
+      }
+    } catch (e: any) {
+      showMessage(`Błąd wyszukiwania w MusicBrainz: ${e}`, true);
+    } finally {
+      setIsSearchingMb(false);
+    }
+  };
+
+  const handleSelectCandidateAndFetchCover = async (candidate: ReleaseCandidateDto) => {
+    if (!selectedAlbumForMb) return;
+    setIsFetchingCover(true);
+    try {
+      const coverDataUri = await invoke<string>('fetch_and_apply_cover', {
+        albumId: selectedAlbumForMb.id,
+        mbid: candidate.mbid,
+      });
+
+      setAlbums((prev) =>
+        prev.map((a) =>
+          a.id === selectedAlbumForMb.id
+            ? { ...a, cover_path: coverDataUri, release_mbid: candidate.mbid }
+            : a
+        )
+      );
+
+      showMessage(`Pomyślnie pobrano okładkę z Cover Art Archive dla '${selectedAlbumForMb.title}'!`);
+      setSelectedAlbumForMb(null);
+      await loadLibrary();
+    } catch (e: any) {
+      showMessage(`Błąd pobierania okładki z Cover Art Archive: ${e}`, true);
+    } finally {
+      setIsFetchingCover(false);
+    }
+  };
+
+  const handleAutoFetchCover = async (album: AlbumRecord) => {
+    try {
+      showMessage(`Wyszukiwanie okładki dla '${album.title}' w MusicBrainz & CAA...`);
+      const coverDataUri = await invoke<string | null>('auto_fetch_album_cover', {
+        albumId: album.id,
+        albumTitle: album.title,
+        artist: album.album_artist,
+      });
+
+      if (coverDataUri) {
+        setAlbums((prev) =>
+          prev.map((a) => (a.id === album.id ? { ...a, cover_path: coverDataUri } : a))
+        );
+        showMessage(`Pomyślnie dopasowano i pobrano okładkę dla '${album.title}'!`);
+        await loadLibrary();
+      } else {
+        showMessage(`Brak pewnego dopasowania (score >= 85). Otwieram okno wyboru kandydatów.`, true);
+        handleOpenMbModal(album);
+      }
+    } catch (e: any) {
+      showMessage(`Błąd automatycznego dopasowania: ${e}`, true);
     }
   };
 
@@ -1060,70 +1167,383 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tabela utworów */}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '10px 12px' }}>#</th>
-                    <th style={{ padding: '10px 12px' }}>Tytuł</th>
-                    <th style={{ padding: '10px 12px' }}>Wykonawca</th>
-                    <th style={{ padding: '10px 12px' }}>Format</th>
-                    <th style={{ padding: '10px 12px' }}>Jakość</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tracks.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Biblioteka jest pusta. Kliknij 'Skanuj przyrostowo' powyżej.
-                      </td>
+            {/* Przełącznik widoku: Utwory / Albumy i Okładki (Etap 6) */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+              <button
+                onClick={() => setLibrarySubView('tracks')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  background: librarySubView === 'tracks' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Music size={15} /> Utwory ({tracks.length})
+              </button>
+              <button
+                onClick={() => setLibrarySubView('albums')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  background: librarySubView === 'albums' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Disc size={15} /> Albumy & Okładki ({albums.length})
+              </button>
+            </div>
+
+            {/* Widok 1: Tabela utworów */}
+            {librarySubView === 'tracks' && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '10px 12px' }}>#</th>
+                      <th style={{ padding: '10px 12px' }}>Tytuł</th>
+                      <th style={{ padding: '10px 12px' }}>Wykonawca</th>
+                      <th style={{ padding: '10px 12px' }}>Format</th>
+                      <th style={{ padding: '10px 12px' }}>Jakość</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Długość</th>
                     </tr>
-                  ) : (
-                    tracks.map((t, idx) => (
-                      <tr
-                        key={t.id}
-                        onClick={() => handlePlayLibraryTrack(t)}
-                        className="glass-card"
-                        style={{
-                          cursor: 'pointer',
-                          background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                          borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        }}
-                      >
-                        <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                          {t.track_no || idx + 1}
-                        </td>
-                        <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
-                          {t.title}
-                        </td>
-                        <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
-                        <td style={{ padding: '12px' }}>
-                          <span
-                            style={{
-                              background: 'rgba(255,255,255,0.08)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '0.7rem',
-                              fontFamily: 'var(--font-mono)',
-                            }}
-                          >
-                            {t.format}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                          {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          {formatTime(t.duration_ms)}
+                  </thead>
+                  <tbody>
+                    {tracks.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Biblioteka jest pusta. Kliknij 'Skanuj przyrostowo' powyżej.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      tracks.map((t, idx) => (
+                        <tr
+                          key={t.id}
+                          onClick={() => handlePlayLibraryTrack(t)}
+                          className="glass-card"
+                          style={{
+                            cursor: 'pointer',
+                            background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                            borderBottom: '1px solid rgba(255,255,255,0.03)',
+                          }}
+                        >
+                          <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                            {t.track_no || idx + 1}
+                          </td>
+                          <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
+                            {t.title}
+                          </td>
+                          <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span
+                              style={{
+                                background: 'rgba(255,255,255,0.08)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontFamily: 'var(--font-mono)',
+                              }}
+                            >
+                              {t.format}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                            {formatTime(t.duration_ms)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Widok 2: Siatka albumów i okładek (Etap 6) */}
+            {librarySubView === 'albums' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                {albums.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '20px' }}>
+                    Brak zaindeksowanych albumów w bibliotece.
+                  </p>
+                ) : (
+                  albums.map((album) => (
+                    <div
+                      key={album.id}
+                      className="glass-card"
+                      style={{
+                        padding: '16px',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      {/* Podgląd okładki */}
+                      <div
+                        style={{
+                          width: '100%',
+                          aspectRatio: '1/1',
+                          borderRadius: '12px',
+                          background: album.cover_path
+                            ? `url("${album.cover_path}") center/cover no-repeat`
+                            : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        {!album.cover_path && <Disc size={48} color="rgba(255,255,255,0.25)" />}
+                      </div>
+
+                      <div>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {album.title}
+                        </h4>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {album.album_artist} {album.year ? `(${album.year})` : ''}
+                        </p>
+                        {album.release_mbid && (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              marginTop: '4px',
+                              fontSize: '0.7rem',
+                              fontFamily: 'var(--font-mono)',
+                              color: 'var(--accent-cyan)',
+                              background: 'rgba(6,182,212,0.12)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            MBID: {album.release_mbid.slice(0, 8)}...
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+                        <button
+                          onClick={() => handleOpenMbModal(album)}
+                          style={{
+                            flex: 1,
+                            padding: '8px',
+                            borderRadius: '8px',
+                            background: 'var(--accent-purple)',
+                            color: '#fff',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Search size={13} /> MusicBrainz
+                        </button>
+                        <button
+                          onClick={() => handleAutoFetchCover(album)}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.08)',
+                            color: 'var(--accent-cyan)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                          }}
+                          title="Automatyczne pobranie okładki z CAA jeśli wynik score >= 85"
+                        >
+                          Auto CAA
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Modal dopasowywania wydań MusicBrainz (Etap 6) */}
+            {selectedAlbumForMb && (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.7)',
+                  backdropFilter: 'blur(8px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 100,
+                  padding: '20px',
+                }}
+              >
+                <div
+                  className="glass-panel"
+                  style={{
+                    width: '100%',
+                    maxWidth: '680px',
+                    maxHeight: '85vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '24px',
+                    borderRadius: '20px',
+                    border: '1px solid var(--border-accent)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Globe size={22} color="var(--accent-cyan)" />
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                        Dopasowanie wydania w MusicBrainz
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setSelectedAlbumForMb(null)}
+                      style={{
+                        background: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                    Wyszukaj oficjalne wydanie albumu i pobierz okładkę wysokiej jakości z Cover Art Archive.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginBottom: '16px' }}>
+                    <input
+                      type="text"
+                      value={mbSearchTitle}
+                      onChange={(e) => setMbSearchTitle(e.target.value)}
+                      placeholder="Tytuł albumu"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid var(--border-subtle)',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={mbSearchArtist}
+                      onChange={(e) => setMbSearchArtist(e.target.value)}
+                      placeholder="Wykonawca"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid var(--border-subtle)',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                      }}
+                    />
+                    <button
+                      onClick={handleSearchMusicBrainz}
+                      disabled={isSearchingMb}
+                      style={{
+                        padding: '10px 18px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Search size={15} />
+                      {isSearchingMb ? 'Szukanie...' : 'Szukaj'}
+                    </button>
+                  </div>
+
+                  {/* Lista kandydatów */}
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {mbCandidates.length === 0 && !isSearchingMb && (
+                      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '24px' }}>
+                        Kliknij 'Szukaj', aby odpytać serwer MusicBrainz API o kandydatów wydań.
+                      </p>
+                    )}
+
+                    {mbCandidates.map((cand) => (
+                      <div
+                        key={cand.mbid}
+                        className="glass-card"
+                        style={{
+                          padding: '14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px',
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                              {cand.title}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: cand.score >= 90 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                color: cand.score >= 90 ? 'var(--accent-green)' : 'var(--accent-amber)',
+                              }}
+                            >
+                              {cand.score}% zgodności
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            Wykonawca: {cand.artist} {cand.date ? `| Data: ${cand.date}` : ''} {cand.country ? `(${cand.country})` : ''} {cand.track_count ? `| Utworów: ${cand.track_count}` : ''}
+                          </p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            MBID: {cand.mbid}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleSelectCandidateAndFetchCover(cand)}
+                          disabled={isFetchingCover}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            background: 'var(--accent-cyan)',
+                            color: '#000',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <CheckCircle size={14} />
+                          {isFetchingCover ? 'Pobieranie...' : 'Wybierz & Pobierz Okładkę'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -44,6 +44,7 @@ pub struct AlbumRecord {
     pub album_artist: String,
     pub year: Option<i64>,
     pub cover_path: Option<String>,
+    pub release_mbid: Option<String>,
 }
 
 /// Rekord wykonawcy w bazie danych.
@@ -116,6 +117,7 @@ impl Database {
                 album_artist TEXT NOT NULL,
                 year INTEGER,
                 cover_path TEXT,
+                release_mbid TEXT,
                 UNIQUE(title, album_artist)
             );
 
@@ -177,6 +179,11 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        // Zgodność wsteczna dla istniejących baz danych
+        let _ = sqlx::query("ALTER TABLE albums ADD COLUMN release_mbid TEXT;")
+            .execute(&self.pool)
+            .await;
+
         // Inicjalizacja domyślnych motywów anime, jeśli tabela jest pusta
         let theme_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM themes;")
             .fetch_one(&self.pool)
@@ -237,6 +244,30 @@ impl Database {
         .await?;
 
         Ok(rec.get::<i64, _>("id"))
+    }
+
+    /// Aktualizuje okładkę oraz identyfikator MBID dla albumu.
+    pub async fn update_album_cover(
+        &self,
+        album_id: i64,
+        cover_path: &str,
+        release_mbid: Option<&str>,
+    ) -> Result<(), StorageError> {
+        sqlx::query(
+            r#"
+            UPDATE albums
+            SET cover_path = ?1,
+                release_mbid = COALESCE(?2, release_mbid)
+            WHERE id = ?3;
+            "#,
+        )
+        .bind(cover_path)
+        .bind(release_mbid)
+        .bind(album_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 
     /// Wstawia lub aktualizuje utwór.
