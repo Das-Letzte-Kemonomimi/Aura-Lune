@@ -7,7 +7,7 @@
   <p><strong>Natywny, wysoce konfigurowalny odtwarzacz muzyki dla Linuksa łączący wygodę Powerampa, elastyczność foobar2000, wymienny silnik DSP w czasie rzeczywistym i estetykę anime.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Auralune/releases/tag/v0.2.2"><img src="https://img.shields.io/badge/wersja-0.2.2_„Resonance_%26_Flow”-f43f5e.svg?style=for-the-badge" alt="Wersja" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v0.2.2"><img src="https://img.shields.io/badge/wersja-0.2.2_„Resonance_%26_Flow”-f43f5e.svg?style=for-the-badge" alt="Wersja" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/licencja-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="Licencja" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platforma-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platforma" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>
@@ -78,7 +78,7 @@ Aplikacja łączy zaawansowany potok audio w języku **Rust** z responsywnym fro
 ## 📦 Instalacja i Uruchomienie
 
 ### 1. Gotowa paczka AppImage (Wszystkie dystrybucje Linuksa)
-Pobierz najnowszy plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Auralune/releases/latest)**:
+Pobierz najnowszy plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
 ```bash
 chmod +x Auralune_0.2.2_amd64.AppImage
 ./Auralune_0.2.2_amd64.AppImage
@@ -106,8 +106,8 @@ sudo pacman -S --needed base-devel git rustup nodejs npm \
 ### Krok po kroku:
 ```bash
 # 1. Klonowanie repozytorium:
-git clone https://github.com/Das-Letzte-Kemonomimi/Auralune.git
-cd Auralune
+git clone https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git
+cd Aura-Lune
 
 # 2. Instalacja zależności frontendu:
 cd apps/desktop
