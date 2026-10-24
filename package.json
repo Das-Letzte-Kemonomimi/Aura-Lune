@@ -1,0 +1,13 @@
+{
+  "name": "auralune-root",
+  "private": true,
+  "author": "Das Letzte Kemonomimi",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix apps/desktop run dev",
+    "build": "npm --prefix apps/desktop run build",
+    "lint": "npm --prefix apps/desktop run lint",
+    "tauri": "npm --prefix apps/desktop exec tauri --"
+  }
+}

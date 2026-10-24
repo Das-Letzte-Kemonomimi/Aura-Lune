@@ -1,6 +1,16 @@
 # Kitsune Player (Auralune)
 
+**Autorka**: Das Letzte Kemonomimi  
+**Wersja**: 0.1.0  
+**Licencja**: GPL-3.0-or-later  
+**Dziennik zmian**: zobacz [`CHANGELOG.md`](CHANGELOG.md)
+
 Konfigurowalny, zoptymalizowany dla Linuksa odtwarzacz muzyki z silnikiem DSP czasu rzeczywistego (Rubber Band & SoundTouch), bazą SQLite, integracją PipeWire/MPRIS oraz interfejsem desktopowym w estetyce anime.
+
+### Zasady wersjonowania (Semantic Versioning)
+- **MAJOR (X.0.0)**: Przełomowe, fundamentalne zmiany lub wydanie wersji stabilnej 1.0.0.
+- **MINOR (0.X.0)**: Większe moduły i nowe funkcjonalności (np. 0.2.0, 0.3.0).
+- **PATCH (0.1.X)**: Mniejsze poprawki błędów, eliminacja trzasków i zacięć audio, doszlifowanie UI.
 
 ---
 

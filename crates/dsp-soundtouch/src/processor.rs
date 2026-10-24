@@ -70,6 +70,13 @@ impl AudioProcessor for SoundTouchProcessor {
         unsafe {
             soundtouch_set_sample_rate(handle, format.sample_rate);
             soundtouch_set_channels(handle, format.channels);
+
+            // Włączenie filtru antyaliasingowego transpozera pitchu
+            soundtouch_set_setting(handle, SETTING_USE_AA_FILTER, 1);
+            // Maksymalna długość filtru AA (128 taps) drastycznie redukuje szelesty i artefakty
+            soundtouch_set_setting(handle, SETTING_AA_FILTER_LENGTH, 128);
+            // Wyłączenie quickseek na rzecz precyzyjnego algorytmu korelacji próbek
+            soundtouch_set_setting(handle, SETTING_USE_QUICKSEEK, 0);
         }
 
         self.handle = Some(handle);
@@ -80,7 +87,7 @@ impl AudioProcessor for SoundTouchProcessor {
         self.set_params(self.params)?;
 
         debug!(
-            "Zainicjalizowano SoundTouchProcessor dla {} Hz, {} kanałów",
+            "Zainicjalizowano SoundTouchProcessor dla {} Hz, {} kanałów (AA 128-tap, exact seek)",
             format.sample_rate, format.channels
         );
         Ok(())
@@ -96,6 +103,19 @@ impl AudioProcessor for SoundTouchProcessor {
                 soundtouch_set_rate(handle, params.rate_ratio);
                 soundtouch_set_tempo(handle, params.tempo_ratio);
                 soundtouch_set_pitch(handle, pitch_ratio);
+
+                // Adaptacja parametrów do tempa dla muzyki polyfonicznej
+                if params.tempo_ratio < 0.75 {
+                    // Dłuższa sekwencja i stabilniejsze okno poszukiwania eliminują drżenie falowe i metaliczny flutter
+                    soundtouch_set_setting(handle, SETTING_SEQUENCE_MS, 75);
+                    soundtouch_set_setting(handle, SETTING_SEEKWINDOW_MS, 25);
+                    soundtouch_set_setting(handle, SETTING_OVERLAP_MS, 14);
+                } else {
+                    // Standardowa charakterystyka SoundTouch dla muzyki
+                    soundtouch_set_setting(handle, SETTING_SEQUENCE_MS, 0);
+                    soundtouch_set_setting(handle, SETTING_SEEKWINDOW_MS, 0);
+                    soundtouch_set_setting(handle, SETTING_OVERLAP_MS, 8);
+                }
             }
         }
         Ok(())

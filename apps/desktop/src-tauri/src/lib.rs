@@ -4,7 +4,7 @@
 //! Wątek audio i surowe próbki PCM są całkowicie odizolowane od WebView i bazy danych.
 //! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem, odpytywania stanu i indeksowania.
 
-use audio_engine::{AudioEngine, DeviceManager, PlayerEvent, Transcoder};
+use audio_engine::{AudioEngine, DeviceManager, PlayerEvent, TrackKeyBpm, Transcoder};
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
@@ -12,7 +12,7 @@ use domain::transcode::ExportFormat;
 use domain::{PlaybackState, Playlist, Theme};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
-use metadata::{CoverArtArchiveClient, MusicBrainzClient, ReleaseCandidateDto};
+use metadata::{CoverArtArchiveClient, CoverCandidateDto, MusicBrainzClient, ReleaseCandidateDto};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -63,7 +63,51 @@ pub struct ScanSummaryDto {
 #[tauri::command]
 fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
     info!("Tauri command: load_file('{}')", path);
-    state.engine.load_uri(&path).map_err(|e| e.to_string())
+    state.engine.load_uri(&path).map_err(|e| e.to_string())?;
+
+    let db = state.db.clone();
+    let path_clone = path.clone();
+    let track_opt = state
+        .rt
+        .block_on(async move { db.get_track_by_path(&path_clone).await.ok().flatten() });
+
+    let queue_item = if let Some(t) = track_opt {
+        QueueItem {
+            id: format!("track-{}", t.id),
+            track_id: Some(t.id),
+            uri: t.path.clone(),
+            title: t.title.clone(),
+            artist: t.artist.clone(),
+            album: t.album_artist.clone(),
+            duration_ms: t.duration_ms as u64,
+        }
+    } else {
+        let title = std::path::Path::new(&path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&path)
+            .to_string();
+        QueueItem {
+            id: format!(
+                "file-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+            ),
+            track_id: None,
+            uri: path.clone(),
+            title,
+            artist: "Plik lokalny".to_string(),
+            album: None,
+            duration_ms: 0,
+        }
+    };
+
+    state.engine.set_active_item(queue_item.clone());
+    sync_mpris_from_queue_item(&queue_item, &state);
+    persist_queue_state(&state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -103,10 +147,11 @@ fn stop(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn seek(position_ms: u64, state: State<'_, AppState>) -> Result<(), String> {
+fn seek(position_ms: u64, fade: Option<bool>, state: State<'_, AppState>) -> Result<(), String> {
+    let should_fade = fade.unwrap_or(true);
     state
         .engine
-        .seek(Duration::from_millis(position_ms))
+        .seek_with_fade(Duration::from_millis(position_ms), should_fade)
         .map_err(|e| e.to_string())?;
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
@@ -126,19 +171,51 @@ fn set_pitch(semitones: f64, state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn set_tempo(tempo_ratio: f64, state: State<'_, AppState>) -> Result<(), String> {
+fn set_tempo(
+    tempo_ratio: Option<f64>,
+    ratio: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let r = tempo_ratio.or(ratio).unwrap_or(1.0);
+    state.engine.set_tempo_ratio(r).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_tempo_ratio(
+    tempo_ratio: Option<f64>,
+    ratio: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let r = tempo_ratio.or(ratio).unwrap_or(1.0);
+    state.engine.set_tempo_ratio(r).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_pitch_semitones(semitones: f64, state: State<'_, AppState>) -> Result<(), String> {
     state
         .engine
-        .set_tempo_ratio(tempo_ratio)
+        .set_pitch_semitones(semitones)
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn set_rate(rate_ratio: f64, state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .engine
-        .set_rate_ratio(rate_ratio)
-        .map_err(|e| e.to_string())
+fn set_rate(
+    rate_ratio: Option<f64>,
+    rate: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let r = rate_ratio.or(rate).unwrap_or(1.0);
+    state.engine.set_rate_ratio(r).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_rate_ratio(
+    rate_ratio: Option<f64>,
+    rate: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let r = rate_ratio.or(rate).unwrap_or(1.0);
+    state.engine.set_rate_ratio(r).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -150,6 +227,25 @@ fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, String> {
         .set_dsp_params(reset_params)
         .map_err(|e| e.to_string())?;
     Ok(get_status(state))
+}
+
+#[tauri::command]
+fn set_reverb_params(
+    enabled: bool,
+    room_size: Option<f64>,
+    damping: Option<f64>,
+    width: Option<f64>,
+    level: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let r_size = room_size.unwrap_or(0.5);
+    let damp = damping.unwrap_or(0.2);
+    let w = width.unwrap_or(1.0);
+    let lev = level.unwrap_or(0.4);
+    state
+        .engine
+        .set_reverb_params(enabled, r_size, damp, w, lev);
+    Ok(())
 }
 
 #[tauri::command]
@@ -175,6 +271,7 @@ fn save_dsp_preset(name: String, state: State<'_, AppState>) -> Result<i64, Stri
     let dsp = state.engine.dsp_params();
     let db = state.db.clone();
     let engine_str = match dsp.engine {
+        DspEngine::Bypass => "Bypass",
         DspEngine::SoundTouch => "SoundTouch",
         DspEngine::RubberBand => "RubberBand",
     };
@@ -208,7 +305,9 @@ fn load_dsp_preset(
     preset: DspPresetRecord,
     state: State<'_, AppState>,
 ) -> Result<PlaybackStatusDto, String> {
-    let engine = if preset.engine.eq_ignore_ascii_case("RubberBand") {
+    let engine = if preset.engine.eq_ignore_ascii_case("Bypass") {
+        DspEngine::Bypass
+    } else if preset.engine.eq_ignore_ascii_case("RubberBand") {
         DspEngine::RubberBand
     } else {
         DspEngine::SoundTouch
@@ -366,6 +465,48 @@ fn enable_pro_audio(card_name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn disable_pro_audio(card_name: String) -> Result<String, String> {
+    DeviceManager::disable_pro_audio(&card_name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_card_profile(card_name: String, profile: String) -> Result<(), String> {
+    DeviceManager::set_card_profile(&card_name, &profile).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_lyrics_lrc(track_path: String, lrc_content: String) -> Result<String, String> {
+    metadata::save_lrc_file(&track_path, &lrc_content)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_app_setting(
+    key: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    state
+        .db
+        .get_app_setting(&key)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_app_setting(
+    key: String,
+    value: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .set_app_setting(&key, &value)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn transcode_file(
     input_path: String,
     output_path: String,
@@ -375,14 +516,15 @@ fn transcode_file(
 }
 
 #[tauri::command]
-fn scan_library(folder_path: String, state: State<'_, AppState>) -> Result<ScanSummaryDto, String> {
+async fn scan_library(
+    folder_path: String,
+    state: State<'_, AppState>,
+) -> Result<ScanSummaryDto, String> {
     info!("Tauri command: scan_library('{}')", folder_path);
-    let scanner = state.scanner.clone();
-    let db = state.db.clone();
-
     let summary = state
-        .rt
-        .block_on(async move { scanner.scan_directory(&folder_path, &db).await })
+        .scanner
+        .scan_directory(&folder_path, &state.db)
+        .await
         .map_err(|e| e.to_string())?;
 
     Ok(ScanSummaryDto {
@@ -394,6 +536,428 @@ fn scan_library(folder_path: String, state: State<'_, AppState>) -> Result<ScanS
 }
 
 #[tauri::command]
+async fn scan_paths(
+    paths: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<ScanSummaryDto, String> {
+    info!("Tauri command: scan_paths({:?})", paths);
+    let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+    let summary = state
+        .scanner
+        .scan_paths(&path_bufs, &state.db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ScanSummaryDto {
+        total_files_found: summary.total_files_found,
+        new_or_updated_tracks: summary.new_or_updated_tracks,
+        skipped_unchanged: summary.skipped_unchanged,
+        errors: summary.errors,
+    })
+}
+
+fn is_kde_environment() -> bool {
+    std::env::var("XDG_CURRENT_DESKTOP")
+        .map(|d| d.to_uppercase().contains("KDE"))
+        .unwrap_or(false)
+        || std::env::var("KDE_FULL_SESSION").is_ok()
+}
+
+#[tauri::command]
+async fn pick_folder() -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(|| {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+
+        let try_kdialog = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args([
+                    "--getexistingdirectory",
+                    &home,
+                    "--title",
+                    "Wybierz folder z muzyką (Dolphin)",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        let try_zenity = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("zenity")
+                .args([
+                    "--file-selection",
+                    "--directory",
+                    "--title=Wybierz folder z muzyką",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        if is_kde_environment() {
+            try_kdialog().or_else(try_zenity)
+        } else {
+            try_zenity().or_else(try_kdialog)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn pick_files() -> Result<Vec<String>, String> {
+    tokio::task::spawn_blocking(|| {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+
+        let try_kdialog = || -> Option<Vec<String>> {
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args([
+                    "--getopenfilename",
+                    &home,
+                    "*.flac *.mp3 *.ogg *.opus *.wav *.m4a *.aac *.alac *.aiff|Pliki audio (*.flac, *.mp3, *.ogg, *.opus, *.wav, *.m4a)",
+                    "--multiple",
+                    "--separate-output",
+                    "--title",
+                    "Wybierz pliki audio (Dolphin)",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let paths_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !paths_str.is_empty() {
+                        let paths: Vec<String> = paths_str
+                            .lines()
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        return Some(paths);
+                    }
+                }
+            }
+            None
+        };
+
+        let try_zenity = || -> Option<Vec<String>> {
+            if let Ok(output) = std::process::Command::new("zenity")
+                .args([
+                    "--file-selection",
+                    "--multiple",
+                    "--separator=|",
+                    "--title=Wybierz pliki audio",
+                    "--file-filter=Pliki audio (FLAC, MP3, OGG, OPUS, WAV, M4A) | *.flac *.mp3 *.ogg *.opus *.wav *.m4a *.aac *.alac *.aiff",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let paths_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !paths_str.is_empty() {
+                        let paths: Vec<String> = paths_str
+                            .split('|')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        return Some(paths);
+                    }
+                }
+            }
+            None
+        };
+
+        let selected = if is_kde_environment() {
+            try_kdialog().or_else(try_zenity)
+        } else {
+            try_zenity().or_else(try_kdialog)
+        };
+
+        selected.unwrap_or_default()
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn pick_image_file() -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(|| {
+        let pictures = std::env::var("HOME")
+            .map(|h| format!("{}/Pictures", h))
+            .unwrap_or_else(|_| ".".to_string());
+
+        let try_kdialog = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args([
+                    "--getopenfilename",
+                    &pictures,
+                    "*.png *.jpg *.jpeg *.webp *.gif *.mp4 *.webm|Tapety i animowane wideo (*.png, *.jpg, *.mp4, *.webm)",
+                    "--title",
+                    "Wybierz tapetę lub animowane tło wideo (Dolphin)",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        let try_zenity = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("zenity")
+                .args([
+                    "--file-selection",
+                    "--title=Wybierz tapetę lub animowane tło wideo",
+                    "--file-filter=Obrazy i wideo (PNG, JPG, WebP, MP4, WebM) | *.png *.jpg *.jpeg *.webp *.gif *.mp4 *.webm",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        if is_kde_environment() {
+            try_kdialog().or_else(try_zenity)
+        } else {
+            try_zenity().or_else(try_kdialog)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn pick_single_audio_file() -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(|| {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+
+        let try_kdialog = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args([
+                    "--getopenfilename",
+                    &home,
+                    "*.flac *.mp3 *.ogg *.opus *.wav *.m4a *.aac *.alac *.aiff|Pliki audio (*.flac, *.mp3, *.ogg, *.opus, *.wav, *.m4a)",
+                    "--title",
+                    "Wybierz plik źródłowy do transkodowania (Dolphin)",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        let try_zenity = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("zenity")
+                .args([
+                    "--file-selection",
+                    "--title=Wybierz plik źródłowy do transkodowania",
+                    "--file-filter=Pliki audio (FLAC, MP3, OGG, OPUS, WAV, M4A) | *.flac *.mp3 *.ogg *.opus *.wav *.m4a *.aac *.alac *.aiff",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        if is_kde_environment() {
+            try_kdialog().or_else(try_zenity)
+        } else {
+            try_zenity().or_else(try_kdialog)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn pick_save_destination(
+    default_name: String,
+    extension: String,
+) -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        let target_file = format!("{}/{}", home, default_name);
+        let filter = format!("*.{}|Pliki (*.{})", extension, extension);
+
+        let try_kdialog = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args([
+                    "--getsavefilename",
+                    &target_file,
+                    &filter,
+                    "--title",
+                    "Wybierz miejsce docelowe zapisu (Dolphin)",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        let try_zenity = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("zenity")
+                .args([
+                    "--file-selection",
+                    "--save",
+                    "--confirm-overwrite",
+                    &format!("--filename={}", target_file),
+                    "--title=Wybierz miejsce docelowe zapisu",
+                ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        if is_kde_environment() {
+            try_kdialog().or_else(try_zenity)
+        } else {
+            try_zenity().or_else(try_kdialog)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn open_containing_folder(file_path: String) -> Result<String, String> {
+    info!("Tauri command: open_containing_folder('{}')", file_path);
+    tokio::task::spawn_blocking(move || {
+        let clean = if let Some(stripped) = file_path.strip_prefix("file://") {
+            stripped
+        } else {
+            &file_path
+        };
+
+        let p = std::path::Path::new(clean);
+        let abs_path = if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            std::env::current_dir().unwrap_or_default().join(p)
+        };
+
+        let target_dir = if abs_path.is_dir() {
+            abs_path.clone()
+        } else {
+            abs_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+        };
+
+        // 1. Jeśli to środowisko KDE Plasma, użyj natywnego polecenia Dolphin z opcją --select
+        if is_kde_environment() {
+            if abs_path.exists() && !abs_path.is_dir() {
+                if std::process::Command::new("dolphin")
+                    .arg("--select")
+                    .arg(&abs_path)
+                    .spawn()
+                    .is_ok()
+                {
+                    return Ok(target_dir.to_string_lossy().to_string());
+                }
+            } else if std::process::Command::new("dolphin")
+                .arg(&target_dir)
+                .spawn()
+                .is_ok()
+            {
+                return Ok(target_dir.to_string_lossy().to_string());
+            }
+        }
+
+        // 2. Standard DBus: org.freedesktop.FileManager1.ShowItems (Dolphin, Nautilus, Nemo, Thunar)
+        if abs_path.exists() && !abs_path.is_dir() {
+            let uri = format!("file://{}", abs_path.to_string_lossy());
+            if let Ok(mut child) = std::process::Command::new("dbus-send")
+                .args([
+                    "--session",
+                    "--dest=org.freedesktop.FileManager1",
+                    "--type=method_call",
+                    "/org/freedesktop/FileManager1",
+                    "org.freedesktop.FileManager1.ShowItems",
+                    &format!("array:string:{}", uri),
+                    "string:\"\"",
+                ])
+                .spawn()
+            {
+                if let Ok(status) = child.wait() {
+                    if status.success() {
+                        return Ok(target_dir.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback dla dedykowanych menedżerów plików z flagą --select (np. Nautilus / Nemo / Thunar)
+        if abs_path.exists() && !abs_path.is_dir() {
+            for fm in &["nautilus", "nemo", "thunar"] {
+                if std::process::Command::new(fm)
+                    .arg("--select")
+                    .arg(&abs_path)
+                    .spawn()
+                    .is_ok()
+                {
+                    return Ok(target_dir.to_string_lossy().to_string());
+                }
+            }
+        }
+
+        // 4. Uniwersalny fallback: xdg-open na katalogu nadrzędnym
+        let _ = std::process::Command::new("xdg-open")
+            .arg(&target_dir)
+            .spawn()
+            .map_err(|e| format!("Błąd otwierania folderu w menedżerze plików: {}", e))?;
+
+        Ok(target_dir.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
     let db = state.db.clone();
     state
@@ -402,13 +966,59 @@ fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, St
         .map_err(|e| e.to_string())
 }
 
+fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
+    if path_str.starts_with("data:")
+        || path_str.starts_with("http://")
+        || path_str.starts_with("https://")
+    {
+        return Some(path_str.to_string());
+    }
+
+    let clean_path = if let Some(stripped) = path_str.strip_prefix("file://") {
+        stripped
+    } else {
+        path_str
+    };
+
+    let path = std::path::Path::new(clean_path);
+    if !path.exists() {
+        return None;
+    }
+
+    let bytes = std::fs::read(path).ok()?;
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("jpg")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        _ => "image/jpeg",
+    };
+
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Some(format!("data:{};base64,{}", mime, b64))
+}
+
 #[tauri::command]
 fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecord>, String> {
     let db = state.db.clone();
-    state
+    let albums = state
         .rt
         .block_on(async move { db.list_albums().await })
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    let mut resolved = Vec::with_capacity(albums.len());
+    for mut album in albums {
+        if let Some(cp) = &album.cover_path {
+            album.cover_path = resolve_cover_to_data_uri(cp);
+        }
+        resolved.push(album);
+    }
+    Ok(resolved)
 }
 
 #[tauri::command]
@@ -439,6 +1049,123 @@ fn get_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<Option<u64>
     state
         .rt
         .block_on(async move { db.get_bookmark(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.delete_bookmark(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn toggle_favorite(track_id: i64, state: State<'_, AppState>) -> Result<bool, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.toggle_favorite(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn record_track_play(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.record_track_play(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn record_track_listening(
+    track_id: i64,
+    duration_ms: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .record_track_listening(track_id, duration_ms)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_recap_summary(
+    period: String,
+    state: State<'_, AppState>,
+) -> Result<storage::RecapSummaryDto, String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    let since_epoch = match period.as_str() {
+        "week" => now.saturating_sub(7 * 86400),
+        "month" => now.saturating_sub(30 * 86400),
+        "year" => now.saturating_sub(365 * 86400),
+        _ => 0, // all_time
+    };
+
+    state
+        .db
+        .get_recap_summary(&period, since_epoch)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reset_track_plays(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.reset_track_plays(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_favorite_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_favorite_tracks().await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_recently_played_tracks(
+    limit: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, String> {
+    let db = state.db.clone();
+    let l = limit.unwrap_or(30);
+    state
+        .rt
+        .block_on(async move { db.list_recently_played_tracks(l).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_top_played_tracks(
+    limit: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, String> {
+    let db = state.db.clone();
+    let l = limit.unwrap_or(30);
+    state
+        .rt
+        .block_on(async move { db.list_top_played_tracks(l).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_hires_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.list_hires_tracks().await })
         .map_err(|e| e.to_string())
 }
 
@@ -571,12 +1298,26 @@ fn upload_background_image(file_path: String) -> Result<String, String> {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "webp" => "image/webp",
-        _ => return Err("Obsługiwane są wyłącznie pliki graficzne PNG, JPG lub WebP".to_string()),
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        _ => {
+            return Err(
+                "Obsługiwane są pliki PNG, JPG, WebP oraz animowane wideo tła MP4/WebM".to_string(),
+            )
+        }
     };
 
     let bytes = std::fs::read(path).map_err(|e| format!("Błąd odczytu pliku: {}", e))?;
-    if bytes.len() > 15 * 1024 * 1024 {
-        return Err("Plik graficzny jest zbyt duży (maks. 15 MB)".to_string());
+    let max_size = if mime.starts_with("video/") {
+        100 * 1024 * 1024
+    } else {
+        25 * 1024 * 1024
+    };
+    if bytes.len() > max_size {
+        return Err(format!(
+            "Plik tła jest zbyt duży (maks. {} MB)",
+            max_size / (1024 * 1024)
+        ));
     }
 
     use base64::Engine;
@@ -680,6 +1421,331 @@ fn auto_fetch_album_cover(
     })
 }
 
+#[tauri::command]
+fn search_cover_candidates(
+    album: String,
+    artist: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<CoverCandidateDto>, String> {
+    info!(
+        "Tauri command: search_cover_candidates('{}', '{}')",
+        album, artist
+    );
+    let cover_archive = state.cover_archive.clone();
+    let candidates = state
+        .rt
+        .block_on(async move { cover_archive.search_cover_candidates(&album, &artist).await });
+    Ok(candidates)
+}
+
+#[tauri::command]
+fn apply_cover_url(
+    album_id: i64,
+    cover_url: String,
+    album_title: Option<String>,
+    artist: Option<String>,
+    track_id: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: apply_cover_url(album_id: {}, url: '{}')",
+        album_id, cover_url
+    );
+    let cover_archive = state.cover_archive.clone();
+    let db = state.db.clone();
+
+    state.rt.block_on(async move {
+        let actual_album_id = if album_id > 0 {
+            album_id
+        } else if let Some(title) = &album_title {
+            let art = artist.as_deref().unwrap_or("Unknown");
+            db.upsert_album(title, art, None, None)
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            return Err("Nieprawidłowe ID albumu".to_string());
+        };
+
+        let path = cover_archive
+            .download_cover_from_url(&cover_url, &format!("album_{}", actual_album_id))
+            .await
+            .map_err(|e| e.to_string())?;
+        let path_str = path.to_string_lossy().to_string();
+
+        db.update_album_cover(actual_album_id, &path_str, None)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // Linkowanie utworów z albumem
+        if let Some(tid) = track_id {
+            let _ = db.link_track_to_album(tid, actual_album_id).await;
+        }
+        if let Some(title) = &album_title {
+            let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
+        }
+
+        let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        Ok(format!("data:image/jpeg;base64,{}", b64))
+    })
+}
+
+#[tauri::command]
+fn apply_custom_cover_file(
+    album_id: i64,
+    file_path: String,
+    album_title: Option<String>,
+    artist: Option<String>,
+    track_id: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: apply_custom_cover_file(album_id: {}, path: '{}')",
+        album_id, file_path
+    );
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() {
+        return Err("Wskazany plik nie istnieje".to_string());
+    }
+
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("jpg")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        _ => {
+            return Err(
+                "Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF".to_string(),
+            )
+        }
+    };
+
+    let bytes = std::fs::read(path).map_err(|e| format!("Błąd odczytu pliku: {}", e))?;
+    if bytes.len() > 25 * 1024 * 1024 {
+        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".to_string());
+    }
+
+    let cover_archive = state.cover_archive.clone();
+    let db = state.db.clone();
+
+    state.rt.block_on(async move {
+        let actual_album_id = if album_id > 0 {
+            album_id
+        } else if let Some(title) = &album_title {
+            let art = artist.as_deref().unwrap_or("Unknown");
+            db.upsert_album(title, art, None, None)
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            return Err("Nieprawidłowe ID albumu".to_string());
+        };
+
+        let saved_path = cover_archive
+            .save_custom_cover_file(actual_album_id, path)
+            .await
+            .map_err(|e| e.to_string())?;
+        let path_str = saved_path.to_string_lossy().to_string();
+
+        db.update_album_cover(actual_album_id, &path_str, None)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // Linkowanie utworu z albumem
+        if let Some(tid) = track_id {
+            let _ = db.link_track_to_album(tid, actual_album_id).await;
+        }
+        if let Some(title) = &album_title {
+            let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
+        }
+
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        Ok(format!("data:{};base64,{}", mime, b64))
+    })
+}
+
+#[tauri::command]
+fn apply_custom_cover_data(
+    album_id: i64,
+    data_base64: String,
+    extension: String,
+    album_title: Option<String>,
+    artist: Option<String>,
+    track_id: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: apply_custom_cover_data(album_id: {}, ext: '{}')",
+        album_id, extension
+    );
+
+    let raw_b64 = if let Some(idx) = data_base64.find(',') {
+        &data_base64[idx + 1..]
+    } else {
+        &data_base64
+    };
+
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(raw_b64)
+        .map_err(|e| format!("Błąd dekodowania Base64: {}", e))?;
+
+    if bytes.len() > 25 * 1024 * 1024 {
+        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".to_string());
+    }
+
+    let clean_ext = match extension.to_lowercase().as_str() {
+        "png" => "png",
+        "jpg" | "jpeg" => "jpg",
+        "webp" => "webp",
+        "gif" => "gif",
+        _ => "jpg",
+    };
+    let mime = match clean_ext {
+        "png" => "image/png",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        _ => "image/jpeg",
+    };
+
+    let cover_archive = state.cover_archive.clone();
+    let db = state.db.clone();
+
+    state.rt.block_on(async move {
+        let actual_album_id = if album_id > 0 {
+            album_id
+        } else if let Some(title) = &album_title {
+            let art = artist.as_deref().unwrap_or("Unknown");
+            db.upsert_album(title, art, None, None)
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            return Err("Nieprawidłowe ID albumu".to_string());
+        };
+
+        let saved_path = cover_archive
+            .save_custom_cover_bytes(actual_album_id, &bytes, clean_ext)
+            .await
+            .map_err(|e| e.to_string())?;
+        let path_str = saved_path.to_string_lossy().to_string();
+
+        db.update_album_cover(actual_album_id, &path_str, None)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // Linkowanie utworu z albumem
+        if let Some(tid) = track_id {
+            let _ = db.link_track_to_album(tid, actual_album_id).await;
+        }
+        if let Some(title) = &album_title {
+            let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
+        }
+
+        Ok(format!("data:{};base64,{}", mime, raw_b64))
+    })
+}
+
+#[tauri::command]
+fn get_track_cover(track_path: String) -> Result<Option<String>, String> {
+    use lofty::file::TaggedFileExt;
+    let clean_path = if let Some(stripped) = track_path.strip_prefix("file://") {
+        stripped
+    } else {
+        &track_path
+    };
+    let path = std::path::Path::new(clean_path);
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    if let Ok(probe) = lofty::probe::Probe::open(path) {
+        if let Ok(tagged_file) = probe.read() {
+            if let Some(tag) = tagged_file
+                .primary_tag()
+                .or_else(|| tagged_file.first_tag())
+            {
+                if let Some(pic) = tag.pictures().first() {
+                    let data = pic.data();
+                    let mime = match pic.mime_type() {
+                        Some(lofty::picture::MimeType::Png) => "image/png",
+                        Some(lofty::picture::MimeType::Jpeg) => "image/jpeg",
+                        _ => "image/jpeg",
+                    };
+                    use base64::Engine;
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(data);
+                    return Ok(Some(format!("data:{};base64,{}", mime, b64)));
+                }
+            }
+        }
+    }
+
+    if let Some(parent) = path.parent() {
+        for cand in &[
+            "cover.jpg",
+            "cover.png",
+            "folder.jpg",
+            "folder.png",
+            "front.jpg",
+            "front.png",
+            "Cover.jpg",
+            "Folder.jpg",
+        ] {
+            let cand_path = parent.join(cand);
+            if cand_path.is_file() {
+                if let Some(data_uri) = resolve_cover_to_data_uri(&cand_path.to_string_lossy()) {
+                    return Ok(Some(data_uri));
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
+fn get_lyrics(
+    track_path: Option<String>,
+    title: String,
+    artist: String,
+    album: Option<String>,
+    duration_sec: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<Option<metadata::LyricsDto>, String> {
+    info!("Tauri command: get_lyrics('{}' - '{}')", artist, title);
+    let lyrics = state.rt.block_on(async move {
+        metadata::fetch_lyrics_online_or_local(
+            track_path.as_deref(),
+            &title,
+            &artist,
+            album.as_deref(),
+            duration_sec,
+        )
+        .await
+    });
+    Ok(lyrics)
+}
+
+#[tauri::command]
+fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), String> {
+    info!("Tauri command: set_mini_player_mode({})", mini);
+    if mini {
+        let _ = window.set_min_size(Some(tauri::LogicalSize::new(320.0, 120.0)));
+        let _ = window.set_size(tauri::LogicalSize::new(360.0, 150.0));
+        let _ = window.set_always_on_top(true);
+    } else {
+        let _ = window.set_min_size(Some(tauri::LogicalSize::new(320.0, 120.0)));
+        let _ = window.set_size(tauri::LogicalSize::new(1080.0, 760.0));
+        let _ = window.set_always_on_top(false);
+    }
+    Ok(())
+}
+
 fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
@@ -736,6 +1802,88 @@ fn add_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), Strin
     state.engine.add_to_queue(item);
     persist_queue_state(&state);
     Ok(())
+}
+
+/// Dodaje wiele ścieżek URI do kolejki za jednym razem — bez sekwencyjnych round-tripów
+/// do SQLite. Operacja persist jest wywoływana raz po dodaniu wszystkich elementów.
+#[tauri::command]
+async fn add_uris_to_queue(uris: Vec<String>, state: State<'_, AppState>) -> Result<usize, String> {
+    info!("Tauri command: add_uris_to_queue({} ścieżek)", uris.len());
+    if uris.is_empty() {
+        return Ok(0);
+    }
+
+    // Rozwiń rekurencyjnie foldery i zbierz wyłącznie pliki audio
+    let mut resolved_files = Vec::new();
+    for uri in uris {
+        let path = std::path::Path::new(&uri);
+        if path.is_dir() {
+            for entry in walkdir::WalkDir::new(path)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let p = entry.path();
+                if p.is_file() && library::LibraryScanner::is_supported_audio_extension(p) {
+                    resolved_files.push(p.to_string_lossy().to_string());
+                }
+            }
+        } else if (path.is_file() && library::LibraryScanner::is_supported_audio_extension(path))
+            || uri.starts_with("http://")
+            || uri.starts_with("https://")
+        {
+            resolved_files.push(uri);
+        }
+    }
+
+    if resolved_files.is_empty() {
+        return Ok(0);
+    }
+
+    let db = state.db.clone();
+    let mut added = 0usize;
+
+    for uri in &resolved_files {
+        // Sprawdź bazę danych w poszukiwaniu metadanych (asynchronicznie)
+        let track_opt = db.get_track_by_path(uri).await.ok().flatten();
+
+        let item = if let Some(t) = track_opt {
+            QueueItem {
+                id: format!("track-{}", t.id),
+                track_id: Some(t.id),
+                uri: t.path.clone(),
+                title: t.title.clone(),
+                artist: t.artist.clone(),
+                album: t.album_artist.clone(),
+                duration_ms: t.duration_ms as u64,
+            }
+        } else {
+            let title = std::path::Path::new(uri)
+                .file_stem()
+                .and_then(|n| n.to_str())
+                .unwrap_or(uri)
+                .to_string();
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_micros();
+            QueueItem {
+                id: format!("drop-{}-{}", ts, added),
+                track_id: None,
+                uri: uri.to_string(),
+                title,
+                artist: String::new(),
+                album: None,
+                duration_ms: 0,
+            }
+        };
+
+        state.engine.add_to_queue(item);
+        added += 1;
+    }
+
+    // Zapis stanu kolejki tylko raz po dodaniu wszystkich elementów
+    persist_queue_state(&state);
+    Ok(added)
 }
 
 #[tauri::command]
@@ -899,7 +2047,276 @@ fn get_playlist_tracks(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn set_app_icon_style(
+    style: String,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let clean = if style == "classic" {
+        "classic"
+    } else {
+        "lineout"
+    };
+    state
+        .db
+        .set_app_setting("app_icon_style", clean)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    update_system_icons(&app, clean)?;
+    Ok(clean.to_string())
+}
+
+#[tauri::command]
+async fn get_app_icon_style(state: State<'_, AppState>) -> Result<String, String> {
+    let style = state
+        .db
+        .get_app_setting("app_icon_style")
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "lineout".to_string());
+    Ok(style)
+}
+
+#[tauri::command]
+async fn detect_track_key_bpm(
+    path: String,
+    track_id: Option<i64>,
+    force_recompute: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<TrackKeyBpm, String> {
+    let recompute = force_recompute.unwrap_or(false);
+    // 1. Sprawdź, czy mamy już zapisany BPM i klucz w bazie danych (chyba że wymuszono przeliczenie)
+    if !recompute {
+        if let Some(id) = track_id {
+            if let Ok(Some((bpm, key_name))) = state.db.get_track_key_bpm(id).await {
+                if let Some((base_key_index, is_minor)) =
+                    audio_engine::analysis::parse_musical_key(&key_name)
+                {
+                    let camelot = if is_minor {
+                        audio_engine::analysis::CAMELOT_MINOR[base_key_index].to_string()
+                    } else {
+                        audio_engine::analysis::CAMELOT_MAJOR[base_key_index].to_string()
+                    };
+                    return Ok(TrackKeyBpm {
+                        bpm,
+                        key_name,
+                        camelot,
+                        base_key_index,
+                        is_minor,
+                        source: "database".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // 2. Jeśli nie ma w bazie, wykonaj analizę w tle (tokio spawn_blocking)
+    let path_clone = path.clone();
+    let analysis_res =
+        tokio::task::spawn_blocking(move || audio_engine::analyze_track_key_bpm(&path_clone))
+            .await
+            .map_err(|e| format!("Błąd wątku analizy: {}", e))?
+            .map_err(|e| format!("Błąd analizy: {}", e))?;
+
+    // 3. Jeśli mamy track_id, zapisz wynik w bazie danych
+    if let Some(id) = track_id {
+        let db = state.db.clone();
+        let bpm = analysis_res.bpm;
+        let key_name = analysis_res.key_name.clone();
+        let _ = db.update_track_key_bpm(id, bpm, &key_name).await;
+    }
+
+    Ok(analysis_res)
+}
+
+#[tauri::command]
+async fn save_track_key_bpm(
+    track_id: i64,
+    bpm: f64,
+    key_name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .update_track_key_bpm(track_id, bpm, &key_name)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
+    let clean_style = if style == "classic" {
+        "classic"
+    } else {
+        "lineout"
+    };
+    let filename = if clean_style == "classic" {
+        "icon_classic.png"
+    } else {
+        "icon_lineout.png"
+    };
+
+    // Odczyt pliku ikony
+    let icon_bytes =
+        if let Ok(bytes) = std::fs::read(format!("apps/desktop/src-tauri/icons/{}", filename)) {
+            bytes
+        } else if let Ok(bytes) = std::fs::read(format!("icons/{}", filename)) {
+            bytes
+        } else if let Ok(bytes) = std::fs::read(format!("../icons/{}", filename)) {
+            bytes
+        } else if let Ok(bytes) = std::fs::read(format!(
+            "/home/mimi/Kodowanie/Auralune/apps/desktop/src-tauri/icons/{}",
+            filename
+        )) {
+            bytes
+        } else {
+            return Err(format!("Nie znaleziono pliku ikony: {}", filename));
+        };
+
+    // 1. Zaktualizuj ikonę okna Tauri w locie
+    if let Some(window) = app.get_webview_window("main") {
+        if let Ok(tauri_icon) = tauri::image::Image::from_bytes(&icon_bytes) {
+            let _ = window.set_icon(tauri_icon);
+        }
+    }
+
+    // 2. Zainstaluj w ~/.local/share/icons/hicolor dla środowiska Wayland / KDE Plasma
+    if let Some(home) = std::env::var_os("HOME") {
+        let base_icons = std::path::PathBuf::from(home.clone()).join(".local/share/icons/hicolor");
+        let sizes = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
+        for s in sizes {
+            let dir = base_icons.join(format!("{}x{}/apps", s, s));
+            let _ = std::fs::create_dir_all(&dir);
+
+            let specific_bytes = if clean_style == "lineout" {
+                std::fs::read(format!("/tmp/lineout_{}.png", s))
+                    .unwrap_or_else(|_| icon_bytes.clone())
+            } else {
+                icon_bytes.clone()
+            };
+
+            let _ = std::fs::write(dir.join("auralune.png"), &specific_bytes);
+            let _ = std::fs::write(dir.join("auralune-desktop.png"), &specific_bytes);
+        }
+
+        // 3. Zaktualizuj pliki .desktop w ~/.local/share/applications
+        let apps_dir = std::path::PathBuf::from(home).join(".local/share/applications");
+        let _ = std::fs::create_dir_all(&apps_dir);
+        let desktop_content = r#"[Desktop Entry]
+Name=Auralune
+GenericName=Music Player
+GenericName[pl]=Odtwarzacz muzyki
+Comment=Poweramp & foobar2000 inspired Linux music player with anime aesthetics and real-time DSP
+Comment[pl]=Inspirowany Powerampem i foobar2000 odtwarzacz muzyki dla Linuksa z estetyką anime i silnikiem DSP
+Exec=auralune %U
+Icon=auralune
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/flac;audio/mpeg;audio/ogg;audio/opus;audio/x-wav;audio/aac;audio/m4a;audio/x-m4a;
+StartupNotify=true
+StartupWMClass=auralune
+Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
+"#;
+        let _ = std::fs::write(apps_dir.join("auralune.desktop"), desktop_content);
+        let _ = std::fs::write(apps_dir.join("auralune-desktop.desktop"), desktop_content);
+
+        // 4. Odśwież pamięć podręczną ikon
+        let _ = std::process::Command::new("gtk-update-icon-cache")
+            .arg("-f")
+            .arg("-t")
+            .arg(base_icons)
+            .output();
+    }
+
+    Ok(())
+}
+
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        glib::set_prgname(Some("auralune"));
+        glib::set_application_name("Auralune");
+
+        // Rozwiązanie problemu brakujących wtyczek GStreamer i procesów pomocniczych WebKit2GTK w AppImage
+        let host_gst_dirs = [
+            "/usr/lib/gstreamer-1.0",
+            "/usr/lib64/gstreamer-1.0",
+            "/usr/lib/x86_64-linux-gnu/gstreamer-1.0",
+            "/usr/local/lib/gstreamer-1.0",
+        ];
+        let mut valid_gst_dirs = Vec::new();
+        for dir in &host_gst_dirs {
+            if std::path::Path::new(dir).is_dir() {
+                valid_gst_dirs.push(*dir);
+            }
+        }
+        if !valid_gst_dirs.is_empty() {
+            let joined = valid_gst_dirs.join(":");
+            if let Ok(current) = std::env::var("GST_PLUGIN_SYSTEM_PATH_1_0") {
+                if !current.contains("/gstreamer-1.0") {
+                    std::env::set_var(
+                        "GST_PLUGIN_SYSTEM_PATH_1_0",
+                        format!("{}:{}", current, joined),
+                    );
+                }
+            } else {
+                std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &joined);
+            }
+
+            if let Ok(current) = std::env::var("GST_PLUGIN_PATH_1_0") {
+                if !current.contains("/gstreamer-1.0") {
+                    std::env::set_var("GST_PLUGIN_PATH_1_0", format!("{}:{}", current, joined));
+                }
+            } else {
+                std::env::set_var("GST_PLUGIN_PATH_1_0", &joined);
+            }
+
+            if let Ok(current) = std::env::var("GST_PLUGIN_PATH") {
+                if !current.contains("/gstreamer-1.0") {
+                    std::env::set_var("GST_PLUGIN_PATH", format!("{}:{}", current, joined));
+                }
+            } else {
+                std::env::set_var("GST_PLUGIN_PATH", &joined);
+            }
+        }
+
+        // gst-plugin-scanner
+        if std::env::var("GST_PLUGIN_SCANNER").is_err() {
+            let scanner_paths = [
+                "/usr/lib/gstreamer-1.0/gst-plugin-scanner",
+                "/usr/lib64/gstreamer-1.0/gst-plugin-scanner",
+                "/usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner",
+                "/usr/libexec/gstreamer-1.0/gst-plugin-scanner",
+            ];
+            for scanner in &scanner_paths {
+                if std::path::Path::new(scanner).is_file() {
+                    std::env::set_var("GST_PLUGIN_SCANNER", scanner);
+                    break;
+                }
+            }
+        }
+
+        // WebKit2GTK procesy pomocnicze (WebKitNetworkProcess, WebKitWebProcess)
+        // W AppImage linuxdeploy ustawia GTK_EXE_PREFIX na zasoby wewnątrz AppDir, przez co WebKit nie znajduje procesów potomnych
+        if std::env::var("WEBKIT_EXEC_PATH").is_err() {
+            let webkit_paths = [
+                "/usr/lib/webkit2gtk-4.1",
+                "/usr/lib64/webkit2gtk-4.1",
+                "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1",
+                "/usr/libexec/webkit2gtk-4.1",
+            ];
+            for wp in &webkit_paths {
+                if std::path::Path::new(wp).is_dir() {
+                    std::env::set_var("WEBKIT_EXEC_PATH", wp);
+                    break;
+                }
+            }
+        }
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
@@ -969,6 +2386,63 @@ pub fn run() {
                     }
                 });
 
+                // Sprawdź czy korektor graficzny EQ ma być automatycznie włączony przy starcie
+                let eq_startup = rt.block_on(async {
+                    db.get_app_setting("eq_enabled_on_startup").await.unwrap_or(None)
+                });
+                if let Some(val) = eq_startup {
+                    let enabled = val == "true";
+                    engine.set_equalizer_enabled(enabled);
+                } else {
+                    engine.set_equalizer_enabled(false);
+                }
+
+                // Sprawdź czy ustawienia DSP mają być automatycznie przywracane przy starcie
+                let dsp_startup = rt.block_on(async {
+                    db.get_app_setting("dsp_restore_on_startup").await.unwrap_or(None)
+                });
+                if dsp_startup.as_deref() == Some("true") {
+                    if let Some(saved_json) = rt.block_on(async {
+                        db.get_app_setting("dsp_saved_settings").await.unwrap_or(None)
+                    }) {
+                        #[derive(serde::Deserialize)]
+                        struct SavedDsp {
+                            engine: String,
+                            pitch_semitones: f64,
+                            tempo_ratio: f64,
+                            rate_ratio: f64,
+                        }
+                        if let Ok(saved) = serde_json::from_str::<SavedDsp>(&saved_json) {
+                            let target_engine = match saved.engine.as_str() {
+                                "Bypass" => DspEngine::Bypass,
+                                "SoundTouch" => DspEngine::SoundTouch,
+                                _ => DspEngine::RubberBand,
+                            };
+                            let _ = engine.set_dsp_engine(target_engine);
+                            if let Ok(params) = DspParams::new(
+                                target_engine,
+                                saved.pitch_semitones,
+                                saved.tempo_ratio,
+                                saved.rate_ratio,
+                            ) {
+                                let _ = engine.set_dsp_params(params);
+                            }
+                            tracing::info!(
+                                "Przywrócono zapisane ustawienia DSP przy starcie: {:?}, pitch={}, tempo={}, rate={}",
+                                target_engine,
+                                saved.pitch_semitones,
+                                saved.tempo_ratio,
+                                saved.rate_ratio
+                            );
+                        }
+                    }
+                }
+
+                // Wczytanie wybranego stylu ikony aplikacji (domyślnie: lineout dopasowany do motywu)
+                let icon_style = rt.block_on(async {
+                    db.get_app_setting("app_icon_style").await.unwrap_or(None)
+                }).unwrap_or_else(|| "lineout".to_string());
+
                 let app_state = AppState {
                     engine,
                     db: Arc::new(db),
@@ -981,6 +2455,10 @@ pub fn run() {
                 };
 
                 app.manage(app_state);
+
+                // Aplikacja wybranego stylu ikony aplikacji
+                let _ = update_system_icons(app.handle(), &icon_style);
+
                 Ok(())
             }
         })
@@ -991,8 +2469,11 @@ pub fn run() {
             stop,
             seek,
             set_pitch,
+            set_pitch_semitones,
             set_tempo,
+            set_tempo_ratio,
             set_rate,
+            set_rate_ratio,
             reset_dsp,
             set_dsp_engine,
             get_dsp_capabilities,
@@ -1009,13 +2490,26 @@ pub fn run() {
             set_device_profile,
             set_bluetooth_codec,
             enable_pro_audio,
+            disable_pro_audio,
+            set_card_profile,
+            save_lyrics_lrc,
+            get_app_setting,
+            set_app_setting,
             transcode_file,
             scan_library,
+            scan_paths,
+            pick_folder,
+            pick_files,
+            pick_image_file,
+            pick_single_audio_file,
+            pick_save_destination,
+            open_containing_folder,
             get_library_tracks,
             get_library_albums,
             get_library_artists,
             save_bookmark,
             get_bookmark,
+            delete_bookmark,
             update_mpris_metadata,
             list_themes,
             get_active_theme,
@@ -1028,9 +2522,15 @@ pub fn run() {
             search_musicbrainz_releases,
             fetch_and_apply_cover,
             auto_fetch_album_cover,
+            search_cover_candidates,
+            apply_cover_url,
+            apply_custom_cover_file,
+            apply_custom_cover_data,
+            get_track_cover,
             get_queue,
             set_queue,
             add_to_queue,
+            add_uris_to_queue,
             add_next_to_queue,
             remove_from_queue,
             reorder_queue,
@@ -1046,6 +2546,22 @@ pub fn run() {
             add_track_to_playlist,
             remove_track_from_playlist,
             get_playlist_tracks,
+            get_lyrics,
+            set_mini_player_mode,
+            toggle_favorite,
+            record_track_play,
+            record_track_listening,
+            get_recap_summary,
+            reset_track_plays,
+            set_reverb_params,
+            get_favorite_tracks,
+            get_recently_played_tracks,
+            get_top_played_tracks,
+            get_hires_tracks,
+            set_app_icon_style,
+            get_app_icon_style,
+            detect_track_key_bpm,
+            save_track_key_bpm,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

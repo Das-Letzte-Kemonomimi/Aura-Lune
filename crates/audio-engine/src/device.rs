@@ -67,6 +67,37 @@ impl DeviceManager {
         Self::set_card_profile(card_name, "pro-audio")
     }
 
+    /// Wyłącza tryb Pro Audio i bezpiecznie przywraca standardowy profil stereo (np. output:analog-stereo).
+    pub fn disable_pro_audio(card_name: &str) -> Result<String, AudioEngineError> {
+        let cards = Self::list_cards()?;
+        let card = cards.iter().find(|c| c.name == card_name).ok_or_else(|| {
+            AudioEngineError::ElementLink(format!("Nie znaleziono karty {}", card_name))
+        })?;
+
+        let fallback_profile = card
+            .profiles
+            .iter()
+            .find(|p| {
+                p.available
+                    && !p.is_pro_audio
+                    && (p.name.contains("analog-stereo") || p.name.contains("stereo"))
+            })
+            .or_else(|| {
+                card.profiles
+                    .iter()
+                    .find(|p| p.available && !p.is_pro_audio && p.name != "off")
+            })
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| "output:analog-stereo+input:analog-stereo".to_string());
+
+        info!(
+            "Wyłączanie Pro Audio na karcie '{}', przywracanie profilu '{}'",
+            card_name, fallback_profile
+        );
+        Self::set_card_profile(card_name, &fallback_profile)?;
+        Ok(fallback_profile)
+    }
+
     /// Parsuje tekst wyjściowy z `pactl list cards`.
     pub fn parse_cards(text: &str) -> Vec<AudioCard> {
         let mut cards = Vec::new();

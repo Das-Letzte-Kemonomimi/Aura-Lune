@@ -4,7 +4,7 @@ use crate::error::AudioEngineError;
 use domain::equalizer::EqualizerState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::PlaybackState;
-use dsp_api::{semitones_to_pitch_ratio, DspCapabilities, DspEngine, DspParams};
+use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
@@ -31,14 +31,25 @@ struct PipelineInner {
     pipeline: gst::Pipeline,
     uri_decoder: Option<gst::Element>,
     audioconvert_in: gst::Element,
-    pitch: gst::Element,
+    dsp: crate::dsp_node::AuraluneDsp,
+    freeverb: Option<gst::Element>,
     equalizer: gst::Element,
     _spectrum: gst::Element,
     volume: gst::Element,
     _sink: gst::Element,
     state: PlaybackState,
     dsp_params: DspParams,
+    last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
+    reverb_enabled: bool,
+    reverb_room_size: f64,
+    reverb_damping: f64,
+    reverb_width: f64,
+    reverb_level: f64,
+    base_media_pos: Duration,
+    base_sink_pts: Duration,
+    user_volume: f64,
+    seek_seq: u64,
 }
 
 /// Bezpieczny wielowątkowo kontroler potoku audio.
@@ -52,6 +63,7 @@ impl AudioEngine {
     /// Inicjalizuje GStreamer oraz tworzy bazowy potok odtwarzacza.
     pub fn new() -> Result<Self, AudioEngineError> {
         gst::init()?;
+        let _ = crate::dsp_node::register_dsp_element();
 
         let pipeline = gst::Pipeline::with_name("auralune-audio-pipeline");
 
@@ -65,10 +77,21 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
 
-        let pitch = gst::ElementFactory::make("pitch")
-            .name("dsp_pitch")
+        // Wymuszenie formatu F32LE dla procesorów DSP
+        let capsfilter_dsp = gst::ElementFactory::make("capsfilter")
+            .name("capsfilter_dsp")
+            .property(
+                "caps",
+                gst::Caps::builder("audio/x-raw")
+                    .field("format", "F32LE")
+                    .field("layout", "interleaved")
+                    .build(),
+            )
             .build()
-            .map_err(|_| AudioEngineError::MissingElement("pitch"))?;
+            .map_err(|_| AudioEngineError::MissingElement("capsfilter"))?;
+
+        // Dedykowany element DSP (Bypass / Rubber Band / SoundTouch)
+        let dsp = crate::dsp_node::AuraluneDsp::new(Some("auralune_dsp"));
 
         let equalizer = gst::ElementFactory::make("equalizer-10bands")
             .name("equalizer_10bands")
@@ -79,7 +102,7 @@ impl AudioEngine {
             .name("spectrum_analyzer")
             .property("bands", 16u32)
             .property("threshold", -60i32)
-            .property("interval", 50_000_000u64)
+            .property("interval", 33_333_333u64)
             .property("message-magnitude", true)
             .property("post-messages", true)
             .build()
@@ -95,13 +118,23 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Preferencja: pipewiresink, z bezpiecznym fallbackiem na autoaudiosink
+        // Bufor kolejki przed sinkiem (2.0s maks) - pełna odporność na XRUNy i szarpnięcia przy zwolnionym tempie (np. 0.35x FLAC)
+        let queue_sink = gst::ElementFactory::make("queue")
+            .name("queue_sink")
+            .property("max-size-time", 2_000_000_000u64)
+            .property("max-size-buffers", 0u32)
+            .property("max-size-bytes", 0u32)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("queue"))?;
+
+        // Preferencja: pipewiresink z bezpiecznym marginesem 200ms (brak porzucania buforów przy skokach CPU)
         let sink = match gst::ElementFactory::make("pipewiresink")
             .name("sink")
+            .property("processing-deadline", 200_000_000u64)
             .build()
         {
             Ok(pw_sink) => {
-                info!("Zainicjalizowano wyjście PipeWire (pipewiresink)");
+                info!("Zainicjalizowano wyjście PipeWire z buforem 200ms");
                 pw_sink
             }
             Err(_) => {
@@ -113,77 +146,153 @@ impl AudioEngine {
             }
         };
 
+        let freeverb = match gst::ElementFactory::make("freeverb")
+            .name("freeverb")
+            .property("level", 0.0f32)
+            .property("room-size", 0.5f32)
+            .property("damping", 0.2f32)
+            .property("width", 1.0f32)
+            .build()
+        {
+            Ok(fv) => Some(fv),
+            Err(e) => {
+                warn!("Brak elementu freeverb (gst-plugins-bad): {:?}", e);
+                None
+            }
+        };
+
         // Dodanie statycznych elementów do potoku
         pipeline.add_many([
             &audioconvert_in,
             &audioresample,
-            &pitch,
+            &capsfilter_dsp,
+            dsp.upcast_ref(),
+        ])?;
+
+        if let Some(ref fv) = freeverb {
+            pipeline.add(fv)?;
+        }
+
+        pipeline.add_many([
             &equalizer,
-            &spectrum,
+            &queue_sink,
             &audioconvert_out,
             &volume,
+            &spectrum,
             &sink,
         ])?;
 
         // Połączenie elementów przetwarzania audio:
-        // audioconvert_in -> audioresample -> pitch -> equalizer -> spectrum -> audioconvert_out -> volume -> sink
+        // audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
         gst::Element::link_many([
             &audioconvert_in,
             &audioresample,
-            &pitch,
+            &capsfilter_dsp,
+            dsp.upcast_ref(),
+        ])
+        .map_err(|_| AudioEngineError::ElementLink("Nie udało się połączyć wejścia DSP".into()))?;
+
+        // DSP -> (freeverb) -> equalizer
+        if let Some(ref fv) = freeverb {
+            dsp.upcast_ref::<gst::Element>().link(fv).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania DSP z freeverb".into())
+            })?;
+            fv.link(&equalizer).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania freeverb z equalizer".into())
+            })?;
+        } else {
+            dsp.upcast_ref::<gst::Element>()
+                .link(&equalizer)
+                .map_err(|_| {
+                    AudioEngineError::ElementLink("Błąd linkowania DSP z equalizer".into())
+                })?;
+        }
+
+        // equalizer -> queue_sink -> audioconvert_out -> volume -> spectrum -> sink
+        // Umieszczenie spectrum tuż przed sinkiem gwarantuje zerowe opóźnienie wizualizera przy zwolnionym tempie
+        gst::Element::link_many([
             &equalizer,
-            &spectrum,
+            &queue_sink,
             &audioconvert_out,
             &volume,
+            &spectrum,
             &sink,
         ])
         .map_err(|_| {
-            AudioEngineError::ElementLink("Nie udało się połączyć łańcucha audio".into())
+            AudioEngineError::ElementLink(
+                "Nie udało się połączyć wyjścia audio z kolejką i zlewem".into(),
+            )
         })?;
-
-        // Ustawienie domyślnych parametrów DSP
-        pitch.set_property("pitch", 1.0f32);
-        pitch.set_property("tempo", 1.0f32);
-        pitch.set_property("rate", 1.0f32);
 
         let inner = Arc::new(Mutex::new(PipelineInner {
             pipeline,
             uri_decoder: None,
             audioconvert_in,
-            pitch,
+            dsp,
+            freeverb,
             equalizer,
             _spectrum: spectrum,
             volume,
             _sink: sink,
             state: PlaybackState::Stopped,
             dsp_params: DspParams::default(),
+            last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
+            reverb_enabled: false,
+            reverb_room_size: 0.5,
+            reverb_damping: 0.2,
+            reverb_width: 1.0,
+            reverb_level: 0.0,
+            base_media_pos: Duration::ZERO,
+            base_sink_pts: Duration::ZERO,
+            user_volume: 1.0,
+            seek_seq: 0,
         }));
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
         Ok(Self { inner, queue })
     }
 
-    /// Ładuje plik lokalny lub URI do odtwarzania.
+    /// Ładuje plik lokalny lub URI do odtwarzania z pełną obsługą znaków japońskich i spacji w URI.
     pub fn load_uri(&self, uri_or_path: &str) -> Result<(), AudioEngineError> {
-        let uri = if uri_or_path.starts_with("file://")
-            || uri_or_path.starts_with("http://")
-            || uri_or_path.starts_with("https://")
-        {
+        let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
             uri_or_path.to_string()
+        } else if uri_or_path.starts_with("file://") {
+            let stripped = uri_or_path.trim_start_matches("file://");
+            glib::filename_to_uri(Path::new(stripped), None)
+                .map(|u| u.to_string())
+                .unwrap_or_else(|_| uri_or_path.to_string())
         } else {
             let path = Path::new(uri_or_path);
             if !path.exists() {
                 return Err(AudioEngineError::FileNotFound(uri_or_path.to_string()));
             }
             let canonical = path.canonicalize()?;
-            format!("file://{}", canonical.display())
+            glib::filename_to_uri(&canonical, None)
+                .map(|u| u.to_string())
+                .unwrap_or_else(|_| format!("file://{}", canonical.display()))
         };
 
         let mut inner = self.inner.lock().unwrap();
 
         // Zatrzymanie potoku przed przebudową wejścia
         let _ = inner.pipeline.set_state(gst::State::Ready);
+        inner.base_media_pos = Duration::ZERO;
+        inner.base_sink_pts = Duration::ZERO;
+
+        // Reset procesorów DSP i kolejki próbek, aby uniknąć trzasków i zacinania
+        inner.dsp.reset();
+
+        // Upewnienie się, że pad wejściowy audioconvert_in jest czysty i odłączony od poprzedniego strumienia
+        let convert_sink_pad = inner
+            .audioconvert_in
+            .static_pad("sink")
+            .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
+        if convert_sink_pad.is_linked() {
+            if let Some(peer) = convert_sink_pad.peer() {
+                let _ = peer.unlink(&convert_sink_pad);
+            }
+        }
 
         // Usunięcie poprzedniego dekodera, jeśli istniał
         if let Some(old_decoder) = inner.uri_decoder.take() {
@@ -198,21 +307,19 @@ impl AudioEngine {
 
         inner.pipeline.add(&uri_decoder)?;
 
-        let convert_sink_pad = inner
-            .audioconvert_in
-            .static_pad("sink")
-            .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
-
+        let convert_pad_clone = convert_sink_pad.clone();
         uri_decoder.connect_pad_added(move |_bin, src_pad| {
-            if convert_sink_pad.is_linked() {
-                return;
-            }
             let caps = src_pad
                 .current_caps()
                 .unwrap_or_else(|| src_pad.query_caps(None));
             if let Some(structure) = caps.structure(0) {
                 if structure.name().starts_with("audio/") {
-                    if let Err(err) = src_pad.link(&convert_sink_pad) {
+                    if convert_pad_clone.is_linked() {
+                        if let Some(peer) = convert_pad_clone.peer() {
+                            let _ = peer.unlink(&convert_pad_clone);
+                        }
+                    }
+                    if let Err(err) = src_pad.link(&convert_pad_clone) {
                         error!("Błąd linkowania strumienia audio decodebin: {:?}", err);
                     } else {
                         debug!("Pomyślnie podłączono dekodowany strumień audio");
@@ -248,30 +355,8 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Zatrzymuje odtwarzanie i resetuje pozycję.
-    pub fn stop(&self) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
-        inner.pipeline.set_state(gst::State::Ready)?;
-        inner.state = PlaybackState::Stopped;
-        debug!("Stan potoku zmieniony na Stopped (Ready)");
-        Ok(())
-    }
-
-    /// Przewija do zadanej pozycji w czasie.
-    pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
-        let inner = self.inner.lock().unwrap();
-        let position_ns = gst::ClockTime::from_nseconds(position.as_nanos() as u64);
-        inner.pipeline.seek_simple(
-            gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
-            position_ns,
-        )?;
-        debug!("Wykonano seek do {:?}", position);
-        Ok(())
-    }
-
-    /// Zwraca aktualną pozycję odtwarzania.
-    pub fn position(&self) -> Option<Duration> {
-        let inner = self.inner.lock().unwrap();
+    /// Zwraca surową pozycję ze zlewu odtwarzania (zegar urządzenia audio).
+    fn query_raw_sink_position(inner: &PipelineInner) -> Option<Duration> {
         let mut q = gst::query::Position::new(gst::Format::Time);
         if inner.pipeline.query(&mut q) {
             match q.result() {
@@ -285,9 +370,8 @@ impl AudioEngine {
         }
     }
 
-    /// Zwraca całkowity czas trwania załadowanego utworu.
-    pub fn duration(&self) -> Option<Duration> {
-        let inner = self.inner.lock().unwrap();
+    /// Zwraca całkowity czas trwania załadowanego pliku (z demuxera/dekodera).
+    fn query_raw_duration(inner: &PipelineInner) -> Option<Duration> {
         let mut q = gst::query::Duration::new(gst::Format::Time);
         if inner.pipeline.query(&mut q) {
             match q.result() {
@@ -301,19 +385,164 @@ impl AudioEngine {
         }
     }
 
+    /// Oblicza rzeczywistą pozycję w pliku źródłowym, synchronizując oś czasu z potokiem i silnikiem DSP.
+    fn calculate_media_position(inner: &PipelineInner) -> Option<Duration> {
+        let sink_pos = Self::query_raw_sink_position(inner).unwrap_or(inner.base_sink_pts);
+
+        // Jeśli podczas prerollu/seeku zapytanie do sinka zwraca 0, a pozycja bazowa jest > 0, zachowaj pozycję bazową
+        if sink_pos == Duration::ZERO && inner.base_media_pos > Duration::ZERO {
+            return if let Some(dur) = Self::query_raw_duration(inner) {
+                Some(inner.base_media_pos.min(dur))
+            } else {
+                Some(inner.base_media_pos)
+            };
+        }
+
+        let speed = if inner.dsp_params.is_bypass() {
+            1.0
+        } else {
+            (inner.dsp_params.tempo_ratio * inner.dsp_params.rate_ratio).max(0.01)
+        };
+
+        let elapsed_sink = if sink_pos >= inner.base_sink_pts {
+            sink_pos - inner.base_sink_pts
+        } else {
+            Duration::ZERO
+        };
+
+        let elapsed_media_nanos = (elapsed_sink.as_nanos() as f64 * speed).round() as u64;
+        let pos = inner.base_media_pos + Duration::from_nanos(elapsed_media_nanos);
+
+        if let Some(dur) = Self::query_raw_duration(inner) {
+            Some(pos.min(dur))
+        } else {
+            Some(pos)
+        }
+    }
+
+    /// Zatrzymuje odtwarzanie i resetuje pozycję.
+    pub fn stop(&self) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.pipeline.set_state(gst::State::Ready)?;
+        inner.state = PlaybackState::Stopped;
+        inner.base_media_pos = Duration::ZERO;
+        inner.base_sink_pts = Duration::ZERO;
+        debug!("Stan potoku zmieniony na Stopped (Ready)");
+        Ok(())
+    }
+
+    /// Przewija do zadanej pozycji w czasie (natychmiastowy skok).
+    pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        let position_ns = gst::ClockTime::from_nseconds(position.as_nanos() as u64);
+        inner.pipeline.seek_simple(
+            gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+            position_ns,
+        )?;
+        inner.base_media_pos = position;
+        inner.base_sink_pts = position;
+        debug!("Wykonano seek do {:?}", position);
+        Ok(())
+    }
+
+    /// Przewija do zadanej pozycji z opcjonalnym miękkim wyciszeniem (mikro-fade out/in).
+    pub fn seek_with_fade(&self, position: Duration, fade: bool) -> Result<(), AudioEngineError> {
+        if !fade {
+            return self.seek(position);
+        }
+
+        let (is_playing, target_vol, current_seq) = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.seek_seq = inner.seek_seq.wrapping_add(1);
+            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
+            (is_playing, inner.user_volume, inner.seek_seq)
+        };
+
+        if !is_playing || target_vol <= 0.001 {
+            return self.seek(position);
+        }
+
+        let step_delay = Duration::from_millis(8);
+
+        // 1. Szybki, miękki mikro-fade-out (ok. 30ms)
+        let fade_out_steps = 4;
+        for i in (0..fade_out_steps).rev() {
+            let factor = (i as f64) / (fade_out_steps as f64);
+            {
+                let inner = self.inner.lock().unwrap();
+                if inner.seek_seq != current_seq {
+                    return Ok(());
+                }
+                inner.volume.set_property("volume", target_vol * factor);
+            }
+            std::thread::sleep(step_delay);
+        }
+
+        {
+            let inner = self.inner.lock().unwrap();
+            if inner.seek_seq != current_seq {
+                return Ok(());
+            }
+            inner.volume.set_property("volume", 0.0f64);
+        }
+
+        // 2. Właściwy skok czasowy w potoku GStreamer
+        self.seek(position)?;
+
+        // 3. Krótka stabilizacja bufora po skoku
+        std::thread::sleep(Duration::from_millis(15));
+
+        // 4. Miękki powrót głośności (mikro-fade-in ok. 50ms)
+        let fade_in_steps = 6;
+        for i in 1..=fade_in_steps {
+            let factor = (i as f64) / (fade_in_steps as f64);
+            {
+                let inner = self.inner.lock().unwrap();
+                if inner.seek_seq != current_seq {
+                    return Ok(());
+                }
+                inner.volume.set_property("volume", target_vol * factor);
+            }
+            std::thread::sleep(step_delay);
+        }
+
+        // 5. Ostateczne upewnienie się, że głośność powróciła do zadanej przez użytkownika
+        {
+            let inner = self.inner.lock().unwrap();
+            if inner.seek_seq == current_seq {
+                inner.volume.set_property("volume", target_vol);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Zwraca aktualną pozycję odtwarzania w osi czasu pliku źródłowego (z uwzględnieniem DSP).
+    pub fn position(&self) -> Option<Duration> {
+        let inner = self.inner.lock().unwrap();
+        Self::calculate_media_position(&inner)
+    }
+
+    /// Zwraca całkowity czas trwania załadowanego utworu.
+    pub fn duration(&self) -> Option<Duration> {
+        let inner = self.inner.lock().unwrap();
+        Self::query_raw_duration(&inner)
+    }
+
     /// Ustawia głośność (zakres 0.0 do 1.0+).
     pub fn set_volume(&self, volume: f64) -> Result<(), AudioEngineError> {
-        let inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
         let clamped = volume.clamp(0.0, 2.0);
+        inner.user_volume = clamped;
         inner.volume.set_property("volume", clamped);
         debug!("Ustawiono głośność na: {:.2}", clamped);
         Ok(())
     }
 
-    /// Pobiera aktualną głośność.
+    /// Pobiera aktualną głośność zadaną przez użytkownika.
     pub fn volume(&self) -> f64 {
         let inner = self.inner.lock().unwrap();
-        inner.volume.property::<f64>("volume")
+        inner.user_volume
     }
 
     /// Aktualizuje parametry DSP w locie.
@@ -321,20 +550,84 @@ impl AudioEngine {
         params.validate()?;
         let mut inner = self.inner.lock().unwrap();
 
-        let pitch_ratio = semitones_to_pitch_ratio(params.pitch_semitones) as f32;
-        let tempo_ratio = params.tempo_ratio as f32;
-        let rate_ratio = params.rate_ratio as f32;
+        // Jeśli parametry dotyczą silnika z przetwarzaniem, zapamiętujemy je
+        if params.engine != DspEngine::Bypass {
+            inner.last_active_dsp = Some(params);
+        } else if let Some(ref mut last) = inner.last_active_dsp {
+            last.pitch_semitones = params.pitch_semitones;
+            last.tempo_ratio = params.tempo_ratio;
+            last.rate_ratio = params.rate_ratio;
+        }
 
-        inner.pitch.set_property("pitch", pitch_ratio);
-        inner.pitch.set_property("tempo", tempo_ratio);
-        inner.pitch.set_property("rate", rate_ratio);
+        // Przed zmianą parametrów prędkości (tempo/rate) synchronizujemy punkt bazowy osi czasu.
+        // Zapobiega to jakimkolwiek skokom pozycji podczas przesuwania suwaków w czasie odtwarzania.
+        let old_speed = if inner.dsp_params.is_bypass() {
+            1.0
+        } else {
+            (inner.dsp_params.tempo_ratio * inner.dsp_params.rate_ratio).max(0.01)
+        };
+        let new_speed = if params.is_bypass() {
+            1.0
+        } else {
+            (params.tempo_ratio * params.rate_ratio).max(0.01)
+        };
 
+        if (old_speed - new_speed).abs() > 1e-4 || inner.dsp_params.engine != params.engine {
+            let current_media =
+                Self::calculate_media_position(&inner).unwrap_or(inner.base_media_pos);
+            let current_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
+            inner.base_media_pos = current_media;
+            inner.base_sink_pts = current_sink;
+        }
+
+        inner.dsp.set_params(params)?;
         inner.dsp_params = params;
         debug!(
-            "Zaktualizowano DSP: pitch={:.2} st ({:.3}x), tempo={:.2}x, rate={:.2}x",
-            params.pitch_semitones, pitch_ratio, tempo_ratio, rate_ratio
+            "Zaktualizowano DSP: engine={:?}, pitch={:.2} st, tempo={:.2}x, rate={:.2}x",
+            params.engine, params.pitch_semitones, params.tempo_ratio, params.rate_ratio
         );
         Ok(())
+    }
+
+    /// Ustawia parametry pogłosu (Reverb).
+    pub fn set_reverb_params(
+        &self,
+        enabled: bool,
+        room_size: f64,
+        damping: f64,
+        width: f64,
+        level: f64,
+    ) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.reverb_enabled = enabled;
+        inner.reverb_room_size = room_size.clamp(0.0, 1.0);
+        inner.reverb_damping = damping.clamp(0.0, 1.0);
+        inner.reverb_width = width.clamp(0.0, 1.0);
+        inner.reverb_level = level.clamp(0.0, 1.0);
+
+        if let Some(ref fv) = inner.freeverb {
+            let actual_level = if enabled {
+                inner.reverb_level as f32
+            } else {
+                0.0f32
+            };
+            fv.set_property("level", actual_level);
+            fv.set_property("room-size", inner.reverb_room_size as f32);
+            fv.set_property("damping", inner.reverb_damping as f32);
+            fv.set_property("width", inner.reverb_width as f32);
+        }
+    }
+
+    /// Pobiera aktualne parametry pogłosu (enabled, room_size, damping, width, level).
+    pub fn reverb_params(&self) -> (bool, f64, f64, f64, f64) {
+        let inner = self.inner.lock().unwrap();
+        (
+            inner.reverb_enabled,
+            inner.reverb_room_size,
+            inner.reverb_damping,
+            inner.reverb_width,
+            inner.reverb_level,
+        )
     }
 
     /// Ustawia wysokość dźwięku w półtonach w locie.
@@ -386,18 +679,46 @@ impl AudioEngine {
             return Ok(());
         }
 
-        let mut updated = current;
-        updated.engine = engine;
+        let mut inner = self.inner.lock().unwrap();
+
+        // Jeśli opuszczamy aktywny silnik DSP (RubberBand / SoundTouch), zapamiętujemy parametry
+        if current.engine != DspEngine::Bypass {
+            inner.last_active_dsp = Some(current);
+        }
 
         let caps = engine.capabilities();
-        updated.pitch_semitones = updated
-            .pitch_semitones
-            .clamp(caps.min_pitch_semitones, caps.max_pitch_semitones);
-        updated.tempo_ratio = updated
-            .tempo_ratio
-            .clamp(caps.min_tempo_ratio, caps.max_tempo_ratio);
+        let target_params = match engine {
+            DspEngine::Bypass => {
+                // Przechodzimy w Bypass: zachowujemy bieżące parametry użytkowniczki w statusie,
+                // by nie zostały zresetowane po powrocie do silnika przetwarzania
+                DspParams {
+                    engine: DspEngine::Bypass,
+                    pitch_semitones: current.pitch_semitones,
+                    tempo_ratio: current.tempo_ratio,
+                    rate_ratio: current.rate_ratio,
+                }
+            }
+            target_engine => {
+                // Wracamy do RubberBand lub SoundTouch:
+                // Przywracamy zapamiętane wartości parametrów sprzed przejścia w tryb Bypass!
+                let remembered = inner.last_active_dsp.unwrap_or(current);
+                DspParams {
+                    engine: target_engine,
+                    pitch_semitones: remembered
+                        .pitch_semitones
+                        .clamp(caps.min_pitch_semitones, caps.max_pitch_semitones),
+                    tempo_ratio: remembered
+                        .tempo_ratio
+                        .clamp(caps.min_tempo_ratio, caps.max_tempo_ratio),
+                    rate_ratio: remembered.rate_ratio.clamp(0.15, 4.0),
+                }
+            }
+        };
 
-        self.set_dsp_params(updated)?;
+        inner.dsp.set_engine(engine);
+        drop(inner);
+
+        self.set_dsp_params(target_params)?;
         info!("Przełączono silnik DSP na {}", caps.name);
         Ok(())
     }
@@ -487,20 +808,51 @@ impl AudioEngine {
                         if let Some(structure) = elem_msg.structure() {
                             if structure.name() == "spectrum" {
                                 if let Ok(val) = structure.value("magnitude") {
-                                    if let Ok(list) = val.get::<gst::ArrayRef>() {
-                                        let magnitudes: Vec<f32> = list
+                                    let mut magnitudes = Vec::new();
+
+                                    let extract_floats = |v: &glib::SendValue| -> Option<f32> {
+                                        v.get::<f32>()
+                                            .ok()
+                                            .or_else(|| v.get::<f64>().ok().map(|d| d as f32))
+                                    };
+
+                                    if let Ok(list) = val.get::<gst::ListRef>() {
+                                        for item in list.as_slice() {
+                                            if let Some(db) = extract_floats(item) {
+                                                magnitudes
+                                                    .push(((db + 60.0) / 60.0).clamp(0.0, 1.0));
+                                            } else if let Ok(sub_list) = item.get::<gst::ListRef>()
+                                            {
+                                                // Obsługa kanałów stereo/wielokanałowych
+                                                let sub_mags: Vec<f32> = sub_list
+                                                    .as_slice()
+                                                    .iter()
+                                                    .filter_map(extract_floats)
+                                                    .map(|db| ((db + 60.0) / 60.0).clamp(0.0, 1.0))
+                                                    .collect();
+                                                if magnitudes.is_empty() {
+                                                    magnitudes = sub_mags;
+                                                } else {
+                                                    for (idx, &s) in sub_mags.iter().enumerate() {
+                                                        if idx < magnitudes.len() {
+                                                            magnitudes[idx] =
+                                                                (magnitudes[idx] + s) * 0.5;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else if let Ok(arr) = val.get::<gst::ArrayRef>() {
+                                        magnitudes = arr
                                             .as_slice()
                                             .iter()
-                                            .filter_map(|v| {
-                                                v.get::<f32>().ok().or_else(|| {
-                                                    v.get::<f64>().ok().map(|d| d as f32)
-                                                })
-                                            })
+                                            .filter_map(extract_floats)
                                             .map(|db| ((db + 60.0) / 60.0).clamp(0.0, 1.0))
                                             .collect();
-                                        if !magnitudes.is_empty() {
-                                            events.push(PlayerEvent::Spectrum(magnitudes));
-                                        }
+                                    }
+
+                                    if !magnitudes.is_empty() {
+                                        events.push(PlayerEvent::Spectrum(magnitudes));
                                     }
                                 }
                             }
@@ -597,6 +949,12 @@ impl AudioEngine {
             self.play()?;
         }
         Ok(active_item)
+    }
+
+    /// Ustawia lub dodaje bieżący aktywny utwór do kolejki.
+    pub fn set_active_item(&self, item: QueueItem) {
+        let mut q = self.queue.lock().unwrap();
+        q.set_active_item(item);
     }
 
     /// Dodaje utwór na koniec bieżącej kolejki.

@@ -31,4 +31,21 @@ extern "C" {
 
     pub fn soundtouch_flush(handle: SoundTouchHandle) -> c_int;
     pub fn soundtouch_clear(handle: SoundTouchHandle) -> c_int;
+
+    pub fn soundtouch_set_setting(
+        handle: SoundTouchHandle,
+        setting_id: c_int,
+        value: c_int,
+    ) -> c_int;
+    pub fn soundtouch_get_setting(handle: SoundTouchHandle, setting_id: c_int) -> c_int;
 }
+
+pub const SETTING_USE_AA_FILTER: c_int = 0;
+pub const SETTING_AA_FILTER_LENGTH: c_int = 1;
+pub const SETTING_USE_QUICKSEEK: c_int = 2;
+pub const SETTING_SEQUENCE_MS: c_int = 3;
+pub const SETTING_SEEKWINDOW_MS: c_int = 4;
+pub const SETTING_OVERLAP_MS: c_int = 5;
+pub const SETTING_NOMINAL_INPUT_SEQUENCE: c_int = 6;
+pub const SETTING_NOMINAL_OUTPUT_SEQUENCE: c_int = 7;
+pub const SETTING_INITIAL_LATENCY: c_int = 8;

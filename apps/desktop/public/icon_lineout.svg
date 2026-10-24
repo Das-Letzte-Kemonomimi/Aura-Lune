@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Vibrant Neon Gradient matching KDE Sweet/Candy dock icons -->
+    <linearGradient id="neonGrad" x1="15%" y1="95%" x2="85%" y2="5%">
+      <stop offset="0%" stop-color="#ff2e7e" />
+      <stop offset="40%" stop-color="#d946ef" />
+      <stop offset="75%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Refined soft neon glow filter -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" opacity="0.3" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#neonGlow)">
+    <!-- 1. Unified Continuous Outer Kitsune Silhouette (Seamless stroke, no overlapping joints) -->
+    <path d="
+      M 115 190
+      C 105 145, 115 95, 138 52
+      C 144 40, 158 44, 166 58
+      C 188 98, 208 135, 256 142
+      C 304 135, 324 98, 346 58
+      C 354 44, 368 40, 374 52
+      C 397 95, 407 145, 397 190
+      A 175 175 0 1 1 115 190 Z
+    " fill="none" stroke="url(#neonGrad)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- 2. Inner Ear Accents (Elegant curved minimalist strokes) -->
+    <path d="M 152 90 C 162 118, 178 140, 204 150" fill="none" stroke="url(#neonGrad)" stroke-width="14" stroke-linecap="round" opacity="0.8" />
+    <path d="M 360 90 C 350 118, 334 140, 308 150" fill="none" stroke="url(#neonGrad)" stroke-width="14" stroke-linecap="round" opacity="0.8" />
+
+    <!-- 3. Central Luminous Crescent Moon (Auralune Motif) -->
+    <path d="
+      M 265 210
+      C 215 210, 178 248, 178 296
+      C 178 344, 215 382, 265 382
+      C 230 358, 210 330, 210 296
+      C 210 262, 230 234, 265 210 Z
+    " fill="url(#neonGrad)" fill-opacity="0.15" stroke="url(#neonGrad)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- 4. Dynamic Audio Equalizer Pulse Waveform (Music Player Core) -->
+    <!-- Sound pulse originating from the heart of the moon -->
+    <path d="
+      M 242 296
+      L 264 296
+      L 280 236
+      L 308 356
+      L 332 258
+      L 350 320
+      L 366 282
+      L 384 296
+      L 404 296
+    " fill="none" stroke="url(#neonGrad)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- 5. Sound Particles / Star sparkles -->
+    <circle cx="362" cy="226" r="8" fill="url(#neonGrad)" />
+    <circle cx="396" cy="248" r="5" fill="url(#neonGrad)" />
+  </g>
+</svg>

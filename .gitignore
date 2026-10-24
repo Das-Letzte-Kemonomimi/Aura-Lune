@@ -1,6 +1,10 @@
 /target
+node_modules
+apps/desktop/dist
+apps/desktop/src-tauri/target
 Cargo.lock
 **/*.rs.bk
 *.swp
 *~
 .DS_Store
+tests/fixtures/*.flac

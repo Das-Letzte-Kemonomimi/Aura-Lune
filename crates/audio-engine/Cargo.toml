@@ -11,7 +11,9 @@ dsp-rubberband = { path = "../dsp-rubberband" }
 dsp-soundtouch = { path = "../dsp-soundtouch" }
 gstreamer.workspace = true
 gstreamer-audio.workspace = true
+gstreamer-app.workspace = true
 glib.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
+lofty.workspace = true

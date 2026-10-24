@@ -9,7 +9,7 @@ name = "auralune_desktop"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["image-png"] }
 audio-engine = { path = "../../../crates/audio-engine" }
 domain = { path = "../../../crates/domain" }
 dsp-api = { path = "../../../crates/dsp-api" }
@@ -23,7 +23,10 @@ serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 thiserror.workspace = true
+lofty.workspace = true
 base64 = { workspace = true }
+glib = { workspace = true }
+walkdir = { workspace = true }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -34,6 +34,28 @@ pub struct TrackRecord {
     pub bit_depth: Option<i64>,
     pub file_size: i64,
     pub modified_time: i64,
+    #[sqlx(default)]
+    pub is_favorite: Option<bool>,
+    #[sqlx(default)]
+    pub play_count: Option<i64>,
+    #[sqlx(default)]
+    pub last_played_at: Option<i64>,
+    #[sqlx(default)]
+    pub total_play_time_ms: Option<i64>,
+    #[sqlx(default)]
+    pub bpm: Option<f64>,
+    #[sqlx(default)]
+    pub initial_key: Option<String>,
+}
+
+/// Podsumowanie statystyk odsłuchów (Recap / Unwrapped)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct RecapSummaryDto {
+    pub period: String,
+    pub total_listened_ms: i64,
+    pub tracks_played_count: i64,
+    pub top_tracks: Vec<TrackRecord>,
+    pub top_artists: Vec<(String, i64)>,
 }
 
 /// Rekord albumu w bazie danych.
@@ -203,20 +225,57 @@ impl Database {
         let _ = sqlx::query("ALTER TABLE albums ADD COLUMN release_mbid TEXT;")
             .execute(&self.pool)
             .await;
+        let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN is_favorite BOOLEAN DEFAULT 0;")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN play_count INTEGER DEFAULT 0;")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN last_played_at INTEGER;")
+            .execute(&self.pool)
+            .await;
+        let _ =
+            sqlx::query("CREATE INDEX IF NOT EXISTS idx_tracks_favorite ON tracks(is_favorite);")
+                .execute(&self.pool)
+                .await;
+        let _ = sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_tracks_last_played ON tracks(last_played_at);",
+        )
+        .execute(&self.pool)
+        .await;
+        let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN total_play_time_ms INTEGER DEFAULT 0;")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN bpm REAL;")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN initial_key TEXT;")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS listening_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+                duration_ms INTEGER NOT NULL,
+                played_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_listening_history_played ON listening_history(played_at);
+            CREATE INDEX IF NOT EXISTS idx_listening_history_track ON listening_history(track_id);
+            "#,
+        )
+        .execute(&self.pool)
+        .await;
 
-        // Inicjalizacja domyślnych motywów anime, jeśli tabela jest pusta
-        let theme_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM themes;")
-            .fetch_one(&self.pool)
-            .await?;
-
-        if theme_count == 0 {
-            for theme in domain::default_themes() {
+        // Inicjalizacja domyślnych motywów anime (upewniamy się, że każdy motyw istnieje)
+        for theme in domain::default_themes() {
+            if self.get_theme(&theme.id).await?.is_none() {
                 self.save_theme(&theme).await?;
             }
-            if self.get_app_setting("active_theme_id").await?.is_none() {
-                self.set_app_setting("active_theme_id", "cyber-kitsune")
-                    .await?;
-            }
+        }
+        if self.get_app_setting("active_theme_id").await?.is_none() {
+            self.set_app_setting("active_theme_id", "cyber-kitsune")
+                .await?;
         }
 
         Ok(())
@@ -296,8 +355,9 @@ impl Database {
             r#"
             INSERT INTO tracks (
                 path, title, artist, album_artist, album_id, disc_no, track_no,
-                duration_ms, format, sample_rate, channels, bit_depth, file_size, modified_time
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                duration_ms, format, sample_rate, channels, bit_depth, file_size, modified_time,
+                bpm, initial_key
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
             ON CONFLICT(path) DO UPDATE SET
                 title = excluded.title,
                 artist = excluded.artist,
@@ -311,7 +371,9 @@ impl Database {
                 channels = excluded.channels,
                 bit_depth = excluded.bit_depth,
                 file_size = excluded.file_size,
-                modified_time = excluded.modified_time
+                modified_time = excluded.modified_time,
+                bpm = COALESCE(excluded.bpm, tracks.bpm),
+                initial_key = COALESCE(excluded.initial_key, tracks.initial_key)
             RETURNING id;
             "#,
         )
@@ -329,10 +391,77 @@ impl Database {
         .bind(track.bit_depth)
         .bind(track.file_size)
         .bind(track.modified_time)
+        .bind(track.bpm)
+        .bind(&track.initial_key)
         .fetch_one(&self.pool)
         .await?;
 
         Ok(rec.get::<i64, _>("id"))
+    }
+
+    /// Aktualizuje wykryty lub ręcznie ustawiony BPM oraz klucz muzyczny dla utworu.
+    pub async fn update_track_key_bpm(
+        &self,
+        track_id: i64,
+        bpm: f64,
+        initial_key: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query("UPDATE tracks SET bpm = ?1, initial_key = ?2 WHERE id = ?3;")
+            .bind(bpm)
+            .bind(initial_key)
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Pobiera zapisany BPM oraz klucz muzyczny dla danego utworu.
+    pub async fn get_track_key_bpm(
+        &self,
+        track_id: i64,
+    ) -> Result<Option<(f64, String)>, StorageError> {
+        let row = sqlx::query("SELECT bpm, initial_key FROM tracks WHERE id = ?1 LIMIT 1;")
+            .bind(track_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        if let Some(r) = row {
+            let bpm: Option<f64> = r.try_get("bpm").ok();
+            let key: Option<String> = r.try_get("initial_key").ok();
+            if let (Some(b), Some(k)) = (bpm, key) {
+                return Ok(Some((b, k)));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Powiązuje dany utwór z albumem.
+    pub async fn link_track_to_album(
+        &self,
+        track_id: i64,
+        album_id: i64,
+    ) -> Result<(), StorageError> {
+        sqlx::query("UPDATE tracks SET album_id = ?1 WHERE id = ?2;")
+            .bind(album_id)
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Powiązuje nieprzypisane utwory o danej nazwie albumu z albumem.
+    pub async fn link_tracks_by_album_title(
+        &self,
+        album_title: &str,
+        album_id: i64,
+    ) -> Result<(), StorageError> {
+        sqlx::query(
+            "UPDATE tracks SET album_id = ?1 WHERE (album_id IS NULL OR album_id = 0) AND (album_artist = ?2 OR artist = ?2);",
+        )
+        .bind(album_id)
+        .bind(album_title)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     /// Pobiera utwór po ścieżce na dysku.
@@ -409,6 +538,16 @@ impl Database {
             .await?;
 
         Ok(rec.map(|r| r.get::<i64, _>("position_ms") as u64))
+    }
+
+    /// Usuwa zakładkę odtwarzania dla danego utworu.
+    pub async fn delete_bookmark(&self, track_id: i64) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM playback_bookmarks WHERE track_id = ?1;")
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
     }
 
     /// Zapisuje preset DSP.
@@ -764,6 +903,228 @@ impl Database {
             Ok(None)
         }
     }
+
+    /// Przełącza status ulubionego (is_favorite) dla danego utworu.
+    pub async fn toggle_favorite(&self, track_id: i64) -> Result<bool, StorageError> {
+        let current: Option<bool> =
+            sqlx::query_scalar("SELECT is_favorite FROM tracks WHERE id = ?1;")
+                .bind(track_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        let new_val = !current.unwrap_or(false);
+        sqlx::query("UPDATE tracks SET is_favorite = ?1 WHERE id = ?2;")
+            .bind(new_val)
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(new_val)
+    }
+
+    /// Odnotowuje odsłuchanie utworu (zwiększa play_count i aktualizuje last_played_at).
+    pub async fn record_track_play(&self, track_id: i64) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            "UPDATE tracks SET play_count = COALESCE(play_count, 0) + 1, last_played_at = ?1 WHERE id = ?2;",
+        )
+        .bind(now)
+        .bind(track_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Odnotowuje czas odtwarzania utworu w milisekundach (zwiększa total_play_time_ms i dodaje wpis do listening_history).
+    pub async fn record_track_listening(
+        &self,
+        track_id: i64,
+        duration_ms: i64,
+    ) -> Result<(), StorageError> {
+        if duration_ms <= 0 {
+            return Ok(());
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        sqlx::query(
+            "UPDATE tracks SET total_play_time_ms = COALESCE(total_play_time_ms, 0) + ?1, last_played_at = ?2 WHERE id = ?3;",
+        )
+        .bind(duration_ms)
+        .bind(now)
+        .bind(track_id)
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO listening_history (track_id, duration_ms, played_at) VALUES (?1, ?2, ?3);",
+        )
+        .bind(track_id)
+        .bind(duration_ms)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Pobiera podsumowanie odsłuchów dla zadanego okresu (np. od danego timestampu UTC).
+    pub async fn get_recap_summary(
+        &self,
+        period: &str,
+        since_epoch_secs: i64,
+    ) -> Result<RecapSummaryDto, StorageError> {
+        let total_row = sqlx::query(
+            "SELECT COALESCE(SUM(duration_ms), 0) as total_ms, COUNT(DISTINCT track_id) as tracks_count FROM listening_history WHERE played_at >= ?1;",
+        )
+        .bind(since_epoch_secs)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let total_listened_ms: i64 = total_row.try_get("total_ms").unwrap_or(0);
+        let tracks_played_count: i64 = total_row.try_get("tracks_count").unwrap_or(0);
+
+        let top_track_rows = sqlx::query(
+            r#"
+            SELECT t.*
+            FROM tracks t
+            JOIN (
+                SELECT track_id, SUM(duration_ms) as dur
+                FROM listening_history
+                WHERE played_at >= ?1
+                GROUP BY track_id
+                ORDER BY dur DESC
+                LIMIT 5
+            ) h ON t.id = h.track_id;
+            "#,
+        )
+        .bind(since_epoch_secs)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut top_tracks = Vec::new();
+        for row in top_track_rows {
+            if let Ok(t) = TrackRecord::from_row(&row) {
+                top_tracks.push(t);
+            }
+        }
+
+        if top_tracks.is_empty() {
+            top_tracks = sqlx::query_as::<_, TrackRecord>(
+                "SELECT * FROM tracks WHERE play_count > 0 ORDER BY play_count DESC, total_play_time_ms DESC LIMIT 5;",
+            )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap_or_default();
+        }
+
+        let artist_rows = sqlx::query(
+            r#"
+            SELECT t.artist, SUM(h.duration_ms) as total_dur
+            FROM listening_history h
+            JOIN tracks t ON t.id = h.track_id
+            WHERE h.played_at >= ?1 AND t.artist IS NOT NULL AND t.artist != ''
+            GROUP BY t.artist
+            ORDER BY total_dur DESC
+            LIMIT 5;
+            "#,
+        )
+        .bind(since_epoch_secs)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut top_artists = Vec::new();
+        for r in artist_rows {
+            let artist: String = r.try_get("artist").unwrap_or_default();
+            let dur: i64 = r.try_get("total_dur").unwrap_or(0);
+            if !artist.is_empty() {
+                top_artists.push((artist, dur));
+            }
+        }
+
+        if top_artists.is_empty() {
+            let fallback_artists = sqlx::query(
+                "SELECT artist, SUM(COALESCE(play_count, 0)) as total_plays FROM tracks WHERE artist IS NOT NULL AND artist != '' GROUP BY artist ORDER BY total_plays DESC LIMIT 5;",
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            for r in fallback_artists {
+                let artist: String = r.try_get("artist").unwrap_or_default();
+                let plays: i64 = r.try_get("total_plays").unwrap_or(0);
+                if plays > 0 {
+                    top_artists.push((artist, plays * 180_000));
+                }
+            }
+        }
+
+        Ok(RecapSummaryDto {
+            period: period.to_string(),
+            total_listened_ms,
+            tracks_played_count,
+            top_tracks,
+            top_artists,
+        })
+    }
+
+    /// Resetuje licznik odtworzeń dla danego utworu.
+    pub async fn reset_track_plays(&self, track_id: i64) -> Result<(), StorageError> {
+        sqlx::query("UPDATE tracks SET play_count = 0, last_played_at = NULL WHERE id = ?1;")
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Pobiera utwory oznaczone jako ulubione (Favorites).
+    pub async fn list_favorite_tracks(&self) -> Result<Vec<TrackRecord>, StorageError> {
+        let res = sqlx::query_as::<_, TrackRecord>(
+            "SELECT * FROM tracks WHERE is_favorite = 1 ORDER BY artist, title;",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(res)
+    }
+
+    /// Pobiera ostatnio odtwarzane utwory (History).
+    pub async fn list_recently_played_tracks(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<TrackRecord>, StorageError> {
+        let res = sqlx::query_as::<_, TrackRecord>(
+            "SELECT * FROM tracks WHERE last_played_at IS NOT NULL ORDER BY last_played_at DESC LIMIT ?1;",
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(res)
+    }
+
+    /// Pobiera najczęściej odtwarzane utwory (Top Played).
+    pub async fn list_top_played_tracks(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<TrackRecord>, StorageError> {
+        let res = sqlx::query_as::<_, TrackRecord>(
+            "SELECT * FROM tracks WHERE play_count > 0 ORDER BY play_count DESC LIMIT ?1;",
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(res)
+    }
+
+    /// Pobiera utwory w formacie Hi-Res Audio (24-bit lub częstotliwość > 48000 Hz).
+    pub async fn list_hires_tracks(&self) -> Result<Vec<TrackRecord>, StorageError> {
+        let res = sqlx::query_as::<_, TrackRecord>(
+            "SELECT * FROM tracks WHERE (bit_depth IS NOT NULL AND bit_depth >= 24) OR sample_rate > 48000 ORDER BY artist, title;",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(res)
+    }
 }
 
 #[cfg(test)]
@@ -801,6 +1162,12 @@ mod tests {
             bit_depth: Some(24),
             file_size: 65432100,
             modified_time: 1700000000,
+            is_favorite: None,
+            play_count: None,
+            last_played_at: None,
+            total_play_time_ms: None,
+            bpm: None,
+            initial_key: None,
         };
 
         let track_id = db.upsert_track(&track).await.unwrap();
@@ -812,6 +1179,31 @@ mod tests {
         let fetched_track = fetched.unwrap();
         assert_eq!(fetched_track.title, "Sparkle");
         assert_eq!(fetched_track.duration_ms, 538000);
+
+        // Test ulubionych i statystyk odtworzeń
+        let is_fav = db.toggle_favorite(track_id).await.unwrap();
+        assert!(is_fav);
+        let favs = db.list_favorite_tracks().await.unwrap();
+        assert_eq!(favs.len(), 1);
+        assert_eq!(favs[0].title, "Sparkle");
+
+        db.record_track_play(track_id).await.unwrap();
+        db.record_track_listening(track_id, 45000).await.unwrap();
+        let top = db.list_top_played_tracks(10).await.unwrap();
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].play_count, Some(1));
+        assert_eq!(top[0].total_play_time_ms, Some(45000));
+
+        let recap = db.get_recap_summary("week", 0).await.unwrap();
+        assert_eq!(recap.total_listened_ms, 45000);
+        assert_eq!(recap.tracks_played_count, 1);
+        assert_eq!(recap.top_tracks.len(), 1);
+        assert_eq!(recap.top_artists.len(), 1);
+        assert_eq!(recap.top_artists[0].0, "RADWIMPS");
+
+        let hires = db.list_hires_tracks().await.unwrap();
+        assert_eq!(hires.len(), 1);
+        assert_eq!(hires[0].title, "Sparkle");
 
         // 4. Test zakładki odtwarzania
         db.save_bookmark(track_id, 125000).await.unwrap();
@@ -832,7 +1224,7 @@ mod tests {
 
         // 6. Test motywów anime i tokenów
         let themes = db.list_themes().await.unwrap();
-        assert_eq!(themes.len(), 4); // 4 domyślne motywy zainicjowane migracją
+        assert_eq!(themes.len(), 6); // 6 domyślnych motywów anime zainicjowanych migracją
         let active = db.get_app_setting("active_theme_id").await.unwrap();
         assert_eq!(active, Some("cyber-kitsune".to_string()));
 

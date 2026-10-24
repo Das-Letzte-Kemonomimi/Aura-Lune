@@ -21,7 +21,7 @@ pub struct EqualizerState {
 impl Default for EqualizerState {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             bands: [0.0; 10],
         }
     }

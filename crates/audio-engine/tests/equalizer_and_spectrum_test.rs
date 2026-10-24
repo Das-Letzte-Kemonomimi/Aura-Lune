@@ -8,7 +8,7 @@ fn test_audio_engine_equalizer_and_spectrum() {
     // Test domyślnego stanu korektora
     let default_bands = engine.get_equalizer_bands();
     assert_eq!(default_bands, [0.0; 10]);
-    assert!(engine.is_equalizer_enabled());
+    assert!(!engine.is_equalizer_enabled());
 
     // Test ustawiania pojedynczego pasma
     engine.set_equalizer_band(0, 6.0).expect("Błąd set band 0");
