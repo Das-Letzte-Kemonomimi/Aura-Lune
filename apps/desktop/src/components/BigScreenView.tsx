@@ -561,7 +561,11 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
               step={0.01}
               value={volume}
               onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-              style={{ width: '80px', accentColor: 'var(--accent-purple)', cursor: 'pointer' }}
+              style={{
+                width: '80px',
+                cursor: 'pointer',
+                background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
+              }}
             />
           </div>
         </div>

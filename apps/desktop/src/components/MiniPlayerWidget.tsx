@@ -256,7 +256,12 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
             step={0.01}
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            style={{ width: '50px', height: '3px', cursor: 'pointer', accentColor: 'var(--accent-purple)' }}
+            style={{
+              width: '50px',
+              height: '3px',
+              cursor: 'pointer',
+              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
+            }}
           />
         </div>
 
