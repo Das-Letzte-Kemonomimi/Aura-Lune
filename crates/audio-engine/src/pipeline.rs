@@ -672,12 +672,20 @@ impl AudioEngine {
         inner.dsp_params
     }
 
-    /// Przełącza silnik DSP (SoundTouch lub Rubber Band).
+    /// Przełącza silnik DSP (SoundTouch, Rubber Band lub Bypass).
     pub fn set_dsp_engine(&self, engine: DspEngine) -> Result<(), AudioEngineError> {
         let current = self.dsp_params();
         if current.engine == engine {
             return Ok(());
         }
+
+        let is_active_playback = {
+            let inner = self.inner.lock().unwrap();
+            inner.state == PlaybackState::Playing || inner.state == PlaybackState::Paused
+        };
+
+        // Obliczamy bieżącą pozycję w utworze źródłowym przed zmianą silnika
+        let current_pos = self.position().unwrap_or(Duration::ZERO);
 
         let mut inner = self.inner.lock().unwrap();
 
@@ -716,9 +724,25 @@ impl AudioEngine {
         };
 
         inner.dsp.set_engine(engine);
+        let _ = inner.dsp.set_params(target_params);
+        inner.dsp_params = target_params;
+        inner.base_media_pos = current_pos;
+        inner.base_sink_pts = current_pos;
         drop(inner);
 
-        self.set_dsp_params(target_params)?;
+        // Jeśli odtwarzanie jest aktywne, wykonaj natychmiastowy seek do bieżącej pozycji.
+        // Oczyszcza to zbuforowane w kolejkach zdezsynchronizowane próbki i gwarantuje,
+        // że nowy silnik (lub czysty strumień Bypass) startuje od dokładnie tej samej sekundy
+        // z idealnie wyrównanymi znacznikami czasu PTS w GStreamerze (brak efektu flangera i szarpnięć).
+        if is_active_playback {
+            if let Err(e) = self.seek(current_pos) {
+                warn!(
+                    "Błąd resynchronizacji seek przy zmianie silnika DSP: {:?}",
+                    e
+                );
+            }
+        }
+
         info!("Przełączono silnik DSP na {}", caps.name);
         Ok(())
     }

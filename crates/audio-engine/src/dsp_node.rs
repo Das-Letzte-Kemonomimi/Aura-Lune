@@ -70,7 +70,7 @@ impl DspNodeState {
     }
 
     fn is_bypass(&self) -> bool {
-        self.params.is_bypass()
+        self.params.engine == DspEngine::Bypass
     }
 
     fn prepare_if_needed(&mut self, rate: u32, channels: u32) {
@@ -225,76 +225,10 @@ impl AuraluneDspImpl {
             }
         }
 
-        // 2. Jeśli parametry są fabryczne (1.0x / 0 st) -> Bit-perfect BYPASS
+        // 2. Jeśli tryb Bypass -> Czysty, bit-perfect passthrough
         if state.is_bypass() {
-            // Wypychamy resztki z FIFO, aby nie tracić próbek wyprodukowanych
-            // przez poprzednią sesję DSP (eliminuje trzaski na granicy przejścia)
-            if let Some(fmt) = state.format {
-                let channels = fmt.channels as usize;
-                let sample_rate = fmt.sample_rate as u64;
-
-                while !state.fifo.is_empty() {
-                    let drain_samples = state.fifo.len().min(4096 * channels);
-                    let out_frames = drain_samples / channels;
-                    let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
-                    let byte_len = drain_samples * std::mem::size_of::<f32>();
-
-                    if let Ok(mut tail_buf) = gst::Buffer::with_size(byte_len) {
-                        let buf_mut = tail_buf.make_mut();
-                        if let Ok(mut map) = buf_mut.map_writable() {
-                            let dst: &mut [f32] = unsafe {
-                                std::slice::from_raw_parts_mut(
-                                    map.as_mut_ptr() as *mut f32,
-                                    drain_samples,
-                                )
-                            };
-                            for s in dst.iter_mut() {
-                                *s = state.fifo.pop_front().unwrap_or(0.0);
-                            }
-                        }
-                        if let Some(pts) = state.current_pts {
-                            buf_mut.set_pts(gst::ClockTime::from_nseconds(pts));
-                            state.current_pts = Some(pts + out_duration_ns);
-                        }
-                        buf_mut.set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
-                        let _ = srcpad.push(tail_buf);
-                    } else {
-                        state.fifo.clear();
-                        break;
-                    }
-                }
-            } else {
-                state.fifo.clear();
-            }
-
-            // Resetuj stan procesorów, aby nie wypuściły brudnych próbek
-            // przy następnej aktywacji DSP
-            let _ = state.rubberband.reset();
-            let _ = state.soundtouch.reset();
-
-            // Jeśli format jest znany, utrzymujemy ciągłość znaczników czasowych bufora,
-            // aby downstream sink nie dostawał cofających się znaczników PTS przy przejściu z trybu spowolnionego do bypass
-            if let Some(fmt) = state.format {
-                let channels = fmt.channels as usize;
-                let sample_rate = fmt.sample_rate as u64;
-                let num_floats = buffer.size() / std::mem::size_of::<f32>();
-                let in_frames = num_floats / channels;
-                let duration_ns = (in_frames as u64 * 1_000_000_000) / sample_rate;
-
-                let buffer_pts = buffer.pts().map(|p| p.nseconds());
-                let pts = state.current_pts.or(buffer_pts).unwrap_or(0);
-                state.current_pts = Some(pts + duration_ns);
-
-                let mut out_buf = buffer;
-                {
-                    let buf_mut = out_buf.make_mut();
-                    buf_mut.set_pts(gst::ClockTime::from_nseconds(pts));
-                    buf_mut.set_duration(gst::ClockTime::from_nseconds(duration_ns));
-                }
-                drop(state);
-                return srcpad.push(out_buf);
-            }
-
+            state.fifo.clear();
+            state.current_pts = None;
             drop(state);
             return srcpad.push(buffer);
         }

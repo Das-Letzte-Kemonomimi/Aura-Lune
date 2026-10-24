@@ -45,8 +45,10 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
   - Zoptymalizowano konfigurację Rubber Band (`TRANSIENTS_CRISP | DETECTOR_COMPOUND | WINDOW_STANDARD | SMOOTHING_OFF`).
   - Wprowadzono bezpieczną poduszkę buforową FIFO w `dsp_node`, eliminując problem opróżniania bufora do zera przy gwałtownych oknach FFT.
   - Zwiększono pojemność kolejki buforowej przed wyjściem audio (`queue_sink`) z 500ms do 2.0s.
-- **Ciągłość znaczników czasowych PTS w trybie Bypass**:
-  - Zapewniono nadawanie monotonicznych znaczników czasowych buforów w trybie Bypass w `dsp_node`, eliminując cofanie się czasu i zacinanie dźwięku po wyłączeniu efektów DSP.
+- **Eliminacja efektu flangera, zniekształceń fazowych i poszarpanego dźwięku przy przełączaniu na Bypass**:
+  - Zastąpiono sztuczne nadpisywanie znaczników czasowych PTS w `dsp_node` czystym, 100% bit-perfect passthrough oryginalnych buforów dekodera (`srcpad.push(buffer)`).
+  - Wyeliminowano wywoływanie `rubberband.reset()` i `soundtouch.reset()` wewnątrz callbacku czasu rzeczywistego na każdym przychodzącym pakiecie (co wywoływało ciągłe alokacje/dealokacje pamięci i dropy ramek).
+  - Wprowadzono automatyczny, natychmiastowy seek/flush kolejki przy zmianie silnika w locie (`set_dsp_engine`), co oczyszcza zbuforowane wcześniej rozciągnięte próbki i idealnie wyrównuje zegar GStreamer/PipeWire bez jakiegokolwiek comb-filteringu.
 
 ---
 

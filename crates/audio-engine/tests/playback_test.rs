@@ -57,6 +57,23 @@ fn test_audio_engine_playback_and_dsp_modulation() {
     assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::SoundTouch);
     assert_eq!(engine.dsp_capabilities().name, "SoundTouch");
 
+    sleep(Duration::from_millis(150));
+
+    // Weryfikacja przełączenia na Bypass w locie podczas aktywnego odtwarzania
+    engine
+        .set_dsp_engine(dsp_api::DspEngine::Bypass)
+        .expect("Przełączenie na Bypass w locie powinno się powieść");
+    assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::Bypass);
+    assert_eq!(engine.dsp_capabilities().name, "Brak DSP (Direct Bypass)");
+
+    sleep(Duration::from_millis(150));
+
+    // Weryfikacja powrotu do RubberBand z Bypass w locie
+    engine
+        .set_dsp_engine(dsp_api::DspEngine::RubberBand)
+        .expect("Powrót do Rubber Band w locie powinien się powieść");
+    assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::RubberBand);
+
     // Weryfikacja seek
     let seek_result = engine.seek(Duration::from_millis(200));
     assert!(seek_result.is_ok(), "Seek powinien się powieść");
