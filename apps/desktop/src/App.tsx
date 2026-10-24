@@ -4354,11 +4354,6 @@ const renderDevicesSection = () => (
           </div>
         </div>
       </div>
-
-      {/* Wbudowany dziennik zmian */}
-      <div style={{ marginTop: '10px' }}>
-        <ChangelogView currentLang={language} />
-      </div>
     </div>
   );
 
