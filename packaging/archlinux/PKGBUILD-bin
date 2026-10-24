@@ -1,0 +1,55 @@
+# Maintainer: Kitsune Player Team <team@auralune.org>
+pkgname=auralune-bin
+pkgver=0.2.2
+pkgrel=1
+pkgdesc="Natywny odtwarzacz muzyki dla Linuksa (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - wersja binarna AppImage"
+arch=('x86_64')
+url="https://github.com/Das-Letzte-Kemonomimi/Auralune"
+license=('GPL-3.0-or-later')
+provides=('auralune')
+conflicts=('auralune' 'auralune-git')
+depends=(
+    'gstreamer'
+    'gst-plugins-base'
+    'gst-plugins-good'
+    'pipewire'
+    'sqlite'
+    'webkit2gtk-4.1'
+    'gtk3'
+    'glib2'
+    'cairo'
+    'pango'
+    'openssl'
+)
+optdepends=(
+    'gst-plugins-bad: obsługa formatów Opus, AAC i zaawansowanych kontenerów'
+    'gst-plugin-pipewire: bezpośredni potok wyjściowy PipeWire o niskiej latencji'
+    'rubberband: silnik DSP time-stretching i pitch-shifting wysokiej jakości'
+    'soundtouch: silnik DSP o niskim narzucie CPU i niezależnej zmianie tempa/wysokości'
+    'bluez-utils: dynamiczny wybór kodeków Bluetooth (LDAC, aptX HD, AAC, SBC-XQ)'
+)
+options=('!strip')
+source=("$pkgname-$pkgver.AppImage::$url/releases/download/v$pkgver/Auralune_${pkgver}_amd64.AppImage")
+sha256sums=('1565439e71516e48565d09289e1196f2175856cf2ead62e1baf3b2c5ed3af759')
+
+prepare() {
+    chmod +x "$pkgname-$pkgver.AppImage"
+    ./"$pkgname-$pkgver.AppImage" --appimage-extract > /dev/null
+}
+
+package() {
+    cd "$srcdir/squashfs-root"
+
+    # Główna binarka
+    install -Dm755 usr/bin/auralune-desktop "$pkgdir/usr/bin/auralune"
+
+    # Plik aktywatora pulpitu .desktop
+    install -Dm644 Auralune.desktop "$pkgdir/usr/share/applications/auralune.desktop"
+
+    # Ikony we wszystkich standardowych rozdzielczościach hicolor oraz pixmaps
+    install -Dm644 usr/share/icons/hicolor/32x32/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/32x32/apps/auralune.png" 2>/dev/null || true
+    install -Dm644 usr/share/icons/hicolor/128x128/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/auralune.png" 2>/dev/null || true
+    install -Dm644 usr/share/icons/hicolor/256x256/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/auralune.png" 2>/dev/null || true
+    install -Dm644 usr/share/icons/hicolor/512x512/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/auralune.png" 2>/dev/null || true
+    install -Dm644 Auralune.png "$pkgdir/usr/share/pixmaps/auralune.png"
+}
