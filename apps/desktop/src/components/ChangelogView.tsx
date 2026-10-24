@@ -18,11 +18,70 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.3.0',
+    codename: 'Omniscience & Starlight',
+    date: '2026-10-25',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Tag Editor (Properties Dialog): zaawansowane okno edycji metadanych w stylu foobar2000 z bezpośrednim zapisem tagów przez bibliotekę lofty i transakcyjną aktualizacją SQLite.',
+        en: 'Tag Editor (Properties Dialog): foobar2000-style metadata properties editor with direct tag write via lofty and transactional SQLite synchronization.',
+        de: 'Tag Editor (Eigenschaften-Dialog): foobar2000-artiger Metadaten-Editor mit direktem Tag-Schreiben über lofty und Transaktions-SQLite-Synchronisation.',
+        fi: 'Tag Editor (Ominaisuudet-dialogi): foobar2000-tyylinen metatietojen muokkaus, suora tallennus lofty-kirjastolla ja transaktiopohjainen SQLite-päivitys.',
+        la: 'Tag Editor (Dialogus Proprietatum): editor metadatorum more foobar2000 cum scriptione directa per lofty et synchronisatione transactionali SQLite.',
+      },
+      {
+        pl: 'Parser arkuszy CUE (.cue sheet parser): obsługa wydań anime/doujin zripowanych do pojedynczego pliku audio z automatycznym podziałem na wirtualne utwory i precyzyjnym czasem startu.',
+        en: 'CUE Sheet Parser: full support for anime/doujin single-file album rips with automatic track splitting, accurate millisecond offsets, and queue integration.',
+        de: 'CUE-Sheet-Parser: Unterstützung für Einzeldatei-Album-Rips mit automatischer Track-Aufteilung, millisekundengenauen Offsets und Warteschlangen-Integration.',
+        fi: 'CUE Sheet -jäsennin: tuki yhden tiedoston anime/doujin-albumeille automaattisella kappalejaolla ja millisekuntitarkoilla aikaleimoilla.',
+        la: 'Parser schedis CUE: sustentatio albumorum uno fasciculo compactis cum partitione automatica carminum et offset accurato.',
+      },
+      {
+        pl: 'Smart Playlists (Dynamiczne inteligentne playlisty): kolekcje generowane w czasie rzeczywistym z SQLite (Top 25, Ostatnio odtwarzane, Zapomniane perełki, Hi-Res Lossless, High BPM, Top Rated).',
+        en: 'Smart Playlists: real-time dynamic collections from SQLite (Top 25 Played, Recently Played, Forgotten Gems, Hi-Res Lossless, High BPM, Top Rated).',
+        de: 'Smart Playlists: dynamische Echtzeit-Sammlungen aus SQLite (Top 25 meistgespielt, Kürzlich gehört, Vergessene Perlen, Hi-Res Lossless, High BPM, Top-Bewertungen).',
+        fi: 'Älykkäät soittolistat: reaaliaikaiset dynaamiset kokoelmat SQLite-tietokannasta (Top 25, Äskettäin soitetut, Unohdetut helmet, Hi-Res Lossless, High BPM, Parhaat arviot).',
+        la: 'Index Carminum Callidus: collectiones dynamicae ex SQLite (Top 25, Nuper audita, Gemmae oblitae, Hi-Res Lossless, High BPM, Optime aestimata).',
+      },
+      {
+        pl: 'Command Palette / Szybkie wyszukiwanie (Ctrl+K): panel Spotlight Omnibar do natychmiastowego przeszukiwania utworów, albumów i wywoływania komend systemowych/DSP.',
+        en: 'Command Palette / Quick Omnibar (Ctrl+K): Spotlight-style command bar for instant search over tracks, albums, and executing playback/DSP actions.',
+        de: 'Befehlspalette / Schnellsuchleiste (Strg+K): Spotlight-artige Omnibar zur sofortigen Suche nach Titeln, Alben und Ausführung von Wiedergabe-/DSP-Aktionen.',
+        fi: 'Komentovalikko / Pikaetsintä (Ctrl+K): Spotlight-tyylinen komentopalkki kappaleiden, albumien ja DSP-toimintojen välittömään hakuun.',
+        la: 'Capsula Mandatorum (Ctrl+K): tabula velocis inquisitionis carminum, albumorum et executionis mandatorum systematis vel DSP.',
+      },
+      {
+        pl: 'Oceny gwiazdkowe (1–5 gwiazdek): interaktywny widżet oceniania utworów z natychmiastowym filtrowaniem widoku biblioteki.',
+        en: 'Star Ratings (1–5 stars): interactive track rating widget with instant library filtering.',
+        de: 'Sterne-Bewertungen (1–5 Sterne): interaktives Bewertungswidget mit Sofortfilter in der Bibliothek.',
+        fi: 'Tähtiarviot (1–5 tähteä): interaktiivinen kappaleiden arviointityökalu välittömällä kirjastosuodatuksella.',
+        la: 'Aestimatio stellaris (1–5 stellae): modulus aestimandi carmina cum filtro instantaneo bibliothecae.',
+      },
+      {
+        pl: 'Nowe tryby AnimeAmbienceFX: Meteor Shower / Starlight (spadające gwiazdy i komety), Cyber Matrix Rain (kaskadowy deszcz katakany) oraz Momiji (jesienne liście klonu na wietrze).',
+        en: 'New AnimeAmbienceFX modes: Meteor Shower / Starlight (shooting stars and comets), Cyber Matrix Rain (neon katakana rain), and Momiji (fluttering Japanese maple leaves).',
+        de: 'Neue AnimeAmbienceFX-Modi: Sternschnuppenregen / Starlight, Cyber Matrix Rain (Katakana-Regen) und Momiji (japanische Ahornblätter im Wind).',
+        fi: 'Uudet AnimeAmbienceFX-tilat: Tähdenlento / Starlight, Cyber Matrix Rain ja Momiji (japanilaiset vaahteranlehdet tuulessa).',
+        la: 'Novi modi AnimeAmbienceFX: Pluvia Meteororum / Starlight, Cyber Matrix Rain et Momiji (folia acerna Iaponica in vento).',
+      },
+      {
+        pl: 'Powiadomienia OSD Linuksa (libnotify / D-Bus): banery na pulpicie przy zmianie utworu w tle z okładką albumu, tytułem i wykonawcą.',
+        en: 'Linux Desktop Notifications (libnotify / D-Bus): desktop banner on background track change with album cover, title, and artist.',
+        de: 'Linux Desktop-Benachrichtigungen (libnotify / D-Bus): Desktop-Banner beim Titelwechsel im Hintergrund mit Album-Cover und Metadaten.',
+        fi: 'Linux-työpöytäilmoitukset (libnotify / D-Bus): työpöytäilmoitus taustatoiston kappaleen vaihtuessa kansikuvan kera.',
+        la: 'Notificationes OSD Linux (libnotify / D-Bus): nuntius in scrinio cum mutatione carminis in scaena cum imagine et titulo.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.2.2',
     codename: 'Resonance & Flow',
     date: '2026-10-24',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {
@@ -446,7 +505,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
               border: '1px solid rgba(168, 85, 247, 0.4)',
             }}
           >
-            v0.2.2 • Resonance & Flow
+            v0.3.0 • Omniscience & Starlight
           </span>
         </div>
       </div>

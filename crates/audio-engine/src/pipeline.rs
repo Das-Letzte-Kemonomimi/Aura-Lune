@@ -3,6 +3,7 @@
 use crate::error::AudioEngineError;
 use domain::equalizer::EqualizerState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
+use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
 use domain::PlaybackState;
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
@@ -34,6 +35,8 @@ struct PipelineInner {
     dsp: crate::dsp_node::AuraluneDsp,
     freeverb: Option<gst::Element>,
     equalizer: gst::Element,
+    rgvolume: gst::Element,
+    rglimiter: gst::Element,
     _spectrum: gst::Element,
     volume: gst::Element,
     _sink: gst::Element,
@@ -41,6 +44,7 @@ struct PipelineInner {
     dsp_params: DspParams,
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
+    replaygain_config: ReplayGainConfig,
     reverb_enabled: bool,
     reverb_room_size: f64,
     reverb_damping: f64,
@@ -174,12 +178,34 @@ impl AudioEngine {
             pipeline.add(fv)?;
         }
 
+        let rgvolume = gst::ElementFactory::make("rgvolume")
+            .name("rgvolume")
+            .property("album-mode", false)
+            .property("pre-amp", 0.0f64)
+            .property("fallback-gain", 0.0f64)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("rgvolume"))?;
+
+        let rglimiter = gst::ElementFactory::make("rglimiter")
+            .name("rglimiter")
+            .property("enabled", false)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("rglimiter"))?;
+
+        let audioconvert_sink = gst::ElementFactory::make("audioconvert")
+            .name("audioconvert_sink")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
+
         pipeline.add_many([
             &equalizer,
             &queue_sink,
             &audioconvert_out,
+            &rgvolume,
+            &rglimiter,
             &volume,
             &spectrum,
+            &audioconvert_sink,
             &sink,
         ])?;
 
@@ -209,19 +235,22 @@ impl AudioEngine {
                 })?;
         }
 
-        // equalizer -> queue_sink -> audioconvert_out -> volume -> spectrum -> sink
-        // Umieszczenie spectrum tuż przed sinkiem gwarantuje zerowe opóźnienie wizualizera przy zwolnionym tempie
+        // equalizer -> queue_sink -> audioconvert_out -> rgvolume -> rglimiter -> volume -> spectrum -> audioconvert_sink -> sink
         gst::Element::link_many([
             &equalizer,
             &queue_sink,
             &audioconvert_out,
+            &rgvolume,
+            &rglimiter,
             &volume,
             &spectrum,
+            &audioconvert_sink,
             &sink,
         ])
         .map_err(|_| {
             AudioEngineError::ElementLink(
-                "Nie udało się połączyć wyjścia audio z kolejką i zlewem".into(),
+                "Nie udało się połączyć wyjścia audio z elementami ReplayGain, kolejką i zlewem"
+                    .into(),
             )
         })?;
 
@@ -232,6 +261,8 @@ impl AudioEngine {
             dsp,
             freeverb,
             equalizer,
+            rgvolume: rgvolume.clone(),
+            rglimiter,
             _spectrum: spectrum,
             volume,
             _sink: sink,
@@ -239,6 +270,7 @@ impl AudioEngine {
             dsp_params: DspParams::default(),
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
+            replaygain_config: ReplayGainConfig::default(),
             reverb_enabled: false,
             reverb_room_size: 0.5,
             reverb_damping: 0.2,
@@ -249,6 +281,19 @@ impl AudioEngine {
             user_volume: 1.0,
             seek_seq: 0,
         }));
+
+        // Nasłuchiwanie zmian tagów w rgvolume: gdy tryb to Off, neutralizujemy na bieżąco
+        let inner_weak = Arc::downgrade(&inner);
+        rgvolume.connect_notify(Some("target-gain"), move |rgv, _pspec| {
+            if let Some(inner_arc) = inner_weak.upgrade() {
+                if let Ok(inner_guard) = inner_arc.lock() {
+                    if inner_guard.replaygain_config.mode == ReplayGainMode::Off {
+                        let target: f64 = rgv.property("target-gain");
+                        rgv.set_property("pre-amp", -target);
+                    }
+                }
+            }
+        });
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
         Ok(Self { inner, queue })
@@ -347,12 +392,69 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Wznawia odtwarzanie z opcjonalnym mikro-fade-in (ok. 30ms).
+    pub fn play_with_fade(&self, fade: bool) -> Result<(), AudioEngineError> {
+        if !fade {
+            return self.play();
+        }
+
+        let target_vol = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.volume.set_property("volume", 0.0f64);
+            inner.pipeline.set_state(gst::State::Playing)?;
+            inner.state = PlaybackState::Playing;
+            inner.user_volume
+        };
+
+        let steps = 4;
+        for i in 1..=steps {
+            let factor = (i as f64) / (steps as f64);
+            {
+                let inner = self.inner.lock().unwrap();
+                inner.volume.set_property("volume", target_vol * factor);
+            }
+            std::thread::sleep(Duration::from_millis(8));
+        }
+
+        debug!("Stan potoku zmieniony na Playing z mikro-fade-in");
+        Ok(())
+    }
+
     /// Wstrzymuje odtwarzanie (pauza).
     pub fn pause(&self) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
         inner.pipeline.set_state(gst::State::Paused)?;
         inner.state = PlaybackState::Paused;
         debug!("Stan potoku zmieniony na Paused");
+        Ok(())
+    }
+
+    /// Wstrzymuje odtwarzanie (pauza) z opcjonalnym mikro-fade-out (ok. 30ms).
+    pub fn pause_with_fade(&self, fade: bool) -> Result<(), AudioEngineError> {
+        if !fade {
+            return self.pause();
+        }
+
+        let target_vol = {
+            let inner = self.inner.lock().unwrap();
+            inner.user_volume
+        };
+
+        let steps = 4;
+        for i in (0..steps).rev() {
+            let factor = (i as f64) / (steps as f64);
+            {
+                let inner = self.inner.lock().unwrap();
+                inner.volume.set_property("volume", target_vol * factor);
+            }
+            std::thread::sleep(Duration::from_millis(8));
+        }
+
+        let mut inner = self.inner.lock().unwrap();
+        inner.pipeline.set_state(gst::State::Paused)?;
+        inner.state = PlaybackState::Paused;
+        inner.volume.set_property("volume", target_vol);
+        debug!("Stan potoku zmieniony na Paused z mikro-fade-out");
         Ok(())
     }
 
@@ -1098,5 +1200,47 @@ impl AudioEngine {
     pub fn shuffle(&self) -> bool {
         let q = self.queue.lock().unwrap();
         q.shuffle
+    }
+
+    /// Konfiguruje normalizację głośności ReplayGain (EBU R128 / ReplayGain 2.0).
+    pub fn set_replaygain(&self, config: ReplayGainConfig) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.replaygain_config = config;
+        match config.mode {
+            ReplayGainMode::Off => {
+                let target_gain: f64 = inner.rgvolume.property("target-gain");
+                inner.rgvolume.set_property("pre-amp", -target_gain);
+                inner.rglimiter.set_property("enabled", false);
+            }
+            ReplayGainMode::Track => {
+                inner.rgvolume.set_property("album-mode", false);
+                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
+                inner.rglimiter.set_property("enabled", true);
+            }
+            ReplayGainMode::Album => {
+                inner.rgvolume.set_property("album-mode", true);
+                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
+                inner.rglimiter.set_property("enabled", true);
+            }
+        }
+        debug!(
+            "Zaktualizowano ReplayGain: mode={:?}, pre_amp={:.1} dB",
+            config.mode, config.pre_amp_db
+        );
+        Ok(())
+    }
+
+    /// Pobiera bieżącą konfigurację ReplayGain.
+    pub fn replaygain_config(&self) -> ReplayGainConfig {
+        self.inner.lock().unwrap().replaygain_config
+    }
+
+    /// Zwraca bieżący status normalizacji ReplayGain: (target_gain_db, result_gain_db, limiter_enabled).
+    pub fn replaygain_status(&self) -> (f64, f64, bool) {
+        let inner = self.inner.lock().unwrap();
+        let target: f64 = inner.rgvolume.property("target-gain");
+        let result: f64 = inner.rgvolume.property("result-gain");
+        let limiter: bool = inner.rglimiter.property("enabled");
+        (target, result, limiter)
     }
 }

@@ -1,14 +1,19 @@
+pub mod cue;
 pub mod device;
 pub mod equalizer;
 pub mod playlist;
 pub mod queue;
+pub mod replaygain;
 pub mod theme;
 pub mod transcode;
 
+pub use cue::{CueSheet, CueTrack};
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
 pub use playlist::Playlist;
 pub use queue::{LoopMode, PlaybackQueue, QueueItem};
+pub use replaygain::{ReplayGainConfig, ReplayGainMode};
 pub use theme::{default_themes, Theme, ThemeTokens};
+pub use transcode::{DspExportSettings, ExportFormat};
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

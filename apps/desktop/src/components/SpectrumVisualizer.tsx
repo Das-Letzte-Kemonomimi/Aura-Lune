@@ -8,7 +8,14 @@ interface SpectrumVisualizerProps {
   currentLang?: string;
 }
 
-export type VisualizerMode = 'bars' | 'circular' | 'wave' | 'mirrored';
+export type VisualizerMode =
+  | 'bars'
+  | 'retro_bars'
+  | 'anime_circle'
+  | 'oscilloscope'
+  | 'wave'
+  | 'circular'
+  | 'mirrored';
 
 export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   spectrum = [],
@@ -18,7 +25,23 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   currentLang = 'en',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [mode, setMode] = useState<VisualizerMode>('bars');
+  const [mode, setMode] = useState<VisualizerMode>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_visualizer_mode') as VisualizerMode;
+      if (
+        saved === 'bars' ||
+        saved === 'retro_bars' ||
+        saved === 'anime_circle' ||
+        saved === 'oscilloscope' ||
+        saved === 'wave' ||
+        saved === 'circular' ||
+        saved === 'mirrored'
+      ) {
+        return saved;
+      }
+    } catch (_) {}
+    return 'bars';
+  });
   const peaksRef = useRef<number[]>([]);
   const smoothedRef = useRef<number[]>([]);
   const rotationRef = useRef<number>(0);
@@ -196,6 +219,171 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
           ctx.arc(x2, y2, 1.2, 0, 2 * Math.PI);
           ctx.fill();
         }
+      } else if (mode === 'anime_circle') {
+        const cx = width / 2;
+        const cy = height / 2;
+        const maxR = Math.min(width, height) * 0.44;
+        const bassLevel = (smoothedRef.current[0] || 0) * 0.6 + (smoothedRef.current[1] || 0) * 0.4;
+        const coreR = Math.max(8, 14 + bassLevel * 16);
+
+        rotationRef.current += isPlaying ? 0.012 : 0.003;
+        const rot = rotationRef.current;
+
+        // Pulsujące jądro anime z poświatą neonową
+        ctx.save();
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = 'rgba(255, 77, 148, 0.75)';
+
+        // Wewnętrzne koło (Kitsune Core)
+        const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreR);
+        coreGrad.addColorStop(0, '#ffffff');
+        coreGrad.addColorStop(0.5, '#ff4d94');
+        coreGrad.addColorStop(1, '#7928ca');
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, coreR, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Podwójny pierścień rezonansowy
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(cx, cy, coreR + 4 + bassLevel * 6, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // 36 promieni mocy z podwójną rotacją
+        const raysCount = 36;
+        for (let i = 0; i < raysCount; i++) {
+          const angle = (i / raysCount) * 2 * Math.PI + rot;
+          const bandIdx = i % bandCount;
+          const val = smoothedRef.current[bandIdx] || 0.04;
+          const spikeLen = Math.max(4, val * (maxR - coreR));
+
+          const xStart = cx + Math.cos(angle) * (coreR + 3);
+          const yStart = cy + Math.sin(angle) * (coreR + 3);
+          const xEnd = cx + Math.cos(angle) * (coreR + 3 + spikeLen);
+          const yEnd = cy + Math.sin(angle) * (coreR + 3 + spikeLen);
+
+          const rayGrad = ctx.createLinearGradient(xStart, yStart, xEnd, yEnd);
+          rayGrad.addColorStop(0, '#06b6d4');
+          rayGrad.addColorStop(0.6, '#ff4d94');
+          rayGrad.addColorStop(1, '#fbbf24');
+
+          ctx.beginPath();
+          ctx.moveTo(xStart, yStart);
+          ctx.lineTo(xEnd, yEnd);
+          ctx.strokeStyle = rayGrad;
+          ctx.lineWidth = 2.2;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+
+          // Iskra energii na szczycie każdego promienia
+          if (val > 0.22) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(xEnd, yEnd, 1.5, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+        }
+      } else if (mode === 'oscilloscope') {
+        // Oscyloskop wektorowy CRT Phosphor Beam
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00ffcc';
+
+        // Siatka laboratoryjna CRT (delikatne linie pomocnicze)
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.moveTo(width / 2, 0);
+        ctx.lineTo(width / 2, height);
+        ctx.stroke();
+
+        // Generowanie wiązki wektorowej na podstawie składowych widma
+        const pointsCount = 120;
+        ctx.beginPath();
+        const time = Date.now() * 0.003;
+
+        for (let i = 0; i <= pointsCount; i++) {
+          const t = i / pointsCount;
+          const x = t * width;
+
+          const bandIndex = Math.min(bandCount - 1, Math.floor(t * bandCount));
+          const nextIndex = Math.min(bandCount - 1, bandIndex + 1);
+          const frac = t * bandCount - bandIndex;
+          const amp =
+            smoothedRef.current[bandIndex] * (1 - frac) +
+            smoothedRef.current[nextIndex] * frac;
+
+          const f1 = Math.sin(t * 18.0 + time * 3.5) * amp;
+          const f2 = Math.sin(t * 36.0 - time * 5.0) * (amp * 0.5);
+          const f3 = Math.cos(t * 6.0 + time * 1.5) * (amp * 0.35);
+          const offset = (f1 + f2 + f3) * (height * 0.42);
+
+          const y = height / 2 + (isPlaying ? offset : Math.sin(t * 8.0 + time) * 2.0);
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2.4;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+
+        ctx.restore();
+      } else if (mode === 'retro_bars') {
+        // Klasyczny rack Hi-Fi z segmentowanymi diodami LED VFD (zielony / bursztynowy / czerwony peak)
+        const segmentsPerCol = 14;
+        const barSpacing = 4;
+        const barWidth = (width - (bandCount - 1) * barSpacing) / bandCount;
+        const segHeight = Math.max(3, (height - 14) / segmentsPerCol);
+        const segGap = 1.5;
+
+        for (let i = 0; i < bandCount; i++) {
+          const val = smoothedRef.current[i];
+          const litSegments = Math.round(val * segmentsPerCol);
+          const peakSegment = Math.min(
+            segmentsPerCol - 1,
+            Math.round(peaksRef.current[i] * segmentsPerCol)
+          );
+          const colX = i * (barWidth + barSpacing);
+
+          for (let s = 0; s < segmentsPerCol; s++) {
+            const segY = height - 8 - (s + 1) * segHeight;
+            const isLit = s < litSegments;
+            const isPeak = s === peakSegment && isLit;
+
+            let color = 'rgba(255, 255, 255, 0.05)';
+            if (isLit) {
+              if (s < segmentsPerCol * 0.6) {
+                color = '#10b981';
+              } else if (s < segmentsPerCol * 0.82) {
+                color = '#f59e0b';
+              } else {
+                color = '#ef4444';
+              }
+            }
+
+            ctx.fillStyle = color;
+            ctx.fillRect(colX, segY, barWidth, segHeight - segGap);
+
+            if (isPeak && isPlaying) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(colX, segY, barWidth, segHeight - segGap);
+            }
+          }
+        }
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -209,9 +397,20 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   }, [isPlaying, mode]);
 
   const cycleMode = () => {
-    const modes: VisualizerMode[] = ['bars', 'circular', 'wave', 'mirrored'];
+    const modes: VisualizerMode[] = [
+      'bars',
+      'retro_bars',
+      'anime_circle',
+      'oscilloscope',
+      'wave',
+      'circular',
+      'mirrored',
+    ];
     const next = modes[(modes.indexOf(mode) + 1) % modes.length];
     setMode(next);
+    try {
+      localStorage.setItem('auralune_visualizer_mode', next);
+    } catch (_) {}
   };
 
   return (
@@ -233,14 +432,14 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       onClick={cycleMode}
       title={
         currentLang === 'pl'
-          ? 'Kliknij, aby przełączyć styl wizualizera (Słupki FFT • Halo Okrągłe • Fala Neonowa • Lustro Stereo)'
+          ? 'Kliknij, aby przełączyć styl wizualizera (Słupki FFT • Retro Hi-Fi VFD • Anime Core • Oscyloskop Wektorowy • Fala Neonowa • Halo Okrągłe • Lustro Stereo)'
           : currentLang === 'de'
-          ? 'Klicken, um Visualisierer-Stil umzuschalten (FFT-Balken • Rundes Halo • Neonwelle • Stereo-Spiegel)'
+          ? 'Klicken, um Visualisierer-Stil umzuschalten (FFT-Balken • Retro Hi-Fi VFD • Anime Core • Vektor-Oszilloskop • Neonwelle • Rundes Halo • Stereo-Spiegel)'
           : currentLang === 'fi'
-          ? 'Napsauta vaihtaaksesi visualisointityyliä (FFT-palkit • Pyöreä Halo • Neonaalto • Stereopeili)'
+          ? 'Napsauta vaihtaaksesi visualisointityyliä (FFT-palkit • Retro Hi-Fi VFD • Anime Core • Vektorioskilloskooppi • Neonaalto • Pyöreä Halo • Stereopeili)'
           : currentLang === 'la'
           ? 'Preme ad stilum visualizatoris mutandum'
-          : 'Click to cycle visualizer mode (FFT Bars • Circular Halo • Neon Wave • Stereo Mirror)'
+          : 'Click to cycle visualizer mode (FFT Bars • Retro Hi-Fi VFD • Anime Core • Vector Oscilloscope • Neon Wave • Circular Halo • Stereo Mirror)'
       }
     >
       <canvas

@@ -357,7 +357,7 @@ Agentka po zatwierdzeniu zmian i przetestowaniu nowego wydania uruchamia:
 Skrypt automatycznie:
 1. Tworzy tymczasową gałąź `release` z bieżącego `main`.
 2. Usuwa `AGENTS.md` i tworzy czysty commit wydania.
-3. Wypycha czystą gałąź jako `main` oraz aktualny tag (np. `v0.2.2`) do zdalnego `public` (`Aura-Lune`).
+3. Wypycha czystą gałąź jako `main` oraz aktualny tag (np. `v0.3.0`) do zdalnego `public` (`Aura-Lune`).
 4. Sprawdza i wgrywa pakiet `target/release/bundle/appimage/Auralune_x.y.z_amd64.AppImage` do GitHub Release w repozytorium `Aura-Lune`.
 5. Wraca na roboczą gałąź `main`.
 
@@ -377,8 +377,8 @@ Skrypt automatycznie:
 - **Dystrybucja**: Plik jest załączany jako asset do GitHub Releases w publicznym repozytorium `Aura-Lune`.
 - **Uruchomienie przez użytkowniczkę**:
   ```bash
-  chmod +x Auralune_0.2.2_amd64.AppImage
-  ./Auralune_0.2.2_amd64.AppImage
+  chmod +x Auralune_0.3.0_amd64.AppImage
+  ./Auralune_0.3.0_amd64.AppImage
   ```
 
 #### Kanał B: Paczka Arch User Repository (AUR: `auralune-bin`)

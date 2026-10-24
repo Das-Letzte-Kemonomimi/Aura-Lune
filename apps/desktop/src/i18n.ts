@@ -349,6 +349,29 @@ export interface Translations {
     opusBitrate: string;
     losslessFlac: string;
     wavPcm: string;
+    transcodeApplyDsp: string;
+    transcodeApplyDspDesc: string;
+    transcodeAutoEnqueue: string;
+    transcodeCompletedTitle: string;
+    playRenderedNow: string;
+    addRenderedToQueue: string;
+    addRenderedToPlaylist: string;
+    openRenderedFolder: string;
+    replaygainTitle: string;
+    replaygainDesc: string;
+    replaygainModeOff: string;
+    replaygainModeTrack: string;
+    replaygainModeAlbum: string;
+    replaygainPreAmp: string;
+    replaygainLimiterActive: string;
+    replaygainTargetAdjustment: string;
+    scanReplayGainLibrary: string;
+    scanReplayGainTrack: string;
+    scanReplayGainScanning: string;
+    scanReplayGainComplete: string;
+    scanReplayGainWriteTags: string;
+    replaygainTrackGainLabel: string;
+    replaygainTrackPeakLabel: string;
     customBgLabel: string;
     customBgPlaceholder: string;
     chooseWallpaper: string;
@@ -560,6 +583,11 @@ export interface Translations {
     dspSavedAsStartup: string;
     ambienceSakura: string;
     ambienceNeon: string;
+    ambienceFireflies: string;
+    ambienceSnow: string;
+    ambienceMeteor: string;
+    ambienceMatrix: string;
+    ambienceMomiji: string;
     ambienceOff: string;
     themeActivated: string;
     iconStyleChanged: string;
@@ -976,6 +1004,29 @@ export const translations: Record<Language, Translations> = {
       opusBitrate: 'Opus Bitrate:',
       losslessFlac: 'FLAC (Lossless)',
       wavPcm: 'WAV PCM',
+      transcodeApplyDsp: 'Apply Active DSP Effects (Pitch, Tempo, Reverb, EQ)',
+      transcodeApplyDspDesc: 'Renders audio with active DSP modifications (creates Nightcore, Slowed, or custom tuned version).',
+      transcodeAutoEnqueue: 'Auto-add rendered track to queue on completion',
+      transcodeCompletedTitle: 'Render & Export Completed!',
+      playRenderedNow: 'Play Now',
+      addRenderedToQueue: 'Add to Queue',
+      addRenderedToPlaylist: 'Add to Playlist',
+      openRenderedFolder: 'Open Folder',
+      replaygainTitle: 'ReplayGain 2.0 / EBU R128',
+      replaygainDesc: 'Loudness normalization with smart peak limiter to prevent clipping.',
+      replaygainModeOff: 'Off',
+      replaygainModeTrack: 'Track Gain',
+      replaygainModeAlbum: 'Album Gain',
+      replaygainPreAmp: 'Pre-Amp Gain',
+      replaygainLimiterActive: 'Peak Limiter Active',
+      replaygainTargetAdjustment: 'Target Adjustment',
+      scanReplayGainLibrary: 'Scan Library Loudness (EBU R128)',
+      scanReplayGainTrack: 'Calculate ReplayGain',
+      scanReplayGainScanning: 'Analyzing loudness with EBU R128...',
+      scanReplayGainComplete: 'ReplayGain analysis completed!',
+      scanReplayGainWriteTags: 'Write calculated values to audio file tags',
+      replaygainTrackGainLabel: 'Track Gain',
+      replaygainTrackPeakLabel: 'Peak Amplitude',
       customBgLabel: 'Local image wallpaper path (PNG, JPG, WebP):',
       customBgPlaceholder: '/home/user/Pictures/anime_wallpaper.png',
       chooseWallpaper: 'Browse wallpaper (Dolphin)...',
@@ -1187,6 +1238,11 @@ export const translations: Record<Language, Translations> = {
       dspSavedAsStartup: 'Current DSP settings saved as startup default.',
       ambienceSakura: 'Anime ambience: Falling Sakura Petals 🌸',
       ambienceNeon: 'Anime ambience: Cyberpunk Neon Rain 🌧️',
+      ambienceFireflies: 'Anime ambience: Glowing Fireflies 🍃✨',
+      ambienceSnow: 'Anime ambience: Gentle Snowfall ❄️',
+      ambienceMeteor: 'Anime ambience: Meteor Shower 🌠',
+      ambienceMatrix: 'Anime ambience: Cyber Matrix Rain 🟩',
+      ambienceMomiji: 'Anime ambience: Autumn Leaves (Momiji) 🍁',
       ambienceOff: 'Anime ambience disabled',
       themeActivated: 'Activated theme \'{0}\'',
       iconStyleChanged: 'App icon style changed to {0}',
@@ -1602,6 +1658,29 @@ export const translations: Record<Language, Translations> = {
       opusBitrate: 'Bitrate Opus:',
       losslessFlac: 'FLAC (Bezstratny)',
       wavPcm: 'WAV PCM',
+      transcodeApplyDsp: 'Zastosuj aktywne efekty DSP (Pitch, Tempo, Reverb, EQ)',
+      transcodeApplyDspDesc: 'Renderuje utwór ze zmodyfikowanym DSP (pozwala zapisać wersję Nightcore, Slowed lub własne zestrojenie).',
+      transcodeAutoEnqueue: 'Automatycznie dodaj wyrenderowany utwór do kolejki',
+      transcodeCompletedTitle: 'Renderowanie ukończone sukcesem!',
+      playRenderedNow: 'Odtwórz teraz',
+      addRenderedToQueue: 'Dodaj do kolejki',
+      addRenderedToPlaylist: 'Dodaj do playlisty',
+      openRenderedFolder: 'Otwórz folder',
+      replaygainTitle: 'ReplayGain 2.0 / EBU R128',
+      replaygainDesc: 'Normalizacja głośności z inteligentnym limiterem zapobiegającym przesterom.',
+      replaygainModeOff: 'Wyłączone',
+      replaygainModeTrack: 'Głośność utworu',
+      replaygainModeAlbum: 'Głośność albumu',
+      replaygainPreAmp: 'Przedwzmacniacz (Pre-Amp)',
+      replaygainLimiterActive: 'Limiter szczytowy aktywny',
+      replaygainTargetAdjustment: 'Korekta docelowa',
+      scanReplayGainLibrary: 'Skanuj głośność biblioteki (EBU R128)',
+      scanReplayGainTrack: 'Oblicz ReplayGain (EBU R128)',
+      scanReplayGainScanning: 'Trwa analiza głośności EBU R128...',
+      scanReplayGainComplete: 'Analiza ReplayGain zakończona sukcesem!',
+      scanReplayGainWriteTags: 'Zapisz obliczone wartości także do tagów plików',
+      replaygainTrackGainLabel: 'Głośność utworu (Gain)',
+      replaygainTrackPeakLabel: 'Amplituda szczytowa (Peak)',
       customBgLabel: 'Ścieżka do lokalnego pliku obrazu (PNG, JPG, WebP):',
       customBgPlaceholder: '/home/user/Obrazy/anime_wallpaper.png',
       chooseWallpaper: 'Wybierz tapetę (Dolphin)...',
@@ -1813,6 +1892,11 @@ export const translations: Record<Language, Translations> = {
       dspSavedAsStartup: 'Bieżące ustawienia DSP zapisane jako domyślne startowe.',
       ambienceSakura: 'Efekt anime: Opadające płatki Sakury 🌸',
       ambienceNeon: 'Efekt anime: Cyberpunkowy deszcz neonów 🌧️',
+      ambienceFireflies: 'Efekt anime: Świetliki w lesie 🍃✨',
+      ambienceSnow: 'Efekt anime: Spokojny śnieg ❄️',
+      ambienceMeteor: 'Efekt anime: Spadające gwiazdy (Meteory) 🌠',
+      ambienceMatrix: 'Efekt anime: Cyber Matrix Rain 🟩',
+      ambienceMomiji: 'Efekt anime: Jesienne liście klonu (Momiji) 🍁',
       ambienceOff: 'Efekt anime wyłączony',
       themeActivated: 'Aktywowano motyw \'{0}\'',
       iconStyleChanged: 'Zmieniono styl ikony aplikacji na {0}',
@@ -2228,6 +2312,29 @@ export const translations: Record<Language, Translations> = {
       opusBitrate: 'Opus Bitrate:',
       losslessFlac: 'FLAC (Verlustfrei)',
       wavPcm: 'WAV PCM',
+      transcodeApplyDsp: 'Aktive DSP-Effekte anwenden (Pitch, Tempo, Reverb, EQ)',
+      transcodeApplyDspDesc: 'Rendert die Audiodatei mit den aktiven DSP-Modifikationen (Nightcore-, Slowed- oder Custom-Tuning-Export).',
+      transcodeAutoEnqueue: 'Gerenderten Titel nach Fertigstellung automatisch zur Warteschlange hinzufügen',
+      transcodeCompletedTitle: 'Export & Rendering abgeschlossen!',
+      playRenderedNow: 'Jetzt abspielen',
+      addRenderedToQueue: 'Zur Warteschlange',
+      addRenderedToPlaylist: 'Zur Wiedergabeliste',
+      openRenderedFolder: 'Ordner öffnen',
+      replaygainTitle: 'ReplayGain 2.0 / EBU R128',
+      replaygainDesc: 'Lautstärke-Normalisierung mit Spitzenbegrenzer gegen Übersteuerung.',
+      replaygainModeOff: 'Aus',
+      replaygainModeTrack: 'Titel',
+      replaygainModeAlbum: 'Album',
+      replaygainPreAmp: 'Vorverstärkung (Pre-Amp)',
+      replaygainLimiterActive: 'Spitzenbegrenzer aktiv',
+      replaygainTargetAdjustment: 'Zielanpassung',
+      scanReplayGainLibrary: 'Bibliothekslautstärke scannen (EBU R128)',
+      scanReplayGainTrack: 'ReplayGain berechnen',
+      scanReplayGainScanning: 'EBU R128 Lautstärkeanalyse läuft...',
+      scanReplayGainComplete: 'ReplayGain-Analyse abgeschlossen!',
+      scanReplayGainWriteTags: 'Berechnete Werte auch in Datei-Tags speichern',
+      replaygainTrackGainLabel: 'Titelverstärkung',
+      replaygainTrackPeakLabel: 'Spitzenamplitude',
       customBgLabel: 'Lokaler Bildpfad (PNG, JPG, WebP):',
       customBgPlaceholder: '/home/user/Bilder/anime_wallpaper.png',
       chooseWallpaper: 'Hintergrundbild auswählen (Dolphin)...',
@@ -2439,6 +2546,11 @@ export const translations: Record<Language, Translations> = {
       dspSavedAsStartup: 'Aktuelle DSP-Parameter als Startstandard gespeichert.',
       ambienceSakura: 'Anime-Ambiente: Fallende Sakura-Blüten 🌸',
       ambienceNeon: 'Anime-Ambiente: Cyberpunk-Neonregen 🌧️',
+      ambienceFireflies: 'Anime-Ambiente: Leuchtende Glühwürmchen 🍃✨',
+      ambienceSnow: 'Anime-Ambiente: Sanfter Schneefall ❄️',
+      ambienceMeteor: 'Anime-Ambiente: Sternschnuppen (Meteore) 🌠',
+      ambienceMatrix: 'Anime-Ambiente: Cyber Matrix Regen 🟩',
+      ambienceMomiji: 'Anime-Ambiente: Herbstliche Ahornblätter (Momiji) 🍁',
       ambienceOff: 'Anime-Ambiente deaktiviert',
       themeActivated: 'Design \'{0}\' aktiviert',
       iconStyleChanged: 'App-Symbol-Stil geändert zu {0}',
@@ -2854,6 +2966,29 @@ export const translations: Record<Language, Translations> = {
       opusBitrate: 'Opus-bittinopeus:',
       losslessFlac: 'FLAC (Häviötön)',
       wavPcm: 'WAV PCM',
+      transcodeApplyDsp: 'Käytä aktiivisia DSP-tehosteita (Korkeus, Tempo, Kaiku, EQ)',
+      transcodeApplyDspDesc: 'Renderöi tiedoston aktiivisilla DSP-säädöillä (tallentaa Nightcore-, Slowed- tai kustomoidun version).',
+      transcodeAutoEnqueue: 'Lisää renderöity kappale automaattisesti jonoon',
+      transcodeCompletedTitle: 'Vienti ja renderöinti valmis!',
+      playRenderedNow: 'Toista nyt',
+      addRenderedToQueue: 'Lisää jonoon',
+      addRenderedToPlaylist: 'Lisää soittolistaan',
+      openRenderedFolder: 'Avaa kansio',
+      replaygainTitle: 'ReplayGain 2.0 / EBU R128',
+      replaygainDesc: 'Äänenvoimakkuuden normalisointi huippurajoittimella leikkaantumisen estämiseksi.',
+      replaygainModeOff: 'Pois',
+      replaygainModeTrack: 'Kappale',
+      replaygainModeAlbum: 'Albumi',
+      replaygainPreAmp: 'Esivahvistin (Pre-Amp)',
+      replaygainLimiterActive: 'Huippurajoitin käytössä',
+      replaygainTargetAdjustment: 'Tavoitekorjaus',
+      scanReplayGainLibrary: 'Skannaa kirjaston äänenvoimakkuus (EBU R128)',
+      scanReplayGainTrack: 'Laske ReplayGain',
+      scanReplayGainScanning: 'Analysoidaan EBU R128 -äänenvoimakkuutta...',
+      scanReplayGainComplete: 'ReplayGain-analyysi valmis!',
+      scanReplayGainWriteTags: 'Tallenna lasketut arvot myös tiedoston tageihin',
+      replaygainTrackGainLabel: 'Kappaleen vahvistus',
+      replaygainTrackPeakLabel: 'Huippuamplitudi',
       customBgLabel: 'Paikallisen taustakuvan polku (PNG, JPG, WebP):',
       customBgPlaceholder: '/home/user/Kuvat/anime_wallpaper.png',
       chooseWallpaper: 'Selaa taustakuvaa (Dolphin)...',
@@ -3065,6 +3200,11 @@ export const translations: Record<Language, Translations> = {
       dspSavedAsStartup: 'Nykyiset DSP-asetukset tallennettu käynnistysoletukseksi.',
       ambienceSakura: 'Anime-tunnelma: Putoavat sakuran terälehdet 🌸',
       ambienceNeon: 'Anime-tunnelma: Cyberpunk-neonsade 🌧️',
+      ambienceFireflies: 'Anime-tunnelma: Hehkuvat tulikärpäset 🍃✨',
+      ambienceSnow: 'Anime-tunnelma: Lempeä lumisade ❄️',
+      ambienceMeteor: 'Anime-tunnelma: Tähdenlennot (Meteorit) 🌠',
+      ambienceMatrix: 'Anime-tunnelma: Cyber Matrix -sade 🟩',
+      ambienceMomiji: 'Anime-tunnelma: Vaahteranlehdet (Momiji) 🍁',
       ambienceOff: 'Anime-tunnelma poistettu käytöstä',
       themeActivated: 'Teema \'{0}\' aktivoitu',
       iconStyleChanged: 'Sovelluksen kuvaketyyliksi vaihdettu {0}',
@@ -3480,6 +3620,29 @@ export const translations: Record<Language, Translations> = {
       opusBitrate: 'Bitrate Opus:',
       losslessFlac: 'FLAC (Sine detrimento)',
       wavPcm: 'WAV PCM',
+      transcodeApplyDsp: 'Effectus DSP activos applicare (Tonus, Celeritas, Reverb, EQ)',
+      transcodeApplyDspDesc: 'Reddit fasciculum cum modificationibus DSP (versio Nightcore, Slowed vel moderata).',
+      transcodeAutoEnqueue: 'Sponte ad seriem canendi addere post redditionem',
+      transcodeCompletedTitle: 'Exportatio et redditio perfecta!',
+      playRenderedNow: 'Cane nunc',
+      addRenderedToQueue: 'Adde ad seriem',
+      addRenderedToPlaylist: 'Adde ad indicem',
+      openRenderedFolder: 'Aperi capsam',
+      replaygainTitle: 'ReplayGain 2.0 / EBU R128',
+      replaygainDesc: 'Normalizatio soni cum moderatore culminum ne distorsio fiat.',
+      replaygainModeOff: 'Inactivum',
+      replaygainModeTrack: 'Tractus',
+      replaygainModeAlbum: 'Albi',
+      replaygainPreAmp: 'Praeamplificator (Pre-Amp)',
+      replaygainLimiterActive: 'Moderator culminum activus',
+      replaygainTargetAdjustment: 'Accommodatio intentata',
+      scanReplayGainLibrary: 'Metiri sonum bibliothecae (EBU R128)',
+      scanReplayGainTrack: 'Computare ReplayGain',
+      scanReplayGainScanning: 'Analysis soni EBU R128 decurrit...',
+      scanReplayGainComplete: 'Analysis ReplayGain perfecta est!',
+      scanReplayGainWriteTags: 'In notas fasciculorum quoque servare',
+      replaygainTrackGainLabel: 'Accommodatio tractus',
+      replaygainTrackPeakLabel: 'Amplitudo culminis',
       customBgLabel: 'Via imaginis domesticae (PNG, JPG, WebP):',
       customBgPlaceholder: '/home/user/Imagines/anime_wallpaper.png',
       chooseWallpaper: 'Elige imaginem parietalem (Dolphin)...',
@@ -3691,6 +3854,11 @@ export const translations: Record<Language, Translations> = {
       dspSavedAsStartup: 'Optiones DSP praesentes ut initiales servatae sunt.',
       ambienceSakura: 'Effectus anime: Folia Sakuri cadentia 🌸',
       ambienceNeon: 'Effectus anime: Pluvia Cyberpunk 🌧️',
+      ambienceFireflies: 'Effectus anime: Cicindelae lucentes 🍃✨',
+      ambienceSnow: 'Effectus anime: Nix levis cadens ❄️',
+      ambienceMeteor: 'Effectus anime: Stellae cadentes 🌠',
+      ambienceMatrix: 'Effectus anime: Pluvia matrix cybernetica 🟩',
+      ambienceMomiji: 'Effectus anime: Folia acerna autumnalia (Momiji) 🍁',
       ambienceOff: 'Effectus anime otiosus est',
       themeActivated: 'Thema \'{0}\' activatum',
       iconStyleChanged: 'Stylus iconis mutatus est in {0}',

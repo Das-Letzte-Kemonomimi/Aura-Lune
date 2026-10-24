@@ -1,11 +1,11 @@
-//! Nieniszczący transkoder formatów audio oparty o GStreamer.
+//! Nieniszczący transkoder formatów audio oparty o GStreamer z obsługą efektów DSP.
 //!
 //! ZGODNIE Z ZASADĄ BEZPIECZEŃSTWA:
 //! Plik wejściowy jest ZAWSZE tylko odczytywany. Aplikacja nigdy nie modyfikuje
 //! ani nie usuwa pliku źródłowego.
 
 use crate::error::AudioEngineError;
-use domain::transcode::ExportFormat;
+use domain::transcode::{DspExportSettings, ExportFormat};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
@@ -15,13 +15,26 @@ use tracing::{debug, error, info};
 pub struct Transcoder;
 
 impl Transcoder {
-    /// Konwertuje plik wejściowy do wybranego formatu docelowego.
+    /// Konwertuje plik wejściowy do wybranego formatu docelowego (bez modyfikacji DSP).
     ///
     /// Plik źródłowy (`input_path`) pozostaje nienaruszony na dysku.
     pub fn transcode(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
         format: ExportFormat,
+    ) -> Result<(), AudioEngineError> {
+        Self::transcode_with_dsp(input_path, output_path, format, None)
+    }
+
+    /// Konwertuje plik wejściowy do wybranego formatu docelowego z opcjonalnym nałożeniem parametrów DSP
+    /// (pitch shift, time stretch/tempo, rate/varispeed, equalizer, reverb).
+    ///
+    /// Plik źródłowy (`input_path`) pozostaje ZAWSZE nienaruszony na dysku.
+    pub fn transcode_with_dsp(
+        input_path: impl AsRef<Path>,
+        output_path: impl AsRef<Path>,
+        format: ExportFormat,
+        dsp_settings: Option<&DspExportSettings>,
     ) -> Result<(), AudioEngineError> {
         let input = input_path.as_ref();
         let output = output_path.as_ref();
@@ -41,11 +54,13 @@ impl Transcoder {
 
         gst::init()?;
 
+        let dsp_active = dsp_settings.is_some_and(|s| s.is_active());
         info!(
-            "Rozpoczynanie transkodowania: {} -> {} ({})",
+            "Rozpoczynanie transkodowania: {} -> {} ({}) [DSP aktywne: {}]",
             input.display(),
             output.display(),
-            format.display_name()
+            format.display_name(),
+            dsp_active
         );
 
         let pipeline = gst::Pipeline::with_name("auralune-transcoder-pipeline");
@@ -102,6 +117,68 @@ impl Transcoder {
 
         audioconvert.link(&audioresample)?;
 
+        // Opcjonalny tor przetwarzania DSP (Pitch, Tempo, Rate, Reverb, EQ)
+        let source_for_encoder = if let Some(dsp) = dsp_settings.filter(|s| s.is_active()) {
+            let caps_f32 = gst::Caps::builder("audio/x-raw")
+                .field("format", "F32LE")
+                .build();
+            let capsfilter_dsp = gst::ElementFactory::make("capsfilter")
+                .property("caps", &caps_f32)
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("capsfilter"))?;
+
+            let pitch_scale = (2.0f32).powf(dsp.pitch_semitones as f32 / 12.0f32);
+            let pitch_elem = gst::ElementFactory::make("pitch")
+                .property("pitch", pitch_scale)
+                .property("tempo", dsp.tempo_ratio as f32)
+                .property("rate", dsp.rate_ratio as f32)
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("pitch"))?;
+
+            let audioconvert_post = gst::ElementFactory::make("audioconvert")
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
+
+            pipeline.add_many([&capsfilter_dsp, &pitch_elem, &audioconvert_post])?;
+            audioresample.link(&capsfilter_dsp)?;
+            capsfilter_dsp.link(&pitch_elem)?;
+
+            let mut last_elem = pitch_elem;
+
+            // Freeverb
+            if dsp.reverb_level > 0.001 {
+                if let Ok(freeverb) = gst::ElementFactory::make("freeverb")
+                    .property("level", dsp.reverb_level)
+                    .property("room-size", 0.5f32)
+                    .property("damping", 0.2f32)
+                    .property("width", 1.0f32)
+                    .build()
+                {
+                    pipeline.add(&freeverb)?;
+                    last_elem.link(&freeverb)?;
+                    last_elem = freeverb;
+                }
+            }
+
+            // Equalizer 10-bands
+            if let Some(ref bands) = dsp.eq_bands {
+                if let Ok(eq) = gst::ElementFactory::make("equalizer-10bands").build() {
+                    for (i, &gain) in bands.iter().take(10).enumerate() {
+                        let prop = format!("band{}", i);
+                        eq.set_property(&prop, gain);
+                    }
+                    pipeline.add(&eq)?;
+                    last_elem.link(&eq)?;
+                    last_elem = eq;
+                }
+            }
+
+            last_elem.link(&audioconvert_post)?;
+            audioconvert_post
+        } else {
+            audioresample
+        };
+
         // W zależności od formatu docelowego dodajemy odpowiedni encoder i opcjonalny muxer
         match format {
             ExportFormat::Opus { bitrate_kbps } => {
@@ -115,7 +192,7 @@ impl Transcoder {
                     .map_err(|_| AudioEngineError::MissingElement("oggmux"))?;
 
                 pipeline.add_many([&opusenc, &oggmux])?;
-                audioresample.link(&opusenc)?;
+                source_for_encoder.link(&opusenc)?;
                 opusenc.link(&oggmux)?;
                 oggmux.link(&filesink)?;
             }
@@ -126,7 +203,7 @@ impl Transcoder {
                 flacenc.set_property_from_str("quality", &compression_level.min(8).to_string());
 
                 pipeline.add(&flacenc)?;
-                audioresample.link(&flacenc)?;
+                source_for_encoder.link(&flacenc)?;
                 flacenc.link(&filesink)?;
             }
             ExportFormat::Wav => {
@@ -135,7 +212,7 @@ impl Transcoder {
                     .map_err(|_| AudioEngineError::MissingElement("wavenc"))?;
 
                 pipeline.add(&wavenc)?;
-                audioresample.link(&wavenc)?;
+                source_for_encoder.link(&wavenc)?;
                 wavenc.link(&filesink)?;
             }
         }

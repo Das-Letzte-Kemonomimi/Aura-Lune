@@ -13,7 +13,7 @@ cd "$WORKSPACE_ROOT"
 PUBLIC_REMOTE="public"
 PUBLIC_URL="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git"
 PUBLIC_REPO="Das-Letzte-Kemonomimi/Aura-Lune"
-CURRENT_VERSION="0.2.2"
+CURRENT_VERSION="0.3.0"
 TAG_NAME="v$CURRENT_VERSION"
 
 echo "🌸 === Auralune: Synchronizacja z publicznym repozytorium $PUBLIC_REPO ==="
@@ -68,13 +68,17 @@ if [[ -f "$APPIMAGE_PATH" ]]; then
         echo "✨ Tworzenie nowego wydania $TAG_NAME na $PUBLIC_REPO..."
         gh release create "$TAG_NAME" "$APPIMAGE_PATH" \
             --repo "$PUBLIC_REPO" \
-            --title "Auralune $CURRENT_VERSION — „Resonance & Flow”" \
-            --notes "### Auralune $CURRENT_VERSION — „Resonance & Flow” 🌸🎧
+            --title "Auralune $CURRENT_VERSION — „Omniscience & Starlight”" \
+            --notes "### Auralune $CURRENT_VERSION — „Omniscience & Starlight” 🌸🎧
 
-• **FLAC Lossless Playback & Buffer Stability**: Pełna eliminacja przerywania/stutteringu przy plikach FLAC o wysokim próbkowaniu i gęstym strumieniu próbek audio (wzmocniony pipeline GStreamer).
-• **Responsywność Biblioteki**: Usunięcie deadlocka prerollu przy bezpośrednim klikaniu utworów na liście biblioteki.
-• **Dynamiczny Pasek Postępu Odtwarzania**: Żywy, gradientowy pasek (pink-purple) wypełniający odtworzoną część utworu po lewej stronie znacznika pozycji (anime aesthetic) oraz odświeżone suwaki głośności.
-• **Dystrybucja**: Gotowy pakiet AppImage oraz szablony PKGBUILD / PKGBUILD-bin dla Arch Linux / AUR."
+• **Tag Editor / Właściwości Utworu (foobar2000 style)**: Edycja metadanych z bezpośrednim zapisem tagów przez lofty i atomową aktualizacją bazy SQLite bez ponownego skanowania.
+• **Parser Arkuszy CUE (.cue sheet parser)**: Pełna obsługa albumów zripowanych do pojedynczych plików FLAC/WAV + .cue z automatycznym podziałem na wirtualne utwory i precyzyjnym czasem startu.
+• **Smart Playlists (Dynamiczne inteligentne playlisty)**: Kolekcje generowane z SQLite: Top 25 najczęściej odtwarzanych, Ostatnio odtwarzane, Zapomniane perełki, Hi-Res Lossless, High BPM, Top Rated.
+• **Command Palette / Szybkie Wyszukiwanie (Ctrl+K / Spotlight Omnibar)**: Błyskawiczny panel wyszukiwania utworów, albumów, wykonawców i wywoływania komend sterujących oraz DSP.
+• **Oceny Gwiazdkowe (1–5 gwiazdek)**: Interaktywne gwiazdki przy każdym utworze z szybkim filtrowaniem widoku biblioteki.
+• **Powiadomienia OSD Linuksa (libnotify / D-Bus)**: Eleganckie banery na pulpicie przy zmianie utworu w tle z okładką albumu, tytułem i wykonawcą.
+• **3 Nowe Tryby AnimeAmbienceFX**: Meteor Shower / Starlight, Cyber Matrix Rain oraz Momiji (jesienne liście klonu).
+• **Offline ReplayGain EBU R128 & Nowe Wizualizery**: Skaner głośności dla całej biblioteki, Anime Circle Visualizer, Oscyloskop wektorowy oraz Retro Bars."
     fi
     echo "✅ Wydanie $TAG_NAME w $PUBLIC_REPO jest gotowe i zawiera AppImage!"
 else

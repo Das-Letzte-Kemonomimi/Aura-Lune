@@ -63,6 +63,9 @@ import {
   BarChart3,
   ExternalLink,
   HeartHandshake,
+  Star,
+  Tag as TagIcon,
+  FileCode,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
@@ -82,6 +85,9 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { VolumeOsd, type VolumeOsdPosition } from './components/VolumeOsd';
 import { KeyBpmModal } from './components/KeyBpmModal';
 import { AuraluneRecapModal } from './components/AuraluneRecapModal';
+import { TagEditorModal } from './components/TagEditorModal';
+import { CommandPaletteModal } from './components/CommandPaletteModal';
+import { CueSheetModal } from './components/CueSheetModal';
 import { type Language, getTranslations } from './i18n';
 
 interface EqualizerPreset {
@@ -226,6 +232,11 @@ interface PlaybackStatus {
   equalizer_enabled?: boolean;
   equalizer_bands?: number[];
   spectrum?: number[];
+  replaygain_config?: {
+    mode: 'Off' | 'Track' | 'Album';
+    pre_amp_db: number;
+  };
+  replaygain_status?: [number, number, boolean];
 }
 
 interface AudioCardProfile {
@@ -265,6 +276,11 @@ interface TrackRecord {
   play_count?: number | null;
   last_played_at?: number | null;
   total_play_time_ms?: number | null;
+  replaygain_track_gain?: number | null;
+  replaygain_track_peak?: number | null;
+  rating?: number | null;
+  bpm?: number | null;
+  initial_key?: string | null;
 }
 
 interface AlbumRecord {
@@ -383,6 +399,102 @@ export default function App() {
   const [eqAutoStartup, setEqAutoStartup] = useState<boolean>(false);
   const [seekFadeEnabled, setSeekFadeEnabled] = useState<boolean>(true);
 
+  // Stan normalizacji głośności ReplayGain 2.0 / EBU R128
+  const [replaygainMode, setReplaygainMode] = useState<'Off' | 'Track' | 'Album'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_replaygain_mode');
+      if (saved === 'Off' || saved === 'Track' || saved === 'Album') return saved;
+    } catch (_) {}
+    return 'Off';
+  });
+  const [replaygainPreAmp, setReplaygainPreAmp] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_replaygain_preamp');
+      if (saved !== null) {
+        const val = parseFloat(saved);
+        if (!isNaN(val)) return val;
+      }
+    } catch (_) {}
+    return 0.0;
+  });
+  const [replaygainStatus, setReplaygainStatus] = useState<[number, number, boolean]>([0.0, 0.0, true]);
+
+  const handleSetReplayGain = async (mode: 'Off' | 'Track' | 'Album', preAmp: number) => {
+    try {
+      await invoke('set_replaygain_config', {
+        config: {
+          mode,
+          pre_amp_db: preAmp,
+        },
+      });
+      setReplaygainMode(mode);
+      setReplaygainPreAmp(preAmp);
+      try {
+        localStorage.setItem('auralune_replaygain_mode', mode);
+        localStorage.setItem('auralune_replaygain_preamp', preAmp.toString());
+      } catch (_) {}
+    } catch (e: any) {
+      console.error('Błąd aktualizacji ReplayGain:', e);
+      showMessage(`${loc.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  // Stan skanera głośności EBU R128 / ReplayGain
+  const [isReplaygainScanning, setIsReplaygainScanning] = useState(false);
+  const [replaygainScanWriteTags, setReplaygainScanWriteTags] = useState(false);
+
+  const handleScanLibraryReplayGain = async () => {
+    if (isReplaygainScanning) return;
+    setIsReplaygainScanning(true);
+    showMessage(loc.settings.scanReplayGainScanning);
+    try {
+      const summary = await invoke<{ total_tracks: number; scanned: number; errors: number }>(
+        'scan_library_replaygain',
+        { writeTags: replaygainScanWriteTags }
+      );
+      showMessage(
+        `${loc.settings.scanReplayGainComplete} (${summary.scanned}/${summary.total_tracks})`
+      );
+      loadLibrary();
+    } catch (e: any) {
+      console.error('Błąd skanowania ReplayGain:', e);
+      showMessage(`${loc.common.errorPrefix} ${e}`, true);
+    } finally {
+      setIsReplaygainScanning(false);
+    }
+  };
+
+  const handleScanTrackReplayGain = async (track: TrackRecord) => {
+    try {
+      showMessage(`${loc.settings.scanReplayGainScanning} (${track.title})`);
+      const res = await invoke<{
+        track_gain_db: number;
+        track_peak: number;
+        reference_level_db: number;
+      }>('scan_track_replaygain', {
+        trackId: track.id,
+        writeTags: replaygainScanWriteTags,
+      });
+      showMessage(
+        `${track.title}: Gain ${res.track_gain_db >= 0 ? '+' : ''}${res.track_gain_db.toFixed(1)} dB, Peak ${res.track_peak.toFixed(3)}`
+      );
+      setTracks((prev) =>
+        prev.map((t) =>
+          t.id === track.id
+            ? {
+                ...t,
+                replaygain_track_gain: res.track_gain_db,
+                replaygain_track_peak: res.track_peak,
+              }
+            : t
+        )
+      );
+    } catch (e: any) {
+      console.error('Błąd analizy ReplayGain dla utworu:', e);
+      showMessage(`${loc.common.errorPrefix} ${e}`, true);
+    }
+  };
+
   // Stan zapamiętywania ustawień DSP po uruchomieniu aplikacji
   const [dspAutoStartup, setDspAutoStartup] = useState<boolean>(false);
   const dspAutoStartupRef = useRef<boolean>(false);
@@ -468,6 +580,9 @@ export default function App() {
   const [transcodeOutput, setTranscodeOutput] = useState('tests/fixtures/converted_sample.opus');
   const [transcodeFormat, setTranscodeFormat] = useState<'Opus' | 'Flac' | 'Wav'>('Opus');
   const [transcodeBitrate, setTranscodeBitrate] = useState(192);
+  const [transcodeApplyDsp, setTranscodeApplyDsp] = useState(false);
+  const [transcodeAutoEnqueue, setTranscodeAutoEnqueue] = useState(true);
+  const [lastExportedTrack, setLastExportedTrack] = useState<TrackRecord | null>(null);
   const [isPickingSource, setIsPickingSource] = useState(false);
   const [isPickingDestination, setIsPickingDestination] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -534,7 +649,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.2.2'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.3.0'
   );
 
 
@@ -561,11 +676,20 @@ export default function App() {
     }
   };
 
-  // Stan efektów otoczenia Anime (Sakura Petals / Cyberpunk Rain)
+  // Stan efektów otoczenia Anime (Sakura Petals / Cyberpunk Rain / Meteors / Matrix / Momiji)
   const [ambienceMode, setAmbienceMode] = useState<AmbienceMode>(() => {
     try {
       const saved = localStorage.getItem('auralune_ambience_mode');
-      if (saved === 'sakura' || saved === 'neon_rain' || saved === 'off') {
+      if (
+        saved === 'sakura' ||
+        saved === 'neon_rain' ||
+        saved === 'fireflies' ||
+        saved === 'snow' ||
+        saved === 'meteor_shower' ||
+        saved === 'matrix_rain' ||
+        saved === 'momiji' ||
+        saved === 'off'
+      ) {
         return saved as AmbienceMode;
       }
     } catch (_) {}
@@ -574,7 +698,22 @@ export default function App() {
 
   const cycleAmbienceMode = () => {
     setAmbienceMode((prev) => {
-      const next: AmbienceMode = prev === 'off' ? 'sakura' : prev === 'sakura' ? 'neon_rain' : 'off';
+      const next: AmbienceMode =
+        prev === 'off'
+          ? 'sakura'
+          : prev === 'sakura'
+          ? 'neon_rain'
+          : prev === 'neon_rain'
+          ? 'fireflies'
+          : prev === 'fireflies'
+          ? 'snow'
+          : prev === 'snow'
+          ? 'meteor_shower'
+          : prev === 'meteor_shower'
+          ? 'matrix_rain'
+          : prev === 'matrix_rain'
+          ? 'momiji'
+          : 'off';
       try {
         localStorage.setItem('auralune_ambience_mode', next);
       } catch (_) {}
@@ -583,6 +722,16 @@ export default function App() {
           ? t.notifications.ambienceSakura
           : next === 'neon_rain'
           ? t.notifications.ambienceNeon
+          : next === 'fireflies'
+          ? t.notifications.ambienceFireflies
+          : next === 'snow'
+          ? t.notifications.ambienceSnow
+          : next === 'meteor_shower'
+          ? t.notifications.ambienceMeteor
+          : next === 'matrix_rain'
+          ? t.notifications.ambienceMatrix
+          : next === 'momiji'
+          ? t.notifications.ambienceMomiji
           : t.notifications.ambienceOff
       );
       return next;
@@ -592,8 +741,41 @@ export default function App() {
   // Stan trybu pełnoekranowego Kiosk / Big Screen Now Playing
   const [isBigScreen, setIsBigScreen] = useState(false);
 
-  // Filtr inteligentnych playlist w Bibliotece (Ulubione, Historia, Top, Hi-Res)
-  const [smartPlaylistFilter, setSmartPlaylistFilter] = useState<'all' | 'favorites' | 'history' | 'top_played' | 'hires'>('all');
+  // Filtr inteligentnych playlist w Bibliotece (Ulubione, Historia, Top, Hi-Res, Zapomniane, High BPM, Ocenione)
+  const [smartPlaylistFilter, setSmartPlaylistFilter] = useState<
+    'all' | 'favorites' | 'history' | 'top_played' | 'hires' | 'forgotten' | 'high_bpm' | 'top_rated'
+  >('all');
+
+  // Modal edytora tagów (foobar2000 style Properties)
+  const [tagEditorTrack, setTagEditorTrack] = useState<TrackRecord | null>(null);
+
+  // Modal palety komend (Ctrl+K omnibar)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Modal arkusza CUE (.cue sheet)
+  const [isCueModalOpen, setIsCueModalOpen] = useState(false);
+
+  // Powiadomienia systemowe Linuksa (libnotify / D-Bus)
+  const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_desktop_notifications');
+      return saved !== 'false';
+    } catch (_) {
+      return true;
+    }
+  });
+
+  // Ustawienie oceny gwiazdkowej (0-5)
+  const handleSetTrackRating = async (trackId: number, rating: number) => {
+    try {
+      await invoke('set_track_rating', { trackId, rating });
+      setTracks((prev) =>
+        prev.map((t) => (t.id === trackId ? { ...t, rating } : t))
+      );
+    } catch (err: any) {
+      console.error('Błąd zapisu oceny utworu:', err);
+    }
+  };
 
   // Funkcja przełączania ulubionego (Favorites ❤️)
   const handleToggleFavorite = async (trackId: number, e?: React.MouseEvent) => {
@@ -729,6 +911,12 @@ export default function App() {
       } else if (smartPlaylistFilter === 'hires') {
         const isHires = (t.bit_depth != null && t.bit_depth >= 24) || (t.sample_rate != null && t.sample_rate > 48000);
         if (!isHires) return false;
+      } else if (smartPlaylistFilter === 'forgotten') {
+        if (t.play_count != null && t.play_count > 0) return false;
+      } else if (smartPlaylistFilter === 'high_bpm') {
+        if (!t.bpm || t.bpm < 130) return false;
+      } else if (smartPlaylistFilter === 'top_rated') {
+        if (!t.rating || t.rating < 4) return false;
       }
 
       // Jeśli brak zapytania tekstowego, dopasowujemy
@@ -740,6 +928,42 @@ export default function App() {
       const artist = normalizeStr(t.artist);
       const albumArtist = normalizeStr(t.album_artist || album?.album_artist);
       const path = normalizeStr(t.path);
+
+      // foobar2000 zaawansowane filtrowanie po prefiksach tagów (artist:, album:, title:, format:, path:)
+      if (rawQ.includes(':')) {
+        const tokens = rawQ.split(/\s+/).filter(Boolean);
+        for (const token of tokens) {
+          if (token.startsWith('artist:')) {
+            const val = normalizeStr(token.slice(7));
+            if (!artist.includes(val) && !albumArtist.includes(val)) return false;
+          } else if (token.startsWith('album:')) {
+            const val = normalizeStr(token.slice(6));
+            if (!albumTitle.includes(val)) return false;
+          } else if (token.startsWith('title:')) {
+            const val = normalizeStr(token.slice(6));
+            if (!title.includes(val)) return false;
+          } else if (token.startsWith('format:')) {
+            const val = normalizeStr(token.slice(7));
+            if (!formatLower.includes(val)) return false;
+          } else if (token.startsWith('path:')) {
+            const val = normalizeStr(token.slice(5));
+            if (!path.includes(val)) return false;
+          } else {
+            const val = normalizeStr(token);
+            if (
+              !title.includes(val) &&
+              !artist.includes(val) &&
+              !albumArtist.includes(val) &&
+              !albumTitle.includes(val) &&
+              !path.includes(val) &&
+              !formatLower.includes(val)
+            ) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }
 
       return (
         title.includes(q) ||
@@ -782,6 +1006,12 @@ export default function App() {
       }
       if (smartPlaylistFilter === 'top_played') {
         return [...filteredTracks].sort((a, b) => (b.play_count || 0) - (a.play_count || 0));
+      }
+      if (smartPlaylistFilter === 'top_rated') {
+        return [...filteredTracks].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      }
+      if (smartPlaylistFilter === 'high_bpm') {
+        return [...filteredTracks].sort((a, b) => (b.bpm || 0) - (a.bpm || 0));
       }
       return filteredTracks;
     }
@@ -1014,6 +1244,9 @@ export default function App() {
           }
           return res;
         });
+        if (res.replaygain_status) {
+          setReplaygainStatus(res.replaygain_status);
+        }
         if (res.current_track) {
           if (res.current_track.uri) {
             const trackUri = res.current_track.uri;
@@ -1124,6 +1357,16 @@ export default function App() {
         dspAutoStartupRef.current = enabled;
       })
       .catch((e) => console.warn('Błąd odczytu dsp_restore_on_startup:', e));
+
+    // Inicjalizacja konfiguracji ReplayGain 2.0 / EBU R128
+    const savedRgMode = (localStorage.getItem('auralune_replaygain_mode') as 'Off' | 'Track' | 'Album') || 'Off';
+    const savedRgPreAmp = parseFloat(localStorage.getItem('auralune_replaygain_preamp') || '0.0') || 0.0;
+    invoke('set_replaygain_config', {
+      config: {
+        mode: savedRgMode,
+        pre_amp_db: savedRgPreAmp,
+      },
+    }).catch((e) => console.warn('Błąd inicjalizacji ReplayGain:', e));
   }, []);
 
   const handleToggleSeekFade = async () => {
@@ -1703,6 +1946,15 @@ export default function App() {
         durationMs: track.duration_ms,
         artUrl: null,
       });
+
+      // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
+      if (desktopNotificationsEnabled) {
+        invoke('show_desktop_notification', {
+          title: track.title,
+          body: `${track.artist} • ${track.album_artist || 'Auralune'}`,
+          icon: null,
+        }).catch(() => {});
+      }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
@@ -1765,6 +2017,16 @@ export default function App() {
         durationMs: matchingTrack?.duration_ms || 0,
         artUrl: null,
       });
+
+      // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
+      if (desktopNotificationsEnabled) {
+        invoke('show_desktop_notification', {
+          title: matchingTrack?.title || filename,
+          body: matchingTrack?.artist || 'Plik lokalny',
+          icon: null,
+        }).catch(() => {});
+      }
+
       showMessage(t.notifications.fileLoaded.replace('{0}', path));
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -2762,11 +3024,68 @@ export default function App() {
         formatObj = { Flac: { compression_level: 5 } };
       }
 
+      const dspSettings = transcodeApplyDsp
+        ? {
+            pitch_semitones: status.pitch_semitones ?? 0.0,
+            tempo_ratio: status.tempo_ratio ?? 1.0,
+            rate_ratio: status.rate_ratio ?? 1.0,
+            reverb_level: reverbEnabled ? reverbLevel : 0.0,
+            eq_bands: status.equalizer_enabled !== false ? (status.equalizer_bands || null) : null,
+          }
+        : null;
+
       await invoke('transcode_file', {
         inputPath: filePath,
         outputPath: transcodeOutput,
         format: formatObj,
+        dspSettings,
       });
+
+      // Zindeksuj wyrenderowany utwór do bazy danych, aby uzyskać pełny rekord z metadanymi
+      let renderedTrack: TrackRecord | null = null;
+      try {
+        await invoke('scan_paths', { paths: [transcodeOutput] });
+        const updatedTracks = await invoke<TrackRecord[]>('get_library_tracks');
+        const updatedAlbums = await invoke<AlbumRecord[]>('get_library_albums');
+        setTracks(updatedTracks);
+        setAlbums(updatedAlbums);
+        renderedTrack = updatedTracks.find((t) => t.path === transcodeOutput) || null;
+      } catch (scanErr) {
+        console.warn('Automatyczne indeksowanie wyrenderowanego pliku:', scanErr);
+      }
+
+      if (!renderedTrack) {
+        const fileName = transcodeOutput.split('/').pop() || transcodeOutput;
+        const lastDot = fileName.lastIndexOf('.');
+        const title = lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
+        renderedTrack = {
+          id: Date.now(),
+          path: transcodeOutput,
+          title,
+          artist: currentPlayingTrack?.artist || 'Auralune Render',
+          album_artist: currentPlayingTrack?.album_artist || null,
+          album_id: null,
+          disc_no: 1,
+          track_no: 1,
+          duration_ms: currentPlayingTrack?.duration_ms || 180000,
+          format: transcodeFormat.toLowerCase(),
+          sample_rate: 44100,
+          channels: 2,
+          bit_depth: 16,
+          file_size: 0,
+          modified_time: Date.now(),
+          is_favorite: false,
+          play_count: 0,
+          last_played_at: null,
+          total_play_time_ms: 0,
+        };
+      }
+
+      setLastExportedTrack(renderedTrack);
+
+      if (transcodeAutoEnqueue && renderedTrack) {
+        await handleAddTrackToQueue(renderedTrack);
+      }
 
       showMessage(t.notifications.transcodeSuccessMsg.replace('{0}', transcodeOutput));
       await loadLibrary();
@@ -2915,6 +3234,13 @@ export default function App() {
         return;
       }
 
+      // Ctrl+K lub Cmd+K: Paleta komend / Spotlight
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
       // Klawisz F lub Ctrl+F: Skocz do wyszukiwarki w Bibliotece
       if ((e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && e.code === 'KeyF')) {
         e.preventDefault();
@@ -3032,6 +3358,230 @@ const renderDevicesSection = () => (
               >
                 {dspAutoStartup ? loc.dsp.dspAutostartOn : loc.dsp.dspAutostartOff}
               </button>
+            </div>
+
+            {/* Opcja powiadomień OSD Linuksa (libnotify / D-Bus) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: desktopNotificationsEnabled ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-subtle)',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
+                  {language === 'pl' ? 'Powiadomienia OSD Linuksa (libnotify)' : 'Linux Desktop OSD Notifications'}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  {language === 'pl'
+                    ? 'Wyświetlaj baner na pulpicie przy zmianie utworu w tle (z okładką i tytułem)'
+                    : 'Show desktop banner on track change in background (with cover and title)'}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const nextVal = !desktopNotificationsEnabled;
+                  setDesktopNotificationsEnabled(nextVal);
+                  localStorage.setItem('auralune_desktop_notifications', nextVal ? 'true' : 'false');
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: desktopNotificationsEnabled ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                  border: desktopNotificationsEnabled ? '1px solid #3b82f6' : '1px solid var(--border-subtle)',
+                  color: desktopNotificationsEnabled ? '#60a5fa' : 'var(--text-muted)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {desktopNotificationsEnabled
+                  ? (language === 'pl' ? 'Włączone' : 'Enabled')
+                  : (language === 'pl' ? 'Wyłączone' : 'Disabled')}
+              </button>
+            </div>
+
+            {/* Opcja normalizacji głośności ReplayGain 2.0 / EBU R128 */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '18px 20px',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: replaygainMode !== 'Off' ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid var(--border-subtle)',
+                background: replaygainMode !== 'Off' ? 'rgba(168, 85, 247, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sliders size={18} color="var(--accent-purple, #a855f7)" />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
+                    {loc.settings.replaygainTitle}
+                  </span>
+                </div>
+                {replaygainMode !== 'Off' && (
+                  <span
+                    style={{
+                      background: 'rgba(168, 85, 247, 0.25)',
+                      color: 'var(--accent-purple, #c084fc)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Zap size={11} /> {replaygainMode === 'Track' ? loc.settings.replaygainModeTrack : loc.settings.replaygainModeAlbum}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {loc.settings.replaygainDesc}
+              </div>
+
+              {/* Tryby normalizacji: Off / Track / Album */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {(['Off', 'Track', 'Album'] as const).map((m) => {
+                  const isActive = replaygainMode === m;
+                  const label =
+                    m === 'Off'
+                      ? loc.settings.replaygainModeOff
+                      : m === 'Track'
+                      ? loc.settings.replaygainModeTrack
+                      : loc.settings.replaygainModeAlbum;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => handleSetReplayGain(m, replaygainPreAmp)}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: isActive ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                        border: isActive ? '1px solid var(--accent-purple, #a855f7)' : '1px solid var(--border-subtle)',
+                        color: isActive ? '#fff' : 'var(--text-muted)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Suwak Przedwzmacniacza (Pre-Amp Gain) */}
+              <div style={{ opacity: replaygainMode === 'Off' ? 0.45 : 1, pointerEvents: replaygainMode === 'Off' ? 'none' : 'auto', transition: 'opacity 0.2s ease' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {loc.settings.replaygainPreAmp}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                    {replaygainPreAmp >= 0 ? `+${replaygainPreAmp.toFixed(1)}` : replaygainPreAmp.toFixed(1)} dB
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-6"
+                  max="6"
+                  step="0.5"
+                  value={replaygainPreAmp}
+                  onChange={(e) => handleSetReplayGain(replaygainMode, parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--accent-purple, #a855f7)' }}
+                />
+              </div>
+
+              {/* Status w czasie rzeczywistym i wskaźnik Peak Limiter */}
+              {replaygainMode !== 'Off' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '12px',
+                    padding: '8px 12px',
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{loc.settings.replaygainTargetAdjustment}:</span>
+                    <strong style={{ color: '#fff', fontFamily: 'monospace' }}>
+                      {replaygainStatus[0] >= 0 ? `+${replaygainStatus[0].toFixed(1)}` : replaygainStatus[0].toFixed(1)} dB
+                    </strong>
+                  </div>
+                  <div style={{ color: 'var(--accent-green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ShieldCheck size={13} /> {loc.settings.replaygainLimiterActive}
+                  </div>
+                </div>
+              )}
+
+              {/* Sekcja kalkulatora / skanera głośności EBU R128 */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  paddingTop: '14px',
+                  borderTop: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={replaygainScanWriteTags}
+                      onChange={(e) => setReplaygainScanWriteTags(e.target.checked)}
+                      style={{ accentColor: 'var(--accent-purple, #a855f7)' }}
+                    />
+                    <span>{loc.settings.scanReplayGainWriteTags}</span>
+                  </label>
+
+                  <button
+                    onClick={handleScanLibraryReplayGain}
+                    disabled={isReplaygainScanning}
+                    className="glass-card"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: isReplaygainScanning ? 'not-allowed' : 'pointer',
+                      background: 'rgba(168, 85, 247, 0.25)',
+                      border: '1px solid var(--accent-purple, #a855f7)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.15s ease',
+                      opacity: isReplaygainScanning ? 0.6 : 1,
+                    }}
+                  >
+                    {isReplaygainScanning ? <Loader2 size={14} className="spin" /> : <Activity size={14} />}
+                    {isReplaygainScanning ? loc.settings.scanReplayGainScanning : loc.settings.scanReplayGainLibrary}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -3381,10 +3931,131 @@ const renderDevicesSection = () => (
                 </div>
               )}
 
+              {/* Opcja nałożenia DSP: Nightcore / Slowed / Pitch / Reverb / EQ */}
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  background: transcodeApplyDsp
+                    ? 'rgba(244, 63, 94, 0.12)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: transcodeApplyDsp
+                    ? '1px solid var(--accent-pink)'
+                    : '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.88rem',
+                    color: transcodeApplyDsp ? 'var(--accent-pink)' : 'var(--text-primary)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={transcodeApplyDsp}
+                    onChange={(e) => setTranscodeApplyDsp(e.target.checked)}
+                    style={{ accentColor: 'var(--accent-pink)', width: '16px', height: '16px' }}
+                  />
+                  <span>{loc.settings.transcodeApplyDsp}</span>
+                </label>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '26px' }}>
+                  {loc.settings.transcodeApplyDspDesc}
+                </p>
+                {transcodeApplyDsp && (
+                  <div
+                    style={{
+                      paddingLeft: '26px',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                      fontSize: '0.78rem',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(255, 105, 180, 0.2)',
+                        color: 'var(--accent-pink)',
+                      }}
+                    >
+                      Pitch: {(status.pitch_semitones ?? 0) > 0 ? `+${(status.pitch_semitones ?? 0).toFixed(1)}` : (status.pitch_semitones ?? 0).toFixed(1)} st
+                    </span>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(6, 182, 212, 0.2)',
+                        color: 'var(--accent-cyan)',
+                      }}
+                    >
+                      Tempo: {(status.tempo_ratio ?? 1.0).toFixed(2)}x
+                    </span>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(168, 85, 247, 0.2)',
+                        color: 'var(--accent-purple)',
+                      }}
+                    >
+                      Speed: {(status.rate_ratio ?? 1.0).toFixed(2)}x
+                    </span>
+                    {reverbEnabled && (
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: 'rgba(234, 179, 8, 0.2)',
+                          color: '#facc15',
+                        }}
+                      >
+                        Reverb: {Math.round(reverbLevel * 100)}%
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Opcja automatycznego dodania do kolejki */}
+              <label
+                style={{
+                  marginTop: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  fontSize: '0.84rem',
+                  color: transcodeAutoEnqueue ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                  fontWeight: 600,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={transcodeAutoEnqueue}
+                  onChange={(e) => setTranscodeAutoEnqueue(e.target.checked)}
+                  style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
+                />
+                <span>{loc.settings.transcodeAutoEnqueue}</span>
+              </label>
+
               <button
                 onClick={handleTranscode}
                 style={{
-                  marginTop: '12px',
+                  marginTop: '14px',
                   padding: '14px',
                   borderRadius: '12px',
                   background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
@@ -3396,6 +4067,125 @@ const renderDevicesSection = () => (
               >
                 {loc.settings.exportOpus}
               </button>
+
+              {/* Panel akcji po pomyślnym wyrenderowaniu */}
+              {lastExportedTrack && (
+                <div
+                  className="glass-panel"
+                  style={{
+                    marginTop: '16px',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    background: 'rgba(34, 197, 94, 0.08)',
+                    border: '1px solid rgba(34, 197, 94, 0.4)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    boxShadow: '0 4px 20px rgba(34, 197, 94, 0.1)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CheckCircle size={18} color="var(--accent-green)" />
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>
+                        {loc.settings.transcodeCompletedTitle}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setLastExportedTrack(null)}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>
+                    {lastExportedTrack.path}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <button
+                      onClick={() => handlePlayLibraryTrack(lastExportedTrack)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        border: 'none',
+                        boxShadow: '0 2px 8px rgba(244, 63, 94, 0.3)',
+                      }}
+                    >
+                      <Play size={14} fill="#fff" />
+                      {loc.settings.playRenderedNow}
+                    </button>
+                    <button
+                      onClick={(e) => handleAddTrackToQueue(lastExportedTrack, e)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--accent-cyan)',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Plus size={14} />
+                      {loc.settings.addRenderedToQueue}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTrackToAddToPlaylist(lastExportedTrack);
+                        setShowPlaylistModal(true);
+                      }}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--accent-purple)',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <ListPlus size={14} />
+                      {loc.settings.addRenderedToPlaylist}
+                    </button>
+                    <button
+                      onClick={(e) => handleOpenContainingFolder(lastExportedTrack.path, e)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <FolderOpen size={14} />
+                      {loc.settings.openRenderedFolder}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
   );
@@ -4900,10 +5690,62 @@ const renderDevicesSection = () => (
               cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
-            title={`Ambience: ${ambienceMode === 'sakura' ? 'Sakura 🌸' : ambienceMode === 'neon_rain' ? 'Neon Rain 🌧️' : 'Off'}`}
+            title={`Ambience: ${
+              ambienceMode === 'sakura'
+                ? 'Sakura 🌸'
+                : ambienceMode === 'neon_rain'
+                ? 'Neon Rain 🌧️'
+                : ambienceMode === 'fireflies'
+                ? 'Fireflies ✨'
+                : ambienceMode === 'snow'
+                ? 'Snow ❄️'
+                : ambienceMode === 'meteor_shower'
+                ? 'Meteors 🌠'
+                : ambienceMode === 'matrix_rain'
+                ? 'Matrix 🟩'
+                : ambienceMode === 'momiji'
+                ? 'Momiji 🍁'
+                : 'Off'
+            }`}
           >
             <Sparkles size={15} />
-            {ambienceMode === 'sakura' ? 'Sakura 🌸' : ambienceMode === 'neon_rain' ? 'Neon 🌧️' : loc.nav.effects}
+            {ambienceMode === 'sakura'
+              ? 'Sakura 🌸'
+              : ambienceMode === 'neon_rain'
+              ? 'Neon 🌧️'
+              : ambienceMode === 'fireflies'
+              ? 'Świetliki ✨'
+              : ambienceMode === 'snow'
+              ? 'Śnieg ❄️'
+              : ambienceMode === 'meteor_shower'
+              ? 'Meteory 🌠'
+              : ambienceMode === 'matrix_rain'
+              ? 'Matrix 🟩'
+              : ambienceMode === 'momiji'
+              ? 'Momiji 🍁'
+              : loc.nav.effects}
+          </button>
+
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: 'rgba(168, 85, 247, 0.16)',
+              border: '1px solid rgba(168, 85, 247, 0.35)',
+              color: 'var(--accent-purple, #c084fc)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            title="Command Palette / Szukaj (Ctrl + K)"
+          >
+            <Search size={15} />
+            <span style={{ fontSize: '0.72rem', opacity: 0.85, fontFamily: 'monospace' }}>Ctrl+K</span>
           </button>
 
           <button
@@ -7485,9 +8327,12 @@ const renderDevicesSection = () => (
                   {[
                     { id: 'all', label: loc.library.smartAll, icon: Music, color: 'var(--accent-purple)' },
                     { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, color: 'var(--accent-pink)' },
+                    { id: 'top_rated', label: currentLang === 'pl' ? 'Ocenione (★★★★+)' : 'Top Rated', icon: Star, color: 'var(--accent-amber)' },
                     { id: 'history', label: loc.library.smartHistory, icon: Clock, color: 'var(--accent-cyan)' },
                     { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, color: 'var(--accent-amber)' },
                     { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, color: 'var(--accent-purple)' },
+                    { id: 'high_bpm', label: currentLang === 'pl' ? 'Szybkie tempo (>130 BPM)' : 'Fast (>130 BPM)', icon: Zap, color: 'var(--accent-pink)' },
+                    { id: 'forgotten', label: currentLang === 'pl' ? 'Zapomniane (0 odtworzeń)' : 'Forgotten Gems', icon: Moon, color: 'var(--accent-cyan)' },
                   ].map((item) => {
                     const isSelected = smartPlaylistFilter === item.id;
                     const Icon = item.icon;
@@ -7516,6 +8361,28 @@ const renderDevicesSection = () => (
                       </button>
                     );
                   })}
+
+                  <button
+                    onClick={() => setIsCueModalOpen(true)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '20px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      background: 'rgba(168, 85, 247, 0.12)',
+                      color: 'var(--accent-purple, #c084fc)',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      marginLeft: 'auto',
+                    }}
+                    title={currentLang === 'pl' ? 'Otwórz arkusz CUE i odtwarzaj wirtualne utwory' : 'Open CUE Sheet'}
+                  >
+                    <FileCode size={13} />
+                    {currentLang === 'pl' ? 'Arkusz CUE' : 'CUE Sheet'}
+                  </button>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -7596,13 +8463,16 @@ const renderDevicesSection = () => (
                         >
                           {loc.library.playsCol} {sortField === 'plays' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                         </th>
+                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          {currentLang === 'pl' ? 'Ocena' : 'Rating'}
+                        </th>
                         <th style={{ padding: '10px 12px', textAlign: 'center' }}>{loc.library.actions}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sortedTracks.length === 0 ? (
                         <tr>
-                          <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <td colSpan={9} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             {tracks.length === 0 ? (
                               <div
                                 style={{
@@ -7746,6 +8616,24 @@ const renderDevicesSection = () => (
                                 {t.format}
                                 {(t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? ' Hi-Res' : ''}
                               </span>
+                              {t.replaygain_track_gain !== null && t.replaygain_track_gain !== undefined && (
+                                <span
+                                  style={{
+                                    marginLeft: '6px',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.66rem',
+                                    fontFamily: 'var(--font-mono)',
+                                    fontWeight: 700,
+                                    background: 'rgba(168, 85, 247, 0.2)',
+                                    color: 'var(--accent-purple, #c084fc)',
+                                    border: '1px solid rgba(168, 85, 247, 0.4)',
+                                  }}
+                                  title={`ReplayGain: ${t.replaygain_track_gain >= 0 ? '+' : ''}${t.replaygain_track_gain.toFixed(1)} dB (Peak: ${t.replaygain_track_peak ? t.replaygain_track_peak.toFixed(3) : '1.0'})`}
+                                >
+                                  RG {t.replaygain_track_gain >= 0 ? `+${t.replaygain_track_gain.toFixed(1)}` : t.replaygain_track_gain.toFixed(1)}
+                                </span>
+                              )}
                             </td>
                             <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                               {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
@@ -7782,6 +8670,35 @@ const renderDevicesSection = () => (
                                 {t.play_count || 0}
                               </span>
                             </td>
+                            <td
+                              style={{ padding: '12px', textAlign: 'center' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
+                                {[1, 2, 3, 4, 5].map((star) => {
+                                  const active = (t.rating || 0) >= star;
+                                  return (
+                                    <button
+                                      key={star}
+                                      onClick={() => handleSetTrackRating(t.id, t.rating === star ? 0 : star)}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        padding: '1px',
+                                        cursor: 'pointer',
+                                        color: active ? '#f59e0b' : 'rgba(255, 255, 255, 0.15)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        transition: 'transform 0.1s ease',
+                                      }}
+                                      title={currentLang === 'pl' ? `Ocena: ${star}/5` : `Rating: ${star}/5`}
+                                    >
+                                      <Star size={12} fill={active ? '#f59e0b' : 'none'} />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                                 <button
@@ -7810,6 +8727,20 @@ const renderDevicesSection = () => (
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
                                 >
                                   <Plus size={15} />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
+                                  title={currentLang === 'pl' ? 'Edytor tagów / Właściwości utworu' : 'Tag Editor / Track Properties'}
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan, #06b6d4)', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <TagIcon size={15} />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleScanTrackReplayGain(t); }}
+                                  title={loc.settings.scanReplayGainTrack}
+                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple, #c084fc)', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <Activity size={15} />
                                 </button>
                                 <button
                                   onClick={(e) => handleAddTrackNextToQueue(t, e)}
@@ -10780,6 +11711,94 @@ const renderDevicesSection = () => (
           if (tr) handlePlayAllTracks([tr], 0);
         }}
       />
+
+      {/* Modal Edytora Tagów (foobar2000 style Properties) */}
+      {tagEditorTrack && (
+        <TagEditorModal
+          trackId={tagEditorTrack.id}
+          filePath={tagEditorTrack.path}
+          format={tagEditorTrack.format}
+          bitDepth={tagEditorTrack.bit_depth}
+          sampleRate={tagEditorTrack.sample_rate}
+          channels={tagEditorTrack.channels}
+          fileSize={tagEditorTrack.file_size}
+          currentLang={language}
+          onClose={() => setTagEditorTrack(null)}
+          onSaveSuccess={() => {
+            loadLibrary();
+            showMessage(language === 'pl' ? 'Tagi pliku zostały zaktualizowane pomyślnie!' : 'Tags updated successfully!');
+          }}
+        />
+      )}
+
+      {/* Modal Palety Komend (Ctrl+K omnibar) */}
+      {isCommandPaletteOpen && (
+        <CommandPaletteModal
+          tracks={tracks}
+          albums={albums}
+          isPlaying={status.state === 'Playing'}
+          currentLang={language}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onPlayTrack={(t) => handlePlayLibraryTrack(t)}
+          onAddToQueue={(t) => handleAddTrackToQueue(t)}
+          onTogglePlay={handlePlayPause}
+          onNext={handleNext}
+          onPrevious={handlePrevious}
+          onToggleShuffle={handleToggleShuffle}
+          onSetAmbience={(m) => {
+            setAmbienceMode(m);
+            localStorage.setItem('auralune_ambience_mode', m);
+          }}
+          onSetDspEngine={(eng) => handleEngineChange(eng)}
+          onResetDsp={handleResetDsp}
+          onOpenBigScreen={() => setIsBigScreen(true)}
+          onOpenReplayGainScanner={() => {
+            setActiveTab('devices');
+          }}
+          onSelectTab={(tab) => setActiveTab(tab as any)}
+        />
+      )}
+
+      {/* Modal Arkusza CUE (.cue sheet) */}
+      {isCueModalOpen && (
+        <CueSheetModal
+          currentLang={language}
+          onClose={() => setIsCueModalOpen(false)}
+          onPlayCueTrack={(audioFile, cueTrack) => {
+            let targetPath = audioFile;
+            const matching = tracks.find((t) => t.path.endsWith(audioFile) || t.path.includes(audioFile));
+            if (matching) {
+              targetPath = matching.path;
+            }
+            handleLoadFile(targetPath).then(async () => {
+              await invoke('play');
+              handleSeek(cueTrack.start_offset_ms);
+            });
+            showMessage(`Odtwarzanie CUE: ${cueTrack.title} (${cueTrack.number})`);
+          }}
+          onAddCueTracksToQueue={async (audioFile, cueTracks) => {
+            let targetPath = audioFile;
+            const matching = tracks.find((t) => t.path.endsWith(audioFile) || t.path.includes(audioFile));
+            if (matching) {
+              targetPath = matching.path;
+            }
+            for (const ct of cueTracks) {
+              const item: QueueItem = {
+                id: `cue-${ct.number}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                track_id: matching?.id ?? null,
+                uri: targetPath,
+                title: ct.title,
+                artist: ct.performer || matching?.artist || 'Unknown',
+                album: matching?.album_artist || null,
+                duration_ms: ct.duration_ms || 180000,
+              };
+              await invoke('add_to_queue', { item });
+            }
+            await refreshQueue();
+            showMessage(`Dodano ${cueTracks.length} utworów z CUE do kolejki`);
+          }}
+        />
+      )}
     </div>
   );
 }

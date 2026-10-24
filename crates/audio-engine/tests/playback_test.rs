@@ -264,3 +264,55 @@ fn test_reverb_parameters_and_pipeline() {
     assert_eq!(width, 1.0);
     assert_eq!(level, 0.40);
 }
+
+#[test]
+fn test_play_and_pause_with_fade() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+    engine.load_uri(&uri).unwrap();
+
+    // Play z mikro-fade-in
+    engine.play_with_fade(true).expect("Play z fade");
+    sleep(Duration::from_millis(80));
+
+    // Pause z mikro-fade-out
+    engine.pause_with_fade(true).expect("Pause z fade");
+    sleep(Duration::from_millis(50));
+
+    // Ponowny play
+    engine.play_with_fade(true).expect("Ponowny play z fade");
+    sleep(Duration::from_millis(80));
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn test_replaygain_pipeline_elements() {
+    use gstreamer::prelude::*;
+    gstreamer::init().unwrap();
+    let bin = gstreamer::Pipeline::new();
+    let src = gstreamer::ElementFactory::make("audiotestsrc")
+        .property("num-buffers", 5i32)
+        .build()
+        .unwrap();
+    let conv = gstreamer::ElementFactory::make("audioconvert")
+        .build()
+        .unwrap();
+    let rgv = gstreamer::ElementFactory::make("rgvolume").build().unwrap();
+    let rgl = gstreamer::ElementFactory::make("rglimiter")
+        .build()
+        .unwrap();
+    let sink = gstreamer::ElementFactory::make("fakesink").build().unwrap();
+    bin.add_many([&src, &conv, &rgv, &rgl, &sink]).unwrap();
+    gstreamer::Element::link_many([&src, &conv, &rgv, &rgl, &sink]).unwrap();
+    bin.set_state(gstreamer::State::Playing).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    bin.set_state(gstreamer::State::Null).unwrap();
+}

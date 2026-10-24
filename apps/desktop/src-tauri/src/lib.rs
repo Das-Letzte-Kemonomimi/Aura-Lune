@@ -4,11 +4,15 @@
 //! Wątek audio i surowe próbki PCM są całkowicie odizolowane od WebView i bazy danych.
 //! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem, odpytywania stanu i indeksowania.
 
-use audio_engine::{AudioEngine, DeviceManager, PlayerEvent, TrackKeyBpm, Transcoder};
+use audio_engine::{
+    analyze_track_replaygain, write_replaygain_tags_to_file, AudioEngine, DeviceManager,
+    PlayerEvent, ReplayGainAnalysisResult, TrackKeyBpm, Transcoder,
+};
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
-use domain::transcode::ExportFormat;
+use domain::replaygain::ReplayGainConfig;
+use domain::transcode::{DspExportSettings, ExportFormat};
 use domain::{PlaybackState, Playlist, Theme};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
@@ -50,6 +54,8 @@ pub struct PlaybackStatusDto {
     pub equalizer_enabled: bool,
     pub equalizer_bands: [f64; 10],
     pub spectrum: Vec<f32>,
+    pub replaygain_config: ReplayGainConfig,
+    pub replaygain_status: (f64, f64, bool),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,6 +63,13 @@ pub struct ScanSummaryDto {
     pub total_files_found: usize,
     pub new_or_updated_tracks: usize,
     pub skipped_unchanged: usize,
+    pub errors: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplayGainScanSummaryDto {
+    pub total_tracks: usize,
+    pub scanned: usize,
     pub errors: usize,
 }
 
@@ -112,7 +125,10 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn play(state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.play().map_err(|e| e.to_string())?;
+    state
+        .engine
+        .play_with_fade(true)
+        .map_err(|e| e.to_string())?;
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
         state.rt.spawn(async move {
@@ -124,7 +140,10 @@ fn play(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn pause(state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.pause().map_err(|e| e.to_string())?;
+    state
+        .engine
+        .pause_with_fade(true)
+        .map_err(|e| e.to_string())?;
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
         state.rt.spawn(async move {
@@ -408,6 +427,8 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         equalizer_enabled: state.engine.is_equalizer_enabled(),
         equalizer_bands: state.engine.get_equalizer_bands(),
         spectrum,
+        replaygain_config: state.engine.replaygain_config(),
+        replaygain_status: state.engine.replaygain_status(),
     }
 }
 
@@ -442,6 +463,122 @@ fn set_equalizer_enabled(enabled: bool, state: State<'_, AppState>) -> Result<()
 #[tauri::command]
 fn get_equalizer_presets() -> Vec<EqualizerPreset> {
     EqualizerPreset::default_presets()
+}
+
+#[tauri::command]
+fn get_replaygain_config(state: State<'_, AppState>) -> ReplayGainConfig {
+    state.engine.replaygain_config()
+}
+
+#[tauri::command]
+fn set_replaygain_config(
+    config: ReplayGainConfig,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!("Tauri command: set_replaygain_config({:?})", config);
+    state
+        .engine
+        .set_replaygain(config)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_replaygain_status(state: State<'_, AppState>) -> (f64, f64, bool) {
+    state.engine.replaygain_status()
+}
+
+#[tauri::command]
+fn scan_track_replaygain(
+    track_id: i64,
+    write_tags: bool,
+    state: State<'_, AppState>,
+) -> Result<ReplayGainAnalysisResult, String> {
+    info!(
+        "Tauri command: scan_track_replaygain(track_id={}, write_tags={})",
+        track_id, write_tags
+    );
+    let db = state.db.clone();
+    let track = state
+        .rt
+        .block_on(async move { db.get_track_by_id(track_id).await })
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
+
+    let result = analyze_track_replaygain(&track.path)?;
+
+    // Zapis do bazy danych SQLite
+    let db_update = state.db.clone();
+    let gain = result.track_gain_db;
+    let peak = result.track_peak;
+    state
+        .rt
+        .block_on(async move {
+            db_update
+                .update_track_replaygain(track_id, gain, peak)
+                .await
+        })
+        .map_err(|e| e.to_string())?;
+
+    // Opcjonalny zapis tagów do pliku
+    if write_tags {
+        if let Err(e) = write_replaygain_tags_to_file(&track.path, gain, peak) {
+            tracing::warn!(
+                "Nie udało się zapisać tagów ReplayGain do {}: {}",
+                track.path,
+                e
+            );
+        }
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+fn scan_library_replaygain(
+    write_tags: bool,
+    state: State<'_, AppState>,
+) -> Result<ReplayGainScanSummaryDto, String> {
+    info!(
+        "Tauri command: scan_library_replaygain(write_tags={})",
+        write_tags
+    );
+    let db = state.db.clone();
+    let tracks = state
+        .rt
+        .block_on(async move { db.list_tracks().await })
+        .map_err(|e| e.to_string())?;
+
+    let total_tracks = tracks.len();
+    let mut scanned = 0;
+    let mut errors = 0;
+
+    for track in tracks {
+        match analyze_track_replaygain(&track.path) {
+            Ok(res) => {
+                let db_inner = state.db.clone();
+                let tid = track.id;
+                let g = res.track_gain_db;
+                let p = res.track_peak;
+                let _ = state
+                    .rt
+                    .block_on(async move { db_inner.update_track_replaygain(tid, g, p).await });
+                if write_tags {
+                    let _ = write_replaygain_tags_to_file(&track.path, g, p);
+                }
+                scanned += 1;
+            }
+            Err(err) => {
+                tracing::warn!("Błąd analizy ReplayGain dla {}: {}", track.path, err);
+                errors += 1;
+            }
+        }
+    }
+
+    Ok(ReplayGainScanSummaryDto {
+        total_tracks,
+        scanned,
+        errors,
+    })
 }
 
 #[tauri::command]
@@ -511,8 +648,10 @@ fn transcode_file(
     input_path: String,
     output_path: String,
     format: ExportFormat,
+    dsp_settings: Option<DspExportSettings>,
 ) -> Result<(), String> {
-    Transcoder::transcode(&input_path, &output_path, format).map_err(|e| e.to_string())
+    Transcoder::transcode_with_dsp(&input_path, &output_path, format, dsp_settings.as_ref())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1085,6 +1224,121 @@ fn toggle_favorite(track_id: i64, state: State<'_, AppState>) -> Result<bool, St
         .rt
         .block_on(async move { db.toggle_favorite(track_id).await })
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_track_rating(
+    track_id: i64,
+    rating: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .set_track_rating(track_id, rating)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_track_metadata(path: String) -> Result<audio_engine::TrackMetadataFullDto, String> {
+    audio_engine::read_track_metadata(&path)
+}
+
+#[tauri::command]
+async fn update_track_metadata(
+    track_id: i64,
+    path: String,
+    meta: audio_engine::TrackMetadataFullDto,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // 1. Zapis do pliku fizycznego audio przez lofty
+    audio_engine::write_track_metadata(&path, &meta)?;
+
+    // 2. Aktualizacja w bazie SQLite
+    state
+        .db
+        .update_track_metadata(
+            track_id,
+            &meta.title,
+            &meta.artist,
+            meta.album_artist.as_deref(),
+            meta.track_no.map(|n| n as i64),
+            meta.disc_no.map(|n| n as i64),
+            meta.album.as_deref(),
+            meta.year.map(|y| y as i64),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn parse_cue_sheet_content(cue_content: String) -> Result<domain::CueSheet, String> {
+    domain::CueSheet::parse(&cue_content)
+}
+
+#[tauri::command]
+async fn list_smart_playlist_tracks(
+    smart_type: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, String> {
+    match smart_type.as_str() {
+        "favorites" => state
+            .db
+            .list_favorite_tracks()
+            .await
+            .map_err(|e| e.to_string()),
+        "top_played" => state
+            .db
+            .list_top_played_tracks(25)
+            .await
+            .map_err(|e| e.to_string()),
+        "recently_played" => state
+            .db
+            .list_recently_played_tracks(50)
+            .await
+            .map_err(|e| e.to_string()),
+        "hires" => state
+            .db
+            .list_hires_tracks()
+            .await
+            .map_err(|e| e.to_string()),
+        "forgotten" => state
+            .db
+            .list_forgotten_tracks(50)
+            .await
+            .map_err(|e| e.to_string()),
+        "high_bpm" => state
+            .db
+            .list_high_bpm_tracks(130.0)
+            .await
+            .map_err(|e| e.to_string()),
+        "top_rated" => state
+            .db
+            .list_top_rated_tracks()
+            .await
+            .map_err(|e| e.to_string()),
+        _ => Err("Nieznany typ inteligentnej playlisty".to_string()),
+    }
+}
+
+#[tauri::command]
+fn show_desktop_notification(
+    title: String,
+    body: String,
+    icon: Option<String>,
+) -> Result<(), String> {
+    let mut cmd = std::process::Command::new("notify-send");
+    cmd.arg("-a").arg("Auralune");
+    cmd.arg("-u").arg("normal");
+    cmd.arg("-h").arg("string:desktop-entry:auralune");
+    if let Some(ic) = icon {
+        cmd.arg("-i").arg(ic);
+    }
+    cmd.arg(&title).arg(&body);
+    let _ = cmd.spawn();
+    Ok(())
 }
 
 #[tauri::command]
@@ -2488,6 +2742,11 @@ pub fn run() {
             set_equalizer_bands,
             set_equalizer_enabled,
             get_equalizer_presets,
+            get_replaygain_config,
+            set_replaygain_config,
+            get_replaygain_status,
+            scan_track_replaygain,
+            scan_library_replaygain,
             list_devices,
             set_device_profile,
             set_bluetooth_codec,
@@ -2566,6 +2825,12 @@ pub fn run() {
             get_app_icon_style,
             detect_track_key_bpm,
             save_track_key_bpm,
+            set_track_rating,
+            get_track_metadata,
+            update_track_metadata,
+            parse_cue_sheet_content,
+            list_smart_playlist_tracks,
+            show_desktop_notification,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
