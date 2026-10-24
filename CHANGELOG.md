@@ -9,6 +9,22 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.2.2] — „Resonance & Flow” - 2026-10-24
+**Autorka**: Das Letzte Kemonomimi
+
+### Naprawiono (Fixed)
+- **Eliminacja zawieszenia aplikacji przy uruchamianiu utworu z widoku biblioteki („w bibliotece kliknęłam utwór i się zacięło”)**:
+  - Wyeliminowano zakleszczenie prerollu (deadlock) w elemencie `AuraluneDsp`: usunięto restrykcyjny warunek wstrzymywania emisji próbek (`min_threshold_samples = 1024 * channels`), który przy pierwszym pakiecie dekodera wstrzymywał wypchnięcie bufora do zlewu PipeWire. Zlew PipeWire oczekujący na bufor startowy nie mógł ukończyć prerollu, co blokowało zmianę stanu potoku na `Playing` oraz powodowało zawieszenie wątku IPC na zapytaniach o pozycję/czas utworu.
+  - Zastąpiono wstrzymywanie natychmiastowym drenowaniem wszystkich dostępnych próbek w blokach do 2048 ramek, co gwarantuje natychmiastowy preroll GStreamera i nieprzerwany strumień do PipeWire.
+  - Przywrócono stabilne, bezpośrednie linkowanie dynamicznego padu `uridecodebin -> audioconvert_in`, eliminując pośrednią statyczną kolejkę i ryzyko zablokowania wątku dekodowania.
+  - W `handlePlayLibraryTrack` w React dodano zabezpieczenie awaryjnego resetu flagi wyścigu (`isPlayingLibraryTrackRef`) z 4-sekundowym timeoutem.
+- **Eliminacja zacinania i przerw w dźwięku przy odtwarzaniu plików FLAC („dalej zacina przy flacu”)**:
+  - Rozwiązano problem blokowania potoku przy dużych blokach FLAC (4096–4608 ramek, które przy spowolnieniu poniżej 50% produkują ponad 260–300 ms dźwięku na pojedynczy pakiet i natychmiast przepełniały 200 ms bufor wyjściowy).
+  - Zwiększono pojemność kolejki wyjściowej `queue_sink` z 200 ms do 800 ms oraz bufor `pipewiresink` do 100 ms, eliminując blokowanie wątku dekodera i zapewniając stabilne buforowanie dla PipeWire.
+  - W `RubberBandProcessor` wdrożono przetwarzanie w optymalnych oknach po 1024 ramki oraz konfigurację FFI `rubberband_set_max_process_size(8192)`, co zlikwidowało reallokacje pamięci i drastyczne wahania latencji rozruchowej.
+
+---
+
 ## [0.2.1] — „Harmony & Precision” - 2026-10-24
 **Autorka**: Das Letzte Kemonomimi
 
@@ -37,15 +53,6 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
   - Komponent `OnboardingModal` prowadzący użytkowniczkę przy pierwszym uruchomieniu aplikacji.
 
 ### Naprawiono (Fixed)
-- **Eliminacja zawieszenia aplikacji przy uruchamianiu utworu z widoku biblioteki („w bibliotece kliknęłam utwór i się zacięło”)**:
-  - Wyeliminowano zakleszczenie prerollu (deadlock) w elemencie `AuraluneDsp`: usunięto restrykcyjny warunek wstrzymywania emisji próbek (`min_threshold_samples = 1024 * channels`), który przy pierwszym pakiecie dekodera wstrzymywał wypchnięcie bufora do zlewu PipeWire. Zlew PipeWire oczekujący na bufor startowy nie mógł ukończyć prerollu, co blokowało zmianę stanu potoku na `Playing` oraz powodowało zawieszenie wątku IPC na zapytaniach o pozycję/czas utworu.
-  - Zastąpiono wstrzymywanie natychmiastowym drenowaniem wszystkich dostępnych próbek w blokach do 2048 ramek, co gwarantuje natychmiastowy preroll GStreamera i nieprzerwany strumień do PipeWire.
-  - Przywrócono stabilne, bezpośrednie linkowanie dynamicznego padu `uridecodebin -> audioconvert_in`, eliminując pośrednią statyczną kolejkę i ryzyko zablokowania wątku dekodowania.
-  - W `handlePlayLibraryTrack` w React dodano zabezpieczenie awaryjnego resetu flagi wyścigu (`isPlayingLibraryTrackRef`) z 4-sekundowym timeoutem.
-- **Eliminacja zacinania i przerw w dźwięku przy odtwarzaniu plików FLAC („dalej zacina przy flacu”)**:
-  - Rozwiązano problem blokowania potoku przy dużych blokach FLAC (4096–4608 ramek, które przy spowolnieniu poniżej 50% produkują ponad 260–300 ms dźwięku na pojedynczy pakiet i natychmiast przepełniały 200 ms bufor wyjściowy).
-  - Zwiększono pojemność kolejki wyjściowej `queue_sink` z 200 ms do 800 ms oraz bufor `pipewiresink` do 100 ms, eliminując blokowanie wątku dekodera i zapewniając stabilne buforowanie dla PipeWire.
-  - W `RubberBandProcessor` wdrożono przetwarzanie w optymalnych oknach po 1024 ramki oraz konfigurację FFI `rubberband_set_max_process_size(8192)`, co zlikwidowało reallokacje pamięci i drastyczne wahania latencji rozruchowej.
 - **Synchronizacja osi czasu, wskaźnika postępu, fali dźwiękowej i zakładek ze spowolnionym tempem DSP**:
   - Skorygowano obliczanie pozycji w `calculate_media_position`: pozycja ze sprzętowego zegara sinka jest prawidłowo skalowana przez rzeczywisty mnożnik prędkości DSP (`tempo_ratio * rate_ratio`).
   - Wyeliminowano problem wybiegania licznika czasu i wskaźnika fali przed dźwięk przy spowolnionym odtwarzaniu (np. przy 0.55x).
