@@ -54,6 +54,18 @@ impl PlaybackQueue {
         self.rebuild_shuffle_order();
     }
 
+    /// Ustawia lub dodaje bieżący odtwarzany utwór do kolejki (np. po wczytaniu z biblioteki lub pliku).
+    pub fn set_active_item(&mut self, item: QueueItem) {
+        if let Some(pos) = self.items.iter().position(|i| i.uri == item.uri) {
+            self.current_index = Some(pos);
+            self.items[pos] = item;
+        } else {
+            self.items.push(item);
+            self.current_index = Some(self.items.len() - 1);
+            self.rebuild_shuffle_order();
+        }
+    }
+
     /// Dodaje utwór na koniec kolejki.
     pub fn add_item(&mut self, item: QueueItem) {
         self.items.push(item);

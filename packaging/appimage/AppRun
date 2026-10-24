@@ -8,9 +8,20 @@ APPDIR="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${APPDIR}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="${APPDIR}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
-# Zapewnienie ścieżek dla wtyczek GStreamer
+# Zapewnienie ścieżek dla wtyczek GStreamer i WebKit2GTK
 if [ -d "${APPDIR}/usr/lib/gstreamer-1.0" ]; then
-    export GST_PLUGIN_SYSTEM_PATH_1_0="${APPDIR}/usr/lib/gstreamer-1.0:${GST_PLUGIN_SYSTEM_PATH_1_0}"
+    export GST_PLUGIN_SYSTEM_PATH_1_0="${APPDIR}/usr/lib/gstreamer-1.0:${GST_PLUGIN_SYSTEM_PATH_1_0:-/usr/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0}"
+else
+    export GST_PLUGIN_SYSTEM_PATH_1_0="${GST_PLUGIN_SYSTEM_PATH_1_0:-/usr/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0}"
+fi
+
+if [ -z "${WEBKIT_EXEC_PATH}" ]; then
+    for wp in /usr/lib/webkit2gtk-4.1 /usr/lib64/webkit2gtk-4.1 /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 /usr/libexec/webkit2gtk-4.1; do
+        if [ -d "$wp" ]; then
+            export WEBKIT_EXEC_PATH="$wp"
+            break
+        fi
+    done
 fi
 
 # Uruchomienie aplikacji

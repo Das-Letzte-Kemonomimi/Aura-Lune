@@ -24,6 +24,9 @@ unsigned int soundtouch_num_samples(SoundTouchHandle handle);
 int soundtouch_flush(SoundTouchHandle handle);
 int soundtouch_clear(SoundTouchHandle handle);
 
+int soundtouch_set_setting(SoundTouchHandle handle, int setting_id, int value);
+int soundtouch_get_setting(SoundTouchHandle handle, int setting_id);
+
 #ifdef __cplusplus
 }
 #endif

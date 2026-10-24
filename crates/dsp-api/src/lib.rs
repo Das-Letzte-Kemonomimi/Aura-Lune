@@ -20,9 +20,10 @@ pub enum DspError {
 /// Dostępne silniki DSP do zmiany wysokości i tempa dźwięku.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DspEngine {
+    Bypass,
     #[default]
-    SoundTouch,
     RubberBand,
+    SoundTouch,
 }
 
 /// Zdolności i ograniczenia wybranego silnika DSP.
@@ -41,6 +42,28 @@ pub struct DspCapabilities {
 impl DspEngine {
     pub fn capabilities(&self) -> DspCapabilities {
         match self {
+            DspEngine::Bypass => DspCapabilities {
+                engine: *self,
+                name: "Brak DSP (Direct Bypass)".to_string(),
+                min_pitch_semitones: -24.0,
+                max_pitch_semitones: 24.0,
+                min_tempo_ratio: 0.15,
+                max_tempo_ratio: 4.0,
+                supports_formants: false,
+                description:
+                    "Czysty strumień bit-perfect bez procesora DSP (zerowe obciążenie)".to_string(),
+            },
+            DspEngine::RubberBand => DspCapabilities {
+                engine: *self,
+                name: "Rubber Band".to_string(),
+                min_pitch_semitones: -24.0,
+                max_pitch_semitones: 24.0,
+                min_tempo_ratio: 0.15,
+                max_tempo_ratio: 4.0,
+                supports_formants: true,
+                description:
+                    "Precyzyjny silnik Rubber Band R3 (jak w Music Speed Changer, czyste tempo do 15%, transjenty)".to_string(),
+            },
             DspEngine::SoundTouch => DspCapabilities {
                 engine: *self,
                 name: "SoundTouch".to_string(),
@@ -50,20 +73,7 @@ impl DspEngine {
                 max_tempo_ratio: 2.0,
                 supports_formants: false,
                 description:
-                    "Lekki silnik SoundTouch (niski narzut CPU, natywna integracja w GStreamer)"
-                        .to_string(),
-            },
-            DspEngine::RubberBand => DspCapabilities {
-                engine: *self,
-                name: "Rubber Band".to_string(),
-                min_pitch_semitones: -24.0,
-                max_pitch_semitones: 24.0,
-                min_tempo_ratio: 0.25,
-                max_tempo_ratio: 4.0,
-                supports_formants: true,
-                description:
-                    "Precyzyjny silnik Rubber Band R3 (wysoka jakość transjentów, formanty)"
-                        .to_string(),
+                    "Lekki silnik SoundTouch (niski narzut CPU)".to_string(),
             },
         }
     }
@@ -147,15 +157,15 @@ impl DspParams {
                 self.pitch_semitones
             )));
         }
-        if !self.tempo_ratio.is_finite() || self.tempo_ratio < 0.25 || self.tempo_ratio > 4.0 {
+        if !self.tempo_ratio.is_finite() || self.tempo_ratio < 0.15 || self.tempo_ratio > 4.0 {
             return Err(DspError::InvalidParameter(format!(
-                "tempo_ratio ({}) poza dozwolonym zakresem [0.25, 4.0]",
+                "tempo_ratio ({}) poza dozwolonym zakresem [0.15, 4.0]",
                 self.tempo_ratio
             )));
         }
-        if !self.rate_ratio.is_finite() || self.rate_ratio < 0.25 || self.rate_ratio > 4.0 {
+        if !self.rate_ratio.is_finite() || self.rate_ratio < 0.15 || self.rate_ratio > 4.0 {
             return Err(DspError::InvalidParameter(format!(
-                "rate_ratio ({}) poza dozwolonym zakresem [0.25, 4.0]",
+                "rate_ratio ({}) poza dozwolonym zakresem [0.15, 4.0]",
                 self.rate_ratio
             )));
         }
@@ -165,6 +175,14 @@ impl DspParams {
     /// Oblicza liniowy mnożnik pitch ($2^{semitones / 12}$).
     pub fn pitch_scale(&self) -> f64 {
         semitones_to_pitch_ratio(self.pitch_semitones)
+    }
+
+    /// Sprawdza, czy parametry oznaczają brak modyfikacji dźwięku (Bypass).
+    pub fn is_bypass(&self) -> bool {
+        self.engine == DspEngine::Bypass
+            || (self.pitch_semitones.abs() < 1e-4
+                && (self.tempo_ratio - 1.0).abs() < 1e-4
+                && (self.rate_ratio - 1.0).abs() < 1e-4)
     }
 }
 

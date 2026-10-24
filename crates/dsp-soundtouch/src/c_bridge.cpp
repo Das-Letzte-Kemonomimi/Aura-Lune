@@ -135,4 +135,23 @@ int soundtouch_clear(SoundTouchHandle handle) {
     }
 }
 
+int soundtouch_set_setting(SoundTouchHandle handle, int setting_id, int value) {
+    if (!handle) return -1;
+    try {
+        bool ok = static_cast<soundtouch::SoundTouch*>(handle)->setSetting(setting_id, value);
+        return ok ? 0 : -1;
+    } catch (...) {
+        return -2;
+    }
+}
+
+int soundtouch_get_setting(SoundTouchHandle handle, int setting_id) {
+    if (!handle) return -1;
+    try {
+        return static_cast<soundtouch::SoundTouch*>(handle)->getSetting(setting_id);
+    } catch (...) {
+        return -2;
+    }
+}
+
 }

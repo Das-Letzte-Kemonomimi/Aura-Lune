@@ -140,6 +140,71 @@ impl LibraryScanner {
         Ok(summary)
     }
 
+    /// Skanuje listę ścieżek (pliki i/lub katalogi), np. przekazanych przez Drag & Drop lub okno wyboru plików.
+    pub async fn scan_paths(
+        &self,
+        paths: &[impl AsRef<Path>],
+        db: &Database,
+    ) -> Result<ScanSummary, LibraryError> {
+        let mut summary = ScanSummary::default();
+        for p in paths {
+            let path = p.as_ref();
+            if path.is_dir() {
+                let s = self.scan_directory(path, db).await?;
+                summary.total_files_found += s.total_files_found;
+                summary.new_or_updated_tracks += s.new_or_updated_tracks;
+                summary.skipped_unchanged += s.skipped_unchanged;
+                summary.errors += s.errors;
+            } else if path.is_file() {
+                if !Self::is_supported_audio_extension(path) {
+                    continue;
+                }
+                summary.total_files_found += 1;
+                let path_str = match path.canonicalize() {
+                    Ok(cp) => cp.display().to_string(),
+                    Err(_) => path.display().to_string(),
+                };
+                let metadata = match fs::metadata(path) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        warn!("Błąd odczytu metadanych pliku {}: {:?}", path.display(), e);
+                        summary.errors += 1;
+                        continue;
+                    }
+                };
+                let file_size = metadata.len() as i64;
+                let modified_time = metadata
+                    .modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+
+                if let Ok(Some(existing)) = db.get_track_by_path(&path_str).await {
+                    if existing.file_size == file_size && existing.modified_time == modified_time {
+                        summary.skipped_unchanged += 1;
+                        continue;
+                    }
+                }
+
+                match self
+                    .extract_and_save_track(path, &path_str, file_size, modified_time, db)
+                    .await
+                {
+                    Ok(_) => {
+                        summary.new_or_updated_tracks += 1;
+                        debug!("Zindeksowano: {}", path.display());
+                    }
+                    Err(err) => {
+                        warn!("Błąd odczytu tagów z {}: {:?}", path.display(), err);
+                        summary.errors += 1;
+                    }
+                }
+            }
+        }
+        Ok(summary)
+    }
+
     /// Wyciąga tagi, okładkę i zapisuje encje do bazy.
     async fn extract_and_save_track(
         &self,
@@ -205,6 +270,18 @@ impl LibraryScanner {
             .upsert_album(&album_name, &artist, year, cover_path.as_deref())
             .await?;
 
+        let bpm = tag
+            .as_ref()
+            .and_then(|t| t.get_string(lofty::tag::ItemKey::Bpm))
+            .and_then(|s| s.parse::<f64>().ok())
+            .filter(|&b| (40.0..=280.0).contains(&b))
+            .map(|b| (b * 10.0).round() / 10.0);
+
+        let initial_key = tag
+            .as_ref()
+            .and_then(|t| t.get_string(lofty::tag::ItemKey::InitialKey))
+            .map(|s| s.to_string());
+
         let record = TrackRecord {
             id: 0,
             path: canonical_path.to_string(),
@@ -221,6 +298,12 @@ impl LibraryScanner {
             bit_depth,
             file_size,
             modified_time,
+            is_favorite: None,
+            play_count: None,
+            last_played_at: None,
+            total_play_time_ms: None,
+            bpm,
+            initial_key,
         };
 
         db.upsert_track(&record).await?;

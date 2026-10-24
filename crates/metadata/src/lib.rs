@@ -15,6 +15,9 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
+pub mod lyrics;
+pub use lyrics::*;
+
 #[derive(Debug, Error)]
 pub enum MetadataError {
     #[error("Błąd sieciowy HTTP: {0}")]
@@ -39,6 +42,18 @@ pub struct ReleaseCandidateDto {
     pub country: Option<String>,
     pub track_count: Option<usize>,
     pub score: u32,
+}
+
+/// Kandydat okładki do wyboru w oknie dialogowym (w stylu Poweramp Cover Art Picker).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoverCandidateDto {
+    pub source: String,
+    pub title: String,
+    pub artist: String,
+    pub thumbnail_url: String,
+    pub full_url: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
 }
 
 /// Klient API MusicBrainz.
@@ -177,6 +192,92 @@ impl MusicBrainzClient {
     }
 }
 
+/// Czyści tytuł albumu ze zbędnego szumu (nawiasy, dopiski remasterów, wydania specjalne, dyski),
+/// aby serwisy muzyczne (Deezer, Apple Music, MusicBrainz) mogły precyzyjnie znaleźć oryginalne wydanie.
+pub fn clean_album_title(title: &str) -> String {
+    // 1. Usunięcie zawartości w nawiasach okrągłych (), kwadratowych [] i klamrowych {}
+    let mut cleaned = String::new();
+    let mut depth = 0;
+    for c in title.chars() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            _ if depth == 0 => cleaned.push(c),
+            _ => {}
+        }
+    }
+
+    let mut result = cleaned;
+    // 2. Usunięcie typowych słów-kluczy szumu, gdyby nie były w nawiasach
+    let noise_patterns = [
+        "remastered",
+        "remaster",
+        "deluxe edition",
+        "deluxe",
+        "special edition",
+        "anniversary edition",
+        "expanded edition",
+        "bonus tracks",
+        "bonus track",
+        "original soundtrack",
+        "soundtrack",
+        "ost",
+        "disc 1",
+        "disc 2",
+        "disc 3",
+        "cd 1",
+        "cd 2",
+        "cd 3",
+        "cd1",
+        "cd2",
+    ];
+
+    for pat in noise_patterns {
+        let lower = result.to_lowercase();
+        if let Some(pos) = lower.find(pat) {
+            result = format!("{} {}", &result[..pos], &result[pos + pat.len()..]);
+        }
+    }
+
+    let words: Vec<&str> = result.split_whitespace().collect();
+    let final_str = words.join(" ");
+
+    if final_str.is_empty() {
+        title.trim().to_string()
+    } else {
+        final_str
+    }
+}
+
+/// Czyści nazwę wykonawcy z nawiasów i szumu.
+pub fn clean_artist_name(artist: &str) -> String {
+    let mut cleaned = String::new();
+    let mut depth = 0;
+    for c in artist.chars() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            _ if depth == 0 => cleaned.push(c),
+            _ => {}
+        }
+    }
+    let words: Vec<&str> = cleaned.split_whitespace().collect();
+    let final_str = words.join(" ");
+    if final_str.is_empty() {
+        artist.trim().to_string()
+    } else {
+        final_str
+    }
+}
+
 /// Klient Cover Art Archive odpowiedzialny za pobieranie i lokalne buforowanie okładek.
 pub struct CoverArtArchiveClient {
     http: reqwest::Client,
@@ -239,6 +340,339 @@ impl CoverArtArchiveClient {
         tokio::fs::rename(&temp_file, &cached_file).await?;
 
         info!("Okładka zapisana w pamięci podręcznej: {:?}", cached_file);
+        Ok(cached_file)
+    }
+
+    async fn query_deezer(
+        &self,
+        url: &str,
+        default_album: &str,
+        default_artist: &str,
+        candidates: &mut Vec<CoverCandidateDto>,
+        seen_urls: &mut std::collections::HashSet<String>,
+    ) {
+        debug!("Wyszukiwanie okładek Deezer: {}", url);
+        if let Ok(resp) = self
+            .http
+            .get(url)
+            .header("User-Agent", "Auralune/0.1.0")
+            .send()
+            .await
+        {
+            if resp.status().is_success() {
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
+                        for item in data {
+                            let title = item
+                                .get("title")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or(default_album)
+                                .to_string();
+                            let artist_name = item
+                                .get("artist")
+                                .and_then(|a| a.get("name"))
+                                .and_then(|n| n.as_str())
+                                .unwrap_or(default_artist)
+                                .to_string();
+                            let cover_xl = item.get("cover_xl").and_then(|c| c.as_str());
+                            let cover_big = item.get("cover_big").and_then(|c| c.as_str());
+                            let cover_med = item.get("cover_medium").and_then(|c| c.as_str());
+
+                            if let Some(full) = cover_xl.or(cover_big) {
+                                let thumb = cover_med.unwrap_or(full);
+                                if seen_urls.insert(full.to_string()) {
+                                    candidates.push(CoverCandidateDto {
+                                        source: "Deezer (1000px)".to_string(),
+                                        title,
+                                        artist: artist_name,
+                                        thumbnail_url: thumb.to_string(),
+                                        full_url: full.to_string(),
+                                        width: Some(1000),
+                                        height: Some(1000),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn query_itunes(
+        &self,
+        url: &str,
+        default_album: &str,
+        default_artist: &str,
+        candidates: &mut Vec<CoverCandidateDto>,
+        seen_urls: &mut std::collections::HashSet<String>,
+    ) {
+        debug!("Wyszukiwanie okładek iTunes: {}", url);
+        if let Ok(resp) = self
+            .http
+            .get(url)
+            .header("User-Agent", "Auralune/0.1.0")
+            .send()
+            .await
+        {
+            if resp.status().is_success() {
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    if let Some(results) = json.get("results").and_then(|r| r.as_array()) {
+                        for res in results {
+                            let title = res
+                                .get("collectionName")
+                                .and_then(|s| s.as_str())
+                                .unwrap_or(default_album)
+                                .to_string();
+                            let artist_name = res
+                                .get("artistName")
+                                .and_then(|s| s.as_str())
+                                .unwrap_or(default_artist)
+                                .to_string();
+                            if let Some(thumb) = res.get("artworkUrl100").and_then(|s| s.as_str()) {
+                                let full = thumb.replace("100x100bb.jpg", "1200x1200bb.jpg");
+                                let thumb_300 = thumb.replace("100x100bb.jpg", "300x300bb.jpg");
+                                if seen_urls.insert(full.clone()) {
+                                    candidates.push(CoverCandidateDto {
+                                        source: "Apple Music (1200px)".to_string(),
+                                        title,
+                                        artist: artist_name,
+                                        thumbnail_url: thumb_300,
+                                        full_url: full,
+                                        width: Some(1200),
+                                        height: Some(1200),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Wyszukuje kandydatów na okładki w internecie (Deezer, Apple Music / iTunes) w stylu Poweramp Cover Art Picker.
+    pub async fn search_cover_candidates(
+        &self,
+        album: &str,
+        artist: &str,
+    ) -> Vec<CoverCandidateDto> {
+        let clean_album = clean_album_title(album);
+        let clean_artist = clean_artist_name(artist);
+        let raw_album = album.trim();
+        let raw_artist = artist.trim();
+
+        let mut candidates = Vec::new();
+        let mut seen_urls = std::collections::HashSet::new();
+
+        // 1. DEEZER API - doskonała jakość 1000x1000 i szeroki europejski i światowy katalog
+        if !clean_artist.is_empty() && !clean_album.is_empty() {
+            let deezer_adv = format!(
+                "https://api.deezer.com/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
+                urlencoding::encode(&clean_artist),
+                urlencoding::encode(&clean_album)
+            );
+            self.query_deezer(&deezer_adv, album, artist, &mut candidates, &mut seen_urls)
+                .await;
+        }
+
+        let deezer_general = format!("{} {}", clean_artist, clean_album)
+            .trim()
+            .to_string();
+        if !deezer_general.is_empty() {
+            let deezer_url = format!(
+                "https://api.deezer.com/search/album?q={}&limit=10",
+                urlencoding::encode(&deezer_general)
+            );
+            self.query_deezer(&deezer_url, album, artist, &mut candidates, &mut seen_urls)
+                .await;
+        }
+
+        if candidates.is_empty() && !clean_album.is_empty() {
+            let deezer_album_only = format!(
+                "https://api.deezer.com/search/album?q=album:\"{}\"&limit=6",
+                urlencoding::encode(&clean_album)
+            );
+            self.query_deezer(
+                &deezer_album_only,
+                album,
+                artist,
+                &mut candidates,
+                &mut seen_urls,
+            )
+            .await;
+        }
+
+        // 2. APPLE MUSIC / ITUNES SEARCH API (do 1200x1200px artwork)
+        let itunes_queries = vec![
+            format!("{} {}", clean_album, clean_artist)
+                .trim()
+                .to_string(),
+            format!("{} {}", clean_artist, clean_album)
+                .trim()
+                .to_string(),
+        ];
+
+        for q in itunes_queries {
+            if q.is_empty() {
+                continue;
+            }
+            let itunes_url = format!(
+                "https://itunes.apple.com/search?term={}&entity=album&limit=8",
+                urlencoding::encode(&q)
+            );
+            self.query_itunes(&itunes_url, album, artist, &mut candidates, &mut seen_urls)
+                .await;
+            if candidates.len() >= 12 {
+                break;
+            }
+        }
+
+        // Fallback dla raw query jeśli wyczyszczone dało niewiele wyników
+        if candidates.len() < 4 && raw_album != clean_album {
+            let raw_q = format!("{} {}", raw_album, raw_artist).trim().to_string();
+            let itunes_raw_url = format!(
+                "https://itunes.apple.com/search?term={}&entity=album&limit=6",
+                urlencoding::encode(&raw_q)
+            );
+            self.query_itunes(
+                &itunes_raw_url,
+                album,
+                artist,
+                &mut candidates,
+                &mut seen_urls,
+            )
+            .await;
+        }
+
+        // 3. RANKING I SORTOWANIE (dokładne dopasowanie tytułu i wykonawcy na pierwszym miejscu)
+        let target_album_lower = clean_album.to_lowercase();
+        let target_artist_lower = clean_artist.to_lowercase();
+
+        candidates.sort_by(|a, b| {
+            let a_title_exact = a.title.to_lowercase() == target_album_lower;
+            let b_title_exact = b.title.to_lowercase() == target_album_lower;
+            let a_artist_match = !target_artist_lower.is_empty()
+                && a.artist.to_lowercase().contains(&target_artist_lower);
+            let b_artist_match = !target_artist_lower.is_empty()
+                && b.artist.to_lowercase().contains(&target_artist_lower);
+
+            let a_score = (if a_title_exact {
+                4
+            } else if a.title.to_lowercase().contains(&target_album_lower) {
+                2
+            } else {
+                0
+            }) + (if a_artist_match { 2 } else { 0 });
+            let b_score = (if b_title_exact {
+                4
+            } else if b.title.to_lowercase().contains(&target_album_lower) {
+                2
+            } else {
+                0
+            }) + (if b_artist_match { 2 } else { 0 });
+
+            b_score.cmp(&a_score)
+        });
+
+        candidates
+    }
+
+    /// Pobiera okładkę ze wskazanego bezpośredniego adresu URL i zapisuje pod wybranym stemem pliku w pamięci podręcznej.
+    pub async fn download_cover_from_url(
+        &self,
+        url: &str,
+        file_stem: &str,
+    ) -> Result<PathBuf, MetadataError> {
+        let covers_dir = self.cache_dir.join("covers");
+        tokio::fs::create_dir_all(&covers_dir).await?;
+
+        let cached_file = covers_dir.join(format!("{}.jpg", file_stem));
+        info!(
+            "Pobieranie okładki z URL: {} do pliku: {:?}",
+            url, cached_file
+        );
+
+        let resp = self
+            .http
+            .get(url)
+            .header("User-Agent", "Auralune/0.1.0")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            return Err(MetadataError::Query(format!(
+                "Serwer zwrócił kod HTTP: {} podczas pobierania okładki",
+                resp.status()
+            )));
+        }
+
+        let bytes = resp.bytes().await?;
+        if bytes.is_empty() {
+            return Err(MetadataError::CoverNotFound(url.to_string()));
+        }
+
+        let temp_file = covers_dir.join(format!("{}.tmp", file_stem));
+        tokio::fs::write(&temp_file, &bytes).await?;
+        tokio::fs::rename(&temp_file, &cached_file).await?;
+
+        info!("Okładka zapisana pomyślnie: {:?}", cached_file);
+        Ok(cached_file)
+    }
+
+    /// Zapisuje plik własnej okładki z lokalnego dysku do katalogu pamięci podręcznej okładek Auralune.
+    pub async fn save_custom_cover_file(
+        &self,
+        album_id: i64,
+        source_path: impl AsRef<Path>,
+    ) -> Result<PathBuf, MetadataError> {
+        let src = source_path.as_ref();
+        if !src.exists() {
+            return Err(MetadataError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Wskazany plik graficzny nie istnieje",
+            )));
+        }
+        let ext = src
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("jpg")
+            .to_lowercase();
+        let covers_dir = self.cache_dir.join("covers");
+        tokio::fs::create_dir_all(&covers_dir).await?;
+
+        let cached_file = covers_dir.join(format!("custom_album_{}.{}", album_id, ext));
+        let temp_file = covers_dir.join(format!("custom_album_{}.tmp", album_id));
+
+        tokio::fs::copy(src, &temp_file).await?;
+        tokio::fs::rename(&temp_file, &cached_file).await?;
+        info!(
+            "Zapisano własną okładkę dla albumu #{}: {:?}",
+            album_id, cached_file
+        );
+        Ok(cached_file)
+    }
+
+    /// Zapisuje dane binarne własnej okładki (np. z przeciągniętego pliku / inputu) do pamięci podręcznej.
+    pub async fn save_custom_cover_bytes(
+        &self,
+        album_id: i64,
+        bytes: &[u8],
+        ext: &str,
+    ) -> Result<PathBuf, MetadataError> {
+        let clean_ext = if ext.is_empty() { "jpg" } else { ext };
+        let covers_dir = self.cache_dir.join("covers");
+        tokio::fs::create_dir_all(&covers_dir).await?;
+
+        let cached_file = covers_dir.join(format!("custom_album_{}.{}", album_id, clean_ext));
+        let temp_file = covers_dir.join(format!("custom_album_{}.tmp", album_id));
+
+        tokio::fs::write(&temp_file, bytes).await?;
+        tokio::fs::rename(&temp_file, &cached_file).await?;
+        info!(
+            "Zapisano własną okładkę z danych binarnych dla albumu #{}: {:?}",
+            album_id, cached_file
+        );
         Ok(cached_file)
     }
 }
@@ -328,5 +762,47 @@ mod tests {
 
         // Czyszczenie
         let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+    }
+
+    #[test]
+    fn test_clean_album_title() {
+        assert_eq!(clean_album_title("7 (2015 Remastered)"), "7");
+        assert_eq!(
+            clean_album_title("Master of Puppets [Remastered]"),
+            "Master of Puppets"
+        );
+        assert_eq!(
+            clean_album_title("OK Computer (Collector's Edition) [Disc 1]"),
+            "OK Computer"
+        );
+        assert_eq!(
+            clean_album_title("Hybrid Theory (Deluxe Edition)"),
+            "Hybrid Theory"
+        );
+        assert_eq!(clean_album_title("7"), "7");
+        assert_eq!(clean_album_title("( )"), "( )");
+    }
+
+    #[test]
+    fn test_clean_artist_name() {
+        assert_eq!(clean_artist_name("In Extremo (Live)"), "In Extremo");
+        assert_eq!(clean_artist_name("Linkin Park"), "Linkin Park");
+    }
+
+    #[tokio::test]
+    async fn test_search_cover_candidates_online_in_extremo() {
+        let temp_dir = std::env::temp_dir().join("auralune_test_cover_candidates");
+        let client = CoverArtArchiveClient::new(&temp_dir);
+        let candidates = client
+            .search_cover_candidates("7 (2015 Remastered)", "In Extremo")
+            .await;
+        assert!(
+            !candidates.is_empty(),
+            "Kandydaci okładek dla '7' In Extremo powinni zostać znalezieni!"
+        );
+        let first = &candidates[0];
+        assert_eq!(first.title, "7");
+        assert_eq!(first.artist, "In Extremo");
+        assert!(first.full_url.contains("1000x1000") || first.full_url.contains("1200x1200"));
     }
 }

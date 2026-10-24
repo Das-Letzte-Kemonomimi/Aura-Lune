@@ -53,3 +53,26 @@ async fn test_library_scanner_incremental_and_db_persistence() {
     // Sprzątanie katalogu cache testu
     let _ = std::fs::remove_dir_all(&cache_dir);
 }
+
+#[tokio::test]
+async fn test_library_scanner_scan_paths_individual_files_and_folders() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+    let fixtures_dir = root.join("tests/fixtures");
+    let cache_dir = root.join("tests/fixtures/cache_paths_test");
+    let scanner = LibraryScanner::new(&cache_dir);
+    let db = Database::new_in_memory().await.unwrap();
+
+    let wav_file = fixtures_dir.join("test_sine_440hz.wav");
+    let opus_file = fixtures_dir.join("test_sine_440hz.opus");
+    let paths = vec![wav_file, opus_file];
+
+    let summary = scanner.scan_paths(&paths, &db).await.unwrap();
+    assert_eq!(summary.total_files_found, 2);
+    assert_eq!(summary.new_or_updated_tracks, 2);
+
+    let tracks = db.list_tracks().await.unwrap();
+    assert_eq!(tracks.len(), 2);
+
+    let _ = std::fs::remove_dir_all(&cache_dir);
+}

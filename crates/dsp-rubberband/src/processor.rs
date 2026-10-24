@@ -70,16 +70,30 @@ impl AudioProcessor for RubberBandProcessor {
         let channels = format.channels as usize;
         let sample_rate = format.sample_rate;
 
-        let options = RUBBERBAND_OPTION_PROCESS_REALTIME | RUBBERBAND_OPTION_ENGINE_FASTER;
+        // Konfiguracja Rubber Band:
+        // - REALTIME + ENGINE_FINER (R3): precyzyjny silnik
+        // - TRANSIENTS_CRISP + DETECTOR_COMPOUND: precyzyjne zachowanie transjentów perkusyjnych
+        //   i spółgłosek bez rozmywania fazowego (eliminuje szelest / shshshshs przy dużym zwolnieniu FLAC)
+        // - WINDOW_STANDARD + SMOOTHING_OFF: optymalne okno FFT bez artefaktów fazowych
+        let mut options = RUBBERBAND_OPTION_PROCESS_REALTIME
+            | RUBBERBAND_OPTION_ENGINE_FINER
+            | RUBBERBAND_OPTION_PITCH_HIGH_QUALITY
+            | RUBBERBAND_OPTION_TRANSIENTS_CRISP
+            | RUBBERBAND_OPTION_DETECTOR_COMPOUND
+            | RUBBERBAND_OPTION_WINDOW_STANDARD
+            | RUBBERBAND_OPTION_SMOOTHING_OFF;
+        if channels > 1 {
+            options |= RUBBERBAND_OPTION_CHANNELS_TOGETHER;
+        }
         let initial_pitch = self.params.pitch_scale() * self.params.rate_ratio;
-        let initial_tempo = self.params.tempo_ratio / self.params.rate_ratio;
+        let initial_time_ratio = 1.0 / (self.params.tempo_ratio * self.params.rate_ratio);
 
         let state = unsafe {
             rubberband_new(
                 sample_rate,
                 channels as u32,
                 options,
-                initial_tempo,
+                initial_time_ratio,
                 initial_pitch,
             )
         };
@@ -94,9 +108,10 @@ impl AudioProcessor for RubberBandProcessor {
         self.state = Some(state);
         self.format = Some(format);
 
-        self.in_channels = vec![Vec::with_capacity(max_block_frames); channels];
+        let safe_block = max_block_frames.max(4096);
+        self.in_channels = vec![Vec::with_capacity(safe_block); channels];
         self.in_ptrs = vec![std::ptr::null(); channels];
-        self.out_channels = vec![vec![0.0f32; max_block_frames * 2]; channels];
+        self.out_channels = vec![vec![0.0f32; safe_block * 4]; channels];
         self.out_ptrs = vec![std::ptr::null_mut(); channels];
 
         debug!(
@@ -112,7 +127,7 @@ impl AudioProcessor for RubberBandProcessor {
 
         if let Some(state) = self.state {
             let pitch_scale = semitones_to_pitch_ratio(params.pitch_semitones) * params.rate_ratio;
-            let time_ratio = params.tempo_ratio / params.rate_ratio;
+            let time_ratio = 1.0 / (params.tempo_ratio * params.rate_ratio);
 
             unsafe {
                 rubberband_set_pitch_scale(state, pitch_scale);
@@ -157,9 +172,13 @@ impl AudioProcessor for RubberBandProcessor {
             rubberband_process(state, self.in_ptrs.as_ptr(), num_frames as u32, 0);
         }
 
-        // 3. Pobranie dostępnych przetworzonych ramek
-        let available = unsafe { rubberband_available(state) };
-        if available > 0 {
+        // 3. Pobranie wszystkich dostępnych przetworzonych ramek (w pętli, aby uniknąć głodzenia bufora)
+        let mut total_retrieved = 0;
+        loop {
+            let available = unsafe { rubberband_available(state) };
+            if available <= 0 {
+                break;
+            }
             let avail_frames = available as usize;
             for c in 0..channels {
                 if self.out_channels[c].len() < avail_frames {
@@ -172,18 +191,24 @@ impl AudioProcessor for RubberBandProcessor {
                 rubberband_retrieve(state, self.out_ptrs.as_ptr(), avail_frames as u32) as usize
             };
 
-            if retrieved > 0 {
-                output.reserve(retrieved * channels);
-                for f in 0..retrieved {
-                    for c in 0..channels {
-                        output.push(self.out_channels[c][f]);
-                    }
+            if retrieved == 0 {
+                break;
+            }
+
+            total_retrieved += retrieved;
+            output.reserve(retrieved * channels);
+            for f in 0..retrieved {
+                for c in 0..channels {
+                    output.push(self.out_channels[c][f]);
                 }
-                return Ok(ProcessStatus::Ok);
             }
         }
 
-        Ok(ProcessStatus::Buffering)
+        if total_retrieved > 0 {
+            Ok(ProcessStatus::Ok)
+        } else {
+            Ok(ProcessStatus::Buffering)
+        }
     }
 
     fn latency_frames(&self) -> usize {

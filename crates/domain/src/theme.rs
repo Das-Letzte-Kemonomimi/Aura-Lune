@@ -181,6 +181,60 @@ pub fn default_themes() -> Vec<Theme> {
             blur_radius: 14.0,
             attribution: Some("80s Outrun Sunset aesthetics".to_string()),
         },
+        Theme {
+            id: "evangelion-01".to_string(),
+            name: "Evangelion Unit-01".to_string(),
+            schema_version: 1,
+            tokens: ThemeTokens {
+                bg_deep: "#120824".to_string(),
+                bg_surface: "rgba(28, 14, 50, 0.80)".to_string(),
+                bg_surface_hover: "rgba(42, 20, 74, 0.90)".to_string(),
+                bg_card: "rgba(32, 16, 58, 0.65)".to_string(),
+                border_subtle: "rgba(57, 255, 20, 0.20)".to_string(),
+                border_accent: "rgba(57, 255, 20, 0.55)".to_string(),
+                accent_pink: "#ff4757".to_string(),
+                accent_purple: "#9d4edd".to_string(),
+                accent_cyan: "#39ff14".to_string(),
+                accent_green: "#2ed573".to_string(),
+                accent_amber: "#ffa502".to_string(),
+                text_primary: "#f1f2f6".to_string(),
+                text_secondary: "#70a1ff".to_string(),
+                text_muted: "#747d8c".to_string(),
+                shadow_glow: "0 0 28px rgba(57, 255, 20, 0.35)".to_string(),
+                shadow_card: "0 10px 30px rgba(18, 8, 36, 0.70)".to_string(),
+            },
+            background_ref: None,
+            overlay_opacity: 0.45,
+            blur_radius: 10.0,
+            attribution: Some("EVA-01 mecha bio-hazard anime aesthetics".to_string()),
+        },
+        Theme {
+            id: "lofi-chillroom".to_string(),
+            name: "Lofi Chillroom".to_string(),
+            schema_version: 1,
+            tokens: ThemeTokens {
+                bg_deep: "#15100e".to_string(),
+                bg_surface: "rgba(38, 25, 20, 0.80)".to_string(),
+                bg_surface_hover: "rgba(54, 35, 28, 0.90)".to_string(),
+                bg_card: "rgba(44, 28, 22, 0.65)".to_string(),
+                border_subtle: "rgba(245, 158, 11, 0.18)".to_string(),
+                border_accent: "rgba(217, 119, 6, 0.45)".to_string(),
+                accent_pink: "#fb7185".to_string(),
+                accent_purple: "#d97706".to_string(),
+                accent_cyan: "#84cc16".to_string(),
+                accent_green: "#a3e635".to_string(),
+                accent_amber: "#f59e0b".to_string(),
+                text_primary: "#fffbeb".to_string(),
+                text_secondary: "#fde68a".to_string(),
+                text_muted: "#92400e".to_string(),
+                shadow_glow: "0 0 25px rgba(245, 158, 11, 0.28)".to_string(),
+                shadow_card: "0 10px 30px rgba(21, 16, 14, 0.65)".to_string(),
+            },
+            background_ref: None,
+            overlay_opacity: 0.35,
+            blur_radius: 12.0,
+            attribution: Some("Cozy anime study desk & warm ambient lamp".to_string()),
+        },
     ]
 }
 
@@ -191,7 +245,7 @@ mod tests {
     #[test]
     fn test_theme_validation() {
         let themes = default_themes();
-        assert_eq!(themes.len(), 4);
+        assert_eq!(themes.len(), 6);
         for t in themes {
             assert!(t.validate().is_ok());
         }
