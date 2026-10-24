@@ -8,3 +8,4 @@ Cargo.lock
 *~
 .DS_Store
 tests/fixtures/*.flac
+!tests/fixtures/Skrzydła Białe.flac

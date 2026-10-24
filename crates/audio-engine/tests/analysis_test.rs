@@ -98,3 +98,19 @@ fn test_omnia_sol_temperat() {
         );
     }
 }
+
+#[test]
+fn test_skrzydla_biale() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+    let flac_path = root.join("tests/fixtures/Skrzydła Białe.flac");
+
+    if flac_path.exists() {
+        let res = analyze_track_key_bpm(flac_path.to_str().unwrap()).unwrap();
+        println!("Wynik Skrzydła Białe: {:?}", res);
+        assert!(!res.key_name.is_empty());
+        assert!(!res.camelot.is_empty());
+        assert!(res.bpm > 0.0);
+    }
+}
+

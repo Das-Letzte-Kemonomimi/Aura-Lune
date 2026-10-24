@@ -16,7 +16,11 @@ fn test_flac_slow_playback_cleanliness() {
         .unwrap()
         .to_path_buf();
 
-    let flac_path = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    let flac_path = if root.join("tests/fixtures/Skrzydła Białe.flac").exists() {
+        root.join("tests/fixtures/Skrzydła Białe.flac")
+    } else {
+        root.join("tests/fixtures/08. Omnia Sol Temperat.flac")
+    };
     if !flac_path.exists() {
         return;
     }
@@ -146,7 +150,11 @@ fn test_switch_tracks_flac() {
         .unwrap()
         .to_path_buf();
 
-    let flac_path = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    let flac_path = if root.join("tests/fixtures/Skrzydła Białe.flac").exists() {
+        root.join("tests/fixtures/Skrzydła Białe.flac")
+    } else {
+        root.join("tests/fixtures/08. Omnia Sol Temperat.flac")
+    };
     if !flac_path.exists() {
         return;
     }
@@ -178,7 +186,11 @@ fn test_library_track_click_and_rapid_status_query() {
         .unwrap()
         .to_path_buf();
 
-    let flac_path = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    let flac_path = if root.join("tests/fixtures/Skrzydła Białe.flac").exists() {
+        root.join("tests/fixtures/Skrzydła Białe.flac")
+    } else {
+        root.join("tests/fixtures/08. Omnia Sol Temperat.flac")
+    };
     let wav_path = root.join("tests/fixtures/test_sine_440hz.wav");
     if !flac_path.exists() || !wav_path.exists() {
         return;
