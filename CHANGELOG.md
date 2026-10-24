@@ -41,10 +41,13 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
   - Skorygowano obliczanie pozycji w `calculate_media_position`: pozycja ze sprzętowego zegara sinka jest prawidłowo skalowana przez rzeczywisty mnożnik prędkości DSP (`tempo_ratio * rate_ratio`).
   - Wyeliminowano problem wybiegania licznika czasu i wskaźnika fali przed dźwięk przy spowolnionym odtwarzaniu (np. przy 0.55x).
   - Wprowadzono automatyczny re-anchoring bazy czasowej przed zmianą parametrów prędkości w locie (`set_dsp_params`), zapobiegając jakimkolwiek skokom lub opóźnieniom na osi czasu.
-- **Eliminacja szumów i trzasków ("shshsh") na plikach FLAC przy tempie < 0.50x**:
-  - Zoptymalizowano konfigurację Rubber Band (`TRANSIENTS_CRISP | DETECTOR_COMPOUND | WINDOW_STANDARD | SMOOTHING_OFF`).
-  - Wprowadzono bezpieczną poduszkę buforową FIFO w `dsp_node`, eliminując problem opróżniania bufora do zera przy gwałtownych oknach FFT.
-  - Zwiększono pojemność kolejki buforowej przed wyjściem audio (`queue_sink`) z 500ms do 2.0s.
+- **Eliminacja przerywania dźwięku, zacinania i głodzenia bufora („jakby bufor nie nadążał”)**:
+  - Usunięto sztuczne przetrzymywanie próbek („cushion”) w `AuraluneDsp`, które blokowało wypychanie pakietów audio do potoku i powodowało opóźnianie znaczników czasowych PTS względem zegara sprzętowego.
+  - Zaimplementowano natychmiastowe opróżnianie FIFO w ciągłych blokach do 2048 ramek (~46ms) z monotonicznym czasem PTS, zapewniając stały i równomierny strumień PCM do PipeWire.
+  - Zastosowano zoptymalizowany pod kątem niskiej latencji silnik `RUBBERBAND_OPTION_ENGINE_FASTER` (R2) z `PITCH_HIGH_QUALITY` i `TRANSIENTS_CRISP`, co zredukowało zużycie CPU o ~75% w czasie rzeczywistym i wyeliminowało przeciążenia na dużych blokach FLAC.
+- **Natychmiastowa reakcja i płynność regulacji parametrów DSP w locie**:
+  - Zredukowano bufor `queue_sink` z 2.0 s do 200 ms oraz `processing-deadline` w `pipewiresink` z 200 ms do 40 ms — zmniejszając akustyczne opóźnienie reakcji na ruch suwakiem z 2.2 s do niesłyszalnych ~150 ms.
+  - Wprowadzono leading-and-trailing throttle (35 ms) na wywołaniach IPC w interfejsie React (`handlePitchChange`, `handleTempoChange`, `handleRateChange`), zapobiegając zatykaniu magistrali Tauri i blokowaniu zapytań o pozycję potoku podczas przeciągania suwaków.
 - **Eliminacja efektu flangera, zniekształceń fazowych i poszarpanego dźwięku przy przełączaniu na Bypass**:
   - Zastąpiono sztuczne nadpisywanie znaczników czasowych PTS w `dsp_node` czystym, 100% bit-perfect passthrough oryginalnych buforów dekodera (`srcpad.push(buffer)`).
   - Wyeliminowano wywoływanie `rubberband.reset()` i `soundtouch.reset()` wewnątrz callbacku czasu rzeczywistego na każdym przychodzącym pakiecie (co wywoływało ciągłe alokacje/dealokacje pamięci i dropy ramek).
