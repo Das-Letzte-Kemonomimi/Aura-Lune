@@ -483,6 +483,7 @@ export interface Translations {
     startTimer: string;
     timerPill: string;
     endOfTrackPill: string;
+    customDuration: string;
   };
   lyricsView: {
     title: string;
@@ -1109,6 +1110,7 @@ export const translations: Record<Language, Translations> = {
       startTimer: 'Start Sleep Timer',
       timerPill: 'Timer',
       endOfTrackPill: 'End of Track',
+      customDuration: 'Custom Duration',
     },
     lyricsView: {
       title: 'Synchronized Lyrics',
@@ -1734,6 +1736,7 @@ export const translations: Record<Language, Translations> = {
       startTimer: 'Uruchom wyłącznik',
       timerPill: 'Timer',
       endOfTrackPill: 'Koniec utworu',
+      customDuration: 'Własny czas (minuty)',
     },
     lyricsView: {
       title: 'Zsynchronizowane teksty piosenek',
@@ -2359,6 +2362,7 @@ export const translations: Record<Language, Translations> = {
       startTimer: 'Timer aktivieren',
       timerPill: 'Timer',
       endOfTrackPill: 'Titelende',
+      customDuration: 'Benutzerdefinierte Dauer',
     },
     lyricsView: {
       title: 'Synchronisierte Songtexte',
@@ -2984,6 +2988,7 @@ export const translations: Record<Language, Translations> = {
       startTimer: 'Käynnistä ajastin',
       timerPill: 'Ajastin',
       endOfTrackPill: 'Kappaleen loppu',
+      customDuration: 'Mukautettu kesto',
     },
     lyricsView: {
       title: 'Synkronoidut sanoitukset',
@@ -3609,6 +3614,7 @@ export const translations: Record<Language, Translations> = {
       startTimer: 'Incipe temporizatorem',
       timerPill: 'Temporizator',
       endOfTrackPill: 'Finis cantus',
+      customDuration: 'Tempus Proprium',
     },
     lyricsView: {
       title: 'Carmina synchronizata',

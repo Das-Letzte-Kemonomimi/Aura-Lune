@@ -1,5 +1,5 @@
-import React from 'react';
-import { Moon, Clock, VolumeX, X, Check, BellOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Moon, Clock, VolumeX, X, Check, BellOff, Sliders } from 'lucide-react';
 import type { Language } from '../i18n';
 import { getTranslations } from '../i18n';
 
@@ -24,8 +24,24 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
   onSetTimer,
   onCancelTimer,
 }) => {
-  const [selectedMinutes, setSelectedMinutes] = React.useState<number | 'end_of_track'>(30);
-  const [enableFadeOut, setEnableFadeOut] = React.useState<boolean>(fadeOut);
+  const [selectedMinutes, setSelectedMinutes] = useState<number>(30);
+  const [isEndOfTrack, setIsEndOfTrack] = useState<boolean>(false);
+  const [enableFadeOut, setEnableFadeOut] = useState<boolean>(fadeOut);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (targetMode === 'end_of_track') {
+        setIsEndOfTrack(true);
+      } else if (remainingSec && remainingSec > 0) {
+        setIsEndOfTrack(false);
+        setSelectedMinutes(Math.max(1, Math.ceil(remainingSec / 60)));
+      } else {
+        setIsEndOfTrack(false);
+        setSelectedMinutes(30);
+      }
+      setEnableFadeOut(fadeOut);
+    }
+  }, [isOpen, targetMode, remainingSec, fadeOut]);
 
   if (!isOpen) return null;
 
@@ -38,6 +54,35 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
   };
 
   const presetTimes = [15, 30, 45, 60, 90];
+
+  const handleSelectPreset = (mins: number) => {
+    setIsEndOfTrack(false);
+    setSelectedMinutes(mins);
+  };
+
+  const handleSelectEndOfTrack = () => {
+    setIsEndOfTrack(true);
+  };
+
+  const handleStep = (delta: number) => {
+    setIsEndOfTrack(false);
+    setSelectedMinutes((prev) => Math.max(1, Math.min(720, prev + delta)));
+  };
+
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value, 10);
+    setIsEndOfTrack(false);
+    if (!isNaN(val)) {
+      setSelectedMinutes(Math.max(1, Math.min(720, val)));
+    }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsEndOfTrack(false);
+    setSelectedMinutes(Number(e.target.value));
+  };
+
+  const sliderPercent = Math.min(100, Math.max(0, ((Math.min(180, selectedMinutes) - 1) / 179) * 100));
 
   return (
     <div
@@ -58,9 +103,9 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         className="glass-card"
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '460px',
           borderRadius: '16px',
-          background: 'linear-gradient(145deg, rgba(26, 20, 46, 0.94), rgba(16, 12, 30, 0.98))',
+          background: 'linear-gradient(145deg, rgba(26, 20, 46, 0.96), rgba(16, 12, 30, 0.98))',
           border: '1px solid var(--border-accent)',
           boxShadow: '0 16px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(168, 85, 247, 0.25)',
           padding: '24px',
@@ -120,7 +165,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
               borderRadius: '10px',
               background: 'rgba(168, 85, 247, 0.15)',
               border: '1px solid rgba(168, 85, 247, 0.35)',
-              marginBottom: '18px',
+              marginBottom: '16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -168,7 +213,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
               borderRadius: '10px',
               background: 'rgba(6, 182, 212, 0.15)',
               border: '1px solid rgba(6, 182, 212, 0.35)',
-              marginBottom: '18px',
+              marginBottom: '16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -201,47 +246,151 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
           </div>
         )}
 
-        {/* Wybór czasu */}
-        <div style={{ marginBottom: '18px' }}>
-          <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>
+        {/* Wybór czasu - Szybkie Presety */}
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.04em' }}>
             {loc.sleepTimerModal.chooseTime}
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-            {presetTimes.map((mins) => (
-              <button
-                key={mins}
-                onClick={() => setSelectedMinutes(mins)}
-                style={{
-                  padding: '10px 8px',
-                  borderRadius: '8px',
-                  background: selectedMinutes === mins ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'rgba(255, 255, 255, 0.05)',
-                  border: selectedMinutes === mins ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                  color: selectedMinutes === mins ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {mins} {loc.stats.minsUnit}
-              </button>
-            ))}
+            {presetTimes.map((mins) => {
+              const isSelected = !isEndOfTrack && selectedMinutes === mins;
+              return (
+                <button
+                  key={mins}
+                  onClick={() => handleSelectPreset(mins)}
+                  style={{
+                    padding: '9px 8px',
+                    borderRadius: '8px',
+                    background: isSelected ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'rgba(255, 255, 255, 0.05)',
+                    border: isSelected ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                    color: isSelected ? '#fff' : 'var(--text-secondary)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 0 12px rgba(244, 63, 94, 0.35)' : 'none',
+                  }}
+                >
+                  {mins} {loc.stats.minsUnit}
+                </button>
+              );
+            })}
             <button
-              onClick={() => setSelectedMinutes('end_of_track')}
+              onClick={handleSelectEndOfTrack}
               style={{
-                padding: '10px 8px',
+                padding: '9px 8px',
                 borderRadius: '8px',
-                background: selectedMinutes === 'end_of_track' ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'rgba(255, 255, 255, 0.05)',
-                border: selectedMinutes === 'end_of_track' ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                color: selectedMinutes === 'end_of_track' ? '#fff' : 'var(--text-secondary)',
+                background: isEndOfTrack ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'rgba(255, 255, 255, 0.05)',
+                border: isEndOfTrack ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                color: isEndOfTrack ? '#fff' : 'var(--text-secondary)',
                 fontSize: '0.78rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                boxShadow: isEndOfTrack ? '0 0 12px rgba(244, 63, 94, 0.35)' : 'none',
               }}
             >
               {loc.sleepTimerModal.endOfTrack}
             </button>
+          </div>
+        </div>
+
+        {/* Panel ręcznej modyfikacji (dowolna liczba minut, stepper i suwak) */}
+        <div
+          style={{
+            padding: '12px 14px',
+            borderRadius: '10px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: !isEndOfTrack ? '1px solid rgba(244, 63, 94, 0.3)' : '1px solid var(--border-subtle)',
+            marginBottom: '16px',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Sliders size={14} color={!isEndOfTrack ? 'var(--accent-pink)' : 'var(--text-muted)'} />
+              <span style={{ fontSize: '0.74rem', fontWeight: 700, color: !isEndOfTrack ? 'var(--accent-pink)' : 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                {loc.sleepTimerModal.customDuration}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="number"
+                min={1}
+                max={720}
+                value={selectedMinutes}
+                onChange={handleNumberChange}
+                onFocus={() => setIsEndOfTrack(false)}
+                style={{
+                  width: '68px',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: !isEndOfTrack ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                  color: !isEndOfTrack ? '#fff' : 'var(--text-muted)',
+                  fontSize: '0.98rem',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  textAlign: 'center',
+                  outline: 'none',
+                  boxShadow: !isEndOfTrack ? '0 0 8px rgba(244, 63, 94, 0.3)' : 'none',
+                }}
+              />
+              <span style={{ fontSize: '0.8rem', color: !isEndOfTrack ? 'var(--accent-pink)' : 'var(--text-muted)', fontWeight: 600 }}>
+                {loc.stats.minsUnit}
+              </span>
+            </div>
+          </div>
+
+          {/* Przyciski szybkiej zmiany (+ / -) */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', justifyContent: 'center' }}>
+            {[-15, -5, -1, 1, 5, 15].map((delta) => (
+              <button
+                key={delta}
+                type="button"
+                onClick={() => handleStep(delta)}
+                style={{
+                  flex: 1,
+                  padding: '5px 0',
+                  borderRadius: '6px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-subtle)',
+                  color: !isEndOfTrack ? 'var(--text-secondary)' : 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                title={`${delta > 0 ? `+${delta}` : delta} ${loc.stats.minsUnit}`}
+              >
+                {delta > 0 ? `+${delta}` : delta}
+              </button>
+            ))}
+          </div>
+
+          {/* Suwak zakresu */}
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              type="range"
+              min={1}
+              max={180}
+              value={Math.min(180, selectedMinutes)}
+              onChange={handleSliderChange}
+              style={{
+                width: '100%',
+                cursor: 'pointer',
+                background: isEndOfTrack
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${sliderPercent}%, rgba(255, 255, 255, 0.12) ${sliderPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.64rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+              <span>1 min</span>
+              <span>45 min</span>
+              <span>90 min (1.5h)</span>
+              <span>180 min (3h)</span>
+            </div>
           </div>
         </div>
 
@@ -297,7 +446,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
           </button>
           <button
             onClick={() => {
-              onSetTimer(selectedMinutes, enableFadeOut);
+              onSetTimer(isEndOfTrack ? 'end_of_track' : selectedMinutes, enableFadeOut);
               onClose();
             }}
             style={{
