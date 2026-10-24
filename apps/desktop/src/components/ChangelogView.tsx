@@ -69,11 +69,11 @@ const RELEASES: ChangelogRelease[] = [
         la: 'Syncronizatio subtilis lineae temporis cum celeritate DSP: locus verus carminis et mutatio lenis sine saltu.',
       },
       {
-        pl: 'Eliminacja szumów i zacięć fazowych ("shshsh") na plikach FLAC przy spowolnieniu poniżej 0.50x (poduszka buforowa FIFO 2048 ramek).',
-        en: 'Eliminated sibilant chattering noise on FLAC files below 0.50x tempo via 2048-frame FIFO safety cushion and Crisp transients.',
-        de: 'Zischende Artefakte bei FLAC unter 0,50x Tempo durch 2048-Frame-FIFO-Puffer und Crisp-Transienten behoben.',
-        fi: 'Suhina- ja häiriöäänet poistettu FLAC-tiedostoilta alle 0.50x tempolla 2048 kehyksen FIFO-puskurin avulla.',
-        la: 'Distorsio et stridor in fasciculis FLAC sub 0.50x deleta per receptaculum FIFO 2048 structurarum.',
+        pl: 'Eliminacja przerywania dźwięku i głodzenia bufora: płynne opróżnianie FIFO, optymalizacja silnika Rubber Band R2 oraz natychmiastowa reakcja suwaków DSP (<150ms).',
+        en: 'Eliminated audio stuttering and buffer underruns: smooth FIFO draining, Rubber Band R2 engine optimization, and instant DSP slider response (<150ms).',
+        de: 'Audioaussetzer und Pufferleerlauf behoben: reibungsloses FIFO-Draining, Rubber Band R2 Optimierung und sofortige DSP-Reaktion (<150ms).',
+        fi: 'Äänen pätkimisen ja puskurin nääntymisen poisto: tasainen FIFO-tyhjennys, Rubber Band R2 -optimointi ja välitön liukusäätimien vaste (<150ms).',
+        la: 'Intermissio soni et inopia receptaculi deleta: evacuatio aequalis FIFO, optimatio Rubber Band R2 et responsio instantanea moderatorum (<150ms).',
       },
       {
         pl: 'Eliminacja efektu flangera i poszarpanego dźwięku przy przełączaniu na Bypass: bit-perfect passthrough bez modyfikacji PTS oraz automatyczny seek/flush kolejki.',

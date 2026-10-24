@@ -71,17 +71,16 @@ impl AudioProcessor for RubberBandProcessor {
         let sample_rate = format.sample_rate;
 
         // Konfiguracja Rubber Band:
-        // - REALTIME + ENGINE_FINER (R3): precyzyjny silnik
+        // - REALTIME + ENGINE_FASTER: wydajny silnik czasu rzeczywistego (R2) z niskim narzutem CPU
+        // - PITCH_HIGH_QUALITY: najwyższa jakość przetwarzania wysokości tonu
         // - TRANSIENTS_CRISP + DETECTOR_COMPOUND: precyzyjne zachowanie transjentów perkusyjnych
-        //   i spółgłosek bez rozmywania fazowego (eliminuje szelest / shshshshs przy dużym zwolnieniu FLAC)
-        // - WINDOW_STANDARD + SMOOTHING_OFF: optymalne okno FFT bez artefaktów fazowych
+        // - WINDOW_STANDARD: zbalansowane okno czasowo-częstotliwościowe
         let mut options = RUBBERBAND_OPTION_PROCESS_REALTIME
-            | RUBBERBAND_OPTION_ENGINE_FINER
+            | RUBBERBAND_OPTION_ENGINE_FASTER
             | RUBBERBAND_OPTION_PITCH_HIGH_QUALITY
             | RUBBERBAND_OPTION_TRANSIENTS_CRISP
             | RUBBERBAND_OPTION_DETECTOR_COMPOUND
-            | RUBBERBAND_OPTION_WINDOW_STANDARD
-            | RUBBERBAND_OPTION_SMOOTHING_OFF;
+            | RUBBERBAND_OPTION_WINDOW_STANDARD;
         if channels > 1 {
             options |= RUBBERBAND_OPTION_CHANNELS_TOGETHER;
         }

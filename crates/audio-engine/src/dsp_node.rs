@@ -280,77 +280,58 @@ impl AuraluneDspImpl {
         }
         state.out_buffer = out_buffer;
 
-        // Bezpieczny zapas poduszki FIFO (cushion), aby niwelować zmienność
-        // produkcji ramek w oknach FFT Rubber Band / SoundTouch, zwłaszcza przy
-        // zwolnionym tempie (< 0.5x) na dużych buforach FLAC (4096 ramek).
-        let cushion_frames = 2048;
-        let cushion_samples = cushion_frames * channels;
-
-        let available_samples = state.fifo.len();
-        // Jeśli nie osiągnęliśmy jeszcze minimalnego bufora rozruchowego, akumulujemy
-        if available_samples < cushion_samples {
+        // Jeśli w FIFO nie ma jeszcze gotowych próbek (np. początkowy preroll silnika),
+        // czekamy na kolejny pakiet wejściowy
+        if state.fifo.is_empty() {
             drop(state);
             return Ok(gst::FlowSuccess::Ok);
         }
 
-        // Dostępna nadwyżka ponad bezpieczną poduszkę
-        let surplus_samples = available_samples.saturating_sub(cushion_samples);
+        // Emitujemy gotowe próbki w standardowych blokach do 2048 ramek (~46ms),
+        // bez sztucznego przetrzymywania próbek („cushion”), co eliminuje
+        // głodzenie downstream sinka i zrywanie dźwięku.
+        let mut buffers_to_push = Vec::with_capacity(4);
 
-        // Oblicz docelową liczbę próbek do wyemitowania na podstawie tempa
-        let in_frames = num_floats / channels;
-        let speed = (state.params.tempo_ratio * state.params.rate_ratio).max(0.05);
-        let expected_out_frames = ((in_frames as f64) / speed).round() as usize;
-        let target_samples = (expected_out_frames * channels).max(channels);
+        while !state.fifo.is_empty() {
+            let available_samples = state.fifo.len();
+            let drain_samples = available_samples.min(2048 * channels);
+            let out_frames = drain_samples / channels;
+            let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
 
-        let drain_samples = if surplus_samples >= target_samples {
-            // Jeśli mamy pełną docelową porcję, emitujemy ją (plus małą korekcję przy wzroście bufora)
-            if surplus_samples > target_samples * 2 {
-                target_samples + (128 * channels)
-            } else {
-                target_samples
-            }
-        } else {
-            // Jeśli nadwyżka jest mniejsza niż target, emitujemy tylko bezpieczną nadwyżkę,
-            // chroniąc poduszkę cushion_samples przed całkowitym wyzerowaniem.
-            (surplus_samples / channels) * channels
-        };
+            let buffer_pts = buffer.pts().map(|p| p.nseconds());
+            let current_pts = state.current_pts.or(buffer_pts).unwrap_or(0);
+            state.current_pts = Some(current_pts + out_duration_ns);
 
-        if drain_samples == 0 {
-            drop(state);
-            return Ok(gst::FlowSuccess::Ok);
-        }
-
-        let out_frames = drain_samples / channels;
-        let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
-
-        let buffer_pts = buffer.pts().map(|p| p.nseconds());
-        let current_pts = state.current_pts.or(buffer_pts).unwrap_or(0);
-        state.current_pts = Some(current_pts + out_duration_ns);
-
-        let byte_len = drain_samples * std::mem::size_of::<f32>();
-        let mut gst_out_buffer =
-            gst::Buffer::with_size(byte_len).map_err(|_| gst::FlowError::Error)?;
-
-        {
-            let out_buf_mut = gst_out_buffer.make_mut();
-            {
-                let mut out_map = out_buf_mut
-                    .map_writable()
-                    .map_err(|_| gst::FlowError::Error)?;
-                let dst_slice: &mut [f32] = unsafe {
-                    std::slice::from_raw_parts_mut(out_map.as_mut_ptr() as *mut f32, drain_samples)
-                };
-                for sample in dst_slice.iter_mut() {
-                    *sample = state.fifo.pop_front().unwrap_or(0.0);
+            let byte_len = drain_samples * std::mem::size_of::<f32>();
+            if let Ok(mut gst_out_buffer) = gst::Buffer::with_size(byte_len) {
+                let out_buf_mut = gst_out_buffer.make_mut();
+                if let Ok(mut out_map) = out_buf_mut.map_writable() {
+                    let dst_slice: &mut [f32] = unsafe {
+                        std::slice::from_raw_parts_mut(
+                            out_map.as_mut_ptr() as *mut f32,
+                            drain_samples,
+                        )
+                    };
+                    for sample in dst_slice.iter_mut() {
+                        *sample = state.fifo.pop_front().unwrap_or(0.0);
+                    }
                 }
-            }
 
-            out_buf_mut.set_pts(gst::ClockTime::from_nseconds(current_pts));
-            out_buf_mut.set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
+                out_buf_mut.set_pts(gst::ClockTime::from_nseconds(current_pts));
+                out_buf_mut.set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
+                buffers_to_push.push(gst_out_buffer);
+            } else {
+                break;
+            }
         }
 
         drop(state);
-        srcpad.push(gst_out_buffer)
+
+        for buf in buffers_to_push {
+            srcpad.push(buf)?;
+        }
+
+        Ok(gst::FlowSuccess::Ok)
     }
 
     fn sink_event(

@@ -2314,31 +2314,77 @@ export default function App() {
     }
   };
 
+  const pitchThrottleRef = useRef<{ timer: number | null; lastVal: number | null }>({ timer: null, lastVal: null });
+  const tempoThrottleRef = useRef<{ timer: number | null; lastVal: number | null }>({ timer: null, lastVal: null });
+  const rateThrottleRef = useRef<{ timer: number | null; lastVal: number | null }>({ timer: null, lastVal: null });
+
   const handlePitchChange = (semitones: number) => {
     setActiveDspVibe(null);
     setStatus((prev) => ({ ...prev, pitch_semitones: semitones }));
     persistDspSettings(status.engine, semitones, status.tempo_ratio ?? 1.0, status.rate_ratio ?? 1.0);
-    invoke('set_pitch', { semitones }).catch((e: any) => {
-      showMessage(`${t.common.errorPrefix} ${e}`, true);
-    });
+
+    pitchThrottleRef.current.lastVal = semitones;
+    if (pitchThrottleRef.current.timer === null) {
+      invoke('set_pitch', { semitones }).catch((e: any) => {
+        showMessage(`${t.common.errorPrefix} ${e}`, true);
+      });
+
+      pitchThrottleRef.current.timer = window.setTimeout(() => {
+        pitchThrottleRef.current.timer = null;
+        const finalVal = pitchThrottleRef.current.lastVal;
+        if (finalVal !== null && finalVal !== semitones) {
+          invoke('set_pitch', { semitones: finalVal }).catch((e: any) => {
+            showMessage(`${t.common.errorPrefix} ${e}`, true);
+          });
+        }
+      }, 35);
+    }
   };
 
   const handleTempoChange = (tempoRatio: number) => {
     setActiveDspVibe(null);
     setStatus((prev) => ({ ...prev, tempo_ratio: tempoRatio }));
     persistDspSettings(status.engine, status.pitch_semitones ?? 0.0, tempoRatio, status.rate_ratio ?? 1.0);
-    invoke('set_tempo', { tempoRatio }).catch((e: any) => {
-      showMessage(`${t.common.errorPrefix} ${e}`, true);
-    });
+
+    tempoThrottleRef.current.lastVal = tempoRatio;
+    if (tempoThrottleRef.current.timer === null) {
+      invoke('set_tempo', { tempoRatio }).catch((e: any) => {
+        showMessage(`${t.common.errorPrefix} ${e}`, true);
+      });
+
+      tempoThrottleRef.current.timer = window.setTimeout(() => {
+        tempoThrottleRef.current.timer = null;
+        const finalVal = tempoThrottleRef.current.lastVal;
+        if (finalVal !== null && finalVal !== tempoRatio) {
+          invoke('set_tempo', { tempoRatio: finalVal }).catch((e: any) => {
+            showMessage(`${t.common.errorPrefix} ${e}`, true);
+          });
+        }
+      }, 35);
+    }
   };
 
   const handleRateChange = (rateRatio: number) => {
     setActiveDspVibe(null);
     setStatus((prev) => ({ ...prev, rate_ratio: rateRatio }));
     persistDspSettings(status.engine, status.pitch_semitones ?? 0.0, status.tempo_ratio ?? 1.0, rateRatio);
-    invoke('set_rate', { rateRatio }).catch((e: any) => {
-      showMessage(`${t.common.errorPrefix} ${e}`, true);
-    });
+
+    rateThrottleRef.current.lastVal = rateRatio;
+    if (rateThrottleRef.current.timer === null) {
+      invoke('set_rate', { rateRatio }).catch((e: any) => {
+        showMessage(`${t.common.errorPrefix} ${e}`, true);
+      });
+
+      rateThrottleRef.current.timer = window.setTimeout(() => {
+        rateThrottleRef.current.timer = null;
+        const finalVal = rateThrottleRef.current.lastVal;
+        if (finalVal !== null && finalVal !== rateRatio) {
+          invoke('set_rate', { rateRatio: finalVal }).catch((e: any) => {
+            showMessage(`${t.common.errorPrefix} ${e}`, true);
+          });
+        }
+      }, 35);
+    }
   };
 
   const handleResetDsp = async () => {

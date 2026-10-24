@@ -118,23 +118,24 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki przed sinkiem (2.0s maks) - pełna odporność na XRUNy i szarpnięcia przy zwolnionym tempie (np. 0.35x FLAC)
+        // Bufor kolejki przed sinkiem: 200ms maks — optymalny dla natychmiastowej reakcji suwaków DSP
+        // przy pełnej ochronie przed XRUNami wątku audio.
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
-            .property("max-size-time", 2_000_000_000u64)
+            .property("max-size-time", 200_000_000u64)
             .property("max-size-buffers", 0u32)
             .property("max-size-bytes", 0u32)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
-        // Preferencja: pipewiresink z bezpiecznym marginesem 200ms (brak porzucania buforów przy skokach CPU)
+        // Preferencja: pipewiresink z niskim opóźnieniem 40ms (błyskawiczna responsywność na suwaki DSP)
         let sink = match gst::ElementFactory::make("pipewiresink")
             .name("sink")
-            .property("processing-deadline", 200_000_000u64)
+            .property("processing-deadline", 40_000_000u64)
             .build()
         {
             Ok(pw_sink) => {
-                info!("Zainicjalizowano wyjście PipeWire z buforem 200ms");
+                info!("Zainicjalizowano wyjście PipeWire z buforem 40ms");
                 pw_sink
             }
             Err(_) => {
