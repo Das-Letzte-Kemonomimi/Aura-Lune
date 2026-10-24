@@ -4,7 +4,7 @@ pkgver=0.2.2
 pkgrel=1
 pkgdesc="Natywny odtwarzacz muzyki dla Linuksa (Poweramp + foobar2000 + anime aesthetic + real-time DSP)"
 arch=('x86_64')
-url="https://github.com/Das-Letzte-Kemonomimi/Auralune"
+url="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune"
 license=('GPL-3.0-or-later')
 depends=(
     'gstreamer'
