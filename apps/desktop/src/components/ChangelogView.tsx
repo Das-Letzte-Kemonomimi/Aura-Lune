@@ -76,6 +76,13 @@ const RELEASES: ChangelogRelease[] = [
         la: 'Intermissio soni et inopia receptaculi deleta: evacuatio aequalis FIFO, optimatio Rubber Band R2 et responsio instantanea moderatorum (<150ms).',
       },
       {
+        pl: 'Eliminacja zacinania przy odtwarzaniu FLAC: dedykowana kolejka wejściowa queue_in (1.0s), powiększenie bufora queue_sink do 800ms oraz przetwarzanie bloków w oknach 1024 ramek.',
+        en: 'Eliminated stuttering during FLAC playback: dedicated queue_in input buffer (1.0s), increased queue_sink capacity to 800ms, and 1024-frame chunking in Rubber Band.',
+        de: 'Beseitigung von FLAC-Rucklern: dedizierte queue_in-Eingangswarteschlange (1.0s), vergrößerter queue_sink (800ms) und 1024-Frame-Chunking.',
+        fi: 'FLAC-toiston pätkimisen poisto: erillinen queue_in-syötepuskuri (1.0s), suurempi queue_sink (800ms) ja 1024-kehyksen käsittely Rubber Bandissa.',
+        la: 'Eliminatio interruptionis in FLAC: receptaculum praevium queue_in (1.0s), capacitas aucta queue_sink (800ms) et segmentatio 1024 framium.',
+      },
+      {
         pl: 'Eliminacja efektu flangera i poszarpanego dźwięku przy przełączaniu na Bypass: bit-perfect passthrough bez modyfikacji PTS oraz automatyczny seek/flush kolejki.',
         en: 'Eliminated flanger comb-filtering and ragged audio on switching to Bypass: bit-perfect passthrough without PTS tampering and automatic seek/flush.',
         de: 'Beseitigung des Flanger- und Zerr-Effekts beim Umschalten auf Bypass: bit-perfekter Passthrough und automatischer Seek/Flush.',

@@ -73,4 +73,7 @@ extern "C" {
     ) -> c_uint;
 
     pub fn rubberband_get_channel_count(state: RubberBandState) -> c_uint;
+
+    pub fn rubberband_set_max_process_size(state: RubberBandState, samples: c_uint);
+    pub fn rubberband_get_samples_required(state: RubberBandState) -> c_uint;
 }
