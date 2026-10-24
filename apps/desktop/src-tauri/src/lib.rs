@@ -2152,28 +2152,13 @@ fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String
     } else {
         "lineout"
     };
-    let filename = if clean_style == "classic" {
-        "icon_classic.png"
-    } else {
-        "icon_lineout.png"
-    };
 
-    // Odczyt pliku ikony
-    let icon_bytes =
-        if let Ok(bytes) = std::fs::read(format!("apps/desktop/src-tauri/icons/{}", filename)) {
-            bytes
-        } else if let Ok(bytes) = std::fs::read(format!("icons/{}", filename)) {
-            bytes
-        } else if let Ok(bytes) = std::fs::read(format!("../icons/{}", filename)) {
-            bytes
-        } else if let Ok(bytes) = std::fs::read(format!(
-            "/home/mimi/Kodowanie/Auralune/apps/desktop/src-tauri/icons/{}",
-            filename
-        )) {
-            bytes
-        } else {
-            return Err(format!("Nie znaleziono pliku ikony: {}", filename));
-        };
+    // Wbudowane ikony aplikacji bez zależności od lokalnych ścieżek dewelopera
+    let icon_bytes: Vec<u8> = if clean_style == "classic" {
+        include_bytes!("../icons/icon_classic.png").to_vec()
+    } else {
+        include_bytes!("../icons/icon_lineout.png").to_vec()
+    };
 
     // 1. Zaktualizuj ikonę okna Tauri w locie
     if let Some(window) = app.get_webview_window("main") {
