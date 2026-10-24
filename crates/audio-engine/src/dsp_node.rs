@@ -280,19 +280,18 @@ impl AuraluneDspImpl {
         }
         state.out_buffer = out_buffer;
 
-        // Emitujemy gotowe próbki w standardowych blokach do 2048 ramek (~46ms).
-        // Wymagamy co najmniej 1024 ramek (~23ms) w buforze przed rozpoczęciem emisji,
-        // co eliminuje wypychanie mikroskopijnych fragmentów (np. 89 ramek przy starcie silnika)
-        // i chroni downstream sink (PipeWire) przed natychmiastowym underrunem.
-        let min_threshold_samples = 1024 * channels;
-        if state.fifo.len() < min_threshold_samples {
+        // Jeśli w buforze FIFO nie ma jeszcze próbek (np. wstępne buforowanie), czekamy na kolejny pakiet
+        if state.fifo.is_empty() {
             drop(state);
             return Ok(gst::FlowSuccess::Ok);
         }
 
         let mut buffers_to_push = Vec::with_capacity(8);
 
-        while state.fifo.len() >= min_threshold_samples {
+        // Drenujemy wszystkie dostępne próbki w standardowych blokach do 2048 ramek (~46ms).
+        // Wszelkie próbki wyprodukowane przez DSP są natychmiast wypychane w dół potoku,
+        // co zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
+        while !state.fifo.is_empty() {
             let available_samples = state.fifo.len();
             let drain_samples = available_samples.min(2048 * channels);
             let out_frames = drain_samples / channels;

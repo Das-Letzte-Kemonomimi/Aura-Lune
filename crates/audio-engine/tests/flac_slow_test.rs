@@ -136,3 +136,77 @@ fn test_dsp_flac_soundtouch() {
         "SoundTouch musi wyprodukować próbki dla bloków FLAC"
     );
 }
+
+#[test]
+fn test_switch_tracks_flac() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+
+    let flac_path = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    if !flac_path.exists() {
+        return;
+    }
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
+
+    println!("Loading track 1...");
+    engine.load_uri(&flac_uri).expect("Ładowanie utworu 1");
+    engine.play().expect("Play 1");
+    std::thread::sleep(Duration::from_millis(300));
+
+    println!("Loading track 2 (same FLAC while playing)...");
+    engine.load_uri(&flac_uri).expect("Ładowanie utworu 2");
+    println!("Playing track 2...");
+    engine.play().expect("Play 2");
+    std::thread::sleep(Duration::from_millis(300));
+    println!("Stopping track 2...");
+    engine.stop().expect("Stop 2");
+    println!("Done!");
+}
+
+#[test]
+fn test_library_track_click_and_rapid_status_query() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+
+    let flac_path = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    let wav_path = root.join("tests/fixtures/test_sine_440hz.wav");
+    if !flac_path.exists() || !wav_path.exists() {
+        return;
+    }
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
+    let wav_uri = format!("file://{}", wav_path.canonicalize().unwrap().display());
+
+    // 1. Kliknięcie utworu w bibliotece (load_uri + play + natychmiastowe odpytywanie statusu)
+    engine.load_uri(&wav_uri).expect("Ładowanie WAV");
+    engine.play().expect("Play WAV");
+
+    for _ in 0..10 {
+        let _pos = engine.position();
+        let _dur = engine.duration();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    // 2. Kliknięcie innego utworu w bibliotece podczas trwania odtwarzania
+    engine.load_uri(&flac_uri).expect("Przełączenie na FLAC");
+    engine.play().expect("Play FLAC");
+
+    for _ in 0..15 {
+        let _pos = engine.position();
+        let _dur = engine.duration();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    engine.stop().expect("Stop");
+}
