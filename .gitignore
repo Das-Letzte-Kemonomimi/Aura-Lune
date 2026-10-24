@@ -12,3 +12,4 @@ tests/fixtures/*.flac
 packaging/archlinux/src/
 packaging/archlinux/pkg/
 packaging/archlinux/*.pkg.tar.*
+*.AppImage

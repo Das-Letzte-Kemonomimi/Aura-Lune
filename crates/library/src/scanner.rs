@@ -282,6 +282,22 @@ impl LibraryScanner {
             .and_then(|t| t.get_string(lofty::tag::ItemKey::InitialKey))
             .map(|s| s.to_string());
 
+        let replaygain_track_gain = tag
+            .as_ref()
+            .and_then(|t| t.get_string(lofty::tag::ItemKey::ReplayGainTrackGain))
+            .and_then(|s| {
+                s.trim_end_matches(" dB")
+                    .trim_end_matches("dB")
+                    .trim()
+                    .parse::<f64>()
+                    .ok()
+            });
+
+        let replaygain_track_peak = tag
+            .as_ref()
+            .and_then(|t| t.get_string(lofty::tag::ItemKey::ReplayGainTrackPeak))
+            .and_then(|s| s.trim().parse::<f64>().ok());
+
         let record = TrackRecord {
             id: 0,
             path: canonical_path.to_string(),
@@ -304,6 +320,9 @@ impl LibraryScanner {
             total_play_time_ms: None,
             bpm,
             initial_key,
+            replaygain_track_gain,
+            replaygain_track_peak,
+            rating: None,
         };
 
         db.upsert_track(&record).await?;

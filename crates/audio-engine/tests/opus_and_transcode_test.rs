@@ -1,5 +1,5 @@
 use audio_engine::{AudioEngine, DeviceManager, Transcoder};
-use domain::transcode::ExportFormat;
+use domain::transcode::{DspExportSettings, ExportFormat};
 use std::fs;
 use std::path::PathBuf;
 use std::thread::sleep;
@@ -137,4 +137,53 @@ fn test_device_manager_discovers_cards_and_codecs() {
             println!("  -> Dostępne kodeki Bluetooth: {:?}", codecs);
         }
     }
+}
+
+#[test]
+fn test_transcoding_with_dsp_nightcore_bounce() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let output_dsp_opus = root.join("tests/fixtures/test_nightcore_output.opus");
+
+    let _ = fs::remove_file(&output_dsp_opus);
+
+    let dsp_settings = DspExportSettings {
+        pitch_semitones: 3.0,
+        tempo_ratio: 1.25,
+        rate_ratio: 1.0,
+        reverb_level: 0.15,
+        eq_bands: Some(vec![3.0, 2.0, 0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0]),
+    };
+
+    Transcoder::transcode_with_dsp(
+        &input_wav,
+        &output_dsp_opus,
+        ExportFormat::Opus { bitrate_kbps: 192 },
+        Some(&dsp_settings),
+    )
+    .expect("Transkodowanie z DSP powinno się powieść");
+
+    assert!(
+        output_dsp_opus.exists(),
+        "Plik wyjściowy Opus z DSP musi istnieć!"
+    );
+    assert!(
+        fs::metadata(&output_dsp_opus).unwrap().len() > 100,
+        "Wygenerowany plik z DSP nie może być pusty"
+    );
+
+    // Odtworzenie wygenerowanego pliku z DSP
+    let engine = AudioEngine::new().unwrap();
+    let uri = format!(
+        "file://{}",
+        output_dsp_opus.canonicalize().unwrap().display()
+    );
+    engine.load_uri(&uri).unwrap();
+    engine.play().unwrap();
+    sleep(Duration::from_millis(150));
+    engine.stop().unwrap();
+
+    let _ = fs::remove_file(&output_dsp_opus);
 }

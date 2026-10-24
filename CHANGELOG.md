@@ -9,6 +9,37 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.3.0] — „Omniscience & Starlight” - 2026-10-25
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Tag Editor / Właściwości utworu (Properties Dialog w stylu foobar2000)**:
+  - Bezpośredni odczyt i atomowy zapis tagów do pliku audio (`title`, `artist`, `album`, `album_artist`, `year`, `genre`, `track_no`, `track_total`, `disc_no`, `disc_total`, `comment`) z wykorzystaniem biblioteki `lofty`.
+  - Natychmiastowa aktualizacja metadanych w bazie SQLite bez konieczności powolnego ponownego skanowania biblioteki.
+- **Obsługa arkuszy CUE (.cue sheet parser)**:
+  - Dedykowany parser arkuszy CUE (`crates/domain/src/cue.rs`) wspierający format CD-DA 75 fps i wyliczający milisekundowe offsety.
+  - Automatyczny podział japońskich wydań anime/doujin zripowanych jako jeden duży plik FLAC/WAV + `.cue` na wirtualne utwory z zachowaniem gapless playback i precyzyjnym seekowaniem.
+  - Nowy modal `CueSheetModal` z listą utworów, wykonawcami, czasem trwania oraz przyciskiem dodania wszystkich ścieżek do kolejki odtwarzania.
+- **Smart Playlists (Dynamiczne inteligentne playlisty z SQLite)**:
+  - Generowane w czasie rzeczywistym kolekcje: *Top 25 najczęściej odtwarzanych*, *Ostatnio odtwarzane (ostatnie 50)*, *Zapomniane perełki (0 odtworzeń)*, *Hi-Res Lossless Only (FLAC/WAV ≥ 24-bit lub ≥ 96 kHz)*, *High BPM (>130 BPM)* oraz *Najwyżej oceniane (4–5 gwiazdek)*.
+- **Command Palette / Szybkie wyszukiwanie (Ctrl+K / Spotlight Omnibar w stylu Powerampa)**:
+  - Błyskawiczny panel wyszukiwania dostępny w dowolnym miejscu aplikacji pod globalnym skrótem klawiszowym `Ctrl+K` / `Cmd+K`.
+  - Natychmiastowy skok do dowolnego utworu, albumu, wykonawcy oraz szybkie wywoływanie komend (wznów/pauza, przełączanie silnika DSP Rubber Band / SoundTouch, zerowanie pitch, tryby Anime Ambience, tryb pełnoekranowy Big Screen, skaner ReplayGain).
+- **Oceny gwiazdkowe (1–5 gwiazdek) + filtr w bibliotece**:
+  - Kolumna `rating` i indeks w bazie danych SQLite z interaktywnym widżetem gwiazdek w wierszu każdego utworu i natychmiastowym filtrowaniem widoku biblioteki.
+- **Powiadomienia OSD Linuksa (libnotify / D-Bus)**:
+  - Eleganckie banery na pulpicie Linuksa przy zmianie utworu w tle z okładką albumu, tytułem i wykonawcą.
+  - Możliwość włączenia/wyłączenia w zakładce Ustawienia/Urządzenia.
+- **3 nowe tryby cząsteczkowe w AnimeAmbienceFX**:
+  - *Meteor Shower / Starlight*: spadające gwiazdy i komety z neonowymi ogonami i poświatą.
+  - *Cyber Matrix Rain*: kaskadowy neonowy deszcz znaków katakana w stylu anime cyberpunk.
+  - *Momiji*: płynnie wirujące, 5-klapowe japońskie liście klonu w odcieniach czerwieni i złota z podmuchami wiatru.
+- **Rozszerzenie wizualizera FFT i skaner głośności ReplayGain EBU R128**:
+  - Nowe tryby: Anime Circle Visualizer, Oscyloskop wektorowy oraz Retro Bars.
+  - Analizator głośności EBU R128 offline z zapisem do bazy SQLite.
+
+---
+
 ## [0.2.2] — „Resonance & Flow” - 2026-10-24
 **Autorka**: Das Letzte Kemonomimi
 

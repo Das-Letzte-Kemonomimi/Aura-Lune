@@ -37,6 +37,47 @@ impl ExportFormat {
     }
 }
 
+/// Opcjonalne parametry DSP aplikowane podczas eksportu / transkodowania utworu.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DspExportSettings {
+    /// Przesunięcie wysokości dźwięku w półtonach (-12.0 do +12.0).
+    pub pitch_semitones: f64,
+    /// Mnożnik tempa (0.25 do 4.0).
+    pub tempo_ratio: f64,
+    /// Mnożnik szybkości odtwarzania (0.25 do 4.0).
+    pub rate_ratio: f64,
+    /// Poziom pogłosu (0.0 do 1.0).
+    pub reverb_level: f32,
+    /// 10 pasm korektora graficznego (-24.0 do +12.0 dB).
+    pub eq_bands: Option<Vec<f64>>,
+}
+
+impl Default for DspExportSettings {
+    fn default() -> Self {
+        Self {
+            pitch_semitones: 0.0,
+            tempo_ratio: 1.0,
+            rate_ratio: 1.0,
+            reverb_level: 0.0,
+            eq_bands: None,
+        }
+    }
+}
+
+impl DspExportSettings {
+    /// Sprawdza, czy jakiekolwiek parametry DSP odbiegają od domyślnych (Bypass).
+    pub fn is_active(&self) -> bool {
+        self.pitch_semitones.abs() > 0.001
+            || (self.tempo_ratio - 1.0).abs() > 0.001
+            || (self.rate_ratio - 1.0).abs() > 0.001
+            || self.reverb_level > 0.001
+            || self
+                .eq_bands
+                .as_ref()
+                .is_some_and(|bands| bands.iter().any(|b| b.abs() > 0.1))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

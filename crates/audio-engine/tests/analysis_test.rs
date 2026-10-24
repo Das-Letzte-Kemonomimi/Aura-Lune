@@ -114,3 +114,28 @@ fn test_skrzydla_biale() {
     }
 }
 
+#[test]
+fn test_analyze_track_replaygain_flac() {
+    use audio_engine::analysis::analyze_track_replaygain;
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+    let flac_path = root.join("tests/fixtures/Skrzydła Białe.flac");
+
+    if flac_path.exists() {
+        let res = analyze_track_replaygain(flac_path.to_str().unwrap()).unwrap();
+        println!("Wynik ReplayGain Skrzydła Białe: {:?}", res);
+        // Spodziewany track_gain około -5.2 dB, peak ~0.98, ref 89.0
+        assert!(
+            res.track_gain_db < 0.0,
+            "Utwór głośny powinien mieć ujemny gain"
+        );
+        assert!(
+            res.track_peak > 0.5 && res.track_peak <= 1.2,
+            "Prawidłowy peak"
+        );
+        assert_eq!(
+            res.reference_level_db, 89.0,
+            "Domyślny reference level EBU R128 to 89 dB SPL"
+        );
+    }
+}

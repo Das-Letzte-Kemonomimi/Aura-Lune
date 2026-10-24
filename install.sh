@@ -5,7 +5,7 @@ set -euo pipefail
 # Auralune (Kitsune Player) 🌸🎧 — Universal Linux Installer
 # ==============================================================================
 
-VERSION="0.2.2"
+VERSION="0.3.0"
 REPO="Das-Letzte-Kemonomimi/Aura-Lune"
 PKG_URL="https://github.com/${REPO}/releases/download/v${VERSION}/auralune-bin-${VERSION}-1-x86_64.pkg.tar.zst"
 APPIMAGE_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"

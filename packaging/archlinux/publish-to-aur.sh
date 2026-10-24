@@ -48,8 +48,8 @@ fi
 
 # 5. Wyświetlenie statusu i commit
 echo "📝 Przygotowanie zapisu do AUR..."
-git add PKGBUILD .SRCINFO
-git commit -m "Update $AUR_PKG_NAME to 0.2.2"
+PKG_VER=$(grep '^pkgver=' PKGBUILD | cut -d= -f2)
+git commit -m "Update $AUR_PKG_NAME to $PKG_VER"
 
 echo "🚀 Wypychanie do AUR (master)..."
 git push origin master

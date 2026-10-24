@@ -7,7 +7,7 @@
   <p><strong>A native, deeply customizable Linux music player marrying the ergonomics of Poweramp, the flexibility of foobar2000, swappable real-time DSP engines, and an anime glassmorphism aesthetic.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v0.2.2"><img src="https://img.shields.io/badge/version-0.2.2_“Resonance_%26_Flow”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/version-0.3.0_“Omniscience_%26_Starlight”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="License" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platform-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platform" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>
@@ -80,8 +80,8 @@ The application combines a high-performance **Rust** pipeline with a responsive 
 ### 1. Prebuilt AppImage (Any Linux Distribution)
 Download the latest standalone executable from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
 ```bash
-chmod +x Auralune_0.2.2_amd64.AppImage
-./Auralune_0.2.2_amd64.AppImage
+chmod +x Auralune_0.3.0_amd64.AppImage
+./Auralune_0.3.0_amd64.AppImage
 ```
 
 ### 2. Arch Linux / EndeavourOS / CachyOS (AUR)
