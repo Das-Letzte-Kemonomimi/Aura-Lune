@@ -30,7 +30,7 @@ optdepends=(
 )
 options=('!strip')
 source=("$pkgname-$pkgver.AppImage::$url/releases/download/v$pkgver/Auralune_${pkgver}_amd64.AppImage")
-sha256sums=('7dfd924f6066bfa87f21ba7193daefa7334ceaa1a5cd5f37fb838014083c32c1')
+sha256sums=('bd8a4c94f36031fd48117b0259afad13bdadc420c8a9b17944e6f085bddfe3de')
 
 prepare() {
     chmod +x "$pkgname-$pkgver.AppImage"
