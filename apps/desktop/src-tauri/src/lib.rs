@@ -970,6 +970,11 @@ fn open_external_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
     let db = state.db.clone();
     state
@@ -2502,6 +2507,7 @@ pub fn run() {
             pick_save_destination,
             open_containing_folder,
             open_external_url,
+            get_app_version,
             get_library_tracks,
             get_library_albums,
             get_library_artists,

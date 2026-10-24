@@ -532,6 +532,11 @@ export default function App() {
   // Stan bieżącej zakładki utworu
   const [currentBookmark, setCurrentBookmark] = useState<number | null>(null);
 
+  // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
+  const [appVersion, setAppVersion] = useState<string>(
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.2.2'
+  );
+
 
   // Stan okna skrótów klawiszowych
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
@@ -1405,6 +1410,12 @@ export default function App() {
     loadThemes();
     refreshQueue();
     refreshPlaylists();
+
+    invoke<string>('get_app_version')
+      .then((ver) => {
+        if (ver) setAppVersion(ver);
+      })
+      .catch(() => {});
 
     // Rejestracja natywnych zdarzeń Drag & Drop z webview Tauri 2 (bez konfliktujących listenerów DOM)
     let unlistenDragDrop: (() => void) | null = null;
@@ -4068,7 +4079,7 @@ const renderDevicesSection = () => (
         <div>
           <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Auralune Kitsune Player</h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
-            {loc.settings.version} 0.2.2 „Resonance & Flow” • {loc.settings.author}: Das Letzte Kemonomimi
+            {loc.settings.version} {appVersion} „Resonance & Flow” • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
           <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.5 }}>
             Auralune: Audio DSP Player for Linux. High quality, extensible foobar2000-like flexibility, and anime aesthetics.
@@ -4675,7 +4686,7 @@ const renderDevicesSection = () => (
           <div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>Auralune <span style={{ color: 'var(--accent-pink)', fontSize: '0.9rem' }}>狐 Kitsune</span></span>
-              <span style={{ fontSize: '0.72rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(168, 85, 247, 0.25)', color: 'var(--accent-purple)', fontWeight: 700, border: '1px solid rgba(168, 85, 247, 0.4)' }}>v0.2.0</span>
+              <span style={{ fontSize: '0.72rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(168, 85, 247, 0.25)', color: 'var(--accent-purple)', fontWeight: 700, border: '1px solid rgba(168, 85, 247, 0.4)' }}>v{appVersion}</span>
             </h1>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Linux High-Fidelity DSP & PipeWire Audio Engine
