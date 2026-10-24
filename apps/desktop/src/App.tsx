@@ -61,6 +61,8 @@ import {
   Moon,
   History,
   BarChart3,
+  ExternalLink,
+  HeartHandshake,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
@@ -4038,6 +4040,14 @@ const renderDevicesSection = () => (
           </div>
   );
 
+  const handleOpenExternalUrl = async (url: string) => {
+    try {
+      await invoke('open_external_url', { url });
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
   const renderAboutSection = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px', margin: '0 auto' }}>
       <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -4058,7 +4068,7 @@ const renderDevicesSection = () => (
         <div>
           <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Auralune Kitsune Player</h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
-            {loc.settings.version} 0.2.0 „Kitsune” • {loc.settings.author}: Das Letzte Kemonomimi
+            {loc.settings.version} 0.2.2 „Resonance & Flow” • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
           <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.5 }}>
             Auralune: Audio DSP Player for Linux. High quality, extensible foobar2000-like flexibility, and anime aesthetics.
@@ -4087,6 +4097,119 @@ const renderDevicesSection = () => (
               {loc.settings.changelog}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Sekcja Twórczyni: Bandcamp & Aplikacja Sorta dla AuDHD / ADHD */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+        {/* Karta Bandcamp: Muzyka Autorki */}
+        <div
+          className="glass-card"
+          style={{
+            padding: '18px 20px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(244, 63, 94, 0.08) 100%)',
+            border: '1px solid rgba(168, 85, 247, 0.35)',
+            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Music size={18} color="var(--accent-purple)" />
+                <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#fff' }}>
+                  {currentLang === 'pl' ? 'Muzyka Autorki na Bandcampie' : 'Original Music on Bandcamp'}
+                </h4>
+              </div>
+              <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.25)', color: 'var(--accent-purple)', fontWeight: 700 }}>
+                Bandcamp
+              </span>
+            </div>
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
+              {currentLang === 'pl'
+                ? 'Posłuchaj autorskich kompozycji twórczyni Auralune (Das Letzte Kemonomimi), w tym utworu testowego „Skrzydła Białe”. Sprawdź wydania i wesprzyj twórczość bezpośrednio na profilu Bandcamp!'
+                : 'Listen to original releases by Auralune’s creator (Das Letzte Kemonomimi), including our sample track "Skrzydła Białe". Support music production directly on Bandcamp!'}
+            </p>
+          </div>
+          <button
+            onClick={() => handleOpenExternalUrl('https://dasletztekemonomimi.bandcamp.com/track/skrzyd-a-bia-e')}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
+              color: '#fff',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)',
+            }}
+          >
+            <ExternalLink size={14} />
+            {currentLang === 'pl' ? 'Odwiedź Bandcamp (Skrzydła Białe)' : 'Listen on Bandcamp (Skrzydła Białe)'}
+          </button>
+        </div>
+
+        {/* Karta Sorta: Aplikacja dla AuDHD / ADHD */}
+        <div
+          className="glass-card"
+          style={{
+            padding: '18px 20px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(236, 72, 153, 0.08) 100%)',
+            border: '1px solid rgba(6, 182, 212, 0.35)',
+            boxShadow: '0 4px 20px rgba(6, 182, 212, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <HeartHandshake size={18} color="var(--accent-cyan)" />
+                <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#fff' }}>
+                  Sorta • AuDHD & ADHD Focus
+                </h4>
+              </div>
+              <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.25)', color: 'var(--accent-cyan)', fontWeight: 700 }}>
+                AuDHD
+              </span>
+            </div>
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
+              {currentLang === 'pl'
+                ? 'Sama żyję z AuDHD i wiem, jak ciężki potrafi być paraliż zadaniowy i chaos w głowie. Stworzyłam Sorta z myślą o neuroatypowych umysłach — rozbija zadania na mikrokroki, redukuje przytłoczenie i wspiera z empatią. Wypróbuj ją i zobacz, czy Ci pomoże!'
+                : 'As someone living with AuDHD, I know how heavy executive dysfunction and task paralysis can be. I created Sorta specifically for neurodivergent minds — breaking chaos into gentle micro-steps without overwhelm. Try it out or share with someone who might benefit!'}
+            </p>
+          </div>
+          <button
+            onClick={() => handleOpenExternalUrl('https://sortaofficial.lovable.app/')}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-pink))',
+              color: '#fff',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
+            }}
+          >
+            <ExternalLink size={14} />
+            {currentLang === 'pl' ? 'Wypróbuj Sorta (Web App dla AuDHD)' : 'Try Sorta (AuDHD Web App)'}
+          </button>
         </div>
       </div>
 

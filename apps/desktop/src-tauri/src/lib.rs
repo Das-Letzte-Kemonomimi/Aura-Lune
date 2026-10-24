@@ -958,6 +958,18 @@ async fn open_containing_folder(file_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("Dozwolone są wyłącznie bezpieczne adresy URL (http/https)".to_string());
+    }
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| format!("Błąd otwierania odnośnika w przeglądarce: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
 fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
     let db = state.db.clone();
     state
@@ -2489,6 +2501,7 @@ pub fn run() {
             pick_single_audio_file,
             pick_save_destination,
             open_containing_folder,
+            open_external_url,
             get_library_tracks,
             get_library_albums,
             get_library_artists,
