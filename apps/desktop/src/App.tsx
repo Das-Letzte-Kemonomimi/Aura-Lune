@@ -307,6 +307,12 @@ export default function App() {
     spectrum: Array(16).fill(0.05),
   });
 
+  // Procent postępu odtwarzania oraz głośności dla dynamicznego wypełnienia suwaków (anime aesthetic)
+  const seekProgressPercent = status.duration_ms && status.duration_ms > 0
+    ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
+    : 0;
+  const volumeProgressPercent = Math.min(100, Math.max(0, (status.volume ?? 1) * 100));
+
   // Język interfejsu (domyślnie angielski: en, z opcją wyboru: pl, de, fi, la)
   const [language, setLanguage] = useState<Language>('en');
   const loc = getTranslations(language);
@@ -5602,7 +5608,12 @@ const renderDevicesSection = () => (
                       max={status.duration_ms || 100}
                       value={status.position_ms}
                       onChange={(e) => handleSeek(Number(e.target.value))}
-                      style={{ width: '100%', position: 'relative', zIndex: 3 }}
+                      style={{
+                        width: '100%',
+                        position: 'relative',
+                        zIndex: 3,
+                        background: `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
+                      }}
                     />
                   </div>
                 </div>
@@ -5976,7 +5987,11 @@ const renderDevicesSection = () => (
                       step={0.01}
                       value={status.volume}
                       onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                      style={{ width: '130px', accentColor: 'var(--accent-pink)', cursor: 'pointer' }}
+                      style={{
+                        width: '130px',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
+                      }}
                       title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
                     />
                   </div>
@@ -9947,6 +9962,7 @@ const renderDevicesSection = () => (
                   height: '4px',
                   accentColor: 'var(--accent-pink)',
                   cursor: 'pointer',
+                  background: `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
                 }}
               />
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '36px' }}>
@@ -10011,8 +10027,8 @@ const renderDevicesSection = () => (
                 style={{
                   width: '95px',
                   height: '4px',
-                  accentColor: 'var(--accent-purple)',
                   cursor: 'pointer',
+                  background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
                 }}
               />
             </div>
