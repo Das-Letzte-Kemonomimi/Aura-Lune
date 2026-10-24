@@ -2,7 +2,7 @@
 pkgname=auralune-bin
 pkgver=0.2.2
 pkgrel=1
-pkgdesc="Natywny odtwarzacz muzyki dla Linuksa (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - wersja binarna AppImage"
+pkgdesc="Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - binary AppImage package"
 arch=('x86_64')
 url="https://github.com/Das-Letzte-Kemonomimi/Auralune"
 license=('GPL-3.0-or-later')
@@ -22,15 +22,15 @@ depends=(
     'openssl'
 )
 optdepends=(
-    'gst-plugins-bad: obsługa formatów Opus, AAC i zaawansowanych kontenerów'
-    'gst-plugin-pipewire: bezpośredni potok wyjściowy PipeWire o niskiej latencji'
-    'rubberband: silnik DSP time-stretching i pitch-shifting wysokiej jakości'
-    'soundtouch: silnik DSP o niskim narzucie CPU i niezależnej zmianie tempa/wysokości'
-    'bluez-utils: dynamiczny wybór kodeków Bluetooth (LDAC, aptX HD, AAC, SBC-XQ)'
+    'gst-plugins-bad: Support for Opus, AAC, and modern container formats'
+    'gst-plugin-pipewire: Direct low-latency PipeWire output sink'
+    'rubberband: High-quality studio time-stretching and pitch-shifting DSP engine'
+    'soundtouch: Low CPU overhead DSP engine with independent tempo/pitch shifting'
+    'bluez-utils: Dynamic pro-audio Bluetooth codec switching (LDAC, aptX HD, AAC, SBC-XQ)'
 )
 options=('!strip')
 source=("$pkgname-$pkgver.AppImage::$url/releases/download/v$pkgver/Auralune_${pkgver}_amd64.AppImage")
-sha256sums=('ba5548e6466d18025cfd2b52a145d957f968f306f1fbdbc5608598ef6fec8852')
+sha256sums=('7dfd924f6066bfa87f21ba7193daefa7334ceaa1a5cd5f37fb838014083c32c1')
 
 prepare() {
     chmod +x "$pkgname-$pkgver.AppImage"
