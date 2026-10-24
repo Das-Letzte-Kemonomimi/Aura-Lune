@@ -30,7 +30,8 @@ pub enum PlayerEvent {
 struct PipelineInner {
     pipeline: gst::Pipeline,
     uri_decoder: Option<gst::Element>,
-    audioconvert_in: gst::Element,
+    queue_in: gst::Element,
+    _audioconvert_in: gst::Element,
     dsp: crate::dsp_node::AuraluneDsp,
     freeverb: Option<gst::Element>,
     equalizer: gst::Element,
@@ -66,6 +67,16 @@ impl AudioEngine {
         let _ = crate::dsp_node::register_dsp_element();
 
         let pipeline = gst::Pipeline::with_name("auralune-audio-pipeline");
+
+        // Bufor wejściowy czytający do 1.0s dekodowanego dźwięku w przód.
+        // Całkowicie odsprzęga I/O dyskowe oraz dekodowanie bloków FLAC/MP3 od wątku procesora DSP.
+        let queue_in = gst::ElementFactory::make("queue")
+            .name("queue_in")
+            .property("max-size-time", 1_000_000_000u64)
+            .property("max-size-buffers", 0u32)
+            .property("max-size-bytes", 0u32)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
         let audioconvert_in = gst::ElementFactory::make("audioconvert")
             .name("audioconvert_in")
@@ -118,24 +129,24 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki przed sinkiem: 200ms maks — optymalny dla natychmiastowej reakcji suwaków DSP
-        // przy pełnej ochronie przed XRUNami wątku audio.
+        // Bufor kolejki przed sinkiem: 800ms maks — optymalny dla natychmiastowej reakcji suwaków DSP
+        // przy jednoczesnej pełnej ochronie przed blokowaniem wątku przy dużych partiach ramek FLAC (~250-300ms na blok).
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
-            .property("max-size-time", 200_000_000u64)
+            .property("max-size-time", 800_000_000u64)
             .property("max-size-buffers", 0u32)
             .property("max-size-bytes", 0u32)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
-        // Preferencja: pipewiresink z niskim opóźnieniem 40ms (błyskawiczna responsywność na suwaki DSP)
+        // Preferencja: pipewiresink z bezpiecznym marginesem 100ms chroniącym przed jitterem planisty w systemie
         let sink = match gst::ElementFactory::make("pipewiresink")
             .name("sink")
-            .property("processing-deadline", 40_000_000u64)
+            .property("processing-deadline", 100_000_000u64)
             .build()
         {
             Ok(pw_sink) => {
-                info!("Zainicjalizowano wyjście PipeWire z buforem 40ms");
+                info!("Zainicjalizowano wyjście PipeWire z buforem 100ms");
                 pw_sink
             }
             Err(_) => {
@@ -164,6 +175,7 @@ impl AudioEngine {
 
         // Dodanie statycznych elementów do potoku
         pipeline.add_many([
+            &queue_in,
             &audioconvert_in,
             &audioresample,
             &capsfilter_dsp,
@@ -184,8 +196,9 @@ impl AudioEngine {
         ])?;
 
         // Połączenie elementów przetwarzania audio:
-        // audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
+        // queue_in -> audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
         gst::Element::link_many([
+            &queue_in,
             &audioconvert_in,
             &audioresample,
             &capsfilter_dsp,
@@ -228,7 +241,8 @@ impl AudioEngine {
         let inner = Arc::new(Mutex::new(PipelineInner {
             pipeline,
             uri_decoder: None,
-            audioconvert_in,
+            queue_in,
+            _audioconvert_in: audioconvert_in,
             dsp,
             freeverb,
             equalizer,
@@ -284,14 +298,14 @@ impl AudioEngine {
         // Reset procesorów DSP i kolejki próbek, aby uniknąć trzasków i zacinania
         inner.dsp.reset();
 
-        // Upewnienie się, że pad wejściowy audioconvert_in jest czysty i odłączony od poprzedniego strumienia
-        let convert_sink_pad = inner
-            .audioconvert_in
+        // Upewnienie się, że pad wejściowy queue_in jest czysty i odłączony od poprzedniego strumienia
+        let queue_sink_pad = inner
+            .queue_in
             .static_pad("sink")
-            .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
-        if convert_sink_pad.is_linked() {
-            if let Some(peer) = convert_sink_pad.peer() {
-                let _ = peer.unlink(&convert_sink_pad);
+            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
+        if queue_sink_pad.is_linked() {
+            if let Some(peer) = queue_sink_pad.peer() {
+                let _ = peer.unlink(&queue_sink_pad);
             }
         }
 
@@ -308,22 +322,25 @@ impl AudioEngine {
 
         inner.pipeline.add(&uri_decoder)?;
 
-        let convert_pad_clone = convert_sink_pad.clone();
+        let queue_pad_clone = queue_sink_pad.clone();
         uri_decoder.connect_pad_added(move |_bin, src_pad| {
             let caps = src_pad
                 .current_caps()
                 .unwrap_or_else(|| src_pad.query_caps(None));
             if let Some(structure) = caps.structure(0) {
                 if structure.name().starts_with("audio/") {
-                    if convert_pad_clone.is_linked() {
-                        if let Some(peer) = convert_pad_clone.peer() {
-                            let _ = peer.unlink(&convert_pad_clone);
+                    if queue_pad_clone.is_linked() {
+                        if let Some(peer) = queue_pad_clone.peer() {
+                            let _ = peer.unlink(&queue_pad_clone);
                         }
                     }
-                    if let Err(err) = src_pad.link(&convert_pad_clone) {
-                        error!("Błąd linkowania strumienia audio decodebin: {:?}", err);
+                    if let Err(err) = src_pad.link(&queue_pad_clone) {
+                        error!(
+                            "Błąd linkowania strumienia audio decodebin do queue_in: {:?}",
+                            err
+                        );
                     } else {
-                        debug!("Pomyślnie podłączono dekodowany strumień audio");
+                        debug!("Pomyślnie podłączono dekodowany strumień audio do queue_in");
                     }
                 }
             }

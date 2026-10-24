@@ -17,3 +17,6 @@ thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
 lofty.workspace = true
+
+[dev-dependencies]
+tracing-subscriber = "0.3"

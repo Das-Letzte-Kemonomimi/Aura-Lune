@@ -107,15 +107,19 @@ impl AudioProcessor for RubberBandProcessor {
         self.state = Some(state);
         self.format = Some(format);
 
-        let safe_block = max_block_frames.max(4096);
-        self.in_channels = vec![Vec::with_capacity(safe_block); channels];
+        let safe_block = max_block_frames.max(8192);
+        unsafe {
+            rubberband_set_max_process_size(state, safe_block as u32);
+        }
+
+        self.in_channels = vec![Vec::with_capacity(1024); channels];
         self.in_ptrs = vec![std::ptr::null(); channels];
-        self.out_channels = vec![vec![0.0f32; safe_block * 4]; channels];
+        self.out_channels = vec![vec![0.0f32; 8192]; channels];
         self.out_ptrs = vec![std::ptr::null_mut(); channels];
 
         debug!(
-            "Zainicjalizowano RubberBandProcessor dla {} Hz, {} kanałów",
-            sample_rate, channels
+            "Zainicjalizowano RubberBandProcessor dla {} Hz, {} kanałów (max_process_size={})",
+            sample_rate, channels, safe_block
         );
         Ok(())
     }
@@ -151,54 +155,59 @@ impl AudioProcessor for RubberBandProcessor {
             return Ok(ProcessStatus::Buffering);
         }
 
-        let num_frames = input.len() / channels;
-
-        // 1. De-interleave do buforów kanałowych
-        for c in 0..channels {
-            self.in_channels[c].clear();
-        }
-        for frame in input.chunks_exact(channels) {
-            for (c, &sample) in frame.iter().enumerate() {
-                self.in_channels[c].push(sample);
-            }
-        }
-        for c in 0..channels {
-            self.in_ptrs[c] = self.in_channels[c].as_ptr();
-        }
-
-        // 2. Przetwarzanie w bibliotece Rubber Band
-        unsafe {
-            rubberband_process(state, self.in_ptrs.as_ptr(), num_frames as u32, 0);
-        }
-
-        // 3. Pobranie wszystkich dostępnych przetworzonych ramek (w pętli, aby uniknąć głodzenia bufora)
+        let chunk_size_frames = 1024;
+        let chunk_size_samples = chunk_size_frames * channels;
         let mut total_retrieved = 0;
-        loop {
-            let available = unsafe { rubberband_available(state) };
-            if available <= 0 {
-                break;
-            }
-            let avail_frames = available as usize;
+
+        for chunk in input.chunks(chunk_size_samples) {
+            let cur_frames = chunk.len() / channels;
+
+            // 1. De-interleave do buforów kanałowych
             for c in 0..channels {
-                if self.out_channels[c].len() < avail_frames {
-                    self.out_channels[c].resize(avail_frames, 0.0);
+                self.in_channels[c].clear();
+            }
+            for frame in chunk.chunks_exact(channels) {
+                for (c, &sample) in frame.iter().enumerate() {
+                    self.in_channels[c].push(sample);
                 }
-                self.out_ptrs[c] = self.out_channels[c].as_mut_ptr();
+            }
+            for c in 0..channels {
+                self.in_ptrs[c] = self.in_channels[c].as_ptr();
             }
 
-            let retrieved = unsafe {
-                rubberband_retrieve(state, self.out_ptrs.as_ptr(), avail_frames as u32) as usize
-            };
-
-            if retrieved == 0 {
-                break;
+            // 2. Przetwarzanie w bibliotece Rubber Band
+            unsafe {
+                rubberband_process(state, self.in_ptrs.as_ptr(), cur_frames as u32, 0);
             }
 
-            total_retrieved += retrieved;
-            output.reserve(retrieved * channels);
-            for f in 0..retrieved {
+            // 3. Pobranie wszystkich dostępnych przetworzonych ramek
+            loop {
+                let available = unsafe { rubberband_available(state) };
+                if available <= 0 {
+                    break;
+                }
+                let avail_frames = available as usize;
                 for c in 0..channels {
-                    output.push(self.out_channels[c][f]);
+                    if self.out_channels[c].len() < avail_frames {
+                        self.out_channels[c].resize(avail_frames, 0.0);
+                    }
+                    self.out_ptrs[c] = self.out_channels[c].as_mut_ptr();
+                }
+
+                let retrieved = unsafe {
+                    rubberband_retrieve(state, self.out_ptrs.as_ptr(), avail_frames as u32) as usize
+                };
+
+                if retrieved == 0 {
+                    break;
+                }
+
+                total_retrieved += retrieved;
+                output.reserve(retrieved * channels);
+                for f in 0..retrieved {
+                    for c in 0..channels {
+                        output.push(self.out_channels[c][f]);
+                    }
                 }
             }
         }
