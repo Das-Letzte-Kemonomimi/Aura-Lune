@@ -1650,6 +1650,9 @@ export default function App() {
   const handlePlayLibraryTrack = async (track: TrackRecord) => {
     if (isPlayingLibraryTrackRef.current) return;
     isPlayingLibraryTrackRef.current = true;
+    const safetyTimeout = setTimeout(() => {
+      isPlayingLibraryTrackRef.current = false;
+    }, 4000);
     try {
       setActiveTrackId(track.id);
       setFilePath(track.path);
@@ -1684,6 +1687,7 @@ export default function App() {
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
+      clearTimeout(safetyTimeout);
       isPlayingLibraryTrackRef.current = false;
     }
   };

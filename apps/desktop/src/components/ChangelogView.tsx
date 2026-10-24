@@ -62,6 +62,13 @@ const RELEASES: ChangelogRelease[] = [
     ],
     fixed: [
       {
+        pl: 'Eliminacja zawieszenia aplikacji przy uruchamianiu utworu z biblioteki: usunięcie zakleszczenia prerollu GStreamera, natychmiastowe drenowanie próbek DSP oraz powiększony bufor zlewu.',
+        en: 'Eliminated app freeze when starting tracks from library: fixed GStreamer preroll deadlock, instant DSP buffer draining, and enlarged sink queue.',
+        de: 'Beseitigung des App-Einfrierens beim Starten von Tracks aus der Bibliothek: GStreamer-Preroll-Deadlock behoben und sofortige DSP-Pufferentleerung.',
+        fi: 'Sovelluksen jäätymisen poisto käynnistettäessä kappaleita kirjastosta: korjattu GStreamer-preroll-lukkiutuminen ja välitön DSP-puskurin tyhjennys.',
+        la: 'Eliminatio congelationis applicationis in initio carminis e bibliotheca: extinctus deadlock preroll GStreamer et evacuatio instantanea receptaculi DSP.',
+      },
+      {
         pl: 'Synchronizacja osi czasu ze spowolnionym DSP: kalkulacja pozycji w utworze źródłowym oraz brak skoków przy zmianie tempa w locie.',
         en: 'Timeline position synchronization with DSP speed scaling: accurate media track position and seamless dynamic tempo adjustments without jumps.',
         de: 'Zeitleistensynchronisation bei verändertem DSP-Tempo: exakte Position und nahtlose Tempoanpassung ohne Sprünge.',
@@ -76,11 +83,11 @@ const RELEASES: ChangelogRelease[] = [
         la: 'Intermissio soni et inopia receptaculi deleta: evacuatio aequalis FIFO, optimatio Rubber Band R2 et responsio instantanea moderatorum (<150ms).',
       },
       {
-        pl: 'Eliminacja zacinania przy odtwarzaniu FLAC: dedykowana kolejka wejściowa queue_in (1.0s), powiększenie bufora queue_sink do 800ms oraz przetwarzanie bloków w oknach 1024 ramek.',
-        en: 'Eliminated stuttering during FLAC playback: dedicated queue_in input buffer (1.0s), increased queue_sink capacity to 800ms, and 1024-frame chunking in Rubber Band.',
-        de: 'Beseitigung von FLAC-Rucklern: dedizierte queue_in-Eingangswarteschlange (1.0s), vergrößerter queue_sink (800ms) und 1024-Frame-Chunking.',
-        fi: 'FLAC-toiston pätkimisen poisto: erillinen queue_in-syötepuskuri (1.0s), suurempi queue_sink (800ms) ja 1024-kehyksen käsittely Rubber Bandissa.',
-        la: 'Eliminatio interruptionis in FLAC: receptaculum praevium queue_in (1.0s), capacitas aucta queue_sink (800ms) et segmentatio 1024 framium.',
+        pl: 'Eliminacja zacinania przy odtwarzaniu FLAC: powiększenie bufora queue_sink do 800ms oraz przetwarzanie bloków w oknach 1024 ramek (max_process_size=8192).',
+        en: 'Eliminated stuttering during FLAC playback: increased queue_sink capacity to 800ms and 1024-frame chunking in Rubber Band (max_process_size=8192).',
+        de: 'Beseitigung von FLAC-Rucklern: vergrößerter queue_sink (800ms) und 1024-Frame-Chunking in Rubber Band (max_process_size=8192).',
+        fi: 'FLAC-toiston pätkimisen poisto: suurempi queue_sink (800ms) ja 1024-kehyksen käsittely Rubber Bandissa (max_process_size=8192).',
+        la: 'Eliminatio interruptionis in FLAC: capacitas aucta queue_sink (800ms) et segmentatio 1024 framium in Rubber Band.',
       },
       {
         pl: 'Eliminacja efektu flangera i poszarpanego dźwięku przy przełączaniu na Bypass: bit-perfect passthrough bez modyfikacji PTS oraz automatyczny seek/flush kolejki.',
