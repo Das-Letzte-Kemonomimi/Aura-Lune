@@ -31,7 +31,7 @@ DOMYŚLNE DECYZJE TECHNICZNE
 - Metadane online: MusicBrainz; okładki: Cover Art Archive.
 - Integracja pulpitu: MPRIS przez D-Bus.
 - DSP: wspólny interfejs AudioProcessor i wymienne backendy RubberBandProcessor oraz SoundTouchProcessor.
-- Dystrybucja początkowa: paczka Arch/PKGBUILD i AppImage; Flatpak dopiero po działającym MVP.
+- Dystrybucja i repozytoria: model dwóch repozytoriów GitHub (wewnętrzne Auralune z AGENTS.md oraz publiczne Aura-Lune bez AGENTS.md); dwa oficjalne kanały dystrybucji: samodzielny AppImage (dla wszystkich dystrybucji Linuksa) oraz AUR auralune-bin (dla Arch Linux / EndeavourOS / CachyOS).
 - Licencja projektu: domyślnie GPL-3.0-or-later, dopóki zależności i sposób linkowania nie zostaną prawnie zweryfikowane.
 
 NAJWAŻNIEJSZA ZASADA ARCHITEKTONICZNA
@@ -135,7 +135,12 @@ Test wydajności nie może zależeć wyłącznie od czasu ściennego na CI; rapo
 Stosujesz `tracing` z poziomami i modułami. Logujesz zmiany stanu pipeline, wybrane urządzenie, negocjowany format i błędy providerów, ale nie sekrety ani pełne tokeny. Udostępniasz opcję wyeksportowania zanonimizowanego pakietu diagnostycznego. Liczysz underruny i czas kosztownych operacji poza callbackiem.
 
 [SKILL: PACKAGING]
-Build ma być powtarzalny. Dokumentujesz zależności runtime i build-time. Dla brakującego Rubber Band/SoundTouch pokazujesz czytelny komunikat i pozwalasz uruchomić aplikację z dostępnym backendem. Nie bundlujesz bibliotek bez sprawdzenia licencji. Każda paczka ma procedurę smoke testu.
+Build ma być powtarzalny. Dokumentujesz zależności runtime i build-time. Dla brakującego Rubber Band/SoundTouch pokazujesz czytelny komunikat i pozwalasz uruchomić aplikację z dostępnym backendem. Nie bundlujesz bibliotek bez sprawdzenia licencji. Każda paczka ma procedurę smoke testu (`./packaging/smoke-test.sh`).
+Ściśle przestrzegasz procedury wydań i podziału na dwa repozytoria:
+- Wewnętrzne/deweloperskie: `origin` (Das-Letzte-Kemonomimi/Auralune) zawierające kod roboczy, commity i `AGENTS.md`.
+- Publiczne/wydawnicze: `public` (Das-Letzte-Kemonomimi/Aura-Lune) pozbawione `AGENTS.md` — synchronizowane automatycznie przez `./packaging/sync-public-repo.sh`.
+- Kanał AppImage: budowany przez Tauri 2 (`npm run tauri -- build --bundles appimage`), wgrywany jako asset do wydań GitHub Release w publicznym repozytorium Aura-Lune.
+- Kanał AUR (`auralune-bin`): repozytorium `ssh://aur@aur.archlinux.org/auralune-bin.git` przyjmujące WYŁĄCZNIE 2 pliki tekstowe: `PKGBUILD` i `.SRCINFO` (żadnych binariów ani instrukcji agenta), synchronizowane skryptem `./packaging/archlinux/publish-to-aur.sh`.
 
 [SKILL: DOCUMENTATION]
 Aktualizujesz README, changelog, ADR, schemat architektury i instrukcję uruchomienia wraz z kodem. Komendy mają być kompletne i gotowe do wklejenia. Dokumentacja rozróżnia wymagania systemowe, instalację deweloperską, build, testy, debug audio i packaging.
@@ -330,6 +335,69 @@ kitsune-player/
 ```
 
 Nie należy tworzyć całego drzewa na ślepo. Katalog powstaje wtedy, gdy pierwszy rzeczywisty moduł jest potrzebny; inaczej repozytorium szybko zapełni się pustymi abstrakcjami.
+
+***
+
+## Model dwóch repozytoriów i kanały dystrybucji
+
+Projekt Auralune stosuje rygorystyczny podział na **dwa repozytoria GitHub** oraz **dwa oficjalne kanały dystrybucji** dla użytkowników Linuksa. Agentka pracująca w projekcie ma zawsze stosować poniższe zasady:
+
+### 1. Dwa repozytoria GitHub
+
+| Repozytorium | URL / Alias Git | Widoczność | Zawartość i cel | Zasady dla Agenta |
+| :--- | :--- | :--- | :--- | :--- |
+| **Wewnętrzne / Deweloperskie** | `origin`<br>`https://github.com/Das-Letzte-Kemonomimi/Auralune.git` | Prywatne / Rozwojowe | Pełne środowisko pracy programistycznej, gałąź robocza `main`, pełna historia, pliki testowe, konfiguracje oraz instrukcje `AGENTS.md`. | Tutaj agentka wykonuje całą pracę, testy, commity i `git push origin main`. |
+| **Publiczne / Wydawnicze** | `public`<br>`https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git` | Publiczne (Open Source) | Czysty kod projektu, wersja gotowa dla społeczności, dokumentacja (`README.md`, `README.pl.md`, `LICENSE`), publiczne wydania GitHub Releases i źródło dla pakietów dystrybucyjnych. | **BEZWZGLĘDNA ZASADA: Plik `AGENTS.md` oraz wszelkie wewnętrzne instrukcje/prompty nigdy nie mogą znaleźć się w repozytorium publicznym!**<br>Do aktualizacji repozytorium publicznego służy wyłącznie skrypt `./packaging/sync-public-repo.sh`. |
+
+#### Procedura synchronizacji do repozytorium publicznego:
+Agentka po zatwierdzeniu zmian i przetestowaniu nowego wydania uruchamia:
+```bash
+./packaging/sync-public-repo.sh
+```
+Skrypt automatycznie:
+1. Tworzy tymczasową gałąź `release` z bieżącego `main`.
+2. Usuwa `AGENTS.md` i tworzy czysty commit wydania.
+3. Wypycha czystą gałąź jako `main` oraz aktualny tag (np. `v0.2.2`) do zdalnego `public` (`Aura-Lune`).
+4. Sprawdza i wgrywa pakiet `target/release/bundle/appimage/Auralune_x.y.z_amd64.AppImage` do GitHub Release w repozytorium `Aura-Lune`.
+5. Wraca na roboczą gałąź `main`.
+
+---
+
+### 2. Dwa oficjalne kanały instalacji dla użytkowników Linuksa
+
+#### Kanał A: Samodzielny AppImage (wszystkie dystrybucje Linuksa)
+- **Cel**: Uniwersalna instalacja „pobierz i uruchom” na Ubuntu, Fedorze, Debianie, Archu, openSUSE itd.
+- **Budowanie pakietu**:
+  ```bash
+  cd apps/desktop
+  npm run tauri -- build --bundles appimage
+  ```
+- **Lokalizacja artefaktu**: `target/release/bundle/appimage/Auralune_${wersja}_amd64.AppImage`.
+- **Weryfikacja**: Obowiązkowy smoke test przed wydaniem: `./packaging/smoke-test.sh`.
+- **Dystrybucja**: Plik jest załączany jako asset do GitHub Releases w publicznym repozytorium `Aura-Lune`.
+- **Uruchomienie przez użytkowniczkę**:
+  ```bash
+  chmod +x Auralune_0.2.2_amd64.AppImage
+  ./Auralune_0.2.2_amd64.AppImage
+  ```
+
+#### Kanał B: Paczka Arch User Repository (AUR: `auralune-bin`)
+- **Cel**: Natywna integracja z systemowym menedżerem pakietów dla Arch Linux, EndeavourOS, CachyOS i Manjaro.
+- **Lokalizacja szablonów w repozytorium**:
+  - `packaging/archlinux/PKGBUILD-bin`
+  - `packaging/archlinux/.SRCINFO`
+- **Repozytorium AUR**: `ssh://aur@aur.archlinux.org/auralune-bin.git`.
+- **KRYTYCZNA ZASADA AUR**:
+  - Do repozytorium AUR trafiają **WYŁĄCZNIE 2 pliki tekstowe**: `PKGBUILD` oraz `.SRCINFO`.
+  - **NIGDY** nie wrzuca się na AUR plików binarnych (`.AppImage`, `.tar.gz`), całego kodu źródłowego, `README.md` ani żadnych instrukcji agenta (`AGENTS.md`).
+  - `PKGBUILD` pobiera oficjalny AppImage z publicznego GitHub Release `Aura-Lune` i weryfikuje sumę `sha256sums`.
+- **Automatyzacja publikacji**: Skrypt `./packaging/archlinux/publish-to-aur.sh`.
+- **Instalacja przez użytkowniczkę**:
+  ```bash
+  yay -S auralune-bin
+  # lub
+  paru -S auralune-bin
+  ```
 
 ***
 
