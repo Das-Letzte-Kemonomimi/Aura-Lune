@@ -1,4 +1,5 @@
 pub mod bookmark;
+pub mod crossfeed;
 pub mod cue;
 pub mod device;
 pub mod equalizer;
@@ -7,10 +8,12 @@ pub mod playlist;
 pub mod queue;
 pub mod renamer;
 pub mod replaygain;
+pub mod silence;
 pub mod theme;
 pub mod transcode;
 
 pub use bookmark::TrackBookmark;
+pub use crossfeed::{CrossfeedConfig, CrossfeedPreset};
 pub use cue::{CueSheet, CueTrack};
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
 pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
@@ -21,6 +24,7 @@ pub use renamer::{
     RenamerTrackInfo,
 };
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
+pub use silence::SilenceTrimmingConfig;
 pub use theme::{default_themes, Theme, ThemeTokens};
 pub use transcode::{DspExportSettings, ExportFormat, TimeRange};
 

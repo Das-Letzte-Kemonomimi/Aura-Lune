@@ -8,6 +8,7 @@ use audio_engine::{
     analyze_track_replaygain, write_replaygain_tags_to_file, AudioEngine, DeviceManager,
     PlayerEvent, ReplayGainAnalysisResult, TrackKeyBpm, Transcoder,
 };
+use domain::crossfeed::CrossfeedConfig;
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
@@ -15,6 +16,7 @@ use domain::renamer::{
     format_pattern_for_track, resolve_renamed_path, RenamePreviewItem, RenamerTrackInfo,
 };
 use domain::replaygain::ReplayGainConfig;
+use domain::silence::SilenceTrimmingConfig;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use domain::{
     ImportM3uResult, M3uEntry, M3uPlaylist, PlaybackState, Playlist, Theme, TrackBookmark,
@@ -718,6 +720,44 @@ fn set_replaygain_config(
     state
         .engine
         .set_replaygain(config)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn apply_auto_replaygain(is_same_album: bool, is_shuffle: bool, state: State<'_, AppState>) {
+    state
+        .engine
+        .apply_auto_replaygain(is_same_album, is_shuffle);
+}
+
+#[tauri::command]
+fn get_crossfeed_config(state: State<'_, AppState>) -> CrossfeedConfig {
+    state.engine.crossfeed_config()
+}
+
+#[tauri::command]
+fn set_crossfeed_config(config: CrossfeedConfig, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_crossfeed_config({:?})", config);
+    state
+        .engine
+        .set_crossfeed(config)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_silence_trimming_config(state: State<'_, AppState>) -> SilenceTrimmingConfig {
+    state.engine.silence_trimming_config()
+}
+
+#[tauri::command]
+fn set_silence_trimming_config(
+    config: SilenceTrimmingConfig,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!("Tauri command: set_silence_trimming_config({:?})", config);
+    state
+        .engine
+        .set_silence_trimming(config)
         .map_err(|e| e.to_string())
 }
 
@@ -3871,6 +3911,11 @@ pub fn run() {
             get_replaygain_config,
             set_replaygain_config,
             get_replaygain_status,
+            apply_auto_replaygain,
+            get_crossfeed_config,
+            set_crossfeed_config,
+            get_silence_trimming_config,
+            set_silence_trimming_config,
             scan_track_replaygain,
             scan_library_replaygain,
             list_devices,

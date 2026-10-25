@@ -382,6 +382,22 @@ export interface Translations {
     replaygainModeOff: string;
     replaygainModeTrack: string;
     replaygainModeAlbum: string;
+    replaygainModeAuto: string;
+    replaygainFallbackGain: string;
+    replaygainPreventClipping: string;
+    crossfeedTitle: string;
+    crossfeedDesc: string;
+    crossfeedEnabled: string;
+    crossfeedPresetDefault: string;
+    crossfeedPresetChuMoy: string;
+    crossfeedPresetJanMeier: string;
+    crossfeedPresetCustom: string;
+    crossfeedFcut: string;
+    crossfeedFeed: string;
+    silenceTrimmingTitle: string;
+    silenceTrimmingDesc: string;
+    silenceTrimmingEnabled: string;
+    silenceTrimmingThreshold: string;
     replaygainPreAmp: string;
     replaygainLimiterActive: string;
     replaygainTargetAdjustment: string;
@@ -1101,6 +1117,22 @@ export const translations: Record<Language, Translations> = {
       replaygainModeOff: 'Off',
       replaygainModeTrack: 'Track Gain',
       replaygainModeAlbum: 'Album Gain',
+      replaygainModeAuto: 'Smart (Auto Track/Album)',
+      replaygainFallbackGain: 'Untagged fallback gain',
+      replaygainPreventClipping: 'True-Peak limiter (Anti-clipping)',
+      crossfeedTitle: 'Bauer Headphone Crossfeed (bs2b)',
+      crossfeedDesc: 'Virtual speaker binauralization reducing ear fatigue on hard-panned stereo recordings.',
+      crossfeedEnabled: 'Crossfeed active',
+      crossfeedPresetDefault: 'Default (30°, 3m — 700 Hz / 4.5 dB)',
+      crossfeedPresetChuMoy: 'Chu Moy (Popular — 700 Hz / 6.0 dB)',
+      crossfeedPresetJanMeier: 'Jan Meier Corda (Subtle — 650 Hz / 9.0 dB)',
+      crossfeedPresetCustom: 'Custom',
+      crossfeedFcut: 'Cutoff frequency',
+      crossfeedFeed: 'Feed level',
+      silenceTrimmingTitle: 'Automatic Silence Trimming',
+      silenceTrimmingDesc: 'Instant skip over silent intros, outros, and excessive gaps between tracks.',
+      silenceTrimmingEnabled: 'Silence trimming active',
+      silenceTrimmingThreshold: 'Silence detection threshold',
       replaygainPreAmp: 'Pre-Amp Gain',
       replaygainLimiterActive: 'Peak Limiter Active',
       replaygainTargetAdjustment: 'Target Adjustment',
@@ -1819,6 +1851,22 @@ export const translations: Record<Language, Translations> = {
       replaygainModeOff: 'Wyłączone',
       replaygainModeTrack: 'Głośność utworu',
       replaygainModeAlbum: 'Głośność albumu',
+      replaygainModeAuto: 'Inteligentny (Auto Track/Album)',
+      replaygainFallbackGain: 'Domyślna głośność dla nietagowanych (Fallback)',
+      replaygainPreventClipping: 'Ochrona przed przesterem (Limiter True-Peak)',
+      crossfeedTitle: 'Bauer Crossfeed dla słuchawek (bs2b)',
+      crossfeedDesc: 'Wirtualizacja odsłuchu głośnikowego redukująca zmęczenie słuchu przy szerokich miksach stereo.',
+      crossfeedEnabled: 'Filtr Crossfeed aktywny',
+      crossfeedPresetDefault: 'Domyślny (30°, 3m — 700 Hz / 4.5 dB)',
+      crossfeedPresetChuMoy: 'Chu Moy (Popularny — 700 Hz / 6.0 dB)',
+      crossfeedPresetJanMeier: 'Jan Meier Corda (Subtelny — 650 Hz / 9.0 dB)',
+      crossfeedPresetCustom: 'Niestandardowy (Custom)',
+      crossfeedFcut: 'Częstotliwość odcięcia filtra',
+      crossfeedFeed: 'Poziom sprzężenia kanałów',
+      silenceTrimmingTitle: 'Automatyczne pomijanie ciszy',
+      silenceTrimmingDesc: 'Natychmiastowe przeskakiwanie cichych przerw i intencji bezdźwięcznych na początku i końcu utworu.',
+      silenceTrimmingEnabled: 'Pomijanie ciszy aktywne',
+      silenceTrimmingThreshold: 'Próg detekcji ciszy',
       replaygainPreAmp: 'Przedwzmacniacz (Pre-Amp)',
       replaygainLimiterActive: 'Limiter szczytowy aktywny',
       replaygainTargetAdjustment: 'Korekta docelowa',
@@ -2537,6 +2585,22 @@ export const translations: Record<Language, Translations> = {
       replaygainModeOff: 'Aus',
       replaygainModeTrack: 'Titel',
       replaygainModeAlbum: 'Album',
+      replaygainModeAuto: 'Intelligent (Auto Track/Album)',
+      replaygainFallbackGain: 'Fallback-Verstärkung für untagged Titel',
+      replaygainPreventClipping: 'True-Peak-Limiter (Übersteuerungsschutz)',
+      crossfeedTitle: 'Bauer Kopfhörer-Crossfeed (bs2b)',
+      crossfeedDesc: 'Binaurale Lautsprecher-Simulation zur Reduzierung von Hörermüdung bei Stereo-Aufnahmen.',
+      crossfeedEnabled: 'Crossfeed aktiv',
+      crossfeedPresetDefault: 'Standard (30°, 3m — 700 Hz / 4.5 dB)',
+      crossfeedPresetChuMoy: 'Chu Moy (Beliebt — 700 Hz / 6.0 dB)',
+      crossfeedPresetJanMeier: 'Jan Meier Corda (Dezent — 650 Hz / 9.0 dB)',
+      crossfeedPresetCustom: 'Benutzerdefiniert',
+      crossfeedFcut: 'Grenzfrequenz des Tiefpassfilters',
+      crossfeedFeed: 'Kanal-Einspeisungspegel',
+      silenceTrimmingTitle: 'Automatische Stillekürzung',
+      silenceTrimmingDesc: 'Sofortiges Überspringen stummer Intros, Outros und langer Pausen.',
+      silenceTrimmingEnabled: 'Stillekürzung aktiv',
+      silenceTrimmingThreshold: 'Stille-Erkennungsschwelle',
       replaygainPreAmp: 'Vorverstärkung (Pre-Amp)',
       replaygainLimiterActive: 'Spitzenbegrenzer aktiv',
       replaygainTargetAdjustment: 'Zielanpassung',
@@ -3255,6 +3319,22 @@ export const translations: Record<Language, Translations> = {
       replaygainModeOff: 'Pois',
       replaygainModeTrack: 'Kappale',
       replaygainModeAlbum: 'Albumi',
+      replaygainModeAuto: 'Älykäs (Auto Track/Album)',
+      replaygainFallbackGain: 'Tunnisteettomien oletusvahvistus',
+      replaygainPreventClipping: 'True-Peak-rajoitin (Leikkauksen esto)',
+      crossfeedTitle: 'Bauer-kuulokeristisyöttö (bs2b)',
+      crossfeedDesc: 'Virtuaalikaiutinsimulaatio vähentää korvien väsymistä jyrkissä stereomiksauksissa.',
+      crossfeedEnabled: 'Ristisyöttö käytössä',
+      crossfeedPresetDefault: 'Oletus (30°, 3m — 700 Hz / 4.5 dB)',
+      crossfeedPresetChuMoy: 'Chu Moy (Suosittu — 700 Hz / 6.0 dB)',
+      crossfeedPresetJanMeier: 'Jan Meier Corda (Hienovarainen — 650 Hz / 9.0 dB)',
+      crossfeedPresetCustom: 'Mukautettu',
+      crossfeedFcut: 'Alipäästösuodattimen rajataajuus',
+      crossfeedFeed: 'Kanavien syöttötaso',
+      silenceTrimmingTitle: 'Automaattinen hiljaisuuden ohitus',
+      silenceTrimmingDesc: 'Ohittaa välittömästi hiljaiset alku- ja loppuosiot sekä pitkät tauot.',
+      silenceTrimmingEnabled: 'Hiljaisuuden ohitus käytössä',
+      silenceTrimmingThreshold: 'Hiljaisuuden tunnistuskynnys',
       replaygainPreAmp: 'Esivahvistin (Pre-Amp)',
       replaygainLimiterActive: 'Huippurajoitin käytössä',
       replaygainTargetAdjustment: 'Tavoitekorjaus',
@@ -3973,6 +4053,22 @@ export const translations: Record<Language, Translations> = {
       replaygainModeOff: 'Inactivum',
       replaygainModeTrack: 'Tractus',
       replaygainModeAlbum: 'Albi',
+      replaygainModeAuto: 'Callidus (Auto Track/Album)',
+      replaygainFallbackGain: 'Amplificatio defectus cantuum',
+      replaygainPreventClipping: 'Limitor True-Peak (Defensio resonantiae)',
+      crossfeedTitle: 'Transmissio aurium Bauer (bs2b)',
+      crossfeedDesc: 'Simulatio soni loquentis ad lassitudinem aurium minuendam in modis stereophonicis.',
+      crossfeedEnabled: 'Transmissio binauralis activa',
+      crossfeedPresetDefault: 'Consuetum (30°, 3m — 700 Hz / 4.5 dB)',
+      crossfeedPresetChuMoy: 'Chu Moy (Celebris — 700 Hz / 6.0 dB)',
+      crossfeedPresetJanMeier: 'Jan Meier Corda (Subtilis — 650 Hz / 9.0 dB)',
+      crossfeedPresetCustom: 'Proprium',
+      crossfeedFcut: 'Frequentia abscissionis',
+      crossfeedFeed: 'Gradus transmissionis',
+      silenceTrimmingTitle: 'Praeteritio silentii automatica',
+      silenceTrimmingDesc: 'Statim praeterire silentia initio et fine cantuum.',
+      silenceTrimmingEnabled: 'Praeteritio silentii activa',
+      silenceTrimmingThreshold: 'Limes deprehensionis silentii',
       replaygainPreAmp: 'Praeamplificator (Pre-Amp)',
       replaygainLimiterActive: 'Moderator culminum activus',
       replaygainTargetAdjustment: 'Accommodatio intentata',

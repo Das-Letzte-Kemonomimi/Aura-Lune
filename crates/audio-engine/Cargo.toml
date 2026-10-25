@@ -10,6 +10,7 @@ dsp-api = { path = "../dsp-api" }
 dsp-rubberband = { path = "../dsp-rubberband" }
 dsp-soundtouch = { path = "../dsp-soundtouch" }
 gstreamer.workspace = true
+gstreamer-base.workspace = true
 gstreamer-audio.workspace = true
 gstreamer-app.workspace = true
 glib.workspace = true
