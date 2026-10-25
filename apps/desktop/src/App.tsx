@@ -407,11 +407,11 @@ export default function App() {
   const [eqAutoStartup, setEqAutoStartup] = useState<boolean>(false);
   const [seekFadeEnabled, setSeekFadeEnabled] = useState<boolean>(true);
 
-  // Stan normalizacji głośności ReplayGain 2.0 / EBU R128
-  const [replaygainMode, setReplaygainMode] = useState<'Off' | 'Track' | 'Album'>(() => {
+  // Stan normalizacji głośności ReplayGain 2.0 / EBU R128 (z trybem Auto i True-Peak Limiterem)
+  const [replaygainMode, setReplaygainMode] = useState<'Off' | 'Track' | 'Album' | 'Auto'>(() => {
     try {
       const saved = localStorage.getItem('auralune_replaygain_mode');
-      if (saved === 'Off' || saved === 'Track' || saved === 'Album') return saved;
+      if (saved === 'Off' || saved === 'Track' || saved === 'Album' || saved === 'Auto') return saved;
     } catch (_) {}
     return 'Off';
   });
@@ -425,24 +425,161 @@ export default function App() {
     } catch (_) {}
     return 0.0;
   });
+  const [replaygainFallbackGain, setReplaygainFallbackGain] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_replaygain_fallback');
+      if (saved !== null) {
+        const val = parseFloat(saved);
+        if (!isNaN(val)) return val;
+      }
+    } catch (_) {}
+    return -6.0;
+  });
+  const [replaygainPreventClipping, setReplaygainPreventClipping] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_replaygain_prevent_clipping');
+      if (saved !== null) return saved === 'true';
+    } catch (_) {}
+    return true;
+  });
   const [replaygainStatus, setReplaygainStatus] = useState<[number, number, boolean]>([0.0, 0.0, true]);
 
-  const handleSetReplayGain = async (mode: 'Off' | 'Track' | 'Album', preAmp: number) => {
+  const handleSetReplayGain = async (
+    mode: 'Off' | 'Track' | 'Album' | 'Auto',
+    preAmp: number,
+    fallbackGain = replaygainFallbackGain,
+    preventClipping = replaygainPreventClipping
+  ) => {
     try {
       await invoke('set_replaygain_config', {
         config: {
           mode,
           pre_amp_db: preAmp,
+          fallback_gain_db: fallbackGain,
+          prevent_clipping: preventClipping,
         },
       });
       setReplaygainMode(mode);
       setReplaygainPreAmp(preAmp);
+      setReplaygainFallbackGain(fallbackGain);
+      setReplaygainPreventClipping(preventClipping);
       try {
         localStorage.setItem('auralune_replaygain_mode', mode);
         localStorage.setItem('auralune_replaygain_preamp', preAmp.toString());
+        localStorage.setItem('auralune_replaygain_fallback', fallbackGain.toString());
+        localStorage.setItem('auralune_replaygain_prevent_clipping', preventClipping.toString());
       } catch (_) {}
     } catch (e: any) {
       console.error('Błąd aktualizacji ReplayGain:', e);
+      showMessage(`${loc.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  // Stan filtra Bauer stereophonic-to-binaural (Crossfeed bs2b)
+  const [crossfeedEnabled, setCrossfeedEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('auralune_crossfeed_enabled') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+  const [crossfeedPreset, setCrossfeedPreset] = useState<'Default' | 'ChuMoy' | 'JanMeier' | 'Custom'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_crossfeed_preset');
+      if (saved === 'Default' || saved === 'ChuMoy' || saved === 'JanMeier' || saved === 'Custom') return saved;
+    } catch (_) {}
+    return 'Default';
+  });
+  const [crossfeedFcut, setCrossfeedFcut] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_crossfeed_fcut');
+      if (saved) return parseInt(saved, 10) || 700;
+    } catch (_) {}
+    return 700;
+  });
+  const [crossfeedFeed, setCrossfeedFeed] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_crossfeed_feed');
+      if (saved) return parseInt(saved, 10) || 45;
+    } catch (_) {}
+    return 45;
+  });
+
+  const handleSetCrossfeed = async (
+    enabled: boolean,
+    preset: 'Default' | 'ChuMoy' | 'JanMeier' | 'Custom',
+    fcut = crossfeedFcut,
+    feed = crossfeedFeed
+  ) => {
+    let targetFcut = fcut;
+    let targetFeed = feed;
+    if (preset === 'Default') {
+      targetFcut = 700;
+      targetFeed = 45;
+    } else if (preset === 'ChuMoy') {
+      targetFcut = 700;
+      targetFeed = 60;
+    } else if (preset === 'JanMeier') {
+      targetFcut = 650;
+      targetFeed = 90;
+    }
+    try {
+      await invoke('set_crossfeed_config', {
+        config: {
+          enabled,
+          preset,
+          fcut_hz: targetFcut,
+          feed_tenth_db: targetFeed,
+        },
+      });
+      setCrossfeedEnabled(enabled);
+      setCrossfeedPreset(preset);
+      setCrossfeedFcut(targetFcut);
+      setCrossfeedFeed(targetFeed);
+      try {
+        localStorage.setItem('auralune_crossfeed_enabled', enabled.toString());
+        localStorage.setItem('auralune_crossfeed_preset', preset);
+        localStorage.setItem('auralune_crossfeed_fcut', targetFcut.toString());
+        localStorage.setItem('auralune_crossfeed_feed', targetFeed.toString());
+      } catch (_) {}
+    } catch (e: any) {
+      console.error('Błąd aktualizacji Crossfeed:', e);
+      showMessage(`${loc.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  // Stan automatycznego pomijania ciszy (Silence Trimming)
+  const [silenceTrimmingEnabled, setSilenceTrimmingEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('auralune_silence_trimming_enabled') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+  const [silenceTrimmingThreshold, setSilenceTrimmingThreshold] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_silence_trimming_threshold');
+      if (saved) return parseFloat(saved) || -50.0;
+    } catch (_) {}
+    return -50.0;
+  });
+
+  const handleSetSilenceTrimming = async (enabled: boolean, threshold: number) => {
+    try {
+      await invoke('set_silence_trimming_config', {
+        config: {
+          enabled,
+          threshold_db: threshold,
+        },
+      });
+      setSilenceTrimmingEnabled(enabled);
+      setSilenceTrimmingThreshold(threshold);
+      try {
+        localStorage.setItem('auralune_silence_trimming_enabled', enabled.toString());
+        localStorage.setItem('auralune_silence_trimming_threshold', threshold.toString());
+      } catch (_) {}
+    } catch (e: any) {
+      console.error('Błąd aktualizacji Silence Trimming:', e);
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -1609,14 +1746,42 @@ export default function App() {
       .catch((e) => console.warn('Błąd odczytu limiter_enabled:', e));
 
     // Inicjalizacja konfiguracji ReplayGain 2.0 / EBU R128
-    const savedRgMode = (localStorage.getItem('auralune_replaygain_mode') as 'Off' | 'Track' | 'Album') || 'Off';
+    const savedRgMode = (localStorage.getItem('auralune_replaygain_mode') as 'Off' | 'Track' | 'Album' | 'Auto') || 'Off';
     const savedRgPreAmp = parseFloat(localStorage.getItem('auralune_replaygain_preamp') || '0.0') || 0.0;
+    const savedRgFallback = parseFloat(localStorage.getItem('auralune_replaygain_fallback') || '-6.0') || -6.0;
+    const savedRgClipping = localStorage.getItem('auralune_replaygain_prevent_clipping') !== 'false';
     invoke('set_replaygain_config', {
       config: {
         mode: savedRgMode,
         pre_amp_db: savedRgPreAmp,
+        fallback_gain_db: savedRgFallback,
+        prevent_clipping: savedRgClipping,
       },
     }).catch((e) => console.warn('Błąd inicjalizacji ReplayGain:', e));
+
+    // Inicjalizacja filtra Crossfeed (bs2b)
+    const savedCfEnabled = localStorage.getItem('auralune_crossfeed_enabled') === 'true';
+    const savedCfPreset = (localStorage.getItem('auralune_crossfeed_preset') as 'Default' | 'ChuMoy' | 'JanMeier' | 'Custom') || 'Default';
+    const savedCfFcut = parseInt(localStorage.getItem('auralune_crossfeed_fcut') || '700', 10) || 700;
+    const savedCfFeed = parseInt(localStorage.getItem('auralune_crossfeed_feed') || '45', 10) || 45;
+    invoke('set_crossfeed_config', {
+      config: {
+        enabled: savedCfEnabled,
+        preset: savedCfPreset,
+        fcut_hz: savedCfFcut,
+        feed_tenth_db: savedCfFeed,
+      },
+    }).catch((e) => console.warn('Błąd inicjalizacji Crossfeed:', e));
+
+    // Inicjalizacja Silence Trimming
+    const savedStEnabled = localStorage.getItem('auralune_silence_trimming_enabled') === 'true';
+    const savedStThreshold = parseFloat(localStorage.getItem('auralune_silence_trimming_threshold') || '-50.0') || -50.0;
+    invoke('set_silence_trimming_config', {
+      config: {
+        enabled: savedStEnabled,
+        threshold_db: savedStThreshold,
+      },
+    }).catch((e) => console.warn('Błąd inicjalizacji Silence Trimming:', e));
   }, []);
 
   const handleToggleSeekFade = async () => {
@@ -2252,6 +2417,16 @@ export default function App() {
             api_secret: lastfmCustomSecret.trim() || null,
           },
         }).catch((e) => console.warn('Last.fm Now Playing error:', e));
+      }
+
+      // Auto ReplayGain: dynamiczne dopasowanie Album Gain vs Track Gain
+      if (replaygainMode === 'Auto') {
+        const prevTrack = tracks.find((t) => t.id === activeTrackId);
+        const isSameAlbum = prevTrack?.album_id != null && prevTrack.album_id === track.album_id;
+        invoke('apply_auto_replaygain', {
+          isSameAlbum,
+          isShuffle: Boolean(queue.shuffle),
+        }).catch((e) => console.warn('Auto ReplayGain error:', e));
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4111,7 +4286,13 @@ const renderDevicesSection = () => (
                       gap: '4px',
                     }}
                   >
-                    <Zap size={11} /> {replaygainMode === 'Track' ? loc.settings.replaygainModeTrack : loc.settings.replaygainModeAlbum}
+                    <Zap size={11} /> {
+                      replaygainMode === 'Auto'
+                        ? loc.settings.replaygainModeAuto
+                        : (replaygainMode === 'Track'
+                            ? loc.settings.replaygainModeTrack
+                            : loc.settings.replaygainModeAlbum)
+                    }
                   </span>
                 )}
               </div>
@@ -4120,22 +4301,23 @@ const renderDevicesSection = () => (
                 {loc.settings.replaygainDesc}
               </div>
 
-              {/* Tryby normalizacji: Off / Track / Album */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                {(['Off', 'Track', 'Album'] as const).map((m) => {
+              {/* Tryby normalizacji: Off / Track / Album / Auto */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginBottom: '16px' }}>
+                {(['Off', 'Track', 'Album', 'Auto'] as const).map((m) => {
                   const isActive = replaygainMode === m;
                   const label =
                     m === 'Off'
                       ? loc.settings.replaygainModeOff
                       : m === 'Track'
                       ? loc.settings.replaygainModeTrack
-                      : loc.settings.replaygainModeAlbum;
+                      : m === 'Album'
+                      ? loc.settings.replaygainModeAlbum
+                      : loc.settings.replaygainModeAuto;
                   return (
                     <button
                       key={m}
-                      onClick={() => handleSetReplayGain(m, replaygainPreAmp)}
+                      onClick={() => handleSetReplayGain(m, replaygainPreAmp, replaygainFallbackGain, replaygainPreventClipping)}
                       style={{
-                        flex: 1,
                         padding: '8px 12px',
                         borderRadius: '8px',
                         fontSize: '0.8rem',
@@ -4153,25 +4335,62 @@ const renderDevicesSection = () => (
                 })}
               </div>
 
-              {/* Suwak Przedwzmacniacza (Pre-Amp Gain) */}
-              <div style={{ opacity: replaygainMode === 'Off' ? 0.45 : 1, pointerEvents: replaygainMode === 'Off' ? 'none' : 'auto', transition: 'opacity 0.2s ease' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    {loc.settings.replaygainPreAmp}
-                  </span>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
-                    {replaygainPreAmp >= 0 ? `+${replaygainPreAmp.toFixed(1)}` : replaygainPreAmp.toFixed(1)} dB
-                  </span>
+              {/* Suwaki i opcje ReplayGain */}
+              <div style={{ opacity: replaygainMode === 'Off' ? 0.45 : 1, pointerEvents: replaygainMode === 'Off' ? 'none' : 'auto', transition: 'opacity 0.2s ease', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Suwak Przedwzmacniacza (Pre-Amp Gain) */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {loc.settings.replaygainPreAmp}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                      {replaygainPreAmp >= 0 ? `+${replaygainPreAmp.toFixed(1)}` : replaygainPreAmp.toFixed(1)} dB
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-6"
+                    max="6"
+                    step="0.5"
+                    value={replaygainPreAmp}
+                    onChange={(e) => handleSetReplayGain(replaygainMode, parseFloat(e.target.value), replaygainFallbackGain, replaygainPreventClipping)}
+                    style={{ width: '100%', accentColor: 'var(--accent-purple, #a855f7)' }}
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="-6"
-                  max="6"
-                  step="0.5"
-                  value={replaygainPreAmp}
-                  onChange={(e) => handleSetReplayGain(replaygainMode, parseFloat(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--accent-purple, #a855f7)' }}
-                />
+
+                {/* Suwak Fallback Gain */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {loc.settings.replaygainFallbackGain}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                      {replaygainFallbackGain >= 0 ? `+${replaygainFallbackGain.toFixed(1)}` : replaygainFallbackGain.toFixed(1)} dB
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-12"
+                    max="0"
+                    step="1"
+                    value={replaygainFallbackGain}
+                    onChange={(e) => handleSetReplayGain(replaygainMode, replaygainPreAmp, parseFloat(e.target.value), replaygainPreventClipping)}
+                    style={{ width: '100%', accentColor: 'var(--accent-purple, #a855f7)' }}
+                  />
+                </div>
+
+                {/* Przełącznik True-Peak Limiter */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldCheck size={14} color="var(--accent-green)" /> {loc.settings.replaygainPreventClipping}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={replaygainPreventClipping}
+                    onChange={(e) => handleSetReplayGain(replaygainMode, replaygainPreAmp, replaygainFallbackGain, e.target.checked)}
+                    style={{ accentColor: 'var(--accent-purple, #a855f7)', width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </div>
               </div>
 
               {/* Status w czasie rzeczywistym i wskaźnik Peak Limiter */}
@@ -4251,6 +4470,179 @@ const renderDevicesSection = () => (
                     {isReplaygainScanning ? <Loader2 size={14} className="spin" /> : <Activity size={14} />}
                     {isReplaygainScanning ? loc.settings.scanReplayGainScanning : loc.settings.scanReplayGainLibrary}
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Opcja filtra Bauer Crossfeed (bs2b) dla słuchawek */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '18px 20px',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: crossfeedEnabled ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid var(--border-subtle)',
+                background: crossfeedEnabled ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Headphones size={18} color="var(--accent-cyan, #06b6d4)" />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
+                    {loc.settings.crossfeedTitle}
+                  </span>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={crossfeedEnabled}
+                    onChange={(e) => handleSetCrossfeed(e.target.checked, crossfeedPreset)}
+                    style={{ accentColor: 'var(--accent-cyan, #06b6d4)', width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: crossfeedEnabled ? 'var(--accent-cyan, #06b6d4)' : 'var(--text-muted)' }}>
+                    {crossfeedEnabled ? (language === 'pl' ? 'Aktywny' : 'Active') : (language === 'pl' ? 'Wyłączony' : 'Off')}
+                  </span>
+                </label>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {loc.settings.crossfeedDesc}
+              </div>
+
+              {/* Wybór presetu: Default / ChuMoy / JanMeier / Custom */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '14px', opacity: crossfeedEnabled ? 1 : 0.45, pointerEvents: crossfeedEnabled ? 'auto' : 'none' }}>
+                {([
+                  { id: 'Default', label: loc.settings.crossfeedPresetDefault },
+                  { id: 'ChuMoy', label: loc.settings.crossfeedPresetChuMoy },
+                  { id: 'JanMeier', label: loc.settings.crossfeedPresetJanMeier },
+                  { id: 'Custom', label: loc.settings.crossfeedPresetCustom },
+                ] as const).map((p) => {
+                  const isActive = crossfeedPreset === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => handleSetCrossfeed(crossfeedEnabled, p.id)}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                        border: isActive ? '1px solid rgba(99, 102, 241, 0.6)' : '1px solid var(--border-subtle)',
+                        color: isActive ? '#fff' : 'var(--text-muted)',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Suwaki częstotliwości i feedu */}
+              <div style={{ opacity: crossfeedEnabled ? 1 : 0.45, pointerEvents: crossfeedEnabled && crossfeedPreset === 'Custom' ? 'auto' : 'none', transition: 'opacity 0.2s ease', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      {loc.settings.crossfeedFcut}
+                    </span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                      {crossfeedFcut} Hz
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="300"
+                    max="2000"
+                    step="25"
+                    value={crossfeedFcut}
+                    onChange={(e) => handleSetCrossfeed(crossfeedEnabled, 'Custom', parseInt(e.target.value, 10), crossfeedFeed)}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan, #06b6d4)' }}
+                  />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      {loc.settings.crossfeedFeed}
+                    </span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                      {(crossfeedFeed / 10).toFixed(1)} dB
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="150"
+                    step="5"
+                    value={crossfeedFeed}
+                    onChange={(e) => handleSetCrossfeed(crossfeedEnabled, 'Custom', crossfeedFcut, parseInt(e.target.value, 10))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan, #06b6d4)' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Opcja automatycznego pomijania ciszy (Silence Trimming) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '18px 20px',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: silenceTrimmingEnabled ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-subtle)',
+                background: silenceTrimmingEnabled ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <VolumeX size={18} color="var(--accent-emerald, #10b981)" />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
+                    {loc.settings.silenceTrimmingTitle}
+                  </span>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={silenceTrimmingEnabled}
+                    onChange={(e) => handleSetSilenceTrimming(e.target.checked, silenceTrimmingThreshold)}
+                    style={{ accentColor: 'var(--accent-emerald, #10b981)', width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: silenceTrimmingEnabled ? 'var(--accent-emerald, #10b981)' : 'var(--text-muted)' }}>
+                    {silenceTrimmingEnabled ? (language === 'pl' ? 'Włączone' : 'Enabled') : (language === 'pl' ? 'Wyłączone' : 'Disabled')}
+                  </span>
+                </label>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {loc.settings.silenceTrimmingDesc}
+              </div>
+
+              <div style={{ opacity: silenceTrimmingEnabled ? 1 : 0.45, pointerEvents: silenceTrimmingEnabled ? 'auto' : 'none', transition: 'opacity 0.2s ease' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {loc.settings.silenceTrimmingThreshold}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                    {silenceTrimmingThreshold.toFixed(1)} dBFS
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-80"
+                  max="-25"
+                  step="2.5"
+                  value={silenceTrimmingThreshold}
+                  onChange={(e) => handleSetSilenceTrimming(silenceTrimmingEnabled, parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--accent-emerald, #10b981)' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <span>-80 dB ({language === 'pl' ? 'Tylko absolutna cisza' : 'Pure silence only'})</span>
+                  <span>-50 dB ({language === 'pl' ? 'Zalecane' : 'Recommended'})</span>
+                  <span>-25 dB ({language === 'pl' ? 'Mocne cięcie' : 'Aggressive'})</span>
                 </div>
               </div>
             </div>

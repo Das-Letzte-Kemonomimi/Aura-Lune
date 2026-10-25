@@ -316,3 +316,82 @@ fn test_replaygain_pipeline_elements() {
     std::thread::sleep(std::time::Duration::from_millis(50));
     bin.set_state(gstreamer::State::Null).unwrap();
 }
+
+#[test]
+fn test_crossfeed_and_silence_trimming_pipeline_controls() {
+    use domain::crossfeed::{CrossfeedConfig, CrossfeedPreset};
+    use domain::silence::SilenceTrimmingConfig;
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+
+    // Test domyślnych ustawień
+    assert!(!engine.crossfeed_config().enabled);
+    assert!(!engine.silence_trimming_config().enabled);
+
+    // Test konfiguracji Crossfeedu (Chu Moy preset)
+    let crossfeed_cfg = CrossfeedConfig::with_preset(CrossfeedPreset::ChuMoy);
+    let mut enabled_crossfeed = crossfeed_cfg;
+    enabled_crossfeed.enabled = true;
+    engine
+        .set_crossfeed(enabled_crossfeed)
+        .expect("Ustawienie Crossfeed");
+    let retrieved_cf = engine.crossfeed_config();
+    assert!(retrieved_cf.enabled);
+    assert_eq!(retrieved_cf.preset, CrossfeedPreset::ChuMoy);
+    assert_eq!(retrieved_cf.fcut_hz, 700);
+    assert_eq!(retrieved_cf.feed_tenth_db, 60);
+
+    // Test konfiguracji Silence Trimming
+    let silence_cfg = SilenceTrimmingConfig {
+        enabled: true,
+        threshold_db: -55.0,
+    };
+    engine
+        .set_silence_trimming(silence_cfg)
+        .expect("Ustawienie Silence Trimming");
+    let retrieved_silence = engine.silence_trimming_config();
+    assert!(retrieved_silence.enabled);
+    assert_eq!(retrieved_silence.threshold_db, -55.0);
+
+    // Wyłączenie
+    enabled_crossfeed.enabled = false;
+    engine.set_crossfeed(enabled_crossfeed).unwrap();
+    assert!(!engine.crossfeed_config().enabled);
+
+    engine
+        .set_silence_trimming(SilenceTrimmingConfig {
+            enabled: false,
+            threshold_db: -50.0,
+        })
+        .unwrap();
+    assert!(!engine.silence_trimming_config().enabled);
+}
+
+#[test]
+fn test_smart_replaygain_auto_mode() {
+    use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+
+    let auto_cfg = ReplayGainConfig {
+        mode: ReplayGainMode::Auto,
+        pre_amp_db: 2.5,
+        fallback_gain_db: -4.0,
+        prevent_clipping: true,
+    };
+
+    engine
+        .set_replaygain(auto_cfg)
+        .expect("Ustawienie ReplayGain Auto");
+    assert_eq!(engine.replaygain_config().mode, ReplayGainMode::Auto);
+    assert_eq!(engine.replaygain_config().pre_amp_db, 2.5);
+    assert_eq!(engine.replaygain_config().fallback_gain_db, -4.0);
+    assert!(engine.replaygain_config().prevent_clipping);
+
+    // Dynamiczna adaptacja: ten sam album bez shuffle -> Album Gain
+    engine.apply_auto_replaygain(true, false);
+
+    // Inny album lub shuffle -> Track Gain
+    engine.apply_auto_replaygain(false, false);
+    engine.apply_auto_replaygain(true, true);
+}

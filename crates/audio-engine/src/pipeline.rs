@@ -1,13 +1,17 @@
 //! Główny potok odtwarzacza GStreamer z dynamicznym procesorem DSP.
 
 use crate::error::AudioEngineError;
+use domain::crossfeed::CrossfeedConfig;
 use domain::equalizer::EqualizerState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
+use domain::silence::SilenceTrimmingConfig;
 use domain::PlaybackState;
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
+use gst_base::prelude::BaseTransformExt;
 use gstreamer as gst;
+use gstreamer_base as gst_base;
 use std::path::Path;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
@@ -36,6 +40,8 @@ struct PipelineInner {
     dsp: crate::dsp_node::AuraluneDsp,
     freeverb: Option<gst::Element>,
     equalizer: gst::Element,
+    bs2b: Option<gst::Element>,
+    cutter: Option<gst::Element>,
     rgvolume: gst::Element,
     rglimiter: gst::Element,
     _spectrum: gst::Element,
@@ -46,6 +52,8 @@ struct PipelineInner {
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     replaygain_config: ReplayGainConfig,
+    crossfeed_config: CrossfeedConfig,
+    silence_trimming_config: SilenceTrimmingConfig,
     reverb_enabled: bool,
     reverb_room_size: f64,
     reverb_damping: f64,
@@ -221,6 +229,46 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
 
+        // Element Bauer stereophonic-to-binaural (Crossfeed bs2b) dla odsłuchu słuchawkowego
+        let bs2b = match gst::ElementFactory::make("bs2b")
+            .name("bs2b_crossfeed")
+            .property("fcut", 700i32)
+            .property("feed", 45i32)
+            .build()
+        {
+            Ok(el) => {
+                if let Ok(transform) = el.clone().dynamic_cast::<gst_base::BaseTransform>() {
+                    transform.set_passthrough(true); // Domyślnie tryb bypass
+                }
+                Some(el)
+            }
+            Err(e) => {
+                warn!("Brak elementu bs2b (gst-plugins-bad): {:?}", e);
+                None
+            }
+        };
+
+        // Element automatycznego pomijania ciszy (Silence Trimming cutter)
+        let cutter = match gst::ElementFactory::make("cutter")
+            .name("cutter_silence")
+            .property("leaky", false) // Domyślnie wyłączony bypass
+            .property("threshold-dB", -50.0f64)
+            .property("run-length", 500_000_000u64)
+            .property("pre-length", 200_000_000u64)
+            .build()
+        {
+            Ok(c) => Some(c),
+            Err(e) => {
+                warn!("Brak elementu cutter (gst-plugins-good): {:?}", e);
+                None
+            }
+        };
+
+        let audioconvert_cutter = gst::ElementFactory::make("audioconvert")
+            .name("audioconvert_cutter")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
+
         pipeline.add_many([
             &equalizer,
             &queue_sink,
@@ -235,6 +283,12 @@ impl AudioEngine {
 
         if let Some(ref st) = stereo {
             pipeline.add_many([st, &audioconvert_stereo])?;
+        }
+        if let Some(ref bs) = bs2b {
+            pipeline.add(bs)?;
+        }
+        if let Some(ref ct) = cutter {
+            pipeline.add_many([ct, &audioconvert_cutter])?;
         }
 
         // Połączenie elementów przetwarzania audio:
@@ -263,46 +317,44 @@ impl AudioEngine {
                 })?;
         }
 
-        // equalizer -> queue_sink -> audioconvert_out -> (stereo -> audioconvert_stereo) -> rgvolume -> rglimiter -> volume -> spectrum -> audioconvert_sink -> sink
-        if let Some(ref st) = stereo {
-            gst::Element::link_many([
-                &equalizer,
-                &queue_sink,
-                &audioconvert_out,
-                st,
-                &audioconvert_stereo,
-                &rgvolume,
-                &rglimiter,
-                &volume,
-                &spectrum,
-                &audioconvert_sink,
-                &sink,
-            ])
-            .map_err(|_| {
-                AudioEngineError::ElementLink(
-                    "Nie udało się połączyć wyjścia audio ze stereo widenerem, ReplayGain i zlewem"
-                        .into(),
-                )
+        // equalizer -> (bs2b) -> queue_sink
+        if let Some(ref bs) = bs2b {
+            equalizer.link(bs).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania equalizer z bs2b".into())
+            })?;
+            bs.link(&queue_sink).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania bs2b z queue_sink".into())
             })?;
         } else {
-            gst::Element::link_many([
-                &equalizer,
-                &queue_sink,
-                &audioconvert_out,
-                &rgvolume,
-                &rglimiter,
-                &volume,
-                &spectrum,
-                &audioconvert_sink,
-                &sink,
-            ])
-            .map_err(|_| {
-                AudioEngineError::ElementLink(
-                    "Nie udało się połączyć wyjścia audio z elementami ReplayGain, kolejką i zlewem"
-                        .into(),
-                )
+            equalizer.link(&queue_sink).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania equalizer z queue_sink".into())
             })?;
         }
+
+        // queue_sink -> audioconvert_out -> (stereo -> audioconvert_stereo) -> (cutter -> audioconvert_cutter) -> rgvolume -> rglimiter -> volume -> spectrum -> audioconvert_sink -> sink
+        let mut out_chain: Vec<&gst::Element> = Vec::new();
+        out_chain.push(&queue_sink);
+        out_chain.push(&audioconvert_out);
+        if let Some(ref st) = stereo {
+            out_chain.push(st);
+            out_chain.push(&audioconvert_stereo);
+        }
+        if let Some(ref ct) = cutter {
+            out_chain.push(ct);
+            out_chain.push(&audioconvert_cutter);
+        }
+        out_chain.push(&rgvolume);
+        out_chain.push(&rglimiter);
+        out_chain.push(&volume);
+        out_chain.push(&spectrum);
+        out_chain.push(&audioconvert_sink);
+        out_chain.push(&sink);
+
+        gst::Element::link_many(&out_chain).map_err(|_| {
+            AudioEngineError::ElementLink(
+                "Nie udało się połączyć wyjściowego łańcucha audio ze stereo, cutter, ReplayGain i zlewem".into(),
+            )
+        })?;
 
         let inner = Arc::new(Mutex::new(PipelineInner {
             pipeline,
@@ -311,6 +363,8 @@ impl AudioEngine {
             dsp,
             freeverb,
             equalizer,
+            bs2b,
+            cutter,
             rgvolume: rgvolume.clone(),
             rglimiter,
             _spectrum: spectrum,
@@ -321,6 +375,8 @@ impl AudioEngine {
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
             replaygain_config: ReplayGainConfig::default(),
+            crossfeed_config: CrossfeedConfig::default(),
+            silence_trimming_config: SilenceTrimmingConfig::default(),
             reverb_enabled: false,
             reverb_room_size: 0.5,
             reverb_damping: 0.2,
@@ -1355,19 +1411,51 @@ impl AudioEngine {
             ReplayGainMode::Track => {
                 inner.rgvolume.set_property("album-mode", false);
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
-                inner.rglimiter.set_property("enabled", true);
+                inner
+                    .rgvolume
+                    .set_property("fallback-gain", config.fallback_gain_db);
+                inner
+                    .rglimiter
+                    .set_property("enabled", config.prevent_clipping);
             }
             ReplayGainMode::Album => {
                 inner.rgvolume.set_property("album-mode", true);
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
-                inner.rglimiter.set_property("enabled", true);
+                inner
+                    .rgvolume
+                    .set_property("fallback-gain", config.fallback_gain_db);
+                inner
+                    .rglimiter
+                    .set_property("enabled", config.prevent_clipping);
+            }
+            ReplayGainMode::Auto => {
+                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
+                inner
+                    .rgvolume
+                    .set_property("fallback-gain", config.fallback_gain_db);
+                inner
+                    .rglimiter
+                    .set_property("enabled", config.prevent_clipping);
             }
         }
         debug!(
-            "Zaktualizowano ReplayGain: mode={:?}, pre_amp={:.1} dB",
-            config.mode, config.pre_amp_db
+            "Zaktualizowano ReplayGain: mode={:?}, pre_amp={:.1} dB, fallback={:.1} dB, limiter={}",
+            config.mode, config.pre_amp_db, config.fallback_gain_db, config.prevent_clipping
         );
         Ok(())
+    }
+
+    /// Dynamicznie dostosowuje tryb ReplayGain w trybie Auto (Track vs Album Gain).
+    pub fn apply_auto_replaygain(&self, is_same_album: bool, is_shuffle: bool) {
+        let inner = self.inner.lock().unwrap();
+        if inner.replaygain_config.mode == ReplayGainMode::Auto {
+            let use_album_gain = is_same_album && !is_shuffle;
+            inner.rgvolume.set_property("album-mode", use_album_gain);
+            debug!(
+                "ReplayGain Auto: ustawiono album-mode na {} (same_album={}, shuffle={})",
+                use_album_gain, is_same_album, is_shuffle
+            );
+        }
     }
 
     /// Pobiera bieżącą konfigurację ReplayGain.
@@ -1382,6 +1470,55 @@ impl AudioEngine {
         let result: f64 = inner.rgvolume.property("result-gain");
         let limiter: bool = inner.rglimiter.property("enabled");
         (target, result, limiter)
+    }
+
+    /// Konfiguruje filtr Bauer stereophonic-to-binaural (Crossfeed bs2b) dla odsłuchu słuchawkowego.
+    pub fn set_crossfeed(&self, config: CrossfeedConfig) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.crossfeed_config = config;
+        if let Some(ref bs) = inner.bs2b {
+            bs.set_property("fcut", config.fcut_hz as i32);
+            bs.set_property("feed", config.feed_tenth_db as i32);
+            if let Ok(transform) = bs.clone().dynamic_cast::<gst_base::BaseTransform>() {
+                transform.set_passthrough(!config.enabled);
+            }
+        }
+        debug!(
+            "Zaktualizowano Crossfeed: enabled={}, fcut={}Hz, feed={:.1}dB",
+            config.enabled,
+            config.fcut_hz,
+            config.feed_db()
+        );
+        Ok(())
+    }
+
+    /// Pobiera bieżącą konfigurację Crossfeed.
+    pub fn crossfeed_config(&self) -> CrossfeedConfig {
+        self.inner.lock().unwrap().crossfeed_config
+    }
+
+    /// Konfiguruje automatyczne pomijanie ciszy (Silence Trimming / Auto-skip silence).
+    pub fn set_silence_trimming(
+        &self,
+        config: SilenceTrimmingConfig,
+    ) -> Result<(), AudioEngineError> {
+        let clamped = config.clamped();
+        let mut inner = self.inner.lock().unwrap();
+        inner.silence_trimming_config = clamped;
+        if let Some(ref c) = inner.cutter {
+            c.set_property("leaky", clamped.enabled);
+            c.set_property("threshold-dB", clamped.threshold_db);
+        }
+        debug!(
+            "Zaktualizowano Silence Trimming: enabled={}, threshold={:.1}dB",
+            clamped.enabled, clamped.threshold_db
+        );
+        Ok(())
+    }
+
+    /// Pobiera bieżącą konfigurację pomijania ciszy.
+    pub fn silence_trimming_config(&self) -> SilenceTrimmingConfig {
+        self.inner.lock().unwrap().silence_trimming_config
     }
 
     /// Wznawia odtwarzanie z płynnym wejściem głośności o zadanym czasie trwania wg krzywej equal-power.

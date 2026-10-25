@@ -25,6 +25,27 @@ const RELEASES: ChangelogRelease[] = [
     isLatest: true,
     added: [
       {
+        pl: 'Bauer Crossfeed dla słuchawek (bs2b): wirtualizacja akustyki głośników stereo redukująca zmęczenie uszu (presety Default 30°/3m, Chu Moy, Jan Meier Corda oraz Custom).',
+        en: 'Bauer Headphone Crossfeed (bs2b): binaural speaker virtualization reducing ear fatigue on hard-panned stereo recordings (Default 30°/3m, Chu Moy, Jan Meier Corda, and Custom presets).',
+        de: 'Bauer Kopfhörer-Crossfeed (bs2b): Binaurale Lautsprecher-Simulation zur Reduzierung von Hörermüdung (Standard 30°/3m, Chu Moy, Jan Meier Corda und benutzerdefinierte Voreinstellungen).',
+        fi: 'Bauer-kuulokeristisyöttö (bs2b): virtuaalikaiutinsimulaatio vähentää korvien väsymistä (Oletus 30°/3m, Chu Moy, Jan Meier Corda ja mukautetut esiasetukset).',
+        la: 'Transmissio aurium Bauer (bs2b): simulatio soni loquentis ad lassitudinem minuendam (modi Consuetum 30°/3m, Chu Moy, Jan Meier Corda et Proprium).',
+      },
+      {
+        pl: 'Automatyczne pomijanie ciszy (Silence Trimming): płynne przeskakiwanie cichych przerw i intencji bezdźwięcznych poniżej konfigurowalnego progu dBFS.',
+        en: 'Automatic Silence Trimming: instant seamless skip over silent intros, outros, and excessive gaps below configurable dBFS threshold.',
+        de: 'Automatische Stillekürzung: Nahtloses Überspringen stummer Intros, Outros und langer Pausen unterhalb des konfigurierten dBFS-Schwellenwerts.',
+        fi: 'Automaattinen hiljaisuuden ohitus: ohittaa saumattomasti hiljaiset alku- ja loppuosiot sekä pitkät tauot säädettävän dBFS-kynnyksen alapuolella.',
+        la: 'Praeteritio silentii automatica: statim praeterire silentia initio et fine cantuum sub limite dBFS definito.',
+      },
+      {
+        pl: 'Inteligentny ReplayGain (Smart Gain): tryb Auto samoczynnie dobierający Album Gain dla spójnych albumów lub Track Gain dla trybu losowego i miksów, z suwakiem Fallback Gain.',
+        en: 'Smart ReplayGain (Auto Track/Album Gain): dynamically selects Album Gain for sequential albums or Track Gain for shuffle/mixes, with untagged Fallback Gain slider.',
+        de: 'Intelligenter ReplayGain: Wählt dynamisch Album-Verstärkung für sequentielle Alben oder Titel-Verstärkung für Shuffle/Mixe, inklusive Fallback-Verstärkung.',
+        fi: 'Älykäs ReplayGain: valitsee automaattisesti albumivahvistuksen peräkkäisille albumeille tai kappalevahvistuksen sekoitustilalle, mukana oletusvahvistus.',
+        la: 'ReplayGain callidus: sponte eligit ganiam albi pro cantibus continuis aut ganiam tractus pro modo fortuito, cum amplificatione defectus.',
+      },
+      {
         pl: 'Oficjalne scrobblowanie do Last.fm (Last.fm 2.0 API): autoryzacja sesji w przeglądarce, status Teraz Odtwarzane, scrobblowanie po 50% czasu utworu i wsparcie własnych kluczy API.',
         en: 'Official Last.fm 2.0 Scrobbler: web browser authentication, Now Playing status, scrobbling after 50% playtime, and custom API key support.',
         de: 'Offizieller Last.fm 2.0 Scrobbler: Browser-Authentifizierung, Jetzt-Spielen-Status, Scrobbeln nach 50% Spielzeit und benutzerdefinierte API-Schlüssel.',

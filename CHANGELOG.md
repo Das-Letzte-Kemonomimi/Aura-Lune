@@ -13,6 +13,16 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 **Autorka**: Das Letzte Kemonomimi
 
 ### Dodano (Added)
+- **Wsparcie Crossfeed dla słuchawek (Bauer stereophonic-to-binaural / bs2b)**:
+  - Element GStreamera `bs2b` z bezstratnym bypass (`set_passthrough`) w domenie próbek `F32LE`.
+  - Wbudowane presety akustyczne: Domyślny wirtualnych głośników (30°, 3m — 700 Hz / 4.5 dB), Chu Moy (700 Hz / 6.0 dB), Jan Meier Corda (650 Hz / 9.0 dB) oraz tryb użytkowniczki z suwakami częstotliwości i poziomu sprzężenia.
+  - Szklana karta w Ustawieniach z błękitnym neonem i natychmiastowym przełączaniem w locie.
+- **Automatyczne pomijanie ciszy (Silence Trimming / Auto-skip)**:
+  - Filtr GStreamera `cutter` (`leaky=true`) z dedykowanymi konwerterami `audioconvert` dropujący bufory ciszy poniżej konfigurowalnego progu (-80 dBFS .. -25 dBFS).
+  - Płynne przeskakiwanie ciszy na początku i końcu utworu bez ręcznego przewijania.
+- **Inteligentny ReplayGain (Smart Track/Album Gain)**:
+  - Nowy tryb `Auto` automatycznie wybierający Album Gain dla sekwencyjnego odtwarzania utworów z tego samego albumu lub Track Gain dla playlist mieszanych i trybu losowego (Shuffle).
+  - Dodatkowy suwak `Fallback Gain` (dla utworów bez tagów ReplayGain) oraz przełącznik limitera True-Peak (`rglimiter`) chroniącego przed obcinaniem sygnału.
 - **Oficjalne scrobblowanie do Last.fm (Last.fm 2.0 API)**:
   - Moduł `lastfm.rs` w `crates/metadata` z autoryzacją Web Authentication (token + session key), wyliczaniem sygnatur MD5 zgodnie ze specyfikacją Last.fm API.
   - Automatyczne powiadomienia „Teraz odtwarzane” (Now Playing) po uruchomieniu utworu oraz scrobblowanie po odsłuchaniu co najmniej 50% czasu trwania utworu (dla utworów >= 30s).
