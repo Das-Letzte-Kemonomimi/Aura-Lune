@@ -1401,6 +1401,38 @@ export default function App() {
 
   const currentCover = currentAlbum?.cover_path || trackDirectCover || null;
 
+  // Automatyczna synchronizacja metadanych i okładki z MPRIS / Discord RPC przy każdej zmianie utworu lub okładki
+  useEffect(() => {
+    const title = currentPlayingTrack?.title || status.current_track?.title;
+    if (!title) return;
+    const artist = currentPlayingTrack?.artist || status.current_track?.artist || 'Unknown Artist';
+    const album = currentAlbum?.title || status.current_track?.album || 'Auralune Player';
+    const durationMs = currentPlayingTrack?.duration_ms || status.current_track?.duration_ms || status.duration_ms || 0;
+    const artUrl = currentAlbum?.release_mbid
+      ? `https://coverartarchive.org/release/${currentAlbum.release_mbid}/front-500`
+      : currentCover;
+
+    invoke('update_mpris_metadata', {
+      title,
+      artist,
+      album,
+      durationMs,
+      artUrl: artUrl || null,
+    }).catch(() => {});
+  }, [
+    currentPlayingTrack?.title,
+    currentPlayingTrack?.artist,
+    currentPlayingTrack?.duration_ms,
+    status.current_track?.title,
+    status.current_track?.artist,
+    status.current_track?.album,
+    status.current_track?.duration_ms,
+    status.duration_ms,
+    currentAlbum?.title,
+    currentAlbum?.release_mbid,
+    currentCover,
+  ]);
+
   // Wizualizacja przebiegu utworu (Waveform) - deterministyczny profil fali dla bieżącego utworu
   const trackWaveformPeaks = useMemo(() => {
     const title = currentPlayingTrack?.title || status.current_track?.title || filePath.split('/').pop() || 'Auralune';
@@ -2231,19 +2263,9 @@ export default function App() {
       const selected = await invoke<string[]>('pick_files');
       if (selected && selected.length > 0) {
         showMessage(t.notifications.filesSelectedDolphin.replace('{0}', String(selected.length)));
-        for (const p of selected) {
-          try {
-            await invoke('add_to_queue', { uri: p });
-          } catch (e) {
-            console.warn('Błąd dodawania do kolejki:', e);
-          }
-        }
         await handleScanPaths(selected);
-        const q = await invoke<PlaybackQueue>('get_queue');
-        setQueue(q);
-        if (status.state === 'Stopped') {
-          await handlePlayQueueIndex(0);
-        }
+        await handleLoadFile(selected[0]);
+        await invoke('play');
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -2965,28 +2987,6 @@ export default function App() {
     }
   };
 
-  const handlePlayAllTracks = async (trackList: TrackRecord[], startIndex = 0) => {
-    if (trackList.length === 0) return;
-    const items: QueueItem[] = trackList.map((t, idx) => {
-      const alb = t.album_id ? albums.find((a) => a.id === t.album_id) : null;
-      return {
-        id: `q-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
-        track_id: t.id,
-        uri: t.path,
-        title: t.title,
-        artist: t.artist,
-        album: alb?.title || null,
-        duration_ms: t.duration_ms,
-      };
-    });
-    try {
-      await invoke('set_queue', { items, startIndex });
-      await refreshQueue();
-      showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(items.length)));
-    } catch (err: any) {
-      showMessage(`${t.common.errorPrefix} ${err}`, true);
-    }
-  };
 
   // ===================================
   // OBSŁUGA PLAYLIST (ETAP 7)
@@ -10802,24 +10802,55 @@ const renderDevicesSection = () => (
                     {smartPlaylistFilter === 'top_played' && ` • ${loc.library.sortedPlays}`}
                   </span>
                   {sortedTracks.length > 0 && (sortField !== 'default' || librarySearch.trim() !== '' || smartPlaylistFilter !== 'all') && (
-                    <button
-                      onClick={() => handlePlayAllTracks(sortedTracks, 0)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        color: '#fff',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: 'pointer',
-                        border: 'none',
-                      }}
-                    >
-                      <Play size={14} /> {loc.library.playSorted}
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          if (sortedTracks.length > 0) {
+                            handlePlayLibraryTrack(sortedTracks[0]);
+                          }
+                        }}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                          color: '#fff',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer',
+                          border: 'none',
+                        }}
+                      >
+                        <Play size={14} /> {loc.library.playSorted}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (sortedTracks.length > 0) {
+                            await invoke('add_uris_to_queue', { uris: sortedTracks.map((t) => t.path) });
+                            await refreshQueue();
+                            showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sortedTracks.length)));
+                          }
+                        }}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          background: 'rgba(255,255,255,0.08)',
+                          color: 'var(--accent-cyan)',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          cursor: 'pointer',
+                          border: 'none',
+                        }}
+                        title={loc.library.addToQueue}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -11368,8 +11399,12 @@ const renderDevicesSection = () => (
                       <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
                         <button
                           onClick={() => {
-                            const albumTracks = tracks.filter((t) => t.album_id === album.id);
-                            handlePlayAllTracks(albumTracks);
+                            const albumTracks = tracks
+                              .filter((t) => t.album_id === album.id)
+                              .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0));
+                            if (albumTracks.length > 0) {
+                              handlePlayLibraryTrack(albumTracks[0]);
+                            }
                           }}
                           style={{
                             padding: '8px 10px',
@@ -11383,9 +11418,36 @@ const renderDevicesSection = () => (
                             gap: '4px',
                             cursor: 'pointer',
                           }}
-                          title={loc.playlists.playAll}
+                          title={loc.player.play}
                         >
                           <Play size={13} /> {loc.player.play}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const albumTracks = tracks
+                              .filter((t) => t.album_id === album.id)
+                              .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0));
+                            if (albumTracks.length > 0) {
+                              await invoke('add_uris_to_queue', { uris: albumTracks.map((t) => t.path) });
+                              await refreshQueue();
+                              showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(albumTracks.length)));
+                            }
+                          }}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'var(--accent-cyan)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                          }}
+                          title={loc.library.addToQueue}
+                        >
+                          <Plus size={13} />
                         </button>
                         <button
                           onClick={() => handleOpenCoverPicker(album)}
@@ -11568,7 +11630,14 @@ const renderDevicesSection = () => (
 
                       <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
                         <button
-                          onClick={() => handlePlayAllTracks(artist.tracks, 0)}
+                          onClick={() => {
+                            const sorted = [...artist.tracks].sort(
+                              (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
+                            );
+                            if (sorted.length > 0) {
+                              handlePlayLibraryTrack(sorted[0]);
+                            }
+                          }}
                           style={{
                             flex: 1,
                             padding: '8px 12px',
@@ -11586,7 +11655,35 @@ const renderDevicesSection = () => (
                             boxShadow: '0 2px 8px rgba(236, 72, 153, 0.3)',
                           }}
                         >
-                          <Play size={13} fill="#fff" /> {loc.playlists.playAll}
+                          <Play size={13} fill="#fff" /> {loc.player.play}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const sorted = [...artist.tracks].sort(
+                              (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
+                            );
+                            if (sorted.length > 0) {
+                              await invoke('add_uris_to_queue', { uris: sorted.map((t) => t.path) });
+                              await refreshQueue();
+                              showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sorted.length)));
+                            }
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.08)',
+                            color: 'var(--accent-cyan)',
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            border: 'none',
+                          }}
+                          title={loc.library.addToQueue}
+                        >
+                          <Plus size={13} />
                         </button>
                         <button
                           onClick={() => {
@@ -13325,7 +13422,11 @@ const renderDevicesSection = () => (
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                      onClick={() => handlePlayAllTracks(playlistTracks)}
+                      onClick={() => {
+                        if (playlistTracks.length > 0) {
+                          handlePlayLibraryTrack(playlistTracks[0]);
+                        }
+                      }}
                       disabled={playlistTracks.length === 0}
                       style={{
                         padding: '8px 16px',
@@ -13342,7 +13443,31 @@ const renderDevicesSection = () => (
                         border: 'none',
                       }}
                     >
-                      <Play size={16} /> {loc.playlists.playAll}
+                      <Play size={16} /> {loc.player.play}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (playlistTracks.length > 0) {
+                          await invoke('add_uris_to_queue', { uris: playlistTracks.map((t) => t.path) });
+                          await refreshQueue();
+                          showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(playlistTracks.length)));
+                        }
+                      }}
+                      disabled={playlistTracks.length === 0}
+                      className="glass-card"
+                      style={{
+                        padding: '8px 14px',
+                        color: 'var(--accent-cyan)',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: playlistTracks.length === 0 ? 'default' : 'pointer',
+                        opacity: playlistTracks.length === 0 ? 0.5 : 1,
+                      }}
+                      title={loc.library.addToQueue}
+                    >
+                      <Plus size={16} /> {loc.library.addToQueue}
                     </button>
                     <button
                       onClick={() => handleExportPlaylistM3u8(selectedPlaylist)}
@@ -13399,8 +13524,8 @@ const renderDevicesSection = () => (
                             <td style={{ padding: '12px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                 <button
-                                  onClick={() => handlePlayAllTracks(playlistTracks, idx)}
-                                  title={loc.playlists.playFromHere}
+                                  onClick={() => handlePlayLibraryTrack(item)}
+                                  title={loc.player.play}
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}
                                 >
                                   <Play size={16} />

@@ -1,6 +1,6 @@
 pkgbase = auralune-bin
 	pkgdesc = Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - binary AppImage package
-	pkgver = 0.5.0
+	pkgver = 0.6.4
 	pkgrel = 1
 	url = https://github.com/Das-Letzte-Kemonomimi/Aura-Lune
 	arch = x86_64
@@ -25,8 +25,8 @@ pkgbase = auralune-bin
 	conflicts = auralune
 	conflicts = auralune-git
 	options = !strip
-	source = auralune-bin-0.5.0.AppImage::https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v0.5.0/Auralune_0.5.0_amd64.AppImage
-	sha256sums = dd027d06143fce1821776c2e7956b3be07c03aebf13a9864f74f08b70a69c15b
+	source = auralune-bin-0.6.4.AppImage::https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v0.6.4/Auralune_0.6.4_amd64.AppImage
+	sha256sums = 4897eeef062eae75a277e21bbf19ecfaa0b0e4b9e688bb3a4d7dbb07527d8916
 
 
 

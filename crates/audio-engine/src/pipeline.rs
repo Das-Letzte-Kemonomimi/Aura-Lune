@@ -1249,6 +1249,12 @@ impl AudioEngine {
         q.clear();
     }
 
+    /// Pobiera kopię aktualnego utworu w kolejce odtwarzania.
+    pub fn current_queue_item(&self) -> Option<QueueItem> {
+        let q = self.queue.lock().unwrap();
+        q.current_item().cloned()
+    }
+
     /// Odtwarza utwór ze wskazanego indeksu w kolejce.
     pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
         let item = {

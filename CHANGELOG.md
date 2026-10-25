@@ -9,8 +9,22 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
-## [0.6.0] — „foobar2000 Power Tools & Kitsune Facets” - 2026-10-25
+## [0.6.4] — „foobar2000 Power Tools & Kitsune Facets” - 2026-10-26
 **Autorka**: Das Letzte Kemonomimi
+
+### Poprawiono (Fixed)
+- **Deterministyczne zachowanie Kolejki Odtwarzania (Queue)**:
+  - Kliknięcie przycisku „Play” (w bibliotece utworów, na kartach albumów, wykonawców, w wyszukiwaniu oraz playlistach) odtwarza wyłącznie wskazany utwór i nie nadpisuje kolejki odtwarzania.
+  - Dodano dedykowane przyciski `+` („Dodaj do kolejki”) dla albumów, wykonawców, playlist i nagłówka wyszukiwania, korzystające ze zoptymalizowanego zbiorczego zapytania `add_uris_to_queue`.
+  - Wyeliminowano sztuczne generowanie kolejki i automatyczne wstrzykiwanie elementów przy zwykłym odtwarzaniu.
+- **Wirtualizacja tabeli utworów i kolejki (60 FPS Virtualization)**:
+  - Pełna wirtualizacja widoku tabeli biblioteki (`sortedTracks`) i kolejki odtwarzania (`queue`) z dynamicznym wyliczaniem widocznego okna i buforami pozycji.
+  - Błyskawiczny czas reakcji interfejsu i płynne przewijanie przy dowolnie wielkich kolekcjach muzycznych.
+- **Synchronizacja metadanych MPRIS i Discord RPC**:
+  - Automatyczny hook synchronizujący metadane i okładkę w locie przy każdej zmianie utworu w aplikacji.
+  - Metoda `current_queue_item()` w silniku audio jako niezawodny fallback metadanych dla zewnętrznych klientów D-Bus / MPRIS (w tym VesktopRPCBridge).
+- **Eksport pętli A-B oraz normalizacja ścieżek `file://`**:
+  - Obsługa znaczników pętli A-B w oknie eksportu DSP z automatycznym docięciem zakresu czasu oraz bezpieczną normalizacją URI.
 
 ### Dodano (Added)
 - **Transliteracja Romaji japońskich tekstów piosenek (Hepburn Romanization)**:

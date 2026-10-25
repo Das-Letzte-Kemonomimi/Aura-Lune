@@ -246,6 +246,25 @@ impl PlayerInterface for AuraluneMprisHandler {
                 builder = builder.art_url(art);
             }
             Ok(builder.build())
+        } else if let Some(queue_item) = self.engine.current_queue_item() {
+            let dur_ms = if queue_item.duration_ms > 0 {
+                queue_item.duration_ms as i64
+            } else {
+                self.engine
+                    .duration()
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0)
+            };
+            let album_str = queue_item
+                .album
+                .unwrap_or_else(|| "Auralune Library".to_string());
+            let meta = Metadata::builder()
+                .title(&queue_item.title)
+                .artist([&queue_item.artist])
+                .album(&album_str)
+                .length(Time::from_millis(dur_ms))
+                .build();
+            Ok(meta)
         } else {
             let dur_ms = self
                 .engine
