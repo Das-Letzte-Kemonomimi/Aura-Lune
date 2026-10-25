@@ -518,6 +518,8 @@ const RELEASES: ChangelogRelease[] = [
   },
 ];
 
+const LATEST_RELEASE = RELEASES.find((r) => r.isLatest) || RELEASES[0];
+
 export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl' }) => {
   const getLocText = (obj: { pl: string; en: string; de: string; fi: string; la: string }) => {
     return obj[currentLang] || obj.pl || obj.en;
@@ -626,7 +628,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
               border: '1px solid rgba(168, 85, 247, 0.4)',
             }}
           >
-            v0.3.0 • Omniscience & Starlight
+            v{LATEST_RELEASE.version} • {LATEST_RELEASE.codename}
           </span>
         </div>
       </div>
