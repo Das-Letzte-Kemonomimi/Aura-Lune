@@ -509,6 +509,14 @@ export default function App() {
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
   const [showDownloadHub, setShowDownloadHub] = useState<boolean>(false);
 
+  // Discord Rich Presence (RPC)
+  const [discordRpcEnabled, setDiscordRpcEnabled] = useState<boolean>(true);
+  const [discordRpcConnected, setDiscordRpcConnected] = useState<boolean>(false);
+  const [discordClientId, setDiscordClientId] = useState<string>('1121632048155742288');
+  const [discordClientIdInput, setDiscordClientIdInput] = useState<string>('1121632048155742288');
+  const [isEditingDiscordClientId, setIsEditingDiscordClientId] = useState<boolean>(false);
+
+
   // ListenBrainz Scrobbler
   const [listenbrainzToken, setListenbrainzToken] = useState<string>('');
   const [listenbrainzEnabled, setListenbrainzEnabled] = useState<boolean>(false);
@@ -1410,6 +1418,19 @@ export default function App() {
         setCloseToTray(val !== 'false');
       })
       .catch((e) => console.warn('Błąd odczytu close_to_tray:', e));
+
+    invoke<{ enabled: boolean; connected: boolean; client_id: string }>('get_discord_rpc_status')
+      .then((st) => {
+        if (st) {
+          setDiscordRpcEnabled(st.enabled);
+          setDiscordRpcConnected(st.connected);
+          const cid = st.client_id || '1121632048155742288';
+          setDiscordClientId(cid);
+          setDiscordClientIdInput(cid);
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu get_discord_rpc_status:', e));
+
 
     invoke<string | null>('get_app_setting', { key: 'listenbrainz_token' })
       .then((val) => {
@@ -2744,6 +2765,57 @@ export default function App() {
       console.warn('Błąd zapisu close_to_tray:', e);
     }
   };
+
+  const handleToggleDiscordRpc = async (enabled: boolean) => {
+    setDiscordRpcEnabled(enabled);
+    try {
+      await invoke('set_discord_rpc_enabled', { enabled });
+      showMessage(
+        enabled
+          ? 'Włączono integrację Discord Rich Presence (RPC)'
+          : 'Wyłączono integrację Discord Rich Presence (RPC)'
+      );
+      const st = await invoke<{ enabled: boolean; connected: boolean; client_id: string }>('get_discord_rpc_status');
+      if (st) {
+        setDiscordRpcConnected(st.connected);
+      }
+    } catch (e: any) {
+      console.warn('Błąd set_discord_rpc_enabled:', e);
+    }
+  };
+
+  const handleSaveDiscordClientId = async (newId: string) => {
+    const finalId = newId.trim() || '1121632048155742288';
+    setDiscordClientId(finalId);
+    setDiscordClientIdInput(finalId);
+    setIsEditingDiscordClientId(false);
+    try {
+      await invoke('set_discord_rpc_client_id', { clientId: finalId });
+      showMessage('Zaktualizowano identyfikator Discord Application ID');
+    } catch (e: any) {
+      console.warn('Błąd set_discord_rpc_client_id:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const interval = setInterval(() => {
+      invoke<{ enabled: boolean; connected: boolean; client_id: string }>('get_discord_rpc_status')
+        .then((st) => {
+          if (st) {
+            setDiscordRpcEnabled(st.enabled);
+            setDiscordRpcConnected(st.connected);
+            if (!isEditingDiscordClientId) {
+              setDiscordClientId(st.client_id || '1121632048155742288');
+              setDiscordClientIdInput(st.client_id || '1121632048155742288');
+            }
+          }
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isSettingsOpen, isEditingDiscordClientId]);
+
 
   const handleTestListenbrainz = async () => {
     if (!listenbrainzToken.trim()) {
@@ -5719,6 +5791,176 @@ const renderDevicesSection = () => (
             </label>
           </div>
         </div>
+
+        {/* Sekcja Discord Rich Presence (RPC) */}
+        <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(88, 101, 242, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(88, 101, 242, 0.4)',
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 20 19" fill="#5865F2">
+                  <path d="M16.224 3.768a14.5 14.5 0 0 0-3.67-1.153c-.158.286-.343.67-.47.976a13.5 13.5 0 0 0-4.067 0c-.128-.306-.317-.69-.476-.976A14.4 14.4 0 0 0 3.868 3.77C1.546 7.28.916 10.703 1.231 14.077a14.7 14.7 0 0 0 4.5 2.306q.545-.748.965-1.587a9.5 9.5 0 0 1-1.518-.74q.191-.14.372-.293c2.927 1.369 6.107 1.369 8.999 0q.183.152.372.294-.723.437-1.52.74.418.838.963 1.588a14.6 14.6 0 0 0 4.504-2.308c.37-3.911-.63-7.302-2.644-10.309m-9.13 8.234c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.894 0 1.614.82 1.599 1.82.001 1-.705 1.82-1.6 1.82m5.91 0c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.893 0 1.614.82 1.599 1.82 0 1-.706 1.82-1.6 1.82" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{loc.settings.discordRpcTitle}</h3>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      background: discordRpcConnected
+                        ? 'rgba(34, 197, 94, 0.15)'
+                        : 'rgba(255, 255, 255, 0.08)',
+                      color: discordRpcConnected ? '#4ade80' : 'var(--text-muted)',
+                      border: `1px solid ${
+                        discordRpcConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)'
+                      }`,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: discordRpcConnected ? '#22c55e' : 'rgba(255, 255, 255, 0.4)',
+                        boxShadow: discordRpcConnected ? '0 0 8px #22c55e' : 'none',
+                      }}
+                    />
+                    {discordRpcConnected ? loc.settings.discordConnected : loc.settings.discordDisconnected}
+                  </span>
+                </div>
+                <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {loc.settings.discordRpcDesc}
+                </p>
+              </div>
+            </div>
+
+            <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+              <input
+                type="checkbox"
+                checked={discordRpcEnabled}
+                onChange={(e) => handleToggleDiscordRpc(e.target.checked)}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  cursor: 'pointer',
+                  inset: 0,
+                  backgroundColor: discordRpcEnabled ? '#5865F2' : 'rgba(255,255,255,0.2)',
+                  transition: '0.3s',
+                  borderRadius: '24px',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: discordRpcEnabled ? '23px' : '3px',
+                    bottom: '3px',
+                    backgroundColor: 'white',
+                    transition: '0.3s',
+                    borderRadius: '50%',
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+
+          {discordRpcEnabled && (
+            <div
+              style={{
+                marginTop: '16px',
+                background: 'rgba(0,0,0,0.25)',
+                padding: '14px 16px',
+                borderRadius: '12px',
+                border: '1px solid rgba(88, 101, 242, 0.2)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  {loc.settings.discordClientIdLabel}
+                </span>
+                {discordClientId !== '1121632048155742288' && (
+                  <button
+                    onClick={() => handleSaveDiscordClientId('1121632048155742288')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent-pink)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    {loc.settings.discordClientIdDefaultBtn}
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={discordClientIdInput}
+                  onChange={(e) => {
+                    setDiscordClientIdInput(e.target.value);
+                    setIsEditingDiscordClientId(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSaveDiscordClientId(discordClientIdInput);
+                    }
+                  }}
+                  placeholder="1121632048155742288"
+                  style={{
+                    flex: 1,
+                    background: 'rgba(22, 26, 46, 0.95)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                    fontFamily: 'monospace',
+                  }}
+                />
+                {isEditingDiscordClientId && discordClientIdInput !== discordClientId && (
+                  <button
+                    onClick={() => handleSaveDiscordClientId(discordClientIdInput)}
+                    className="btn btn-primary"
+                    style={{
+                      padding: '0 16px',
+                      fontSize: '0.8rem',
+                      background: '#5865F2',
+                      borderColor: '#5865F2',
+                    }}
+                  >
+                    Zapisz
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
 
         {/* Sekcja Płynny Crossfade (Poweramp style) */}
         <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>

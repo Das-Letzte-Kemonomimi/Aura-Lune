@@ -18,11 +18,51 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.5.0',
+    codename: 'Velvet Discord & Kitsune Resonance',
+    date: '2026-10-25',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Natywna integracja Discord Rich Presence (RPC) dla Linuksa: bezpośrednia, bezblokadowa obsługa gniazda Unix Domain Socket ($XDG_RUNTIME_DIR/discord-ipc-0..9) wspierająca oficjalnego Discorda, Vesktop, WebCord, ArmCord oraz Flatpak.',
+        en: 'Native Discord Rich Presence (RPC) for Linux: direct, non-blocking Unix Domain Socket client ($XDG_RUNTIME_DIR/discord-ipc-0..9) supporting official Discord, Vesktop, WebCord, ArmCord, and Flatpak.',
+        de: 'Natives Discord Rich Presence (RPC) für Linux: direkter, sperrenfreier Unix-Domain-Socket-Client mit Unterstützung für offizielles Discord, Vesktop, WebCord, ArmCord und Flatpak.',
+        fi: 'Natiivi Discord Rich Presence (RPC) Linuxille: suora, lukkovapaa Unix Domain Socket -asiakas ($XDG_RUNTIME_DIR/discord-ipc-0..9) tukee virallista Discordia, Vesktopia, WebCordia ja Flatpakia.',
+        la: 'Nativa Praesentia Dives Discord (RPC) pro Linux: cliens sine sera per Unix Domain Socket cum auxilio pro Discord, Vesktop, WebCord et Flatpak.',
+      },
+      {
+        pl: 'Status „Słucha” (Listening) z tytułem utworu, artystą, albumem, okładką, czasem na żywo (pasek postępu) oraz przyciskiem do Auralune.',
+        en: 'Listening activity with track title, artist, album, cover artwork, live progress bar, and clickable button to Auralune player.',
+        de: 'Listening-Aktivität mit Tracktitel, Interpret, Album, Cover-Artwork, Live-Fortschrittsbalken und Auralune-Button.',
+        fi: 'Listening-tila kappaleen nimellä, esittäjällä, albumilla, kansikuvalla, edistymispalkilla ja linkillä Auralune-soittimeen.',
+        la: 'Status audientis cum titulo, cantatore, albo, imagine, cursu temporis et ligamine ad Auralune.',
+      },
+      {
+        pl: 'Dedykowana szklana karta w Ustawieniach z neonowym wskaźnikiem połączenia na żywo, przełącznikiem i konfigurowalnym Client ID.',
+        en: 'Dedicated glassmorphic card in Settings with live glowing connection indicator, toggle switch, and custom Discord Client ID.',
+        de: 'Eigene Glassmorphism-Karte in den Einstellungen mit Live-Verbindungsstatus, Umschalter und konfigurierbarer Client-ID.',
+        fi: 'Oma lasikortti Asetuksissa reaaliaikaisella yhteyden tilavalolla, kytkimellä ja mukautettavalla Client ID:llä.',
+        la: 'Charta vitrea propria in Optionibus cum indice lucido coniunctionis, interruptore et Client ID.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Ciche wznawianie sesji IPC w tle po restarcie klienta Discord bez blokowania wątków odtwarzacza ani UI.',
+        en: 'Silent background IPC session recovery on Discord client restarts without blocking audio threads or UI.',
+        de: 'Geräuschlose automatische IPC-Wiederverbindung im Hintergrund ohne Blockieren von Audio-Threads oder UI.',
+        fi: 'Hiljainen IPC-istunnon palautus taustalla Discord-sovelluksen käynnistyessä uudelleen ilman toiston lukittumista.',
+        la: 'Recuperatio tacita IPC nexus in curriculo sine intermissione soni vel faciei programmatis.',
+      },
+    ],
+  },
+  {
     version: '0.4.0',
     codename: 'Kitsune Horizons & Poweramp Legacy',
     date: '2026-10-25',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
+
     added: [
       {
         pl: 'Crate crates/downloads & Legal Download Hub: bezpieczny moduł pobierania legalnych nagrań audio (Archive.org, Creative Commons, podcasty i feedy RSS) z weryfikacją SHA-256 i atomowym zapisem do biblioteki.',

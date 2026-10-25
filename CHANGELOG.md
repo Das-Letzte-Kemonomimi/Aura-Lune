@@ -9,8 +9,28 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.5.0] — „Velvet Discord & Kitsune Resonance” - 2026-10-25
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Natywna integracja Discord Rich Presence (RPC) dla Linuksa**:
+  - Samodzielny moduł `discord_rpc.rs` w `crates/desktop-integration` komunikujący się z lokalnym gniazdem Unix Domain Socket Discorda (`$XDG_RUNTIME_DIR/discord-ipc-0`..`9`, w tym oficjalny klient, Discord Canary, Vesktop, WebCord, ArmCord oraz Flatpak/Snap).
+  - Aktywność Discorda typu „Słucha” (Listening) z tytułem utworu, wykonawcą, albumem, znacznikami czasu postępu utworu (`start` / `end`) oraz ikonami stanu (`play`/`pause`).
+  - Wyświetlanie okładek albumów (Cover Art Archive / URL) w oknie Discord RPC oraz przycisk odnośnika do odtwarzacza Auralune na GitHubie.
+  - Nowa szklana karta w Ustawieniach (`Settings`) z neonowym wskaźnikiem połączenia na żywo (zielona dioda po połączeniu z Discordem), przełącznikiem on/off oraz konfigurowalnym identyfikatorem aplikacji Discord (Client ID).
+  - Pełne tłumaczenia interfejsu Discord RPC na 5 języków (PL, EN, DE, FI, LA).
+
+### Naprawiono i ulepszono (Fixed & Improved)
+- **Bezpieczeństwo połączenia IPC**:
+  - Asynchroniczna pętla robocza Tokio z automatycznym cichym wznawianiem sesji w tle po restarcie klienta Discord bez blokowania audio callbacku ani interfejsu użytkowniczki.
+- **Optymalizacja testów wielowątkowych**:
+  - Usunięcie konfliktów równoległej rejestracji dynamicznych typów GStreamer w testach modułu `audio-engine`.
+
+---
+
 ## [0.4.0] — „Kitsune Horizons & Poweramp Legacy” - 2026-10-25
 **Autorka**: Das Letzte Kemonomimi
+
 
 ### Dodano (Added)
 - **[Etap 7 z AGENTS.md] Crate `crates/downloads` & Legal Download Hub**:

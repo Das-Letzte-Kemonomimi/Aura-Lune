@@ -1,7 +1,8 @@
 # Maintainer: Kitsune Player Team <team@auralune.org>
 pkgname=auralune-bin
-pkgver=0.4.0
+pkgver=0.5.0
 pkgrel=1
+
 pkgdesc="Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - binary AppImage package"
 arch=('x86_64')
 url="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune"
@@ -30,7 +31,8 @@ optdepends=(
 )
 options=('!strip')
 source=("$pkgname-$pkgver.AppImage::$url/releases/download/v$pkgver/Auralune_${pkgver}_amd64.AppImage")
-sha256sums=('1343432febc7fe8d6f4a050a943e2357ab8276f7a7257681ca339ed9228ac2ad')
+sha256sums=('07304e6a140113ef469a5465e32e61d503d0e36449e5c30a2eb7d1b180b22c3a')
+
 
 prepare() {
     chmod +x "$pkgname-$pkgver.AppImage"
