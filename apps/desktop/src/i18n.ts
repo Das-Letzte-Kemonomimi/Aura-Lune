@@ -185,6 +185,12 @@ export interface Translations {
     dspAutostartOff: string;
     dspSaveStartupBtn: string;
     bypassActiveNotice: string;
+    bassBoostTitle: string;
+    bassBoostDesc: string;
+    stereoWidenerTitle: string;
+    stereoWidenerDesc: string;
+    limiterTitle: string;
+    limiterDesc: string;
   };
   library: {
     title: string;
@@ -283,6 +289,8 @@ export interface Translations {
     backToList: string;
     playFromHere: string;
     addToQueue: string;
+    exportM3u8: string;
+    importM3u8: string;
   };
   covers: {
     title: string;
@@ -410,6 +418,23 @@ export interface Translations {
     proAudioOn: string;
     hardwareProfiles: string;
     bluetoothCodecSelect: string;
+    backupTitle: string;
+    backupDesc: string;
+    exportBackupBtn: string;
+    importBackupBtn: string;
+    closeToTray: string;
+    closeToTrayDesc: string;
+    listenbrainzTitle: string;
+    listenbrainzDesc: string;
+    listenbrainzToken: string;
+    listenbrainzTokenPlaceholder: string;
+    listenbrainzTest: string;
+    listenbrainzValid: string;
+    listenbrainzInvalid: string;
+    listenbrainzAuto: string;
+    crossfadeTitle: string;
+    crossfadeDesc: string;
+    downloadHubBtn: string;
   };
   shortcuts: {
     title: string;
@@ -840,6 +865,12 @@ export const translations: Record<Language, Translations> = {
       dspAutostartOff: 'DSP Autostart: OFF',
       dspSaveStartupBtn: 'Save as startup',
       bypassActiveNotice: 'Output is in Direct Bypass mode (DSP effects bypassed). Custom pitch, tempo and speed settings are preserved and will reactivate when switching to Rubber Band or SoundTouch.',
+      bassBoostTitle: 'Bass Boost (Sub-bass Exciter)',
+      bassBoostDesc: 'Sub-bass frequency exciter (31-125 Hz) with peak headroom limiter.',
+      stereoWidenerTitle: 'Stereo Widener (Stereo Stage)',
+      stereoWidenerDesc: 'Expands the perceived stereo image and soundstage separation.',
+      limiterTitle: 'True-Peak Limiter',
+      limiterDesc: 'Prevents digital clipping and distortion when boosting EQ or pitch.',
     },
     library: {
       title: 'Music Library',
@@ -938,6 +969,8 @@ export const translations: Record<Language, Translations> = {
       backToList: '← Back to playlists',
       playFromHere: 'Play from here',
       addToQueue: 'Add to queue',
+      exportM3u8: 'Export to M3U8',
+      importM3u8: 'Import M3U / M3U8',
     },
     covers: {
       title: 'Match Album Cover',
@@ -1065,6 +1098,23 @@ export const translations: Record<Language, Translations> = {
       proAudioOn: '✓ Pro Audio ON (Pro Profile)',
       hardwareProfiles: 'Available hardware profiles (click to switch):',
       bluetoothCodecSelect: 'Bluetooth codec selection (A2DP):',
+      backupTitle: 'Profile Backup & Portability',
+      backupDesc: 'Export or restore all themes, studio DSP presets, playlists, and configuration in standard JSON format.',
+      exportBackupBtn: 'Export Profile Backup (JSON)',
+      importBackupBtn: 'Restore Profile from JSON',
+      closeToTray: 'Close to System Tray',
+      closeToTrayDesc: 'Keep playing in the background when closing the main window with quick controls in the Linux tray.',
+      listenbrainzTitle: 'ListenBrainz Scrobbler',
+      listenbrainzDesc: 'Scrobble your listens directly to your MetaBrainz / MusicBrainz open profile.',
+      listenbrainzToken: 'ListenBrainz User Token',
+      listenbrainzTokenPlaceholder: 'Paste your token from listenbrainz.org/profile',
+      listenbrainzTest: 'Test Token',
+      listenbrainzValid: 'Connected as',
+      listenbrainzInvalid: 'Invalid API token or connection failed',
+      listenbrainzAuto: 'Automatically scrobble played tracks (>50% elapsed)',
+      crossfadeTitle: 'Equal-Power Crossfade',
+      crossfadeDesc: 'Smooth transition between consecutive tracks (0.0s – 8.0s).',
+      downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
       title: 'Keyboard Shortcuts',
@@ -1494,6 +1544,12 @@ export const translations: Record<Language, Translations> = {
       dspAutostartOff: 'Autostart DSP: WYŁ',
       dspSaveStartupBtn: 'Zapisz jako startowe',
       bypassActiveNotice: 'Wyjście w trybie Direct Bypass (efekty wyłączone). Wartości pitch, tempo i szybkości są zachowane i uaktywnią się po przełączeniu na Rubber Band lub SoundTouch.',
+      bassBoostTitle: 'Bass Boost (Sub-bas Exciter)',
+      bassBoostDesc: 'Pobudzenie sub-niskich częstotliwości (31-125 Hz) z dynamicznym limiterem.',
+      stereoWidenerTitle: 'Stereo Widener (Baza stereo)',
+      stereoWidenerDesc: 'Poszerzenie panoramy i przestrzenności sceny stereo.',
+      limiterTitle: 'True-Peak Limiter',
+      limiterDesc: 'Ochrona przed przesterowaniem cyfrowym przy podbitym EQ i pitchu.',
     },
     library: {
       title: 'Biblioteka Muzyczna',
@@ -1592,6 +1648,8 @@ export const translations: Record<Language, Translations> = {
       backToList: '← Powrót do listy playlist',
       playFromHere: 'Graj od tego miejsca',
       addToQueue: 'Dodaj na koniec kolejki',
+      exportM3u8: 'Eksportuj do M3U8',
+      importM3u8: 'Importuj M3U / M3U8',
     },
     covers: {
       title: 'Dopasuj okładkę',
@@ -1719,6 +1777,23 @@ export const translations: Record<Language, Translations> = {
       proAudioOn: '✓ Pro Audio ON (Profil Pro)',
       hardwareProfiles: 'Dostępne profile sprzętowe (kliknij by przełączyć):',
       bluetoothCodecSelect: 'Wybór kodeka Bluetooth (A2DP):',
+      backupTitle: 'Kopia zapasowa i przenośność profilu',
+      backupDesc: 'Eksportuj lub przywracaj wszystkie motywy, presety studyjne DSP, playlisty oraz konfigurację odtwarzacza w standardowym formacie JSON.',
+      exportBackupBtn: 'Eksportuj kopię profilu (JSON)',
+      importBackupBtn: 'Przywróć profil z pliku JSON',
+      closeToTray: 'Zamykaj do zasobnika systemowego (System Tray)',
+      closeToTrayDesc: 'Odtwarzaj muzykę w tle po zamknięciu głównego okna programu. Dostępne szybkie sterowanie z tacki systemowej Linuksa.',
+      listenbrainzTitle: 'Scrobbler ListenBrainz',
+      listenbrainzDesc: 'Automatyczne scroblowanie do Twojego otwartego profilu MetaBrainz / MusicBrainz.',
+      listenbrainzToken: 'User Token ListenBrainz',
+      listenbrainzTokenPlaceholder: 'Wklej token z listenbrainz.org/profile',
+      listenbrainzTest: 'Testuj połączenie',
+      listenbrainzValid: 'Połączono jako',
+      listenbrainzInvalid: 'Nieprawidłowy token lub błąd połączenia',
+      listenbrainzAuto: 'Włącz automatyczne scroblowanie (>50% czasu utworu)',
+      crossfadeTitle: 'Płynny Crossfade (Equal-power)',
+      crossfadeDesc: 'Płynne przejście między utworami z zachowaniem mocy akustycznej (0.0s – 8.0s).',
+      downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
       title: 'Skróty Klawiszowe',
@@ -2148,6 +2223,12 @@ export const translations: Record<Language, Translations> = {
       dspAutostartOff: 'DSP Autostart: AUS',
       dspSaveStartupBtn: 'Als Startwert speichern',
       bypassActiveNotice: 'Ausgabe im Direct-Bypass-Modus (DSP deaktiviert). Tonhöhe, Tempo und Geschwindigkeit bleiben gespeichert und werden bei Auswahl von Rubber Band oder SoundTouch reaktiviert.',
+      bassBoostTitle: 'Bass Boost (Sub-Bass Exciter)',
+      bassBoostDesc: 'Sub-Bass-Frequenzverstärker (31-125 Hz) mit Limiter-Schutz.',
+      stereoWidenerTitle: 'Stereo Widener (Stereobasis)',
+      stereoWidenerDesc: 'Erweitert die räumliche Wahrnehmung der Stereobühne.',
+      limiterTitle: 'True-Peak Limiter',
+      limiterDesc: 'Verhindert digitale Übersteuerungen bei EQ- und Pitch-Anhebung.',
     },
     library: {
       title: 'Musikbibliothek',
@@ -2246,6 +2327,8 @@ export const translations: Record<Language, Translations> = {
       backToList: '← Zurück zu den Listen',
       playFromHere: 'Ab hier abspielen',
       addToQueue: 'An Warteschlange anhängen',
+      exportM3u8: 'Als M3U8 exportieren',
+      importM3u8: 'M3U / M3U8 importieren',
     },
     covers: {
       title: 'Cover abgleichen',
@@ -2373,6 +2456,23 @@ export const translations: Record<Language, Translations> = {
       proAudioOn: '✓ Pro Audio AN (Pro-Profil)',
       hardwareProfiles: 'Verfügbare Hardwareprofile (Klicken zum Umschalten):',
       bluetoothCodecSelect: 'Bluetooth-Codec-Auswahl (A2DP):',
+      backupTitle: 'Profil-Backup & Portabilität',
+      backupDesc: 'Exportieren oder Wiederherstellen aller Themen, DSP-Presets, Playlists und Konfigurationen im JSON-Format.',
+      exportBackupBtn: 'Profil-Backup exportieren (JSON)',
+      importBackupBtn: 'Profil aus JSON wiederherstellen',
+      closeToTray: 'In den Infobereich minimieren',
+      closeToTrayDesc: 'Musik beim Schließen des Fensters im Hintergrund weiterspielen.',
+      listenbrainzTitle: 'ListenBrainz Scrobbler',
+      listenbrainzDesc: 'Listens direkt an dein MetaBrainz-Profil übertragen.',
+      listenbrainzToken: 'ListenBrainz-Token',
+      listenbrainzTokenPlaceholder: 'Token von listenbrainz.org/profile einfügen',
+      listenbrainzTest: 'Token testen',
+      listenbrainzValid: 'Verbunden als',
+      listenbrainzInvalid: 'Ungültiger API-Token',
+      listenbrainzAuto: 'Automatisches Scrobbeln aktivieren (>50% gespielt)',
+      crossfadeTitle: 'Equal-Power Crossfade',
+      crossfadeDesc: 'Sanfter Übergang zwischen Titeln (0,0s – 8,0s).',
+      downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
       title: 'Tastaturkürzel',
@@ -2802,6 +2902,12 @@ export const translations: Record<Language, Translations> = {
       dspAutostartOff: 'DSP Autostart: POIS',
       dspSaveStartupBtn: 'Tallenna oletukseksi',
       bypassActiveNotice: 'Ulostulo suorassa ohitustilassa (Direct Bypass, DSP pois). Äänenkorkeuden, tempon ja nopeuden arvot säilytetään ja ne palautuvat valittaessa Rubber Band tai SoundTouch.',
+      bassBoostTitle: 'Bass Boost (Subbasso)',
+      bassBoostDesc: 'Subbassoalueen korostus (31-125 Hz) huippulimitterillä.',
+      stereoWidenerTitle: 'Stereo Widener (Stereokuva)',
+      stereoWidenerDesc: 'Laajentaa stereokuvan tilavaikutelmaa.',
+      limiterTitle: 'True-Peak Limiter',
+      limiterDesc: 'Estää digitaalisen leikkautumisen EQ- ja sävelkorkeussäädöissä.',
     },
     library: {
       title: 'Musiikkikirjasto',
@@ -2900,6 +3006,8 @@ export const translations: Record<Language, Translations> = {
       backToList: '← Takaisin listoihin',
       playFromHere: 'Toista tästä alkaen',
       addToQueue: 'Lisää jonoon',
+      exportM3u8: 'Vie M3U8-muodossa',
+      importM3u8: 'Tuo M3U / M3U8',
     },
     covers: {
       title: 'Sovita kansikuva',
@@ -3027,6 +3135,23 @@ export const translations: Record<Language, Translations> = {
       proAudioOn: '✓ Pro Audio PÄÄLLÄ (Pro-profiili)',
       hardwareProfiles: 'Käytettävissä olevat laiteprofiilit (napsauta vaihtaaksesi):',
       bluetoothCodecSelect: 'Bluetooth-koodekin valinta (A2DP):',
+      backupTitle: 'Profiilin varmuuskopiointi ja siirrettävyys',
+      backupDesc: 'Vie tai palauta kaikki teemat, DSP-esiasetukset, soittolistat ja asetukset JSON-muodossa.',
+      exportBackupBtn: 'Vie profiilin varmuuskopio (JSON)',
+      importBackupBtn: 'Palauta profiili JSON-tiedostosta',
+      closeToTray: 'Pienennä ilmaisinalueelle suljettaessa',
+      closeToTrayDesc: 'Pidä musiikki soimassa taustalla, kun pääikkuna suljetaan.',
+      listenbrainzTitle: 'ListenBrainz Scrobbler',
+      listenbrainzDesc: 'Lähetä kuuntelutiedot MetaBrainz-profiiliisi.',
+      listenbrainzToken: 'ListenBrainz-tunnus (Token)',
+      listenbrainzTokenPlaceholder: 'Liitä tunnus osoitteesta listenbrainz.org/profile',
+      listenbrainzTest: 'Testaa tunnus',
+      listenbrainzValid: 'Yhdistetty nimellä',
+      listenbrainzInvalid: 'Virheellinen tunnus',
+      listenbrainzAuto: 'Automaattinen scrobble (>50% toistettu)',
+      crossfadeTitle: 'Equal-Power Crossfade',
+      crossfadeDesc: 'Pehmeä siirtymä kappaleiden välillä (0,0s – 8,0s).',
+      downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
       title: 'Pikanäppäimet',
@@ -3456,6 +3581,12 @@ export const translations: Record<Language, Translations> = {
       dspAutostartOff: 'DSP Autostart: NON',
       dspSaveStartupBtn: 'Serva ut primigenium',
       bypassActiveNotice: 'Modus Direct Bypass activus (effectus neglecti). Modulatio vocis ac temporis conservantur et restituentur Rubber Band vel SoundTouch electis.',
+      bassBoostTitle: 'Bass Boost (Amplificatio Gravitatis)',
+      bassBoostDesc: 'Gravitatem soni sub-bassu auget cum protectore limitis.',
+      stereoWidenerTitle: 'Stereo Widener (Amplitudo Stereophonica)',
+      stereoWidenerDesc: 'Campum stereophonicum amplificat.',
+      limiterTitle: 'True-Peak Limiter',
+      limiterDesc: 'Distortionem digitalem prohibet.',
     },
     library: {
       title: 'Bibliotheca Musicae',
@@ -3554,6 +3685,8 @@ export const translations: Record<Language, Translations> = {
       backToList: '← Retro ad indices',
       playFromHere: 'Canta hinc',
       addToQueue: 'Adde ad ordinem',
+      exportM3u8: 'In M3U8 exportare',
+      importM3u8: 'M3U / M3U8 importare',
     },
     covers: {
       title: 'Adapta tegumentum',
@@ -3681,6 +3814,23 @@ export const translations: Record<Language, Translations> = {
       proAudioOn: '✓ Pro Audio ITA (Pro-Forma)',
       hardwareProfiles: 'Profilia ferraturae parata (tange ad mutandum):',
       bluetoothCodecSelect: 'Electio codicis Bluetooth (A2DP):',
+      backupTitle: 'Profili exemplum ac portabilitas',
+      backupDesc: 'Exporta vel restitue omnia themata, DSP praescriptiones et configurationes in JSON forma.',
+      exportBackupBtn: 'Exportare exemplum (JSON)',
+      importBackupBtn: 'Restituere profili ex JSON',
+      closeToTray: 'In aream systematis claudere',
+      closeToTrayDesc: 'Musica in curriculo manet cum fenestra principalis clauditur.',
+      listenbrainzTitle: 'Scrobbler ListenBrainz',
+      listenbrainzDesc: 'Auditores ad MetaBrainz profilum transmitte.',
+      listenbrainzToken: 'ListenBrainz Tessera',
+      listenbrainzTokenPlaceholder: 'Tesseram e listenbrainz.org/profile hic insere',
+      listenbrainzTest: 'Tesseram probare',
+      listenbrainzValid: 'Iunctus ut',
+      listenbrainzInvalid: 'Tessera invalida',
+      listenbrainzAuto: 'Scrobblatio automatica (>50% audito)',
+      crossfadeTitle: 'Equal-Power Crossfade',
+      crossfadeDesc: 'Mollis transitus inter cantus (0.0s – 8.0s).',
+      downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
       title: 'Compendia Claviaturae',

@@ -15,7 +15,9 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
+pub mod listenbrainz;
 pub mod lyrics;
+pub use listenbrainz::*;
 pub use lyrics::*;
 
 #[derive(Debug, Error)]

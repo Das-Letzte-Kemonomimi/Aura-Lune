@@ -13,10 +13,14 @@ use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::replaygain::ReplayGainConfig;
 use domain::transcode::{DspExportSettings, ExportFormat};
-use domain::{PlaybackState, Playlist, Theme};
+use domain::{ImportM3uResult, M3uEntry, M3uPlaylist, PlaybackState, Playlist, Theme};
+use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
-use metadata::{CoverArtArchiveClient, CoverCandidateDto, MusicBrainzClient, ReleaseCandidateDto};
+use metadata::{
+    CoverArtArchiveClient, CoverCandidateDto, ListenBrainzClient, MusicBrainzClient,
+    ReleaseCandidateDto,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -34,6 +38,8 @@ pub struct AppState {
     pub mpris: Option<Arc<desktop_integration::MprisController>>,
     pub mb: Arc<MusicBrainzClient>,
     pub cover_archive: Arc<CoverArtArchiveClient>,
+    pub listenbrainz: Arc<ListenBrainzClient>,
+    pub downloads: Arc<DownloadManager>,
     pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
 }
 
@@ -265,6 +271,68 @@ fn set_reverb_params(
         .engine
         .set_reverb_params(enabled, r_size, damp, w, lev);
     Ok(())
+}
+
+#[tauri::command]
+fn set_stereo_widener(
+    active: bool,
+    amount: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: set_stereo_widener(active: {}, amount: {:?})",
+        active, amount
+    );
+    state.engine.set_stereo_widener_active(active);
+    if let Some(amt) = amount {
+        state.engine.set_stereo_widener_amount(amt);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_stereo_widener(state: State<'_, AppState>) -> Result<(bool, f64), String> {
+    Ok(state.engine.stereo_widener_params())
+}
+
+#[tauri::command]
+fn set_limiter_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_limiter_enabled({})", enabled);
+    state.engine.set_limiter_enabled(enabled);
+    Ok(())
+}
+
+#[tauri::command]
+fn is_limiter_enabled(state: State<'_, AppState>) -> Result<bool, String> {
+    Ok(state.engine.is_limiter_enabled())
+}
+
+#[tauri::command]
+fn set_crossfade_duration(duration_ms: u64, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_crossfade_duration({} ms)", duration_ms);
+    state.engine.set_crossfade_duration_ms(duration_ms);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_crossfade_duration(state: State<'_, AppState>) -> Result<u64, String> {
+    Ok(state.engine.crossfade_duration_ms())
+}
+
+#[tauri::command]
+fn get_default_music_dir() -> Result<String, String> {
+    if let Ok(home) = std::env::var("HOME") {
+        let music = std::path::Path::new(&home).join("Music");
+        if music.exists() {
+            return Ok(music.to_string_lossy().to_string());
+        }
+        let downloads = std::path::Path::new(&home).join("Downloads");
+        if downloads.exists() {
+            return Ok(downloads.to_string_lossy().to_string());
+        }
+        return Ok(home);
+    }
+    Ok("/tmp".to_string())
 }
 
 #[tauri::command]
@@ -979,6 +1047,53 @@ async fn pick_save_destination(
                     &format!("--filename={}", target_file),
                     "--title=Wybierz miejsce docelowe zapisu",
                 ])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        if is_kde_environment() {
+            try_kdialog().or_else(try_zenity)
+        } else {
+            try_zenity().or_else(try_kdialog)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn pick_custom_file(title: String, filter: String) -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+
+        let try_kdialog = || -> Option<String> {
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args(["--getopenfilename", &home, &filter, "--title", &title])
+                .output()
+            {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(path);
+                    }
+                }
+            }
+            None
+        };
+
+        let try_zenity = || -> Option<String> {
+            let filter_arg = format!("--file-filter={}", filter);
+            let title_arg = format!("--title={}", title);
+            if let Ok(output) = std::process::Command::new("zenity")
+                .args(["--file-selection", &title_arg, &filter_arg])
                 .output()
             {
                 if output.status.success() {
@@ -2318,6 +2433,322 @@ fn get_playlist_tracks(
         .map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlaylistExportDto {
+    pub name: String,
+    pub track_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProfileBackupDto {
+    pub version: String,
+    pub exported_at_timestamp: u64,
+    pub dsp_presets: Vec<DspPresetRecord>,
+    pub themes: Vec<Theme>,
+    pub playlists: Vec<PlaylistExportDto>,
+}
+
+#[tauri::command]
+fn export_playlist_m3u8(
+    playlist_id: i64,
+    export_path: String,
+    use_relative_paths: bool,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: export_playlist_m3u8(playlist_id: {}, export_path: '{}', relative: {})",
+        playlist_id, export_path, use_relative_paths
+    );
+    let tracks = state
+        .rt
+        .block_on(async { state.db.get_playlist_tracks(playlist_id).await })
+        .map_err(|e| format!("Błąd pobierania utworów playlisty: {}", e))?;
+
+    let playlists = state
+        .rt
+        .block_on(async { state.db.list_playlists().await })
+        .map_err(|e| format!("Błąd pobierania listy playlist: {}", e))?;
+
+    let playlist_name = playlists
+        .iter()
+        .find(|p| p.id == playlist_id)
+        .map(|p| p.name.clone())
+        .unwrap_or_else(|| format!("Playlist_{}", playlist_id));
+
+    let entries: Vec<M3uEntry> = tracks
+        .into_iter()
+        .map(|t| M3uEntry {
+            path_or_uri: t.path,
+            title: Some(t.title),
+            artist: Some(t.artist),
+            duration_seconds: Some(t.duration_ms / 1000),
+        })
+        .collect();
+
+    let export_dir = std::path::Path::new(&export_path).parent();
+    let content =
+        M3uPlaylist::export_to_m3u8(&playlist_name, &entries, export_dir, use_relative_paths);
+
+    fs::write(&export_path, content)
+        .map_err(|e| format!("Nie udało się zapisać pliku M3U8: {}", e))?;
+
+    Ok(format!(
+        "Pomyślnie wyeksportowano playlistę '{}' ({} utworów)",
+        playlist_name,
+        entries.len()
+    ))
+}
+
+#[tauri::command]
+fn import_playlist_m3u8(
+    file_path: String,
+    custom_name: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<ImportM3uResult, String> {
+    info!("Tauri command: import_playlist_m3u8('{}')", file_path);
+
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Nie udało się odczytać pliku M3U/M3U8: {}", e))?;
+
+    let path_obj = std::path::Path::new(&file_path);
+    let base_dir = path_obj.parent();
+
+    let fallback_name = path_obj
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Zaimportowana Playlista");
+
+    let playlist_name = custom_name
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| fallback_name.to_string());
+
+    let m3u = M3uPlaylist::parse(&content, &playlist_name, base_dir)?;
+
+    state.rt.block_on(async {
+        let playlist_id = state
+            .db
+            .create_playlist(&m3u.name)
+            .await
+            .map_err(|e| format!("Błąd tworzenia playlisty w bazie: {}", e))?;
+
+        let mut matched_tracks = 0;
+        let mut missing_tracks = Vec::new();
+
+        for entry in &m3u.entries {
+            if let Some(track) = state
+                .db
+                .find_track_by_path_or_uri(&entry.path_or_uri)
+                .await
+                .unwrap_or(None)
+            {
+                if let Err(e) = state.db.add_track_to_playlist(playlist_id, track.id).await {
+                    error!("Błąd dodawania utworu {} do playlisty: {}", track.id, e);
+                } else {
+                    matched_tracks += 1;
+                }
+            } else {
+                missing_tracks.push(entry.path_or_uri.clone());
+            }
+        }
+
+        Ok(ImportM3uResult {
+            playlist_id,
+            playlist_name: m3u.name,
+            total_entries: m3u.entries.len(),
+            matched_tracks,
+            missing_tracks,
+        })
+    })
+}
+
+#[tauri::command]
+fn export_profile_backup(
+    destination_path: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: export_profile_backup(dest: {:?})",
+        destination_path
+    );
+    state.rt.block_on(async {
+        let presets = state.db.list_dsp_presets().await.unwrap_or_default();
+        let themes = state.db.list_themes().await.unwrap_or_default();
+        let playlists = state.db.list_playlists().await.unwrap_or_default();
+
+        let mut playlist_exports = Vec::new();
+        for pl in playlists {
+            let tracks = state
+                .db
+                .get_playlist_tracks(pl.id)
+                .await
+                .unwrap_or_default();
+            playlist_exports.push(PlaylistExportDto {
+                name: pl.name,
+                track_paths: tracks.into_iter().map(|t| t.path).collect(),
+            });
+        }
+
+        let now_ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let backup = ProfileBackupDto {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            exported_at_timestamp: now_ts,
+            dsp_presets: presets,
+            themes,
+            playlists: playlist_exports,
+        };
+
+        let json = serde_json::to_string_pretty(&backup)
+            .map_err(|e| format!("Błąd serializacji kopii profilu: {}", e))?;
+
+        if let Some(dest) = destination_path {
+            fs::write(&dest, &json)
+                .map_err(|e| format!("Błąd zapisu pliku kopii zapasowej: {}", e))?;
+            Ok(format!("Pomyślnie zapisano kopię profilu w: {}", dest))
+        } else {
+            Ok(json)
+        }
+    })
+}
+
+#[tauri::command]
+fn import_profile_backup(
+    file_path_or_json: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!("Tauri command: import_profile_backup");
+    let json_content = if file_path_or_json.trim().starts_with('{') {
+        file_path_or_json
+    } else {
+        fs::read_to_string(&file_path_or_json)
+            .map_err(|e| format!("Błąd odczytu pliku kopii zapasowej: {}", e))?
+    };
+
+    let backup: ProfileBackupDto = serde_json::from_str(&json_content)
+        .map_err(|e| format!("Nieprawidłowy format pliku JSON kopii profilu: {}", e))?;
+
+    state.rt.block_on(async {
+        let mut restored_presets = 0;
+        let mut restored_themes = 0;
+        let mut restored_playlists = 0;
+
+        for preset in backup.dsp_presets {
+            if state
+                .db
+                .save_dsp_preset(
+                    &preset.name,
+                    &preset.engine,
+                    preset.pitch_semitones,
+                    preset.tempo_ratio,
+                    preset.rate_ratio,
+                )
+                .await
+                .is_ok()
+            {
+                restored_presets += 1;
+            }
+        }
+
+        for theme in backup.themes {
+            if state.db.save_theme(&theme).await.is_ok() {
+                restored_themes += 1;
+            }
+        }
+
+        for pl in backup.playlists {
+            if let Ok(pl_id) = state.db.create_playlist(&pl.name).await {
+                restored_playlists += 1;
+                for path in pl.track_paths {
+                    if let Ok(Some(track)) = state.db.find_track_by_path_or_uri(&path).await {
+                        let _ = state.db.add_track_to_playlist(pl_id, track.id).await;
+                    }
+                }
+            }
+        }
+
+        Ok(format!(
+            "Pomyślnie przywrócono profil (wersja kopii: {}): {} presetów DSP, {} motywów, {} playlist.",
+            backup.version, restored_presets, restored_themes, restored_playlists
+        ))
+    })
+}
+
+#[tauri::command]
+async fn validate_listenbrainz_token(
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!("Tauri command: validate_listenbrainz_token");
+    state.listenbrainz.validate_token(&token).await
+}
+
+#[tauri::command]
+async fn submit_listenbrainz_playing_now(
+    token: String,
+    artist: String,
+    title: String,
+    album: Option<String>,
+    duration_ms: Option<u64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .listenbrainz
+        .submit_playing_now(&token, &artist, &title, album.as_deref(), duration_ms)
+        .await
+}
+
+#[tauri::command]
+async fn submit_listenbrainz_listen(
+    token: String,
+    artist: String,
+    title: String,
+    album: Option<String>,
+    duration_ms: Option<u64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    state
+        .listenbrainz
+        .submit_listen(&token, &artist, &title, album.as_deref(), now, duration_ms)
+        .await
+}
+
+#[tauri::command]
+async fn add_download_job(
+    remote_url: String,
+    destination_path: String,
+    expected_sha256: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!(
+        "Tauri command: add_download_job(url: '{}', dest: '{}')",
+        remote_url, destination_path
+    );
+    state
+        .downloads
+        .add_download_job(remote_url, destination_path, expected_sha256)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cancel_download_job(job_id: String, state: State<'_, AppState>) -> Result<bool, String> {
+    info!("Tauri command: cancel_download_job('{}')", job_id);
+    Ok(state.downloads.cancel_download(&job_id))
+}
+
+#[tauri::command]
+fn list_download_jobs(state: State<'_, AppState>) -> Result<Vec<DownloadJob>, String> {
+    Ok(state.downloads.list_jobs())
+}
+
 #[tauri::command]
 async fn set_app_icon_style(
     style: String,
@@ -2707,6 +3138,8 @@ pub fn run() {
                     mpris,
                     mb,
                     cover_archive,
+                    listenbrainz: Arc::new(ListenBrainzClient::new()),
+                    downloads: Arc::new(DownloadManager::new()),
                     latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
                 };
 
@@ -2714,6 +3147,98 @@ pub fn run() {
 
                 // Aplikacja wybranego stylu ikony aplikacji
                 let _ = update_system_icons(app.handle(), &icon_style);
+
+                // Inicjalizacja zasobnika systemowego (System Tray) na pulpicie Linuksa
+                let show_i = tauri::menu::MenuItem::with_id(app, "tray_show", "🌸 Pokaż Auralune / Show Window", true, None::<&str>)?;
+                let play_i = tauri::menu::MenuItem::with_id(app, "tray_play_pause", "⏯️ Odtwórz / Wstrzymaj (Play/Pause)", true, None::<&str>)?;
+                let next_i = tauri::menu::MenuItem::with_id(app, "tray_next", "⏭️ Następny utwór / Next", true, None::<&str>)?;
+                let prev_i = tauri::menu::MenuItem::with_id(app, "tray_prev", "⏮️ Poprzedni utwór / Previous", true, None::<&str>)?;
+                let quit_i = tauri::menu::MenuItem::with_id(app, "tray_quit", "🚪 Zakończ / Quit", true, None::<&str>)?;
+                let tray_menu = tauri::menu::Menu::with_items(app, &[&show_i, &play_i, &next_i, &prev_i, &quit_i])?;
+
+                if let Some(default_icon) = app.default_window_icon() {
+                    let _ = tauri::tray::TrayIconBuilder::new()
+                        .icon(default_icon.clone())
+                        .tooltip("Auralune — Kitsune Music Player")
+                        .menu(&tray_menu)
+                        .show_menu_on_left_click(false)
+                        .on_menu_event(|app, event| {
+                            match event.id.as_ref() {
+                                "tray_show" => {
+                                    if let Some(window) = app.get_webview_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                                "tray_play_pause" => {
+                                    let state = app.state::<AppState>();
+                                    if state.engine.state() == domain::PlaybackState::Playing {
+                                        let _ = state.engine.pause();
+                                    } else {
+                                        let _ = state.engine.play();
+                                    }
+                                }
+                                "tray_next" => {
+                                    let state = app.state::<AppState>();
+                                    let _ = state.engine.play_next();
+                                }
+                                "tray_prev" => {
+                                    let state = app.state::<AppState>();
+                                    let _ = state.engine.play_previous();
+                                }
+                                "tray_quit" => {
+                                    app.exit(0);
+                                }
+                                _ => {}
+                            }
+                        })
+                        .on_tray_icon_event(|tray, event| {
+                            if let tauri::tray::TrayIconEvent::Click {
+                                button: tauri::tray::MouseButton::Left,
+                                button_state: tauri::tray::MouseButtonState::Up,
+                                ..
+                            } = event {
+                                let app = tray.app_handle();
+                                if let Some(window) = app.get_webview_window("main") {
+                                    if window.is_visible().unwrap_or(false) {
+                                        let _ = window.hide();
+                                    } else {
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                            }
+                        })
+                        .build(app);
+                }
+
+                // Obsługa minimalizacji do zasobnika systemowego przy zamykaniu okna
+                if let Some(main_window) = app.get_webview_window("main") {
+                    let main_window_clone = main_window.clone();
+                    let app_handle = app.handle().clone();
+                    main_window.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            let state = app_handle.state::<AppState>();
+                            let close_to_tray = state
+                                .rt
+                                .block_on(async {
+                                    state
+                                        .db
+                                        .get_app_setting("close_to_tray")
+                                        .await
+                                        .unwrap_or(None)
+                                })
+                                .unwrap_or_else(|| "true".to_string());
+
+                            if close_to_tray == "true" {
+                                api.prevent_close();
+                                let _ = main_window_clone.hide();
+                            }
+                        }
+                    });
+                }
 
                 Ok(())
             }
@@ -2764,6 +3289,7 @@ pub fn run() {
             pick_image_file,
             pick_single_audio_file,
             pick_save_destination,
+            pick_custom_file,
             open_containing_folder,
             open_external_url,
             get_app_version,
@@ -2831,6 +3357,23 @@ pub fn run() {
             parse_cue_sheet_content,
             list_smart_playlist_tracks,
             show_desktop_notification,
+            export_playlist_m3u8,
+            import_playlist_m3u8,
+            export_profile_backup,
+            import_profile_backup,
+            validate_listenbrainz_token,
+            submit_listenbrainz_playing_now,
+            submit_listenbrainz_listen,
+            add_download_job,
+            cancel_download_job,
+            list_download_jobs,
+            set_stereo_widener,
+            get_stereo_widener,
+            set_limiter_enabled,
+            is_limiter_enabled,
+            set_crossfade_duration,
+            get_crossfade_duration,
+            get_default_music_dir,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

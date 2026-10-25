@@ -9,6 +9,32 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.4.0] — „Kitsune Horizons & Poweramp Legacy” - 2026-10-25
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **[Etap 7 z AGENTS.md] Crate `crates/downloads` & Legal Download Hub**:
+  - Samodzielny moduł bezpiecznego pobierania legalnych nagrań audio (Archive.org, Creative Commons, podcasty i feedy RSS).
+  - Weryfikacja integralności kryptograficznej w locie (SHA-256) oraz ścisła ochrona przed path traversal (`/etc`, `/root`, `/bin`, `../`).
+  - Atomowy zapis do biblioteki poprzez bufor tymczasowy (`.auralune_tmp_*`) i natychmiastowe `fs::rename`.
+  - Nowy modal `DownloadHubModal` w React z paskami postępu, stanami zadań (Pending, Downloading, Completed, Failed, Cancelled) i bezpośrednim odtwarzaniem.
+- **[Klasyka Powerampa] Płynny Crossfade & Zaawansowane efekty DSP**:
+  - Konfigurowalny Crossfade (0.0s – 8.0s) z równomierną krzywą mocy akustycznej (`equal-power curve: cos/sin`) eliminującą spadki głośności w środku przejścia między utworami.
+  - **Bass Boost (Sub-bas Exciter)**: dedykowany moduł pobudzenia najniższych rejestrów (31–125 Hz) z suwakiem 0–12 dB i szybkimi presetami.
+  - **Stereo Widener (Baza stereo)**: poszerzenie panoramy i przestrzenności sceny dźwiękowej w locie bazujące na natywnym elemencie GStreamer.
+  - **True-Peak Limiter**: przełączalny limiter `rglimiter` chroniący przed przesterowaniem cyfrowym przy podbiciu EQ, pitchu i basu.
+- **[Klasyka foobar2000] Import i Eksport Playlist M3U / M3U8 & Kopia zapasowa profilu**:
+  - Pełny import i eksport standardu UTF-8 M3U8 (`#EXTM3U`, `#EXTINF`) z automatyczną normalizacją ścieżek względnych i bezwzględnych.
+  - Eksport i przywracanie profilu użytkowniczki (presety EQ/DSP, motywy anime, playlisty, ustawienia) jako wersjonowany plik JSON.
+- **[Ekosystem MetaBrainz] Oficjalny Scrobbler ListenBrainz**:
+  - Klient REST API ListenBrainz (`validate_token`, `submit_playing_now`, `submit_listen`) w `crates/metadata/src/listenbrainz.rs`.
+  - Automatyczne scroblowanie odtworzeń po przekroczeniu 50% czasu utworu (lub 240 sekund) z poszanowaniem prywatności.
+- **[Integracja z systemem] Linux System Tray & Odtwarzanie w tle**:
+  - Ikona w tacce systemowej z szybkim menu (Pokaż okno, Odtwórz/Pauza, Następny, Poprzedni, Zakończ).
+  - Opcja „Minimalizuj do zasobnika zamiast zamykać” (Close to Tray) z możliwością konfiguracji w ustawieniach.
+
+---
+
 ## [0.3.0] — „Omniscience & Starlight” - 2026-10-25
 **Autorka**: Das Letzte Kemonomimi
 

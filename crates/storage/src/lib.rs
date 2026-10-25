@@ -514,6 +514,25 @@ impl Database {
         Ok(res)
     }
 
+    /// Wyszukuje utwór po ścieżce lub URI (obsługuje prefiks file:// oraz dopasowanie elastyczne).
+    pub async fn find_track_by_path_or_uri(
+        &self,
+        path_or_uri: &str,
+    ) -> Result<Option<TrackRecord>, StorageError> {
+        let clean_path = path_or_uri.strip_prefix("file://").unwrap_or(path_or_uri);
+        let with_file_uri = format!("file://{}", clean_path);
+
+        let res = sqlx::query_as::<_, TrackRecord>(
+            "SELECT * FROM tracks WHERE path = ?1 OR path = ?2 LIMIT 1;",
+        )
+        .bind(clean_path)
+        .bind(&with_file_uri)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(res)
+    }
+
     pub async fn get_track_by_id(&self, id: i64) -> Result<Option<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>("SELECT * FROM tracks WHERE id = ?1 LIMIT 1;")
             .bind(id)

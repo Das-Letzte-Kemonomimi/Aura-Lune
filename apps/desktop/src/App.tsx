@@ -88,6 +88,7 @@ import { AuraluneRecapModal } from './components/AuraluneRecapModal';
 import { TagEditorModal } from './components/TagEditorModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { CueSheetModal } from './components/CueSheetModal';
+import { DownloadHubModal } from './components/DownloadHubModal';
 import { type Language, getTranslations } from './i18n';
 
 interface EqualizerPreset {
@@ -504,7 +505,25 @@ export default function App() {
   const [cards, setCards] = useState<AudioCard[]>([]);
   const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'themes' | 'devices' | 'transcode' | 'about' | 'changelog'>('themes');
+  const [settingsTab, setSettingsTab] = useState<'themes' | 'devices' | 'transcode' | 'about' | 'changelog' | 'backup'>('themes');
+  const [closeToTray, setCloseToTray] = useState<boolean>(true);
+  const [showDownloadHub, setShowDownloadHub] = useState<boolean>(false);
+
+  // ListenBrainz Scrobbler
+  const [listenbrainzToken, setListenbrainzToken] = useState<string>('');
+  const [listenbrainzEnabled, setListenbrainzEnabled] = useState<boolean>(false);
+  const [listenbrainzUser, setListenbrainzUser] = useState<string | null>(null);
+  const [listenbrainzTesting, setListenbrainzTesting] = useState<boolean>(false);
+  const [listenbrainzStatusMsg, setListenbrainzStatusMsg] = useState<string | null>(null);
+  const [scrobbledTrackId, setScrobbledTrackId] = useState<number | null>(null);
+
+  // Płynny Crossfade & Zaawansowane efekty DSP (Poweramp)
+  const [crossfadeDuration, setCrossfadeDuration] = useState<number>(1500);
+  const [bassBoost, setBassBoost] = useState<number>(0);
+  const [stereoWidenerActive, setStereoWidenerActive] = useState<boolean>(false);
+  const [stereoWidenerAmount, setStereoWidenerAmount] = useState<number>(0.15);
+  const [limiterEnabled, setLimiterEnabled] = useState<boolean>(true);
+
   const [isQuickLoadOpen, setIsQuickLoadOpen] = useState(false);
 
   // Pierwsze uruchomienie (Onboarding) & Recap & OSD & Klucz/BPM
@@ -1301,6 +1320,34 @@ export default function App() {
                 )
               );
             }
+
+            // ListenBrainz Scrobbler: scrobble po przekroczeniu 50% czasu utworu (lub 240 sek.)
+            if (
+              res.state === 'Playing' &&
+              listenbrainzEnabled &&
+              listenbrainzToken &&
+              scrobbledTrackId !== trackId &&
+              res.duration_ms &&
+              res.duration_ms >= 30000 &&
+              res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
+            ) {
+              setScrobbledTrackId(trackId);
+              const currentTrackObj = tracks.find((t) => t.id === trackId);
+              if (currentTrackObj) {
+                invoke('submit_listenbrainz_listen', {
+                  token: listenbrainzToken,
+                  artist: currentTrackObj.artist,
+                  title: currentTrackObj.title,
+                  album: currentTrackObj.album_artist || null,
+                  durationMs: currentTrackObj.duration_ms || null,
+                  listenedAt: Math.floor(Date.now() / 1000),
+                })
+                  .then(() => {
+                    showMessage(`Scrobble wysłany do ListenBrainz: ${currentTrackObj.title}`);
+                  })
+                  .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
+              }
+            }
           }
         }
       } catch (e) {
@@ -1357,6 +1404,71 @@ export default function App() {
         dspAutoStartupRef.current = enabled;
       })
       .catch((e) => console.warn('Błąd odczytu dsp_restore_on_startup:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'close_to_tray' })
+      .then((val) => {
+        setCloseToTray(val !== 'false');
+      })
+      .catch((e) => console.warn('Błąd odczytu close_to_tray:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'listenbrainz_token' })
+      .then((val) => {
+        if (val) setListenbrainzToken(val);
+      })
+      .catch((e) => console.warn('Błąd odczytu listenbrainz_token:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'listenbrainz_enabled' })
+      .then((val) => {
+        setListenbrainzEnabled(val === 'true');
+      })
+      .catch((e) => console.warn('Błąd odczytu listenbrainz_enabled:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'crossfade_duration' })
+      .then((val) => {
+        const ms = val ? parseInt(val, 10) : 1500;
+        if (!isNaN(ms)) {
+          setCrossfadeDuration(ms);
+          invoke('set_crossfade_duration', { durationMs: ms }).catch(() => {});
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu crossfade_duration:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'bass_boost' })
+      .then((val) => {
+        if (val) {
+          const num = parseFloat(val);
+          if (!isNaN(num)) setBassBoost(num);
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu bass_boost:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'stereo_widener_active' })
+      .then((val) => {
+        const active = val === 'true';
+        setStereoWidenerActive(active);
+        invoke('set_stereo_widener', { active, amount: stereoWidenerAmount }).catch(() => {});
+      })
+      .catch((e) => console.warn('Błąd odczytu stereo_widener_active:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'stereo_widener_amount' })
+      .then((val) => {
+        if (val) {
+          const amt = parseFloat(val);
+          if (!isNaN(amt)) {
+            setStereoWidenerAmount(amt);
+            invoke('set_stereo_widener', { active: stereoWidenerActive, amount: amt }).catch(() => {});
+          }
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu stereo_widener_amount:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'limiter_enabled' })
+      .then((val) => {
+        const enabled = val !== 'false';
+        setLimiterEnabled(enabled);
+        invoke('set_limiter_enabled', { enabled }).catch(() => {});
+      })
+      .catch((e) => console.warn('Błąd odczytu limiter_enabled:', e));
 
     // Inicjalizacja konfiguracji ReplayGain 2.0 / EBU R128
     const savedRgMode = (localStorage.getItem('auralune_replaygain_mode') as 'Off' | 'Track' | 'Album') || 'Off';
@@ -1955,6 +2067,18 @@ export default function App() {
           icon: null,
         }).catch(() => {});
       }
+
+      // ListenBrainz Scrobbler: status «Teraz odtwarzane»
+      setScrobbledTrackId(null);
+      if (listenbrainzEnabled && listenbrainzToken) {
+        invoke('submit_listenbrainz_playing_now', {
+          token: listenbrainzToken,
+          artist: track.artist,
+          title: track.title,
+          album: track.album_artist || null,
+          durationMs: track.duration_ms || null,
+        }).catch((e) => console.warn('ListenBrainz Playing Now error:', e));
+      }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
@@ -2523,6 +2647,206 @@ export default function App() {
       showMessage(t.notifications.removedFromPlaylistMsg);
     } catch (err: any) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handleExportPlaylistM3u8 = async (pl: Playlist) => {
+    try {
+      const dest = await invoke<string | null>('pick_save_destination', {
+        defaultName: `${pl.name}.m3u8`,
+        extension: 'm3u8',
+      });
+      if (!dest) return;
+
+      const msg = await invoke<string>('export_playlist_m3u8', {
+        playlistId: pl.id,
+        exportPath: dest,
+        useRelativePaths: true,
+      });
+      showMessage(msg);
+    } catch (err: any) {
+      showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handleImportPlaylistM3u8 = async () => {
+    try {
+      const filePath = await invoke<string | null>('pick_custom_file', {
+        title: loc.playlists.importM3u8,
+        filter: '*.m3u *.m3u8|Pliki playlist M3U (*.m3u, *.m3u8)',
+      });
+      if (!filePath) return;
+
+      const res = await invoke<{
+        playlist_id: number;
+        playlist_name: string;
+        total_entries: number;
+        matched_tracks: number;
+        missing_tracks: string[];
+      }>('import_playlist_m3u8', { filePath });
+
+      await refreshPlaylists();
+      showMessage(
+        `Zaimportowano '${res.playlist_name}': ${res.matched_tracks}/${res.total_entries} utworów z biblioteki.`
+      );
+    } catch (err: any) {
+      showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handleExportProfileBackup = async () => {
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const dest = await invoke<string | null>('pick_save_destination', {
+        defaultName: `auralune-profile-backup-${dateStr}.json`,
+        extension: 'json',
+      });
+      if (!dest) return;
+
+      const msg = await invoke<string>('export_profile_backup', {
+        destinationPath: dest,
+      });
+      showMessage(msg);
+    } catch (err: any) {
+      showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handleImportProfileBackup = async () => {
+    try {
+      const filePath = await invoke<string | null>('pick_custom_file', {
+        title: loc.settings.importBackupBtn,
+        filter: '*.json|Kopia zapasowa Auralune (*.json)',
+      });
+      if (!filePath) return;
+
+      const msg = await invoke<string>('import_profile_backup', {
+        filePathOrJson: filePath,
+      });
+      await refreshPlaylists();
+      await loadLibrary();
+      showMessage(msg);
+    } catch (err: any) {
+      showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handleToggleCloseToTray = async (enabled: boolean) => {
+    setCloseToTray(enabled);
+    try {
+      await invoke('set_app_setting', { key: 'close_to_tray', value: String(enabled) });
+      showMessage(
+        enabled
+          ? 'Włączono minimalizowanie do zasobnika systemowego'
+          : 'Wyłączono minimalizowanie do zasobnika systemowego'
+      );
+    } catch (e: any) {
+      console.warn('Błąd zapisu close_to_tray:', e);
+    }
+  };
+
+  const handleTestListenbrainz = async () => {
+    if (!listenbrainzToken.trim()) {
+      setListenbrainzStatusMsg(loc.settings.listenbrainzInvalid);
+      return;
+    }
+    setListenbrainzTesting(true);
+    setListenbrainzStatusMsg(null);
+    try {
+      const userName = await invoke<string>('validate_listenbrainz_token', { token: listenbrainzToken.trim() });
+      setListenbrainzUser(userName);
+      setListenbrainzStatusMsg(`${loc.settings.listenbrainzValid}: @${userName}`);
+      await invoke('set_app_setting', { key: 'listenbrainz_token', value: listenbrainzToken.trim() });
+      showMessage(`ListenBrainz: Zalogowano jako @${userName}`);
+    } catch (err: any) {
+      setListenbrainzUser(null);
+      setListenbrainzStatusMsg(`${loc.settings.listenbrainzInvalid}: ${String(err)}`);
+    } finally {
+      setListenbrainzTesting(false);
+    }
+  };
+
+  const handleToggleListenbrainz = async (enabled: boolean) => {
+    setListenbrainzEnabled(enabled);
+    try {
+      await invoke('set_app_setting', { key: 'listenbrainz_enabled', value: enabled ? 'true' : 'false' });
+      showMessage(enabled ? 'ListenBrainz Scrobbler włączony' : 'ListenBrainz Scrobbler wyłączony');
+    } catch (e) {
+      console.warn('Błąd zapisu listenbrainz_enabled:', e);
+    }
+  };
+
+  const handleListenbrainzTokenChange = async (token: string) => {
+    setListenbrainzToken(token);
+    try {
+      await invoke('set_app_setting', { key: 'listenbrainz_token', value: token });
+    } catch (e) {
+      console.warn('Błąd zapisu listenbrainz_token:', e);
+    }
+  };
+
+  const handleCrossfadeDurationChange = async (ms: number) => {
+    const clamped = Math.max(0, Math.min(8000, ms));
+    setCrossfadeDuration(clamped);
+    try {
+      await invoke('set_crossfade_duration', { durationMs: clamped });
+      await invoke('set_app_setting', { key: 'crossfade_duration', value: clamped.toString() });
+    } catch (e) {
+      console.warn('Błąd zapisu crossfade_duration:', e);
+    }
+  };
+
+  const handleBassBoostChange = async (boostDb: number) => {
+    const clamped = Math.max(0, Math.min(12, boostDb));
+    setBassBoost(clamped);
+    try {
+      await invoke('set_app_setting', { key: 'bass_boost', value: clamped.toString() });
+      const baseBands = [...(status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
+      baseBands[0] = Math.min(12, Math.max(-24, clamped * 1.0));
+      baseBands[1] = Math.min(12, Math.max(-24, clamped * 0.75));
+      baseBands[2] = Math.min(12, Math.max(-24, clamped * 0.4));
+      await invoke('set_equalizer_bands', { bands: baseBands });
+      if (!status.equalizer_enabled) {
+        await invoke('set_equalizer_enabled', { enabled: true });
+      }
+      setStatus((prev) => ({ ...prev, equalizer_bands: baseBands, equalizer_enabled: true }));
+      if (clamped > 0 && !limiterEnabled) {
+        handleToggleLimiter(true);
+      }
+    } catch (e) {
+      console.warn('Błąd ustawiania Bass Boost:', e);
+    }
+  };
+
+  const handleToggleStereoWidener = async (active: boolean) => {
+    setStereoWidenerActive(active);
+    try {
+      await invoke('set_stereo_widener', { active, amount: stereoWidenerAmount });
+      await invoke('set_app_setting', { key: 'stereo_widener_active', value: active ? 'true' : 'false' });
+    } catch (e) {
+      console.warn('Błąd przełączania stereo widenera:', e);
+    }
+  };
+
+  const handleStereoWidenerAmountChange = async (amt: number) => {
+    const clamped = Math.max(0, Math.min(1, amt));
+    setStereoWidenerAmount(clamped);
+    try {
+      await invoke('set_stereo_widener', { active: stereoWidenerActive, amount: clamped });
+      await invoke('set_app_setting', { key: 'stereo_widener_amount', value: clamped.toString() });
+    } catch (e) {
+      console.warn('Błąd ustawiania stereo widenera:', e);
+    }
+  };
+
+  const handleToggleLimiter = async (enabled: boolean) => {
+    setLimiterEnabled(enabled);
+    try {
+      await invoke('set_limiter_enabled', { enabled });
+      await invoke('set_app_setting', { key: 'limiter_enabled', value: enabled ? 'true' : 'false' });
+      showMessage(enabled ? 'True-Peak Limiter włączony' : 'True-Peak Limiter wyłączony');
+    } catch (e) {
+      console.warn('Błąd przełączania limitera:', e);
     }
   };
 
@@ -5282,6 +5606,293 @@ const renderDevicesSection = () => (
   );
 
 
+  const renderBackupSection = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Sekcja Kopia Zapasowa Profilu */}
+        <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.2)' }}>
+              <Save size={20} color="var(--accent-purple)" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{loc.settings.backupTitle}</h3>
+              <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                {loc.settings.backupDesc}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
+            <button
+              onClick={handleExportProfileBackup}
+              style={{
+                padding: '10px 18px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                border: 'none',
+              }}
+            >
+              <Download size={16} /> {loc.settings.exportBackupBtn}
+            </button>
+
+            <button
+              onClick={handleImportProfileBackup}
+              style={{
+                padding: '10px 18px',
+                borderRadius: '10px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border-subtle)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              <Upload size={16} color="var(--accent-cyan)" /> {loc.settings.importBackupBtn}
+            </button>
+          </div>
+        </div>
+
+        {/* Sekcja Zasobnik Systemowy Linuksa */}
+        <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(6, 182, 212, 0.2)' }}>
+                <Headphones size={20} color="var(--accent-cyan)" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{loc.settings.closeToTray}</h3>
+                <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {loc.settings.closeToTrayDesc}
+                </p>
+              </div>
+            </div>
+
+            <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+              <input
+                type="checkbox"
+                checked={closeToTray}
+                onChange={(e) => handleToggleCloseToTray(e.target.checked)}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  cursor: 'pointer',
+                  inset: 0,
+                  backgroundColor: closeToTray ? 'var(--accent-purple)' : 'rgba(255,255,255,0.2)',
+                  transition: '0.3s',
+                  borderRadius: '24px',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: closeToTray ? '23px' : '3px',
+                    bottom: '3px',
+                    backgroundColor: 'white',
+                    transition: '0.3s',
+                    borderRadius: '50%',
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Sekcja Płynny Crossfade (Poweramp style) */}
+        <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(244, 63, 94, 0.2)' }}>
+              <Zap size={20} color="var(--accent-pink)" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{loc.settings.crossfadeTitle}</h3>
+              <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                {loc.settings.crossfadeDesc}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '12px', background: 'rgba(0,0,0,0.25)', padding: '16px', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                {crossfadeDuration === 0 ? 'Wyłączony (0.0s - natychmiastowe cięcie)' : `Czas przenikania: ${(crossfadeDuration / 1000).toFixed(2)}s (${crossfadeDuration} ms)`}
+              </span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[0, 1000, 1500, 3000, 5000].map((presetMs) => (
+                  <button
+                    key={presetMs}
+                    onClick={() => handleCrossfadeDurationChange(presetMs)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      background: crossfadeDuration === presetMs ? 'rgba(255, 77, 148, 0.3)' : 'rgba(255, 255, 255, 0.06)',
+                      border: `1px solid ${crossfadeDuration === presetMs ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
+                      color: crossfadeDuration === presetMs ? 'var(--accent-pink)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {presetMs === 0 ? '0s (Off)' : `${presetMs / 1000}s`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <input
+              type="range"
+              min={0}
+              max={8000}
+              step={250}
+              value={crossfadeDuration}
+              onChange={(e) => handleCrossfadeDurationChange(Number(e.target.value))}
+              style={{ width: '100%', cursor: 'pointer' }}
+            />
+          </div>
+        </div>
+
+        {/* Sekcja ListenBrainz Scrobbler (MetaBrainz Ecosystem) */}
+        <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(235, 116, 34, 0.2)' }}>
+                <Radio size={20} color="#eb7422" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {loc.settings.listenbrainzTitle}
+                  <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(235, 116, 34, 0.2)', color: '#eb7422', fontWeight: 700 }}>
+                    OPEN SOURCE
+                  </span>
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {loc.settings.listenbrainzDesc}
+                </p>
+              </div>
+            </div>
+
+            <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+              <input
+                type="checkbox"
+                checked={listenbrainzEnabled}
+                onChange={(e) => handleToggleListenbrainz(e.target.checked)}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  cursor: 'pointer',
+                  inset: 0,
+                  backgroundColor: listenbrainzEnabled ? '#eb7422' : 'rgba(255,255,255,0.2)',
+                  transition: '0.3s',
+                  borderRadius: '24px',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: listenbrainzEnabled ? '23px' : '3px',
+                    bottom: '3px',
+                    backgroundColor: 'white',
+                    transition: '0.3s',
+                    borderRadius: '50%',
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.25)', padding: '16px', borderRadius: '12px' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#e2e8f0' }}>
+              {loc.settings.listenbrainzToken}
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="password"
+                placeholder={loc.settings.listenbrainzTokenPlaceholder}
+                value={listenbrainzToken}
+                onChange={(e) => handleListenbrainzTokenChange(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(0,0,0,0.3)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                disabled={listenbrainzTesting || !listenbrainzToken.trim()}
+                onClick={handleTestListenbrainz}
+                style={{
+                  padding: '0 16px',
+                  borderRadius: '8px',
+                  background: 'rgba(235, 116, 34, 0.25)',
+                  border: '1px solid rgba(235, 116, 34, 0.5)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: listenbrainzTesting || !listenbrainzToken.trim() ? 'not-allowed' : 'pointer',
+                  opacity: listenbrainzTesting || !listenbrainzToken.trim() ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {listenbrainzTesting ? 'Weryfikacja...' : loc.settings.listenbrainzTest}
+              </button>
+            </div>
+
+            {listenbrainzStatusMsg && (
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  color: listenbrainzUser ? '#4ade80' : '#f87171',
+                  marginTop: '4px',
+                  fontWeight: 600,
+                }}
+              >
+                {listenbrainzStatusMsg}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span>Wymaga bezpłatnego konta na listenbrainz.org</span>
+              <a
+                href="https://listenbrainz.org/profile"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: '#eb7422', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Uzyskaj token profilu <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderChangelogSection = () => (
     <ChangelogView currentLang={language} />
   );
@@ -7905,6 +8516,28 @@ const renderDevicesSection = () => (
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <button
+                  onClick={() => setShowDownloadHub(true)}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, rgba(235, 116, 34, 0.35), rgba(255, 77, 148, 0.25))',
+                    border: '1px solid rgba(235, 116, 34, 0.6)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 10px rgba(235, 116, 34, 0.25)',
+                  }}
+                  title={loc.settings.downloadHubBtn}
+                >
+                  <Download size={15} color="#eb7422" /> {loc.settings.downloadHubBtn}
+                </button>
+
+                <button
                   onClick={handlePickFolder}
                   className="glass-card"
                   style={{
@@ -10398,6 +11031,217 @@ const renderDevicesSection = () => (
               )}
             </div>
 
+            {/* SEKCJA 2.5: POWERAMP DSP STUDIO (BASS BOOST, STEREO WIDENER, TRUE-PEAK LIMITER) */}
+            <div
+              style={{
+                marginTop: '24px',
+                padding: '20px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '16px',
+                border: '1px solid var(--border-subtle)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '20px',
+              }}
+            >
+              {/* KARTA 1: BASS BOOST (SUB-BAS EXCITER) */}
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(255, 77, 148, 0.05)',
+                  border: '1px solid rgba(255, 77, 148, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Flame size={18} color="var(--accent-pink)" />
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
+                        {loc.dsp.bassBoostTitle}
+                      </h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {loc.dsp.bassBoostDesc}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      color: bassBoost > 0 ? 'var(--accent-pink)' : 'var(--text-muted)',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: bassBoost > 0 ? 'rgba(255, 77, 148, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    }}
+                  >
+                    +{bassBoost.toFixed(1)} dB
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min={0}
+                  max={12}
+                  step={0.5}
+                  value={bassBoost}
+                  onChange={(e) => handleBassBoostChange(Number(e.target.value))}
+                  style={{ width: '100%', cursor: 'pointer' }}
+                />
+
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[0, 3, 6, 9, 12].map((db) => (
+                    <button
+                      key={db}
+                      onClick={() => handleBassBoostChange(db)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        background: bassBoost === db ? 'rgba(255, 77, 148, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+                        border: `1px solid ${bassBoost === db ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
+                        color: bassBoost === db ? 'var(--accent-pink)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {db === 0 ? '0 dB (Off)' : `+${db} dB`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* KARTA 2: STEREO WIDENER (BAZA STEREO) */}
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(56, 189, 248, 0.05)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <SlidersHorizontal size={18} color="var(--accent-cyan)" />
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
+                        {loc.dsp.stereoWidenerTitle}
+                      </h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {loc.dsp.stereoWidenerDesc}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleToggleStereoWidener(!stereoWidenerActive)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: stereoWidenerActive ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                      border: `1px solid ${stereoWidenerActive ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
+                      color: stereoWidenerActive ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {stereoWidenerActive ? '● WIDENER ON' : '○ BYPASS'}
+                  </button>
+                </div>
+
+                <div style={{ opacity: stereoWidenerActive ? 1 : 0.45 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Szerokość sceny stereo:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      {Math.round(stereoWidenerAmount * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.02}
+                    disabled={!stereoWidenerActive}
+                    value={stereoWidenerAmount}
+                    onChange={(e) => handleStereoWidenerAmountChange(Number(e.target.value))}
+                    style={{ width: '100%', cursor: stereoWidenerActive ? 'pointer' : 'not-allowed' }}
+                  />
+                </div>
+              </div>
+
+              {/* KARTA 3: TRUE-PEAK LIMITER */}
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(34, 197, 94, 0.05)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ShieldCheck size={18} color="var(--accent-green)" />
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
+                          {loc.dsp.limiterTitle}
+                        </h4>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {loc.dsp.limiterDesc}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleToggleLimiter(!limiterEnabled)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        background: limiterEnabled ? 'rgba(34, 197, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                        border: `1px solid ${limiterEnabled ? 'var(--accent-green)' : 'var(--border-subtle)'}`,
+                        color: limiterEnabled ? 'var(--accent-green)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {limiterEnabled ? '● LIMITER ON' : '○ BYPASS'}
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    fontSize: '0.75rem',
+                    color: limiterEnabled ? '#86efac' : 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <CheckCircle size={14} />
+                  <span>
+                    {limiterEnabled
+                      ? 'Automatyczna ochrona przed przesterowaniem (GStreamer RgLimiter)'
+                      : 'Limiter wyłączony — możliwe przesterowanie przy podbitym EQ'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* SEKCJA 3: 10-PASMOWY KOREKTOR GRAFICZNY (EQUALIZER) */}
             <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -10636,6 +11480,24 @@ const renderDevicesSection = () => (
                 >
                   <Plus size={16} /> {loc.playlists.create}
                 </button>
+                <button
+                  onClick={handleImportPlaylistM3u8}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                  }}
+                  title={loc.playlists.importM3u8}
+                >
+                  <Upload size={16} color="var(--accent-cyan)" /> {loc.playlists.importM3u8}
+                </button>
               </div>
             </div>
 
@@ -10675,6 +11537,14 @@ const renderDevicesSection = () => (
                       }}
                     >
                       <Play size={16} /> {loc.playlists.playAll}
+                    </button>
+                    <button
+                      onClick={() => handleExportPlaylistM3u8(selectedPlaylist)}
+                      className="glass-card"
+                      style={{ padding: '8px 14px', color: 'var(--accent-pink)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                      title={loc.playlists.exportM3u8}
+                    >
+                      <Download size={16} /> {loc.playlists.exportM3u8}
                     </button>
                     <button
                       onClick={() => handleDeletePlaylist(selectedPlaylist.id, selectedPlaylist.name)}
@@ -10798,13 +11668,22 @@ const renderDevicesSection = () => (
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                         <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>{loc.playlists.playAll} →</span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(pl.id, pl.name); }}
-                          title={loc.playlists.delete}
-                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleExportPlaylistM3u8(pl); }}
+                            title={loc.playlists.exportM3u8}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Download size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(pl.id, pl.name); }}
+                            title={loc.playlists.delete}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -11469,6 +12348,25 @@ const renderDevicesSection = () => (
                 <History size={15} />
                 {loc.settings.changelog}
               </button>
+              <button
+                onClick={() => setSettingsTab('backup')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: settingsTab === 'backup' ? 'var(--accent-purple)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+              >
+                <Save size={15} />
+                {loc.settings.backupTitle}
+              </button>
             </div>
 
             {/* Treść wybranej pod-zakładki ustawień */}
@@ -11478,6 +12376,7 @@ const renderDevicesSection = () => (
               {settingsTab === 'transcode' && renderTranscodeSection()}
               {settingsTab === 'about' && renderAboutSection()}
               {settingsTab === 'changelog' && renderChangelogSection()}
+              {settingsTab === 'backup' && renderBackupSection()}
             </div>
           </div>
         </div>
@@ -11799,6 +12698,18 @@ const renderDevicesSection = () => (
           }}
         />
       )}
+
+      {/* MODAL 10: LEGAL DOWNLOAD HUB (ETAP 7) */}
+      <DownloadHubModal
+        isOpen={showDownloadHub}
+        onClose={() => setShowDownloadHub(false)}
+        onRefreshLibrary={loadLibrary}
+        onPlayPath={(path) => {
+          handleLoadFile(path).then(async () => {
+            await invoke('play');
+          });
+        }}
+      />
     </div>
   );
 }

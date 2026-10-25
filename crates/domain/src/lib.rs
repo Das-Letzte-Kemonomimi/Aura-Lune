@@ -1,6 +1,7 @@
 pub mod cue;
 pub mod device;
 pub mod equalizer;
+pub mod m3u;
 pub mod playlist;
 pub mod queue;
 pub mod replaygain;
@@ -9,6 +10,7 @@ pub mod transcode;
 
 pub use cue::{CueSheet, CueTrack};
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
+pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
 pub use playlist::Playlist;
 pub use queue::{LoopMode, PlaybackQueue, QueueItem};
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
