@@ -11,9 +11,14 @@ use audio_engine::{
 use domain::device::{AudioCard, BluetoothCodec};
 use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
+use domain::renamer::{
+    format_pattern_for_track, resolve_renamed_path, RenamePreviewItem, RenamerTrackInfo,
+};
 use domain::replaygain::ReplayGainConfig;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
-use domain::{ImportM3uResult, M3uEntry, M3uPlaylist, PlaybackState, Playlist, Theme};
+use domain::{
+    ImportM3uResult, M3uEntry, M3uPlaylist, PlaybackState, Playlist, Theme, TrackBookmark,
+};
 use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
@@ -26,7 +31,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, TrackRecord};
+use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, DuplicateGroup, TrackRecord};
 use tauri::{Manager, State};
 use tracing::{error, info};
 
@@ -3013,6 +3018,179 @@ async fn set_discord_rpc_client_id(
 }
 
 #[tauri::command]
+async fn get_track_bookmarks(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackBookmark>, String> {
+    state
+        .db
+        .get_track_bookmarks(track_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_track_bookmark(
+    track_id: i64,
+    name: String,
+    position_ms: u64,
+    state: State<'_, AppState>,
+) -> Result<TrackBookmark, String> {
+    state
+        .db
+        .add_track_bookmark(track_id, &name, position_ms)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_track_bookmark(
+    bookmark_id: i64,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .update_track_bookmark(bookmark_id, &name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_track_bookmark(bookmark_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    state
+        .db
+        .delete_track_bookmark(bookmark_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn find_duplicate_tracks(state: State<'_, AppState>) -> Result<Vec<DuplicateGroup>, String> {
+    state
+        .db
+        .find_duplicate_tracks()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_track_record(
+    track_id: i64,
+    delete_file: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if delete_file {
+        if let Ok(Some(track)) = state.db.get_track_by_id(track_id).await {
+            let p = PathBuf::from(&track.path);
+            if p.exists() {
+                let _ = fs::remove_file(p);
+            }
+        }
+    }
+    state
+        .db
+        .delete_track(track_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn preview_rename_tracks(
+    pattern: String,
+    track_ids: Vec<i64>,
+    state: State<'_, AppState>,
+) -> Result<Vec<RenamePreviewItem>, String> {
+    let mut items = Vec::new();
+    for id in track_ids {
+        if let Ok(Some(track)) = state.db.get_track_by_id(id).await {
+            let ext = std::path::Path::new(&track.path)
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&track.format);
+
+            let album_title = if let Some(a_id) = track.album_id {
+                state
+                    .db
+                    .get_album_by_id(a_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|a| a.title)
+            } else {
+                None
+            };
+
+            let info = RenamerTrackInfo {
+                title: &track.title,
+                artist: &track.artist,
+                album_artist: track.album_artist.as_deref(),
+                album: album_title.as_deref(),
+                track_no: track.track_no,
+                disc_no: track.disc_no,
+                ext,
+            };
+
+            let formatted = format_pattern_for_track(&pattern, &info);
+
+            match resolve_renamed_path(&track.path, &formatted) {
+                Ok(new_path) => {
+                    let new_path_str = new_path.to_string_lossy().to_string();
+                    let will_overwrite = new_path.exists() && new_path_str != track.path;
+                    items.push(RenamePreviewItem {
+                        track_id: track.id,
+                        old_path: track.path,
+                        new_path: new_path_str,
+                        will_overwrite,
+                        is_valid: true,
+                        error: None,
+                    });
+                }
+                Err(err) => {
+                    items.push(RenamePreviewItem {
+                        track_id: track.id,
+                        old_path: track.path,
+                        new_path: String::new(),
+                        will_overwrite: false,
+                        is_valid: false,
+                        error: Some(err),
+                    });
+                }
+            }
+        }
+    }
+    Ok(items)
+}
+
+#[tauri::command]
+async fn execute_rename_tracks(
+    items: Vec<(i64, String)>,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    let mut renamed_count = 0;
+    for (track_id, target_path) in items {
+        if let Ok(Some(track)) = state.db.get_track_by_id(track_id).await {
+            let old_p = std::path::Path::new(&track.path);
+            let new_p = std::path::Path::new(&target_path);
+
+            if old_p == new_p {
+                continue;
+            }
+
+            if let Some(parent) = new_p.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+
+            if fs::rename(old_p, new_p).is_ok() {
+                let _ = state.db.update_track_path(track_id, &target_path).await;
+                renamed_count += 1;
+            }
+        }
+    }
+    Ok(renamed_count)
+}
+
+#[tauri::command]
 async fn add_download_job(
     remote_url: String,
     destination_path: String,
@@ -3687,6 +3865,14 @@ pub fn run() {
             get_discord_rpc_status,
             set_discord_rpc_enabled,
             set_discord_rpc_client_id,
+            get_track_bookmarks,
+            add_track_bookmark,
+            update_track_bookmark,
+            delete_track_bookmark,
+            find_duplicate_tracks,
+            delete_track_record,
+            preview_rename_tracks,
+            execute_rename_tracks,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

@@ -18,11 +18,64 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.6.0',
+    codename: 'foobar2000 Power Tools & Kitsune Facets',
+    date: '2026-10-25',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Wielopunktowe znaczniki CUE / Bookmarks: dodawanie nazwanych punktów w czasie odtwarzania, edycja i diamentowe markery na osi czasu z szybkim skokiem.',
+        en: 'Multi-point Track Bookmarks / Cue Points: add named cue points during playback, inline editing, and clickable diamond timeline markers.',
+        de: 'Mehrpunkt-Lesezeichen & Cue-Punkte: benannte Lesezeichen zur Laufzeit hinzufügen, Inline-Bearbeitung und anklickbare Diamant-Marker auf der Zeitleiste.',
+        fi: 'Monipisteiset kirjanmerkit ja Cue-pisteet: lisää nimettyjä pisteitä toiston aikana ja hyppää niihin aikajanan timanttimerkeistä.',
+        la: 'Multi-notae et puncta CUE: notare tempora cantus, nomina mutare et per diamantes in linea temporis saltare.',
+      },
+      {
+        pl: 'Masowy Auto-Renamer / Organizator plików: zmiana nazw i ścieżek na dysku według wzorców tagów (%track%, %artist%, %album%, %title%) z podglądem na żywo i aktualizacją bazy.',
+        en: 'Batch Auto-Renamer & File Organizer: tag-based file renaming and folder reorganization (%track%, %artist%, %album%, %title%) with live preview and DB synchronization.',
+        de: 'Massen-Dateiumbenennung & Datei-Organisator: Tag-basierte Dateimuster (%track%, %artist%, %album%, %title%) mit Live-Vorschau und Datenbank-Aktualisierung.',
+        fi: 'Massan nimeäjä ja tiedostojen järjestäjä: tunnistepohjainen nimeäminen (%track%, %artist%, %album%, %title%) esikatselulla ja tietokannan päivityksellä.',
+        la: 'Ordinator et mutator nominum fasciculorum: formare nomina secundum notas (%track%, %artist%, %album%, %title%) cum praevisu et renovatione tabularii.',
+      },
+      {
+        pl: 'Panel filtrów fasetowych (Facets): 3-kolumnowe błyskawiczne filtrowanie biblioteki [Format -> Artysta -> Album] w stylu Columns UI foobar2000.',
+        en: 'Facets Filter Pane: 3-column instant library browsing [Format -> Artist -> Album] in foobar2000 Columns UI style.',
+        de: 'Facetten-Filterleiste: 3-Spalten-Sofortfilterung der Musiksammlung [Format -> Interpret -> Album] im Stil von foobar2000.',
+        fi: 'Fasettisuodatin: 3-sarakkeinen kirjaston selaus [Muoto -> Esittäjä -> Albumi] foobar2000:n Columns UI -tyyliin.',
+        la: 'Tabula colatorum fasetarum: triplex ordo [Forma -> Cantator -> Album] ad musicam celeriter inveniendam.',
+      },
+      {
+        pl: 'Wyszukiwarka duplikatów audio: wykrywanie zdublowanych utworów, porównywanie bitrate/sample rate i bezpieczne usuwanie z dysku lub biblioteki.',
+        en: 'Audio Duplicate Finder: detects identical songs across formats, compares bitrate/sample rate, and safely removes files from disk or library.',
+        de: 'Audio-Duplikat-Finder: erkennt identische Titel über Formate hinweg, vergleicht Bitrate/Samplerate und entfernt Dateien sicher.',
+        fi: 'Äänikappaleiden kaksoiskappaleiden etsijä: tunnistaa tuplat, vertaa äänenlaatua ja poistaa tiedostot turvallisesti.',
+        la: 'Repertorium cantuum duplicium: geminatos cantus invenire, qualitatem conferre et de disco vel bibliotheca delere.',
+      },
+      {
+        pl: 'Eksport i transkodowanie pętli A-B z DSP: zapis zaznaczonego fragmentu utworu do formatów FLAC, MP3, OGG lub WAV z uwzględnieniem pitch/tempo.',
+        en: 'A-B Loop Export & Transcoding with DSP: export loop selections to FLAC, MP3, OGG, or WAV while preserving pitch-shift and tempo-stretch.',
+        de: 'A-B-Schleifen-Export mit DSP: Speichern von Teilstücken als FLAC, MP3, OGG oder WAV unter Beibehaltung von Pitch und Tempo.',
+        fi: 'A-B-silmukan vienti ja transkoodaus DSP:llä: tallenna valittu aikaväli FLAC-, MP3-, OGG- tai WAV-tiedostona sävelkorkeus ja tempo säilyttäen.',
+        la: 'Exportatio segmenti A-B cum DSP: particulam electam in FLAC, MP3, OGG aut WAV servare cum effectu soni.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Wydajność wirtualizacji listy utworów oraz optymalizacja zapytań indeksowanych w bazie SQLite.',
+        en: 'Library track list rendering performance and optimized indexed queries in SQLite storage.',
+        de: 'Verbesserte Rendering-Leistung der Titelliste und optimierte Indexabfragen in SQLite.',
+        fi: 'Kappaleluettelon suorituskyvyn parannus ja optimoidut SQLite-indeksikyselyt.',
+        la: 'Celeritas monstrandi indices cantuum aucta et quaestiones tabularii SQLite optimizatae.',
+      },
+    ],
+  },
+  {
     version: '0.5.0',
     codename: 'Velvet Discord & Kitsune Resonance',
     date: '2026-10-25',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Natywna integracja Discord Rich Presence (RPC) dla Linuksa: bezpośrednia, bezblokadowa obsługa gniazda Unix Domain Socket ($XDG_RUNTIME_DIR/discord-ipc-0..9) wspierająca oficjalnego Discorda, Vesktop, WebCord, ArmCord oraz Flatpak.',
