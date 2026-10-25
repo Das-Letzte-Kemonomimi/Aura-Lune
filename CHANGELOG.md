@@ -27,6 +27,11 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
   - Obsługa znaczników pętli A-B w oknie eksportu DSP z automatycznym docięciem zakresu czasu oraz bezpieczną normalizacją URI.
 
 ### Dodano (Added)
+- **Widok szczegółowy albumu (Album Detail View / Drill-down)**:
+  - Kliknięcie w kartę albumu otwiera bogaty, szklany widok szczegółowy albumu z dużą grafiką okładki, pełnymi metadanymi, rokiem wydania, łączną liczbą utworów, łącznym czasem trwania oraz badge'ami jakości Hi-Res i formatów.
+  - Pełna tabela utworów albumu uporządkowana według numerów płyt (`disc_no`) i ścieżek (`track_no`) z możliwością bezpośredniego odtworzenia dowolnego pojedynczego utworu (bez nadpisywania kolejki odtwarzania), dodania pojedynczego utworu do kolejki (`+`), polubienia, edycji tagów i otwarcia folderu.
+  - Przyciski szybkiej akcji w nagłówku albumu: „Odtwórz od początku”, „Dodaj cały album do kolejki”, „Dopasuj okładkę online” oraz „Otwórz folder”.
+  - Przycisk powrotu `← Wróć do wszystkich albumów` oraz licznik utworów na każdej karcie albumu w siatce.
 - **Transliteracja Romaji japońskich tekstów piosenek (Hepburn Romanization)**:
   - Silnik transliteracji w `apps/desktop/src/utils/romaji.ts` obsługujący Hiraganę, Katakanę, digrafy Youon (きゃ, きゅ, きょ itp.), podwajanie spółgłosek Sokuon (っ / ッ, w tym wariant `tch`), przedłużenia samogłosek Choonpu (ー) oraz japońską interpunkcję.
   - Przełącznik trybu w widoku tekstów `LyricsView.tsx`: `Kana (Oryginał)` / `Romaji` / `Dwuwiersz Karaoke (Kana + Romaji)`.
