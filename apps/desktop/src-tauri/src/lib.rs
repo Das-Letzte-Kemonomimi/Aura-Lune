@@ -97,9 +97,23 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
 
     let db = state.db.clone();
     let path_clone = path.clone();
-    let track_opt = state
-        .rt
-        .block_on(async move { db.get_track_by_path(&path_clone).await.ok().flatten() });
+    let (track_opt, album_title) = state.rt.block_on(async move {
+        let t = db.get_track_by_path(&path_clone).await.ok().flatten();
+        let a = if let Some(ref tr) = t {
+            if let Some(album_id) = tr.album_id {
+                db.get_album_by_id(album_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|alb| alb.title)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        (t, a)
+    });
 
     let queue_item = if let Some(t) = track_opt {
         QueueItem {
@@ -108,7 +122,7 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
             uri: t.path.clone(),
             title: t.title.clone(),
             artist: t.artist.clone(),
-            album: t.album_artist.clone(),
+            album: album_title,
             duration_ms: t.duration_ms as u64,
         }
     } else {
