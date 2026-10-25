@@ -13,10 +13,17 @@ cd "$WORKSPACE_ROOT"
 PUBLIC_REMOTE="public"
 PUBLIC_URL="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git"
 PUBLIC_REPO="Das-Letzte-Kemonomimi/Aura-Lune"
-CURRENT_VERSION="0.4.0"
+CURRENT_VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f 2)
 TAG_NAME="v$CURRENT_VERSION"
 
-echo "🌸 === Auralune: Synchronizacja z publicznym repozytorium $PUBLIC_REPO ==="
+RELEASE_TITLE=$(grep -E "^## \[$CURRENT_VERSION\]" CHANGELOG.md | sed -E 's/^## \['"$CURRENT_VERSION"'\] — //' || echo "Auralune $CURRENT_VERSION")
+RELEASE_NOTES=$(awk -v ver="$CURRENT_VERSION" '
+    $0 ~ "^## \\[" ver "\\]" { found=1; next }
+    found && /^---/ { exit }
+    found { print }
+' CHANGELOG.md)
+
+echo "🌸 === Auralune: Synchronizacja z publicznym repozytorium $PUBLIC_REPO (Wersja: $CURRENT_VERSION, Tag: $TAG_NAME) ==="
 
 # 1. Sprawdzenie czy remote 'public' istnieje
 if ! git remote get-url "$PUBLIC_REMOTE" &>/dev/null; then
@@ -68,21 +75,11 @@ if [[ -f "$APPIMAGE_PATH" ]]; then
         echo "✨ Tworzenie nowego wydania $TAG_NAME na $PUBLIC_REPO..."
         gh release create "$TAG_NAME" "$APPIMAGE_PATH" \
             --repo "$PUBLIC_REPO" \
-            --title "Auralune $CURRENT_VERSION — „Kitsune Horizons & Poweramp Legacy”" \
-            --notes "### Auralune $CURRENT_VERSION — „Kitsune Horizons & Poweramp Legacy” 🌸🎧
-
-• **Crate \`crates/downloads\` & Legal Download Hub**: Standalone download crate z maszyną stanów DownloadJob (pauza, wznowienie, weryfikacja), pobieraniem bezpośrednich strumieni i feedów RSS oraz atomowym przenoszeniem zweryfikowanych plików (SHA-256) do biblioteki.
-• **Płynny Crossfade (Poweramp style)**: Konfigurowalne przejścia utworów (0.0s – 8.0s) z sinusoidalną krzywą equal-power w potoku GStreamer.
-• **Zaawansowane efekty DSP (Poweramp style)**:
-  - **Bass Boost**: Podbicie pasma sub-basowego (31–125 Hz) z dedykowanymi presetami (Sub-Bass Rattle, Punchy Kick, Warm Lows).
-  - **Stereo Widener**: Płynna regulacja szerokości sceny stereo (0.0 Mono – 2.5 Super-Wide) przez natywny element GStreamer \`stereo\`.
-  - **True-Peak Limiter**: Cyfrowy limiter \`rglimiter\` chroniący przed przesterowaniem cyfrowym przy podbiciach korektora i pitchu.
-• **Linux System Tray & Odtwarzanie w tle**: Integracja z tacką systemową Linuksa (Tauri 2 tray-icon) ze sterowaniem Play/Pause, Next/Prev oraz możliwością zwijania do traya zamiast zamykania.
-• **Import/Eksport Playlist M3U / M3U8 & Backup profilu (foobar2000 style)**: Parser i eksporter list odtwarzania z normalizacją ścieżek oraz pełny eksport/import profilu użytkowniczki do wersjonowanego pliku JSON.
-• **Oficjalny Scrobbler ListenBrainz**: Natywna integracja z API MetaBrainz ListenBrainz (walidacja tokena, wysyłanie Playing Now oraz Listen po 50% lub 240s).
-• **Samodzielny AppImage**: W pełni zintegrowany, samowystarczalny pakiet dystrybucyjny dla wszystkich dystrybucji Linuksa."
+            --title "Auralune $CURRENT_VERSION — $RELEASE_TITLE" \
+            --notes "$RELEASE_NOTES"
     fi
     echo "✅ Wydanie $TAG_NAME w $PUBLIC_REPO jest gotowe i zawiera AppImage!"
+
 else
     echo "⚠️ Ostrzeżenie: Plik $APPIMAGE_PATH nie został znaleziony. Pomiń upload AppImage."
 fi
