@@ -13,7 +13,7 @@ cd "$WORKSPACE_ROOT"
 PUBLIC_REMOTE="public"
 PUBLIC_URL="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git"
 PUBLIC_REPO="Das-Letzte-Kemonomimi/Aura-Lune"
-CURRENT_VERSION="0.3.0"
+CURRENT_VERSION="0.4.0"
 TAG_NAME="v$CURRENT_VERSION"
 
 echo "🌸 === Auralune: Synchronizacja z publicznym repozytorium $PUBLIC_REPO ==="
@@ -68,17 +68,19 @@ if [[ -f "$APPIMAGE_PATH" ]]; then
         echo "✨ Tworzenie nowego wydania $TAG_NAME na $PUBLIC_REPO..."
         gh release create "$TAG_NAME" "$APPIMAGE_PATH" \
             --repo "$PUBLIC_REPO" \
-            --title "Auralune $CURRENT_VERSION — „Omniscience & Starlight”" \
-            --notes "### Auralune $CURRENT_VERSION — „Omniscience & Starlight” 🌸🎧
+            --title "Auralune $CURRENT_VERSION — „Kitsune Horizons & Poweramp Legacy”" \
+            --notes "### Auralune $CURRENT_VERSION — „Kitsune Horizons & Poweramp Legacy” 🌸🎧
 
-• **Tag Editor / Właściwości Utworu (foobar2000 style)**: Edycja metadanych z bezpośrednim zapisem tagów przez lofty i atomową aktualizacją bazy SQLite bez ponownego skanowania.
-• **Parser Arkuszy CUE (.cue sheet parser)**: Pełna obsługa albumów zripowanych do pojedynczych plików FLAC/WAV + .cue z automatycznym podziałem na wirtualne utwory i precyzyjnym czasem startu.
-• **Smart Playlists (Dynamiczne inteligentne playlisty)**: Kolekcje generowane z SQLite: Top 25 najczęściej odtwarzanych, Ostatnio odtwarzane, Zapomniane perełki, Hi-Res Lossless, High BPM, Top Rated.
-• **Command Palette / Szybkie Wyszukiwanie (Ctrl+K / Spotlight Omnibar)**: Błyskawiczny panel wyszukiwania utworów, albumów, wykonawców i wywoływania komend sterujących oraz DSP.
-• **Oceny Gwiazdkowe (1–5 gwiazdek)**: Interaktywne gwiazdki przy każdym utworze z szybkim filtrowaniem widoku biblioteki.
-• **Powiadomienia OSD Linuksa (libnotify / D-Bus)**: Eleganckie banery na pulpicie przy zmianie utworu w tle z okładką albumu, tytułem i wykonawcą.
-• **3 Nowe Tryby AnimeAmbienceFX**: Meteor Shower / Starlight, Cyber Matrix Rain oraz Momiji (jesienne liście klonu).
-• **Offline ReplayGain EBU R128 & Nowe Wizualizery**: Skaner głośności dla całej biblioteki, Anime Circle Visualizer, Oscyloskop wektorowy oraz Retro Bars."
+• **Crate \`crates/downloads\` & Legal Download Hub**: Standalone download crate z maszyną stanów DownloadJob (pauza, wznowienie, weryfikacja), pobieraniem bezpośrednich strumieni i feedów RSS oraz atomowym przenoszeniem zweryfikowanych plików (SHA-256) do biblioteki.
+• **Płynny Crossfade (Poweramp style)**: Konfigurowalne przejścia utworów (0.0s – 8.0s) z sinusoidalną krzywą equal-power w potoku GStreamer.
+• **Zaawansowane efekty DSP (Poweramp style)**:
+  - **Bass Boost**: Podbicie pasma sub-basowego (31–125 Hz) z dedykowanymi presetami (Sub-Bass Rattle, Punchy Kick, Warm Lows).
+  - **Stereo Widener**: Płynna regulacja szerokości sceny stereo (0.0 Mono – 2.5 Super-Wide) przez natywny element GStreamer \`stereo\`.
+  - **True-Peak Limiter**: Cyfrowy limiter \`rglimiter\` chroniący przed przesterowaniem cyfrowym przy podbiciach korektora i pitchu.
+• **Linux System Tray & Odtwarzanie w tle**: Integracja z tacką systemową Linuksa (Tauri 2 tray-icon) ze sterowaniem Play/Pause, Next/Prev oraz możliwością zwijania do traya zamiast zamykania.
+• **Import/Eksport Playlist M3U / M3U8 & Backup profilu (foobar2000 style)**: Parser i eksporter list odtwarzania z normalizacją ścieżek oraz pełny eksport/import profilu użytkowniczki do wersjonowanego pliku JSON.
+• **Oficjalny Scrobbler ListenBrainz**: Natywna integracja z API MetaBrainz ListenBrainz (walidacja tokena, wysyłanie Playing Now oraz Listen po 50% lub 240s).
+• **Samodzielny AppImage**: W pełni zintegrowany, samowystarczalny pakiet dystrybucyjny dla wszystkich dystrybucji Linuksa."
     fi
     echo "✅ Wydanie $TAG_NAME w $PUBLIC_REPO jest gotowe i zawiera AppImage!"
 else

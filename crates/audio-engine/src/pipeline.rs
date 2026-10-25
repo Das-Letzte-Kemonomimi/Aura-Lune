@@ -54,6 +54,10 @@ struct PipelineInner {
     base_sink_pts: Duration,
     user_volume: f64,
     seek_seq: u64,
+    stereo_widener: Option<gst::Element>,
+    stereo_widener_active: bool,
+    stereo_widener_amount: f64,
+    crossfade_duration_ms: u64,
 }
 
 /// Bezpieczny wielowątkowo kontroler potoku audio.
@@ -197,6 +201,24 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
 
+        let stereo = match gst::ElementFactory::make("stereo")
+            .name("stereo_widener")
+            .property("active", false)
+            .property("stereo", 0.1f32)
+            .build()
+        {
+            Ok(s) => Some(s),
+            Err(e) => {
+                warn!("Brak elementu stereo (gst-plugins-good): {:?}", e);
+                None
+            }
+        };
+
+        let audioconvert_stereo = gst::ElementFactory::make("audioconvert")
+            .name("audioconvert_stereo")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
+
         pipeline.add_many([
             &equalizer,
             &queue_sink,
@@ -208,6 +230,10 @@ impl AudioEngine {
             &audioconvert_sink,
             &sink,
         ])?;
+
+        if let Some(ref st) = stereo {
+            pipeline.add_many([st, &audioconvert_stereo])?;
+        }
 
         // Połączenie elementów przetwarzania audio:
         // audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
@@ -235,24 +261,46 @@ impl AudioEngine {
                 })?;
         }
 
-        // equalizer -> queue_sink -> audioconvert_out -> rgvolume -> rglimiter -> volume -> spectrum -> audioconvert_sink -> sink
-        gst::Element::link_many([
-            &equalizer,
-            &queue_sink,
-            &audioconvert_out,
-            &rgvolume,
-            &rglimiter,
-            &volume,
-            &spectrum,
-            &audioconvert_sink,
-            &sink,
-        ])
-        .map_err(|_| {
-            AudioEngineError::ElementLink(
-                "Nie udało się połączyć wyjścia audio z elementami ReplayGain, kolejką i zlewem"
-                    .into(),
-            )
-        })?;
+        // equalizer -> queue_sink -> audioconvert_out -> (stereo -> audioconvert_stereo) -> rgvolume -> rglimiter -> volume -> spectrum -> audioconvert_sink -> sink
+        if let Some(ref st) = stereo {
+            gst::Element::link_many([
+                &equalizer,
+                &queue_sink,
+                &audioconvert_out,
+                st,
+                &audioconvert_stereo,
+                &rgvolume,
+                &rglimiter,
+                &volume,
+                &spectrum,
+                &audioconvert_sink,
+                &sink,
+            ])
+            .map_err(|_| {
+                AudioEngineError::ElementLink(
+                    "Nie udało się połączyć wyjścia audio ze stereo widenerem, ReplayGain i zlewem"
+                        .into(),
+                )
+            })?;
+        } else {
+            gst::Element::link_many([
+                &equalizer,
+                &queue_sink,
+                &audioconvert_out,
+                &rgvolume,
+                &rglimiter,
+                &volume,
+                &spectrum,
+                &audioconvert_sink,
+                &sink,
+            ])
+            .map_err(|_| {
+                AudioEngineError::ElementLink(
+                    "Nie udało się połączyć wyjścia audio z elementami ReplayGain, kolejką i zlewem"
+                        .into(),
+                )
+            })?;
+        }
 
         let inner = Arc::new(Mutex::new(PipelineInner {
             pipeline,
@@ -280,6 +328,10 @@ impl AudioEngine {
             base_sink_pts: Duration::ZERO,
             user_volume: 1.0,
             seek_seq: 0,
+            stereo_widener: stereo,
+            stereo_widener_active: false,
+            stereo_widener_amount: 0.1,
+            crossfade_duration_ms: 1500,
         }));
 
         // Nasłuchiwanie zmian tagów w rgvolume: gdy tryb to Off, neutralizujemy na bieżąco
@@ -1133,8 +1185,30 @@ impl AudioEngine {
         Ok(item)
     }
 
-    /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle.
+    /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle,
+    /// stosując płynne przejście z krzywą equal-power, jeśli włączony jest crossfade.
     pub fn play_next(&self) -> Result<Option<QueueItem>, AudioEngineError> {
+        let (crossfade_ms, user_vol, is_playing) = {
+            let inner = self.inner.lock().unwrap();
+            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
+            (inner.crossfade_duration_ms, inner.user_volume, is_playing)
+        };
+
+        if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
+            let half_fade = Duration::from_millis(crossfade_ms.min(3000) / 2);
+            let steps = 6;
+            let step_time = half_fade / steps as u32;
+            for i in (0..=steps).rev() {
+                let t = (i as f64) / (steps as f64);
+                let gain = (t * std::f64::consts::FRAC_PI_2).sin();
+                {
+                    let inner = self.inner.lock().unwrap();
+                    inner.volume.set_property("volume", user_vol * gain);
+                }
+                std::thread::sleep(step_time);
+            }
+        }
+
         let next_item = {
             let mut q = self.queue.lock().unwrap();
             q.next().cloned()
@@ -1143,7 +1217,13 @@ impl AudioEngine {
         match next_item {
             Some(item) => {
                 self.load_uri(&item.uri)?;
-                self.play()?;
+                if crossfade_ms > 0 && user_vol > 0.001 {
+                    self.play_with_fade_duration(Duration::from_millis(
+                        crossfade_ms.min(3000) / 2,
+                    ))?;
+                } else {
+                    self.play()?;
+                }
                 Ok(Some(item))
             }
             None => {
@@ -1163,6 +1243,27 @@ impl AudioEngine {
             }
         }
 
+        let (crossfade_ms, user_vol, is_playing) = {
+            let inner = self.inner.lock().unwrap();
+            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
+            (inner.crossfade_duration_ms, inner.user_volume, is_playing)
+        };
+
+        if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
+            let half_fade = Duration::from_millis(crossfade_ms.min(3000) / 2);
+            let steps = 6;
+            let step_time = half_fade / steps as u32;
+            for i in (0..=steps).rev() {
+                let t = (i as f64) / (steps as f64);
+                let gain = (t * std::f64::consts::FRAC_PI_2).sin();
+                {
+                    let inner = self.inner.lock().unwrap();
+                    inner.volume.set_property("volume", user_vol * gain);
+                }
+                std::thread::sleep(step_time);
+            }
+        }
+
         let prev_item = {
             let mut q = self.queue.lock().unwrap();
             q.previous().cloned()
@@ -1171,7 +1272,13 @@ impl AudioEngine {
         match prev_item {
             Some(item) => {
                 self.load_uri(&item.uri)?;
-                self.play()?;
+                if crossfade_ms > 0 && user_vol > 0.001 {
+                    self.play_with_fade_duration(Duration::from_millis(
+                        crossfade_ms.min(3000) / 2,
+                    ))?;
+                } else {
+                    self.play()?;
+                }
                 Ok(Some(item))
             }
             None => Ok(None),
@@ -1242,5 +1349,85 @@ impl AudioEngine {
         let result: f64 = inner.rgvolume.property("result-gain");
         let limiter: bool = inner.rglimiter.property("enabled");
         (target, result, limiter)
+    }
+
+    /// Wznawia odtwarzanie z płynnym wejściem głośności o zadanym czasie trwania wg krzywej equal-power.
+    pub fn play_with_fade_duration(&self, duration: Duration) -> Result<(), AudioEngineError> {
+        let target_vol = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.volume.set_property("volume", 0.0f64);
+            inner.pipeline.set_state(gst::State::Playing)?;
+            inner.state = PlaybackState::Playing;
+            inner.user_volume
+        };
+
+        if target_vol <= 0.001 || duration.is_zero() {
+            let inner = self.inner.lock().unwrap();
+            inner.volume.set_property("volume", target_vol);
+            return Ok(());
+        }
+
+        let steps = 6;
+        let step_time = duration / steps as u32;
+        for i in 1..=steps {
+            let t = (i as f64) / (steps as f64);
+            let gain = (t * std::f64::consts::FRAC_PI_2).sin();
+            {
+                let inner = self.inner.lock().unwrap();
+                inner.volume.set_property("volume", target_vol * gain);
+            }
+            std::thread::sleep(step_time);
+        }
+
+        Ok(())
+    }
+
+    /// Włącza lub wyłącza rozszerzanie bazy stereo (Stereo Widener).
+    pub fn set_stereo_widener_active(&self, active: bool) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.stereo_widener_active = active;
+        if let Some(ref st) = inner.stereo_widener {
+            st.set_property("active", active);
+        }
+    }
+
+    /// Ustawia intensywność rozszerzania stereo w zakresie 0.0 - 1.0.
+    pub fn set_stereo_widener_amount(&self, amount: f64) {
+        let mut inner = self.inner.lock().unwrap();
+        let clamped = amount.clamp(0.0, 1.0);
+        inner.stereo_widener_amount = clamped;
+        if let Some(ref st) = inner.stereo_widener {
+            st.set_property("stereo", clamped as f32);
+        }
+    }
+
+    /// Zwraca parametry rozszerzania stereo: (active, amount).
+    pub fn stereo_widener_params(&self) -> (bool, f64) {
+        let inner = self.inner.lock().unwrap();
+        (inner.stereo_widener_active, inner.stereo_widener_amount)
+    }
+
+    /// Włącza lub wyłącza True-Peak Limiter (rglimiter).
+    pub fn set_limiter_enabled(&self, enabled: bool) {
+        let inner = self.inner.lock().unwrap();
+        inner.rglimiter.set_property("enabled", enabled);
+    }
+
+    /// Sprawdza, czy True-Peak Limiter (rglimiter) jest włączony.
+    pub fn is_limiter_enabled(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner.rglimiter.property("enabled")
+    }
+
+    /// Ustawia czas płynnego przejścia (crossfade) w milisekundach (0 - 8000 ms).
+    pub fn set_crossfade_duration_ms(&self, duration_ms: u64) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.crossfade_duration_ms = duration_ms.clamp(0, 8000);
+    }
+
+    /// Pobiera bieżący czas crossfade w milisekundach.
+    pub fn crossfade_duration_ms(&self) -> u64 {
+        let inner = self.inner.lock().unwrap();
+        inner.crossfade_duration_ms
     }
 }
