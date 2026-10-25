@@ -512,8 +512,8 @@ export default function App() {
   // Discord Rich Presence (RPC)
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState<boolean>(true);
   const [discordRpcConnected, setDiscordRpcConnected] = useState<boolean>(false);
-  const [discordClientId, setDiscordClientId] = useState<string>('1121632048155742288');
-  const [discordClientIdInput, setDiscordClientIdInput] = useState<string>('1121632048155742288');
+  const [discordClientId, setDiscordClientId] = useState<string>('1563876157387186226');
+  const [discordClientIdInput, setDiscordClientIdInput] = useState<string>('1563876157387186226');
   const [isEditingDiscordClientId, setIsEditingDiscordClientId] = useState<boolean>(false);
 
 
@@ -1424,7 +1424,7 @@ export default function App() {
         if (st) {
           setDiscordRpcEnabled(st.enabled);
           setDiscordRpcConnected(st.connected);
-          const cid = st.client_id || '1121632048155742288';
+          const cid = st.client_id || '1563876157387186226';
           setDiscordClientId(cid);
           setDiscordClientIdInput(cid);
         }
@@ -2785,7 +2785,7 @@ export default function App() {
   };
 
   const handleSaveDiscordClientId = async (newId: string) => {
-    const finalId = newId.trim() || '1121632048155742288';
+    const finalId = newId.trim() || '1563876157387186226';
     setDiscordClientId(finalId);
     setDiscordClientIdInput(finalId);
     setIsEditingDiscordClientId(false);
@@ -2806,8 +2806,8 @@ export default function App() {
             setDiscordRpcEnabled(st.enabled);
             setDiscordRpcConnected(st.connected);
             if (!isEditingDiscordClientId) {
-              setDiscordClientId(st.client_id || '1121632048155742288');
-              setDiscordClientIdInput(st.client_id || '1121632048155742288');
+              setDiscordClientId(st.client_id || '1563876157387186226');
+              setDiscordClientIdInput(st.client_id || '1563876157387186226');
             }
           }
         })
@@ -5899,9 +5899,9 @@ const renderDevicesSection = () => (
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                   {loc.settings.discordClientIdLabel}
                 </span>
-                {discordClientId !== '1121632048155742288' && (
+                {discordClientId !== '1563876157387186226' && (
                   <button
-                    onClick={() => handleSaveDiscordClientId('1121632048155742288')}
+                    onClick={() => handleSaveDiscordClientId('1563876157387186226')}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -5930,7 +5930,7 @@ const renderDevicesSection = () => (
                       handleSaveDiscordClientId(discordClientIdInput);
                     }
                   }}
-                  placeholder="1121632048155742288"
+                  placeholder="1563876157387186226"
                   style={{
                     flex: 1,
                     background: 'rgba(22, 26, 46, 0.95)',

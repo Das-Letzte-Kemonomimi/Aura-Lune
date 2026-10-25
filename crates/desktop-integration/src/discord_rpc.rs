@@ -13,8 +13,8 @@ use tokio::net::UnixStream;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tracing::{debug, info};
 
-/// Domyślny zarejestrowany Discord Application ID dla odtwarzaczy audio / Auralune.
-pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1121632048155742288";
+/// Oficjalny zarejestrowany Discord Application ID dla Auralune („Słucha Auralune”).
+pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1563876157387186226";
 
 /// Informacje o utworze przesyłane do statusu Discord RPC.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
