@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::unix::OwnedWriteHalf;
 use tokio::net::UnixStream;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tracing::{debug, info};
@@ -144,7 +145,7 @@ impl DiscordRpcController {
 struct DiscordRpcWorker {
     enabled: bool,
     client_id: String,
-    stream: Option<UnixStream>,
+    writer: Option<OwnedWriteHalf>,
     status: Arc<RwLock<DiscordRpcStatus>>,
     current_track: Option<DiscordTrackInfo>,
     playback_state: PlaybackState,
@@ -159,7 +160,7 @@ impl DiscordRpcWorker {
         Self {
             enabled,
             client_id,
-            stream: None,
+            writer: None,
             status,
             current_track: None,
             playback_state: PlaybackState::Stopped,
@@ -243,7 +244,7 @@ impl DiscordRpcWorker {
                     // Jeśli Discord RPC jest włączony, ale nie ma jeszcze połączenia (np. Vesktop/Discord uruchomiony później),
                     // to sprawdzaj gniazdo w tle i automatycznie wyślij aktywność bez konieczności interakcji użytkowniczki
                     if self.enabled
-                        && self.stream.is_none()
+                        && self.writer.is_none()
                         && self.current_track.is_some()
                         && self.playback_state != PlaybackState::Stopped
                         && self.try_connect().await
@@ -263,7 +264,7 @@ impl DiscordRpcWorker {
     fn update_shared_status(&self) {
         if let Ok(mut st) = self.status.write() {
             st.enabled = self.enabled;
-            st.connected = self.stream.is_some();
+            st.connected = self.writer.is_some();
             st.client_id = self.client_id.clone();
             st.current_activity = self.current_track.as_ref().map(|t| {
                 if !t.artist.is_empty() {
@@ -276,19 +277,19 @@ impl DiscordRpcWorker {
     }
 
     fn disconnect(&mut self) {
-        self.stream = None;
+        self.writer = None;
         self.update_shared_status();
     }
 
     async fn try_connect(&mut self) -> bool {
-        if self.stream.is_some() {
+        if self.writer.is_some() {
             return true;
         }
 
-        // Unikaj spamu ponownych połączeń częściej niż co 1 sekundę
+        // Unikaj spamu ponownych połączeń częściej niż co 500ms
         if let Some(last) = self.last_connect_attempt {
             if let Ok(elapsed) = last.elapsed() {
-                if elapsed < Duration::from_millis(1000) {
+                if elapsed < Duration::from_millis(500) {
                     return false;
                 }
             }
@@ -325,7 +326,14 @@ impl DiscordRpcWorker {
                     match read_res {
                         Ok(Ok((1, _payload))) => {
                             info!("Pomyślnie połączono z Discord RPC przez {:?}", path);
-                            self.stream = Some(stream);
+                            let (read_half, write_half) = stream.into_split();
+                            tokio::spawn(async move {
+                                let mut reader = read_half;
+                                while let Ok((opcode, _)) = read_ipc_frame(&mut reader).await {
+                                    tracing::trace!("Discord IPC response opcode {}", opcode);
+                                }
+                            });
+                            self.writer = Some(write_half);
                             self.update_shared_status();
                             return true;
                         }
@@ -423,11 +431,18 @@ impl DiscordRpcWorker {
         };
 
         // Okładka i ikony statusu
-        // Jeśli brak okładki online, użyj bezpośredniego HTTPS do oficjalnej ikony Auralune,
-        // dzięki czemu Discord nie wyświetla bloku z pytajnikiem [?].
+        // Jeśli okładka jest dostępna (online HTTPS, base64 data URI lub plik lokalny), użyj jej.
+        // Jeśli brak jakiejkolwiek okładki, użyj bezpośredniego HTTPS do oficjalnej ikony Auralune.
         let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/apps/desktop/src-tauri/icons/128x128.png";
         let large_image = match &track.art_url {
-            Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),
+            Some(url)
+                if url.starts_with("http://")
+                    || url.starts_with("https://")
+                    || url.starts_with("data:image/")
+                    || url.starts_with("file://") =>
+            {
+                url.clone()
+            }
             _ => default_logo_url.to_string(),
         };
 
@@ -469,27 +484,19 @@ impl DiscordRpcWorker {
         })
         .to_string();
 
-        let mut send_success = false;
-        if let Some(stream) = self.stream.as_mut() {
-            if let Err(e) = send_ipc_frame(stream, 1, &payload).await {
+        if let Some(writer) = self.writer.as_mut() {
+            if let Err(e) = send_ipc_frame(writer, 1, &payload).await {
                 debug!("Błąd wysyłania SET_ACTIVITY do Discorda: {}", e);
+                self.disconnect();
             } else {
                 info!("Pomyślnie wysłano aktywność do Discord RPC: {}", details);
-                send_success = true;
-                let _ =
-                    tokio::time::timeout(Duration::from_millis(50), read_ipc_frame(stream)).await;
+                self.update_shared_status();
             }
-        }
-
-        if send_success {
-            self.update_shared_status();
-        } else if self.stream.is_some() {
-            self.disconnect();
         }
     }
 
     async fn clear_discord_activity(&mut self) {
-        if self.stream.is_none() {
+        if self.writer.is_none() {
             self.update_shared_status();
             return;
         }
@@ -506,8 +513,8 @@ impl DiscordRpcWorker {
         })
         .to_string();
 
-        if let Some(stream) = self.stream.as_mut() {
-            if let Err(e) = send_ipc_frame(stream, 1, &payload).await {
+        if let Some(writer) = self.writer.as_mut() {
+            if let Err(e) = send_ipc_frame(writer, 1, &payload).await {
                 debug!("Błąd czyszczenia aktywności Discorda: {}", e);
                 self.disconnect();
             } else {
@@ -599,27 +606,29 @@ fn libc_getuid() -> u32 {
 
 /// Zapisuje ramkę binarną protokołu Discord IPC:
 /// [opcode: u32 LE][length: u32 LE][payload JSON UTF-8]
-async fn send_ipc_frame(
-    stream: &mut UnixStream,
-    opcode: u32,
-    payload: &str,
-) -> std::io::Result<()> {
+async fn send_ipc_frame<W>(writer: &mut W, opcode: u32, payload: &str) -> std::io::Result<()>
+where
+    W: AsyncWriteExt + Unpin,
+{
     let payload_bytes = payload.as_bytes();
     let length = payload_bytes.len() as u32;
     let mut header = [0u8; 8];
     header[0..4].copy_from_slice(&opcode.to_le_bytes());
     header[4..8].copy_from_slice(&length.to_le_bytes());
 
-    stream.write_all(&header).await?;
-    stream.write_all(payload_bytes).await?;
-    stream.flush().await?;
+    writer.write_all(&header).await?;
+    writer.write_all(payload_bytes).await?;
+    writer.flush().await?;
     Ok(())
 }
 
 /// Odczytuje pojedynczą ramkę binarną Discord IPC z gniazda.
-async fn read_ipc_frame(stream: &mut UnixStream) -> std::io::Result<(u32, String)> {
+async fn read_ipc_frame<R>(reader: &mut R) -> std::io::Result<(u32, String)>
+where
+    R: AsyncReadExt + Unpin,
+{
     let mut header = [0u8; 8];
-    stream.read_exact(&mut header).await?;
+    reader.read_exact(&mut header).await?;
     let opcode = u32::from_le_bytes(header[0..4].try_into().unwrap());
     let length = u32::from_le_bytes(header[4..8].try_into().unwrap());
 
@@ -631,7 +640,7 @@ async fn read_ipc_frame(stream: &mut UnixStream) -> std::io::Result<(u32, String
     }
 
     let mut payload = vec![0u8; length as usize];
-    stream.read_exact(&mut payload).await?;
+    reader.read_exact(&mut payload).await?;
     let payload_str = String::from_utf8(payload)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 

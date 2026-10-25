@@ -462,6 +462,45 @@ fn set_volume(volume: f64, state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+fn normalize_art_url(art_url: Option<&str>) -> Option<String> {
+    let url = art_url?.trim();
+    if url.is_empty() {
+        return None;
+    }
+    if url.starts_with("http://")
+        || url.starts_with("https://")
+        || url.starts_with("data:image/")
+        || url.starts_with("file://")
+    {
+        return Some(url.to_string());
+    }
+    let path = std::path::Path::new(url);
+    if path.exists() && path.is_file() {
+        if let Ok(meta) = std::fs::metadata(path) {
+            if meta.len() <= 2 * 1024 * 1024 {
+                if let Ok(bytes) = std::fs::read(path) {
+                    let ext = path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("jpeg")
+                        .to_lowercase();
+                    let mime = match ext.as_str() {
+                        "png" => "image/png",
+                        "webp" => "image/webp",
+                        "gif" => "image/gif",
+                        _ => "image/jpeg",
+                    };
+                    use base64::Engine;
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    return Some(format!("data:{};base64,{}", mime, b64));
+                }
+            }
+        }
+        return Some(format!("file://{}", path.to_string_lossy()));
+    }
+    None
+}
+
 #[tauri::command]
 fn update_mpris_metadata(
     title: String,
@@ -471,12 +510,14 @@ fn update_mpris_metadata(
     art_url: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let normalized_art = normalize_art_url(art_url.as_deref());
+
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
         let t_clone = title.clone();
         let a_clone = artist.clone();
         let al_clone = album.clone();
-        let art_clone = art_url.clone();
+        let art_clone = normalized_art.clone();
         state.rt.spawn(async move {
             m.update_track(desktop_integration::MprisTrackInfo {
                 title: t_clone,
@@ -489,24 +530,21 @@ fn update_mpris_metadata(
         });
     }
     if let Some(discord) = &state.discord_rpc {
-        let has_http_art = art_url
-            .as_deref()
-            .map(|u| u.starts_with("http://") || u.starts_with("https://"))
-            .unwrap_or(false);
-
         let cache_key = format!(
             "{}---{}",
             artist.trim().to_lowercase(),
             album.trim().to_lowercase()
         );
 
-        let effective_art = if has_http_art {
-            if let Ok(mut cache) = state.discord_cover_cache.write() {
-                if !cache_key.is_empty() {
-                    cache.insert(cache_key.clone(), art_url.clone().unwrap());
+        let effective_art = if let Some(art) = &normalized_art {
+            if art.starts_with("http://") || art.starts_with("https://") {
+                if let Ok(mut cache) = state.discord_cover_cache.write() {
+                    if !cache_key.is_empty() {
+                        cache.insert(cache_key.clone(), art.clone());
+                    }
                 }
             }
-            art_url.clone()
+            Some(art.clone())
         } else {
             state
                 .discord_cover_cache
@@ -544,8 +582,14 @@ fn update_mpris_metadata(
         };
         discord.update_playback_status(effective_state, pos, dur);
 
-        // Jeśli okładka online nie była jeszcze znana, wyszukaj w tle z Deezer/iTunes
-        if effective_art.is_none() && (!artist.trim().is_empty() || !album.trim().is_empty()) {
+        // Jeśli okładka nie pochodzi ze sprawdzonego zewnętrznego CDN (Deezer/iTunes/MusicBrainz),
+        // spróbuj pobrać w tle wersję z internetu i uaktualnić
+        let needs_online_search = effective_art
+            .as_deref()
+            .map(|u| !u.starts_with("http://") && !u.starts_with("https://"))
+            .unwrap_or(true);
+
+        if needs_online_search && (!artist.trim().is_empty() || !album.trim().is_empty()) {
             let discord_clone = discord.clone();
             let cover_archive = state.cover_archive.clone();
             let cache_clone = state.discord_cover_cache.clone();
@@ -2305,9 +2349,12 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
             art_url: cached_art.clone(),
         };
         discord.update_track(track_info);
-        discord.update_playback_status(PlaybackState::Playing, 0, duration_ms);
+        let needs_online_search = cached_art
+            .as_deref()
+            .map(|u| !u.starts_with("http://") && !u.starts_with("https://"))
+            .unwrap_or(true);
 
-        if cached_art.is_none() && (!artist.trim().is_empty() || !album.trim().is_empty()) {
+        if needs_online_search && (!artist.trim().is_empty() || !album.trim().is_empty()) {
             let discord_clone = discord.clone();
             let cover_archive = state.cover_archive.clone();
             let cache_clone = state.discord_cover_cache.clone();
