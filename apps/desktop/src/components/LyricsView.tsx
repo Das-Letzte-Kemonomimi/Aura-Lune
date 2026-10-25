@@ -14,9 +14,11 @@ import {
   Save,
   Check,
   Wand2,
+  Languages,
 } from 'lucide-react';
 import type { Language } from '../i18n';
 import { getTranslations } from '../i18n';
+import { toRomaji, hasJapaneseCharacters } from '../utils/romaji';
 
 export interface LyricLineDto {
   time_ms: number;
@@ -57,6 +59,13 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   const [lyrics, setLyrics] = useState<LyricsDto | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [romajiMode, setRomajiMode] = useState<'original' | 'romaji' | 'dual'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_lyrics_romaji_mode');
+      if (saved === 'original' || saved === 'romaji' || saved === 'dual') return saved;
+    } catch {}
+    return 'dual';
+  });
   const [autoScroll, setAutoScroll] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('auralune_lyrics_autoscroll');
@@ -364,6 +373,41 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
               {loc.lyricsView.autoScroll}
             </button>
           )}
+
+          {/* Przełącznik transliteracji Romaji (Kana / Romaji / Dwuwiersz Karaoke) */}
+          <button
+            onClick={() => {
+              const next = romajiMode === 'original' ? 'dual' : romajiMode === 'dual' ? 'romaji' : 'original';
+              setRomajiMode(next);
+              try {
+                localStorage.setItem('auralune_lyrics_romaji_mode', next);
+              } catch {}
+            }}
+            title={`${loc.lyricsView.romajiModeTooltip}: ${
+              romajiMode === 'original'
+                ? loc.lyricsView.romajiModeKana
+                : romajiMode === 'romaji'
+                ? loc.lyricsView.romajiModeRomaji
+                : loc.lyricsView.romajiModeDual
+            }`}
+            style={{
+              background: romajiMode !== 'original' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${romajiMode !== 'original' ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
+              color: romajiMode !== 'original' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              transition: 'all 0.2s',
+            }}
+          >
+            <Languages size={13} />
+            {romajiMode === 'original' ? 'あ Kana' : romajiMode === 'romaji' ? 'A Romaji' : 'あ/A Dual'}
+          </button>
 
           <button
             onClick={loadLyrics}
@@ -801,7 +845,39 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                     </div>
                   )}
 
-                  <span style={{ flex: 1 }}>{line.text}</span>
+                  {/* Treść wersu tekstu z opcjonalną transliteracją Romaji */}
+                  {romajiMode === 'original' ? (
+                    <span style={{ flex: 1 }}>{line.text}</span>
+                  ) : romajiMode === 'romaji' ? (
+                    <span style={{ flex: 1 }}>{toRomaji(line.text)}</span>
+                  ) : (
+                    <div
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px',
+                      }}
+                    >
+                      <span>{line.text}</span>
+                      {hasJapaneseCharacters(line.text) && (
+                        <span
+                          style={{
+                            fontSize: '0.72em',
+                            fontStyle: 'italic',
+                            fontWeight: 500,
+                            letterSpacing: '0.02em',
+                            color: isActive ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                            opacity: isActive ? 0.95 : 0.65,
+                            transition: 'color 0.2s, opacity 0.2s',
+                          }}
+                        >
+                          {toRomaji(line.text)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -862,7 +938,17 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 opacity: 0.9,
               }}
             >
-              {lyrics.plain_lyrics}
+              {romajiMode === 'original'
+                ? lyrics.plain_lyrics
+                : romajiMode === 'romaji'
+                ? toRomaji(lyrics.plain_lyrics)
+                : lyrics.plain_lyrics
+                    .split('\n')
+                    .map((pl) => {
+                      if (!hasJapaneseCharacters(pl)) return pl;
+                      return `${pl}\n[${toRomaji(pl)}]`;
+                    })
+                    .join('\n')}
             </div>
           </div>
         )}

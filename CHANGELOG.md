@@ -13,6 +13,18 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 **Autorka**: Das Letzte Kemonomimi
 
 ### Dodano (Added)
+- **Transliteracja Romaji japońskich tekstów piosenek (Hepburn Romanization)**:
+  - Silnik transliteracji w `apps/desktop/src/utils/romaji.ts` obsługujący Hiraganę, Katakanę, digrafy Youon (きゃ, きゅ, きょ itp.), podwajanie spółgłosek Sokuon (っ / ッ, w tym wariant `tch`), przedłużenia samogłosek Choonpu (ー) oraz japońską interpunkcję.
+  - Przełącznik trybu w widoku tekstów `LyricsView.tsx`: `Kana (Oryginał)` / `Romaji` / `Dwuwiersz Karaoke (Kana + Romaji)`.
+  - W trybie dwuwiersza tekst japoński jest prezentowany z neonową, stylizowaną kursywą Romaji tuż poniżej aktywnego wersu, wzorowaną na ekranach japońskich systemów karaoke JOYSOUND i DAM.
+- **Pływający pasek tekstu na pulpicie (Desktop Lyrics Overlay / HUD)**:
+  - Przesuwalny (Drag & Drop), półprzezroczysty widżet karaoke `DesktopLyricsOverlay.tsx` unoszący się ponad wszystkimi oknami i widokami aplikacji.
+  - Wyświetlanie aktywnej linijki tekstu z neonowym gradientem karaoke, podglądem nadchodzącego wersu, paskiem postępu i kontrolkami odtwarzania (Play/Pause, Prev, Next).
+  - Wbudowany przełącznik Romaji, regulacja rozmiaru czcionki (Small / Medium / Large), 3 poziomy przezroczystości tła (Translucent 45% / Glass 78% / Solid 94%), blokada pozycji (Lock) i tryb zwinięty (Compact strip).
+- **Tryb Wirującego Winylu i Retro Kasety Magnetofonowej w BigScreenView**:
+  - Przełącznik trybów wizualizacji: `Okładka` / `Płyta Winylowa` / `Retro Kaseta`.
+  - **Tryb Winylu (Vinyl LP)**: realistyczna czarna płyta z mikro-rowkami, stożkowymi odbłyskami światła, centralną naklejką albumu oraz metalicznym ramieniem gramofonu (Tonearm), które płynnie przesuwa igłę od zewnętrznej krawędzi ku środkowi wraz z postępem odtwarzania. Prędkość obrotu płyty jest sprzężona z suwakiem tempa DSP.
+  - **Tryb Retro Kasety (Cassette Tape)**: japońska kaseta magnetofonowa Hi-Fi z lat 90. z przezroczystym okienkiem, kręcącymi się szpulami w tempie muzyki, realistyczną taśmą magnetyczną, której grubość na lewej i prawej szpuli zmienia się w czasie rzeczywistym z postępem utworu, oraz papierową etykietą z tytułem i wykonawcą.
 - **Wsparcie Crossfeed dla słuchawek (Bauer stereophonic-to-binaural / bs2b)**:
   - Element GStreamera `bs2b` z bezstratnym bypass (`set_passthrough`) w domenie próbek `F32LE`.
   - Wbudowane presety akustyczne: Domyślny wirtualnych głośników (30°, 3m — 700 Hz / 4.5 dB), Chu Moy (700 Hz / 6.0 dB), Jan Meier Corda (650 Hz / 9.0 dB) oraz tryb użytkowniczki z suwakami częstotliwości i poziomu sprzężenia.
