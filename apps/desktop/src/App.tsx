@@ -2052,18 +2052,18 @@ export default function App() {
       setActiveTrackId(track.id);
       setFilePath(track.path);
 
-      // 1. Natychmiastowe zaktualizowanie Discord RPC / MPRIS (0ms) z okładką Cover Art Archive
+      // 1. Natychmiastowe zaktualizowanie Discord RPC / MPRIS (0ms) z okładką (online Cover Art Archive lub zdefiniowaną w aplikacji)
       const matchingAlbum = albums.find((a) => a.id === track.album_id);
-      const onlineCover = matchingAlbum?.release_mbid
+      const appCover = matchingAlbum?.release_mbid
         ? `https://coverartarchive.org/release/${matchingAlbum.release_mbid}/front-500`
-        : (matchingAlbum?.cover_path && (matchingAlbum.cover_path.startsWith('http://') || matchingAlbum.cover_path.startsWith('https://')) ? matchingAlbum.cover_path : null);
+        : (matchingAlbum?.cover_path || trackDirectCover || null);
 
       invoke('update_mpris_metadata', {
         title: track.title,
         artist: track.artist,
         album: matchingAlbum?.title || track.album_artist || 'Auralune Library',
         durationMs: track.duration_ms,
-        artUrl: onlineCover,
+        artUrl: appCover,
       }).catch(() => {});
 
       await invoke('load_file', { path: track.path });
@@ -2092,7 +2092,7 @@ export default function App() {
         artist: track.artist,
         album: matchingAlbum?.title || track.album_artist || 'Auralune Library',
         durationMs: track.duration_ms,
-        artUrl: onlineCover,
+        artUrl: appCover,
       });
 
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
@@ -2169,9 +2169,9 @@ export default function App() {
         setActiveTrackId(matchingTrack.id);
       }
       const matchingAlbum = matchingTrack ? albums.find((a) => a.id === matchingTrack.album_id) : null;
-      const onlineCover = matchingAlbum?.release_mbid
+      const appCover = matchingAlbum?.release_mbid
         ? `https://coverartarchive.org/release/${matchingAlbum.release_mbid}/front-500`
-        : (matchingAlbum?.cover_path && (matchingAlbum.cover_path.startsWith('http://') || matchingAlbum.cover_path.startsWith('https://')) ? matchingAlbum.cover_path : null);
+        : (matchingAlbum?.cover_path || trackDirectCover || null);
 
       const filename = path.split('/').pop() || path;
       invoke('update_mpris_metadata', {
@@ -2179,7 +2179,7 @@ export default function App() {
         artist: matchingTrack?.artist || 'Plik lokalny',
         album: matchingAlbum?.title || matchingTrack?.album_artist || 'Auralune Player',
         durationMs: matchingTrack?.duration_ms || 0,
-        artUrl: onlineCover,
+        artUrl: appCover,
       }).catch(() => {});
 
       await invoke('load_file', { path });
@@ -2188,7 +2188,7 @@ export default function App() {
         artist: matchingTrack?.artist || 'Plik lokalny',
         album: matchingAlbum?.title || matchingTrack?.album_artist || 'Auralune Player',
         durationMs: matchingTrack?.duration_ms || 0,
-        artUrl: onlineCover,
+        artUrl: appCover,
       });
 
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
