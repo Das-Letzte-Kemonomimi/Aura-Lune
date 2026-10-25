@@ -33,6 +33,19 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
   - Ikona w tacce systemowej z szybkim menu (Pokaż okno, Odtwórz/Pauza, Następny, Poprzedni, Zakończ).
   - Opcja „Minimalizuj do zasobnika zamiast zamykać” (Close to Tray) z możliwością konfiguracji w ustawieniach.
 
+### Naprawiono (Fixed)
+- **Eliminacja zakleszczenia (deadlock) przy uruchamianiu odtwarzania**:
+  - Zamiana blokującego pobierania mutexu `inner` w powiadomieniu `connect_notify(Some("target-gain"))` na całkowicie bezblokadowy odczyt atomowy `Arc<AtomicU8>`.
+  - Wyprowadzenie zmiany stanu potoku (`set_state`) oraz pętli wygaszania głośności mikro-fade poza blokadę mutexu, eliminując całkowite zamrażanie interfejsu przy ładowaniu plików z metadanymi głośności.
+- **Pojedyncze kliknięcie w kolejce odtwarzania**:
+  - Dodanie obsługi pojedynczego kliknięcia (`onClick`) w wierszu utworu w kolejce odtwarzania obok dotychczasowego dwukliku.
+- **Styl pól wyboru (select) odporny na motywy systemowe GTK**:
+  - Globalne wyłączenie natywnego widgetu GTK (`appearance: none; -webkit-appearance: none;`) z wymuszeniem ciemnego tła anime/glassmorphism, białych liter i różowej strzałki akcentu, zapobiegając zlewaniu się białego tekstu z jasnym tłem systemowym.
+- **Rozdzielenie kolumn czasu i akcji w kolejce**:
+  - Rozszerzenie kolumny akcji z 96px do 140px i optymalizacja wewnętrznego paddingu przycisków, usuwając kolizję i nakładanie się przycisku Play na czas trwania utworu.
+- **Pełne tłumaczenia i18n w sekcji ListenBrainz i Crossfade**:
+  - Wprowadzenie dedykowanych kluczy tłumaczeń dla wszystkich 5 języków w Ustawieniach i usunięcie zahardkodowanych polskich ciągów.
+
 ---
 
 ## [0.3.0] — „Omniscience & Starlight” - 2026-10-25

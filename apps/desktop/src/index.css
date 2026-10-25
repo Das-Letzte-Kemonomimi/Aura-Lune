@@ -138,6 +138,63 @@ input[type="range"]::-moz-range-track {
   border-radius: var(--radius-full);
 }
 
+/* Pola wyboru (select) odporne na jasne motywy systemowe GTK w WebKitGTK */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: rgba(22, 26, 46, 0.95) !important;
+  color: #f8fafc !important;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-sm, 8px);
+  padding: 6px 30px 6px 12px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 13px 13px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+select:hover {
+  border-color: var(--border-accent, rgba(168, 85, 247, 0.5));
+  background-color: rgba(32, 38, 66, 0.98) !important;
+}
+
+select:focus {
+  border-color: var(--accent-pink, #f43f5e);
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.25);
+}
+
+select option {
+  background-color: #121424 !important;
+  color: #f8fafc !important;
+  padding: 8px 12px;
+}
+
+/* Pola tekstowe i wyszukiwarki */
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="password"],
+textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  color: #f8fafc;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted, #64748b);
+  opacity: 0.8;
+}
+
 /* Przyciski */
 button {
   font-family: inherit;

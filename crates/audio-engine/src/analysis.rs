@@ -633,10 +633,17 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
     let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
         uri_or_path.to_string()
     } else if uri_or_path.starts_with("file://") {
-        let stripped = uri_or_path.trim_start_matches("file://");
-        glib::filename_to_uri(Path::new(stripped), None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| uri_or_path.to_string())
+        if let Ok((path, _)) = glib::filename_from_uri(uri_or_path) {
+            if path.exists() {
+                glib::filename_to_uri(&path, None)
+                    .map(|u| u.to_string())
+                    .unwrap_or_else(|_| uri_or_path.to_string())
+            } else {
+                uri_or_path.to_string()
+            }
+        } else {
+            uri_or_path.to_string()
+        }
     } else {
         let path = Path::new(uri_or_path);
         if !path.exists() {
@@ -739,39 +746,41 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
     let mut album_peak = None;
 
     let start_time = std::time::Instant::now();
-    for msg in bus.iter_timed(gst::ClockTime::from_mseconds(50)) {
+    loop {
         if start_time.elapsed() > std::time::Duration::from_secs(60) {
             let _ = pipeline.set_state(gst::State::Null);
             return Err("Przekroczono limit czasu analizy ReplayGain (60s)".to_string());
         }
 
-        match msg.view() {
-            gst::MessageView::Tag(tag_msg) => {
-                let tags = tag_msg.tags();
-                if let Some(g) = tags.get::<gst::tags::TrackGain>() {
-                    track_gain = Some(g.get());
+        if let Some(msg) = bus.timed_pop(gst::ClockTime::from_mseconds(100)) {
+            match msg.view() {
+                gst::MessageView::Tag(tag_msg) => {
+                    let tags = tag_msg.tags();
+                    if let Some(g) = tags.get::<gst::tags::TrackGain>() {
+                        track_gain = Some(g.get());
+                    }
+                    if let Some(p) = tags.get::<gst::tags::TrackPeak>() {
+                        track_peak = Some(p.get());
+                    }
+                    if let Some(r) = tags.get::<gst::tags::ReferenceLevel>() {
+                        ref_level = r.get();
+                    }
+                    if let Some(ag) = tags.get::<gst::tags::AlbumGain>() {
+                        album_gain = Some(ag.get());
+                    }
+                    if let Some(ap) = tags.get::<gst::tags::AlbumPeak>() {
+                        album_peak = Some(ap.get());
+                    }
                 }
-                if let Some(p) = tags.get::<gst::tags::TrackPeak>() {
-                    track_peak = Some(p.get());
+                gst::MessageView::Eos(..) => {
+                    break;
                 }
-                if let Some(r) = tags.get::<gst::tags::ReferenceLevel>() {
-                    ref_level = r.get();
+                gst::MessageView::Error(err) => {
+                    let _ = pipeline.set_state(gst::State::Null);
+                    return Err(format!("Błąd analizy potoku audio: {}", err.error()));
                 }
-                if let Some(ag) = tags.get::<gst::tags::AlbumGain>() {
-                    album_gain = Some(ag.get());
-                }
-                if let Some(ap) = tags.get::<gst::tags::AlbumPeak>() {
-                    album_peak = Some(ap.get());
-                }
+                _ => {}
             }
-            gst::MessageView::Eos(..) => {
-                break;
-            }
-            gst::MessageView::Error(err) => {
-                let _ = pipeline.set_state(gst::State::Null);
-                return Err(format!("Błąd analizy potoku audio: {}", err.error()));
-            }
-            _ => {}
         }
     }
 
