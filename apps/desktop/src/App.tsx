@@ -2086,15 +2086,6 @@ export default function App() {
         showMessage(t.notifications.startedPlayback.replace('{0}', track.title).replace('{1}', track.artist));
       }
 
-      // Publikacja ostatecznych metadanych do systemowego D-Bus MPRIS oraz Discord RPC
-      await invoke('update_mpris_metadata', {
-        title: track.title,
-        artist: track.artist,
-        album: matchingAlbum?.title || track.album_artist || 'Auralune Library',
-        durationMs: track.duration_ms,
-        artUrl: appCover,
-      });
-
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
       if (desktopNotificationsEnabled) {
         invoke('show_desktop_notification', {
@@ -2183,13 +2174,6 @@ export default function App() {
       }).catch(() => {});
 
       await invoke('load_file', { path });
-      await invoke('update_mpris_metadata', {
-        title: matchingTrack?.title || filename,
-        artist: matchingTrack?.artist || 'Plik lokalny',
-        album: matchingAlbum?.title || matchingTrack?.album_artist || 'Auralune Player',
-        durationMs: matchingTrack?.duration_ms || 0,
-        artUrl: appCover,
-      });
 
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
       if (desktopNotificationsEnabled) {
@@ -5914,78 +5898,94 @@ const renderDevicesSection = () => (
           </div>
 
           {discordRpcEnabled && (
-            <div
+            <details
               style={{
-                marginTop: '16px',
-                background: 'rgba(0,0,0,0.25)',
-                padding: '14px 16px',
-                borderRadius: '12px',
-                border: '1px solid rgba(88, 101, 242, 0.2)',
+                marginTop: '14px',
+                background: 'rgba(0,0,0,0.2)',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                border: '1px solid rgba(88, 101, 242, 0.15)',
+                fontSize: '0.8rem',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  {loc.settings.discordClientIdLabel}
-                </span>
-                {discordClientId !== '1563876157387186226' && (
-                  <button
-                    onClick={() => handleSaveDiscordClientId('1563876157387186226')}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent-pink)',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                      padding: 0,
-                    }}
-                  >
-                    {loc.settings.discordClientIdDefaultBtn}
-                  </button>
-                )}
-              </div>
+              <summary
+                style={{
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  color: 'var(--text-muted)',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>Zaawansowane (własny Client ID Discorda)</span>
+              </summary>
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    {loc.settings.discordClientIdLabel}
+                  </span>
+                  {discordClientId !== '1563876157387186226' && (
+                    <button
+                      onClick={() => handleSaveDiscordClientId('1563876157387186226')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent-pink)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        padding: 0,
+                      }}
+                    >
+                      {loc.settings.discordClientIdDefaultBtn}
+                    </button>
+                  )}
+                </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  value={discordClientIdInput}
-                  onChange={(e) => {
-                    setDiscordClientIdInput(e.target.value);
-                    setIsEditingDiscordClientId(true);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSaveDiscordClientId(discordClientIdInput);
-                    }
-                  }}
-                  placeholder="1563876157387186226"
-                  style={{
-                    flex: 1,
-                    background: 'rgba(22, 26, 46, 0.95)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                    fontFamily: 'monospace',
-                  }}
-                />
-                {isEditingDiscordClientId && discordClientIdInput !== discordClientId && (
-                  <button
-                    onClick={() => handleSaveDiscordClientId(discordClientIdInput)}
-                    className="btn btn-primary"
-                    style={{
-                      padding: '0 16px',
-                      fontSize: '0.8rem',
-                      background: '#5865F2',
-                      borderColor: '#5865F2',
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={discordClientIdInput}
+                    onChange={(e) => {
+                      setDiscordClientIdInput(e.target.value);
+                      setIsEditingDiscordClientId(true);
                     }}
-                  >
-                    Zapisz
-                  </button>
-                )}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveDiscordClientId(discordClientIdInput);
+                      }
+                    }}
+                    placeholder="1563876157387186226"
+                    style={{
+                      flex: 1,
+                      background: 'rgba(22, 26, 46, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#fff',
+                      fontSize: '0.85rem',
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                  {isEditingDiscordClientId && discordClientIdInput !== discordClientId && (
+                    <button
+                      onClick={() => handleSaveDiscordClientId(discordClientIdInput)}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '0 16px',
+                        fontSize: '0.8rem',
+                        background: '#5865F2',
+                        borderColor: '#5865F2',
+                      }}
+                    >
+                      Zapisz
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            </details>
           )}
         </div>
 

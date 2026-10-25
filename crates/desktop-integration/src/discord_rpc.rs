@@ -153,6 +153,8 @@ struct DiscordRpcWorker {
     current_duration_ms: u64,
     last_connect_attempt: Option<SystemTime>,
     nonce_counter: u64,
+    dirty: bool,
+    last_sent_at: Option<tokio::time::Instant>,
 }
 
 impl DiscordRpcWorker {
@@ -168,6 +170,28 @@ impl DiscordRpcWorker {
             current_duration_ms: 0,
             last_connect_attempt: None,
             nonce_counter: 0,
+            dirty: false,
+            last_sent_at: None,
+        }
+    }
+
+    fn schedule_flush(&self, flush_deadline: &mut Option<tokio::time::Instant>) {
+        let now = tokio::time::Instant::now();
+        // Błyskawiczny settle 60ms: mikro-bursty poleceń (UpdateTrack + UpdatePlayback)
+        // łączą się w dokładnie 1 ramkę SET_ACTIVITY wysłaną w ułamku sekundy
+        let settle = now + Duration::from_millis(60);
+        // Ochrona przed rate-limitem Discord Gateway (max 5 na 20s, min. 1000ms między ramkami przy szybkim przewijaniu)
+        let min_interval = match self.last_sent_at {
+            Some(t) => t + Duration::from_millis(1000),
+            None => now,
+        };
+        let target = std::cmp::max(settle, min_interval);
+        if let Some(existing) = *flush_deadline {
+            if target < existing {
+                *flush_deadline = Some(target);
+            }
+        } else {
+            *flush_deadline = Some(target);
         }
     }
 
@@ -179,7 +203,16 @@ impl DiscordRpcWorker {
         let mut ticker = tokio::time::interval(Duration::from_millis(1500));
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
+        let mut flush_deadline: Option<tokio::time::Instant> = None;
+
         loop {
+            let flush_fut = async {
+                match flush_deadline {
+                    Some(dl) => tokio::time::sleep_until(dl).await,
+                    None => std::future::pending::<()>().await,
+                }
+            };
+
             tokio::select! {
                 cmd = rx.recv() => {
                     let Some(command) = cmd else { break };
@@ -189,7 +222,8 @@ impl DiscordRpcWorker {
                             if self.playback_state == PlaybackState::Stopped {
                                 self.playback_state = PlaybackState::Playing;
                             }
-                            self.refresh_activity().await;
+                            self.dirty = true;
+                            self.schedule_flush(&mut flush_deadline);
                         }
                         DiscordRpcCommand::UpdatePlayback {
                             state,
@@ -201,14 +235,18 @@ impl DiscordRpcWorker {
                             if duration_ms > 0 {
                                 self.current_duration_ms = duration_ms;
                             }
-                            self.refresh_activity().await;
+                            self.dirty = true;
+                            self.schedule_flush(&mut flush_deadline);
                         }
                         DiscordRpcCommand::UpdatePosition(pos) => {
                             self.current_position_ms = pos;
-                            self.refresh_activity().await;
+                            self.dirty = true;
+                            self.schedule_flush(&mut flush_deadline);
                         }
                         DiscordRpcCommand::ClearActivity => {
                             self.playback_state = PlaybackState::Stopped;
+                            self.dirty = false;
+                            flush_deadline = None;
                             self.clear_discord_activity().await;
                         }
                         DiscordRpcCommand::SetEnabled(enabled) => {
@@ -216,8 +254,11 @@ impl DiscordRpcWorker {
                             self.update_shared_status();
                             if enabled {
                                 self.try_connect().await;
-                                self.refresh_activity().await;
+                                self.dirty = true;
+                                self.schedule_flush(&mut flush_deadline);
                             } else {
+                                self.dirty = false;
+                                flush_deadline = None;
                                 self.clear_discord_activity().await;
                                 self.disconnect();
                             }
@@ -234,10 +275,19 @@ impl DiscordRpcWorker {
                                 self.disconnect();
                                 if self.enabled {
                                     self.try_connect().await;
-                                    self.refresh_activity().await;
+                                    self.dirty = true;
+                                    self.schedule_flush(&mut flush_deadline);
                                 }
                             }
                         }
+                    }
+                }
+                _ = flush_fut => {
+                    flush_deadline = None;
+                    if self.dirty {
+                        self.dirty = false;
+                        self.last_sent_at = Some(tokio::time::Instant::now());
+                        self.refresh_activity().await;
                     }
                 }
                 _ = ticker.tick() => {
@@ -249,6 +299,7 @@ impl DiscordRpcWorker {
                         && self.playback_state != PlaybackState::Stopped
                         && self.try_connect().await
                     {
+                        self.last_sent_at = Some(tokio::time::Instant::now());
                         self.refresh_activity().await;
                     }
                 }
@@ -395,8 +446,10 @@ impl DiscordRpcWorker {
             truncate_str(&track.title, 128)
         };
 
-        // Wykonawca (Linia 2 w Discordzie: Wykonawca)
-        let state = if !track.artist.trim().is_empty() {
+        // Wykonawca i album (Linia 2 w Discordzie: Wykonawca • Album)
+        let state = if !track.artist.trim().is_empty() && !track.album.trim().is_empty() {
+            truncate_str(&format!("{} • {}", track.artist, track.album), 128)
+        } else if !track.artist.trim().is_empty() {
             truncate_str(&track.artist, 128)
         } else if !track.album.trim().is_empty() {
             truncate_str(&track.album, 128)
@@ -431,18 +484,12 @@ impl DiscordRpcWorker {
         };
 
         // Okładka i ikony statusu
-        // Jeśli okładka jest dostępna (online HTTPS, base64 data URI lub plik lokalny), użyj jej.
-        // Jeśli brak jakiejkolwiek okładki, użyj bezpośredniego HTTPS do oficjalnej ikony Auralune.
+        // Do Discord Gateway wolno wysyłać WYŁĄCZNIE publiczne adresy HTTPS/HTTP lub klucze assetów.
+        // Lokalny plik (file://) ani 2-megabajtowy base64 (data:image/) nie są widoczne w internecie
+        // i powodują zerwanie lub ignorowanie sesji przez Discord Gateway.
         let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/apps/desktop/src-tauri/icons/128x128.png";
         let large_image = match &track.art_url {
-            Some(url)
-                if url.starts_with("http://")
-                    || url.starts_with("https://")
-                    || url.starts_with("data:image/")
-                    || url.starts_with("file://") =>
-            {
-                url.clone()
-            }
+            Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),
             _ => default_logo_url.to_string(),
         };
 
@@ -450,7 +497,7 @@ impl DiscordRpcWorker {
         let large_text = if !track.album.trim().is_empty() {
             truncate_str(&track.album, 128)
         } else {
-            "Auralune (Kitsune Player)".to_string()
+            "Auralune Player".to_string()
         };
 
         let mut activity = serde_json::json!({
