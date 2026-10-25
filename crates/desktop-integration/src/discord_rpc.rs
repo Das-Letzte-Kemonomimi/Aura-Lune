@@ -357,23 +357,20 @@ impl DiscordRpcWorker {
         let pid = std::process::id();
         let is_playing = self.playback_state == PlaybackState::Playing;
 
-        // Szczegóły utworu
+        // Szczegóły utworu (Linia 1 w Discordzie: Tytuł utworu)
         let details = if track.title.trim().is_empty() {
             "Nieznany utwór".to_string()
         } else {
             truncate_str(&track.title, 128)
         };
 
+        // Wykonawca (Linia 2 w Discordzie: Wykonawca)
         let state = if !track.artist.trim().is_empty() {
-            if !track.album.trim().is_empty() {
-                truncate_str(&format!("{} • {}", track.artist, track.album), 128)
-            } else {
-                truncate_str(&track.artist, 128)
-            }
+            truncate_str(&track.artist, 128)
         } else if !track.album.trim().is_empty() {
             truncate_str(&track.album, 128)
         } else {
-            "Auralune (Kitsune Player)".to_string()
+            "Auralune".to_string()
         };
 
         // Obliczenie znaczników czasu dla odtwarzania
@@ -403,12 +400,16 @@ impl DiscordRpcWorker {
         };
 
         // Okładka i ikony statusu
+        // Jeśli brak okładki online, użyj bezpośredniego HTTPS do oficjalnej ikony Auralune,
+        // dzięki czemu Discord nie wyświetla bloku z pytajnikiem [?].
+        let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/apps/desktop/src-tauri/icons/128x128.png";
         let large_image = match &track.art_url {
             Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),
-            _ => "auralune_logo".to_string(),
+            _ => default_logo_url.to_string(),
         };
 
-        let large_text = if !track.album.is_empty() {
+        // Album (Linia 3 w Discordzie / tooltip na okładce)
+        let large_text = if !track.album.trim().is_empty() {
             truncate_str(&track.album, 128)
         } else {
             "Auralune (Kitsune Player)".to_string()
