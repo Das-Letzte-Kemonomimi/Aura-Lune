@@ -453,6 +453,22 @@ export interface Translations {
     listenbrainzTesting: string;
     listenbrainzRequiresAccount: string;
     listenbrainzGetToken: string;
+    lastfmTitle: string;
+    lastfmDesc: string;
+    lastfmConnectBtn: string;
+    lastfmDisconnectBtn: string;
+    lastfmSessionKey: string;
+    lastfmSessionKeyPlaceholder: string;
+    lastfmConnectedAs: string;
+    lastfmNotConnected: string;
+    lastfmAutoScrobble: string;
+    lastfmTesting: string;
+    lastfmConfirmAuthBtn: string;
+    lastfmAuthWaiting: string;
+    lastfmInvalidSession: string;
+    lastfmAdvancedKeys: string;
+    lastfmCustomApiKey: string;
+    lastfmCustomApiSecret: string;
     crossfadeTitle: string;
     crossfadeDesc: string;
     crossfadeDisabled: string;
@@ -1156,6 +1172,22 @@ export const translations: Record<Language, Translations> = {
       listenbrainzTesting: 'Verifying...',
       listenbrainzRequiresAccount: 'Requires a free account on listenbrainz.org',
       listenbrainzGetToken: 'Get profile token',
+      lastfmTitle: 'Last.fm Scrobbler',
+      lastfmDesc: 'Official Last.fm 2.0 API integration with real-time scrobbling and Now Playing status.',
+      lastfmConnectBtn: 'Connect with Last.fm',
+      lastfmDisconnectBtn: 'Disconnect',
+      lastfmSessionKey: 'Last.fm Session Key',
+      lastfmSessionKeyPlaceholder: 'Paste existing session key or connect via browser',
+      lastfmConnectedAs: 'Connected as',
+      lastfmNotConnected: 'Not connected to Last.fm',
+      lastfmAutoScrobble: 'Automatically scrobble played tracks (>50% elapsed)',
+      lastfmTesting: 'Authorizing...',
+      lastfmConfirmAuthBtn: 'Complete Connection',
+      lastfmAuthWaiting: 'Approve access in your browser, then click Complete Connection.',
+      lastfmInvalidSession: 'Invalid Last.fm session or connection error',
+      lastfmAdvancedKeys: 'Custom API Key & Secret (Advanced)',
+      lastfmCustomApiKey: 'Custom API Key',
+      lastfmCustomApiSecret: 'Custom API Secret',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Smooth transition between consecutive tracks (0.0s – 8.0s).',
       crossfadeDisabled: 'Disabled (0.0s - instant cut)',
@@ -1858,6 +1890,22 @@ export const translations: Record<Language, Translations> = {
       listenbrainzTesting: 'Weryfikacja...',
       listenbrainzRequiresAccount: 'Wymaga bezpłatnego konta na listenbrainz.org',
       listenbrainzGetToken: 'Uzyskaj token profilu',
+      lastfmTitle: 'Scrobbler Last.fm',
+      lastfmDesc: 'Oficjalna integracja z Last.fm 2.0 API ze scrobblowaniem na żywo i statusem Teraz odtwarzane.',
+      lastfmConnectBtn: 'Połącz z Last.fm',
+      lastfmDisconnectBtn: 'Rozłącz',
+      lastfmSessionKey: 'Klucz sesji Last.fm (Session Key)',
+      lastfmSessionKeyPlaceholder: 'Wklej istniejący klucz sesji lub połącz przez przeglądarkę',
+      lastfmConnectedAs: 'Połączono jako',
+      lastfmNotConnected: 'Nie połączono z Last.fm',
+      lastfmAutoScrobble: 'Automatyczne scrobblowanie odsłuchanych utworów (>50% czasu trwania)',
+      lastfmTesting: 'Autoryzacja...',
+      lastfmConfirmAuthBtn: 'Zakończ autoryzację',
+      lastfmAuthWaiting: 'Zaakceptuj dostęp w przeglądarce, a następnie kliknij Zakończ autoryzację.',
+      lastfmInvalidSession: 'Nieprawidłowy klucz sesji Last.fm lub błąd połączenia',
+      lastfmAdvancedKeys: 'Własny klucz API i sekret (zaawansowane)',
+      lastfmCustomApiKey: 'Własny Last.fm API Key',
+      lastfmCustomApiSecret: 'Własny Last.fm API Secret',
       crossfadeTitle: 'Płynny Crossfade (Equal-power)',
       crossfadeDesc: 'Płynne przejście między utworami z zachowaniem mocy akustycznej (0.0s – 8.0s).',
       crossfadeDisabled: 'Wyłączony (0.0s - natychmiastowe cięcie)',
@@ -2560,6 +2608,22 @@ export const translations: Record<Language, Translations> = {
       listenbrainzTesting: 'Überprüfung...',
       listenbrainzRequiresAccount: 'Erfordert ein kostenloses Konto auf listenbrainz.org',
       listenbrainzGetToken: 'Profil-Token abrufen',
+      lastfmTitle: 'Last.fm Scrobbler',
+      lastfmDesc: 'Offizielle Last.fm 2.0 API-Integration mit Echtzeit-Scrobbeln und Now Playing-Status.',
+      lastfmConnectBtn: 'Mit Last.fm verbinden',
+      lastfmDisconnectBtn: 'Trennen',
+      lastfmSessionKey: 'Last.fm Sitzungsschlüssel (Session Key)',
+      lastfmSessionKeyPlaceholder: 'Sitzungsschlüssel einfügen oder über Browser autorisieren',
+      lastfmConnectedAs: 'Verbunden als',
+      lastfmNotConnected: 'Nicht mit Last.fm verbunden',
+      lastfmAutoScrobble: 'Gespielte Titel automatisch scrobbeln (>50% abgespielt)',
+      lastfmTesting: 'Autorisiere...',
+      lastfmConfirmAuthBtn: 'Autorisierung abschließen',
+      lastfmAuthWaiting: 'Bestätige den Zugriff im Browser und klicke dann auf Autorisierung abschließen.',
+      lastfmInvalidSession: 'Ungültige Last.fm-Sitzung oder Verbindungsfehler',
+      lastfmAdvancedKeys: 'Eigener API-Key & Secret (Erweitert)',
+      lastfmCustomApiKey: 'Benutzerdefinierter API-Key',
+      lastfmCustomApiSecret: 'Benutzerdefiniertes API-Secret',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Sanfter Übergang zwischen Titeln (0,0s – 8,0s).',
       crossfadeDisabled: 'Deaktiviert (0.0s - sofortiger Schnitt)',
@@ -3262,6 +3326,22 @@ export const translations: Record<Language, Translations> = {
       listenbrainzTesting: 'Vahvistetaan...',
       listenbrainzRequiresAccount: 'Vaatii ilmaisen tilin osoitteessa listenbrainz.org',
       listenbrainzGetToken: 'Hanki profiilitunnus',
+      lastfmTitle: 'Last.fm Scrobbler',
+      lastfmDesc: 'Virallinen Last.fm 2.0 API -integraatio reaaliaikaisella scrobbauksella ja Now Playing -tilalla.',
+      lastfmConnectBtn: 'Yhdistä Last.fm-tiliin',
+      lastfmDisconnectBtn: 'Katkaise yhteys',
+      lastfmSessionKey: 'Last.fm-istuntoavain (Session Key)',
+      lastfmSessionKeyPlaceholder: 'Liitä istuntoavain tai valtuuta selaimessa',
+      lastfmConnectedAs: 'Yhdistetty käyttäjänä',
+      lastfmNotConnected: 'Ei yhteyttä Last.fm-palveluun',
+      lastfmAutoScrobble: 'Scrobbaa kuunnellut kappaleet automaattisesti (>50% toistettu)',
+      lastfmTesting: 'Valtuutetaan...',
+      lastfmConfirmAuthBtn: 'Viimeistele yhteys',
+      lastfmAuthWaiting: 'Hyväksy käyttöoikeus selaimessa ja paina sitten Viimeistele yhteys.',
+      lastfmInvalidSession: 'Virheellinen Last.fm-istuntoavain tai yhteysvirhe',
+      lastfmAdvancedKeys: 'Oma API-avain ja salaisuus (Edistynyt)',
+      lastfmCustomApiKey: 'Mukautettu API-avain',
+      lastfmCustomApiSecret: 'Mukautettu API-salaisuus',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Pehmeä siirtymä kappaleiden välillä (0,0s – 8,0s).',
       crossfadeDisabled: 'Pois päältä (0.0s - välitön leikkaus)',
@@ -3964,6 +4044,22 @@ export const translations: Record<Language, Translations> = {
       listenbrainzTesting: 'Verificatio...',
       listenbrainzRequiresAccount: 'Rationem gratuitam in listenbrainz.org requirit',
       listenbrainzGetToken: 'Tesseram profilus impetrare',
+      lastfmTitle: 'Scrobbler Last.fm',
+      lastfmDesc: 'Integratio authentica cum Last.fm 2.0 API cum scrobbling in tempore reali et statu carminis.',
+      lastfmConnectBtn: 'Coniungere cum Last.fm',
+      lastfmDisconnectBtn: 'Disiungere',
+      lastfmSessionKey: 'Clavis sessionis Last.fm',
+      lastfmSessionKeyPlaceholder: 'Immitte clavem sessionis vel per navigatrum aperi',
+      lastfmConnectedAs: 'Coniunctus ut',
+      lastfmNotConnected: 'Non coniunctus cum Last.fm',
+      lastfmAutoScrobble: 'Statim carmina audita scrobblere (>50% temporis)',
+      lastfmTesting: 'Auctoritas probatur...',
+      lastfmConfirmAuthBtn: 'Coniunctionem perficere',
+      lastfmAuthWaiting: 'Consensum in navigatro da, deinde Coniunctionem perficere preme.',
+      lastfmInvalidSession: 'Clavis sessionis Last.fm falsa vel error nexus',
+      lastfmAdvancedKeys: 'Clavis propria API et arcanum (Periti)',
+      lastfmCustomApiKey: 'Clavis propria API',
+      lastfmCustomApiSecret: 'Arcanum proprium API',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Mollis transitus inter cantus (0.0s – 8.0s).',
       crossfadeDisabled: 'Inactivum (0.0s - sectio immediata)',

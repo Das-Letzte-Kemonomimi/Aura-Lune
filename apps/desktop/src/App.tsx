@@ -532,6 +532,18 @@ export default function App() {
   const [listenbrainzStatusMsg, setListenbrainzStatusMsg] = useState<string | null>(null);
   const [scrobbledTrackId, setScrobbledTrackId] = useState<number | null>(null);
 
+  // Last.fm Scrobbler (Official 2.0 API)
+  const [lastfmSessionKey, setLastfmSessionKey] = useState<string>('');
+  const [lastfmUsername, setLastfmUsername] = useState<string | null>(null);
+  const [lastfmEnabled, setLastfmEnabled] = useState<boolean>(false);
+  const [lastfmTesting, setLastfmTesting] = useState<boolean>(false);
+  const [lastfmStatusMsg, setLastfmStatusMsg] = useState<string | null>(null);
+  const [lastfmPendingToken, setLastfmPendingToken] = useState<string | null>(null);
+  const [lastfmCustomKey, setLastfmCustomKey] = useState<string>('');
+  const [lastfmCustomSecret, setLastfmCustomSecret] = useState<string>('');
+  const [lastfmShowAdvanced, setLastfmShowAdvanced] = useState<boolean>(false);
+  const [lastfmScrobbledTrackId, setLastfmScrobbledTrackId] = useState<number | null>(null);
+
   // Płynny Crossfade & Zaawansowane efekty DSP (Poweramp)
   const [crossfadeDuration, setCrossfadeDuration] = useState<number>(1500);
   const [bassBoost, setBassBoost] = useState<number>(0);
@@ -1399,6 +1411,38 @@ export default function App() {
                   .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
               }
             }
+
+            // Last.fm Scrobbler: scrobble po przekroczeniu 50% czasu utworu (lub 240 sek.)
+            if (
+              res.state === 'Playing' &&
+              lastfmEnabled &&
+              lastfmSessionKey &&
+              lastfmScrobbledTrackId !== trackId &&
+              res.duration_ms &&
+              res.duration_ms >= 30000 &&
+              res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
+            ) {
+              setLastfmScrobbledTrackId(trackId);
+              const currentTrackObj = tracks.find((t) => t.id === trackId);
+              if (currentTrackObj) {
+                invoke('lastfm_scrobble', {
+                  request: {
+                    session_key: lastfmSessionKey,
+                    artist: currentTrackObj.artist,
+                    track: currentTrackObj.title,
+                    album: currentTrackObj.album_artist || null,
+                    timestamp: Math.floor(Date.now() / 1000),
+                    duration_sec: currentTrackObj.duration_ms ? Math.round(currentTrackObj.duration_ms / 1000) : null,
+                    api_key: lastfmCustomKey.trim() || null,
+                    api_secret: lastfmCustomSecret.trim() || null,
+                  },
+                })
+                  .then(() => {
+                    showMessage(`Scrobble wysłany do Last.fm: ${currentTrackObj.title}`);
+                  })
+                  .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
+              }
+            }
           }
         }
       } catch (e) {
@@ -1486,6 +1530,36 @@ export default function App() {
         setListenbrainzEnabled(val === 'true');
       })
       .catch((e) => console.warn('Błąd odczytu listenbrainz_enabled:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'lastfm_session_key' })
+      .then((val) => {
+        if (val) setLastfmSessionKey(val);
+      })
+      .catch(() => {});
+
+    invoke<string | null>('get_app_setting', { key: 'lastfm_username' })
+      .then((val) => {
+        if (val) setLastfmUsername(val);
+      })
+      .catch(() => {});
+
+    invoke<string | null>('get_app_setting', { key: 'lastfm_enabled' })
+      .then((val) => {
+        setLastfmEnabled(val === 'true');
+      })
+      .catch(() => {});
+
+    invoke<string | null>('get_app_setting', { key: 'lastfm_custom_key' })
+      .then((val) => {
+        if (val) setLastfmCustomKey(val);
+      })
+      .catch(() => {});
+
+    invoke<string | null>('get_app_setting', { key: 'lastfm_custom_secret' })
+      .then((val) => {
+        if (val) setLastfmCustomSecret(val);
+      })
+      .catch(() => {});
 
     invoke<string | null>('get_app_setting', { key: 'crossfade_duration' })
       .then((val) => {
@@ -2161,6 +2235,23 @@ export default function App() {
           album: track.album_artist || null,
           durationMs: track.duration_ms || null,
         }).catch((e) => console.warn('ListenBrainz Playing Now error:', e));
+      }
+
+      // Last.fm Scrobbler: status «Now Playing»
+      setLastfmScrobbledTrackId(null);
+      if (lastfmEnabled && lastfmSessionKey) {
+        invoke('lastfm_update_now_playing', {
+          request: {
+            session_key: lastfmSessionKey,
+            artist: track.artist,
+            track: track.title,
+            album: track.album_artist || null,
+            duration_sec: track.duration_ms ? Math.round(track.duration_ms / 1000) : null,
+            timestamp: null,
+            api_key: lastfmCustomKey.trim() || null,
+            api_secret: lastfmCustomSecret.trim() || null,
+          },
+        }).catch((e) => console.warn('Last.fm Now Playing error:', e));
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -2923,6 +3014,98 @@ export default function App() {
     } catch (e) {
       console.warn('Błąd zapisu listenbrainz_token:', e);
     }
+  };
+
+  const handleConnectLastfm = async () => {
+    setLastfmTesting(true);
+    setLastfmStatusMsg(null);
+    try {
+      const res = await invoke<{ token: string; auth_url: string }>('lastfm_get_auth_url', {
+        apiKey: lastfmCustomKey.trim() || null,
+      });
+      setLastfmPendingToken(res.token);
+      window.open(res.auth_url, '_blank');
+      setLastfmStatusMsg(loc.settings.lastfmAuthWaiting);
+    } catch (err: any) {
+      setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
+    } finally {
+      setLastfmTesting(false);
+    }
+  };
+
+  const handleConfirmLastfmAuth = async () => {
+    if (!lastfmPendingToken) return;
+    setLastfmTesting(true);
+    try {
+      const session = await invoke<{ username: string; session_key: string }>('lastfm_fetch_session', {
+        token: lastfmPendingToken,
+        apiKey: lastfmCustomKey.trim() || null,
+        apiSecret: lastfmCustomSecret.trim() || null,
+      });
+      setLastfmSessionKey(session.session_key);
+      setLastfmUsername(session.username);
+      setLastfmPendingToken(null);
+      setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${session.username}`);
+      await invoke('set_app_setting', { key: 'lastfm_session_key', value: session.session_key });
+      await invoke('set_app_setting', { key: 'lastfm_username', value: session.username });
+      showMessage(`Last.fm: Zalogowano pomyślnie jako @${session.username}`);
+    } catch (err: any) {
+      setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
+    } finally {
+      setLastfmTesting(false);
+    }
+  };
+
+  const handleDisconnectLastfm = async () => {
+    setLastfmSessionKey('');
+    setLastfmUsername(null);
+    setLastfmPendingToken(null);
+    setLastfmStatusMsg(null);
+    await invoke('set_app_setting', { key: 'lastfm_session_key', value: '' });
+    await invoke('set_app_setting', { key: 'lastfm_username', value: '' });
+    showMessage('Odłączono konto Last.fm');
+  };
+
+  const handleManualLastfmSessionKeyChange = async (key: string) => {
+    setLastfmSessionKey(key);
+    await invoke('set_app_setting', { key: 'lastfm_session_key', value: key });
+  };
+
+  const handleValidateLastfmSession = async () => {
+    if (!lastfmSessionKey.trim()) return;
+    setLastfmTesting(true);
+    try {
+      const user = await invoke<string>('lastfm_validate_session', {
+        sessionKey: lastfmSessionKey.trim(),
+        apiKey: lastfmCustomKey.trim() || null,
+        apiSecret: lastfmCustomSecret.trim() || null,
+      });
+      setLastfmUsername(user);
+      setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${user}`);
+      await invoke('set_app_setting', { key: 'lastfm_username', value: user });
+      showMessage(`Last.fm: Połączono jako @${user}`);
+    } catch (err: any) {
+      setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
+    } finally {
+      setLastfmTesting(false);
+    }
+  };
+
+  const handleToggleLastfm = async (enabled: boolean) => {
+    setLastfmEnabled(enabled);
+    try {
+      await invoke('set_app_setting', { key: 'lastfm_enabled', value: enabled ? 'true' : 'false' });
+      showMessage(enabled ? 'Last.fm Scrobbler włączony' : 'Last.fm Scrobbler wyłączony');
+    } catch (e) {
+      console.warn('Błąd zapisu lastfm_enabled:', e);
+    }
+  };
+
+  const handleSaveLastfmCustomKeys = async (key: string, secret: string) => {
+    setLastfmCustomKey(key);
+    setLastfmCustomSecret(secret);
+    await invoke('set_app_setting', { key: 'lastfm_custom_key', value: key });
+    await invoke('set_app_setting', { key: 'lastfm_custom_secret', value: secret });
   };
 
   const handleCrossfadeDurationChange = async (ms: number) => {
@@ -6531,6 +6714,261 @@ const renderDevicesSection = () => (
               >
                 {loc.settings.listenbrainzGetToken} <ExternalLink size={12} />
               </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Sekcja Last.fm Scrobbler (Official 2.0 API) */}
+        <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(213, 16, 7, 0.2)' }}>
+                <Flame size={20} color="#d51007" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {loc.settings.lastfmTitle}
+                  <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(213, 16, 7, 0.2)', color: '#d51007', fontWeight: 700 }}>
+                    API 2.0
+                  </span>
+                  {lastfmUsername && (
+                    <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', fontWeight: 700 }}>
+                      ● ONLINE
+                    </span>
+                  )}
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {loc.settings.lastfmDesc}
+                </p>
+              </div>
+            </div>
+
+            <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+              <input
+                type="checkbox"
+                checked={lastfmEnabled}
+                onChange={(e) => handleToggleLastfm(e.target.checked)}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  cursor: 'pointer',
+                  inset: 0,
+                  backgroundColor: lastfmEnabled ? '#d51007' : 'rgba(255,255,255,0.2)',
+                  transition: '0.3s',
+                  borderRadius: '24px',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: lastfmEnabled ? '23px' : '3px',
+                    bottom: '3px',
+                    backgroundColor: 'white',
+                    transition: '0.3s',
+                    borderRadius: '50%',
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.25)', padding: '16px', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0' }}>
+                  {lastfmUsername ? `${loc.settings.lastfmConnectedAs}: @${lastfmUsername}` : loc.settings.lastfmNotConnected}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {!lastfmPendingToken ? (
+                  <button
+                    type="button"
+                    disabled={lastfmTesting}
+                    onClick={handleConnectLastfm}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      background: 'rgba(213, 16, 7, 0.25)',
+                      border: '1px solid rgba(213, 16, 7, 0.5)',
+                      color: '#fff',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: lastfmTesting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                    {loc.settings.lastfmConnectBtn}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={lastfmTesting}
+                    onClick={handleConfirmLastfmAuth}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      background: 'rgba(34, 197, 94, 0.3)',
+                      border: '1px solid rgba(34, 197, 94, 0.6)',
+                      color: '#4ade80',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <CheckCircle size={14} />
+                    {loc.settings.lastfmConfirmAuthBtn}
+                  </button>
+                )}
+
+                {lastfmSessionKey && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectLastfm}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {loc.settings.lastfmDisconnectBtn}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="password"
+                placeholder={loc.settings.lastfmSessionKeyPlaceholder}
+                value={lastfmSessionKey}
+                onChange={(e) => handleManualLastfmSessionKeyChange(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(0,0,0,0.3)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                disabled={lastfmTesting || !lastfmSessionKey.trim()}
+                onClick={handleValidateLastfmSession}
+                style={{
+                  padding: '0 16px',
+                  borderRadius: '8px',
+                  background: 'rgba(213, 16, 7, 0.25)',
+                  border: '1px solid rgba(213, 16, 7, 0.5)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: lastfmTesting || !lastfmSessionKey.trim() ? 'not-allowed' : 'pointer',
+                  opacity: lastfmTesting || !lastfmSessionKey.trim() ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {lastfmTesting ? loc.settings.lastfmTesting : 'Test'}
+              </button>
+            </div>
+
+            {lastfmStatusMsg && (
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  color: lastfmUsername ? '#4ade80' : '#f87171',
+                  marginTop: '2px',
+                  fontWeight: 600,
+                }}
+              >
+                {lastfmStatusMsg}
+              </div>
+            )}
+
+            <div style={{ marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setLastfmShowAdvanced(!lastfmShowAdvanced)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {lastfmShowAdvanced ? '▼' : '▶'} {loc.settings.lastfmAdvancedKeys}
+              </button>
+
+              {lastfmShowAdvanced && (
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)' }}>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                      {loc.settings.lastfmCustomApiKey}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Domyślny Auralune API Key"
+                      value={lastfmCustomKey}
+                      onChange={(e) => handleSaveLastfmCustomKeys(e.target.value, lastfmCustomSecret)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(0,0,0,0.3)',
+                        color: '#fff',
+                        fontSize: '0.75rem',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                      {loc.settings.lastfmCustomApiSecret}
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Domyślny Auralune API Secret"
+                      value={lastfmCustomSecret}
+                      onChange={(e) => handleSaveLastfmCustomKeys(lastfmCustomKey, e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(0,0,0,0.3)',
+                        color: '#fff',
+                        fontSize: '0.75rem',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

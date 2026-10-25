@@ -25,6 +25,13 @@ const RELEASES: ChangelogRelease[] = [
     isLatest: true,
     added: [
       {
+        pl: 'Oficjalne scrobblowanie do Last.fm (Last.fm 2.0 API): autoryzacja sesji w przeglądarce, status Teraz Odtwarzane, scrobblowanie po 50% czasu utworu i wsparcie własnych kluczy API.',
+        en: 'Official Last.fm 2.0 Scrobbler: web browser authentication, Now Playing status, scrobbling after 50% playtime, and custom API key support.',
+        de: 'Offizieller Last.fm 2.0 Scrobbler: Browser-Authentifizierung, Jetzt-Spielen-Status, Scrobbeln nach 50% Spielzeit und benutzerdefinierte API-Schlüssel.',
+        fi: 'Virallinen Last.fm 2.0 Scrobbler: selaintunnistautuminen, Nyt toistetaan -tila, scrobblaus 50% soittoajan jälkeen ja omien API-avainten tuki.',
+        la: 'Scrobblator Last.fm 2.0 officialis: auctoritas per navigatrum, status cantus currentis, scrobblatio post dimidium temporis et claves API propriae.',
+      },
+      {
         pl: 'Wielopunktowe znaczniki CUE / Bookmarks: dodawanie nazwanych punktów w czasie odtwarzania, edycja i diamentowe markery na osi czasu z szybkim skokiem.',
         en: 'Multi-point Track Bookmarks / Cue Points: add named cue points during playback, inline editing, and clickable diamond timeline markers.',
         de: 'Mehrpunkt-Lesezeichen & Cue-Punkte: benannte Lesezeichen zur Laufzeit hinzufügen, Inline-Bearbeitung und anklickbare Diamant-Marker auf der Zeitleiste.',
