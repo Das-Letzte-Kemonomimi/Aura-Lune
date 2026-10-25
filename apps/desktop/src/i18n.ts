@@ -280,6 +280,7 @@ export interface Translations {
     fileRenamer: string;
     facetsToggle: string;
     bookmarks: string;
+    backToAlbums: string;
   };
   playlists: {
     title: string;
@@ -1038,6 +1039,7 @@ export const translations: Record<Language, Translations> = {
       fileRenamer: 'Batch File Renamer',
       facetsToggle: 'Facets Filter (foobar2000)',
       bookmarks: 'Track Bookmarks (Cue Points)',
+      backToAlbums: '← Back to all albums',
     },
     playlists: {
       title: 'Your Playlists',
@@ -1795,6 +1797,7 @@ export const translations: Record<Language, Translations> = {
       fileRenamer: 'Masowy renamer plików',
       facetsToggle: 'Filtry fasetowe (Facets)',
       bookmarks: 'Zakładki utworu (Cue Points)',
+      backToAlbums: '← Wróć do wszystkich albumów',
     },
     playlists: {
       title: 'Twoje Playlisty',
@@ -2552,6 +2555,7 @@ export const translations: Record<Language, Translations> = {
       fileRenamer: 'Dateien stapelweise umbenennen',
       facetsToggle: 'Facettenfilter (foobar2000)',
       bookmarks: 'Titel-Lesezeichen (Cue-Punkte)',
+      backToAlbums: '← Zurück zu allen Alben',
     },
     playlists: {
       title: 'Deine Wiedergabelisten',
@@ -3309,6 +3313,7 @@ export const translations: Record<Language, Translations> = {
       fileRenamer: 'Tiedostojen massanimeäminen',
       facetsToggle: 'Fasettisuodattimet',
       bookmarks: 'Kappaleen kirjanmerkit (Cue-pisteet)',
+      backToAlbums: '← Takaisin kaikkiin albumeihin',
     },
     playlists: {
       title: 'Omat Soittolistat',
@@ -4066,6 +4071,7 @@ export const translations: Record<Language, Translations> = {
       fileRenamer: 'Nomina fasciculorum renovare',
       facetsToggle: 'Filtra fasciata',
       bookmarks: 'Notae temporis (Cue Points)',
+      backToAlbums: '← Retro ad omnia alba',
     },
     playlists: {
       title: 'Indices Cantuum Tui',
