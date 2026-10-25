@@ -222,3 +222,60 @@ fn test_library_track_click_and_rapid_status_query() {
 
     engine.stop().expect("Stop");
 }
+
+#[test]
+fn test_switch_to_bypass_during_active_playback() {
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init();
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+
+    let flac_path = if root.join("tests/fixtures/Skrzydła Białe.flac").exists() {
+        root.join("tests/fixtures/Skrzydła Białe.flac")
+    } else {
+        root.join("tests/fixtures/08. Omnia Sol Temperat.flac")
+    };
+    if !flac_path.exists() {
+        return;
+    }
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
+    engine.load_uri(&flac_uri).expect("Ładowanie FLAC");
+
+    engine.play().expect("Play FLAC");
+    sleep(Duration::from_millis(300));
+
+    // Sprawdź stan
+    assert_eq!(engine.state(), domain::PlaybackState::Playing);
+
+    // Przełącz na Bypass w trakcie aktywnego grania
+    engine
+        .set_dsp_engine(dsp_api::DspEngine::Bypass)
+        .expect("Przełączenie na Bypass");
+    assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::Bypass);
+
+    for _ in 0..10 {
+        sleep(Duration::from_millis(50));
+        let _pos = engine.position();
+    }
+
+    // Przełącz z powrotem na RubberBand
+    engine
+        .set_dsp_engine(dsp_api::DspEngine::RubberBand)
+        .expect("Przełączenie na RubberBand");
+    assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::RubberBand);
+
+    for _ in 0..10 {
+        sleep(Duration::from_millis(50));
+        let _pos = engine.position();
+    }
+
+    engine.stop().expect("Stop");
+}
