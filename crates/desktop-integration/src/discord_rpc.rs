@@ -505,8 +505,27 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
             candidates.push(base.join(format!("discord-ipc-{}", i)));
         }
 
-        // Ścieżki dla klientów Flatpak/Snap (Vesktop, WebCord, Discord)
+        // Ścieżki dla klientów Flatpak (m.in. Vesktop, WebCord, Discord):
+        // Flatpak montuje per-app xdg-run w $XDG_RUNTIME_DIR/.flatpak/<app_id>/xdg-run/
+        let flatpak_dir = base.join(".flatpak");
+        if flatpak_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&flatpak_dir) {
+                for entry in entries.flatten() {
+                    let app_xdg_run = entry.path().join("xdg-run");
+                    if app_xdg_run.is_dir() {
+                        for i in 0..10 {
+                            candidates.push(app_xdg_run.join(format!("discord-ipc-{}", i)));
+                        }
+                    }
+                }
+            }
+        }
+
         let app_prefixes = [
+            ".flatpak/dev.vencord.Vesktop/xdg-run",
+            ".flatpak/com.discordapp.Discord/xdg-run",
+            ".flatpak/com.discordapp.DiscordCanary/xdg-run",
+            ".flatpak/io.github.spacingbat3.webcord/xdg-run",
             "app/com.discordapp.Discord",
             "app/com.discordapp.DiscordCanary",
             "app/dev.vencord.Vesktop",
@@ -518,6 +537,7 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
             }
         }
     }
+
 
     // 2. /run/user/<UID>
     let uid = libc_getuid();
