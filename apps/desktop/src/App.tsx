@@ -98,6 +98,7 @@ import { TrackBookmarksModal, type TrackBookmarkDto } from './components/TrackBo
 import { DuplicateFinderModal } from './components/DuplicateFinderModal';
 import { FileRenamerModal } from './components/FileRenamerModal';
 import { FacetsFilterPane } from './components/FacetsFilterPane';
+import { useVirtualScroll } from './hooks/useVirtualScroll';
 import { type Language, getTranslations } from './i18n';
 
 interface EqualizerPreset {
@@ -1300,6 +1301,37 @@ export default function App() {
   }, [filteredAlbums, albumSortField, albumSortOrder]);
 
   const librarySearchInputRef = useRef<HTMLInputElement>(null);
+  const mainContentRef = useRef<HTMLElement | null>(null);
+  const libraryTableRef = useRef<HTMLTableElement | null>(null);
+  const queueListRef = useRef<HTMLDivElement | null>(null);
+
+  // Wirtualizacja tabeli utworów w bibliotece (płynne 60-144 FPS nawet przy 10k utworów)
+  const {
+    startIndex: trackStartIndex,
+    endIndex: trackEndIndex,
+    topSpacerHeight: trackTopSpacer,
+    bottomSpacerHeight: trackBottomSpacer,
+  } = useVirtualScroll({
+    itemCount: sortedTracks.length,
+    itemHeight: 48,
+    containerRef: mainContentRef,
+    tableRef: libraryTableRef,
+    overscan: 20,
+  });
+
+  // Wirtualizacja listy w kolejce odtwarzania
+  const {
+    startIndex: queueStartIndex,
+    endIndex: queueEndIndex,
+    topSpacerHeight: queueTopSpacer,
+    bottomSpacerHeight: queueBottomSpacer,
+  } = useVirtualScroll({
+    itemCount: filteredQueueItems.length,
+    itemHeight: queueColumns.compactMode ? 42 : 56,
+    containerRef: mainContentRef,
+    tableRef: queueListRef,
+    overscan: 16,
+  });
 
   // Aktualnie odtwarzany utwór i powiązana okładka albumu
   const currentPlayingTrack = useMemo(() => {
@@ -7993,7 +8025,7 @@ const renderDevicesSection = () => (
       )}
 
       {/* Główna zawartość */}
-      <main style={{ flex: 1, overflowY: 'auto', paddingBottom: activeTab !== 'player' ? '88px' : '0' }}>
+      <main ref={mainContentRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: activeTab !== 'player' ? '88px' : '0' }}>
         {/* ZAKŁADKA 1: ODTWARZACZ (NOWOCZESNY WIDOK HI-FI DESKTOP) */}
         {activeTab === 'player' && (
           <div style={{ maxWidth: 'min(1500px, 95vw)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
@@ -9711,10 +9743,15 @@ const renderDevicesSection = () => (
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div ref={queueListRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {/* Pasek nagłówków kolumn */}
                 <div
                   style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    background: 'rgba(20, 16, 32, 0.95)',
+                    backdropFilter: 'blur(12px)',
                     display: 'grid',
                     gridTemplateColumns: getQueueGridTemplate(queueColumns),
                     padding: '8px 14px',
@@ -9756,7 +9793,9 @@ const renderDevicesSection = () => (
                     {t.queue.noMatch.replace('{q}', queueSearchQuery)}
                   </div>
                 ) : (
-                  filteredQueueItems.map(({ it: item, originalIdx: idx }) => {
+                  <>
+                    {queueTopSpacer > 0 && <div style={{ height: `${queueTopSpacer}px`, pointerEvents: 'none' }} />}
+                    {filteredQueueItems.slice(queueStartIndex, queueEndIndex).map(({ it: item, originalIdx: idx }) => {
                   const isCurrent = idx === queue.current_index;
                   const isPlaying = isCurrent && status.state === 'Playing';
                   const meta = getQueueTrackMeta(item);
@@ -10056,12 +10095,15 @@ const renderDevicesSection = () => (
                       </div>
                     </div>
                   );
-                }))}
-              </div>
+                })}
+                {queueBottomSpacer > 0 && <div style={{ height: `${queueBottomSpacer}px`, pointerEvents: 'none' }} />}
+              </>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    </div>
+  )}
 
         {/* ZAKŁADKA 2: BIBLIOTEKA (ETAP 2) */}
         {activeTab === 'library' && (
@@ -10715,8 +10757,8 @@ const renderDevicesSection = () => (
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                    <thead>
+                  <table ref={libraryTableRef} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(20, 16, 32, 0.95)', backdropFilter: 'blur(12px)' }}>
                       <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
                         <th
                           onClick={() => handleSort('default')}
@@ -10864,31 +10906,42 @@ const renderDevicesSection = () => (
                           </td>
                         </tr>
                       ) : (
-                        sortedTracks.map((t, idx) => (
-                          <tr
-                            key={t.id}
-                            onClick={() => handlePlayLibraryTrack(t)}
-                            className="glass-card"
-                            style={{
-                              cursor: 'pointer',
-                              background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                              borderBottom: '1px solid rgba(255,255,255,0.03)',
-                            }}
-                          >
-                            <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                              {activeTrackId === t.id && status.state === 'Playing' ? (
-                                <Zap size={14} color="var(--accent-pink)" />
-                              ) : (
-                                t.track_no || idx + 1
-                              )}
-                            </td>
-                            <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
-                                <span>{t.title}</span>
-                              </div>
-                            </td>
-                            <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{t.artist}</td>
+                        <>
+                          {trackTopSpacer > 0 && (
+                            <tr style={{ height: `${trackTopSpacer}px`, pointerEvents: 'none' }}>
+                              <td colSpan={9} style={{ height: `${trackTopSpacer}px`, padding: 0, border: 'none' }} />
+                            </tr>
+                          )}
+                          {sortedTracks.slice(trackStartIndex, trackEndIndex).map((t, localIdx) => {
+                            const idx = trackStartIndex + localIdx;
+                            return (
+                              <tr
+                                key={t.id}
+                                onClick={() => handlePlayLibraryTrack(t)}
+                                className="glass-card"
+                                style={{
+                                  cursor: 'pointer',
+                                  background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                  height: '48px',
+                                }}
+                              >
+                                <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                  {activeTrackId === t.id && status.state === 'Playing' ? (
+                                    <Zap size={14} color="var(--accent-pink)" />
+                                  ) : (
+                                    t.track_no || idx + 1
+                                  )}
+                                </td>
+                                <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff', maxWidth: '320px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '12px', color: 'var(--text-secondary)', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.artist}>
+                                  {t.artist}
+                                </td>
                             <td style={{ padding: '12px' }}>
                               <span
                                 style={{
@@ -11071,8 +11124,15 @@ const renderDevicesSection = () => (
                               </div>
                             </td>
                           </tr>
-                        ))
+                        );
+                      })}
+                      {trackBottomSpacer > 0 && (
+                        <tr style={{ height: `${trackBottomSpacer}px`, pointerEvents: 'none' }}>
+                          <td colSpan={9} style={{ height: `${trackBottomSpacer}px`, padding: 0, border: 'none' }} />
+                        </tr>
                       )}
+                    </>
+                  )}
                     </tbody>
                   </table>
                 </div>
