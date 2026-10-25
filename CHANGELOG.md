@@ -13,6 +13,10 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 **Autorka**: Das Letzte Kemonomimi
 
 ### Dodano (Added)
+- **Oficjalne scrobblowanie do Last.fm (Last.fm 2.0 API)**:
+  - Moduł `lastfm.rs` w `crates/metadata` z autoryzacją Web Authentication (token + session key), wyliczaniem sygnatur MD5 zgodnie ze specyfikacją Last.fm API.
+  - Automatyczne powiadomienia „Teraz odtwarzane” (Now Playing) po uruchomieniu utworu oraz scrobblowanie po odsłuchaniu co najmniej 50% czasu trwania utworu (dla utworów >= 30s).
+  - Szklana karta w Ustawieniach z markowym czerwonym akcentem Last.fm, bezpiecznym logowaniem przez przeglądarkę, weryfikacją sesji oraz opcją własnego API Key / Secret.
 - **Wielopunktowe znaczniki CUE / Bookmarks w utworze**:
   - Moduł domenowy `bookmark.rs` i tabela `track_bookmarks` w SQLite z kluczem obcym i kaskadowym usuwaniem.
   - Interaktywny modal `TrackBookmarksModal` pozwalający na dodawanie nazwanych znaczników w bieżącej pozycji odtwarzania, edycję, usuwanie i natychmiastowy skok.

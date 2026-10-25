@@ -23,8 +23,8 @@ use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
 use metadata::{
-    CoverArtArchiveClient, CoverCandidateDto, ListenBrainzClient, MusicBrainzClient,
-    ReleaseCandidateDto,
+    CoverArtArchiveClient, CoverCandidateDto, LastFmClient, LastFmSession, ListenBrainzClient,
+    MusicBrainzClient, ReleaseCandidateDto,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -46,6 +46,7 @@ pub struct AppState {
 
     pub cover_archive: Arc<CoverArtArchiveClient>,
     pub listenbrainz: Arc<ListenBrainzClient>,
+    pub lastfm: Arc<LastFmClient>,
     pub downloads: Arc<DownloadManager>,
     pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
     pub discord_cover_cache: Arc<std::sync::RwLock<std::collections::HashMap<String, String>>>,
@@ -2966,6 +2967,117 @@ async fn submit_listenbrainz_listen(
         .await
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LastFmAuthUrlResult {
+    pub token: String,
+    pub auth_url: String,
+}
+
+#[tauri::command]
+async fn lastfm_get_auth_url(
+    api_key: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<LastFmAuthUrlResult, String> {
+    info!("Tauri command: lastfm_get_auth_url");
+    let key = api_key
+        .as_deref()
+        .unwrap_or(metadata::DEFAULT_LASTFM_API_KEY);
+    let token = state.lastfm.get_auth_token(Some(key)).await?;
+    let auth_url = format!(
+        "https://www.last.fm/api/auth/?api_key={}&token={}",
+        key, token
+    );
+    Ok(LastFmAuthUrlResult { token, auth_url })
+}
+
+#[tauri::command]
+async fn lastfm_fetch_session(
+    token: String,
+    api_key: Option<String>,
+    api_secret: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<LastFmSession, String> {
+    info!("Tauri command: lastfm_fetch_session");
+    state
+        .lastfm
+        .fetch_session(&token, api_key.as_deref(), api_secret.as_deref())
+        .await
+}
+
+#[tauri::command]
+async fn lastfm_validate_session(
+    session_key: String,
+    api_key: Option<String>,
+    api_secret: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    info!("Tauri command: lastfm_validate_session");
+    state
+        .lastfm
+        .validate_session(&session_key, api_key.as_deref(), api_secret.as_deref())
+        .await
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LastFmScrobbleRequest {
+    pub session_key: String,
+    pub artist: String,
+    pub track: String,
+    pub album: Option<String>,
+    pub duration_sec: Option<u64>,
+    pub timestamp: Option<u64>,
+    pub api_key: Option<String>,
+    pub api_secret: Option<String>,
+}
+
+#[tauri::command]
+async fn lastfm_update_now_playing(
+    request: LastFmScrobbleRequest,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let track_info = metadata::LastFmTrackInfo {
+        artist: &request.artist,
+        track: &request.track,
+        album: request.album.as_deref(),
+        duration_sec: request.duration_sec,
+    };
+    let auth = metadata::LastFmAuthOverride {
+        api_key: request.api_key.as_deref(),
+        api_secret: request.api_secret.as_deref(),
+    };
+    state
+        .lastfm
+        .update_now_playing(&request.session_key, track_info, auth)
+        .await
+}
+
+#[tauri::command]
+async fn lastfm_scrobble(
+    request: LastFmScrobbleRequest,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let track_info = metadata::LastFmTrackInfo {
+        artist: &request.artist,
+        track: &request.track,
+        album: request.album.as_deref(),
+        duration_sec: request.duration_sec,
+    };
+    let auth = metadata::LastFmAuthOverride {
+        api_key: request.api_key.as_deref(),
+        api_secret: request.api_secret.as_deref(),
+    };
+    let ts = request.timestamp.unwrap_or_else(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    });
+    state
+        .lastfm
+        .scrobble(&request.session_key, track_info, ts, auth)
+        .await
+}
+
 #[tauri::command]
 fn get_discord_rpc_status(
     state: State<'_, AppState>,
@@ -3625,6 +3737,7 @@ pub fn run() {
                     mb,
                     cover_archive,
                     listenbrainz: Arc::new(ListenBrainzClient::new()),
+                    lastfm: Arc::new(LastFmClient::new()),
                     downloads: Arc::new(DownloadManager::new()),
                     latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
                     discord_cover_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
@@ -3873,6 +3986,11 @@ pub fn run() {
             delete_track_record,
             preview_rename_tracks,
             execute_rename_tracks,
+            lastfm_get_auth_url,
+            lastfm_fetch_session,
+            lastfm_validate_session,
+            lastfm_update_now_playing,
+            lastfm_scrobble,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

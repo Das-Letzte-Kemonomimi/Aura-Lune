@@ -15,8 +15,10 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
+pub mod lastfm;
 pub mod listenbrainz;
 pub mod lyrics;
+pub use lastfm::*;
 pub use listenbrainz::*;
 pub use lyrics::*;
 
