@@ -1,5 +1,5 @@
 use audio_engine::{AudioEngine, DeviceManager, Transcoder};
-use domain::transcode::{DspExportSettings, ExportFormat};
+use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use std::fs;
 use std::path::PathBuf;
 use std::thread::sleep;
@@ -162,6 +162,7 @@ fn test_transcoding_with_dsp_nightcore_bounce() {
         &output_dsp_opus,
         ExportFormat::Opus { bitrate_kbps: 192 },
         Some(&dsp_settings),
+        None,
     )
     .expect("Transkodowanie z DSP powinno się powieść");
 
@@ -186,4 +187,107 @@ fn test_transcoding_with_dsp_nightcore_bounce() {
     engine.stop().unwrap();
 
     let _ = fs::remove_file(&output_dsp_opus);
+}
+
+#[test]
+fn test_transcode_range_marker_a_to_b() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let output_range_wav = root.join("tests/fixtures/test_range_marker_ab.wav");
+    let _ = fs::remove_file(&output_range_wav);
+
+    let range = TimeRange::new(500, Some(1500)).expect("Poprawny zakres A-B");
+
+    Transcoder::transcode_range(&input_wav, &output_range_wav, ExportFormat::Wav, &range)
+        .expect("Transkodowanie wycinka A-B powinno się powieść");
+
+    assert!(output_range_wav.exists(), "Plik wycinka A-B musi istnieć");
+    let size = fs::metadata(&output_range_wav).unwrap().len();
+    assert!(size > 1000, "Plik wycinka musi zawierać dane audio");
+
+    // Weryfikacja odtwarzania wycinka przez AudioEngine
+    let engine = AudioEngine::new().unwrap();
+    let uri = format!(
+        "file://{}",
+        output_range_wav.canonicalize().unwrap().display()
+    );
+    engine
+        .load_uri(&uri)
+        .expect("Załadowanie wycinka do odtwarzacza");
+    engine.play().expect("Odtworzenie wycinka");
+    sleep(Duration::from_millis(100));
+    engine.stop().unwrap();
+
+    let _ = fs::remove_file(&output_range_wav);
+}
+
+#[test]
+fn test_transcode_range_with_dsp_nightcore() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let output_range_opus = root.join("tests/fixtures/test_range_dsp_ab.opus");
+    let _ = fs::remove_file(&output_range_opus);
+
+    let dsp_settings = DspExportSettings {
+        pitch_semitones: 4.0,
+        tempo_ratio: 1.3,
+        rate_ratio: 1.0,
+        reverb_level: 0.1,
+        eq_bands: None,
+    };
+    let range = TimeRange::new(200, Some(1200)).expect("Poprawny zakres A-B");
+
+    Transcoder::transcode_with_dsp(
+        &input_wav,
+        &output_range_opus,
+        ExportFormat::Opus { bitrate_kbps: 192 },
+        Some(&dsp_settings),
+        Some(&range),
+    )
+    .expect("Transkodowanie wycinka z DSP powinno się powieść");
+
+    assert!(
+        output_range_opus.exists(),
+        "Plik wycinka z DSP musi istnieć"
+    );
+    let size = fs::metadata(&output_range_opus).unwrap().len();
+    assert!(size > 100, "Plik wycinka z DSP nie może być pusty");
+
+    let engine = AudioEngine::new().unwrap();
+    let uri = format!(
+        "file://{}",
+        output_range_opus.canonicalize().unwrap().display()
+    );
+    engine.load_uri(&uri).expect("Załadowanie wycinka z DSP");
+    engine.play().expect("Odtworzenie wycinka z DSP");
+    sleep(Duration::from_millis(100));
+    engine.stop().unwrap();
+
+    let _ = fs::remove_file(&output_range_opus);
+}
+
+#[test]
+fn test_transcode_range_invalid_order_rejected() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let output_wav = root.join("tests/fixtures/test_invalid_range.wav");
+
+    let invalid_range = TimeRange {
+        start_ms: 1500,
+        end_ms: Some(500),
+    };
+
+    let result =
+        Transcoder::transcode_range(&input_wav, &output_wav, ExportFormat::Wav, &invalid_range);
+
+    assert!(
+        result.is_err(),
+        "Transkoder musi odrzucić nieprawidłowy zakres czasowy"
+    );
 }

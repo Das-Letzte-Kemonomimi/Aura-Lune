@@ -78,6 +78,39 @@ impl DspExportSettings {
     }
 }
 
+/// Zakres czasowy do eksportu / transkodowania fragmentu utworu (np. wycięcie pętli A-B).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimeRange {
+    /// Czas startu w milisekundach (Marker A).
+    pub start_ms: u64,
+    /// Czas końca w milisekundach (Marker B). Jeśli `None`, eksport trwa do końca utworu.
+    pub end_ms: Option<u64>,
+}
+
+impl TimeRange {
+    /// Tworzy nowy zakres czasowy A-B z walidacją poprawności kolejności znaczników.
+    pub fn new(start_ms: u64, end_ms: Option<u64>) -> Result<Self, &'static str> {
+        if let Some(end) = end_ms {
+            if end <= start_ms {
+                return Err(
+                    "Czas końcowy (Punkt B) musi być większy niż czas początkowy (Punkt A)",
+                );
+            }
+        }
+        Ok(Self { start_ms, end_ms })
+    }
+
+    /// Sprawdza, czy zakres jest aktywny (ogranicza czas utworu).
+    pub fn is_active(&self) -> bool {
+        self.start_ms > 0 || self.end_ms.is_some()
+    }
+
+    /// Zwraca długość trwania fragmentu w milisekundach, jeśli zdefiniowano Punkt B.
+    pub fn duration_ms(&self) -> Option<u64> {
+        self.end_ms.map(|end| end.saturating_sub(self.start_ms))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,5 +126,30 @@ mod tests {
             "flac"
         );
         assert_eq!(ExportFormat::Wav.extension(), "wav");
+    }
+
+    #[test]
+    fn test_time_range_validation() {
+        let valid = TimeRange::new(500, Some(1500));
+        assert!(valid.is_ok());
+        let range = valid.unwrap();
+        assert!(range.is_active());
+        assert_eq!(range.duration_ms(), Some(1000));
+
+        let invalid = TimeRange::new(1500, Some(500));
+        assert!(invalid.is_err());
+
+        let equal = TimeRange::new(1000, Some(1000));
+        assert!(equal.is_err());
+
+        let start_only = TimeRange::new(1000, None);
+        assert!(start_only.is_ok());
+        let range_start = start_only.unwrap();
+        assert!(range_start.is_active());
+        assert_eq!(range_start.duration_ms(), None);
+
+        let zero_unbounded = TimeRange::new(0, None);
+        assert!(zero_unbounded.is_ok());
+        assert!(!zero_unbounded.unwrap().is_active());
     }
 }

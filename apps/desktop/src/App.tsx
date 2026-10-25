@@ -66,6 +66,7 @@ import {
   Star,
   Tag as TagIcon,
   FileCode,
+  Scissors,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
@@ -80,7 +81,7 @@ import { LanguageSelector } from './components/LanguageSelector';
 import { TrackStatsModal, type TrackStatsData } from './components/TrackStatsModal';
 import { SleepTimerModal } from './components/SleepTimerModal';
 import { StatsDashboardView } from './components/StatsDashboardView';
-import { LoopEditorModal, formatTimeMs } from './components/LoopEditorModal';
+import { LoopEditorModal, formatTimeMs, parseTimeToMs } from './components/LoopEditorModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { VolumeOsd, type VolumeOsdPosition } from './components/VolumeOsd';
 import { KeyBpmModal } from './components/KeyBpmModal';
@@ -608,6 +609,9 @@ export default function App() {
   const [transcodeFormat, setTranscodeFormat] = useState<'Opus' | 'Flac' | 'Wav'>('Opus');
   const [transcodeBitrate, setTranscodeBitrate] = useState(192);
   const [transcodeApplyDsp, setTranscodeApplyDsp] = useState(false);
+  const [transcodeApplyRange, setTranscodeApplyRange] = useState(false);
+  const [transcodeRangeA, setTranscodeRangeA] = useState<string>('');
+  const [transcodeRangeB, setTranscodeRangeB] = useState<string>('');
   const [transcodeAutoEnqueue, setTranscodeAutoEnqueue] = useState(true);
   const [lastExportedTrack, setLastExportedTrack] = useState<TrackRecord | null>(null);
   const [isPickingSource, setIsPickingSource] = useState(false);
@@ -3417,6 +3421,11 @@ export default function App() {
       const lastDot = curPath.lastIndexOf('.');
       const base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
       setTranscodeOutput(`${base}.${transcodeFormat.toLowerCase()}`);
+      if (loopPointA !== null || loopPointB !== null) {
+        setTranscodeRangeA(loopPointA !== null ? `${loopPointA}ms` : '0ms');
+        setTranscodeRangeB(loopPointB !== null ? `${loopPointB}ms` : '');
+        setTranscodeApplyRange(true);
+      }
       showMessage(loc.settings.useCurrentTrack);
     } else {
       showMessage(loc.queue.emptyQueueNotice, true);
@@ -3442,11 +3451,26 @@ export default function App() {
           }
         : null;
 
+      let timeRange: { start_ms: number; end_ms: number | null } | null = null;
+      if (transcodeApplyRange) {
+        const parsedA = parseTimeToMs(transcodeRangeA) ?? 0;
+        const parsedB = parseTimeToMs(transcodeRangeB);
+        if (parsedB !== null && parsedB <= parsedA) {
+          showMessage(loc.settings.transcodeEndMustBeGreater, true);
+          return;
+        }
+        timeRange = {
+          start_ms: parsedA,
+          end_ms: parsedB,
+        };
+      }
+
       await invoke('transcode_file', {
         inputPath: filePath,
         outputPath: transcodeOutput,
         format: formatObj,
         dspSettings,
+        timeRange,
       });
 
       // Zindeksuj wyrenderowany utwór do bazy danych, aby uzyskać pełny rekord z metadanymi
@@ -3466,6 +3490,10 @@ export default function App() {
         const fileName = transcodeOutput.split('/').pop() || transcodeOutput;
         const lastDot = fileName.lastIndexOf('.');
         const title = lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
+        const calculatedDuration =
+          transcodeApplyRange && timeRange && timeRange.end_ms
+            ? timeRange.end_ms - timeRange.start_ms
+            : currentPlayingTrack?.duration_ms || 180000;
         renderedTrack = {
           id: Date.now(),
           path: transcodeOutput,
@@ -3475,7 +3503,7 @@ export default function App() {
           album_id: null,
           disc_no: 1,
           track_no: 1,
-          duration_ms: currentPlayingTrack?.duration_ms || 180000,
+          duration_ms: calculatedDuration,
           format: transcodeFormat.toLowerCase(),
           sample_rate: 44100,
           channels: 2,
@@ -4433,6 +4461,291 @@ const renderDevicesSection = () => (
                         Reverb: {Math.round(reverbLevel * 100)}%
                       </span>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Opcja przycięcia do markerów A i B */}
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  background: transcodeApplyRange
+                    ? 'rgba(6, 182, 212, 0.12)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: transcodeApplyRange
+                    ? '1px solid var(--accent-cyan)'
+                    : '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.88rem',
+                    color: transcodeApplyRange ? 'var(--accent-cyan)' : 'var(--text-primary)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={transcodeApplyRange}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setTranscodeApplyRange(enabled);
+                      if (enabled && !transcodeRangeA && !transcodeRangeB) {
+                        if (loopPointA !== null) setTranscodeRangeA(`${loopPointA}ms`);
+                        else setTranscodeRangeA('0ms');
+                        if (loopPointB !== null) setTranscodeRangeB(`${loopPointB}ms`);
+                      }
+                    }}
+                    style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
+                  />
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Scissors size={15} color={transcodeApplyRange ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
+                    {loc.settings.transcodeApplyRange}
+                  </span>
+                </label>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '26px' }}>
+                  {loc.settings.transcodeApplyRangeDesc}
+                </p>
+
+                {transcodeApplyRange && (
+                  <div
+                    style={{
+                      paddingLeft: '26px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      marginTop: '4px',
+                    }}
+                  >
+                    {/* Przycisk synchronizacji z pętlą A-B z odtwarzacza jeśli ustawiona */}
+                    {(loopPointA !== null || loopPointB !== null) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (loopPointA !== null) setTranscodeRangeA(`${loopPointA}ms`);
+                            if (loopPointB !== null) setTranscodeRangeB(`${loopPointB}ms`);
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(6, 182, 212, 0.15)',
+                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                            color: 'var(--accent-cyan)',
+                            fontSize: '0.76rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          <Repeat size={12} />
+                          {loc.settings.transcodeFromPlayer} ({loopPointA !== null ? `A: ${formatTimeMs(loopPointA)}` : 'A: 0ms'} → {loopPointB !== null ? `B: ${formatTimeMs(loopPointB)}` : 'B: —'})
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                      {/* Punkt A */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                            {loc.settings.transcodePointA}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            {formatTimeMs(parseTimeToMs(transcodeRangeA) ?? 0)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <input
+                            type="text"
+                            placeholder="np. 0ms, 860ms, 0:15.5"
+                            value={transcodeRangeA}
+                            onChange={(e) => setTranscodeRangeA(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              background: 'rgba(0,0,0,0.3)',
+                              color: '#fff',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.8rem',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setTranscodeRangeA(`${status.position_ms}ms`)}
+                            title="Ustaw na bieżącą pozycję odtwarzacza"
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(255,255,255,0.06)',
+                              border: '1px solid var(--border-subtle)',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {loc.settings.transcodeSetCurrentTime}
+                          </button>
+                          {loopPointA !== null && (
+                            <button
+                              type="button"
+                              onClick={() => setTranscodeRangeA(`${loopPointA}ms`)}
+                              title="Pobierz punkt A z pętli"
+                              style={{
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                background: 'rgba(6, 182, 212, 0.2)',
+                                border: '1px solid var(--accent-cyan)',
+                                color: 'var(--accent-cyan)',
+                                fontSize: '0.72rem',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                              }}
+                            >
+                              A
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Punkt B */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--accent-pink)', fontWeight: 600 }}>
+                            {loc.settings.transcodePointB}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            {parseTimeToMs(transcodeRangeB) !== null
+                              ? formatTimeMs(parseTimeToMs(transcodeRangeB))
+                              : '(Koniec utworu)'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <input
+                            type="text"
+                            placeholder="np. 2500ms, 1:30 (lub puste)"
+                            value={transcodeRangeB}
+                            onChange={(e) => setTranscodeRangeB(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              background: 'rgba(0,0,0,0.3)',
+                              color: '#fff',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.8rem',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setTranscodeRangeB(`${status.position_ms}ms`)}
+                            title="Ustaw na bieżącą pozycję odtwarzacza"
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(255,255,255,0.06)',
+                              border: '1px solid var(--border-subtle)',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {loc.settings.transcodeSetCurrentTime}
+                          </button>
+                          {loopPointB !== null && (
+                            <button
+                              type="button"
+                              onClick={() => setTranscodeRangeB(`${loopPointB}ms`)}
+                              title="Pobierz punkt B z pętli"
+                              style={{
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                background: 'rgba(244, 63, 94, 0.2)',
+                                border: '1px solid var(--accent-pink)',
+                                color: 'var(--accent-pink)',
+                                fontSize: '0.72rem',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                              }}
+                            >
+                              B
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Podsumowanie zakresu i walidacja */}
+                    {(() => {
+                      const pA = parseTimeToMs(transcodeRangeA) ?? 0;
+                      const pB = parseTimeToMs(transcodeRangeB);
+                      const isOrderInvalid = pB !== null && pB <= pA;
+                      if (isOrderInvalid) {
+                        return (
+                          <div
+                            style={{
+                              color: 'var(--accent-pink)',
+                              fontSize: '0.76rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <span>⚠️ {loc.settings.transcodeEndMustBeGreater}</span>
+                          </div>
+                        );
+                      }
+                      if (pB !== null) {
+                        const durSec = ((pB - pA) / 1000).toFixed(3);
+                        return (
+                          <div
+                            style={{
+                              color: 'var(--accent-cyan)',
+                              fontSize: '0.76rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            <span>✂️ {loc.settings.transcodeRangeDuration.replace('{0}', `${durSec}s (${formatTimeMs(pB - pA)})`)}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          style={{
+                            color: 'var(--text-muted)',
+                            fontSize: '0.76rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          <span>✂️ Eksport: od {formatTimeMs(pA)} do końca utworu</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

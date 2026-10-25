@@ -5,7 +5,7 @@
 //! ani nie usuwa pliku źródłowego.
 
 use crate::error::AudioEngineError;
-use domain::transcode::{DspExportSettings, ExportFormat};
+use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
@@ -15,7 +15,7 @@ use tracing::{debug, error, info};
 pub struct Transcoder;
 
 impl Transcoder {
-    /// Konwertuje plik wejściowy do wybranego formatu docelowego (bez modyfikacji DSP).
+    /// Konwertuje plik wejściowy do wybranego formatu docelowego (bez modyfikacji DSP i całego utworu).
     ///
     /// Plik źródłowy (`input_path`) pozostaje nienaruszony na dysku.
     pub fn transcode(
@@ -23,11 +23,22 @@ impl Transcoder {
         output_path: impl AsRef<Path>,
         format: ExportFormat,
     ) -> Result<(), AudioEngineError> {
-        Self::transcode_with_dsp(input_path, output_path, format, None)
+        Self::transcode_with_dsp(input_path, output_path, format, None, None)
+    }
+
+    /// Konwertuje wycinek czasowy (markery A-B) pliku wejściowego do formatu docelowego.
+    pub fn transcode_range(
+        input_path: impl AsRef<Path>,
+        output_path: impl AsRef<Path>,
+        format: ExportFormat,
+        time_range: &TimeRange,
+    ) -> Result<(), AudioEngineError> {
+        Self::transcode_with_dsp(input_path, output_path, format, None, Some(time_range))
     }
 
     /// Konwertuje plik wejściowy do wybranego formatu docelowego z opcjonalnym nałożeniem parametrów DSP
-    /// (pitch shift, time stretch/tempo, rate/varispeed, equalizer, reverb).
+    /// (pitch shift, time stretch/tempo, rate/varispeed, equalizer, reverb) oraz opcjonalnym wycięciem
+    /// fragmentu czasowego (markery A i B).
     ///
     /// Plik źródłowy (`input_path`) pozostaje ZAWSZE nienaruszony na dysku.
     pub fn transcode_with_dsp(
@@ -35,12 +46,24 @@ impl Transcoder {
         output_path: impl AsRef<Path>,
         format: ExportFormat,
         dsp_settings: Option<&DspExportSettings>,
+        time_range: Option<&TimeRange>,
     ) -> Result<(), AudioEngineError> {
         let input = input_path.as_ref();
         let output = output_path.as_ref();
 
         if !input.exists() {
             return Err(AudioEngineError::FileNotFound(input.display().to_string()));
+        }
+
+        if let Some(range) = time_range {
+            if let Some(end) = range.end_ms {
+                if end <= range.start_ms {
+                    return Err(AudioEngineError::ElementLink(
+                        "Czas końcowy (Marker B) musi być większy niż czas początkowy (Marker A)"
+                            .into(),
+                    ));
+                }
+            }
         }
 
         let input_canonical = input.canonicalize()?;
@@ -55,12 +78,14 @@ impl Transcoder {
         gst::init()?;
 
         let dsp_active = dsp_settings.is_some_and(|s| s.is_active());
+        let range_active = time_range.is_some_and(|r| r.is_active());
         info!(
-            "Rozpoczynanie transkodowania: {} -> {} ({}) [DSP aktywne: {}]",
+            "Rozpoczynanie transkodowania: {} -> {} ({}) [DSP aktywne: {}, Zakres A-B aktywny: {}]",
             input.display(),
             output.display(),
             format.display_name(),
-            dsp_active
+            dsp_active,
+            range_active
         );
 
         let pipeline = gst::Pipeline::with_name("auralune-transcoder-pipeline");
@@ -215,6 +240,34 @@ impl Transcoder {
                 source_for_encoder.link(&wavenc)?;
                 wavenc.link(&filesink)?;
             }
+        }
+
+        // Jeśli zdefiniowano zakres czasowy A-B, wpierw inicjalizujemy stan Paused (preroll),
+        // po czym wykonujemy dokładny seek do punktu A z warunkiem stop w punkcie B.
+        if let Some(range) = time_range.filter(|r| r.is_active()) {
+            pipeline.set_state(gst::State::Paused)?;
+            let (state_change, cur_state, _) = pipeline.state(gst::ClockTime::from_seconds(5));
+            if state_change.is_err() || cur_state != gst::State::Paused {
+                let _ = pipeline.set_state(gst::State::Null);
+                return Err(AudioEngineError::ElementLink(
+                    "Nie udało się zainicjalizować potoku do stanu Paused przed seekiem A-B".into(),
+                ));
+            }
+
+            let start = gst::ClockTime::from_mseconds(range.start_ms);
+            let (stop_type, stop) = match range.end_ms {
+                Some(end) => (gst::SeekType::Set, Some(gst::ClockTime::from_mseconds(end))),
+                None => (gst::SeekType::None, gst::ClockTime::NONE),
+            };
+
+            pipeline.seek(
+                1.0,
+                gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
+                gst::SeekType::Set,
+                start,
+                stop_type,
+                stop,
+            )?;
         }
 
         // Uruchomienie potoku i oczekiwanie na zakończenie (EOS) lub błąd

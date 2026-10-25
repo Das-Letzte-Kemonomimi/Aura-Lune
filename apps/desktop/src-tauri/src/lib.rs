@@ -12,7 +12,7 @@ use domain::device::{AudioCard, BluetoothCodec};
 use domain::equalizer::EqualizerPreset;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::replaygain::ReplayGainConfig;
-use domain::transcode::{DspExportSettings, ExportFormat};
+use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use domain::{ImportM3uResult, M3uEntry, M3uPlaylist, PlaybackState, Playlist, Theme};
 use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
@@ -882,9 +882,16 @@ fn transcode_file(
     output_path: String,
     format: ExportFormat,
     dsp_settings: Option<DspExportSettings>,
+    time_range: Option<TimeRange>,
 ) -> Result<(), String> {
-    Transcoder::transcode_with_dsp(&input_path, &output_path, format, dsp_settings.as_ref())
-        .map_err(|e| e.to_string())
+    Transcoder::transcode_with_dsp(
+        &input_path,
+        &output_path,
+        format,
+        dsp_settings.as_ref(),
+        time_range.as_ref(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

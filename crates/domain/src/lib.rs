@@ -15,7 +15,7 @@ pub use playlist::Playlist;
 pub use queue::{LoopMode, PlaybackQueue, QueueItem};
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
 pub use theme::{default_themes, Theme, ThemeTokens};
-pub use transcode::{DspExportSettings, ExportFormat};
+pub use transcode::{DspExportSettings, ExportFormat, TimeRange};
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

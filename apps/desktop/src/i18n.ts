@@ -359,6 +359,14 @@ export interface Translations {
     wavPcm: string;
     transcodeApplyDsp: string;
     transcodeApplyDspDesc: string;
+    transcodeApplyRange: string;
+    transcodeApplyRangeDesc: string;
+    transcodePointA: string;
+    transcodePointB: string;
+    transcodeFromPlayer: string;
+    transcodeSetCurrentTime: string;
+    transcodeRangeDuration: string;
+    transcodeEndMustBeGreater: string;
     transcodeAutoEnqueue: string;
     transcodeCompletedTitle: string;
     playRenderedNow: string;
@@ -1050,6 +1058,14 @@ export const translations: Record<Language, Translations> = {
       wavPcm: 'WAV PCM',
       transcodeApplyDsp: 'Apply Active DSP Effects (Pitch, Tempo, Reverb, EQ)',
       transcodeApplyDspDesc: 'Renders audio with active DSP modifications (creates Nightcore, Slowed, or custom tuned version).',
+      transcodeApplyRange: 'Export Selected Range (A-B Markers / Time Crop)',
+      transcodeApplyRangeDesc: 'Exports only the audio segment between Point A (start) and Point B (end) instead of the entire track.',
+      transcodePointA: 'Point A (Start)',
+      transcodePointB: 'Point B (End)',
+      transcodeFromPlayer: 'Sync from Active Loop',
+      transcodeSetCurrentTime: 'Current Pos',
+      transcodeRangeDuration: 'Range Duration: {0}',
+      transcodeEndMustBeGreater: 'Point B must be strictly greater than Point A',
       transcodeAutoEnqueue: 'Auto-add rendered track to queue on completion',
       transcodeCompletedTitle: 'Render & Export Completed!',
       playRenderedNow: 'Play Now',
@@ -1740,6 +1756,14 @@ export const translations: Record<Language, Translations> = {
       wavPcm: 'WAV PCM',
       transcodeApplyDsp: 'Zastosuj aktywne efekty DSP (Pitch, Tempo, Reverb, EQ)',
       transcodeApplyDspDesc: 'Renderuje utwór ze zmodyfikowanym DSP (pozwala zapisać wersję Nightcore, Slowed lub własne zestrojenie).',
+      transcodeApplyRange: 'Przytnij do markerów A-B (eksport wybranego zakresu czasu)',
+      transcodeApplyRangeDesc: 'Eksportuje tylko fragment utworu pomiędzy punktem A (początek) a punktem B (koniec) zamiast całego pliku.',
+      transcodePointA: 'Punkt A (początek)',
+      transcodePointB: 'Punkt B (koniec)',
+      transcodeFromPlayer: 'Pobierz z pętli odtwarzacza',
+      transcodeSetCurrentTime: 'Bieżący czas',
+      transcodeRangeDuration: 'Długość fragmentu: {0}',
+      transcodeEndMustBeGreater: 'Punkt B musi być ściśle większy niż punkt A',
       transcodeAutoEnqueue: 'Automatycznie dodaj wyrenderowany utwór do kolejki',
       transcodeCompletedTitle: 'Renderowanie ukończone sukcesem!',
       playRenderedNow: 'Odtwórz teraz',
@@ -2430,6 +2454,14 @@ export const translations: Record<Language, Translations> = {
       wavPcm: 'WAV PCM',
       transcodeApplyDsp: 'Aktive DSP-Effekte anwenden (Pitch, Tempo, Reverb, EQ)',
       transcodeApplyDspDesc: 'Rendert die Audiodatei mit den aktiven DSP-Modifikationen (Nightcore-, Slowed- oder Custom-Tuning-Export).',
+      transcodeApplyRange: 'Ausgewählten Bereich exportieren (A-B-Marker / Zeitausschnitt)',
+      transcodeApplyRangeDesc: 'Exportiert nur den Audioteil zwischen Punkt A (Start) und Punkt B (Ende) statt der gesamten Datei.',
+      transcodePointA: 'Punkt A (Start)',
+      transcodePointB: 'Punkt B (Ende)',
+      transcodeFromPlayer: 'Aus aktiver Schleife synchronisieren',
+      transcodeSetCurrentTime: 'Aktuelle Pos',
+      transcodeRangeDuration: 'Ausschnittdauer: {0}',
+      transcodeEndMustBeGreater: 'Punkt B muss strikt größer als Punkt A sein',
       transcodeAutoEnqueue: 'Gerenderten Titel nach Fertigstellung automatisch zur Warteschlange hinzufügen',
       transcodeCompletedTitle: 'Export & Rendering abgeschlossen!',
       playRenderedNow: 'Jetzt abspielen',
@@ -3120,6 +3152,14 @@ export const translations: Record<Language, Translations> = {
       wavPcm: 'WAV PCM',
       transcodeApplyDsp: 'Käytä aktiivisia DSP-tehosteita (Korkeus, Tempo, Kaiku, EQ)',
       transcodeApplyDspDesc: 'Renderöi tiedoston aktiivisilla DSP-säädöillä (tallentaa Nightcore-, Slowed- tai kustomoidun version).',
+      transcodeApplyRange: 'Vie valittu aikaväli (A-B-merkit / Aikaleikkaus)',
+      transcodeApplyRangeDesc: 'Vie vain ääniraidan osuuden pisteen A (alku) ja pisteen B (loppu) väliltä.',
+      transcodePointA: 'Piste A (alku)',
+      transcodePointB: 'Piste B (loppu)',
+      transcodeFromPlayer: 'Synkronoi aktiivisesta silmukasta',
+      transcodeSetCurrentTime: 'Nykyinen kohta',
+      transcodeRangeDuration: 'Valinnan kesto: {0}',
+      transcodeEndMustBeGreater: 'Pisteen B on oltava suurempi kuin pisteen A',
       transcodeAutoEnqueue: 'Lisää renderöity kappale automaattisesti jonoon',
       transcodeCompletedTitle: 'Vienti ja renderöinti valmis!',
       playRenderedNow: 'Toista nyt',
@@ -3810,6 +3850,14 @@ export const translations: Record<Language, Translations> = {
       wavPcm: 'WAV PCM',
       transcodeApplyDsp: 'Effectus DSP activos applicare (Tonus, Celeritas, Reverb, EQ)',
       transcodeApplyDspDesc: 'Reddit fasciculum cum modificationibus DSP (versio Nightcore, Slowed vel moderata).',
+      transcodeApplyRange: 'Partem selectam exportare (Notae A-B / Tempus sectum)',
+      transcodeApplyRangeDesc: 'Tantum partem soni inter punctum A (initium) et punctum B (finem) exportat.',
+      transcodePointA: 'Punctum A (initium)',
+      transcodePointB: 'Punctum B (finis)',
+      transcodeFromPlayer: 'Ex laqueo activo trahere',
+      transcodeSetCurrentTime: 'Positio praesens',
+      transcodeRangeDuration: 'Spatium temporis: {0}',
+      transcodeEndMustBeGreater: 'Punctum B maius quam punctum A esse debet',
       transcodeAutoEnqueue: 'Sponte ad seriem canendi addere post redditionem',
       transcodeCompletedTitle: 'Exportatio et redditio perfecta!',
       playRenderedNow: 'Cane nunc',
