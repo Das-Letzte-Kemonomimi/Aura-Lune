@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Play, RotateCcw, Clock, Check, AlertCircle } from 'lucide-react';
+import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors } from 'lucide-react';
 
 export function parseTimeToMs(input: string): number | null {
   if (!input) return null;
@@ -65,6 +65,7 @@ export interface LoopEditorModalProps {
   durationMs: number | null;
   onApplyLoop: (a: number | null, b: number | null) => void;
   onSeek: (positionMs: number) => void;
+  onExportLoop?: (a: number | null, b: number | null) => void;
   loc: any;
 }
 
@@ -77,6 +78,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   durationMs,
   onApplyLoop,
   onSeek,
+  onExportLoop,
   loc,
 }) => {
   const [inputA, setInputA] = useState('');
@@ -508,6 +510,37 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
           >
             <RotateCcw size={14} /> {loc.player.clearLoop || 'Wyczyść pętlę'}
           </button>
+
+          {onExportLoop && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isAValid && isBValid && isOrderValid) {
+                  onExportLoop(parsedA, parsedB);
+                  onClose();
+                }
+              }}
+              disabled={!isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null)}
+              className="glass-card"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: 'var(--accent-cyan)',
+                border: '1px solid rgba(6, 182, 212, 0.4)',
+                background: 'rgba(6, 182, 212, 0.12)',
+                cursor: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 0.5 : 1,
+              }}
+              title="Eksportuj wybrany fragment A-B do pliku (Render / Transcode)"
+            >
+              <Scissors size={14} /> Eksportuj fragment A-B
+            </button>
+          )}
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
