@@ -175,60 +175,80 @@ impl DiscordRpcWorker {
             self.try_connect().await;
         }
 
-        while let Some(cmd) = rx.recv().await {
-            match cmd {
-                DiscordRpcCommand::UpdateTrack(track) => {
-                    self.current_track = Some(track);
-                    if self.playback_state == PlaybackState::Stopped {
-                        self.playback_state = PlaybackState::Playing;
-                    }
-                    self.refresh_activity().await;
-                }
-                DiscordRpcCommand::UpdatePlayback {
-                    state,
-                    position_ms,
-                    duration_ms,
-                } => {
-                    self.playback_state = state;
-                    self.current_position_ms = position_ms;
-                    if duration_ms > 0 {
-                        self.current_duration_ms = duration_ms;
-                    }
-                    self.refresh_activity().await;
-                }
-                DiscordRpcCommand::UpdatePosition(pos) => {
-                    self.current_position_ms = pos;
-                    self.refresh_activity().await;
-                }
-                DiscordRpcCommand::ClearActivity => {
-                    self.playback_state = PlaybackState::Stopped;
-                    self.clear_discord_activity().await;
-                }
-                DiscordRpcCommand::SetEnabled(enabled) => {
-                    self.enabled = enabled;
-                    self.update_shared_status();
-                    if enabled {
-                        self.try_connect().await;
-                        self.refresh_activity().await;
-                    } else {
-                        self.clear_discord_activity().await;
-                        self.disconnect();
-                    }
-                }
-                DiscordRpcCommand::SetClientId(new_id) => {
-                    let trimmed = new_id.trim();
-                    let final_id = if trimmed.is_empty() {
-                        DEFAULT_DISCORD_CLIENT_ID.to_string()
-                    } else {
-                        trimmed.to_string()
-                    };
-                    if final_id != self.client_id {
-                        self.client_id = final_id;
-                        self.disconnect();
-                        if self.enabled {
-                            self.try_connect().await;
+        let mut ticker = tokio::time::interval(Duration::from_millis(1500));
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+        loop {
+            tokio::select! {
+                cmd = rx.recv() => {
+                    let Some(command) = cmd else { break };
+                    match command {
+                        DiscordRpcCommand::UpdateTrack(track) => {
+                            self.current_track = Some(track);
+                            if self.playback_state == PlaybackState::Stopped {
+                                self.playback_state = PlaybackState::Playing;
+                            }
                             self.refresh_activity().await;
                         }
+                        DiscordRpcCommand::UpdatePlayback {
+                            state,
+                            position_ms,
+                            duration_ms,
+                        } => {
+                            self.playback_state = state;
+                            self.current_position_ms = position_ms;
+                            if duration_ms > 0 {
+                                self.current_duration_ms = duration_ms;
+                            }
+                            self.refresh_activity().await;
+                        }
+                        DiscordRpcCommand::UpdatePosition(pos) => {
+                            self.current_position_ms = pos;
+                            self.refresh_activity().await;
+                        }
+                        DiscordRpcCommand::ClearActivity => {
+                            self.playback_state = PlaybackState::Stopped;
+                            self.clear_discord_activity().await;
+                        }
+                        DiscordRpcCommand::SetEnabled(enabled) => {
+                            self.enabled = enabled;
+                            self.update_shared_status();
+                            if enabled {
+                                self.try_connect().await;
+                                self.refresh_activity().await;
+                            } else {
+                                self.clear_discord_activity().await;
+                                self.disconnect();
+                            }
+                        }
+                        DiscordRpcCommand::SetClientId(new_id) => {
+                            let trimmed = new_id.trim();
+                            let final_id = if trimmed.is_empty() {
+                                DEFAULT_DISCORD_CLIENT_ID.to_string()
+                            } else {
+                                trimmed.to_string()
+                            };
+                            if final_id != self.client_id {
+                                self.client_id = final_id;
+                                self.disconnect();
+                                if self.enabled {
+                                    self.try_connect().await;
+                                    self.refresh_activity().await;
+                                }
+                            }
+                        }
+                    }
+                }
+                _ = ticker.tick() => {
+                    // Jeśli Discord RPC jest włączony, ale nie ma jeszcze połączenia (np. Vesktop/Discord uruchomiony później),
+                    // to sprawdzaj gniazdo w tle i automatycznie wyślij aktywność bez konieczności interakcji użytkowniczki
+                    if self.enabled
+                        && self.stream.is_none()
+                        && self.current_track.is_some()
+                        && self.playback_state != PlaybackState::Stopped
+                        && self.try_connect().await
+                    {
+                        self.refresh_activity().await;
                     }
                 }
             }
@@ -265,10 +285,10 @@ impl DiscordRpcWorker {
             return true;
         }
 
-        // Unikaj spamu ponownych połączeń częściej niż co 3 sekundy
+        // Unikaj spamu ponownych połączeń częściej niż co 1 sekundę
         if let Some(last) = self.last_connect_attempt {
             if let Ok(elapsed) = last.elapsed() {
-                if elapsed < Duration::from_secs(3) {
+                if elapsed < Duration::from_millis(1000) {
                     return false;
                 }
             }
@@ -297,7 +317,7 @@ impl DiscordRpcWorker {
 
                     // Odczyt odpowiedzi (opcode 1 - READY) z limitem czasu
                     let read_res = tokio::time::timeout(
-                        Duration::from_millis(1500),
+                        Duration::from_millis(800),
                         read_ipc_frame(&mut stream),
                     )
                     .await;
@@ -456,7 +476,8 @@ impl DiscordRpcWorker {
             } else {
                 info!("Pomyślnie wysłano aktywność do Discord RPC: {}", details);
                 send_success = true;
-                let _ = tokio::time::timeout(Duration::from_millis(200), read_ipc_frame(stream)).await;
+                let _ =
+                    tokio::time::timeout(Duration::from_millis(50), read_ipc_frame(stream)).await;
             }
         }
 
@@ -541,7 +562,6 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         }
     }
 
-
     // 2. /run/user/<UID>
     let uid = libc_getuid();
     let run_user = PathBuf::from(format!("/run/user/{}", uid));
@@ -557,7 +577,16 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         candidates.push(tmp.join(format!("discord-ipc-{}", i)));
     }
 
-    candidates
+    // Zwróć tylko unikalne ścieżki, które faktycznie istnieją w systemie
+    let mut seen = std::collections::HashSet::new();
+    let mut existing = Vec::new();
+    for p in candidates {
+        if p.exists() && seen.insert(p.clone()) {
+            existing.push(p);
+        }
+    }
+
+    existing
 }
 
 fn libc_getuid() -> u32 {

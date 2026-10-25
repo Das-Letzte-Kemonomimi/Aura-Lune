@@ -2051,6 +2051,21 @@ export default function App() {
     try {
       setActiveTrackId(track.id);
       setFilePath(track.path);
+
+      // 1. Natychmiastowe zaktualizowanie Discord RPC / MPRIS (0ms) z okładką Cover Art Archive
+      const matchingAlbum = albums.find((a) => a.id === track.album_id);
+      const onlineCover = matchingAlbum?.release_mbid
+        ? `https://coverartarchive.org/release/${matchingAlbum.release_mbid}/front-500`
+        : (matchingAlbum?.cover_path && (matchingAlbum.cover_path.startsWith('http://') || matchingAlbum.cover_path.startsWith('https://')) ? matchingAlbum.cover_path : null);
+
+      invoke('update_mpris_metadata', {
+        title: track.title,
+        artist: track.artist,
+        album: matchingAlbum?.title || track.album_artist || 'Auralune Library',
+        durationMs: track.duration_ms,
+        artUrl: onlineCover,
+      }).catch(() => {});
+
       await invoke('load_file', { path: track.path });
 
       // Sprawdź czy jest zapisana zakładka (bookmark)
@@ -2071,13 +2086,13 @@ export default function App() {
         showMessage(t.notifications.startedPlayback.replace('{0}', track.title).replace('{1}', track.artist));
       }
 
-      // Publikacja metadanych do systemowego D-Bus MPRIS (KDE/GNOME/playerctl)
+      // Publikacja ostatecznych metadanych do systemowego D-Bus MPRIS oraz Discord RPC
       await invoke('update_mpris_metadata', {
         title: track.title,
         artist: track.artist,
-        album: track.album_artist || 'Auralune Library',
+        album: matchingAlbum?.title || track.album_artist || 'Auralune Library',
         durationMs: track.duration_ms,
-        artUrl: null,
+        artUrl: onlineCover,
       });
 
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
@@ -2153,14 +2168,27 @@ export default function App() {
       if (matchingTrack) {
         setActiveTrackId(matchingTrack.id);
       }
-      await invoke('load_file', { path });
+      const matchingAlbum = matchingTrack ? albums.find((a) => a.id === matchingTrack.album_id) : null;
+      const onlineCover = matchingAlbum?.release_mbid
+        ? `https://coverartarchive.org/release/${matchingAlbum.release_mbid}/front-500`
+        : (matchingAlbum?.cover_path && (matchingAlbum.cover_path.startsWith('http://') || matchingAlbum.cover_path.startsWith('https://')) ? matchingAlbum.cover_path : null);
+
       const filename = path.split('/').pop() || path;
+      invoke('update_mpris_metadata', {
+        title: matchingTrack?.title || filename,
+        artist: matchingTrack?.artist || 'Plik lokalny',
+        album: matchingAlbum?.title || matchingTrack?.album_artist || 'Auralune Player',
+        durationMs: matchingTrack?.duration_ms || 0,
+        artUrl: onlineCover,
+      }).catch(() => {});
+
+      await invoke('load_file', { path });
       await invoke('update_mpris_metadata', {
         title: matchingTrack?.title || filename,
         artist: matchingTrack?.artist || 'Plik lokalny',
-        album: matchingTrack?.album_artist || 'Auralune Player',
+        album: matchingAlbum?.title || matchingTrack?.album_artist || 'Auralune Player',
         durationMs: matchingTrack?.duration_ms || 0,
-        artUrl: null,
+        artUrl: onlineCover,
       });
 
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
