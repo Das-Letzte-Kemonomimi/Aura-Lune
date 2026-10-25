@@ -179,6 +179,9 @@ impl DiscordRpcWorker {
             match cmd {
                 DiscordRpcCommand::UpdateTrack(track) => {
                     self.current_track = Some(track);
+                    if self.playback_state == PlaybackState::Stopped {
+                        self.playback_state = PlaybackState::Playing;
+                    }
                     self.refresh_activity().await;
                 }
                 DiscordRpcCommand::UpdatePlayback {
@@ -277,7 +280,7 @@ impl DiscordRpcWorker {
             if !path.exists() {
                 continue;
             }
-            debug!("Próba połączenia z gniazdem Discord IPC: {:?}", path);
+            info!("Próba połączenia z gniazdem Discord IPC: {:?}", path);
             match UnixStream::connect(&path).await {
                 Ok(mut stream) => {
                     // Wysłanie uścisku dłoni (Handshake opcode 0)
@@ -415,22 +418,14 @@ impl DiscordRpcWorker {
             "Auralune (Kitsune Player)".to_string()
         };
 
-        let small_image = if is_playing { "play" } else { "pause" };
-        let small_text = if is_playing {
-            "Odtwarzanie"
-        } else {
-            "Wstrzymano"
-        };
-
         let mut activity = serde_json::json!({
+            "name": "Auralune",
             "type": 2, // 2 = Listening to
             "details": details,
             "state": state,
             "assets": {
                 "large_image": large_image,
-                "large_text": large_text,
-                "small_image": small_image,
-                "small_text": small_text
+                "large_text": large_text
             },
             "buttons": [
                 {
@@ -454,14 +449,21 @@ impl DiscordRpcWorker {
         })
         .to_string();
 
+        let mut send_success = false;
         if let Some(stream) = self.stream.as_mut() {
             if let Err(e) = send_ipc_frame(stream, 1, &payload).await {
                 debug!("Błąd wysyłania SET_ACTIVITY do Discorda: {}", e);
-                self.disconnect();
             } else {
-                debug!("Wysłano aktywność do Discord RPC: {}", details);
-                self.update_shared_status();
+                info!("Pomyślnie wysłano aktywność do Discord RPC: {}", details);
+                send_success = true;
+                let _ = tokio::time::timeout(Duration::from_millis(200), read_ipc_frame(stream)).await;
             }
+        }
+
+        if send_success {
+            self.update_shared_status();
+        } else if self.stream.is_some() {
+            self.disconnect();
         }
     }
 

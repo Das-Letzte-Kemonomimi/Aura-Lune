@@ -495,6 +495,27 @@ fn update_mpris_metadata(
             duration_ms,
             art_url,
         });
+        let cur_state = state.engine.state();
+        let effective_state = if cur_state == PlaybackState::Stopped {
+            PlaybackState::Playing
+        } else {
+            cur_state
+        };
+        let pos = state
+            .engine
+            .position()
+            .map(|p| p.as_millis() as u64)
+            .unwrap_or(0);
+        let dur = if duration_ms > 0 {
+            duration_ms
+        } else {
+            state
+                .engine
+                .duration()
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0)
+        };
+        discord.update_playback_status(effective_state, pos, dur);
     }
     Ok(())
 }
