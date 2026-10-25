@@ -18,11 +18,92 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.4.0',
+    codename: 'Kitsune Horizons & Poweramp Legacy',
+    date: '2026-10-25',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Crate crates/downloads & Legal Download Hub: bezpieczny moduł pobierania legalnych nagrań audio (Archive.org, Creative Commons, podcasty i feedy RSS) z weryfikacją SHA-256 i atomowym zapisem do biblioteki.',
+        en: 'Crate crates/downloads & Legal Download Hub: secure download manager for legal audio sources (Archive.org, Creative Commons, RSS podcasts) with SHA-256 verification and atomic library import.',
+        de: 'Crate crates/downloads & Legal Download Hub: sicheres Download-Modul für legale Audioquellen mit SHA-256-Prüfung und atomarem Bibliotheksimport.',
+        fi: 'Crate crates/downloads & Legal Download Hub: turvallinen lataushallinta laillisille audiolähteille SHA-256-tarkistuksella ja atomisella kirjastotuonnilla.',
+        la: 'Crate crates/downloads & Legal Download Hub: modulus securus deonerandi fontium audialium legitimorum cum probatione SHA-256 et scriptione atomica in bibliothecam.',
+      },
+      {
+        pl: 'Płynny Crossfade (krzywa equal-power cos/sin) oraz zaawansowane efekty DSP: Bass Boost (pobudzenie sub-basu 31-125 Hz), Stereo Widener (baza stereo) i True-Peak Limiter chroniący przed clippingiem.',
+        en: 'Smooth Crossfade (equal-power cos/sin curve) and advanced DSP: Bass Boost (sub-bass exciter 31-125 Hz), Stereo Widener, and True-Peak Limiter protecting against digital clipping.',
+        de: 'Sanfter Crossfade (Equal-Power-Kurve) und erweiterte DSP-Effekte: Bass Boost (Sub-Bass 31-125 Hz), Stereo Widener und True-Peak Limiter gegen Übersteuerung.',
+        fi: 'Pehmeä Crossfade (equal-power-käyrä) ja edistyneet DSP-efektit: Bass Boost (sub-basso 31-125 Hz), Stereo Widener ja True-Peak Limiter säröytymisen estoon.',
+        la: 'Crossfade mollis (curva equal-power cos/sin) et effectus provecti DSP: Bass Boost (excitator sub-bass 31-125 Hz), Stereo Widener et True-Peak Limiter contra distorsionem.',
+      },
+      {
+        pl: 'Import i Eksport Playlist M3U / M3U8 & Kopia zapasowa profilu: pełne wsparcie standardu UTF-8 M3U8 oraz eksport/import motywów, presetów DSP i konfiguracji jako JSON.',
+        en: 'M3U / M3U8 Playlist Import & Export & Profile Backup: full UTF-8 M3U8 standard support and complete JSON profile backup/restore (themes, DSP presets, playlists).',
+        de: 'M3U / M3U8 Playlist-Import/-Export & Profilsicherung: vollständige UTF-8 M3U8-Unterstützung und JSON-Profil-Backup (Themes, DSP-Presets, Playlists).',
+        fi: 'M3U / M3U8 -soittolistojen tuonti ja vienti sekä profiilivarmuuskopiointi: täysi UTF-8 M3U8 -tuki ja JSON-profiilin varmuuskopiointi/palautus.',
+        la: 'Exportatio et importatio indicum carminum M3U/M3U8 atque conservatio profili: sustentatio UTF-8 M3U8 et conservatio/restitutio JSON profili.',
+      },
+      {
+        pl: 'Scrobbler ListenBrainz (ekosystem MetaBrainz): oficjalna integracja REST API z automatycznym scroblowaniem odtworzeń (>50% czasu utworu) oraz statusem Playing Now.',
+        en: 'ListenBrainz Scrobbler (MetaBrainz ecosystem): official REST API client with automatic scrobbling (>50% elapsed) and Playing Now status.',
+        de: 'ListenBrainz-Scrobbler (MetaBrainz-Ökosystem): offizielle REST-API-Integration mit automatischem Scrobbeln (>50% gespielt) und Playing Now Status.',
+        fi: 'ListenBrainz Scrobbler (MetaBrainz-ekosysteemi): virallinen REST API -integraatio automaattisella scrobbauksella (>50% toistettu) ja Playing Now -tilalla.',
+        la: 'Scrobbler ListenBrainz (oeconomia MetaBrainz): integratio officialis REST API cum scrobblatione automatica (>50% audito) et statu Playing Now.',
+      },
+      {
+        pl: 'Linux System Tray & Odtwarzanie w tle: ikona w tacce systemowej z szybkim menu sterowania oraz konfigurowalna opcja minimalizacji do zasobnika zamiast zamykania.',
+        en: 'Linux System Tray & Background Playback: tray icon with quick control menu and configurable close-to-tray mode.',
+        de: 'Linux System-Tray & Hintergrundwiedergabe: Taskleistensymbol mit Schnellmenü und konfigurierbarem Close-to-Tray.',
+        fi: 'Linux-ilmoitusalue & taustatoisto: kuvake ilmoitusalueella pikavalikolla ja säädettävä sulkeminen ilmoitusalueelle.',
+        la: 'System Tray Linux et Cantus in scaena: icon in capsa systematis cum indice mandatorum et modus minimisationis.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Eliminacja zakleszczenia (deadlock) przy uruchamianiu odtwarzania: bezblokadowe sygnały GStreamer (AtomicU8) oraz zmiana stanu potoku i mikro-fade poza blokadą mutexu.',
+        en: 'Eliminated audio engine deadlock when starting playback: lock-free GStreamer notifications (AtomicU8) and non-blocking pipeline state changes outside mutex.',
+        de: 'Beseitigung von Audio-Engine-Deadlocks beim Wiedergabestart: sperrenfreie GStreamer-Signale (AtomicU8) und Zustandsänderungen außerhalb des Mutex.',
+        fi: 'Lukkiutumisen (deadlock) poisto toiston käynnistyksessä: lukkovapaat GStreamer-signaalit (AtomicU8) ja potkun tilamuutokset mutexin ulkopuolella.',
+        la: 'Eliminatio deadlock in initio cantus: signa sine sera GStreamer (AtomicU8) et mutatio status potus extra seram mutex.',
+      },
+      {
+        pl: 'Pojedyncze kliknięcie w kolejce odtwarzania: natychmiastowe uruchomienie utworu jednym kliknięciem zamiast wymaganego podwójnego kliknięcia.',
+        en: 'Playback queue single click: clicking any track in the queue now starts playback immediately instead of requiring a double click.',
+        de: 'Wiedergabewarteschlange Einzelklick: Ein Klick startet den Titel nun sofort, kein Doppelklick mehr nötig.',
+        fi: 'Toistojonon kertanapsautus: kappaleen napsauttaminen jonossa aloittaa toiston välittömästi ilman tuplanapsautusta.',
+        la: 'Unus ictus in ordine cantuum: pulsatio unius carminis in ordine statim cantum incipit sine duplici ictu.',
+      },
+      {
+        pl: 'Stylowanie pól wyboru (select) odporne na jasne motywy GTK: wyłączenie natywnego widgetu GTK w WebKit, ciemne tło z akcentem i wysoki kontrast białych liter.',
+        en: 'Dropdown (select) styling immune to light GTK themes: disabled native WebKit GTK widget, dark anime glassmorphism style, and high-contrast white text.',
+        de: 'Dropdown-Styling (select) immun gegen helle GTK-Themes: natives WebKit GTK Widget deaktiviert, dunkles Theme mit hohem Textkontrast.',
+        fi: 'Pudotusvalikoiden (select) tyylitys GTK-teemoilta suojattuna: estetty WebKit GTK -natiivityyli, tumma lasimainen teema ja selkeä valkoinen teksti.',
+        la: 'Stilus capsulae selectivae immunis a thematibus claris GTK: widget nativum WebKit GTK extinctum, thema obscurum et litterae albae manifestae.',
+      },
+      {
+        pl: 'Rozdzielenie kolumn czasu i akcji w kolejce: poszerzenie kolumny akcji do 140px, całkowicie eliminujące nakładanie się ikony Play na cyfry czasu trwania.',
+        en: 'Fixed queue layout overlap: expanded actions column to 140px and adjusted padding, fully preventing Play button collision with track duration.',
+        de: 'Kollision im Warteschlangen-Layout behoben: Aktionsspalte auf 140px erweitert, Play-Button überlappt die Zeitangabe nicht mehr.',
+        fi: 'Korjattu toistojonon asettelu: laajennettu toimintosarake 140 pikseliin, estäen Toista-painikkeen päällekkäisyys kestoajan kanssa.',
+        la: 'Reparata dispositio ordinis cantuum: columna actionum ad 140px amplificata, Play button non iam tempus carminis tegit.',
+      },
+      {
+        pl: 'Pełne tłumaczenia Ustawień: dodanie brakujących kluczy wielojęzycznych dla sekcji ListenBrainz i Crossfade we wszystkich 5 językach.',
+        en: 'Complete Settings translations: added missing i18n keys for ListenBrainz and Crossfade across all 5 supported languages.',
+        de: 'Vollständige Einstellungen-Übersetzungen: fehlende i18n-Schlüssel für ListenBrainz und Crossfade in allen 5 Sprachen ergänzt.',
+        fi: 'Täydelliset asetusten käännökset: lisätty puuttuvat i18n-avaimet ListenBrainzille ja Crossfadelle kaikilla 5 kielellä.',
+        la: 'Translationes integrae Optionum: claves i18n pro ListenBrainz et Crossfade in omnibus 5 linguis additae.',
+      },
+    ],
+  },
+  {
     version: '0.3.0',
     codename: 'Omniscience & Starlight',
     date: '2026-10-25',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Tag Editor (Properties Dialog): zaawansowane okno edycji metadanych w stylu foobar2000 z bezpośrednim zapisem tagów przez bibliotekę lofty i transakcyjną aktualizacją SQLite.',

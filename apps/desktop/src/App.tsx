@@ -889,8 +889,8 @@ export default function App() {
     if (cfg.showAlbum) parts.push('minmax(120px, 1.2fr)');
     if (cfg.showFormatBadge) parts.push('110px');
     if (cfg.showPath) parts.push('minmax(120px, 1.5fr)');
-    if (cfg.showDuration) parts.push('60px');
-    parts.push('96px');
+    if (cfg.showDuration) parts.push('65px');
+    parts.push('140px');
     return parts.join(' ');
   };
 
@@ -5530,13 +5530,19 @@ const renderDevicesSection = () => (
                 } catch {}
               }}
               style={{
-                background: 'rgba(0, 0, 0, 0.4)',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                background: 'rgba(20, 24, 44, 0.95)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '8px',
-                padding: '6px 12px',
+                padding: '6px 30px 6px 12px',
                 color: '#fff',
                 fontSize: '0.78rem',
+                fontWeight: 600,
                 cursor: 'pointer',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 10px center',
               }}
             >
               <option value="bottom-center" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Środek)' : 'Bottom (Center)'}</option>
@@ -5731,7 +5737,11 @@ const renderDevicesSection = () => (
           <div style={{ marginTop: '12px', background: 'rgba(0,0,0,0.25)', padding: '16px', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
-                {crossfadeDuration === 0 ? 'Wyłączony (0.0s - natychmiastowe cięcie)' : `Czas przenikania: ${(crossfadeDuration / 1000).toFixed(2)}s (${crossfadeDuration} ms)`}
+                {crossfadeDuration === 0
+                  ? loc.settings.crossfadeDisabled
+                  : loc.settings.crossfadeTime
+                      .replace('{0}', (crossfadeDuration / 1000).toFixed(2))
+                      .replace('{1}', String(crossfadeDuration))}
               </span>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {[0, 1000, 1500, 3000, 5000].map((presetMs) => (
@@ -5859,7 +5869,7 @@ const renderDevicesSection = () => (
                   whiteSpace: 'nowrap',
                 }}
               >
-                {listenbrainzTesting ? 'Weryfikacja...' : loc.settings.listenbrainzTest}
+                {listenbrainzTesting ? loc.settings.listenbrainzTesting : loc.settings.listenbrainzTest}
               </button>
             </div>
 
@@ -5877,14 +5887,14 @@ const renderDevicesSection = () => (
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              <span>Wymaga bezpłatnego konta na listenbrainz.org</span>
+              <span>{loc.settings.listenbrainzRequiresAccount}</span>
               <a
                 href="https://listenbrainz.org/profile"
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: '#eb7422', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
-                Uzyskaj token profilu <ExternalLink size={12} />
+                {loc.settings.listenbrainzGetToken} <ExternalLink size={12} />
               </a>
             </div>
           </div>
@@ -8175,7 +8185,7 @@ const renderDevicesSection = () => (
                   {queueColumns.showFormatBadge && <span>{t.queue.headerQuality}</span>}
                   {queueColumns.showPath && <span>{t.queue.headerPath}</span>}
                   {queueColumns.showDuration && <span style={{ textAlign: 'right' }}>{t.queue.headerTime}</span>}
-                  <span style={{ width: '96px', textAlign: 'right' }}>{t.queue.headerActions}</span>
+                  <span style={{ textAlign: 'right', paddingRight: '6px' }}>{t.queue.headerActions}</span>
                 </div>
 
                 {/* Lista wierszy utworów */}
@@ -8197,6 +8207,7 @@ const renderDevicesSection = () => (
                       onDragStart={(e) => handleQueueDragStart(idx, e)}
                       onDragOver={(e) => handleQueueDragOver(idx, e)}
                       onDrop={(e) => handleQueueDrop(idx, e)}
+                      onClick={() => handlePlayQueueIndex(idx)}
                       onDoubleClick={() => handlePlayQueueIndex(idx)}
                       className="glass-card"
                       style={{
@@ -8391,7 +8402,7 @@ const renderDevicesSection = () => (
                       )}
 
                       {/* Akcje */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', minWidth: '136px' }}>
                         {!isCurrent && (
                           <button
                             onClick={(e) => {
@@ -8404,7 +8415,7 @@ const renderDevicesSection = () => (
                               border: 'none',
                               color: 'var(--text-muted)',
                               cursor: 'pointer',
-                              padding: '5px',
+                              padding: '4px',
                               borderRadius: '6px',
                               display: 'flex',
                             }}
@@ -8421,7 +8432,7 @@ const renderDevicesSection = () => (
                             border: 'none',
                             color: idx === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
                             cursor: idx === 0 ? 'default' : 'pointer',
-                            padding: '5px',
+                            padding: '4px',
                             borderRadius: '6px',
                             display: 'flex',
                           }}
@@ -8437,7 +8448,7 @@ const renderDevicesSection = () => (
                             border: 'none',
                             color: idx === queue.items.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
                             cursor: idx === queue.items.length - 1 ? 'default' : 'pointer',
-                            padding: '5px',
+                            padding: '4px',
                             borderRadius: '6px',
                             display: 'flex',
                           }}
@@ -8452,7 +8463,7 @@ const renderDevicesSection = () => (
                             border: 'none',
                             color: 'var(--text-muted)',
                             cursor: 'pointer',
-                            padding: '5px',
+                            padding: '4px',
                             borderRadius: '6px',
                             display: 'flex',
                             transition: 'color 0.15s ease',
@@ -8470,10 +8481,13 @@ const renderDevicesSection = () => (
                             border: 'none',
                             color: 'rgba(255, 107, 129, 0.7)',
                             cursor: 'pointer',
-                            padding: '5px',
+                            padding: '4px',
                             borderRadius: '6px',
                             display: 'flex',
+                            transition: 'color 0.15s ease',
                           }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-pink)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255, 107, 129, 0.7)')}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -8913,22 +8927,29 @@ const renderDevicesSection = () => (
                   value={sortField}
                   onChange={(e) => setSortField(e.target.value as any)}
                   style={{
-                    padding: '4px 8px',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    padding: '5px 28px 5px 10px',
                     borderRadius: '6px',
-                    background: 'rgba(0,0,0,0.4)',
+                    background: 'rgba(20, 24, 44, 0.95)',
                     border: '1px solid var(--border-subtle)',
-                    color: '#fff',
-                    fontSize: '0.72rem',
+                    color: '#ffffff',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
                     cursor: 'pointer',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 8px center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                   }}
                 >
-                  <option value="default">{loc.library.sortDefault}</option>
-                  <option value="title">{loc.library.sortTitle}</option>
-                  <option value="artist">{loc.library.sortArtist}</option>
-                  <option value="duration">{loc.library.sortDuration}</option>
-                  <option value="format">{loc.library.sortFormat}</option>
-                  <option value="date">{loc.library.sortDate}</option>
-                  <option value="plays">{loc.library.sortPlays}</option>
+                  <option value="default" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDefault}</option>
+                  <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortTitle}</option>
+                  <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortArtist}</option>
+                  <option value="duration" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDuration}</option>
+                  <option value="format" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortFormat}</option>
+                  <option value="date" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDate}</option>
+                  <option value="plays" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortPlays}</option>
                 </select>
                 {sortField !== 'default' && (
                   <button
@@ -9430,18 +9451,25 @@ const renderDevicesSection = () => (
                       value={albumSortField}
                       onChange={(e) => setAlbumSortField(e.target.value as any)}
                       style={{
-                        padding: '4px 8px',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        padding: '5px 28px 5px 10px',
                         borderRadius: '6px',
-                        background: 'rgba(0,0,0,0.4)',
+                        background: 'rgba(20, 24, 44, 0.95)',
                         border: '1px solid var(--border-subtle)',
-                        color: '#fff',
-                        fontSize: '0.72rem',
+                        color: '#ffffff',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
                         cursor: 'pointer',
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 8px center',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                       }}
                     >
-                      <option value="title">{loc.library.albumSortTitle}</option>
-                      <option value="artist">{loc.library.albumSortArtist}</option>
-                      <option value="year">{loc.library.albumSortYear}</option>
+                      <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortTitle}</option>
+                      <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortArtist}</option>
+                      <option value="year" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortYear}</option>
                     </select>
                     <button
                       onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
@@ -11260,13 +11288,20 @@ const renderDevicesSection = () => (
                     value={selectedEqPreset}
                     onChange={(e) => handleApplyEqPreset(e.target.value)}
                     style={{
-                      padding: '6px 12px',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      padding: '6px 30px 6px 12px',
                       borderRadius: '8px',
-                      background: 'rgba(0,0,0,0.4)',
-                      color: '#fff',
+                      background: 'rgba(20, 24, 44, 0.95)',
+                      color: '#ffffff',
                       border: '1px solid var(--border-subtle)',
                       fontSize: '0.8rem',
+                      fontWeight: 600,
                       cursor: 'pointer',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 10px center',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                     }}
                   >
                     {eqPresets.map((preset) => (

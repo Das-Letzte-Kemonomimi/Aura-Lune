@@ -9,6 +9,7 @@ use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
@@ -65,6 +66,7 @@ struct PipelineInner {
 pub struct AudioEngine {
     inner: Arc<Mutex<PipelineInner>>,
     queue: Arc<Mutex<PlaybackQueue>>,
+    replaygain_mode: Arc<AtomicU8>,
 }
 
 impl AudioEngine {
@@ -334,21 +336,23 @@ impl AudioEngine {
             crossfade_duration_ms: 1500,
         }));
 
-        // Nasłuchiwanie zmian tagów w rgvolume: gdy tryb to Off, neutralizujemy na bieżąco
-        let inner_weak = Arc::downgrade(&inner);
+        let replaygain_mode = Arc::new(AtomicU8::new(ReplayGainMode::Off as u8));
+        let rg_mode_for_notify = replaygain_mode.clone();
+
+        // Nasłuchiwanie zmian tagów w rgvolume: gdy tryb to Off, neutralizujemy na bieżąco BEZ blokowania mutexu inner
         rgvolume.connect_notify(Some("target-gain"), move |rgv, _pspec| {
-            if let Some(inner_arc) = inner_weak.upgrade() {
-                if let Ok(inner_guard) = inner_arc.lock() {
-                    if inner_guard.replaygain_config.mode == ReplayGainMode::Off {
-                        let target: f64 = rgv.property("target-gain");
-                        rgv.set_property("pre-amp", -target);
-                    }
-                }
+            if rg_mode_for_notify.load(Ordering::Relaxed) == ReplayGainMode::Off as u8 {
+                let target: f64 = rgv.property("target-gain");
+                rgv.set_property("pre-amp", -target);
             }
         });
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
-        Ok(Self { inner, queue })
+        Ok(Self {
+            inner,
+            queue,
+            replaygain_mode,
+        })
     }
 
     /// Ładuje plik lokalny lub URI do odtwarzania z pełną obsługą znaków japońskich i spacji w URI.
@@ -356,10 +360,18 @@ impl AudioEngine {
         let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
             uri_or_path.to_string()
         } else if uri_or_path.starts_with("file://") {
-            let stripped = uri_or_path.trim_start_matches("file://");
-            glib::filename_to_uri(Path::new(stripped), None)
-                .map(|u| u.to_string())
-                .unwrap_or_else(|_| uri_or_path.to_string())
+            // Bezpieczna obsługa URI z prefiksem file:// (ochrona przed podwójnym kodowaniem %20 -> %2520)
+            if let Ok((path, _)) = glib::filename_from_uri(uri_or_path) {
+                if path.exists() {
+                    glib::filename_to_uri(&path, None)
+                        .map(|u| u.to_string())
+                        .unwrap_or_else(|_| uri_or_path.to_string())
+                } else {
+                    uri_or_path.to_string()
+                }
+            } else {
+                uri_or_path.to_string()
+            }
         } else {
             let path = Path::new(uri_or_path);
             if !path.exists() {
@@ -437,9 +449,12 @@ impl AudioEngine {
 
     /// Rozpoczyna lub wznawia odtwarzanie.
     pub fn play(&self) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
-        inner.pipeline.set_state(gst::State::Playing)?;
-        inner.state = PlaybackState::Playing;
+        let pipeline = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.state = PlaybackState::Playing;
+            inner.pipeline.clone()
+        };
+        pipeline.set_state(gst::State::Playing)?;
         debug!("Stan potoku zmieniony na Playing");
         Ok(())
     }
@@ -450,21 +465,24 @@ impl AudioEngine {
             return self.play();
         }
 
-        let target_vol = {
+        let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock().unwrap();
             inner.volume.set_property("volume", 0.0f64);
-            inner.pipeline.set_state(gst::State::Playing)?;
             inner.state = PlaybackState::Playing;
-            inner.user_volume
+            (
+                inner.pipeline.clone(),
+                inner.volume.clone(),
+                inner.user_volume,
+            )
         };
+
+        // Wykonanie zmiany stanu potoku poza blokadą mutexu inner
+        pipeline.set_state(gst::State::Playing)?;
 
         let steps = 4;
         for i in 1..=steps {
             let factor = (i as f64) / (steps as f64);
-            {
-                let inner = self.inner.lock().unwrap();
-                inner.volume.set_property("volume", target_vol * factor);
-            }
+            volume.set_property("volume", target_vol * factor);
             std::thread::sleep(Duration::from_millis(8));
         }
 
@@ -474,9 +492,12 @@ impl AudioEngine {
 
     /// Wstrzymuje odtwarzanie (pauza).
     pub fn pause(&self) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
-        inner.pipeline.set_state(gst::State::Paused)?;
-        inner.state = PlaybackState::Paused;
+        let pipeline = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.state = PlaybackState::Paused;
+            inner.pipeline.clone()
+        };
+        pipeline.set_state(gst::State::Paused)?;
         debug!("Stan potoku zmieniony na Paused");
         Ok(())
     }
@@ -487,25 +508,28 @@ impl AudioEngine {
             return self.pause();
         }
 
-        let target_vol = {
+        let (pipeline, volume, target_vol) = {
             let inner = self.inner.lock().unwrap();
-            inner.user_volume
+            (
+                inner.pipeline.clone(),
+                inner.volume.clone(),
+                inner.user_volume,
+            )
         };
 
         let steps = 4;
         for i in (0..steps).rev() {
             let factor = (i as f64) / (steps as f64);
-            {
-                let inner = self.inner.lock().unwrap();
-                inner.volume.set_property("volume", target_vol * factor);
-            }
+            volume.set_property("volume", target_vol * factor);
             std::thread::sleep(Duration::from_millis(8));
         }
 
-        let mut inner = self.inner.lock().unwrap();
-        inner.pipeline.set_state(gst::State::Paused)?;
-        inner.state = PlaybackState::Paused;
-        inner.volume.set_property("volume", target_vol);
+        pipeline.set_state(gst::State::Paused)?;
+        volume.set_property("volume", target_vol);
+        {
+            let mut inner = self.inner.lock().unwrap();
+            inner.state = PlaybackState::Paused;
+        }
         debug!("Stan potoku zmieniony na Paused z mikro-fade-out");
         Ok(())
     }
@@ -577,11 +601,14 @@ impl AudioEngine {
 
     /// Zatrzymuje odtwarzanie i resetuje pozycję.
     pub fn stop(&self) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
-        inner.pipeline.set_state(gst::State::Ready)?;
-        inner.state = PlaybackState::Stopped;
-        inner.base_media_pos = Duration::ZERO;
-        inner.base_sink_pts = Duration::ZERO;
+        let pipeline = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.state = PlaybackState::Stopped;
+            inner.base_media_pos = Duration::ZERO;
+            inner.base_sink_pts = Duration::ZERO;
+            inner.pipeline.clone()
+        };
+        pipeline.set_state(gst::State::Ready)?;
         debug!("Stan potoku zmieniony na Stopped (Ready)");
         Ok(())
     }
@@ -1188,10 +1215,15 @@ impl AudioEngine {
     /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle,
     /// stosując płynne przejście z krzywą equal-power, jeśli włączony jest crossfade.
     pub fn play_next(&self) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (crossfade_ms, user_vol, is_playing) = {
+        let (crossfade_ms, user_vol, is_playing, volume) = {
             let inner = self.inner.lock().unwrap();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            (inner.crossfade_duration_ms, inner.user_volume, is_playing)
+            (
+                inner.crossfade_duration_ms,
+                inner.user_volume,
+                is_playing,
+                inner.volume.clone(),
+            )
         };
 
         if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
@@ -1201,10 +1233,7 @@ impl AudioEngine {
             for i in (0..=steps).rev() {
                 let t = (i as f64) / (steps as f64);
                 let gain = (t * std::f64::consts::FRAC_PI_2).sin();
-                {
-                    let inner = self.inner.lock().unwrap();
-                    inner.volume.set_property("volume", user_vol * gain);
-                }
+                volume.set_property("volume", user_vol * gain);
                 std::thread::sleep(step_time);
             }
         }
@@ -1243,10 +1272,15 @@ impl AudioEngine {
             }
         }
 
-        let (crossfade_ms, user_vol, is_playing) = {
+        let (crossfade_ms, user_vol, is_playing, volume) = {
             let inner = self.inner.lock().unwrap();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            (inner.crossfade_duration_ms, inner.user_volume, is_playing)
+            (
+                inner.crossfade_duration_ms,
+                inner.user_volume,
+                is_playing,
+                inner.volume.clone(),
+            )
         };
 
         if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
@@ -1256,10 +1290,7 @@ impl AudioEngine {
             for i in (0..=steps).rev() {
                 let t = (i as f64) / (steps as f64);
                 let gain = (t * std::f64::consts::FRAC_PI_2).sin();
-                {
-                    let inner = self.inner.lock().unwrap();
-                    inner.volume.set_property("volume", user_vol * gain);
-                }
+                volume.set_property("volume", user_vol * gain);
                 std::thread::sleep(step_time);
             }
         }
@@ -1311,6 +1342,8 @@ impl AudioEngine {
 
     /// Konfiguruje normalizację głośności ReplayGain (EBU R128 / ReplayGain 2.0).
     pub fn set_replaygain(&self, config: ReplayGainConfig) -> Result<(), AudioEngineError> {
+        self.replaygain_mode
+            .store(config.mode as u8, Ordering::Relaxed);
         let mut inner = self.inner.lock().unwrap();
         inner.replaygain_config = config;
         match config.mode {
@@ -1353,17 +1386,22 @@ impl AudioEngine {
 
     /// Wznawia odtwarzanie z płynnym wejściem głośności o zadanym czasie trwania wg krzywej equal-power.
     pub fn play_with_fade_duration(&self, duration: Duration) -> Result<(), AudioEngineError> {
-        let target_vol = {
+        let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock().unwrap();
             inner.volume.set_property("volume", 0.0f64);
-            inner.pipeline.set_state(gst::State::Playing)?;
             inner.state = PlaybackState::Playing;
-            inner.user_volume
+            (
+                inner.pipeline.clone(),
+                inner.volume.clone(),
+                inner.user_volume,
+            )
         };
 
+        // Zmiana stanu potoku poza blokadą mutexu inner
+        pipeline.set_state(gst::State::Playing)?;
+
         if target_vol <= 0.001 || duration.is_zero() {
-            let inner = self.inner.lock().unwrap();
-            inner.volume.set_property("volume", target_vol);
+            volume.set_property("volume", target_vol);
             return Ok(());
         }
 
@@ -1372,10 +1410,7 @@ impl AudioEngine {
         for i in 1..=steps {
             let t = (i as f64) / (steps as f64);
             let gain = (t * std::f64::consts::FRAC_PI_2).sin();
-            {
-                let inner = self.inner.lock().unwrap();
-                inner.volume.set_property("volume", target_vol * gain);
-            }
+            volume.set_property("volume", target_vol * gain);
             std::thread::sleep(step_time);
         }
 

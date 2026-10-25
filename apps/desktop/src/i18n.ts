@@ -432,8 +432,13 @@ export interface Translations {
     listenbrainzValid: string;
     listenbrainzInvalid: string;
     listenbrainzAuto: string;
+    listenbrainzTesting: string;
+    listenbrainzRequiresAccount: string;
+    listenbrainzGetToken: string;
     crossfadeTitle: string;
     crossfadeDesc: string;
+    crossfadeDisabled: string;
+    crossfadeTime: string;
     downloadHubBtn: string;
   };
   shortcuts: {
@@ -1112,8 +1117,13 @@ export const translations: Record<Language, Translations> = {
       listenbrainzValid: 'Connected as',
       listenbrainzInvalid: 'Invalid API token or connection failed',
       listenbrainzAuto: 'Automatically scrobble played tracks (>50% elapsed)',
+      listenbrainzTesting: 'Verifying...',
+      listenbrainzRequiresAccount: 'Requires a free account on listenbrainz.org',
+      listenbrainzGetToken: 'Get profile token',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Smooth transition between consecutive tracks (0.0s – 8.0s).',
+      crossfadeDisabled: 'Disabled (0.0s - instant cut)',
+      crossfadeTime: 'Fade duration: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
@@ -1791,8 +1801,13 @@ export const translations: Record<Language, Translations> = {
       listenbrainzValid: 'Połączono jako',
       listenbrainzInvalid: 'Nieprawidłowy token lub błąd połączenia',
       listenbrainzAuto: 'Włącz automatyczne scroblowanie (>50% czasu utworu)',
+      listenbrainzTesting: 'Weryfikacja...',
+      listenbrainzRequiresAccount: 'Wymaga bezpłatnego konta na listenbrainz.org',
+      listenbrainzGetToken: 'Uzyskaj token profilu',
       crossfadeTitle: 'Płynny Crossfade (Equal-power)',
       crossfadeDesc: 'Płynne przejście między utworami z zachowaniem mocy akustycznej (0.0s – 8.0s).',
+      crossfadeDisabled: 'Wyłączony (0.0s - natychmiastowe cięcie)',
+      crossfadeTime: 'Czas przenikania: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
@@ -2470,8 +2485,13 @@ export const translations: Record<Language, Translations> = {
       listenbrainzValid: 'Verbunden als',
       listenbrainzInvalid: 'Ungültiger API-Token',
       listenbrainzAuto: 'Automatisches Scrobbeln aktivieren (>50% gespielt)',
+      listenbrainzTesting: 'Überprüfung...',
+      listenbrainzRequiresAccount: 'Erfordert ein kostenloses Konto auf listenbrainz.org',
+      listenbrainzGetToken: 'Profil-Token abrufen',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Sanfter Übergang zwischen Titeln (0,0s – 8,0s).',
+      crossfadeDisabled: 'Deaktiviert (0.0s - sofortiger Schnitt)',
+      crossfadeTime: 'Überblendzeit: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
@@ -3149,8 +3169,13 @@ export const translations: Record<Language, Translations> = {
       listenbrainzValid: 'Yhdistetty nimellä',
       listenbrainzInvalid: 'Virheellinen tunnus',
       listenbrainzAuto: 'Automaattinen scrobble (>50% toistettu)',
+      listenbrainzTesting: 'Vahvistetaan...',
+      listenbrainzRequiresAccount: 'Vaatii ilmaisen tilin osoitteessa listenbrainz.org',
+      listenbrainzGetToken: 'Hanki profiilitunnus',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Pehmeä siirtymä kappaleiden välillä (0,0s – 8,0s).',
+      crossfadeDisabled: 'Pois päältä (0.0s - välitön leikkaus)',
+      crossfadeTime: 'Häivytysaika: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
@@ -3828,8 +3853,13 @@ export const translations: Record<Language, Translations> = {
       listenbrainzValid: 'Iunctus ut',
       listenbrainzInvalid: 'Tessera invalida',
       listenbrainzAuto: 'Scrobblatio automatica (>50% audito)',
+      listenbrainzTesting: 'Verificatio...',
+      listenbrainzRequiresAccount: 'Rationem gratuitam in listenbrainz.org requirit',
+      listenbrainzGetToken: 'Tesseram profilus impetrare',
       crossfadeTitle: 'Equal-Power Crossfade',
       crossfadeDesc: 'Mollis transitus inter cantus (0.0s – 8.0s).',
+      crossfadeDisabled: 'Inactivum (0.0s - sectio immediata)',
+      crossfadeTime: 'Tempus transitus: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
     },
     shortcuts: {
