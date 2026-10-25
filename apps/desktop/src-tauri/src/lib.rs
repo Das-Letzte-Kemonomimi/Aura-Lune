@@ -476,26 +476,6 @@ fn normalize_art_url(art_url: Option<&str>) -> Option<String> {
     }
     let path = std::path::Path::new(url);
     if path.exists() && path.is_file() {
-        if let Ok(meta) = std::fs::metadata(path) {
-            if meta.len() <= 2 * 1024 * 1024 {
-                if let Ok(bytes) = std::fs::read(path) {
-                    let ext = path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("jpeg")
-                        .to_lowercase();
-                    let mime = match ext.as_str() {
-                        "png" => "image/png",
-                        "webp" => "image/webp",
-                        "gif" => "image/gif",
-                        _ => "image/jpeg",
-                    };
-                    use base64::Engine;
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                    return Some(format!("data:{};base64,{}", mime, b64));
-                }
-            }
-        }
         return Some(format!("file://{}", path.to_string_lossy()));
     }
     None
@@ -536,15 +516,23 @@ fn update_mpris_metadata(
             album.trim().to_lowercase()
         );
 
-        let effective_art = if let Some(art) = &normalized_art {
+        // Do Discord RPC przekazujemy wyłącznie publiczne adresy HTTPS/HTTP.
+        // Lokalny plik (file://) ani base64 nie są dostępne w internecie i psują widok na profilu Discorda.
+        let effective_discord_art = if let Some(art) = &normalized_art {
             if art.starts_with("http://") || art.starts_with("https://") {
                 if let Ok(mut cache) = state.discord_cover_cache.write() {
                     if !cache_key.is_empty() {
                         cache.insert(cache_key.clone(), art.clone());
                     }
                 }
+                Some(art.clone())
+            } else {
+                state
+                    .discord_cover_cache
+                    .read()
+                    .ok()
+                    .and_then(|cache| cache.get(&cache_key).cloned())
             }
-            Some(art.clone())
         } else {
             state
                 .discord_cover_cache
@@ -558,7 +546,7 @@ fn update_mpris_metadata(
             artist: artist.clone(),
             album: album.clone(),
             duration_ms,
-            art_url: effective_art.clone(),
+            art_url: effective_discord_art.clone(),
         });
         let cur_state = state.engine.state();
         let effective_state = if cur_state == PlaybackState::Stopped {
@@ -582,14 +570,13 @@ fn update_mpris_metadata(
         };
         discord.update_playback_status(effective_state, pos, dur);
 
-        // Jeśli okładka nie pochodzi ze sprawdzonego zewnętrznego CDN (Deezer/iTunes/MusicBrainz),
-        // spróbuj pobrać w tle wersję z internetu i uaktualnić
-        let needs_online_search = effective_art
-            .as_deref()
-            .map(|u| !u.starts_with("http://") && !u.starts_with("https://"))
-            .unwrap_or(true);
+        // Jeśli brak adresu HTTPS w pamięci podręcznej i metadane nie są puste,
+        // pobierz w tle okładkę z Deezer/iTunes/MusicBrainz i uaktualnij Discorda
+        let needs_online_search = effective_discord_art.is_none();
 
-        if needs_online_search && (!artist.trim().is_empty() || !album.trim().is_empty()) {
+        if needs_online_search
+            && (!artist.trim().is_empty() || !album.trim().is_empty() || !title.trim().is_empty())
+        {
             let discord_clone = discord.clone();
             let cover_archive = state.cover_archive.clone();
             let cache_clone = state.discord_cover_cache.clone();
@@ -2341,18 +2328,20 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
         });
     }
     if let Some(discord) = &state.discord_rpc {
+        let discord_art = cached_art
+            .as_ref()
+            .filter(|u| u.starts_with("http://") || u.starts_with("https://"))
+            .cloned();
+
         let track_info = desktop_integration::DiscordTrackInfo {
             title: title.clone(),
             artist: artist.clone(),
             album: album.clone(),
             duration_ms,
-            art_url: cached_art.clone(),
+            art_url: discord_art.clone(),
         };
         discord.update_track(track_info);
-        let needs_online_search = cached_art
-            .as_deref()
-            .map(|u| !u.starts_with("http://") && !u.starts_with("https://"))
-            .unwrap_or(true);
+        let needs_online_search = discord_art.is_none();
 
         if needs_online_search && (!artist.trim().is_empty() || !album.trim().is_empty()) {
             let discord_clone = discord.clone();
