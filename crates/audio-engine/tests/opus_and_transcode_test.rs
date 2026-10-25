@@ -291,3 +291,22 @@ fn test_transcode_range_invalid_order_rejected() {
         "Transkoder musi odrzucić nieprawidłowy zakres czasowy"
     );
 }
+
+#[test]
+fn test_transcode_range_with_file_uri_prefix() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let output_wav = root.join("tests/fixtures/test_uri_range.wav");
+    let _ = fs::remove_file(&output_wav);
+
+    let uri_string = format!("file://{}", input_wav.canonicalize().unwrap().display());
+    let range = TimeRange::new(300, Some(900)).unwrap();
+
+    Transcoder::transcode_range(uri_string, &output_wav, ExportFormat::Wav, &range)
+        .expect("Transkodowanie ze ścieżki file:// powinno się powieść");
+
+    assert!(output_wav.exists());
+    let _ = fs::remove_file(&output_wav);
+}

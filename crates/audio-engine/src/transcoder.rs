@@ -48,7 +48,24 @@ impl Transcoder {
         dsp_settings: Option<&DspExportSettings>,
         time_range: Option<&TimeRange>,
     ) -> Result<(), AudioEngineError> {
-        let input = input_path.as_ref();
+        let input_raw = input_path.as_ref();
+        let input_buf;
+        let input = if let Some(path_str) = input_raw.to_str() {
+            if path_str.starts_with("file://") {
+                if let Ok((p, _)) = glib::filename_from_uri(path_str) {
+                    input_buf = p;
+                    input_buf.as_path()
+                } else {
+                    let stripped = path_str.trim_start_matches("file://");
+                    input_buf = std::path::PathBuf::from(stripped);
+                    input_buf.as_path()
+                }
+            } else {
+                input_raw
+            }
+        } else {
+            input_raw
+        };
         let output = output_path.as_ref();
 
         if !input.exists() {

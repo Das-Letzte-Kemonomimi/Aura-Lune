@@ -3880,12 +3880,23 @@ export default function App() {
   };
 
   const handleUseCurrentTrackAsSource = () => {
-    const curPath = currentPlayingTrack?.path || status.current_track?.uri;
+    let curPath = currentPlayingTrack?.path || status.current_track?.uri;
     if (curPath) {
+      if (curPath.startsWith('file://')) {
+        try {
+          curPath = decodeURIComponent(curPath.replace(/^file:\/\//, ''));
+        } catch {
+          curPath = curPath.replace(/^file:\/\//, '');
+        }
+      }
       setFilePath(curPath);
       const lastDot = curPath.lastIndexOf('.');
       const base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
-      setTranscodeOutput(`${base}.${transcodeFormat.toLowerCase()}`);
+      const rangeSuffix =
+        loopPointA !== null || loopPointB !== null
+          ? `_loop_${loopPointA !== null ? loopPointA : 0}-${loopPointB !== null ? loopPointB : 'end'}`
+          : '';
+      setTranscodeOutput(`${base}${rangeSuffix}.${transcodeFormat.toLowerCase()}`);
       if (loopPointA !== null || loopPointB !== null) {
         setTranscodeRangeA(loopPointA !== null ? `${loopPointA}ms` : '0ms');
         setTranscodeRangeB(loopPointB !== null ? `${loopPointB}ms` : '');
@@ -3895,6 +3906,30 @@ export default function App() {
     } else {
       showMessage(loc.queue.emptyQueueNotice, true);
     }
+  };
+
+  const handleExportLoopFromModal = (a: number | null, b: number | null) => {
+    let curPath = currentPlayingTrack?.path || status.current_track?.uri;
+    if (curPath) {
+      if (curPath.startsWith('file://')) {
+        try {
+          curPath = decodeURIComponent(curPath.replace(/^file:\/\//, ''));
+        } catch {
+          curPath = curPath.replace(/^file:\/\//, '');
+        }
+      }
+      setFilePath(curPath);
+      const lastDot = curPath.lastIndexOf('.');
+      const base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
+      const rangeSuffix = `_loop_${a !== null ? a : 0}-${b !== null ? b : 'end'}`;
+      setTranscodeOutput(`${base}${rangeSuffix}.${transcodeFormat.toLowerCase()}`);
+    }
+    setTranscodeRangeA(a !== null ? `${a}ms` : '0ms');
+    setTranscodeRangeB(b !== null ? `${b}ms` : '');
+    setTranscodeApplyRange(true);
+    setSettingsTab('transcode');
+    setIsSettingsOpen(true);
+    showMessage(`Zaimportowano zakres pętli A-B do eksportu: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`);
   };
 
   const handleTranscode = async () => {
@@ -3918,8 +3953,13 @@ export default function App() {
 
       let timeRange: { start_ms: number; end_ms: number | null } | null = null;
       if (transcodeApplyRange) {
-        const parsedA = parseTimeToMs(transcodeRangeA) ?? 0;
-        const parsedB = parseTimeToMs(transcodeRangeB);
+        let parsedA = parseTimeToMs(transcodeRangeA);
+        if (parsedA === null && loopPointA !== null) parsedA = loopPointA;
+        if (parsedA === null) parsedA = 0;
+
+        let parsedB = parseTimeToMs(transcodeRangeB);
+        if (parsedB === null && loopPointB !== null) parsedB = loopPointB;
+
         if (parsedB !== null && parsedB <= parsedA) {
           showMessage(loc.settings.transcodeEndMustBeGreater, true);
           return;
@@ -3930,8 +3970,17 @@ export default function App() {
         };
       }
 
+      let cleanInput = filePath;
+      if (cleanInput.startsWith('file://')) {
+        try {
+          cleanInput = decodeURIComponent(cleanInput.replace(/^file:\/\//, ''));
+        } catch {
+          cleanInput = cleanInput.replace(/^file:\/\//, '');
+        }
+      }
+
       await invoke('transcode_file', {
-        inputPath: filePath,
+        inputPath: cleanInput,
         outputPath: transcodeOutput,
         format: formatObj,
         dspSettings,
@@ -5183,17 +5232,35 @@ const renderDevicesSection = () => (
                     onChange={(e) => {
                       const enabled = e.target.checked;
                       setTranscodeApplyRange(enabled);
-                      if (enabled && !transcodeRangeA && !transcodeRangeB) {
-                        if (loopPointA !== null) setTranscodeRangeA(`${loopPointA}ms`);
-                        else setTranscodeRangeA('0ms');
-                        if (loopPointB !== null) setTranscodeRangeB(`${loopPointB}ms`);
+                      if (enabled) {
+                        if (loopPointA !== null || loopPointB !== null) {
+                          setTranscodeRangeA(loopPointA !== null ? `${loopPointA}ms` : '0ms');
+                          setTranscodeRangeB(loopPointB !== null ? `${loopPointB}ms` : '');
+                        } else if (!transcodeRangeA && !transcodeRangeB) {
+                          setTranscodeRangeA('0ms');
+                        }
                       }
                     }}
                     style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
                   />
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <Scissors size={15} color={transcodeApplyRange ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
                     {loc.settings.transcodeApplyRange}
+                    {(loopPointA !== null || loopPointB !== null) && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          padding: '1px 8px',
+                          borderRadius: '10px',
+                          background: 'rgba(6, 182, 212, 0.22)',
+                          color: 'var(--accent-cyan)',
+                          fontWeight: 700,
+                          border: '1px solid rgba(6, 182, 212, 0.35)',
+                        }}
+                      >
+                        Pętla A-B: {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
+                      </span>
+                    )}
                   </span>
                 </label>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '26px' }}>
@@ -14311,6 +14378,7 @@ const renderDevicesSection = () => (
           }
         }}
         onSeek={handleSeek}
+        onExportLoop={handleExportLoopFromModal}
         loc={loc}
       />
 
