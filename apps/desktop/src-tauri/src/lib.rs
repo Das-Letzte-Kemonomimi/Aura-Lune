@@ -43,6 +43,7 @@ pub struct AppState {
     pub listenbrainz: Arc<ListenBrainzClient>,
     pub downloads: Arc<DownloadManager>,
     pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
+    pub discord_cover_cache: Arc<std::sync::RwLock<std::collections::HashMap<String, String>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -488,12 +489,38 @@ fn update_mpris_metadata(
         });
     }
     if let Some(discord) = &state.discord_rpc {
+        let has_http_art = art_url
+            .as_deref()
+            .map(|u| u.starts_with("http://") || u.starts_with("https://"))
+            .unwrap_or(false);
+
+        let cache_key = format!(
+            "{}---{}",
+            artist.trim().to_lowercase(),
+            album.trim().to_lowercase()
+        );
+
+        let effective_art = if has_http_art {
+            if let Ok(mut cache) = state.discord_cover_cache.write() {
+                if !cache_key.is_empty() {
+                    cache.insert(cache_key.clone(), art_url.clone().unwrap());
+                }
+            }
+            art_url.clone()
+        } else {
+            state
+                .discord_cover_cache
+                .read()
+                .ok()
+                .and_then(|cache| cache.get(&cache_key).cloned())
+        };
+
         discord.update_track(desktop_integration::DiscordTrackInfo {
-            title,
-            artist,
-            album,
+            title: title.clone(),
+            artist: artist.clone(),
+            album: album.clone(),
             duration_ms,
-            art_url,
+            art_url: effective_art.clone(),
         });
         let cur_state = state.engine.state();
         let effective_state = if cur_state == PlaybackState::Stopped {
@@ -516,6 +543,45 @@ fn update_mpris_metadata(
                 .unwrap_or(0)
         };
         discord.update_playback_status(effective_state, pos, dur);
+
+        // Jeśli okładka online nie była jeszcze znana, wyszukaj w tle z Deezer/iTunes
+        if effective_art.is_none() && (!artist.trim().is_empty() || !album.trim().is_empty()) {
+            let discord_clone = discord.clone();
+            let cover_archive = state.cover_archive.clone();
+            let cache_clone = state.discord_cover_cache.clone();
+            let title_c = title.clone();
+            let artist_c = artist.clone();
+            let album_c = album.clone();
+            state.rt.spawn(async move {
+                let mut candidates = cover_archive
+                    .search_cover_candidates(&album_c, &artist_c)
+                    .await;
+                if candidates.is_empty() && !title_c.trim().is_empty() {
+                    candidates = cover_archive
+                        .search_cover_candidates(&title_c, &artist_c)
+                        .await;
+                }
+                if let Some(first) = candidates.first() {
+                    let best_url = if !first.thumbnail_url.is_empty() {
+                        first.thumbnail_url.clone()
+                    } else {
+                        first.full_url.clone()
+                    };
+                    if best_url.starts_with("http://") || best_url.starts_with("https://") {
+                        if let Ok(mut cache) = cache_clone.write() {
+                            cache.insert(cache_key, best_url.clone());
+                        }
+                        discord_clone.update_track(desktop_integration::DiscordTrackInfo {
+                            title: title_c,
+                            artist: artist_c,
+                            album: album_c,
+                            duration_ms,
+                            art_url: Some(best_url),
+                        });
+                    }
+                }
+            });
+        }
     }
     Ok(())
 }
@@ -2201,14 +2267,29 @@ fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), String>
 }
 
 fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
+    let title = item.title.clone();
+    let artist = item.artist.clone();
+    let album = item.album.clone().unwrap_or_default();
+    let duration_ms = item.duration_ms;
+    let cache_key = format!(
+        "{}---{}",
+        artist.trim().to_lowercase(),
+        album.trim().to_lowercase()
+    );
+    let cached_art = state
+        .discord_cover_cache
+        .read()
+        .ok()
+        .and_then(|c| c.get(&cache_key).cloned());
+
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
         let track_info = desktop_integration::MprisTrackInfo {
-            title: item.title.clone(),
-            artist: item.artist.clone(),
-            album: item.album.clone().unwrap_or_default(),
-            duration_ms: item.duration_ms,
-            art_url: None,
+            title: title.clone(),
+            artist: artist.clone(),
+            album: album.clone(),
+            duration_ms,
+            art_url: cached_art.clone(),
         };
         state.rt.spawn(async move {
             m.update_track(track_info).await;
@@ -2217,14 +2298,52 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
     }
     if let Some(discord) = &state.discord_rpc {
         let track_info = desktop_integration::DiscordTrackInfo {
-            title: item.title.clone(),
-            artist: item.artist.clone(),
-            album: item.album.clone().unwrap_or_default(),
-            duration_ms: item.duration_ms,
-            art_url: None,
+            title: title.clone(),
+            artist: artist.clone(),
+            album: album.clone(),
+            duration_ms,
+            art_url: cached_art.clone(),
         };
         discord.update_track(track_info);
-        discord.update_playback_status(PlaybackState::Playing, 0, item.duration_ms);
+        discord.update_playback_status(PlaybackState::Playing, 0, duration_ms);
+
+        if cached_art.is_none() && (!artist.trim().is_empty() || !album.trim().is_empty()) {
+            let discord_clone = discord.clone();
+            let cover_archive = state.cover_archive.clone();
+            let cache_clone = state.discord_cover_cache.clone();
+            let title_c = title.clone();
+            let artist_c = artist.clone();
+            let album_c = album.clone();
+            state.rt.spawn(async move {
+                let mut candidates = cover_archive
+                    .search_cover_candidates(&album_c, &artist_c)
+                    .await;
+                if candidates.is_empty() && !title_c.trim().is_empty() {
+                    candidates = cover_archive
+                        .search_cover_candidates(&title_c, &artist_c)
+                        .await;
+                }
+                if let Some(first) = candidates.first() {
+                    let best_url = if !first.thumbnail_url.is_empty() {
+                        first.thumbnail_url.clone()
+                    } else {
+                        first.full_url.clone()
+                    };
+                    if best_url.starts_with("http://") || best_url.starts_with("https://") {
+                        if let Ok(mut cache) = cache_clone.write() {
+                            cache.insert(cache_key, best_url.clone());
+                        }
+                        discord_clone.update_track(desktop_integration::DiscordTrackInfo {
+                            title: title_c,
+                            artist: artist_c,
+                            album: album_c,
+                            duration_ms,
+                            art_url: Some(best_url),
+                        });
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -3287,6 +3406,7 @@ pub fn run() {
                     listenbrainz: Arc::new(ListenBrainzClient::new()),
                     downloads: Arc::new(DownloadManager::new()),
                     latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
+                    discord_cover_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
                 };
 
                 app.manage(app_state);
