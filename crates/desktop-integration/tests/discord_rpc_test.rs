@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_discord_rpc_controller_lifecycle() {
-    let controller = DiscordRpcController::start(true, None);
+    let controller = DiscordRpcController::start(None, true, None);
 
     // 1. Sprawdzenie stanu początkowego
     let initial_status = controller.get_status();

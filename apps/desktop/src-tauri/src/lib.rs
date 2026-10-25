@@ -3248,9 +3248,11 @@ pub fn run() {
                 });
 
                 let discord_rpc = Some(desktop_integration::DiscordRpcController::start(
+                    Some(rt.handle()),
                     discord_enabled,
                     discord_client_id,
                 ));
+
 
                 let app_state = AppState {
                     engine,

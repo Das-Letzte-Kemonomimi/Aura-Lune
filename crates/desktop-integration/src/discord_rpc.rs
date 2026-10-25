@@ -56,8 +56,12 @@ pub struct DiscordRpcController {
 }
 
 impl DiscordRpcController {
-    /// Tworzy i uruchamia kontroler Discord RPC w tle.
-    pub fn start(enabled: bool, client_id: Option<String>) -> Arc<Self> {
+    /// Tworzy i uruchamia kontroler Discord RPC w tle przy użyciu podanego lub bieżącego uchwytu Tokio.
+    pub fn start(
+        handle: Option<&tokio::runtime::Handle>,
+        enabled: bool,
+        client_id: Option<String>,
+    ) -> Arc<Self> {
         let initial_client_id = client_id
             .filter(|id| !id.trim().is_empty())
             .unwrap_or_else(|| DEFAULT_DISCORD_CLIENT_ID.to_string());
@@ -72,10 +76,18 @@ impl DiscordRpcController {
         let (tx, rx) = mpsc::unbounded_channel();
         let status_clone = status.clone();
 
-        tokio::spawn(async move {
-            let mut worker = DiscordRpcWorker::new(enabled, initial_client_id, status_clone);
-            worker.run(rx).await;
-        });
+        let spawner = handle
+            .cloned()
+            .or_else(|| tokio::runtime::Handle::try_current().ok());
+
+        if let Some(h) = spawner {
+            h.spawn(async move {
+                let mut worker = DiscordRpcWorker::new(enabled, initial_client_id, status_clone);
+                worker.run(rx).await;
+            });
+        } else {
+            tracing::warn!("Nie można uruchomić DiscordRpcWorker: brak aktywnego środowiska uruchomieniowego Tokio");
+        }
 
         Arc::new(Self { tx, status })
     }
