@@ -11,6 +11,8 @@ async fn test_discord_rpc_controller_lifecycle() {
     assert!(initial_status.enabled);
     assert_eq!(initial_status.client_id, DEFAULT_DISCORD_CLIENT_ID);
 
+
+
     // 2. Wysłanie informacji o utworze
     controller.update_track(DiscordTrackInfo {
         title: "Kitsune Starlight".into(),
