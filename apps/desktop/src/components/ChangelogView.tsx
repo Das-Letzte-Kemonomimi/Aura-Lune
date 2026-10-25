@@ -25,6 +25,27 @@ const RELEASES: ChangelogRelease[] = [
     isLatest: true,
     added: [
       {
+        pl: 'Transliteracja Romaji tekstów japońskich (Hepburn Romanization): silnik Hiragana/Katakana z digrafami Youon, podwajaniem sokuon, choonpu i trybem dwuwiersza karaoke (JOYSOUND/DAM).',
+        en: 'Romaji Lyrics Transliteration (Hepburn Romanization): Hiragana/Katakana engine with Youon digraphs, sokuon doubling, choonpu, and dual karaoke display mode (JOYSOUND/DAM style).',
+        de: 'Romaji-Songtext-Umschrift (Hepburn): Hiragana/Katakana-Engine mit Youon-Digraphen, Sokuon-Verdopplung, Choonpu und Karaoke-Dual-Modus.',
+        fi: 'Romaji-sanoituslatinisointi (Hepburn): Hiragana/Katakana-moottori Youon-digrafeilla, sokuon-kahdennuksella, choonpulla ja kaksoisrivisellä karaoke-tilalla.',
+        la: 'Translatio Romaji versuum (Hepburniana): machina Hiragana/Katakana cum digraphis Youon, geminatione sokuon et modo versuum bilineari karaoke.',
+      },
+      {
+        pl: 'Pływający pasek tekstu na pulpicie (Desktop Lyrics Overlay): półprzezroczysty, przesuwalny widżet karaoke z podglądem nadchodzącego wersu, przełącznikiem Romaji i kontrolkami.',
+        en: 'Floating Desktop Lyrics Overlay: draggable glass karaoke HUD bar with upcoming line preview, Romaji toggle, and compact playback controls.',
+        de: 'Schwebendes Desktop-Songtext-Overlay: verschiebbares Glas-Karaoke-Widget mit Zeilenvorschau, Romaji-Umschaltung und Audiosteuerung.',
+        fi: 'Kelluva työpöydän sanoitusleiju: siirrettävä lasinen karaoke-palkki seuraavan säkeen esikatselulla, Romaji-valinnalla ja toistosäätimillä.',
+        la: 'Instrumentum versuum fluctuans: tabula vitrea karaoke motabilis cum praevisu versus insequentis, Romaji optione et clavibus cantus.',
+      },
+      {
+        pl: 'Tryb Wirującego Winylu i Retro Kasety Magnetofonowej w BigScreenView: realistyczna płyta LP z metalicznym ramieniem gramofonu oraz kaseta magnetofonowa z lat 90. z kręcącymi się szpulami.',
+        en: 'Spinning Vinyl LP & Retro Cassette Visualizer in BigScreenView: realistic grooved vinyl record with moving tonearm, plus authentic 90s audio cassette with rotating tape spools.',
+        de: 'Vinyl-Schallplatte & Retro-Kassette im BigScreenView: authentische LP mit Tonarm sowie 90er-Jahre-Kassette mit rotierenden Spulen und dynamischem Magnetband.',
+        fi: 'Pyörivä vinyylilevy ja retro-kasetti BigScreenViewssä: aito uritettu vinyyli äänivarrella sekä 90-luvun C-kasetti pyörivillä keloilla ja magneettinauhalla.',
+        la: 'Discus Vinyleus et Capsula Retronica in BigScreenView: discus canorus cum brachio gramophoni et capsula magnetica saeculi XX cum rotulis vertentibus.',
+      },
+      {
         pl: 'Bauer Crossfeed dla słuchawek (bs2b): wirtualizacja akustyki głośników stereo redukująca zmęczenie uszu (presety Default 30°/3m, Chu Moy, Jan Meier Corda oraz Custom).',
         en: 'Bauer Headphone Crossfeed (bs2b): binaural speaker virtualization reducing ear fatigue on hard-panned stereo recordings (Default 30°/3m, Chu Moy, Jan Meier Corda, and Custom presets).',
         de: 'Bauer Kopfhörer-Crossfeed (bs2b): Binaurale Lautsprecher-Simulation zur Reduzierung von Hörermüdung (Standard 30°/3m, Chu Moy, Jan Meier Corda und benutzerdefinierte Voreinstellungen).',

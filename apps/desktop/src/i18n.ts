@@ -620,6 +620,11 @@ export interface Translations {
     closeTooltip: string;
     syncModeTitle: string;
     syncLineAction: string;
+    romajiModeKana: string;
+    romajiModeRomaji: string;
+    romajiModeDual: string;
+    romajiModeTooltip: string;
+    desktopLyricsToggle: string;
   };
   quickVibes: {
     label: string;
@@ -731,6 +736,24 @@ export interface Translations {
     unmutedMsg: string;
     openedFolder: string;
     openFolderError: string;
+  };
+  bigScreenModes: {
+    cover: string;
+    vinyl: string;
+    cassette: string;
+    sideA: string;
+    stereo: string;
+  };
+  desktopOverlay: {
+    title: string;
+    dragHint: string;
+    lockPosition: string;
+    unlockPosition: string;
+    fontSize: string;
+    opacity: string;
+    closeTooltip: string;
+    noLyrics: string;
+    upcoming: string;
   };
 }
 
@@ -1355,6 +1378,11 @@ export const translations: Record<Language, Translations> = {
       closeTooltip: 'Close lyrics view',
       syncModeTitle: 'Toggle manual timestamp sync mode',
       syncLineAction: '⏱ Sync',
+      romajiModeKana: 'Kana (Original)',
+      romajiModeRomaji: 'Romaji',
+      romajiModeDual: 'Dual (Kana + Romaji)',
+      romajiModeTooltip: 'Lyrics Romanization (Kana / Romaji / Karaoke Dual)',
+      desktopLyricsToggle: 'Floating Desktop Lyrics Overlay',
     },
     quickVibes: {
       label: 'DSP VIBE PROFILE:',
@@ -1466,6 +1494,24 @@ export const translations: Record<Language, Translations> = {
       unmutedMsg: 'Sound unmuted',
       openedFolder: 'Opened folder in file manager: {0}',
       openFolderError: 'Failed to open folder: {0}',
+    },
+    bigScreenModes: {
+      cover: 'Album Art',
+      vinyl: 'Vinyl LP',
+      cassette: 'Retro Cassette',
+      sideA: 'SIDE A • STEREO',
+      stereo: 'HIGH FIDELITY TAPE',
+    },
+    desktopOverlay: {
+      title: 'Desktop Lyrics Overlay',
+      dragHint: 'Drag to move widget',
+      lockPosition: 'Lock Position',
+      unlockPosition: 'Unlock Position',
+      fontSize: 'Text Size',
+      opacity: 'Background Opacity',
+      closeTooltip: 'Close Desktop Lyrics',
+      noLyrics: '♪ No synchronized lyrics ♪',
+      upcoming: 'Upcoming:',
     },
   },
 
@@ -2089,6 +2135,11 @@ export const translations: Record<Language, Translations> = {
       closeTooltip: 'Zamknij widok tekstów',
       syncModeTitle: 'Przełącz tryb manualnej synchronizacji i edycji znaczników czasu',
       syncLineAction: '⏱ Sync',
+      romajiModeKana: 'Kana (Oryginał)',
+      romajiModeRomaji: 'Romaji',
+      romajiModeDual: 'Dwuwiersz (Kana + Romaji)',
+      romajiModeTooltip: 'Transliteracja Hepburna (Kana / Romaji / Karaoke Dwuwiersz)',
+      desktopLyricsToggle: 'Pływający pasek tekstu na pulpicie',
     },
     quickVibes: {
       label: 'PROFIL KLIMATYCZNY DSP:',
@@ -2200,6 +2251,24 @@ export const translations: Record<Language, Translations> = {
       unmutedMsg: 'Przywrócono dźwięk',
       openedFolder: 'Otwarto folder w menedżerze plików: {0}',
       openFolderError: 'Błąd otwierania folderu: {0}',
+    },
+    bigScreenModes: {
+      cover: 'Okładka',
+      vinyl: 'Płyta Winylowa',
+      cassette: 'Retro Kaseta',
+      sideA: 'STRONA A • STEREO',
+      stereo: 'TAŚMA MAGNETOFONOWA HI-FI',
+    },
+    desktopOverlay: {
+      title: 'Pływający widżet tekstu',
+      dragHint: 'Przeciągnij, aby przesunąć',
+      lockPosition: 'Zablokuj pozycję',
+      unlockPosition: 'Odblokuj pozycję',
+      fontSize: 'Rozmiar czcionki',
+      opacity: 'Przezroczystość tła',
+      closeTooltip: 'Zamknij widżet tekstu',
+      noLyrics: '♪ Brak zsynchronizowanego tekstu ♪',
+      upcoming: 'Następny wers:',
     },
   },
 
@@ -2823,6 +2892,11 @@ export const translations: Record<Language, Translations> = {
       closeTooltip: 'Songtext-Ansicht schließen',
       syncModeTitle: 'Manuellen Synchronisationsmodus umschalten',
       syncLineAction: '⏱ Sync',
+      romajiModeKana: 'Kana (Original)',
+      romajiModeRomaji: 'Romaji',
+      romajiModeDual: 'Dual (Kana + Romaji)',
+      romajiModeTooltip: 'Hepburn-Umschrift (Kana / Romaji / Karaoke Dual)',
+      desktopLyricsToggle: 'Schwebendes Desktop-Songtext-Overlay',
     },
     quickVibes: {
       label: 'DSP-VIBE-PROFIL:',
@@ -2934,6 +3008,24 @@ export const translations: Record<Language, Translations> = {
       unmutedMsg: 'Ton wiederhergestellt',
       openedFolder: 'Ordner im Dateimanager geöffnet: {0}',
       openFolderError: 'Fehler beim Öffnen des Ordners: {0}',
+    },
+    bigScreenModes: {
+      cover: 'Album-Cover',
+      vinyl: 'Vinyl-Schallplatte',
+      cassette: 'Retro-Kassette',
+      sideA: 'SEITE A • STEREO',
+      stereo: 'HI-FI MAGNETBAND',
+    },
+    desktopOverlay: {
+      title: 'Desktop Songtext-Widget',
+      dragHint: 'Ziehen zum Verschieben',
+      lockPosition: 'Position sperren',
+      unlockPosition: 'Position entsperren',
+      fontSize: 'Schriftgröße',
+      opacity: 'Deckkraft',
+      closeTooltip: 'Songtext-Widget schließen',
+      noLyrics: '♪ Keine synchronisierten Songtexte ♪',
+      upcoming: 'Nächste Zeile:',
     },
   },
 
@@ -3557,6 +3649,11 @@ export const translations: Record<Language, Translations> = {
       closeTooltip: 'Sulje sanoitusnäkymä',
       syncModeTitle: 'Vaihda manuaaliseen synkronointitilaan',
       syncLineAction: '⏱ Sync',
+      romajiModeKana: 'Kana (Alkuperäinen)',
+      romajiModeRomaji: 'Romaji',
+      romajiModeDual: 'Kaksoisrivi (Kana + Romaji)',
+      romajiModeTooltip: 'Hepburn-latinisointi (Kana / Romaji / Karaoke)',
+      desktopLyricsToggle: 'Kelluva työpöydän sanoituspalkki',
     },
     quickVibes: {
       label: 'DSP-TUNNELMAPROFIILI:',
@@ -3668,6 +3765,24 @@ export const translations: Record<Language, Translations> = {
       unmutedMsg: 'Ääni palautettu',
       openedFolder: 'Kansio avattu tiedostonhallinnassa: {0}',
       openFolderError: 'Kansion avaaminen epäonnistui: {0}',
+    },
+    bigScreenModes: {
+      cover: 'Kansikuva',
+      vinyl: 'Vinyylilevy',
+      cassette: 'Retro-kasetti',
+      sideA: 'PUOLI A • STEREO',
+      stereo: 'HI-FI MAGNEETTINAUHA',
+    },
+    desktopOverlay: {
+      title: 'Työpöydän sanoitusleiju',
+      dragHint: 'Raahaa siirtääksesi',
+      lockPosition: 'Lukitse sijainti',
+      unlockPosition: 'Avaa sijainti',
+      fontSize: 'Tekstikoko',
+      opacity: 'Taustan läpinäkyvyys',
+      closeTooltip: 'Sulje sanoitusleiju',
+      noLyrics: '♪ Ei tahdistettuja sanoituksia ♪',
+      upcoming: 'Seuraava säe:',
     },
   },
 
@@ -4291,6 +4406,11 @@ export const translations: Record<Language, Translations> = {
       closeTooltip: 'Claude aspectum carminum',
       syncModeTitle: 'Muta modum manualem synchronizandi',
       syncLineAction: '⏱ Sync',
+      romajiModeKana: 'Kana (Primum)',
+      romajiModeRomaji: 'Romaji',
+      romajiModeDual: 'Bilinearis (Kana + Romaji)',
+      romajiModeTooltip: 'Translatio Hepburniana (Kana / Romaji / Karaoke)',
+      desktopLyricsToggle: 'Tabula versuum fluctuans',
     },
     quickVibes: {
       label: 'MODUS DSP CELER:',
@@ -4402,6 +4522,24 @@ export const translations: Record<Language, Translations> = {
       unmutedMsg: 'Sonus restitutus',
       openedFolder: 'Capsa aperta in procuratore: {0}',
       openFolderError: 'Error in aperienda capsa: {0}',
+    },
+    bigScreenModes: {
+      cover: 'Tegumentum',
+      vinyl: 'Discus Vinyleus',
+      cassette: 'Capsula Retronica',
+      sideA: 'PARS A • STEREO',
+      stereo: 'TAPE MAGNETICA HI-FI',
+    },
+    desktopOverlay: {
+      title: 'Instrumentum versuum fluctuans',
+      dragHint: 'Trahe ad movendum',
+      lockPosition: 'Claude situm',
+      unlockPosition: 'Aperi situm',
+      fontSize: 'Magnitudo litterarum',
+      opacity: 'Obscuritas fundi',
+      closeTooltip: 'Claude versuum instrumentum',
+      noLyrics: '♪ Nulli versus synchronizati ♪',
+      upcoming: 'Versus insequens:',
     },
   },
 };

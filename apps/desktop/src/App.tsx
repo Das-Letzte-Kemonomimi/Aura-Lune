@@ -69,11 +69,13 @@ import {
   Scissors,
   FileEdit,
   Layers,
+  Tv,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { LyricsView } from './components/LyricsView';
+import { DesktopLyricsOverlay } from './components/DesktopLyricsOverlay';
 import { MiniPlayerWidget } from './components/MiniPlayerWidget';
 import { AnimeAmbienceFX, type AmbienceMode } from './components/AnimeAmbienceFX';
 import { BigScreenView } from './components/BigScreenView';
@@ -858,6 +860,25 @@ export default function App() {
 
   // Stan tekstów piosenek (Synchronized Lyrics LRC / LRCLIB)
   const [showLyrics, setShowLyrics] = useState(false);
+
+  // Stan pływającego widżetu tekstu na pulpicie (Desktop Lyrics Overlay)
+  const [showDesktopLyrics, setShowDesktopLyrics] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('auralune_desktop_lyrics_open') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDesktopLyrics = () => {
+    setShowDesktopLyrics((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('auralune_desktop_lyrics_open', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Stan Mini-Player (Floating PiP Widget)
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
@@ -7761,6 +7782,29 @@ const renderDevicesSection = () => (
           </button>
 
           <button
+            onClick={toggleDesktopLyrics}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: showDesktopLyrics ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+              border: showDesktopLyrics ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+              color: showDesktopLyrics ? 'var(--accent-purple)' : '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: showDesktopLyrics ? '0 0 12px rgba(168, 85, 247, 0.35)' : 'none',
+            }}
+            title={loc.lyricsView.desktopLyricsToggle}
+          >
+            <Tv size={15} />
+            HUD
+          </button>
+
+          <button
             onClick={cycleAmbienceMode}
             style={{
               padding: '8px 14px',
@@ -14145,6 +14189,25 @@ const renderDevicesSection = () => (
           onUploadCover={() => handleUploadCustomCoverDirect(currentAlbum)}
         />
       )}
+
+      {/* Pływający widżet tekstu na pulpicie (Desktop Lyrics Overlay) */}
+      <DesktopLyricsOverlay
+        isOpen={showDesktopLyrics}
+        onClose={() => setShowDesktopLyrics(false)}
+        trackTitle={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
+        trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
+        trackAlbum={currentAlbum?.title || currentPlayingTrack?.album_artist || status.current_track?.album || null}
+        trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
+        coverUrl={currentCover}
+        durationMs={status.duration_ms}
+        positionMs={status.position_ms}
+        isPlaying={status.state === 'Playing'}
+        currentLang={language}
+        onPlayPause={handlePlayPause}
+        onPrev={handlePrevious}
+        onNext={handleNext}
+        onSeek={handleSeek}
+      />
 
       {/* Modal Wyłącznika Czasowego (Sleep Timer z łagodnym Fade-Out) */}
       <SleepTimerModal
