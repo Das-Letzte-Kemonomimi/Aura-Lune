@@ -395,6 +395,7 @@ export default function App() {
             prev.map((a) => (a.id === targetAlbumId ? { ...a, cover_path: coverDataUri } : a))
           );
         }
+        setTrackDirectCover(coverDataUri);
         showMessage(loc.covers.customCoverSaved.replace('{0}', targetTitle));
         await loadLibrary();
       }
@@ -1060,13 +1061,9 @@ export default function App() {
   const getQueueTrackMeta = (item: QueueItem) => {
     const tr = tracks.find((t) => (item.track_id != null && t.id === item.track_id) || t.path === item.uri);
     let al = tr && tr.album_id ? albums.find((a) => a.id === tr.album_id) : null;
-    if (!al && tr) {
-      al =
-        albums.find(
-          (a) =>
-            (tr.album_artist && a.title.toLowerCase() === tr.album_artist.toLowerCase()) ||
-            (tr.artist && a.album_artist.toLowerCase() === tr.artist.toLowerCase())
-        ) || null;
+    if (!al && item.album) {
+      const albTitle = item.album.trim().toLowerCase();
+      al = albums.find((a) => a.title.trim().toLowerCase() === albTitle) || null;
     }
     const ext = item.uri.split('.').pop()?.toUpperCase() || 'AUDIO';
     return {
@@ -1330,18 +1327,24 @@ export default function App() {
     return null;
   }, [tracks, status.current_track?.track_id, status.current_track?.uri, filePath, activeTrackId]);
   const currentAlbum = useMemo(() => {
-    if (!currentPlayingTrack) return null;
-    if (currentPlayingTrack.album_id) {
+    if (currentPlayingTrack?.album_id) {
       const found = albums.find((a) => a.id === currentPlayingTrack.album_id);
       if (found) return found;
     }
-    const albTitle = (currentPlayingTrack.album_artist || status.current_track?.album || '').toLowerCase();
+    const albTitle = (status.current_track?.album || '').trim().toLowerCase();
+    const albArtist = (currentPlayingTrack?.artist || currentPlayingTrack?.album_artist || status.current_track?.artist || '').trim().toLowerCase();
     if (albTitle) {
-      const found = albums.find((a) => a.title.toLowerCase() === albTitle);
+      if (albArtist) {
+        const foundExact = albums.find(
+          (a) => a.title.trim().toLowerCase() === albTitle && a.album_artist.trim().toLowerCase() === albArtist
+        );
+        if (foundExact) return foundExact;
+      }
+      const found = albums.find((a) => a.title.trim().toLowerCase() === albTitle);
       if (found) return found;
     }
     return null;
-  }, [albums, currentPlayingTrack, status.current_track?.album]);
+  }, [albums, currentPlayingTrack, status.current_track?.album, status.current_track?.artist]);
 
   const [trackDirectCover, setTrackDirectCover] = useState<string | null>(null);
 
@@ -1555,11 +1558,12 @@ export default function App() {
               setScrobbledTrackId(trackId);
               const currentTrackObj = tracks.find((t) => t.id === trackId);
               if (currentTrackObj) {
+                const trackAlb = currentTrackObj.album_id ? albums.find((a) => a.id === currentTrackObj.album_id)?.title : null;
                 invoke('submit_listenbrainz_listen', {
                   token: listenbrainzToken,
                   artist: currentTrackObj.artist,
                   title: currentTrackObj.title,
-                  album: currentTrackObj.album_artist || null,
+                  album: trackAlb || null,
                   durationMs: currentTrackObj.duration_ms || null,
                   listenedAt: Math.floor(Date.now() / 1000),
                 })
@@ -1583,12 +1587,13 @@ export default function App() {
               setLastfmScrobbledTrackId(trackId);
               const currentTrackObj = tracks.find((t) => t.id === trackId);
               if (currentTrackObj) {
+                const trackAlb = currentTrackObj.album_id ? albums.find((a) => a.id === currentTrackObj.album_id)?.title : null;
                 invoke('lastfm_scrobble', {
                   request: {
                     session_key: lastfmSessionKey,
                     artist: currentTrackObj.artist,
                     track: currentTrackObj.title,
-                    album: currentTrackObj.album_artist || null,
+                    album: trackAlb || null,
                     timestamp: Math.floor(Date.now() / 1000),
                     duration_sec: currentTrackObj.duration_ms ? Math.round(currentTrackObj.duration_ms / 1000) : null,
                     api_key: lastfmCustomKey.trim() || null,
@@ -2377,7 +2382,7 @@ export default function App() {
       invoke('update_mpris_metadata', {
         title: track.title,
         artist: track.artist,
-        album: matchingAlbum?.title || track.album_artist || 'Auralune Library',
+        album: matchingAlbum?.title || 'Auralune Library',
         durationMs: track.duration_ms,
         artUrl: appCover,
       }).catch(() => {});
@@ -2406,7 +2411,7 @@ export default function App() {
       if (desktopNotificationsEnabled) {
         invoke('show_desktop_notification', {
           title: track.title,
-          body: `${track.artist} • ${track.album_artist || 'Auralune'}`,
+          body: matchingAlbum?.title ? `${track.artist} • ${matchingAlbum.title}` : track.artist,
           icon: null,
         }).catch(() => {});
       }
@@ -2418,7 +2423,7 @@ export default function App() {
           token: listenbrainzToken,
           artist: track.artist,
           title: track.title,
-          album: track.album_artist || null,
+          album: matchingAlbum?.title || null,
           durationMs: track.duration_ms || null,
         }).catch((e) => console.warn('ListenBrainz Playing Now error:', e));
       }
@@ -2431,7 +2436,7 @@ export default function App() {
             session_key: lastfmSessionKey,
             artist: track.artist,
             track: track.title,
-            album: track.album_artist || null,
+            album: matchingAlbum?.title || null,
             duration_sec: track.duration_ms ? Math.round(track.duration_ms / 1000) : null,
             timestamp: null,
             api_key: lastfmCustomKey.trim() || null,
@@ -2511,7 +2516,7 @@ export default function App() {
       invoke('update_mpris_metadata', {
         title: matchingTrack?.title || filename,
         artist: matchingTrack?.artist || 'Plik lokalny',
-        album: matchingAlbum?.title || matchingTrack?.album_artist || 'Auralune Player',
+        album: matchingAlbum?.title || 'Auralune Player',
         durationMs: matchingTrack?.duration_ms || 0,
         artUrl: appCover,
       }).catch(() => {});
@@ -2884,13 +2889,14 @@ export default function App() {
 
   const handleAddTrackToQueue = async (track: TrackRecord, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    const matchingAlb = track.album_id ? albums.find((a) => a.id === track.album_id) : null;
     const item: QueueItem = {
       id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       track_id: track.id,
       uri: track.path,
       title: track.title,
       artist: track.artist,
-      album: track.album_artist || null,
+      album: matchingAlb?.title || null,
       duration_ms: track.duration_ms,
     };
     try {
@@ -2904,13 +2910,14 @@ export default function App() {
 
   const handleAddTrackNextToQueue = async (track: TrackRecord, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    const matchingAlb = track.album_id ? albums.find((a) => a.id === track.album_id) : null;
     const item: QueueItem = {
       id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       track_id: track.id,
       uri: track.path,
       title: track.title,
       artist: track.artist,
-      album: track.album_artist || null,
+      album: matchingAlb?.title || null,
       duration_ms: track.duration_ms,
     };
     try {
@@ -2936,15 +2943,18 @@ export default function App() {
 
   const handlePlayAllTracks = async (trackList: TrackRecord[], startIndex = 0) => {
     if (trackList.length === 0) return;
-    const items: QueueItem[] = trackList.map((t, idx) => ({
-      id: `q-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
-      track_id: t.id,
-      uri: t.path,
-      title: t.title,
-      artist: t.artist,
-      album: t.album_artist || null,
-      duration_ms: t.duration_ms,
-    }));
+    const items: QueueItem[] = trackList.map((t, idx) => {
+      const alb = t.album_id ? albums.find((a) => a.id === t.album_id) : null;
+      return {
+        id: `q-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+        track_id: t.id,
+        uri: t.path,
+        title: t.title,
+        artist: t.artist,
+        album: alb?.title || null,
+        duration_ms: t.duration_ms,
+      };
+    });
     try {
       await invoke('set_queue', { items, startIndex });
       await refreshQueue();
@@ -8348,7 +8358,7 @@ const renderDevicesSection = () => (
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist} {currentAlbum?.title || currentPlayingTrack?.album_artist || status.current_track?.album ? `• ${currentAlbum?.title || currentPlayingTrack?.album_artist || status.current_track?.album}` : ''}
+                        {currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
                       </p>
                     </div>
 
@@ -14167,7 +14177,7 @@ const renderDevicesSection = () => (
         <BigScreenView
           title={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
           artist={currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
-          album={currentAlbum?.title || currentPlayingTrack?.album_artist || status.current_track?.album || null}
+          album={currentAlbum?.title || status.current_track?.album || null}
           format={currentPlayingTrack?.format || 'FLAC'}
           coverUrl={currentCover}
           trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
@@ -14196,7 +14206,7 @@ const renderDevicesSection = () => (
         onClose={() => setShowDesktopLyrics(false)}
         trackTitle={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
         trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
-        trackAlbum={currentAlbum?.title || currentPlayingTrack?.album_artist || status.current_track?.album || null}
+        trackAlbum={currentAlbum?.title || status.current_track?.album || null}
         trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
         coverUrl={currentCover}
         durationMs={status.duration_ms}
@@ -14377,6 +14387,7 @@ const renderDevicesSection = () => (
             if (matching) {
               targetPath = matching.path;
             }
+            const matchingAlb = matching?.album_id ? albums.find((a) => a.id === matching.album_id) : null;
             for (const ct of cueTracks) {
               const item: QueueItem = {
                 id: `cue-${ct.number}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -14384,7 +14395,7 @@ const renderDevicesSection = () => (
                 uri: targetPath,
                 title: ct.title,
                 artist: ct.performer || matching?.artist || 'Unknown',
-                album: matching?.album_artist || null,
+                album: matchingAlb?.title || null,
                 duration_ms: ct.duration_ms || 180000,
               };
               await invoke('add_to_queue', { item });
