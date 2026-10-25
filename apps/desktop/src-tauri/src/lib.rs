@@ -2057,6 +2057,9 @@ fn apply_cover_url(
     );
     let cover_archive = state.cover_archive.clone();
     let db = state.db.clone();
+    let discord_cover_cache = state.discord_cover_cache.clone();
+    let discord_rpc = state.discord_rpc.clone();
+    let engine = state.engine.clone();
 
     state.rt.block_on(async move {
         let actual_album_id = if album_id > 0 {
@@ -2086,6 +2089,38 @@ fn apply_cover_url(
         }
         if let Some(title) = &album_title {
             let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
+        }
+
+        if let Some(art) = &artist {
+            if let Some(alb) = &album_title {
+                let cache_key = format!(
+                    "{}---{}",
+                    art.trim().to_lowercase(),
+                    alb.trim().to_lowercase()
+                );
+                if cover_url.starts_with("http://") || cover_url.starts_with("https://") {
+                    if let Ok(mut cache) = discord_cover_cache.write() {
+                        cache.insert(cache_key, cover_url.clone());
+                    }
+                    if let Some(discord) = &discord_rpc {
+                        let dur = engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
+                        let pos = engine.position().map(|p| p.as_millis() as u64).unwrap_or(0);
+                        let current_title = engine
+                            .queue()
+                            .current_item()
+                            .map(|i| i.title.clone())
+                            .unwrap_or_default();
+                        discord.update_track(desktop_integration::DiscordTrackInfo {
+                            title: current_title,
+                            artist: art.clone(),
+                            album: alb.clone(),
+                            duration_ms: dur,
+                            art_url: Some(cover_url.clone()),
+                        });
+                        discord.update_playback_status(engine.state(), pos, dur);
+                    }
+                }
+            }
         }
 
         let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
@@ -2137,6 +2172,9 @@ fn apply_custom_cover_file(
 
     let cover_archive = state.cover_archive.clone();
     let db = state.db.clone();
+    let discord_cover_cache = state.discord_cover_cache.clone();
+    let discord_rpc = state.discord_rpc.clone();
+    let engine = state.engine.clone();
 
     state.rt.block_on(async move {
         let actual_album_id = if album_id > 0 {
@@ -2166,6 +2204,36 @@ fn apply_custom_cover_file(
         }
         if let Some(title) = &album_title {
             let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
+        }
+
+        if let Some(art) = &artist {
+            if let Some(alb) = &album_title {
+                let cache_key = format!(
+                    "{}---{}",
+                    art.trim().to_lowercase(),
+                    alb.trim().to_lowercase()
+                );
+                if let Ok(mut cache) = discord_cover_cache.write() {
+                    cache.remove(&cache_key);
+                }
+                if let Some(discord) = &discord_rpc {
+                    let dur = engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
+                    let pos = engine.position().map(|p| p.as_millis() as u64).unwrap_or(0);
+                    let current_title = engine
+                        .queue()
+                        .current_item()
+                        .map(|i| i.title.clone())
+                        .unwrap_or_default();
+                    discord.update_track(desktop_integration::DiscordTrackInfo {
+                        title: current_title,
+                        artist: art.clone(),
+                        album: alb.clone(),
+                        duration_ms: dur,
+                        art_url: None,
+                    });
+                    discord.update_playback_status(engine.state(), pos, dur);
+                }
+            }
         }
 
         use base64::Engine;
@@ -2220,6 +2288,9 @@ fn apply_custom_cover_data(
 
     let cover_archive = state.cover_archive.clone();
     let db = state.db.clone();
+    let discord_cover_cache = state.discord_cover_cache.clone();
+    let discord_rpc = state.discord_rpc.clone();
+    let engine = state.engine.clone();
 
     state.rt.block_on(async move {
         let actual_album_id = if album_id > 0 {
@@ -2249,6 +2320,36 @@ fn apply_custom_cover_data(
         }
         if let Some(title) = &album_title {
             let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
+        }
+
+        if let Some(art) = &artist {
+            if let Some(alb) = &album_title {
+                let cache_key = format!(
+                    "{}---{}",
+                    art.trim().to_lowercase(),
+                    alb.trim().to_lowercase()
+                );
+                if let Ok(mut cache) = discord_cover_cache.write() {
+                    cache.remove(&cache_key);
+                }
+                if let Some(discord) = &discord_rpc {
+                    let dur = engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
+                    let pos = engine.position().map(|p| p.as_millis() as u64).unwrap_or(0);
+                    let current_title = engine
+                        .queue()
+                        .current_item()
+                        .map(|i| i.title.clone())
+                        .unwrap_or_default();
+                    discord.update_track(desktop_integration::DiscordTrackInfo {
+                        title: current_title,
+                        artist: art.clone(),
+                        album: alb.clone(),
+                        duration_ms: dur,
+                        art_url: None,
+                    });
+                    discord.update_playback_status(engine.state(), pos, dur);
+                }
+            }
         }
 
         Ok(format!("data:{};base64,{}", mime, raw_b64))
@@ -2354,7 +2455,15 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
     let title = item.title.clone();
     let artist = item.artist.clone();
     let album = item.album.clone().unwrap_or_default();
-    let duration_ms = item.duration_ms;
+    let duration_ms = if item.duration_ms > 0 {
+        item.duration_ms
+    } else {
+        state
+            .engine
+            .duration()
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0)
+    };
     let cache_key = format!(
         "{}---{}",
         artist.trim().to_lowercase(),
@@ -2394,6 +2503,7 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
             art_url: discord_art.clone(),
         };
         discord.update_track(track_info);
+        discord.update_playback_status(PlaybackState::Playing, 0, duration_ms);
         let needs_online_search = discord_art.is_none();
 
         if needs_online_search && (!artist.trim().is_empty() || !album.trim().is_empty()) {

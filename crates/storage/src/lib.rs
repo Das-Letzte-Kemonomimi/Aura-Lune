@@ -352,7 +352,7 @@ impl Database {
             VALUES (?1, ?2, ?3, ?4)
             ON CONFLICT(title, album_artist) DO UPDATE SET
                 year = COALESCE(excluded.year, albums.year),
-                cover_path = COALESCE(excluded.cover_path, albums.cover_path)
+                cover_path = COALESCE(albums.cover_path, excluded.cover_path)
             RETURNING id;
             "#,
         )
@@ -1752,5 +1752,42 @@ mod tests {
         db.delete_track(dup_id).await.unwrap();
         let remaining_dups = db.find_duplicate_tracks().await.unwrap();
         assert!(remaining_dups.is_empty());
+
+        // 10. Test zachowania własnej okładki przy ponownym skanowaniu (upsert_album)
+        let album_id2 = db
+            .upsert_album(
+                "Verehrt Und Angespien",
+                "In Extremo",
+                Some(1999),
+                Some("/covers/custom_in_extremo.jpg"),
+            )
+            .await
+            .unwrap();
+
+        // Symulacja skanowania pliku z tagiem embedded cover (np. /tmp/extracted_tag.jpg)
+        let rescan_id = db
+            .upsert_album(
+                "Verehrt Und Angespien",
+                "In Extremo",
+                Some(1999),
+                Some("/tmp/extracted_tag.jpg"),
+            )
+            .await
+            .unwrap();
+        assert_eq!(album_id2, rescan_id);
+
+        let album_rec = db
+            .list_albums()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|a| a.id == album_id2)
+            .expect("Album must exist");
+
+        // Okładka użytkownika MUSI pozostać nienaruszona!
+        assert_eq!(
+            album_rec.cover_path.as_deref(),
+            Some("/covers/custom_in_extremo.jpg")
+        );
     }
 }

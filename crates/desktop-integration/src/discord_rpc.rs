@@ -218,6 +218,9 @@ impl DiscordRpcWorker {
                     let Some(command) = cmd else { break };
                     match command {
                         DiscordRpcCommand::UpdateTrack(track) => {
+                            if track.duration_ms > 0 {
+                                self.current_duration_ms = track.duration_ms;
+                            }
                             self.current_track = Some(track);
                             if self.playback_state == PlaybackState::Stopped {
                                 self.playback_state = PlaybackState::Playing;
@@ -230,18 +233,26 @@ impl DiscordRpcWorker {
                             position_ms,
                             duration_ms,
                         } => {
+                            let state_changed = self.playback_state != state;
                             self.playback_state = state;
-                            self.current_position_ms = position_ms;
+                            let dur_changed = duration_ms > 0 && duration_ms != self.current_duration_ms;
                             if duration_ms > 0 {
                                 self.current_duration_ms = duration_ms;
                             }
-                            self.dirty = true;
-                            self.schedule_flush(&mut flush_deadline);
+                            let pos_jump = (self.current_position_ms as i64 - position_ms as i64).abs() > 2500;
+                            self.current_position_ms = position_ms;
+                            if state_changed || dur_changed || pos_jump {
+                                self.dirty = true;
+                                self.schedule_flush(&mut flush_deadline);
+                            }
                         }
                         DiscordRpcCommand::UpdatePosition(pos) => {
+                            let pos_jump = (self.current_position_ms as i64 - pos as i64).abs() > 2500;
                             self.current_position_ms = pos;
-                            self.dirty = true;
-                            self.schedule_flush(&mut flush_deadline);
+                            if pos_jump {
+                                self.dirty = true;
+                                self.schedule_flush(&mut flush_deadline);
+                            }
                         }
                         DiscordRpcCommand::ClearActivity => {
                             self.playback_state = PlaybackState::Stopped;
@@ -437,89 +448,19 @@ impl DiscordRpcWorker {
 
         let nonce = self.next_nonce();
         let pid = std::process::id();
-        let is_playing = self.playback_state == PlaybackState::Playing;
 
-        // Szczegóły utworu (Linia 1 w Discordzie: Tytuł utworu)
-        let details = if track.title.trim().is_empty() {
-            "Nieznany utwór".to_string()
-        } else {
-            truncate_str(&track.title, 128)
-        };
-
-        // Wykonawca i album (Linia 2 w Discordzie: Wykonawca • Album)
-        let state = if !track.artist.trim().is_empty() && !track.album.trim().is_empty() {
-            truncate_str(&format!("{} • {}", track.artist, track.album), 128)
-        } else if !track.artist.trim().is_empty() {
-            truncate_str(&track.artist, 128)
-        } else if !track.album.trim().is_empty() {
-            truncate_str(&track.album, 128)
-        } else {
-            "Auralune".to_string()
-        };
-
-        // Obliczenie znaczników czasu dla odtwarzania
         let now_unix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        let timestamps = if is_playing {
-            let elapsed_secs = self.current_position_ms / 1000;
-            let start_time = now_unix.saturating_sub(elapsed_secs);
-
-            let duration_secs = self.current_duration_ms / 1000;
-
-            if duration_secs > elapsed_secs {
-                Some(serde_json::json!({
-                    "start": start_time,
-                    "end": start_time + duration_secs
-                }))
-            } else {
-                Some(serde_json::json!({
-                    "start": start_time
-                }))
-            }
-        } else {
-            None
-        };
-
-        // Okładka i ikony statusu
-        // Do Discord Gateway wolno wysyłać WYŁĄCZNIE publiczne adresy HTTPS/HTTP lub klucze assetów.
-        // Lokalny plik (file://) ani 2-megabajtowy base64 (data:image/) nie są widoczne w internecie
-        // i powodują zerwanie lub ignorowanie sesji przez Discord Gateway.
-        let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/apps/desktop/src-tauri/icons/128x128.png";
-        let large_image = match &track.art_url {
-            Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),
-            _ => default_logo_url.to_string(),
-        };
-
-        // Album (Linia 3 w Discordzie / tooltip na okładce)
-        let large_text = if !track.album.trim().is_empty() {
-            truncate_str(&track.album, 128)
-        } else {
-            "Auralune Player".to_string()
-        };
-
-        let mut activity = serde_json::json!({
-            "name": "Auralune",
-            "type": 2, // 2 = Listening to
-            "details": details,
-            "state": state,
-            "assets": {
-                "large_image": large_image,
-                "large_text": large_text
-            },
-            "buttons": [
-                {
-                    "label": "Auralune Player",
-                    "url": "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune"
-                }
-            ]
-        });
-
-        if let Some(ts) = timestamps {
-            activity["timestamps"] = ts;
-        }
+        let activity = build_activity_payload(
+            &track,
+            self.playback_state,
+            self.current_position_ms,
+            self.current_duration_ms,
+            now_unix,
+        );
 
         let payload = serde_json::json!({
             "cmd": "SET_ACTIVITY",
@@ -536,7 +477,10 @@ impl DiscordRpcWorker {
                 debug!("Błąd wysyłania SET_ACTIVITY do Discorda: {}", e);
                 self.disconnect();
             } else {
-                info!("Pomyślnie wysłano aktywność do Discord RPC: {}", details);
+                info!(
+                    "Pomyślnie wysłano aktywność do Discord RPC: {}",
+                    track.title
+                );
                 self.update_shared_status();
             }
         }
@@ -700,4 +644,95 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
     } else {
         s.chars().take(max_chars - 1).collect::<String>() + "…"
     }
+}
+
+/// Buduje strukturę aktywności (Activity Type 2: Listening) dla Discord RPC.
+///
+/// Zasady Discord Rich Presence dla Activity Type 2 (Listening):
+/// - `details`: Tytuł utworu (Linia 1)
+/// - `state`: Wykonawca (Linia 2). Nie umieszczamy tu powtórzonego albumu, ponieważ album pojawia się
+///   w linii 3 jako `assets.large_text` lub tooltip okładki.
+/// - `assets.large_text`: Album (Linia 3 / tooltip)
+/// - `timestamps`: Pasek postępu. Discord wymaga `start` oraz `end` w sekundach UNIX, aby narysować
+///   pasek postępu z czasem aktualnym i całkowitym (np. 01:42 [====-----] 03:07).
+pub fn build_activity_payload(
+    track: &DiscordTrackInfo,
+    playback_state: PlaybackState,
+    current_position_ms: u64,
+    current_duration_ms: u64,
+    now_unix: u64,
+) -> serde_json::Value {
+    let is_playing = playback_state == PlaybackState::Playing;
+
+    // Linia 1: Tytuł utworu
+    let details = if track.title.trim().is_empty() {
+        "Nieznany utwór".to_string()
+    } else {
+        truncate_str(&track.title, 128)
+    };
+
+    // Linia 2: Wykonawca (czysty wykonawca, bez dublowania albumu)
+    let state = if !track.artist.trim().is_empty() {
+        truncate_str(&track.artist, 128)
+    } else {
+        "Auralune".to_string()
+    };
+
+    // Linia 3: Album (oraz tooltip na okładce)
+    let large_text = if !track.album.trim().is_empty() {
+        truncate_str(&track.album, 128)
+    } else {
+        "Auralune Player".to_string()
+    };
+
+    // Znaczniki czasu dla paska postępu w Discordzie (Type 2: Listening)
+    // Discord renderuje pasek postępu tylko gdy obecne są zarówno `start` jak i `end` (w sekundach unix)
+    let timestamps = if is_playing {
+        let elapsed_secs = current_position_ms / 1000;
+        let start_time = now_unix.saturating_sub(elapsed_secs);
+        let duration_secs = current_duration_ms / 1000;
+
+        if duration_secs > 0 {
+            Some(serde_json::json!({
+                "start": start_time,
+                "end": start_time + duration_secs
+            }))
+        } else {
+            Some(serde_json::json!({
+                "start": start_time
+            }))
+        }
+    } else {
+        None
+    };
+
+    // Do Discord Gateway wolno wysyłać WYŁĄCZNIE publiczne adresy HTTPS/HTTP lub klucze assetów.
+    let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/apps/desktop/src-tauri/icons/128x128.png";
+    let large_image = match &track.art_url {
+        Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),
+        _ => default_logo_url.to_string(),
+    };
+
+    let mut activity = serde_json::json!({
+        "name": "Auralune",
+        "type": 2, // 2 = Listening to
+        "details": details,
+        "state": state,
+        "assets": {
+            "large_image": large_image,
+            "large_text": large_text
+        },
+        "buttons": [
+            {
+                "label": "Auralune Player",
+                "url": "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune"
+            }
+        ]
+    });
+
+    if let Some(ts) = timestamps {
+        activity["timestamps"] = ts;
+    }
+
+    activity
 }

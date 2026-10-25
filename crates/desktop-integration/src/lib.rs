@@ -4,6 +4,7 @@ pub mod discord_rpc;
 pub mod mpris;
 
 pub use discord_rpc::{
-    DiscordRpcController, DiscordRpcStatus, DiscordTrackInfo, DEFAULT_DISCORD_CLIENT_ID,
+    build_activity_payload, DiscordRpcController, DiscordRpcStatus, DiscordTrackInfo,
+    DEFAULT_DISCORD_CLIENT_ID,
 };
 pub use mpris::{MprisController, MprisTrackInfo};
