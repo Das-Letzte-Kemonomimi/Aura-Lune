@@ -54,15 +54,15 @@ impl PlaybackQueue {
         self.rebuild_shuffle_order();
     }
 
-    /// Ustawia lub dodaje bieżący odtwarzany utwór do kolejki (np. po wczytaniu z biblioteki lub pliku).
+    /// Ustawia bieżący odtwarzany utwór w kolejce jeśli w niej istnieje.
+    /// Jeśli utwór nie znajduje się w kolejce, nie dodaje go automatycznie do listy utworów —
+    /// kolejka odtwarzania zawiera wyłącznie utwory celowo dodane przez użytkownika.
     pub fn set_active_item(&mut self, item: QueueItem) {
         if let Some(pos) = self.items.iter().position(|i| i.uri == item.uri) {
             self.current_index = Some(pos);
             self.items[pos] = item;
         } else {
-            self.items.push(item);
-            self.current_index = Some(self.items.len() - 1);
-            self.rebuild_shuffle_order();
+            self.current_index = None;
         }
     }
 
@@ -330,5 +330,29 @@ mod tests {
         let removed = queue.remove_item("1.5");
         assert_eq!(removed.unwrap().title, "Song Interlude");
         assert_eq!(queue.items.len(), 2);
+    }
+
+    #[test]
+    fn test_set_active_item_does_not_auto_add_unqueued_track() {
+        let mut queue = PlaybackQueue::new();
+        queue.set_items(
+            vec![sample_item("1", "Song 1"), sample_item("2", "Song 2")],
+            Some(0),
+        );
+
+        // Odtworzenie utworu, który nie jest w kolejce, nie dodaje go automatycznie
+        let unqueued = sample_item("99", "Unqueued Song");
+        queue.set_active_item(unqueued);
+
+        assert_eq!(queue.items.len(), 2);
+        assert_eq!(queue.current_index, None);
+
+        // Odtworzenie utworu, który JEST w kolejce, ustawia poprawny current_index
+        let existing = sample_item("2", "Song 2");
+        queue.set_active_item(existing);
+
+        assert_eq!(queue.items.len(), 2);
+        assert_eq!(queue.current_index, Some(1));
+        assert_eq!(queue.current_item().unwrap().title, "Song 2");
     }
 }

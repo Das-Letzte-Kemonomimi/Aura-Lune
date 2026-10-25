@@ -2173,14 +2173,6 @@ export default function App() {
       showMessage(
         `Dodano do biblioteki: ${summary.new_or_updated_tracks} zindeksowano (znaleziono: ${summary.total_files_found}).`
       );
-
-      // Jeśli kolejka jest pusta, załaduj nowo dodane utwory do odtwarzania
-      if (queue.items.length === 0 && updatedTracks.length > 0) {
-        const newlyAdded = updatedTracks.slice(-Math.max(1, summary.new_or_updated_tracks));
-        if (newlyAdded.length > 0) {
-          await handlePlayAllTracks(newlyAdded, 0);
-        }
-      }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
@@ -10496,12 +10488,12 @@ const renderDevicesSection = () => (
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       if (librarySubView === 'tracks' && sortedTracks.length > 0) {
-                        handlePlayAllTracks(sortedTracks, 0);
+                        handlePlayLibraryTrack(sortedTracks[0]);
                         showMessage(`Odtwarzanie ${sortedTracks[0].title} (dopasowano: ${sortedTracks.length})`);
                       } else if (librarySubView === 'albums' && sortedAlbums.length > 0) {
                         const albumTracks = tracks.filter((t) => t.album_id === sortedAlbums[0].id);
                         if (albumTracks.length > 0) {
-                          handlePlayAllTracks(albumTracks, 0);
+                          handlePlayLibraryTrack(albumTracks[0]);
                           showMessage(`Odtwarzanie albumu ${sortedAlbums[0].title}`);
                         }
                       }
@@ -10700,7 +10692,7 @@ const renderDevicesSection = () => (
                     {smartPlaylistFilter === 'history' && ` • ${loc.library.sortedNewest}`}
                     {smartPlaylistFilter === 'top_played' && ` • ${loc.library.sortedPlays}`}
                   </span>
-                  {sortedTracks.length > 0 && (
+                  {sortedTracks.length > 0 && (sortField !== 'default' || librarySearch.trim() !== '' || smartPlaylistFilter !== 'all') && (
                     <button
                       onClick={() => handlePlayAllTracks(sortedTracks, 0)}
                       style={{
@@ -11021,8 +11013,8 @@ const renderDevicesSection = () => (
                                   <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handlePlayAllTracks(sortedTracks, idx); }}
-                                  title={loc.library.playFromHere}
+                                  onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}
+                                  title={loc.player.play}
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
                                 >
                                   <Play size={15} />
@@ -14313,7 +14305,7 @@ const renderDevicesSection = () => (
         currentLang={language}
         onPlayTrackId={(id) => {
           const tr = tracks.find((t) => t.id === id);
-          if (tr) handlePlayAllTracks([tr], 0);
+          if (tr) handlePlayLibraryTrack(tr);
         }}
       />
 
