@@ -36,7 +36,9 @@ pub struct AppState {
     pub scanner: Arc<LibraryScanner>,
     pub rt: Arc<tokio::runtime::Runtime>,
     pub mpris: Option<Arc<desktop_integration::MprisController>>,
+    pub discord_rpc: Option<Arc<desktop_integration::DiscordRpcController>>,
     pub mb: Arc<MusicBrainzClient>,
+
     pub cover_archive: Arc<CoverArtArchiveClient>,
     pub listenbrainz: Arc<ListenBrainzClient>,
     pub downloads: Arc<DownloadManager>,
@@ -141,6 +143,19 @@ fn play(state: State<'_, AppState>) -> Result<(), String> {
             m.update_playback_status(PlaybackState::Playing).await;
         });
     }
+    if let Some(discord) = &state.discord_rpc {
+        let pos = state
+            .engine
+            .position()
+            .map(|p| p.as_millis() as u64)
+            .unwrap_or(0);
+        let dur = state
+            .engine
+            .duration()
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        discord.update_playback_status(PlaybackState::Playing, pos, dur);
+    }
     Ok(())
 }
 
@@ -156,6 +171,19 @@ fn pause(state: State<'_, AppState>) -> Result<(), String> {
             m.update_playback_status(PlaybackState::Paused).await;
         });
     }
+    if let Some(discord) = &state.discord_rpc {
+        let pos = state
+            .engine
+            .position()
+            .map(|p| p.as_millis() as u64)
+            .unwrap_or(0);
+        let dur = state
+            .engine
+            .duration()
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        discord.update_playback_status(PlaybackState::Paused, pos, dur);
+    }
     Ok(())
 }
 
@@ -167,6 +195,9 @@ fn stop(state: State<'_, AppState>) -> Result<(), String> {
         state.rt.spawn(async move {
             m.update_playback_status(PlaybackState::Stopped).await;
         });
+    }
+    if let Some(discord) = &state.discord_rpc {
+        discord.clear_activity();
     }
     Ok(())
 }
@@ -183,6 +214,9 @@ fn seek(position_ms: u64, fade: Option<bool>, state: State<'_, AppState>) -> Res
         state.rt.spawn(async move {
             m.emit_seeked(position_ms).await;
         });
+    }
+    if let Some(discord) = &state.discord_rpc {
+        discord.update_position(position_ms);
     }
     Ok(())
 }
@@ -438,15 +472,28 @@ fn update_mpris_metadata(
 ) -> Result<(), String> {
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
+        let t_clone = title.clone();
+        let a_clone = artist.clone();
+        let al_clone = album.clone();
+        let art_clone = art_url.clone();
         state.rt.spawn(async move {
             m.update_track(desktop_integration::MprisTrackInfo {
-                title,
-                artist,
-                album,
+                title: t_clone,
+                artist: a_clone,
+                album: al_clone,
                 duration_ms,
-                art_url,
+                art_url: art_clone,
             })
             .await;
+        });
+    }
+    if let Some(discord) = &state.discord_rpc {
+        discord.update_track(desktop_integration::DiscordTrackInfo {
+            title,
+            artist,
+            album,
+            duration_ms,
+            art_url,
         });
     }
     Ok(())
@@ -2147,6 +2194,17 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
             m.update_playback_status(PlaybackState::Playing).await;
         });
     }
+    if let Some(discord) = &state.discord_rpc {
+        let track_info = desktop_integration::DiscordTrackInfo {
+            title: item.title.clone(),
+            artist: item.artist.clone(),
+            album: item.album.clone().unwrap_or_default(),
+            duration_ms: item.duration_ms,
+            art_url: None,
+        };
+        discord.update_track(track_info);
+        discord.update_playback_status(PlaybackState::Playing, 0, item.duration_ms);
+    }
 }
 
 fn persist_queue_state(state: &AppState) {
@@ -2721,6 +2779,57 @@ async fn submit_listenbrainz_listen(
 }
 
 #[tauri::command]
+fn get_discord_rpc_status(
+    state: State<'_, AppState>,
+) -> Result<desktop_integration::DiscordRpcStatus, String> {
+    if let Some(discord) = &state.discord_rpc {
+        Ok(discord.get_status())
+    } else {
+        Ok(desktop_integration::DiscordRpcStatus {
+            enabled: false,
+            connected: false,
+            client_id: desktop_integration::DEFAULT_DISCORD_CLIENT_ID.to_string(),
+            current_activity: None,
+        })
+    }
+}
+
+#[tauri::command]
+async fn set_discord_rpc_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_discord_rpc_enabled({})", enabled);
+    if let Some(discord) = &state.discord_rpc {
+        discord.set_enabled(enabled);
+    }
+    state
+        .db
+        .set_app_setting(
+            "discord_rpc_enabled",
+            if enabled { "true" } else { "false" },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_discord_rpc_client_id(
+    client_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!("Tauri command: set_discord_rpc_client_id('{}')", client_id);
+    let trimmed = client_id.trim().to_string();
+    if let Some(discord) = &state.discord_rpc {
+        discord.set_client_id(trimmed.clone());
+    }
+    state
+        .db
+        .set_app_setting("discord_rpc_client_id", &trimmed)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 async fn add_download_job(
     remote_url: String,
     destination_path: String,
@@ -3130,12 +3239,26 @@ pub fn run() {
                     db.get_app_setting("app_icon_style").await.unwrap_or(None)
                 }).unwrap_or_else(|| "lineout".to_string());
 
+                let discord_enabled = rt.block_on(async {
+                    db.get_app_setting("discord_rpc_enabled").await.unwrap_or(None)
+                }).map(|v| v == "true").unwrap_or(true);
+
+                let discord_client_id = rt.block_on(async {
+                    db.get_app_setting("discord_rpc_client_id").await.unwrap_or(None)
+                });
+
+                let discord_rpc = Some(desktop_integration::DiscordRpcController::start(
+                    discord_enabled,
+                    discord_client_id,
+                ));
+
                 let app_state = AppState {
                     engine,
                     db: Arc::new(db),
                     scanner: Arc::new(scanner),
                     rt,
                     mpris,
+                    discord_rpc,
                     mb,
                     cover_archive,
                     listenbrainz: Arc::new(ListenBrainzClient::new()),
@@ -3144,6 +3267,7 @@ pub fn run() {
                 };
 
                 app.manage(app_state);
+
 
                 // Aplikacja wybranego stylu ikony aplikacji
                 let _ = update_system_icons(app.handle(), &icon_style);
@@ -3374,6 +3498,9 @@ pub fn run() {
             set_crossfade_duration,
             get_crossfade_duration,
             get_default_music_dir,
+            get_discord_rpc_status,
+            set_discord_rpc_enabled,
+            set_discord_rpc_client_id,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

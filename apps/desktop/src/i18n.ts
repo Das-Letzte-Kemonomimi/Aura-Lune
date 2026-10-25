@@ -424,6 +424,12 @@ export interface Translations {
     importBackupBtn: string;
     closeToTray: string;
     closeToTrayDesc: string;
+    discordRpcTitle: string;
+    discordRpcDesc: string;
+    discordConnected: string;
+    discordDisconnected: string;
+    discordClientIdLabel: string;
+    discordClientIdDefaultBtn: string;
     listenbrainzTitle: string;
     listenbrainzDesc: string;
     listenbrainzToken: string;
@@ -1109,6 +1115,12 @@ export const translations: Record<Language, Translations> = {
       importBackupBtn: 'Restore Profile from JSON',
       closeToTray: 'Close to System Tray',
       closeToTrayDesc: 'Keep playing in the background when closing the main window with quick controls in the Linux tray.',
+      discordRpcTitle: 'Discord Rich Presence (RPC)',
+      discordRpcDesc: 'Show currently playing song, artist, album, and progress bar on your Discord profile.',
+      discordConnected: 'Connected to Discord',
+      discordDisconnected: 'Waiting for Discord client to launch',
+      discordClientIdLabel: 'Discord Application ID (Client ID)',
+      discordClientIdDefaultBtn: 'Restore Default ID',
       listenbrainzTitle: 'ListenBrainz Scrobbler',
       listenbrainzDesc: 'Scrobble your listens directly to your MetaBrainz / MusicBrainz open profile.',
       listenbrainzToken: 'ListenBrainz User Token',
@@ -1793,6 +1805,12 @@ export const translations: Record<Language, Translations> = {
       importBackupBtn: 'Przywróć profil z pliku JSON',
       closeToTray: 'Zamykaj do zasobnika systemowego (System Tray)',
       closeToTrayDesc: 'Odtwarzaj muzykę w tle po zamknięciu głównego okna programu. Dostępne szybkie sterowanie z tacki systemowej Linuksa.',
+      discordRpcTitle: 'Discord Rich Presence (RPC)',
+      discordRpcDesc: 'Wyświetlaj aktualnie słuchany utwór, wykonawcę, album oraz pasek postępu na swoim profilu Discord.',
+      discordConnected: 'Połączono z Discordem',
+      discordDisconnected: 'Oczekiwanie na uruchomienie klienta Discord',
+      discordClientIdLabel: 'Identyfikator aplikacji Discord (Client ID)',
+      discordClientIdDefaultBtn: 'Przywróć domyślny ID',
       listenbrainzTitle: 'Scrobbler ListenBrainz',
       listenbrainzDesc: 'Automatyczne scroblowanie do Twojego otwartego profilu MetaBrainz / MusicBrainz.',
       listenbrainzToken: 'User Token ListenBrainz',
@@ -2477,6 +2495,12 @@ export const translations: Record<Language, Translations> = {
       importBackupBtn: 'Profil aus JSON wiederherstellen',
       closeToTray: 'In den Infobereich minimieren',
       closeToTrayDesc: 'Musik beim Schließen des Fensters im Hintergrund weiterspielen.',
+      discordRpcTitle: 'Discord Rich Presence (RPC)',
+      discordRpcDesc: 'Aktuellen Titel, Interpreten, Album und Fortschrittsbalken im Discord-Profil anzeigen.',
+      discordConnected: 'Mit Discord verbunden',
+      discordDisconnected: 'Warten auf den Discord-Client',
+      discordClientIdLabel: 'Discord-Anwendungs-ID (Client ID)',
+      discordClientIdDefaultBtn: 'Standard-ID wiederherstellen',
       listenbrainzTitle: 'ListenBrainz Scrobbler',
       listenbrainzDesc: 'Listens direkt an dein MetaBrainz-Profil übertragen.',
       listenbrainzToken: 'ListenBrainz-Token',
@@ -3161,6 +3185,12 @@ export const translations: Record<Language, Translations> = {
       importBackupBtn: 'Palauta profiili JSON-tiedostosta',
       closeToTray: 'Pienennä ilmaisinalueelle suljettaessa',
       closeToTrayDesc: 'Pidä musiikki soimassa taustalla, kun pääikkuna suljetaan.',
+      discordRpcTitle: 'Discord Rich Presence (RPC)',
+      discordRpcDesc: 'Näytä parhaillaan toistettava kappale, esittäjä, albumi ja edistymispalkki Discord-profiilissasi.',
+      discordConnected: 'Yhdistetty Discordiin',
+      discordDisconnected: 'Odotetaan Discord-sovelluksen käynnistymistä',
+      discordClientIdLabel: 'Discord-sovellustunnus (Client ID)',
+      discordClientIdDefaultBtn: 'Palauta oletustunnus',
       listenbrainzTitle: 'ListenBrainz Scrobbler',
       listenbrainzDesc: 'Lähetä kuuntelutiedot MetaBrainz-profiiliisi.',
       listenbrainzToken: 'ListenBrainz-tunnus (Token)',
@@ -3845,6 +3875,12 @@ export const translations: Record<Language, Translations> = {
       importBackupBtn: 'Restituere profili ex JSON',
       closeToTray: 'In aream systematis claudere',
       closeToTrayDesc: 'Musica in curriculo manet cum fenestra principalis clauditur.',
+      discordRpcTitle: 'Praesentia Dives Discord (RPC)',
+      discordRpcDesc: 'Monstra carmen, cantatorem, album et cursum temporis in tuo Discord profilo.',
+      discordConnected: 'Cum Discord coniunctum',
+      discordDisconnected: 'Discord cliens exspectatur',
+      discordClientIdLabel: 'Identificator applicationis Discord (Client ID)',
+      discordClientIdDefaultBtn: 'Identi. solitum redde',
       listenbrainzTitle: 'Scrobbler ListenBrainz',
       listenbrainzDesc: 'Auditores ad MetaBrainz profilum transmitte.',
       listenbrainzToken: 'ListenBrainz Tessera',

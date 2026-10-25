@@ -12,3 +12,6 @@ mpris-server = { version = "0.10", features = ["tokio"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
