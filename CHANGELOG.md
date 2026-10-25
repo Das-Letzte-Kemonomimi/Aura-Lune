@@ -9,6 +9,29 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.6.0] — „foobar2000 Power Tools & Kitsune Facets” - 2026-10-25
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Wielopunktowe znaczniki CUE / Bookmarks w utworze**:
+  - Moduł domenowy `bookmark.rs` i tabela `track_bookmarks` w SQLite z kluczem obcym i kaskadowym usuwaniem.
+  - Interaktywny modal `TrackBookmarksModal` pozwalający na dodawanie nazwanych znaczników w bieżącej pozycji odtwarzania, edycję, usuwanie i natychmiastowy skok.
+  - Zintegrowane diamentowe znaczniki na osi czasu odtwarzacza z podpowiedziami (tooltip) i skokiem po kliknięciu.
+- **Masowy Auto-Renamer / Organizator plików**:
+  - Silnik wzorców nazw w `crates/domain/src/renamer.rs` wspierający tokeny `%track%`, `%artist%`, `%albumartist%`, `%album%`, `%title%`, `%disc%`, `%ext%` oraz sanityzację znaków zakazanych w systemach plików.
+  - Modal `FileRenamerModal` z podglądem na żywo starych i nowych ścieżek, ostrzeżeniami o nadpisaniach oraz atomową zmianą nazw i aktualizacją rekordów w bazie SQLite.
+- **Panel filtrów fasetowych (Columns UI / Facets)**:
+  - 3-kolumnowy rozwijany panel filtrów (`Format` -> `Wykonawca` -> `Album`) z licznikami utworów, lokalnym filtrowaniem wewnątrz kolumn i natychmiastowym filtrowaniem listy utworów w bibliotece.
+- **Wyszukiwarka duplikatów audio (Audio Duplicate Finder)**:
+  - Wyszukiwanie zduplikowanych nagrań pogrupowanych według znormalizowanego tytułu i artysty.
+  - Porównanie jakości (format, bitrate, sample rate, rozmiar pliku) z możliwością usunięcia wpisu z bazy lub trwałego usunięcia pliku z dysku.
+- **Eksport wycinka A-B z DSP**:
+  - Transkodowanie zaznaczonego zakresu pętli A-B do plików FLAC, MP3, OGG lub WAV z zachowaniem efektów pitch-shift i tempo-stretch.
+- **Pełna wielojęzyczność (i18n)**:
+  - Zaktualizowane słowniki tłumaczeń dla wszystkich nowych modułów w 5 językach (PL, EN, DE, FI, LA).
+
+---
+
 ## [0.5.0] — „Velvet Discord & Kitsune Resonance” - 2026-10-25
 **Autorka**: Das Letzte Kemonomimi
 

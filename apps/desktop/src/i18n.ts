@@ -276,6 +276,10 @@ export interface Translations {
     artistTracksCount: string;
     artistAlbumsCount: string;
     openContainingFolder: string;
+    duplicateFinder: string;
+    fileRenamer: string;
+    facetsToggle: string;
+    bookmarks: string;
   };
   playlists: {
     title: string;
@@ -975,6 +979,10 @@ export const translations: Record<Language, Translations> = {
       artistTracksCount: '{0} tracks',
       artistAlbumsCount: '{0} albums',
       openContainingFolder: 'Open containing folder in file manager',
+      duplicateFinder: 'Find Duplicates',
+      fileRenamer: 'Batch File Renamer',
+      facetsToggle: 'Facets Filter (foobar2000)',
+      bookmarks: 'Track Bookmarks (Cue Points)',
     },
     playlists: {
       title: 'Your Playlists',
@@ -1673,6 +1681,10 @@ export const translations: Record<Language, Translations> = {
       artistTracksCount: '{0} utworów',
       artistAlbumsCount: '{0} albumów',
       openContainingFolder: 'Otwórz folder zawierający w menedżerze plików',
+      duplicateFinder: 'Wyszukaj duplikaty',
+      fileRenamer: 'Masowy renamer plików',
+      facetsToggle: 'Filtry fasetowe (Facets)',
+      bookmarks: 'Zakładki utworu (Cue Points)',
     },
     playlists: {
       title: 'Twoje Playlisty',
@@ -2371,6 +2383,10 @@ export const translations: Record<Language, Translations> = {
       artistTracksCount: '{0} Titel',
       artistAlbumsCount: '{0} Alben',
       openContainingFolder: 'Enthaltenden Ordner im Dateimanager öffnen',
+      duplicateFinder: 'Duplikate finden',
+      fileRenamer: 'Dateien stapelweise umbenennen',
+      facetsToggle: 'Facettenfilter (foobar2000)',
+      bookmarks: 'Titel-Lesezeichen (Cue-Punkte)',
     },
     playlists: {
       title: 'Deine Wiedergabelisten',
@@ -3069,6 +3085,10 @@ export const translations: Record<Language, Translations> = {
       artistTracksCount: '{0} kappaletta',
       artistAlbumsCount: '{0} albumia',
       openContainingFolder: 'Avaa sisältävä kansio tiedostonhallinnassa',
+      duplicateFinder: 'Etsi kaksoiskappaleet',
+      fileRenamer: 'Tiedostojen massanimeäminen',
+      facetsToggle: 'Fasettisuodattimet',
+      bookmarks: 'Kappaleen kirjanmerkit (Cue-pisteet)',
     },
     playlists: {
       title: 'Omat Soittolistat',
@@ -3767,6 +3787,10 @@ export const translations: Record<Language, Translations> = {
       artistTracksCount: '{0} cantus',
       artistAlbumsCount: '{0} alba',
       openContainingFolder: 'Aperi capsam continentem in procuratore fasciculorum',
+      duplicateFinder: 'Duplicata reperire',
+      fileRenamer: 'Nomina fasciculorum renovare',
+      facetsToggle: 'Filtra fasciata',
+      bookmarks: 'Notae temporis (Cue Points)',
     },
     playlists: {
       title: 'Indices Cantuum Tui',

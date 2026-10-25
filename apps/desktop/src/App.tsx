@@ -67,6 +67,8 @@ import {
   Tag as TagIcon,
   FileCode,
   Scissors,
+  FileEdit,
+  Layers,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
@@ -90,6 +92,10 @@ import { TagEditorModal } from './components/TagEditorModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { CueSheetModal } from './components/CueSheetModal';
 import { DownloadHubModal } from './components/DownloadHubModal';
+import { TrackBookmarksModal, type TrackBookmarkDto } from './components/TrackBookmarksModal';
+import { DuplicateFinderModal } from './components/DuplicateFinderModal';
+import { FileRenamerModal } from './components/FileRenamerModal';
+import { FacetsFilterPane } from './components/FacetsFilterPane';
 import { type Language, getTranslations } from './i18n';
 
 interface EqualizerPreset {
@@ -677,6 +683,16 @@ export default function App() {
 
   // Stan bieżącej zakładki utworu
   const [currentBookmark, setCurrentBookmark] = useState<number | null>(null);
+  const [currentTrackBookmarks, setCurrentTrackBookmarks] = useState<TrackBookmarkDto[]>([]);
+  const [isBookmarksModalOpen, setIsBookmarksModalOpen] = useState(false);
+
+  // foobar2000 Power Tools (Duplikaty, Masowy renamer, Filtry fasetowe)
+  const [isDuplicateFinderOpen, setIsDuplicateFinderOpen] = useState(false);
+  const [isFileRenamerOpen, setIsFileRenamerOpen] = useState(false);
+  const [isFacetsFilterEnabled, setIsFacetsFilterEnabled] = useState(false);
+  const [facetSelectedFormat, setFacetSelectedFormat] = useState<string | null>(null);
+  const [facetSelectedArtist, setFacetSelectedArtist] = useState<string | null>(null);
+  const [facetSelectedAlbumId, setFacetSelectedAlbumId] = useState<number | null>(null);
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
@@ -996,6 +1012,19 @@ export default function App() {
         return true;
       }
 
+      // Filtr fasetowy foobar2000 Facets
+      if (isFacetsFilterEnabled) {
+        if (facetSelectedFormat && t.format.toUpperCase() !== facetSelectedFormat) {
+          return false;
+        }
+        if (facetSelectedArtist && t.artist.trim() !== facetSelectedArtist) {
+          return false;
+        }
+        if (facetSelectedAlbumId !== null && t.album_id !== facetSelectedAlbumId) {
+          return false;
+        }
+      }
+
       return (
         title.includes(q) ||
         artist.includes(q) ||
@@ -1005,7 +1034,17 @@ export default function App() {
         formatLower.includes(q)
       );
     });
-  }, [tracks, albums, librarySearch, libraryFormatFilter, smartPlaylistFilter]);
+  }, [
+    tracks,
+    albums,
+    librarySearch,
+    libraryFormatFilter,
+    smartPlaylistFilter,
+    isFacetsFilterEnabled,
+    facetSelectedFormat,
+    facetSelectedArtist,
+    facetSelectedAlbumId,
+  ]);
 
   const filteredAlbums = useMemo(() => {
     const q = normalizeStr(librarySearch.trim());
@@ -2034,15 +2073,28 @@ export default function App() {
     }
   };
 
-  // Synchronizacja zakładki dla bieżącego utworu
+  // Synchronizacja zakładki dla bieżącego utworu oraz wielopunktowych znaczników (Cue Points)
   useEffect(() => {
     if (!activeTrackId) {
       setCurrentBookmark(null);
+      setCurrentTrackBookmarks([]);
       return;
     }
     invoke<number | null>('get_bookmark', { trackId: activeTrackId })
       .then((b) => setCurrentBookmark(b ?? null))
       .catch(() => setCurrentBookmark(null));
+
+    invoke<TrackBookmarkDto[]>('get_track_bookmarks', { trackId: activeTrackId })
+      .then((bms) => setCurrentTrackBookmarks(bms ?? []))
+      .catch(() => setCurrentTrackBookmarks([]));
+  }, [activeTrackId]);
+
+  const refreshTrackBookmarks = useCallback(() => {
+    if (activeTrackId) {
+      invoke<TrackBookmarkDto[]>('get_track_bookmarks', { trackId: activeTrackId })
+        .then((bms) => setCurrentTrackBookmarks(bms ?? []))
+        .catch(() => setCurrentTrackBookmarks([]));
+    }
   }, [activeTrackId]);
 
   // Odtwarzanie utworu z biblioteki z obsługą zakładek i ochroną przed wyścigami
@@ -7777,6 +7829,35 @@ const renderDevicesSection = () => (
                         <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
                       </div>
                     )}
+                    {/* Wskaźniki wielopunktowych zakładek (Track Bookmarks / Cue Points) na osi czasu */}
+                    {status.duration_ms && status.duration_ms > 0 && currentTrackBookmarks.map((bm) => {
+                      const leftPct = Math.min(100, Math.max(0, (bm.position_ms / status.duration_ms!) * 100));
+                      return (
+                        <div
+                          key={`bm-${bm.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSeek(bm.position_ms);
+                            showMessage(`📌 ${bm.name} (${formatTimeMs(bm.position_ms)})`);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: `${leftPct}%`,
+                            transform: 'translate(-50%, -50%) rotate(45deg)',
+                            width: '8px',
+                            height: '8px',
+                            backgroundColor: 'var(--accent-cyan, #06b6d4)',
+                            border: '1px solid #fff',
+                            borderRadius: '2px',
+                            zIndex: 4,
+                            cursor: 'pointer',
+                            boxShadow: '0 0 6px rgba(6, 182, 212, 0.9)',
+                          }}
+                          title={`📌 ${bm.name} - ${formatTimeMs(bm.position_ms)} (Kliknij, aby skoczyć)`}
+                        />
+                      );
+                    })}
                     <input
                       type="range"
                       min={0}
@@ -7875,6 +7956,28 @@ const renderDevicesSection = () => (
                         </button>
                       </div>
                     )}
+
+                    {/* Przycisk Wielopunktowych Zakładek (Cue Points) */}
+                    <button
+                      onClick={() => setIsBookmarksModalOpen(true)}
+                      className="glass-card"
+                      title="Wielopunktowe znaczniki utworu (Cue Points)"
+                      style={{
+                        padding: '6px 9px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: currentTrackBookmarks.length > 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        fontSize: '0.75rem',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        background: currentTrackBookmarks.length > 0 ? 'rgba(6, 182, 212, 0.15)' : undefined,
+                        border: currentTrackBookmarks.length > 0 ? '1px solid rgba(6, 182, 212, 0.4)' : undefined,
+                      }}
+                    >
+                      <Bookmark size={13} color="var(--accent-cyan)" />
+                      {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : 'Punkty'}
+                    </button>
 
                     {/* Przyciski Pętli A-B */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -9213,6 +9316,67 @@ const renderDevicesSection = () => (
                 >
                   <RefreshCw size={14} /> {loc.library.refresh}
                 </button>
+
+                <button
+                  onClick={() => setIsFacetsFilterEnabled((prev) => !prev)}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: isFacetsFilterEnabled ? '#fff' : 'var(--text-secondary)',
+                    border: isFacetsFilterEnabled ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                    background: isFacetsFilterEnabled ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                    fontSize: '0.8rem',
+                    fontWeight: isFacetsFilterEnabled ? 700 : 500,
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                  }}
+                  title={loc.library.facetsToggle}
+                >
+                  <Layers size={14} color="var(--accent-pink)" /> {loc.library.facetsToggle}
+                </button>
+
+                <button
+                  onClick={() => setIsDuplicateFinderOpen(true)}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                  }}
+                  title={loc.library.duplicateFinder}
+                >
+                  <Copy size={14} color="var(--accent-cyan)" /> {loc.library.duplicateFinder}
+                </button>
+
+                <button
+                  onClick={() => setIsFileRenamerOpen(true)}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                  }}
+                  title={loc.library.fileRenamer}
+                >
+                  <FileEdit size={14} color="#fbbf24" /> {loc.library.fileRenamer}
+                </button>
               </div>
             </div>
 
@@ -9333,6 +9497,27 @@ const renderDevicesSection = () => (
                 </div>
               </div>
             </div>
+
+            {/* 3-Kolumnowy panel filtrów fasetowych (foobar2000 Facets) */}
+            {isFacetsFilterEnabled && (
+              <div style={{ marginBottom: '18px' }}>
+                <FacetsFilterPane
+                  tracks={tracks}
+                  albums={albums}
+                  selectedFormat={facetSelectedFormat}
+                  selectedArtist={facetSelectedArtist}
+                  selectedAlbumId={facetSelectedAlbumId}
+                  onSelectFormat={setFacetSelectedFormat}
+                  onSelectArtist={setFacetSelectedArtist}
+                  onSelectAlbumId={setFacetSelectedAlbumId}
+                  onResetAll={() => {
+                    setFacetSelectedFormat(null);
+                    setFacetSelectedArtist(null);
+                    setFacetSelectedAlbumId(null);
+                  }}
+                />
+              </div>
+            )}
 
             {/* Pasek narzędziowy: widoki Utwory/Albumy, Live Search i filtry formatów */}
             <div
@@ -13328,6 +13513,49 @@ const renderDevicesSection = () => (
           });
         }}
       />
+
+      {/* Modal Wielopunktowych Zakładek (Cue Points) */}
+      {isBookmarksModalOpen && activeTrackId && (
+        <TrackBookmarksModal
+          trackId={activeTrackId}
+          trackTitle={status.current_track?.title || filePath || 'Utwór'}
+          currentPositionMs={status.position_ms}
+          durationMs={status.duration_ms}
+          onSeek={(posMs) => handleSeek(posMs)}
+          onClose={() => setIsBookmarksModalOpen(false)}
+          onBookmarksUpdated={refreshTrackBookmarks}
+        />
+      )}
+
+      {/* Modal Wyszukiwarki Duplikatów (Duplicate Finder) */}
+      {isDuplicateFinderOpen && (
+        <DuplicateFinderModal
+          onClose={() => setIsDuplicateFinderOpen(false)}
+          onPlayTrack={(path) => {
+            handleLoadFile(path).then(async () => {
+              await invoke('play');
+            });
+          }}
+          onLibraryChanged={loadLibrary}
+        />
+      )}
+
+      {/* Modal Masowego Renamera Plików (foobar2000 File Ops) */}
+      {isFileRenamerOpen && (
+        <FileRenamerModal
+          tracks={filteredTracks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            artist: t.artist,
+            path: t.path,
+          }))}
+          onClose={() => setIsFileRenamerOpen(false)}
+          onRenamedSuccess={() => {
+            loadLibrary();
+            showMessage('Pomyślnie zaktualizowano nazwy plików w bibliotece!');
+          }}
+        />
+      )}
     </div>
   );
 }

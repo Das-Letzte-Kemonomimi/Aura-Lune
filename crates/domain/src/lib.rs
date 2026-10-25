@@ -1,18 +1,25 @@
+pub mod bookmark;
 pub mod cue;
 pub mod device;
 pub mod equalizer;
 pub mod m3u;
 pub mod playlist;
 pub mod queue;
+pub mod renamer;
 pub mod replaygain;
 pub mod theme;
 pub mod transcode;
 
+pub use bookmark::TrackBookmark;
 pub use cue::{CueSheet, CueTrack};
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
 pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
 pub use playlist::Playlist;
 pub use queue::{LoopMode, PlaybackQueue, QueueItem};
+pub use renamer::{
+    format_pattern_for_track, resolve_renamed_path, sanitize_filename_part, RenamePreviewItem,
+    RenamerTrackInfo,
+};
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
 pub use theme::{default_themes, Theme, ThemeTokens};
 pub use transcode::{DspExportSettings, ExportFormat, TimeRange};

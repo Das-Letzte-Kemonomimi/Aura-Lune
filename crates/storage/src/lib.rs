@@ -64,6 +64,14 @@ pub struct RecapSummaryDto {
     pub top_artists: Vec<(String, i64)>,
 }
 
+/// Grupa potencjalnych duplikatów utworu w bibliotece.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DuplicateGroup {
+    pub key: String,
+    pub count: usize,
+    pub tracks: Vec<TrackRecord>,
+}
+
 /// Rekord albumu w bazie danych.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct AlbumRecord {
@@ -280,6 +288,21 @@ impl Database {
             );
             CREATE INDEX IF NOT EXISTS idx_listening_history_played ON listening_history(played_at);
             CREATE INDEX IF NOT EXISTS idx_listening_history_track ON listening_history(track_id);
+            "#,
+        )
+        .execute(&self.pool)
+        .await;
+
+        let _ = sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS track_bookmarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                position_ms INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_track_bookmarks_track ON track_bookmarks(track_id);
             "#,
         )
         .execute(&self.pool)
@@ -564,6 +587,16 @@ impl Database {
         Ok(res)
     }
 
+    /// Pobiera album na podstawie jego ID.
+    pub async fn get_album_by_id(&self, id: i64) -> Result<Option<AlbumRecord>, StorageError> {
+        let res = sqlx::query_as::<_, AlbumRecord>("SELECT * FROM albums WHERE id = ?1 LIMIT 1;")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(res)
+    }
+
     /// Pobiera listę wszystkich wykonawców.
     pub async fn list_artists(&self) -> Result<Vec<ArtistRecord>, StorageError> {
         let res = sqlx::query_as::<_, ArtistRecord>("SELECT * FROM artists ORDER BY name;")
@@ -615,6 +648,165 @@ impl Database {
             .execute(&self.pool)
             .await?;
 
+        Ok(())
+    }
+
+    /// Dodaje nowy nazwany znacznik czasu (zakładkę / cue point) do utworu.
+    pub async fn add_track_bookmark(
+        &self,
+        track_id: i64,
+        name: &str,
+        position_ms: u64,
+    ) -> Result<domain::TrackBookmark, StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        let rec = sqlx::query(
+            r#"
+            INSERT INTO track_bookmarks (track_id, name, position_ms, created_at)
+            VALUES (?1, ?2, ?3, ?4)
+            RETURNING id, track_id, name, position_ms, created_at;
+            "#,
+        )
+        .bind(track_id)
+        .bind(name)
+        .bind(position_ms as i64)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(domain::TrackBookmark {
+            id: rec.get("id"),
+            track_id: rec.get("track_id"),
+            name: rec.get("name"),
+            position_ms: rec.get::<i64, _>("position_ms") as u64,
+            created_at: rec.get("created_at"),
+        })
+    }
+
+    /// Pobiera listę wszystkich zakładek dla danego utworu posortowaną rosnąco według czasu.
+    pub async fn get_track_bookmarks(
+        &self,
+        track_id: i64,
+    ) -> Result<Vec<domain::TrackBookmark>, StorageError> {
+        let rows = sqlx::query(
+            "SELECT id, track_id, name, position_ms, created_at FROM track_bookmarks WHERE track_id = ?1 ORDER BY position_ms ASC;",
+        )
+        .bind(track_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let bookmarks = rows
+            .into_iter()
+            .map(|r| domain::TrackBookmark {
+                id: r.get("id"),
+                track_id: r.get("track_id"),
+                name: r.get("name"),
+                position_ms: r.get::<i64, _>("position_ms") as u64,
+                created_at: r.get("created_at"),
+            })
+            .collect();
+
+        Ok(bookmarks)
+    }
+
+    /// Aktualizuje nazwę znacznika czasu.
+    pub async fn update_track_bookmark(
+        &self,
+        bookmark_id: i64,
+        name: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query("UPDATE track_bookmarks SET name = ?1 WHERE id = ?2;")
+            .bind(name)
+            .bind(bookmark_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Usuwa znacznik czasu o podanym ID.
+    pub async fn delete_track_bookmark(&self, bookmark_id: i64) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM track_bookmarks WHERE id = ?1;")
+            .bind(bookmark_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Wyszukuje grupy potencjalnych duplikatów utworów w bibliotece na podstawie znormalizowanego tytułu i wykonawcy.
+    pub async fn find_duplicate_tracks(&self) -> Result<Vec<DuplicateGroup>, StorageError> {
+        let dup_keys = sqlx::query(
+            r#"
+            SELECT LOWER(TRIM(title)) as norm_title, LOWER(TRIM(artist)) as norm_artist, COUNT(*) as cnt
+            FROM tracks
+            WHERE title != '' AND artist != ''
+            GROUP BY LOWER(TRIM(title)), LOWER(TRIM(artist))
+            HAVING cnt > 1
+            ORDER BY cnt DESC, norm_title ASC;
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut groups = Vec::new();
+        for row in dup_keys {
+            let norm_title: String = row.get("norm_title");
+            let norm_artist: String = row.get("norm_artist");
+            let cnt: i64 = row.get("cnt");
+
+            let tracks = sqlx::query_as::<_, TrackRecord>(
+                r#"
+                SELECT * FROM tracks
+                WHERE LOWER(TRIM(title)) = ?1 AND LOWER(TRIM(artist)) = ?2
+                ORDER BY format ASC, bit_depth DESC, sample_rate DESC, file_size DESC;
+                "#,
+            )
+            .bind(&norm_title)
+            .bind(&norm_artist)
+            .fetch_all(&self.pool)
+            .await?;
+
+            let title_display = tracks
+                .first()
+                .map(|t| t.title.as_str())
+                .unwrap_or(&norm_title);
+            let artist_display = tracks
+                .first()
+                .map(|t| t.artist.as_str())
+                .unwrap_or(&norm_artist);
+
+            groups.push(DuplicateGroup {
+                key: format!("{} — {}", artist_display, title_display),
+                count: cnt as usize,
+                tracks,
+            });
+        }
+
+        Ok(groups)
+    }
+
+    /// Usuwa rekord utworu z bazy danych (np. przy deduplikacji).
+    pub async fn delete_track(&self, track_id: i64) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM tracks WHERE id = ?1;")
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Aktualizuje ścieżkę pliku utworu w bazie danych po zmianie nazwy / przeniesieniu na dysku.
+    pub async fn update_track_path(
+        &self,
+        track_id: i64,
+        new_path: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query("UPDATE tracks SET path = ?1 WHERE id = ?2;")
+            .bind(new_path)
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -1484,5 +1676,81 @@ mod tests {
         db.delete_playlist(pl_id).await.unwrap();
         let empty_pls = db.list_playlists().await.unwrap();
         assert!(empty_pls.is_empty());
+
+        // 8. Test wielopunktowych zakładek (Track Bookmarks / Cue points)
+        let bm1 = db
+            .add_track_bookmark(track_id, "Intro Drop", 15400)
+            .await
+            .unwrap();
+        assert_eq!(bm1.name, "Intro Drop");
+        assert_eq!(bm1.position_ms, 15400);
+
+        let bm2 = db
+            .add_track_bookmark(track_id, "Guitar Solo", 85200)
+            .await
+            .unwrap();
+        assert_eq!(bm2.name, "Guitar Solo");
+
+        let bms = db.get_track_bookmarks(track_id).await.unwrap();
+        assert_eq!(bms.len(), 2);
+        assert_eq!(bms[0].position_ms, 15400);
+        assert_eq!(bms[1].position_ms, 85200);
+
+        db.update_track_bookmark(bm1.id, "Main Verse")
+            .await
+            .unwrap();
+        let updated_bms = db.get_track_bookmarks(track_id).await.unwrap();
+        assert_eq!(updated_bms[0].name, "Main Verse");
+
+        db.delete_track_bookmark(bm2.id).await.unwrap();
+        let bms_after_del = db.get_track_bookmarks(track_id).await.unwrap();
+        assert_eq!(bms_after_del.len(), 1);
+
+        // 9. Test wyszukiwania duplikatów (Duplicate Finder)
+        let dup_track = TrackRecord {
+            id: 0,
+            path: "/music/sparkle_copy.mp3".to_string(),
+            title: "Sparkle (Movie Ver.)".to_string(),
+            artist: "RADWIMPS".to_string(),
+            album_artist: Some("RADWIMPS".to_string()),
+            album_id: Some(album_id),
+            disc_no: Some(1),
+            track_no: Some(8),
+            duration_ms: 538000,
+            format: "MP3".to_string(),
+            sample_rate: 44100,
+            channels: 2,
+            bit_depth: Some(16),
+            file_size: 12000000,
+            modified_time: 1600000000,
+            is_favorite: None,
+            play_count: None,
+            last_played_at: None,
+            total_play_time_ms: None,
+            bpm: None,
+            initial_key: None,
+            replaygain_track_gain: None,
+            replaygain_track_peak: None,
+            rating: None,
+        };
+        let dup_id = db.upsert_track(&dup_track).await.unwrap();
+        assert!(dup_id > 0);
+
+        let duplicates = db.find_duplicate_tracks().await.unwrap();
+        assert_eq!(duplicates.len(), 1);
+        assert_eq!(duplicates[0].count, 2);
+        assert_eq!(duplicates[0].tracks.len(), 2);
+
+        // Test aktualizacji ścieżki (File Renamer)
+        db.update_track_path(dup_id, "/music/RADWIMPS - Sparkle.mp3")
+            .await
+            .unwrap();
+        let moved_track = db.get_track_by_id(dup_id).await.unwrap().unwrap();
+        assert_eq!(moved_track.path, "/music/RADWIMPS - Sparkle.mp3");
+
+        // Test usunięcia duplikatu
+        db.delete_track(dup_id).await.unwrap();
+        let remaining_dups = db.find_duplicate_tracks().await.unwrap();
+        assert!(remaining_dups.is_empty());
     }
 }
