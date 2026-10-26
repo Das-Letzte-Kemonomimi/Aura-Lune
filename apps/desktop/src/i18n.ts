@@ -13,6 +13,7 @@ export interface Translations {
     fullscreen: string;
     miniPlayer: string;
     queue: string;
+    radio: string;
   };
   player: {
     track: string;
@@ -142,6 +143,10 @@ export interface Translations {
     loopModeQueue: string;
     playThis: string;
     openContainingFolder: string;
+    saveAsPlaylist: string;
+    saveAsPlaylistTitle: string;
+    playlistNamePlaceholder: string;
+    savedToPlaylist: string;
   };
   dsp: {
     title: string;
@@ -756,6 +761,25 @@ export interface Translations {
     noLyrics: string;
     upcoming: string;
   };
+  radio: {
+    title: string;
+    subtitle: string;
+    featuredStations: string;
+    customStations: string;
+    addCustomStation: string;
+    stationName: string;
+    stationUrl: string;
+    stationGenre: string;
+    saveStation: string;
+    deleteStation: string;
+    playing: string;
+    buffering: string;
+    live: string;
+    nowPlayingLive: string;
+    noCustomStations: string;
+    enterValidUrl: string;
+    deleteStationConfirm: string;
+  };
 }
 
 export const translations: Record<Language, Translations> = {
@@ -772,6 +796,7 @@ export const translations: Record<Language, Translations> = {
       fullscreen: 'Full Screen',
       miniPlayer: 'Mini Player',
       queue: 'Queue',
+      radio: 'Anime Radio',
     },
     player: {
       track: 'Track',
@@ -901,6 +926,10 @@ export const translations: Record<Language, Translations> = {
       loopModeQueue: 'Queue',
       playThis: 'Play this track',
       openContainingFolder: 'Open containing folder (Dolphin / Files)',
+      saveAsPlaylist: 'Save as Playlist',
+      saveAsPlaylistTitle: 'Save Queue as Playlist',
+      playlistNamePlaceholder: 'Playlist name...',
+      savedToPlaylist: 'Saved queue as playlist "{0}"!',
     },
     dsp: {
       title: 'DSP Studio & Replaceable Engines',
@@ -1515,6 +1544,25 @@ export const translations: Record<Language, Translations> = {
       noLyrics: '♪ No synchronized lyrics ♪',
       upcoming: 'Upcoming:',
     },
+    radio: {
+      title: 'Anime Web Radio',
+      subtitle: 'Stream live 24/7 anime, J-Pop, Touhou, and chill Lo-Fi streams with native PipeWire & DSP effects',
+      featuredStations: 'Curated Stations',
+      customStations: 'Custom Streams',
+      addCustomStation: 'Add Stream',
+      stationName: 'Station Name',
+      stationUrl: 'Stream URL (HTTP/HTTPS/Icecast)',
+      stationGenre: 'Genre / Description',
+      saveStation: 'Save Station',
+      deleteStation: 'Delete',
+      playing: 'LIVE ON AIR',
+      buffering: 'Connecting...',
+      live: 'LIVE',
+      nowPlayingLive: 'Live track:',
+      noCustomStations: 'No custom streams added yet. Click "Add Stream" to add your own Icecast or Shoutcast URL!',
+      enterValidUrl: 'Please enter a valid stream URL starting with http:// or https://',
+      deleteStationConfirm: 'Are you sure you want to delete this station?',
+    },
   },
 
   pl: {
@@ -1530,6 +1578,7 @@ export const translations: Record<Language, Translations> = {
       fullscreen: 'Pełny ekran',
       miniPlayer: 'Mini-Player',
       queue: 'Kolejka',
+      radio: 'Radio Anime',
     },
     player: {
       track: 'Utwór',
@@ -1659,6 +1708,10 @@ export const translations: Record<Language, Translations> = {
       loopModeQueue: 'Kolejka',
       playThis: 'Odtwórz ten utwór',
       openContainingFolder: 'Otwórz folder zawierający (Dolphin / Menedżer plików)',
+      saveAsPlaylist: 'Zapisz jako playlistę',
+      saveAsPlaylistTitle: 'Zapisz kolejkę jako playlistę',
+      playlistNamePlaceholder: 'Nazwa nowej playlisty...',
+      savedToPlaylist: 'Zapisano kolejkę jako playlistę „{0}”!',
     },
     dsp: {
       title: 'Studio DSP & Wymienne Silniki',
@@ -2273,6 +2326,25 @@ export const translations: Record<Language, Translations> = {
       noLyrics: '♪ Brak zsynchronizowanego tekstu ♪',
       upcoming: 'Następny wers:',
     },
+    radio: {
+      title: 'Radio Internetowe Anime',
+      subtitle: 'Słuchaj na żywo stacji anime, J-Pop, Touhou i Lo-Fi z pełnym wsparciem PipeWire i efektów DSP',
+      featuredStations: 'Polecane Stacje',
+      customStations: 'Własne Strumienie',
+      addCustomStation: 'Dodaj Stację',
+      stationName: 'Nazwa stacji',
+      stationUrl: 'Adres URL strumienia (HTTP/HTTPS/Icecast)',
+      stationGenre: 'Gatunek / Opis',
+      saveStation: 'Zapisz stację',
+      deleteStation: 'Usuń',
+      playing: 'NA ŻYWO (ON AIR)',
+      buffering: 'Łączenie ze strumieniem...',
+      live: 'NA ŻYWO',
+      nowPlayingLive: 'Aktualnie grane:',
+      noCustomStations: 'Brak dodanych własnych stacji. Kliknij „Dodaj Stację”, aby wkleić swój ulubiony strumień Icecast lub Shoutcast!',
+      enterValidUrl: 'Wprowadź prawidłowy adres URL rozpoczynający się od http:// lub https://',
+      deleteStationConfirm: 'Czy na pewno chcesz usunąć tę stację?',
+    },
   },
 
   de: {
@@ -2288,6 +2360,7 @@ export const translations: Record<Language, Translations> = {
       fullscreen: 'Vollbild',
       miniPlayer: 'Mini-Player',
       queue: 'Warteschlange',
+      radio: 'Anime-Radio',
     },
     player: {
       track: 'Titel',
@@ -2417,6 +2490,10 @@ export const translations: Record<Language, Translations> = {
       loopModeQueue: 'Warteschlange',
       playThis: 'Diesen Titel abspielen',
       openContainingFolder: 'Enthaltenden Ordner öffnen (Dateimanager)',
+      saveAsPlaylist: 'Als Playlist speichern',
+      saveAsPlaylistTitle: 'Warteschlange als Playlist speichern',
+      playlistNamePlaceholder: 'Playlist-Name...',
+      savedToPlaylist: 'Warteschlange als Playlist „{0}“ gespeichert!',
     },
     dsp: {
       title: 'DSP-Studio & Austauschbare Engines',
@@ -3031,6 +3108,25 @@ export const translations: Record<Language, Translations> = {
       noLyrics: '♪ Keine synchronisierten Songtexte ♪',
       upcoming: 'Nächste Zeile:',
     },
+    radio: {
+      title: 'Anime-Webradio',
+      subtitle: 'Live-Anime-, J-Pop-, Touhou- und Lo-Fi-Streams mit voller PipeWire- und DSP-Unterstützung',
+      featuredStations: 'Empfohlene Sender',
+      customStations: 'Eigene Streams',
+      addCustomStation: 'Sender hinzufügen',
+      stationName: 'Sendername',
+      stationUrl: 'Stream-URL (HTTP/HTTPS/Icecast)',
+      stationGenre: 'Genre / Beschreibung',
+      saveStation: 'Sender speichern',
+      deleteStation: 'Löschen',
+      playing: 'LIVE AUF SENDUNG',
+      buffering: 'Verbindung wird hergestellt...',
+      live: 'LIVE',
+      nowPlayingLive: 'Aktueller Titel:',
+      noCustomStations: 'Noch keine eigenen Sender hinzugefügt. Klicke auf „Sender hinzufügen“!',
+      enterValidUrl: 'Bitte gib eine gültige Stream-URL ein (http:// oder https://)',
+      deleteStationConfirm: 'Möchtest du diesen Sender wirklich löschen?',
+    },
   },
 
   fi: {
@@ -3046,6 +3142,7 @@ export const translations: Record<Language, Translations> = {
       fullscreen: 'Koko näyttö',
       miniPlayer: 'Mini-soitin',
       queue: 'Jono',
+      radio: 'Anime-radio',
     },
     player: {
       track: 'Kappale',
@@ -3175,6 +3272,10 @@ export const translations: Record<Language, Translations> = {
       loopModeQueue: 'Jono',
       playThis: 'Toista tämä kappale',
       openContainingFolder: 'Avaa sisältävä kansio tiedostonhallinnassa',
+      saveAsPlaylist: 'Tallenna soittolistaksi',
+      saveAsPlaylistTitle: 'Tallenna jono soittolistaksi',
+      playlistNamePlaceholder: 'Soittolistan nimi...',
+      savedToPlaylist: 'Jono tallennettu soittolistaksi "{0}"!',
     },
     dsp: {
       title: 'DSP-Studio & Vaihdettavat Moottorit',
@@ -3789,6 +3890,25 @@ export const translations: Record<Language, Translations> = {
       noLyrics: '♪ Ei tahdistettuja sanoituksia ♪',
       upcoming: 'Seuraava säe:',
     },
+    radio: {
+      title: 'Anime-nettiradio',
+      subtitle: 'Kuuntele anime-, J-Pop-, Touhou- ja Lo-Fi-lähetyksiä PipeWiren ja DSP-efektien kera',
+      featuredStations: 'Suositellut kanavat',
+      customStations: 'Omat streamit',
+      addCustomStation: 'Lisää kanava',
+      stationName: 'Kanavan nimi',
+      stationUrl: 'Streamin URL (HTTP/HTTPS/Icecast)',
+      stationGenre: 'Genre / Kuvaus',
+      saveStation: 'Tallenna kanava',
+      deleteStation: 'Poista',
+      playing: 'LÄHETYS KÄYNNISSÄ',
+      buffering: 'Yhdistetään streamia...',
+      live: 'SUORA',
+      nowPlayingLive: 'Nyt soi:',
+      noCustomStations: 'Ei omia kanavia lisättynä. Napsauta "Lisää kanava" lisätäksesi streamisi!',
+      enterValidUrl: 'Anna kelvollinen URL-osoite (http:// tai https://)',
+      deleteStationConfirm: 'Haluatko varmasti poistaa tämän kanavan?',
+    },
   },
 
   la: {
@@ -3804,6 +3924,7 @@ export const translations: Record<Language, Translations> = {
       fullscreen: 'Plena Facies',
       miniPlayer: 'Parvus Lusor',
       queue: 'Ordo',
+      radio: 'Radio Anime',
     },
     player: {
       track: 'Cantus',
@@ -3933,6 +4054,10 @@ export const translations: Record<Language, Translations> = {
       loopModeQueue: 'Series',
       playThis: 'Hunc cantum cane',
       openContainingFolder: 'Aperi capsam continentem in procuratore',
+      saveAsPlaylist: 'Ut indicem servare',
+      saveAsPlaylistTitle: 'Ordinem ut indicem servare',
+      playlistNamePlaceholder: 'Nomen indicis...',
+      savedToPlaylist: 'Ordo ut index "{0}" servatus est!',
     },
     dsp: {
       title: 'Officina DSP & Machinae Mutabiles',
@@ -4546,6 +4671,25 @@ export const translations: Record<Language, Translations> = {
       closeTooltip: 'Claude versuum instrumentum',
       noLyrics: '♪ Nulli versus synchronizati ♪',
       upcoming: 'Versus insequens:',
+    },
+    radio: {
+      title: 'Radio Interretiale Anime',
+      subtitle: 'Transmissiones anime, J-Pop, Touhou et Lo-Fi cum effectibus DSP audi',
+      featuredStations: 'Stationes commendatae',
+      customStations: 'Meae transmissiones',
+      addCustomStation: 'Stationem addere',
+      stationName: 'Nomen stationis',
+      stationUrl: 'URL transmissionis (HTTP/HTTPS/Icecast)',
+      stationGenre: 'Genus / Descriptio',
+      saveStation: 'Stationem servare',
+      deleteStation: 'Delere',
+      playing: 'IN AERE (LIVE)',
+      buffering: 'Connexio paratur...',
+      live: 'VIVUS',
+      nowPlayingLive: 'Nunc sonat:',
+      noCustomStations: 'Nullae stationes propriae additae sunt.',
+      enterValidUrl: 'Quaeso rectam inscriptionem URL scribe (http:// vel https://)',
+      deleteStationConfirm: 'Visne hanc stationem delere?',
     },
   },
 };

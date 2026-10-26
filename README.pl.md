@@ -77,14 +77,21 @@ Aplikacja łączy zaawansowany potok audio w języku **Rust** z responsywnym fro
 
 ## 📦 Instalacja i Uruchomienie
 
-### 1. Gotowa paczka AppImage (Wszystkie dystrybucje Linuksa)
+### 1. Szybka instalacja jednym poleceniem (Wszystkie dystrybucje Linuksa)
+Możesz zainstalować lub zaktualizować Auralune na dowolnej dystrybucji (bez konieczności uprawnień roota):
+```bash
+curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/install.sh | bash
+```
+Instalator automatycznie konfiguruje najnowszy AppImage, ikonę i skrót w menu programów (`auralune.desktop`) oraz launcher z automatycznym fallbackiem FUSE.
+
+### 2. Gotowa paczka AppImage (Ręcznie)
 Pobierz najnowszy plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
 ```bash
-chmod +x Auralune_0.3.0_amd64.AppImage
-./Auralune_0.3.0_amd64.AppImage
+chmod +x Auralune_0.6.5_amd64.AppImage
+./Auralune_0.6.5_amd64.AppImage
 ```
 
-### 2. Arch Linux / EndeavourOS / CachyOS (AUR)
+### 3. Arch Linux / EndeavourOS / CachyOS (AUR)
 ```bash
 # Za pomocą dowolnego AUR helpera:
 yay -S auralune-bin

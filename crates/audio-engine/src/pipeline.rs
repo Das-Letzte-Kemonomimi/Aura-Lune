@@ -30,6 +30,7 @@ pub enum PlayerEvent {
     Warning(String),
     Buffering(i32),
     Spectrum(Vec<f32>),
+    Tag(String),
 }
 
 /// Wewnętrzny stan potoku audio.
@@ -1117,6 +1118,22 @@ impl AudioEngine {
                                         events.push(PlayerEvent::Spectrum(magnitudes));
                                     }
                                 }
+                            }
+                        }
+                    }
+                    MessageView::Tag(tag_msg) => {
+                        let tags = tag_msg.tags();
+                        let title = tags.get::<gst::tags::Title>().map(|t| t.get().to_string());
+                        let artist = tags.get::<gst::tags::Artist>().map(|a| a.get().to_string());
+                        if title.is_some() || artist.is_some() {
+                            let tag_text = match (artist, title) {
+                                (Some(a), Some(t)) => format!("{} - {}", a, t),
+                                (None, Some(t)) => t,
+                                (Some(a), None) => a,
+                                (None, None) => String::new(),
+                            };
+                            if !tag_text.is_empty() {
+                                events.push(PlayerEvent::Tag(tag_text));
                             }
                         }
                     }
