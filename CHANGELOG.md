@@ -9,6 +9,28 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.6.5] — „Anime Web Radio, Live ICY Streams & Universal Installer” - 2026-10-26
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Anime Web Radio / Stacje Internetowe (Live ICY Streams & PipeWire DSP)**:
+  - Dedykowana zakładka „Radio” (`RadioView.tsx`) zintegrowana z natywnym silnikiem odtwarzacza GStreamer / PipeWire.
+  - Przechwytywanie metadanych ICY na żywo (`PlayerEvent::Tag` w `pipeline.rs`) ze strumieni Icecast/Shoutcast — tytuł aktualnie nadawanego utworu jest w czasie rzeczywistym aktualizowany w interfejsie (`live_stream_title`), na pasku Now Playing, w doku mini-playera, powiadomieniach MPRIS D-Bus oraz statusie aktywności Discord Rich Presence.
+  - Wbudowane polecane stacje radiowe o wysokiej jakości: *LISTEN.moe J-Pop*, *LISTEN.moe K-Pop*, *Gensokyo Radio (Touhou Project)*, *Nightwave Plaza (Vaporwave / Future Funk)*, *AnimeNfo Radio* oraz *Lofi Beats Radio*.
+  - Modal `AddRadioStationModal` umożliwiający dodawanie własnych strumieni internetowych z walidacją URL i persystencją w `localStorage`.
+  - Pełne wsparcie efektów DSP czasu rzeczywistego (pitch-shifting Rubber Band / SoundTouch, tempo, korektor 10-pasmowy, pogłos i crossfeed słuchawkowy) bezpośrednio na strumieniach radiowych.
+- **Zarządzanie Kolejką: Zapisz kolejkę jako nową playlistę (Save Queue as Playlist)**:
+  - Nowe atomowe polecenie Tauri `save_queue_as_playlist(name: String)` tworzące nową playlistę w bazie SQLite i przepisujące do niej całą aktualną zawartość kolejki.
+  - Przycisk `BookmarkPlus` w nagłówku kolejki odtwarzania oraz modal `SaveQueueModal` z polem nazwy, licznikiem utworów i natychmiastowym odświeżeniem listy playlist.
+- **Uniwersalny instalator Linux (`install.sh`)**:
+  - Samodzielny instalator działający na dowolnej dystrybucji Linuksa (Ubuntu, Debian, Fedora, Arch Linux, openSUSE, Void, NixOS, SteamOS itp.).
+  - Instalacja w przestrzeni użytkownika (`~/.local/bin`, `~/.local/share`) bez konieczności uprawnień roota.
+  - Automatyczne tworzenie skrótu w menu programów (`auralune.desktop`) wraz z kompletem ikon hicolor (128x128 oraz 512x512) i skojarzeniami typów MIME dla plików audio.
+  - Zintegrowany launcher obsługujący transparentny fallback `--appimage-extract-and-run` w przypadku braku systemowego FUSE 2 (`libfuse.so.2`).
+  - Opcja czystego odinstalowania (`install.sh --uninstall`).
+
+---
+
 ## [0.6.4] — „foobar2000 Power Tools & Kitsune Facets” - 2026-10-26
 **Autorka**: Das Letzte Kemonomimi
 

@@ -77,14 +77,21 @@ The application combines a high-performance **Rust** pipeline with a responsive 
 
 ## 📦 Installation & Usage
 
-### 1. Prebuilt AppImage (Any Linux Distribution)
+### 1. One-line Universal Installation (Any Linux Distribution)
+Install or update Auralune with a single command (no root privileges required):
+```bash
+curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/install.sh | bash
+```
+The installer downloads the latest AppImage, installs icons, desktop entry (`auralune.desktop`), and a smart launcher with automatic FUSE 2 fallback.
+
+### 2. Standalone AppImage (Manual)
 Download the latest standalone executable from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
 ```bash
-chmod +x Auralune_0.3.0_amd64.AppImage
-./Auralune_0.3.0_amd64.AppImage
+chmod +x Auralune_0.6.5_amd64.AppImage
+./Auralune_0.6.5_amd64.AppImage
 ```
 
-### 2. Arch Linux / EndeavourOS / CachyOS (AUR)
+### 3. Arch Linux / EndeavourOS / CachyOS (AUR)
 ```bash
 # Using your preferred AUR helper:
 yay -S auralune-bin

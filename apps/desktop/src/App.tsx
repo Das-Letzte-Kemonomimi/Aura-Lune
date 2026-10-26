@@ -20,6 +20,7 @@ import {
   Disc,
   Clock,
   Bookmark,
+  BookmarkPlus,
   RotateCcw,
   Save,
   Palette,
@@ -99,6 +100,9 @@ import { TrackBookmarksModal, type TrackBookmarkDto } from './components/TrackBo
 import { DuplicateFinderModal } from './components/DuplicateFinderModal';
 import { FileRenamerModal } from './components/FileRenamerModal';
 import { FacetsFilterPane } from './components/FacetsFilterPane';
+import { RadioView, type RadioStation } from './components/RadioView';
+import { SaveQueueModal } from './components/SaveQueueModal';
+import { AddRadioStationModal } from './components/AddRadioStationModal';
 import { useVirtualScroll } from './hooks/useVirtualScroll';
 import { type Language, getTranslations } from './i18n';
 
@@ -249,7 +253,10 @@ interface PlaybackStatus {
     pre_amp_db: number;
   };
   replaygain_status?: [number, number, boolean];
+  live_stream_title?: string | null;
 }
+
+
 
 interface AudioCardProfile {
   name: string;
@@ -652,7 +659,21 @@ export default function App() {
   const dspSaveTimeoutRef = useRef<any>(null);
 
   const [cards, setCards] = useState<AudioCard[]>([]);
-  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'radio' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
+  const [isSaveQueueModalOpen, setIsSaveQueueModalOpen] = useState(false);
+
+  // Radio state
+  const [customRadioStations, setCustomRadioStations] = useState<RadioStation[]>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_custom_radio_stations');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [currentRadioStation, setCurrentRadioStation] = useState<RadioStation | null>(null);
+  const [isAddStationModalOpen, setIsAddStationModalOpen] = useState(false);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'themes' | 'devices' | 'transcode' | 'about' | 'changelog' | 'backup'>('themes');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
@@ -2932,6 +2953,53 @@ export default function App() {
       showMessage(t.notifications.queueClearedMsg);
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  const handleConfirmSaveQueueAsPlaylist = async (name: string) => {
+    try {
+      await invoke('save_queue_as_playlist', { name });
+      await refreshPlaylists();
+      showMessage(loc.queue.savedToPlaylist.replace('{0}', name));
+    } catch (err: any) {
+      showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handlePlayRadioStation = async (station: RadioStation) => {
+    try {
+      setCurrentRadioStation(station);
+      await invoke('load_radio_stream', { url: station.url, stationName: station.name });
+      showMessage(`${station.name} • ${loc.radio.buffering}`);
+    } catch (err: any) {
+      showMessage(`${t.common.errorPrefix} ${err}`, true);
+    }
+  };
+
+  const handleSaveCustomStation = (stationData: { name: string; url: string; genre: string }) => {
+    const newStation: RadioStation = {
+      id: `custom_${Date.now()}`,
+      name: stationData.name,
+      url: stationData.url,
+      genre: stationData.genre || 'Internet Stream',
+    };
+    const updated = [...customRadioStations, newStation];
+    setCustomRadioStations(updated);
+    try {
+      localStorage.setItem('auralune_custom_radio_stations', JSON.stringify(updated));
+    } catch {}
+    showMessage(`${loc.radio.saveStation}: ${newStation.name}`);
+  };
+
+  const handleDeleteCustomStation = (id: string) => {
+    if (!confirm(loc.radio.deleteStationConfirm)) return;
+    const updated = customRadioStations.filter((s) => s.id !== id);
+    setCustomRadioStations(updated);
+    try {
+      localStorage.setItem('auralune_custom_radio_stations', JSON.stringify(updated));
+    } catch {}
+    if (currentRadioStation?.id === id) {
+      setCurrentRadioStation(null);
     }
   };
 
@@ -7740,6 +7808,23 @@ const renderDevicesSection = () => (
             {loc.nav.playlists} ({playlists.length})
           </button>
           <button
+            onClick={() => setActiveTab('radio')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: activeTab === 'radio' ? 'var(--accent-purple)' : 'transparent',
+              color: '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Radio size={15} />
+            {loc.nav.radio || 'Radio'}
+          </button>
+          <button
             onClick={() => setActiveTab('dsp')}
             style={{
               padding: '8px 16px',
@@ -8453,6 +8538,34 @@ const renderDevicesSection = () => (
                       >
                         {currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
                       </p>
+                      {status.live_stream_title && (
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            marginTop: '6px',
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            background: 'rgba(236, 72, 153, 0.15)',
+                            border: '1px solid rgba(236, 72, 153, 0.35)',
+                            color: 'var(--accent-pink)',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background: '#ff4757',
+                              boxShadow: '0 0 8px #ff4757',
+                            }}
+                          />
+                          <span>LIVE: {status.live_stream_title}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -9707,6 +9820,31 @@ const renderDevicesSection = () => (
                   <Plus size={14} />
                   <span>{t.queue.addTracks}</span>
                 </button>
+
+                {/* Przycisk Zapisz kolejkę jako playlistę */}
+                {queue.items.length > 0 && (
+                  <button
+                    onClick={() => setIsSaveQueueModalOpen(true)}
+                    className="glass-card"
+                    style={{
+                      padding: '6px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--accent-purple)',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      background: 'rgba(168, 85, 247, 0.12)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
+                    title={loc.queue.saveAsPlaylistTitle}
+                  >
+                    <BookmarkPlus size={14} />
+                    <span>{loc.queue.saveAsPlaylist}</span>
+                  </button>
+                )}
 
                 {/* Przycisk Wyczyść kolejkę */}
                 {queue.items.length > 0 && (
@@ -14058,6 +14196,21 @@ const renderDevicesSection = () => (
             )}
           </div>
         )}
+
+        {/* Zakładka: Anime Web Radio */}
+        {activeTab === 'radio' && (
+          <RadioView
+            currentLang={language}
+            currentStation={currentRadioStation}
+            isPlaying={status.state === 'Playing'}
+            liveStreamTitle={status.live_stream_title}
+            customStations={customRadioStations}
+            onPlayStation={handlePlayRadioStation}
+            onStop={handleStop}
+            onOpenAddModal={() => setIsAddStationModalOpen(true)}
+            onDeleteCustomStation={handleDeleteCustomStation}
+          />
+        )}
       </main>
 
       {/* Pływający dolny dok odtwarzacza (Mini-Player) — widoczny w zakładkach innych niż Odtwarzacz */}
@@ -15140,6 +15293,23 @@ const renderDevicesSection = () => (
           }}
         />
       )}
+
+      {/* Modal Zapisywania Kolejki jako Playlisty */}
+      <SaveQueueModal
+        isOpen={isSaveQueueModalOpen}
+        currentLang={language}
+        queueLength={queue.items.length}
+        onClose={() => setIsSaveQueueModalOpen(false)}
+        onSave={handleConfirmSaveQueueAsPlaylist}
+      />
+
+      {/* Modal Dodawania Własnej Stacji Radiowej */}
+      <AddRadioStationModal
+        isOpen={isAddStationModalOpen}
+        currentLang={language}
+        onClose={() => setIsAddStationModalOpen(false)}
+        onSave={handleSaveCustomStation}
+      />
     </div>
   );
 }

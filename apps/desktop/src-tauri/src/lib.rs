@@ -51,6 +51,7 @@ pub struct AppState {
     pub lastfm: Arc<LastFmClient>,
     pub downloads: Arc<DownloadManager>,
     pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
+    pub latest_live_stream_tag: Arc<Mutex<Option<String>>>,
     pub discord_cover_cache: Arc<std::sync::RwLock<std::collections::HashMap<String, String>>>,
 }
 
@@ -73,6 +74,7 @@ pub struct PlaybackStatusDto {
     pub spectrum: Vec<f32>,
     pub replaygain_config: ReplayGainConfig,
     pub replaygain_status: (f64, f64, bool),
+    pub live_stream_title: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +96,10 @@ pub struct ReplayGainScanSummaryDto {
 fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
     info!("Tauri command: load_file('{}')", path);
     state.engine.load_uri(&path).map_err(|e| e.to_string())?;
+
+    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+        *t = None;
+    }
 
     let db = state.db.clone();
     let path_clone = path.clone();
@@ -643,10 +649,42 @@ fn update_mpris_metadata(
 fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
     let events = state.engine.poll_events();
     for event in events {
-        if let PlayerEvent::Spectrum(mags) = event {
-            if let Ok(mut s) = state.latest_spectrum.lock() {
-                *s = mags;
+        match event {
+            PlayerEvent::Spectrum(mags) => {
+                if let Ok(mut s) = state.latest_spectrum.lock() {
+                    *s = mags;
+                }
             }
+            PlayerEvent::Tag(tag) => {
+                info!("Live stream tag: {}", tag);
+                if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                    *t = Some(tag.clone());
+                }
+                if let Some(mpris) = &state.mpris {
+                    let m = mpris.clone();
+                    let tag_clone = tag.clone();
+                    state.rt.spawn(async move {
+                        let track_info = desktop_integration::MprisTrackInfo {
+                            title: tag_clone,
+                            artist: "Anime Web Radio".to_string(),
+                            album: "Live Stream".to_string(),
+                            duration_ms: 0,
+                            art_url: None,
+                        };
+                        m.update_track(track_info).await;
+                    });
+                }
+                if let Some(discord) = &state.discord_rpc {
+                    discord.update_track(desktop_integration::DiscordTrackInfo {
+                        title: tag.clone(),
+                        artist: "Anime Web Radio".to_string(),
+                        album: "Live Stream".to_string(),
+                        duration_ms: 0,
+                        art_url: None,
+                    });
+                }
+            }
+            _ => {}
         }
     }
     let pos_ms = state
@@ -665,6 +703,11 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         .lock()
         .map(|s| s.clone())
         .unwrap_or_default();
+    let live_stream_title = state
+        .latest_live_stream_tag
+        .lock()
+        .ok()
+        .and_then(|t| t.clone());
 
     PlaybackStatusDto {
         state: state.engine.state(),
@@ -684,6 +727,7 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         spectrum,
         replaygain_config: state.engine.replaygain_config(),
         replaygain_status: state.engine.replaygain_status(),
+        live_stream_title,
     }
 }
 
@@ -2771,6 +2815,76 @@ fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn load_radio_stream(
+    url: String,
+    station_name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: load_radio_stream('{}', '{}')",
+        station_name, url
+    );
+    state.engine.load_uri(&url).map_err(|e| e.to_string())?;
+
+    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+        *t = None;
+    }
+
+    let queue_item = QueueItem {
+        id: format!(
+            "radio-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        ),
+        track_id: None,
+        uri: url.clone(),
+        title: station_name.clone(),
+        artist: "Anime Web Radio".to_string(),
+        album: Some("Live Stream".to_string()),
+        duration_ms: 0,
+    };
+
+    state.engine.set_active_item(queue_item.clone());
+    sync_mpris_from_queue_item(&queue_item, &state);
+    state.engine.play().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn save_queue_as_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+    info!("Tauri command: save_queue_as_playlist('{}')", name);
+    let queue = state.engine.queue();
+    if queue.items.is_empty() {
+        return Err("Kolejka odtwarzania jest pusta".to_string());
+    }
+
+    state.rt.block_on(async {
+        let pl_id = state
+            .db
+            .create_playlist(&name)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        for item in &queue.items {
+            let track_id = if let Some(tid) = item.track_id {
+                Some(tid)
+            } else if let Ok(Some(track)) = state.db.get_track_by_path(&item.uri).await {
+                Some(track.id)
+            } else {
+                None
+            };
+
+            if let Some(tid) = track_id {
+                let _ = state.db.add_track_to_playlist(pl_id, tid).await;
+            }
+        }
+        Ok(pl_id)
+    })
+}
+
+#[tauri::command]
 fn create_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
     info!("Tauri command: create_playlist('{}')", name);
     state
@@ -3904,6 +4018,7 @@ pub fn run() {
                     lastfm: Arc::new(LastFmClient::new()),
                     downloads: Arc::new(DownloadManager::new()),
                     latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
+                    latest_live_stream_tag: Arc::new(Mutex::new(None)),
                     discord_cover_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
                 };
 
@@ -4100,6 +4215,8 @@ pub fn run() {
             set_loop_mode,
             toggle_shuffle,
             create_playlist,
+            save_queue_as_playlist,
+            load_radio_stream,
             delete_playlist,
             list_playlists,
             add_track_to_playlist,
