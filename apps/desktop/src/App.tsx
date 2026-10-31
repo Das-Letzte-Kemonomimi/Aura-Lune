@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -1599,6 +1599,40 @@ export default function App() {
 
   const [selectedAlbumForMb, setSelectedAlbumForMb] = useState<AlbumRecord | null>(null);
   const [selectedAlbumDetail, setSelectedAlbumDetail] = useState<AlbumRecord | null>(null);
+  const albumListScrollPosRef = useRef<number>(0);
+  const isRestoringAlbumScrollRef = useRef<boolean>(false);
+
+  const handleOpenAlbumDetail = useCallback((album: AlbumRecord) => {
+    if (mainContentRef.current) {
+      albumListScrollPosRef.current = mainContentRef.current.scrollTop;
+    }
+    setSelectedAlbumDetail(album);
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+    }
+  }, []);
+
+  const handleBackFromAlbumDetail = useCallback(() => {
+    isRestoringAlbumScrollRef.current = true;
+    setSelectedAlbumDetail(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!selectedAlbumDetail && isRestoringAlbumScrollRef.current) {
+      isRestoringAlbumScrollRef.current = false;
+      const targetScroll = albumListScrollPosRef.current;
+      if (mainContentRef.current) {
+        mainContentRef.current.scrollTop = targetScroll;
+      }
+      const frameId = requestAnimationFrame(() => {
+        if (mainContentRef.current && Math.abs(mainContentRef.current.scrollTop - targetScroll) > 1) {
+          mainContentRef.current.scrollTop = targetScroll;
+        }
+      });
+      return () => cancelAnimationFrame(frameId);
+    }
+  }, [selectedAlbumDetail]);
+
   const [mbSearchTitle, setMbSearchTitle] = useState('');
   const [mbSearchArtist, setMbSearchArtist] = useState('');
   const [mbCandidates, setMbCandidates] = useState<ReleaseCandidateDto[]>([]);
@@ -11428,7 +11462,7 @@ const renderDevicesSection = () => (
                 <button
                   onClick={() => {
                     setLibrarySubView('albums');
-                    setSelectedAlbumDetail(null);
+                    handleBackFromAlbumDetail();
                   }}
                   style={{
                     padding: '7px 14px',
@@ -12138,7 +12172,7 @@ const renderDevicesSection = () => (
                   {/* Pasek nawigacyjny powrotu */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button
-                      onClick={() => setSelectedAlbumDetail(null)}
+                      onClick={handleBackFromAlbumDetail}
                       className="glass-card"
                       style={{
                         background: 'rgba(255,255,255,0.06)',
@@ -12808,7 +12842,7 @@ const renderDevicesSection = () => (
                           <div
                             key={album.id}
                             className="glass-card"
-                            onClick={() => setSelectedAlbumDetail(album)}
+                            onClick={() => handleOpenAlbumDetail(album)}
                             style={{
                               padding: '10px 16px',
                               borderRadius: '12px',
@@ -12992,7 +13026,7 @@ const renderDevicesSection = () => (
                           <div
                             key={album.id}
                             className="glass-card"
-                            onClick={() => setSelectedAlbumDetail(album)}
+                            onClick={() => handleOpenAlbumDetail(album)}
                             style={{
                               padding: albumGridSize === 'compact' ? '10px' : '14px',
                               borderRadius: '14px',

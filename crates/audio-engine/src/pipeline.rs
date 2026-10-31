@@ -1084,27 +1084,14 @@ impl AudioEngine {
                                 inner.current_uri.clone()
                             };
                             if let Some(uri) = current_uri {
-                                info!("LoopMode::Track (global) — powtarzam utwór: {}", uri);
-                                if let Err(e) = self.seek(Duration::ZERO) {
-                                    debug!(
-                                        "Seek do 0 po EOS nie powiódł się ({}), przeładowuję URI: {}",
-                                        e, uri
-                                    );
-                                    if let Err(load_err) = self.load_uri(&uri) {
-                                        error!("Błąd ładowania URI przy powtarzaniu: {}", load_err);
-                                        let mut inner = self.inner.lock().unwrap();
-                                        inner.state = PlaybackState::Stopped;
-                                    } else if let Err(play_err) = self.play() {
-                                        error!(
-                                            "Błąd odtwarzania przy powtarzaniu utworu: {}",
-                                            play_err
-                                        );
-                                        let mut inner = self.inner.lock().unwrap();
-                                        inner.state = PlaybackState::Stopped;
-                                    }
+                                info!("LoopMode::Track (global) — przeładowuję i powtarzam utwór od nowa: {}", uri);
+                                if let Err(load_err) = self.load_uri(&uri) {
+                                    error!("Błąd ładowania URI przy powtarzaniu: {}", load_err);
+                                    let mut inner = self.inner.lock().unwrap();
+                                    inner.state = PlaybackState::Stopped;
                                 } else if let Err(play_err) = self.play() {
                                     error!(
-                                        "Błąd wznowienia odtwarzania po seek na początek: {}",
+                                        "Błąd odtwarzania przy powtarzaniu utworu: {}",
                                         play_err
                                     );
                                     let mut inner = self.inner.lock().unwrap();
@@ -1123,25 +1110,15 @@ impl AudioEngine {
                             };
                             if let Some(uri) = current_uri {
                                 info!(
-                                    "LoopMode::Queue (pojedynczy utwór) — powtarzam utwór: {}",
+                                    "LoopMode::Queue (pojedynczy utwór) — przeładowuję i powtarzam utwór od nowa: {}",
                                     uri
                                 );
-                                if let Err(e) = self.seek(Duration::ZERO) {
-                                    debug!(
-                                        "Seek do 0 po EOS nie powiódł się ({}), przeładowuję URI: {}",
-                                        e, uri
-                                    );
-                                    if let Err(load_err) = self.load_uri(&uri) {
-                                        error!("Błąd ładowania URI: {}", load_err);
-                                        let mut inner = self.inner.lock().unwrap();
-                                        inner.state = PlaybackState::Stopped;
-                                    } else if let Err(play_err) = self.play() {
-                                        error!("Błąd odtwarzania: {}", play_err);
-                                        let mut inner = self.inner.lock().unwrap();
-                                        inner.state = PlaybackState::Stopped;
-                                    }
+                                if let Err(load_err) = self.load_uri(&uri) {
+                                    error!("Błąd ładowania URI: {}", load_err);
+                                    let mut inner = self.inner.lock().unwrap();
+                                    inner.state = PlaybackState::Stopped;
                                 } else if let Err(play_err) = self.play() {
-                                    error!("Błąd odtwarzania po seek: {}", play_err);
+                                    error!("Błąd odtwarzania: {}", play_err);
                                     let mut inner = self.inner.lock().unwrap();
                                     inner.state = PlaybackState::Stopped;
                                 }

@@ -422,6 +422,120 @@ fn test_loop_mode_track_preserves_current_uri_and_replays() {
 
     // Weryfikacja że current_uri jest zachowane w potoku bez względu na obecność w kolejce
     assert_eq!(engine.current_uri(), Some(uri));
+
+    // Uruchomienie odtwarzania
+    engine.play().expect("play");
+
+    // Poczekaj chwilę na preroll i odczyt czasu trwania
+    let mut duration = None;
+    for _ in 0..20 {
+        sleep(Duration::from_millis(50));
+        let _ = engine.poll_events();
+        if let Some(d) = engine.duration() {
+            if d > Duration::ZERO {
+                duration = Some(d);
+                break;
+            }
+        }
+    }
+    let dur = duration.expect("Czas trwania pliku powinien być dostępny");
+
+    // Przewinięcie 80ms przed koniec utworu, aby wywołać EOS
+    let target = dur.saturating_sub(Duration::from_millis(80));
+    engine.seek(target).expect("seek near end");
+
+    // Poczekaj na dotarcie do EOS i obsłużenie pętli w poll_events()
+    let mut got_eos = false;
+    for _ in 0..40 {
+        sleep(Duration::from_millis(50));
+        let events = engine.poll_events();
+        if events.contains(&audio_engine::PlayerEvent::Eos) {
+            got_eos = true;
+            break;
+        }
+    }
+    assert!(got_eos, "Oczekiwano zdarzenia Eos na magistrali GStreamer");
+
+    // Po obsłudze EOS w LoopMode::Track silnik powinien natychmiast zresetować i wznowić odtwarzanie (Playing)
+    assert_eq!(
+        engine.state(),
+        domain::PlaybackState::Playing,
+        "Stan po zapętleniu utworu powinien wynosić Playing"
+    );
+
+    // Pozycja powinna zrestartować się od początku utworu (< 1s)
+    let pos = engine.position().unwrap_or(Duration::ZERO);
+    assert!(
+        pos < Duration::from_millis(1000),
+        "Pozycja po zapętleniu powinna wrócić do początku (< 1000ms), a wynosi {:?}",
+        pos
+    );
+
+    engine.stop().expect("stop");
+}
+
+#[test]
+fn test_loop_mode_queue_single_track_eos_replays() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+
+    engine.load_uri(&uri).expect("load_uri");
+    engine.set_loop_mode(domain::queue::LoopMode::Queue);
+    assert_eq!(engine.loop_mode(), domain::queue::LoopMode::Queue);
+
+    engine.play().expect("play");
+
+    // Poczekaj na preroll i czas trwania
+    let mut duration = None;
+    for _ in 0..20 {
+        sleep(Duration::from_millis(50));
+        let _ = engine.poll_events();
+        if let Some(d) = engine.duration() {
+            if d > Duration::ZERO {
+                duration = Some(d);
+                break;
+            }
+        }
+    }
+    let dur = duration.expect("Czas trwania pliku powinien być dostępny");
+
+    // Przewinięcie 80ms przed koniec utworu
+    let target = dur.saturating_sub(Duration::from_millis(80));
+    engine.seek(target).expect("seek near end");
+
+    // Poczekaj na dotarcie do EOS
+    let mut got_eos = false;
+    for _ in 0..40 {
+        sleep(Duration::from_millis(50));
+        let events = engine.poll_events();
+        if events.contains(&audio_engine::PlayerEvent::Eos) {
+            got_eos = true;
+            break;
+        }
+    }
+    assert!(got_eos, "Oczekiwano zdarzenia Eos");
+
+    assert_eq!(
+        engine.state(),
+        domain::PlaybackState::Playing,
+        "Stan po zapętleniu pojedynczego utworu w trybie Queue powinien wynosić Playing"
+    );
+
+    let pos = engine.position().unwrap_or(Duration::ZERO);
+    assert!(
+        pos < Duration::from_millis(1000),
+        "Pozycja powinna zrestartować się od początku, a wynosi {:?}",
+        pos
+    );
+
+    engine.stop().expect("stop");
 }
 
 #[test]
