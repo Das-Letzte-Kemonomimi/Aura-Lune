@@ -1750,16 +1750,6 @@ export default function App() {
               if (elapsed >= 5000 && elapsed < 30000) {
                 lastListeningTickRef.current = now;
                 invoke('record_track_listening', { trackId, durationMs: elapsed }).catch(() => {});
-                setTracks((prev) =>
-                  prev.map((t) =>
-                    t.id === trackId
-                      ? {
-                          ...t,
-                          total_play_time_ms: (t.total_play_time_ms || 0) + elapsed,
-                        }
-                      : t
-                  )
-                );
               } else if (elapsed >= 30000) {
                 lastListeningTickRef.current = now;
               }
