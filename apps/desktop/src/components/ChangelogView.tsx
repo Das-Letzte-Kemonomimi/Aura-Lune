@@ -18,11 +18,50 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.3',
+    codename: 'SoundCloud & Playlist Harvester',
+    date: '2026-10-31',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Filtry jakości i wyboru bitratu audio: precyzyjne profile FFmpeg dla MP3 (320 kbps CBR Studio, 256k, 192k, V0 VBR), OPUS (160 kbps Studio, 128k, 96k) oraz M4A/AAC (256 kbps iTunes Plus, 192k, 128k) z zachowaniem bezstratnego bit-perfect FLAC.',
+        en: 'Audio quality & bitrate filters: accurate FFmpeg encoding profiles for MP3 (320 kbps CBR Studio, 256k, 192k, V0 VBR), OPUS (160 kbps Studio, 128k, 96k) and M4A/AAC (256 kbps iTunes Plus, 192k, 128k) alongside lossless bit-perfect FLAC.',
+        de: 'Audio-Qualitäts- und Bitratenfilter: präzise FFmpeg-Codierungsprofile für MP3 (320 kbps CBR, 256k, 192k, V0 VBR), OPUS (160k, 128k, 96k) und M4A/AAC (256k, 192k, 128k) neben verlustfreiem Bit-Perfect-FLAC.',
+        fi: 'Äänenlaatu- ja bittinopeussuodattimet: tarkat FFmpeg-koodausprofiilit MP3:lle (320 kbps CBR, 256k, 192k, V0 VBR), OPUS:lle (160k, 128k, 96k) ja M4A/AAC:lle (256k, 192k, 128k) häviöttömän FLAC:n rinnalla.',
+        la: 'Filtra qualitatis et velocitatis bitorum: moduli accurati FFmpeg pro MP3 (320 kbps CBR, 256k, 192k, V0 VBR), OPUS (160k, 128k, 96k) et M4A/AAC (256k, 192k, 128k) cum FLAC sine detrimento.',
+      },
+      {
+        pl: 'Pobieranie całych playlist, albumów i kanałów SoundCloud: przełącznik zbiorczego pobierania (--yes-playlist), opcjonalny limit utworów (5..100 lub bez limitu) oraz organizacja folderów w stylu foobar2000 (podkatalogi playlisty lub hierarchia Wykonawca/Album).',
+        en: 'Download full playlists, albums & SoundCloud channels: batch harvesting toggle (--yes-playlist), optional track download limit (5..100 or unlimited) and foobar2000-style folder hierarchy (playlist subfolders or Artist/Album tree).',
+        de: 'Herunterladen ganzer Playlists, Alben und SoundCloud-Kanäle: Stapel-Harvesting-Schalter (--yes-playlist), optionales Download-Limit (5..100 oder unbegrenzt) und Ordnerhierarchien im foobar2000-Stil.',
+        fi: 'Koko soittolistojen, albumien ja SoundCloud-kanavien lataus: erälatauskytkin (--yes-playlist), valinnainen kappalerajoitus (5..100 tai rajaton) ja foobar2000-tyylinen kansiorakenne.',
+        la: 'Collectio integra indicum, carminum et canalium SoundCloud: electio conlectionis integrae (--yes-playlist), limes carminum optivus et ordinatio loculorum more foobar2000.',
+      },
+      {
+        pl: 'Widok przeglądu pobranej playlisty (Multi-track Review): podsumowanie pobranych utworów z czasami trwania, formatem, przyciskami „Odtwórz wszystkie”, „Dodaj wszystkie do kolejki” oraz kontrolkami per utwór.',
+        en: 'Multi-track playlist review view: summary of downloaded tracks with durations, format badges, “Play all”, “Queue all” buttons, and individual track playback controls.',
+        de: 'Multi-Track-Playlist-Übersicht: Zusammenfassung der heruntergeladenen Titel mit Dauer, Format-Badges, „Alle abspielen“, „Alle einreihen“ und Einzelsteuerelementen.',
+        fi: 'Moniraitainen soittolistan esikatselunäkymä: ladattujen raitojen yhteenveto kestoineen, formaattimerkkeineen, ”Toista kaikki”-, ”Lisää kaikki jonoon” -painikkeineen.',
+        la: 'Conspectus plurium carminum collectis: compendium carminum cum temporibus, insigne formae, globulis „Canta omnia”, „Adde omnia ad ordinem” et moderationibus singularibus.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Obsługa kodu 101 yt-dlp (MaxDownloadsReached) jako kontrolowanego sukcesu przy zadanym limicie oraz odporne rekurencyjne wykrywanie i indeksowanie nowych plików w SQLite.',
+        en: 'Handled yt-dlp exit code 101 (MaxDownloadsReached) as clean success when download limit is set, with resilient recursive file discovery and SQLite indexing.',
+        de: 'Handhabung des yt-dlp-Exit-Codes 101 (MaxDownloadsReached) als sauberer Erfolg bei Download-Limits sowie robuste rekursive Dateierkennung und SQLite-Indizierung.',
+        fi: 'Käsitelty yt-dlp-koodi 101 (MaxDownloadsReached) onnistuneena tuloksena latausrajaa käytettäessä sekä varmistettu rekursiivinen tiedostojen tunnistus ja SQLite-indisointi.',
+        la: 'Tractatus indicis 101 yt-dlp (MaxDownloadsReached) ut felix successus et detectio recursiva fidelis cum indice SQLite.',
+      },
+    ],
+  },
+  {
     version: '0.7.2',
     codename: 'Stream Harvester & Precision Playback',
     date: '2026-10-31',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Wbudowany legalny importer audio z URL (yt-dlp): wklejanie linków z YouTube, SoundCloud, Bandcamp itp., automatyczne wyodrębnianie dźwięku (FLAC/MP3/OPUS) z osadzoną okładką i tagami oraz natychmiastowe zindeksowanie w bibliotece.',
