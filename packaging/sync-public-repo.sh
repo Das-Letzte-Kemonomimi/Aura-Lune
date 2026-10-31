@@ -80,6 +80,11 @@ if [[ -f "$APPIMAGE_PATH" ]]; then
     fi
     echo "✅ Wydanie $TAG_NAME w $PUBLIC_REPO jest gotowe i zawiera AppImage!"
 
+    BAZZITE_APPIMAGE="target/dist/Auralune_${CURRENT_VERSION}_bazzite_amd64.AppImage"
+    if [[ -f "$BAZZITE_APPIMAGE" ]]; then
+        echo "🎮 Wykryto dedykowany AppImage dla Bazzite: $BAZZITE_APPIMAGE, przesyłanie..."
+        gh release upload "$TAG_NAME" "$BAZZITE_APPIMAGE" --repo "$PUBLIC_REPO" --clobber
+    fi
 else
     echo "⚠️ Ostrzeżenie: Plik $APPIMAGE_PATH nie został znaleziony. Pomiń upload AppImage."
 fi

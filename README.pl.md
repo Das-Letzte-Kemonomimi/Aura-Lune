@@ -85,11 +85,17 @@ curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/mai
 Instalator automatycznie konfiguruje najnowszy AppImage, ikonę i skrót w menu programów (`auralune.desktop`) oraz launcher z automatycznym fallbackiem FUSE.
 
 ### 2. Gotowa paczka AppImage (Ręcznie)
-Pobierz najnowszy plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
-```bash
-chmod +x Auralune_0.7.3_amd64.AppImage
-./Auralune_0.7.3_amd64.AppImage
-```
+Pobierz odpowiedni plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
+- **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
+  ```bash
+  chmod +x Auralune_0.7.3_bazzite_amd64.AppImage
+  ./Auralune_0.7.3_bazzite_amd64.AppImage
+  ```
+- **Arch / CachyOS / EndeavourOS / inne dystrybucje**:
+  ```bash
+  chmod +x Auralune_0.7.3_amd64.AppImage
+  ./Auralune_0.7.3_amd64.AppImage
+  ```
 
 ### 3. Arch Linux / EndeavourOS / CachyOS (AUR)
 ```bash
