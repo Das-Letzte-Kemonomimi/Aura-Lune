@@ -18,11 +18,43 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.4',
+    codename: 'Presence & Recap Harmony',
+    date: '2026-10-31',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Kompatybilność z Bazzite, SteamOS i dystrybucjami immutable: dedykowana paczka AppImage zlinkowana w hermetycznym kontenerze Fedora Atomic Desktop, eliminująca konflikty symboli glibc i webkit2gtk.',
+        en: 'Bazzite, SteamOS & immutable distribution compatibility: dedicated AppImage package built in an isolated Fedora Atomic Desktop container, eliminating glibc and webkit2gtk symbol conflicts.',
+        de: 'Kompatibilität mit Bazzite, SteamOS und Immutable-Distributionen: dediziertes AppImage-Paket, erstellt in einem isolierten Fedora Atomic Desktop-Container, ohne glibc- und webkit2gtk-Konflikte.',
+        fi: 'Bazzite-, SteamOS- ja immutable-jakelujen yhteensopivuus: erillinen AppImage-paketti koottu eristetyssä Fedora Atomic Desktop -kontissa, poistaen glibc- ja webkit2gtk-symboliristiriidat.',
+        la: 'Compatibilitas cum Bazzite, SteamOS et distributionibus immutabilibus: sarcina AppImage dedicata intra vas Fedora Atomic Desktop constructa, certamina symbolorum glibc et webkit2gtk eliminans.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Discord Rich Presence i zapętlanie utworu: naprawiono zawieszanie się paska postępu na końcu utworu (np. 1:48 / 1:48) w trybie powtarzania (Repeat Track/All/A-B loop) – timestampy natychmiast resetują się do 0:00 przy każdym powtórzeniu.',
+        en: 'Discord Rich Presence & track looping: fixed playback progress bar getting stuck at track end (e.g. 1:48 / 1:48) when repeat is enabled (Repeat Track/All/A-B loop) – timestamps now reset immediately to 0:00 on each iteration.',
+        de: 'Discord Rich Presence & Titel-Wiederholung: Behebung des Einfrierens der Fortschrittsleiste am Titelende (z. B. 1:48 / 1:48) im Wiederholungsmodus (Repeat Track/All/A-B loop) – Zeitstempel werden bei jedem Umlauf sofort auf 0:00 zurückgesetzt.',
+        fi: 'Discord Rich Presence & kappaleen toisto: korjattu edistymispalkin juuttuminen kappaleen loppuun (esim. 1:48 / 1:48) toistotilassa (Repeat Track/All/A-B loop) – aikaleimat nollautuvat välittömästi arvoon 0:00 jokaisella kierroksella.',
+        la: 'Discord Rich Presence & carminis iteratio: sublatus haesitus indicis progressus in fine carminis (e.g. 1:48 / 1:48) in modo iterandi – tempora statim ad 0:00 in quoque circulo rediguntur.',
+      },
+      {
+        pl: 'Auralune Recap (Wrapped): usunięto błędy formatowania NaN min w łącznym czasie odsłuchu, poprawiono sortowanie najpopularniejszych utworów i wykonawców oraz zlikwidowano puste etykiety odtworzeń.',
+        en: 'Auralune Recap (Wrapped): fixed NaN min formatting in total listening time, corrected sorting queries for top tracks and artists, and eliminated blank play count labels.',
+        de: 'Auralune Recap (Wrapped): Behebung von NaN min-Formatierungsfehlern bei der gesamten Hörzeit, korrigierte Sortierabfragen für Top-Titel und -Künstler sowie Beseitigung leerer Wiedergabezähler.',
+        fi: 'Auralune Recap (Wrapped): korjattu NaN min -muotoiluvirheet kokonaiskuunteluajassa, korjattu suosituimpien kappaleiden ja artistien lajittelukyselyt ja poistettu tyhjät toistolaskurit.',
+        la: 'Auralune Recap (Wrapped): sublatus error formae NaN min in tempore auditionis totali, emendatae quaestiones ordinandi carminum et artificum summorum ac vacuae notae numerationis.',
+      },
+    ],
+  },
+  {
     version: '0.7.3',
     codename: 'SoundCloud & Playlist Harvester',
     date: '2026-10-31',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Filtry jakości i wyboru bitratu audio: precyzyjne profile FFmpeg dla MP3 (320 kbps CBR Studio, 256k, 192k, V0 VBR), OPUS (160 kbps Studio, 128k, 96k) oraz M4A/AAC (256 kbps iTunes Plus, 192k, 128k) z zachowaniem bezstratnego bit-perfect FLAC.',

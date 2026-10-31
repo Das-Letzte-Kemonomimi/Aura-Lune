@@ -9,6 +9,23 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.7.4] — „Presence & Recap Harmony” - 2026-10-31
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Kompatybilność z Bazzite, SteamOS i dystrybucjami immutable (`auralune-bazzite`)**:
+  - Dedykowana paczka AppImage (`Auralune_0.7.4_bazzite_amd64.AppImage`) przygotowana w hermetycznym środowisku kontenerowym ze zlinkowanymi wersjami bibliotek kompatybilnymi z Bazzite / Fedora Atomic Desktop (eliminacja konfliktu GLIBC_2.44 i brakujących symboli w webkit2gtk/glibc).
+
+### Poprawiono (Fixed)
+- **Discord Rich Presence (RPC) & zapętlanie utworów (Repeat / Loop)**:
+  - Wyeliminowano zatrzymywanie się paska postępu utworu na końcu (np. `1:48 / 1:48`) przy włączonym powtarzaniu (`Repeat Track`, `Repeat All`, pętla A-B).
+  - Wprowadzono zdarzenie `PlayerEvent::TrackLooped`, śledzenie wstecznego skoku pozycji odtwarzacza oraz weryfikację czasu trwania w `DiscordRpcWorker`, co gwarantuje natychmiastowe zresetowanie timestampów Discorda do `0:00` i prawidłowy licznik przy każdym zapętleniu.
+- **Auralune Recap (Wrapped)**:
+  - Naprawiono formatowanie sumarycznych statystyk odtwarzania (likwidacja etykiet `NaN min` i zerowych liczników utworów).
+  - Skorygowano zapytania bazy SQLite dla najczęściej odtwarzanych utworów (Top Tracks) i wykonawców (Top Artists) oraz dodano fallbacki do bazy utworów przy nowo utworzonych bibliotekach.
+
+---
+
 ## [0.7.3] — „SoundCloud & Playlist Harvester” - 2026-10-31
 **Autorka**: Das Letzte Kemonomimi
 
