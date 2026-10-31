@@ -4477,6 +4477,11 @@ pub fn run() {
                 }
             }
         }
+
+        // Zapobieganie zawieszaniu, czarnemu/białemu ekranowi WebKitGTK na Linuksie (NVIDIA/Wayland/Mesa)
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
     }
 
     tracing_subscriber::fmt()

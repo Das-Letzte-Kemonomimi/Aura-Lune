@@ -24,5 +24,10 @@ if [ -z "${WEBKIT_EXEC_PATH}" ]; then
     done
 fi
 
+# Zabezpieczenie przed zawieszaniem i czarnym/białym ekranem w WebKitGTK na Linuksie (NVIDIA/Wayland)
+if [ -z "${WEBKIT_DISABLE_DMABUF_RENDERER}" ]; then
+    export WEBKIT_DISABLE_DMABUF_RENDERER=1
+fi
+
 # Uruchomienie aplikacji
 exec "${APPDIR}/usr/bin/auralune" "$@"

@@ -167,6 +167,11 @@ if [ ! -f "$APPIMAGE" ]; then
     exit 1
 fi
 
+# Zabezpieczenie przed błędem czarnego/białego ekranu WebKitGTK na kartach NVIDIA i Waylandzie
+if [ -z "${WEBKIT_DISABLE_DMABUF_RENDERER}" ]; then
+    export WEBKIT_DISABLE_DMABUF_RENDERER=1
+fi
+
 # Sprawdź czy system posiada bibliotekę FUSE 2
 HAS_FUSE=0
 if command -v fusermount &>/dev/null && (ldconfig -p 2>/dev/null | grep -q "libfuse\.so\.2" || [ -e /usr/lib/libfuse.so.2 ] || [ -e /usr/lib64/libfuse.so.2 ] || [ -e /usr/lib/x86_64-linux-gnu/libfuse.so.2 ]); then
