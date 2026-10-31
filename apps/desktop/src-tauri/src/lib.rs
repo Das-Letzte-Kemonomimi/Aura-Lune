@@ -68,6 +68,7 @@ pub struct PlaybackStatusDto {
     pub capabilities: DspCapabilities,
     pub loop_mode: LoopMode,
     pub shuffle: bool,
+    pub stop_after_current: bool,
     pub current_track: Option<QueueItem>,
     pub equalizer_enabled: bool,
     pub equalizer_bands: [f64; 10],
@@ -75,6 +76,17 @@ pub struct PlaybackStatusDto {
     pub replaygain_config: ReplayGainConfig,
     pub replaygain_status: (f64, f64, bool),
     pub live_stream_title: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UrlImportResultDto {
+    pub file_path: String,
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub format: String,
+    pub track: Option<storage::TrackRecord>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -936,6 +948,7 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         capabilities,
         loop_mode: q.loop_mode,
         shuffle: q.shuffle,
+        stop_after_current: state.engine.stop_after_current(),
         current_track,
         equalizer_enabled: state.engine.is_equalizer_enabled(),
         equalizer_bands: state.engine.get_equalizer_bands(),
@@ -3074,6 +3087,232 @@ fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn set_stop_after_current(enabled: bool, state: State<'_, AppState>) -> Result<bool, String> {
+    info!("Tauri command: set_stop_after_current({})", enabled);
+    state.engine.set_stop_after_current(enabled);
+    Ok(enabled)
+}
+
+#[tauri::command]
+fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, String> {
+    let current = state.engine.stop_after_current();
+    let new_val = !current;
+    info!(
+        "Tauri command: toggle_stop_after_current({} -> {})",
+        current, new_val
+    );
+    state.engine.set_stop_after_current(new_val);
+    Ok(new_val)
+}
+
+#[tauri::command]
+fn get_stop_after_current(state: State<'_, AppState>) -> bool {
+    state.engine.stop_after_current()
+}
+
+#[tauri::command]
+async fn import_audio_from_url(
+    url: String,
+    target_dir: Option<String>,
+    format: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<UrlImportResultDto, String> {
+    let clean_url = url.trim().to_string();
+    if clean_url.is_empty() {
+        return Err("Adres URL nie może być pusty.".to_string());
+    }
+    if !clean_url.starts_with("http://") && !clean_url.starts_with("https://") {
+        return Err("Nieprawidłowy protokół URL (wymagany http:// lub https://).".to_string());
+    }
+
+    info!("Tauri command: import_audio_from_url('{}')", clean_url);
+
+    // 1. Sprawdź obecność yt-dlp w systemie
+    let which_res = tokio::process::Command::new("which")
+        .arg("yt-dlp")
+        .output()
+        .await;
+    let has_ytdlp = match which_res {
+        Ok(out) => out.status.success(),
+        Err(_) => false,
+    };
+
+    if !has_ytdlp {
+        return Err("Narzędzie 'yt-dlp' nie zostało znalezione w Twoim systemie.\n\nAby korzystać z importera audio URL, zainstaluj 'yt-dlp' oraz 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg".to_string());
+    }
+
+    // 2. Określ folder docelowy
+    let dest_dir = if let Some(ref dir) = target_dir {
+        let trimmed = dir.trim();
+        if trimmed.is_empty() {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+            PathBuf::from(home).join("Music").join("Auralune")
+        } else {
+            PathBuf::from(trimmed)
+        }
+    } else {
+        let default_music = std::env::var("XDG_MUSIC_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                PathBuf::from(home).join("Music")
+            });
+        default_music.join("Auralune")
+    };
+
+    tokio::fs::create_dir_all(&dest_dir)
+        .await
+        .map_err(|e| format!("Nie udało się utworzyć katalogu docelowego: {}", e))?;
+
+    // 3. Wybór formatu
+    let audio_fmt = match format.as_deref().unwrap_or("flac").to_lowercase().as_str() {
+        "mp3" => "mp3",
+        "opus" => "opus",
+        "m4a" => "m4a",
+        "wav" => "wav",
+        "ogg" => "vorbis",
+        _ => "flac",
+    };
+
+    // 4. Uruchomienie yt-dlp z bezpiecznym wektorem argumentów (bez shell injection)
+    let output_template = format!("{}/%(title)s.%(ext)s", dest_dir.display());
+    info!(
+        "Uruchamiam yt-dlp dla formatu {} ze ścieżką szablonu: {}",
+        audio_fmt, output_template
+    );
+
+    let output = tokio::process::Command::new("yt-dlp")
+        .arg("--no-playlist")
+        .arg("-x")
+        .arg("--audio-format")
+        .arg(audio_fmt)
+        .arg("--audio-quality")
+        .arg("0")
+        .arg("--embed-thumbnail")
+        .arg("--add-metadata")
+        .arg("-o")
+        .arg(&output_template)
+        .arg("--print")
+        .arg("after_move:filepath")
+        .arg(&clean_url)
+        .output()
+        .await
+        .map_err(|e| format!("Błąd uruchomienia procesu yt-dlp: {}", e))?;
+
+    if !output.status.success() {
+        let stderr_str = String::from_utf8_lossy(&output.stderr);
+        let stdout_str = String::from_utf8_lossy(&output.stdout);
+        let err_detail = if !stderr_str.trim().is_empty() {
+            stderr_str.trim()
+        } else {
+            stdout_str.trim()
+        };
+        error!("Błąd wykonania yt-dlp: {}", err_detail);
+        return Err(format!(
+            "Pobieranie lub konwersja nie powiodła się: {}",
+            err_detail
+        ));
+    }
+
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+
+    // Szukamy ścieżki pliku w liniach wyjścia
+    let mut resolved_file: Option<PathBuf> = None;
+    for line in stdout_str.lines().rev() {
+        let p = PathBuf::from(line.trim());
+        if p.exists() && p.is_file() {
+            resolved_file = Some(p);
+            break;
+        }
+    }
+
+    // Fallback: jeśli nie znaleziono ze stdoutu, wyszukaj najnowszy plik w katalogu docelowym
+    let final_path = if let Some(p) = resolved_file {
+        p
+    } else {
+        let mut newest_file: Option<(PathBuf, std::time::SystemTime)> = None;
+        if let Ok(mut entries) = tokio::fs::read_dir(&dest_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let p = entry.path();
+                if p.is_file() {
+                    if let Ok(meta) = entry.metadata().await {
+                        if let Ok(modified) = meta.modified() {
+                            if newest_file.as_ref().is_none_or(|(_, m)| modified > *m) {
+                                newest_file = Some((p, modified));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        newest_file.map(|(p, _)| p).ok_or_else(|| {
+            "Pobieranie zakończone, lecz nie odnaleziono pliku w folderze docelowym.".to_string()
+        })?
+    };
+
+    info!("Pobrano plik audio z URL: {:?}", final_path);
+
+    // 5. Natychmiastowe zindeksowanie pliku w bazie Auralune
+    let _ = state
+        .scanner
+        .scan_paths(std::slice::from_ref(&final_path), &state.db)
+        .await
+        .map_err(|e| format!("Błąd indeksowania utworu w bibliotece: {}", e))?;
+
+    // 6. Pobierz rekord utworu z bazy
+    let final_path_str = final_path.to_string_lossy().to_string();
+    let track_record = state
+        .db
+        .get_track_by_path(&final_path_str)
+        .await
+        .ok()
+        .flatten();
+
+    let title = track_record
+        .as_ref()
+        .map(|t| t.title.clone())
+        .unwrap_or_else(|| {
+            final_path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Pobrany utwór".to_string())
+        });
+
+    let artist = track_record
+        .as_ref()
+        .map(|t| t.artist.clone())
+        .unwrap_or_else(|| "Nieznany wykonawca".to_string());
+
+    let album = if let Some(ref tr) = track_record {
+        if let Some(album_id) = tr.album_id {
+            state
+                .db
+                .get_album_by_id(album_id)
+                .await
+                .ok()
+                .flatten()
+                .map(|a| a.title)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let duration_ms = track_record.as_ref().map(|t| t.duration_ms);
+
+    Ok(UrlImportResultDto {
+        file_path: final_path_str,
+        title,
+        artist,
+        album,
+        duration_ms,
+        format: audio_fmt.to_uppercase(),
+        track: track_record,
+    })
+}
+
+#[tauri::command]
 fn load_radio_stream(
     url: String,
     station_name: String,
@@ -4505,6 +4744,10 @@ pub fn run() {
             play_previous,
             set_loop_mode,
             toggle_shuffle,
+            set_stop_after_current,
+            toggle_stop_after_current,
+            get_stop_after_current,
+            import_audio_from_url,
             create_playlist,
             save_queue_as_playlist,
             load_radio_stream,

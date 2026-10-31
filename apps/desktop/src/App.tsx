@@ -107,6 +107,7 @@ import { FacetsFilterPane } from './components/FacetsFilterPane';
 import { RadioView, type RadioStation } from './components/RadioView';
 import { SaveQueueModal } from './components/SaveQueueModal';
 import { AddRadioStationModal } from './components/AddRadioStationModal';
+import { UrlAudioImportModal } from './components/UrlAudioImportModal';
 import { useVirtualScroll } from './hooks/useVirtualScroll';
 import { type Language, getTranslations } from './i18n';
 
@@ -248,6 +249,7 @@ interface PlaybackStatus {
   capabilities: DspCapabilities;
   loop_mode?: 'None' | 'Track' | 'Queue';
   shuffle?: boolean;
+  stop_after_current?: boolean;
   current_track?: QueueItem | null;
   equalizer_enabled?: boolean;
   equalizer_bands?: number[];
@@ -879,7 +881,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.1'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.2'
   );
 
 
@@ -995,6 +997,9 @@ export default function App() {
 
   // Modal palety komend (Ctrl+K omnibar)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Modal importera audio z URL (yt-dlp)
+  const [isUrlImportModalOpen, setIsUrlImportModalOpen] = useState(false);
 
   // Modal arkusza CUE (.cue sheet)
   const [isCueModalOpen, setIsCueModalOpen] = useState(false);
@@ -3168,6 +3173,20 @@ export default function App() {
       await refreshQueue();
       const loopLabel = nextMode === 'None' ? loc.queue.loopNone : nextMode === 'Track' ? loc.queue.loopTrack : loc.queue.loopQueue;
       showMessage(loc.notifications.loopModeMsg.replace('{0}', loopLabel));
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  const handleToggleStopAfterCurrent = async () => {
+    try {
+      const newVal = await invoke<boolean>('toggle_stop_after_current');
+      setStatus((prev) => ({ ...prev, stop_after_current: newVal }));
+      if (newVal) {
+        showMessage('Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)');
+      } else {
+        showMessage('Zatrzymaj po bieżącym utworze: WYŁĄCZONE');
+      }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -10494,6 +10513,30 @@ const renderDevicesSection = () => (
                   <span>{queue.shuffle ? loc.queue.shuffleOn : loc.queue.shuffleOff}</span>
                 </button>
 
+                {/* Stop After Current Badge Button (foobar2000 classic) */}
+                <button
+                  onClick={handleToggleStopAfterCurrent}
+                  title="Zatrzymaj odtwarzanie po zakończeniu bieżącego utworu (Stop After Current Track — foobar2000)"
+                  className="glass-card"
+                  style={{
+                    padding: '6px 11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: status.stop_after_current ? '#eab308' : 'var(--text-muted)',
+                    border: status.stop_after_current ? '1px solid #eab308' : '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: status.stop_after_current ? 'rgba(234, 179, 8, 0.22)' : 'transparent',
+                    boxShadow: status.stop_after_current ? '0 0 10px rgba(234, 179, 8, 0.35)' : 'none',
+                  }}
+                >
+                  <Square size={13} style={{ fill: status.stop_after_current ? '#eab308' : 'none' }} />
+                  <span>Stop After Track {status.stop_after_current ? '(ON)' : ''}</span>
+                </button>
+
                 {/* Pole wyszukiwania w kolejce */}
                 {queue.items.length > 0 && (
                   <div style={{ position: 'relative', width: '180px' }}>
@@ -11249,6 +11292,28 @@ const renderDevicesSection = () => (
                   title={loc.settings.downloadHubBtn}
                 >
                   <Download size={15} color="#eb7422" /> {loc.settings.downloadHubBtn}
+                </button>
+
+                <button
+                  onClick={() => setIsUrlImportModalOpen(true)}
+                  className="glass-card"
+                  style={{
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.3))',
+                    border: '1px solid #c084fc',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 10px rgba(168, 85, 247, 0.25)',
+                  }}
+                  title="Wklejenie linku (YouTube, SoundCloud itp.), pobranie audio przez yt-dlp z okładką i natychmiastowe zindeksowanie"
+                >
+                  <Globe size={15} color="#d8b4fe" /> Importuj z URL (yt-dlp)
                 </button>
 
                 <button
@@ -15783,6 +15848,32 @@ const renderDevicesSection = () => (
               >
                 {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
               </button>
+
+              {/* Przycisk Stop After Current Track (foobar2000 classic) */}
+              <button
+                onClick={handleToggleStopAfterCurrent}
+                style={{
+                  background: status.stop_after_current ? 'rgba(234, 179, 8, 0.22)' : 'transparent',
+                  border: status.stop_after_current ? '1px solid #eab308' : '1px solid transparent',
+                  color: status.stop_after_current ? '#eab308' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  transition: 'all 0.18s ease',
+                  boxShadow: status.stop_after_current ? '0 0 10px rgba(234, 179, 8, 0.4)' : 'none',
+                }}
+                title={
+                  status.stop_after_current
+                    ? 'Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)'
+                    : 'Zatrzymaj po bieżącym utworze: Wyłączone (Stop After Current Track)'
+                }
+              >
+                <Square size={13} style={{ fill: status.stop_after_current ? '#eab308' : 'none' }} />
+              </button>
             </div>
 
             {/* Suwak pozycji */}
@@ -16731,6 +16822,7 @@ const renderDevicesSection = () => (
           albums={albums}
           isPlaying={status.state === 'Playing'}
           currentLang={language}
+          stopAfterCurrent={status.stop_after_current ?? false}
           onClose={() => setIsCommandPaletteOpen(false)}
           onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
           onAddToQueue={(t) => handleAddTrackToQueue(t)}
@@ -16738,6 +16830,8 @@ const renderDevicesSection = () => (
           onNext={handleNext}
           onPrevious={handlePrevious}
           onToggleShuffle={handleToggleShuffle}
+          onToggleStopAfterCurrent={handleToggleStopAfterCurrent}
+          onOpenUrlImportModal={() => setIsUrlImportModalOpen(true)}
           onSetAmbience={(m) => {
             setAmbienceMode(m);
             localStorage.setItem('auralune_ambience_mode', m);
@@ -16751,6 +16845,23 @@ const renderDevicesSection = () => (
           onSelectTab={(tab) => setActiveTab(tab as any)}
         />
       )}
+
+      {/* Modal Wbudowanego Importera Audio z URL (yt-dlp) */}
+      <UrlAudioImportModal
+        isOpen={isUrlImportModalOpen}
+        currentLang={language}
+        onClose={() => setIsUrlImportModalOpen(false)}
+        onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
+        onAddToQueue={(t) => handleAddTrackToQueue(t)}
+        onLibraryUpdated={async () => {
+          try {
+            const updatedTracks = await invoke<TrackRecord[]>('get_library_tracks');
+            const updatedAlbums = await invoke<AlbumRecord[]>('get_library_albums');
+            setTracks(updatedTracks);
+            setAlbums(updatedAlbums);
+          } catch {}
+        }}
+      />
 
       {/* Modal Arkusza CUE (.cue sheet) */}
       {isCueModalOpen && (

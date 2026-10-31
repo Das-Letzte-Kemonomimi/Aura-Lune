@@ -9,6 +9,26 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.7.2] — „Stream Harvester & Precision Playback” - 2026-10-31
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Wbudowany legalny importer audio z URL (`yt-dlp`)**:
+  - Dedykowany, nowoczesny modal w stylu anime-glassmorphic umożliwiający wklejenie linku (YouTube, SoundCloud, Bandcamp, Mixcloud, podcasty, pliki direct audio).
+  - Automatyczne wyodrębnianie ścieżki dźwiękowej w wybranym formacie (studyjny FLAC, MP3 320 kbps, OPUS, M4A) z osadzaniem miniatury wideo jako okładki albumu oraz tagów metadanych ID3/Vorbis.
+  - Natychmiastowe zindeksowanie pobranego utworu w lokalnej bazie SQLite biblioteki Auralune bez konieczności restartu aplikacji.
+  - Szybkie akcje po pobraniu: „Odtwórz teraz”, „Dodaj do kolejki”, „Pokaż w folderze” oraz pobieranie kolejnych utworów.
+  - Bezpieczne wywołanie procesu `yt-dlp` bez wstrzykiwania powłoki (czysty wektor argumentów) z czytelnym komunikatem o instalacji w razie braku binarki w systemie.
+- **Przełącznik „Stop After Current Track” (Zatrzymaj po bieżącym utworze)**:
+  - Klasyczna funkcja z foobar2000 pozwalająca zaplanować czyste zatrzymanie odtwarzacza po zakończeniu bieżącego utworu (idealne przed snem lub odejściem od komputera).
+  - Dostępna bezpośrednio na dolnym docku odtwarzacza (obok Loop i Shuffle), w nagłówku kolejki oraz w palecie komend (Ctrl+K).
+  - Po dojściu do końca utworu potok audio natychmiast zatrzymuje się, a flaga automatycznie resetuje do stanu nieaktywnego.
+
+### Poprawiono (Fixed)
+- Pełna synchronizacja stanu `stop_after_current` pomiędzy backendem Rust a wszystkimi kontrolkami interfejsu React.
+
+---
+
 ## [0.7.1] — „Gothic Embers & Loop Integrity” - 2026-10-31
 **Autorka**: Das Letzte Kemonomimi
 

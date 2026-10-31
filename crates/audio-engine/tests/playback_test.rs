@@ -570,3 +570,76 @@ fn test_buffer_configuration_and_defaults() {
         .expect("Przywrócenie rozmiaru bloku DSP na 2048 ramek");
     assert_eq!(engine.dsp_block_size(), 2048);
 }
+
+#[test]
+fn test_stop_after_current_track_flag_and_state() {
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+
+    // Domyślnie flaga jest wyłączona
+    assert!(!engine.stop_after_current());
+
+    // Włączenie flagi
+    engine.set_stop_after_current(true);
+    assert!(engine.stop_after_current());
+
+    // Wyłączenie flagi
+    engine.set_stop_after_current(false);
+    assert!(!engine.stop_after_current());
+}
+
+#[test]
+fn test_stop_after_current_track_eos_stops_cleanly() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+
+    engine.load_uri(&uri).expect("load_uri");
+    engine.play().expect("play");
+
+    // Włącz flagę "Stop After Current Track"
+    engine.set_stop_after_current(true);
+    assert!(engine.stop_after_current());
+
+    // Poczekaj na preroll i czas trwania
+    let mut duration = None;
+    for _ in 0..20 {
+        sleep(Duration::from_millis(50));
+        let _ = engine.poll_events();
+        if let Some(d) = engine.duration() {
+            if d > Duration::ZERO {
+                duration = Some(d);
+                break;
+            }
+        }
+    }
+    let dur = duration.expect("Czas trwania pliku powinien być dostępny");
+
+    // Seek tuż przed koniec utworu (80 ms przed końcem)
+    let target = dur.saturating_sub(Duration::from_millis(80));
+    engine.seek(target).expect("seek near end");
+
+    // Poczekaj na EOS
+    let mut got_eos = false;
+    for _ in 0..40 {
+        sleep(Duration::from_millis(50));
+        let events = engine.poll_events();
+        if events.contains(&audio_engine::PlayerEvent::Eos) {
+            got_eos = true;
+            break;
+        }
+    }
+
+    assert!(got_eos, "Powinien nadejść komunikat EOS");
+    // Po EOS: stan powinien być Stopped, a flaga zresetowana na false
+    assert_eq!(engine.state(), domain::PlaybackState::Stopped);
+    assert!(
+        !engine.stop_after_current(),
+        "Flaga stop_after_current powinna zostać automatycznie zresetowana po zatrzymaniu"
+    );
+}
