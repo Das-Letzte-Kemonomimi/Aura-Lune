@@ -18,11 +18,43 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.2',
+    codename: 'Stream Harvester & Precision Playback',
+    date: '2026-10-31',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Wbudowany legalny importer audio z URL (yt-dlp): wklejanie linków z YouTube, SoundCloud, Bandcamp itp., automatyczne wyodrębnianie dźwięku (FLAC/MP3/OPUS) z osadzoną okładką i tagami oraz natychmiastowe zindeksowanie w bibliotece.',
+        en: 'Built-in URL Audio Importer (yt-dlp): paste links from YouTube, SoundCloud, Bandcamp, extract audio (FLAC/MP3/OPUS) with embedded thumbnail and metadata, and immediately index into library.',
+        de: 'Integrierter URL-Audio-Importer (yt-dlp): Links von YouTube, SoundCloud, Bandcamp einfügen, Audio (FLAC/MP3/OPUS) mit Cover und Tags extrahieren und sofort in die Bibliothek indizieren.',
+        fi: 'Sisäänrakennettu URL-äänituoja (yt-dlp): liitä linkkejä YouTubesta, SoundCloudista jne., pura ääni (FLAC/MP3/OPUS) kansikuvalla ja tunnisteilla suoraan kirjastoon.',
+        la: 'Invector sonorum ex URL (yt-dlp): nexus ex YouTube vel SoundCloud imponere, sonos (FLAC/MP3/OPUS) cum imagine extrahere et statim in bibliothecam indicare.',
+      },
+      {
+        pl: 'Przełącznik „Stop After Current Track” (Zatrzymaj po bieżącym utworze): klasyk z foobar2000 zatrzymujący potok audio po dojściu do końca obecnego utworu — dostępny na dolnym docku, w nagłówku kolejki i w palecie komend (Ctrl+K).',
+        en: '“Stop After Current Track” toggle: classic foobar2000 feature stopping audio playback cleanly when the current track finishes — available in bottom bar, queue header, and Command Palette (Ctrl+K).',
+        de: '„Nach aktuellem Titel anhalten“-Umschalter: foobar2000-Klassiker zum sauberen Stoppen der Wiedergabe nach dem aktuellen Titel — verfügbar in der unteren Leiste, Warteschlange und Befehlspalette.',
+        fi: '”Pysäytä nykyisen kappaleen jälkeen” -kytkin: foobar2000-klassikko, joka pysäyttää toiston siististi nykyisen raidan päättyessä — saatavilla alapalkissa, jonossa ja komentovalikossa.',
+        la: 'Optio „Siste post carmen currens”: foobar2000 classicus qui sonum finite carmine currente sistit — in tabula ima, ordine et indice mandatorum prompta.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Automatyczne resetowanie flagi zatrzymania po dojściu do końca strumienia (EOS) i pełna synchronizacja stanu we wszystkich kontrolkach UI.',
+        en: 'Automatic reset of stop-after-current flag upon reaching EOS and robust state synchronization across all UI player controls.',
+        de: 'Automatisches Zurücksetzen des Anhalte-Flags bei EOS und vollständige Statussynchronisation in allen UI-Bedienelementen.',
+        fi: 'Pysäytyslipun automaattinen nollaus EOS-tapahtumassa ja luotettava tilan synkronointi kaikissa käyttöliittymän säätimissä.',
+        la: 'Reinitializatio automatica indicis sistendi in fine fluxus (EOS) et synchronizatio fidelis status in omnibus moderatoribus.',
+      },
+    ],
+  },
+  {
     version: '0.7.1',
     codename: 'Gothic Embers & Loop Integrity',
     date: '2026-10-31',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Anulowanie nakładki Drag & Drop: przycisk zamknięcia, obsługa klawisza Escape oraz kliknięcie w tło nakładki upuszczania plików.',

@@ -13,6 +13,8 @@ import {
   Maximize2,
   Activity,
   Layers,
+  Square,
+  Download,
 } from 'lucide-react';
 import type { Language } from '../i18n';
 
@@ -31,6 +33,7 @@ interface CommandPaletteModalProps {
   albums: any[];
   isPlaying: boolean;
   currentLang?: Language;
+  stopAfterCurrent?: boolean;
   onClose: () => void;
   onPlayTrack: (track: any) => void;
   onAddToQueue?: (track: any) => void;
@@ -38,6 +41,8 @@ interface CommandPaletteModalProps {
   onNext: () => void;
   onPrevious: () => void;
   onToggleShuffle: () => void;
+  onToggleStopAfterCurrent?: () => void;
+  onOpenUrlImportModal?: () => void;
   onSetAmbience: (mode: any) => void;
   onSetDspEngine: (engine: 'RubberBand' | 'SoundTouch') => void;
   onResetDsp: () => void;
@@ -51,12 +56,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   albums,
   isPlaying,
   currentLang = 'pl',
+  stopAfterCurrent = false,
   onClose,
   onPlayTrack,
   onTogglePlay,
   onNext,
   onPrevious,
   onToggleShuffle,
+  onToggleStopAfterCurrent,
+  onOpenUrlImportModal,
   onSetAmbience,
   onSetDspEngine,
   onResetDsp,
@@ -123,6 +131,40 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Shuffle size={18} />,
         onExecute: () => {
           onToggleShuffle();
+          onClose();
+        },
+      },
+      {
+        id: 'action-stop-after-current',
+        type: 'action',
+        title: isPl
+          ? `Zatrzymaj po bieżącym utworze (Stop After Current Track) ${stopAfterCurrent ? '• [WŁĄCZONE]' : ''}`
+          : `Stop After Current Track ${stopAfterCurrent ? '• [ACTIVE]' : ''}`,
+        subtitle: isPl
+          ? 'Zatrzymaj odtwarzanie po zakończeniu obecnego utworu (klasyk z foobar2000)'
+          : 'Cleanly stops playback after the current track reaches end',
+        icon: <Square size={18} style={{ fill: stopAfterCurrent ? 'var(--accent-pink)' : 'none' }} />,
+        badge: stopAfterCurrent ? 'ON' : 'OFF',
+        onExecute: () => {
+          if (onToggleStopAfterCurrent) {
+            onToggleStopAfterCurrent();
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'action-url-import',
+        type: 'action',
+        title: isPl ? 'Wbudowany importer audio z URL (yt-dlp)' : 'Import Audio from URL (yt-dlp)',
+        subtitle: isPl
+          ? 'Pobierz utwór z YouTube/SoundCloud z okładką bezpośrednio do biblioteki'
+          : 'Download track from URL with thumbnail and metadata to library',
+        icon: <Download size={18} />,
+        badge: 'yt-dlp',
+        onExecute: () => {
+          if (onOpenUrlImportModal) {
+            onOpenUrlImportModal();
+          }
           onClose();
         },
       },

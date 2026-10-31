@@ -13,7 +13,7 @@ use gst_base::prelude::BaseTransformExt;
 use gstreamer as gst;
 use gstreamer_base as gst_base;
 use std::path::Path;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
@@ -80,6 +80,7 @@ pub struct AudioEngine {
     inner: Arc<Mutex<PipelineInner>>,
     queue: Arc<Mutex<PlaybackQueue>>,
     replaygain_mode: Arc<AtomicU8>,
+    stop_after_current: Arc<AtomicBool>,
 }
 
 impl AudioEngine {
@@ -418,10 +419,12 @@ impl AudioEngine {
         });
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
+        let stop_after_current = Arc::new(AtomicBool::new(false));
         Ok(Self {
             inner,
             queue,
             replaygain_mode,
+            stop_after_current,
         })
     }
 
@@ -1071,6 +1074,26 @@ impl AudioEngine {
                     MessageView::Eos(..) => {
                         info!("Otrzymano komunikat EOS (koniec strumienia)");
 
+                        // Sprawdź flagę "Stop After Current Track" (foobar2000 classic)
+                        let stop_after_current =
+                            self.stop_after_current.swap(false, Ordering::SeqCst);
+                        if stop_after_current {
+                            info!("'Stop After Current Track' aktywny — zatrzymuję potok audio i nie przechodzę do kolejnego utworu");
+                            let old_state = {
+                                let mut inner = self.inner.lock().unwrap();
+                                let old = inner.state;
+                                inner.state = PlaybackState::Stopped;
+                                let _ = inner.pipeline.set_state(gst::State::Null);
+                                old
+                            };
+                            events.push(PlayerEvent::StateChanged {
+                                old: old_state,
+                                new: PlaybackState::Stopped,
+                            });
+                            events.push(PlayerEvent::Eos);
+                            continue;
+                        }
+
                         let (loop_mode, queue_is_empty) = {
                             let q = self.queue.lock().unwrap();
                             (q.loop_mode, q.items.is_empty())
@@ -1534,6 +1557,16 @@ impl AudioEngine {
     pub fn shuffle(&self) -> bool {
         let q = self.queue.lock().unwrap();
         q.shuffle
+    }
+
+    /// Włącza lub wyłącza tryb "Stop After Current Track" (zatrzymanie po zakończeniu bieżącego utworu).
+    pub fn set_stop_after_current(&self, enabled: bool) {
+        self.stop_after_current.store(enabled, Ordering::SeqCst);
+    }
+
+    /// Pobiera aktualny stan flagi "Stop After Current Track".
+    pub fn stop_after_current(&self) -> bool {
+        self.stop_after_current.load(Ordering::SeqCst)
     }
 
     /// Konfiguruje normalizację głośności ReplayGain (EBU R128 / ReplayGain 2.0).
