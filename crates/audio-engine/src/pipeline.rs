@@ -26,6 +26,7 @@ pub enum PlayerEvent {
         new: PlaybackState,
     },
     Eos,
+    TrackLooped,
     Error(String),
     Warning(String),
     Buffering(i32),
@@ -1119,6 +1120,8 @@ impl AudioEngine {
                                     );
                                     let mut inner = self.inner.lock().unwrap();
                                     inner.state = PlaybackState::Stopped;
+                                } else {
+                                    events.push(PlayerEvent::TrackLooped);
                                 }
                             } else {
                                 warn!("LoopMode::Track aktywny, ale brak URI do powtórzenia");
@@ -1144,6 +1147,8 @@ impl AudioEngine {
                                     error!("Błąd odtwarzania: {}", play_err);
                                     let mut inner = self.inner.lock().unwrap();
                                     inner.state = PlaybackState::Stopped;
+                                } else {
+                                    events.push(PlayerEvent::TrackLooped);
                                 }
                             } else {
                                 let mut inner = self.inner.lock().unwrap();
