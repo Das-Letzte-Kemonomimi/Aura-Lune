@@ -167,10 +167,6 @@ if [ ! -f "$APPIMAGE" ]; then
     exit 1
 fi
 
-# Zabezpieczenie przed błędem czarnego/białego ekranu WebKitGTK na kartach NVIDIA i Waylandzie
-if [ -z "${WEBKIT_DISABLE_DMABUF_RENDERER}" ]; then
-    export WEBKIT_DISABLE_DMABUF_RENDERER=1
-fi
 
 # Sprawdź czy system posiada bibliotekę FUSE 2
 HAS_FUSE=0
