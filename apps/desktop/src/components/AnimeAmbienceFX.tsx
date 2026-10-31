@@ -8,6 +8,7 @@ export type AmbienceMode =
   | 'meteor_shower'
   | 'matrix_rain'
   | 'momiji'
+  | 'embers'
   | 'off';
 
 interface AnimeAmbienceFXProps {
@@ -106,6 +107,20 @@ interface MomijiLeaf {
   swaySpeed: number;
   color: string;
   stemColor: string;
+}
+
+interface Ember {
+  x: number;
+  y: number;
+  radius: number;
+  speedY: number;
+  speedX: number;
+  sway: number;
+  swaySpeed: number;
+  phase: number;
+  pulseSpeed: number;
+  coreColor: string;
+  glowColor: string;
 }
 
 export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity = 0.55 }) => {
@@ -276,6 +291,31 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
         swaySpeed: 0.02 + Math.random() * 0.03,
         color: col.fill,
         stemColor: col.stem,
+      };
+    });
+
+    // 8. Inicjalizacja gotyckich płonących iskier (Gothic Embers / Torch Sparks)
+    const emberColorPairs = [
+      { core: 'rgba(255, 255, 255, 0.95)', glow: 'rgba(239, 68, 68, 0.85)' },
+      { core: 'rgba(254, 240, 138, 0.95)', glow: 'rgba(249, 115, 22, 0.80)' },
+      { core: 'rgba(254, 215, 170, 0.95)', glow: 'rgba(225, 29, 72, 0.75)' },
+      { core: 'rgba(253, 186, 116, 0.95)', glow: 'rgba(234, 88, 12, 0.80)' },
+    ];
+
+    const embers: Ember[] = Array.from({ length: 42 }, () => {
+      const c = emberColorPairs[Math.floor(Math.random() * emberColorPairs.length)];
+      return {
+        x: Math.random() * width,
+        y: height + Math.random() * 50,
+        radius: 1.2 + Math.random() * 2.2,
+        speedY: 0.8 + Math.random() * 1.5,
+        speedX: (Math.random() - 0.5) * 0.4,
+        sway: Math.random() * Math.PI * 2,
+        swaySpeed: 0.02 + Math.random() * 0.03,
+        phase: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.03 + Math.random() * 0.04,
+        coreColor: c.core,
+        glowColor: c.glow,
       };
     });
 
@@ -548,6 +588,38 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           }
 
           drawMomiji(m);
+        }
+      } else if (mode === 'embers') {
+        const wind = Math.sin(tick * 0.012) * 0.5;
+        for (const e of embers) {
+          e.y -= e.speedY; // Iskry wznoszą się w górę
+          e.sway += e.swaySpeed;
+          e.x += Math.sin(e.sway) * 0.6 + e.speedX + wind;
+          e.phase += e.pulseSpeed;
+
+          if (e.y < -30) {
+            e.y = height + 10 + Math.random() * 30;
+            e.x = Math.random() * width;
+          }
+          if (e.x > width + 20) {
+            e.x = -20;
+          } else if (e.x < -20) {
+            e.x = width + 20;
+          }
+
+          const pulse = (Math.sin(e.phase) + 1) * 0.5;
+          const r = Math.max(0.6, e.radius * (0.8 + pulse * 0.4));
+          const alpha = 0.5 + pulse * 0.5;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = e.coreColor;
+          ctx.shadowColor = e.glowColor;
+          ctx.shadowBlur = 8 + pulse * 8;
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+          ctx.restore();
         }
       }
 

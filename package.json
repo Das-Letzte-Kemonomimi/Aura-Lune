@@ -2,7 +2,7 @@
   "name": "auralune-root",
   "private": true,
   "author": "Das Letzte Kemonomimi",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "npm --prefix apps/desktop run dev",

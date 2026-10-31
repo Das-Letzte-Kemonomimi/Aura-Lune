@@ -18,11 +18,85 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.0',
+    codename: 'Gothic Embers & Verehrt 1999',
+    date: '2026-10-31',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Nowy motyw Gothic 1999 (In Extremo): mroczna, gotycka estetyka ery Verehrt und Angespien z kutej stali, obsydianu, karmazynowej krwi i żaru pochodni.',
+        en: 'New Gothic 1999 (In Extremo) theme: dark medieval gothic rock aesthetic from the Verehrt und Angespien era with forged steel, obsidian, crimson blood, and torchlight.',
+        de: 'Neues Theme Gothic 1999 (In Extremo): Dunkle mittelalterliche Gothic-Rock-Ästhetik der Verehrt und Angespien-Ära mit geschmiedetem Stahl, Obsidian und Fackellicht.',
+        fi: 'Uusi Gothic 1999 (In Extremo) -teema: tumma keskiaikainen goottilainen estetiikka taotulla teräksellä, obsidiaanilla ja soihdun loisteella.',
+        la: 'Novus modus Gothic 1999 (In Extremo): obscuritas medii aevi cum ferro fabricato, obsidiano et igne facis.',
+      },
+      {
+        pl: 'Efekt otoczenia Płonące Iskry / Embers 🔥: wznoszące się w górę, pulsujące żarem iskry ognia z pochodni i paleniska z subtelnym znoszeniem przez wiatr.',
+        en: 'Burning Embers Ambience FX 🔥: rising, pulsing sparks from torch fire and fortress hearths with gentle atmospheric wind drift.',
+        de: 'Glut & Funken Ambiente-Effekt 🔥: Aufsteigende, glühende Fackelfunken und Kaminfeuer mit sanftem Winddrift.',
+        fi: 'Palavat Kipinät -ympäristöefekti 🔥: nousevat, hehkuvat soihdun kipinät ja tulisijan hehku hienovaraisella tuulella.',
+        la: 'Effectus Scintillarum Ignis 🔥: scintillae ardentes sursum ascendentes ex facibus et fornace castelli.',
+      },
+      {
+        pl: 'Responsywny układ biblioteki albumów (Siatka / Lista): elastyczny rozmiar kafelków (S/M/L), kompaktowy widok listy, filtrowanie okładek i sortowanie wg czasu trwania.',
+        en: 'Responsive Album Library Layout (Grid / List): adjustable tile sizing (S/M/L), compact list view, cover status filter, and duration/track count sorting.',
+        de: 'Responsives Album-Layout (Gitter / Liste): Wählbare Kachelgrößen (S/M/L), kompakte Listenansicht, Cover-Filter und Sortierung nach Spieldauer.',
+        fi: 'Responsiivinen albumikirjaston asettelu (Ruudukko / Lista): säädettävä laattakoko (S/M/L), kompakti listanäkymä, kansisuodatin ja keston mukaan lajittelu.',
+        la: 'Dispositio tabularum alborum: scala tessellarum (S/M/L), prospectus indicis compactus, spargens teguminum et ordo secundum tempus.',
+      },
+      {
+        pl: 'Sterowanie buforem audio i DSP: manualna konfiguracja bufora PipeWire (10–250 ms) oraz rozmiaru bloku DSP (256–8192 próbek) z przyciskiem przywracania wartości domyślnych.',
+        en: 'Audio Buffer & DSP Block Controls: manual tuning of PipeWire output buffer (10–250 ms) and DSP block size (256–8192 samples) with 1-click restore default values.',
+        de: 'Audio-Puffer- und DSP-Block-Steuerung: Manuelle Einstellung des PipeWire-Puffers (10–250 ms) und der DSP-Blockgröße mit Standard-Rücksetztaste.',
+        fi: 'Äänipuskurin ja DSP-lohkon säätö: PipeWire-lähtöpuskurin (10–250 ms) ja DSP-lohkon manuaalinen viritys oletusten palautuspainikkeella.',
+        la: 'Gubernacula receptaculi soni et DSP: regulatio manualis receptaculi PipeWire et magnitudinis DSP cum clavi ad statum primum.',
+      },
+      {
+        pl: 'Usprawniony dolny pasek odtwarzacza: dedykowane przyciski Shuffle i Loop oraz 1-klikowy przełącznik silnika DSP z podręcznym menu wyboru.',
+        en: 'Enhanced Bottom Player Bar: dedicated Shuffle and Loop buttons plus a 1-click split-button DSP engine switcher with contextual popover menu.',
+        de: 'Erweiterte untere Player-Leiste: Eigene Shuffle- und Loop-Tasten sowie 1-Klick-DSP-Engine-Umschalter mit Kontextmenü.',
+        fi: 'Uudistettu alatoistopalkki: omat Shuffle- ja Loop-painikkeet sekä yhden klikkauksen DSP-moottorin valitsin ponnahdusvalikolla.',
+        la: 'Barra cantus inferior aucta: claves dedicatae aleae et circuli, cum electore machinae DSP uno ictu.',
+      },
+      {
+        pl: 'Wsparcie arkuszy CUE Sheet (.cue): odtwarzanie pojedynczych utworów ze scalonych plików dźwiękowych oraz dodawanie ścieżek CUE do kolejki.',
+        en: 'CUE Sheet Support (.cue): split track navigation from single-file album containers and seamless queuing of cue indices.',
+        de: 'CUE-Sheet-Unterstützung (.cue): Einzeltrack-Wiedergabe aus großen Audiodateicontainern und Einreihung in die Playlist-Warteschlange.',
+        fi: 'CUE-arkkituki (.cue): yksittäisten raitojen toisto yhtenäisistä äänitiedostoista ja lisäys toistojonoon.',
+        la: 'Subsidium chartarum CUE (.cue): cantus singuli ex archivo composito et additio ad seriem canendi.',
+      },
+      {
+        pl: 'Pływające powiadomienie głośności (Volume OSD): centralny wskaźnik poziomu dźwięku pojawiający się przy regulacji kółkiem myszy i klawiaturą.',
+        en: 'Volume HUD Overlay (Volume OSD): floating center-screen volume badge appearing during scrollwheel and key shortcuts adjustments.',
+        de: 'Schwebendes Lautstärke-OSD: Elegante Anzeige in Bildschirmmitte bei Lautstärkeänderung per Mausrad oder Tastenkürzel.',
+        fi: 'Kelluva äänenvoimakkuuden OSD: ruudun keskelle ilmestyvä mittari hiiren rullalla ja pikanäppäimillä säädettäessä.',
+        la: 'Index voluminis fluctuans: index visualis in medio scrinio appariens cum rota muris vel clavi movetur.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Wyeliminowano problem z gigantycznymi kartami albumów przy szerokich oknach dzięki zastosowaniu siatki z limitem maxWidth i auto-fill.',
+        en: 'Resolved giant album card stretching on wide displays by adopting auto-fill grid columns with strict max tile width constraints.',
+        de: 'Problem mit übergroßen Album-Kacheln auf breiten Bildschirmen durch Auto-Fill-Gitter mit Maximalbreite behoben.',
+        fi: 'Korjattu jättimäisten albumikorttien venyminen leveillä näytöillä käyttämällä auto-fill-ruudukkoa enimmäisleveydellä.',
+        la: 'Emendatum nimium spatium tabularum in latis scriniis per craticulam cum limite maximo.',
+      },
+      {
+        pl: 'Uporządkowano nagłówek odtwarzacza, przenosząc rozbudowane manifesty i opisy techniczne do dedykowanej sekcji O aplikacji (About).',
+        en: 'Cleaned up the top-left player header, moving extensive project manifests and technical credits to a dedicated About settings tab.',
+        de: 'Oberen Player-Header aufgeräumt und ausführliche Projektbeschreibungen in den dedizierten Info-Reiter (About) verschoben.',
+        fi: 'Siistitty soittimen yläpalkki ja siirretty laajat projektikuvaukset ja tiedot omaan Tietoja-välilehteen (About).',
+        la: 'Caput superius cantoris expolitum et longae descriptiones ad tabulam De Auralune translatae.',
+      },
+    ],
+  },
+  {
     version: '0.6.0',
     codename: 'foobar2000 Power Tools & Kitsune Facets',
     date: '2026-10-25',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Transliteracja Romaji tekstów japońskich (Hepburn Romanization): silnik Hiragana/Katakana z digrafami Youon, podwajaniem sokuon, choonpu i trybem dwuwiersza karaoke (JOYSOUND/DAM).',

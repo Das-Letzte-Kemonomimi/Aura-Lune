@@ -341,16 +341,16 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           fontSize: '0.75rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          {!isLocked && <GripHorizontal size={14} color="var(--text-muted)" style={{ opacity: 0.7 }} />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
+          {!isLocked && <GripHorizontal size={14} color="var(--text-muted)" style={{ opacity: 0.7, flexShrink: 0 }} />}
           {coverUrl ? (
             <img
               src={coverUrl}
               alt=""
-              style={{ width: '18px', height: '18px', borderRadius: '4px', objectFit: 'cover' }}
+              style={{ width: '18px', height: '18px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }}
             />
           ) : (
-            <Music size={14} color="var(--accent-pink)" />
+            <Music size={14} color="var(--accent-pink)" style={{ flexShrink: 0 }} />
           )}
           <span
             style={{
@@ -359,7 +359,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: isCollapsed ? '160px' : '260px',
+              flexShrink: 1,
             }}
           >
             {trackTitle || 'Auralune'}
@@ -370,14 +370,14 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: isCollapsed ? '100px' : '180px',
+              flexShrink: 2,
             }}
           >
             • {trackArtist}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           {/* Romaji Switcher Button */}
           <button
             onClick={handleCycleRomaji}

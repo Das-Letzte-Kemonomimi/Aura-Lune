@@ -286,6 +286,7 @@ pub fn clean_artist_name(artist: &str) -> String {
 pub struct CoverArtArchiveClient {
     http: reqwest::Client,
     cache_dir: PathBuf,
+    search_cache: Arc<Mutex<std::collections::HashMap<String, Vec<CoverCandidateDto>>>>,
 }
 
 impl CoverArtArchiveClient {
@@ -298,6 +299,7 @@ impl CoverArtArchiveClient {
         Self {
             http,
             cache_dir: cache_dir.as_ref().to_path_buf(),
+            search_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         }
     }
 
@@ -352,55 +354,61 @@ impl CoverArtArchiveClient {
         url: &str,
         default_album: &str,
         default_artist: &str,
-        candidates: &mut Vec<CoverCandidateDto>,
-        seen_urls: &mut std::collections::HashSet<String>,
-    ) {
+    ) -> Vec<CoverCandidateDto> {
         debug!("Wyszukiwanie okładek Deezer: {}", url);
-        if let Ok(resp) = self
+        let req = self
             .http
             .get(url)
             .header("User-Agent", "Auralune/0.1.0")
-            .send()
-            .await
-        {
-            if resp.status().is_success() {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
-                        for item in data {
-                            let title = item
-                                .get("title")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or(default_album)
-                                .to_string();
-                            let artist_name = item
-                                .get("artist")
-                                .and_then(|a| a.get("name"))
-                                .and_then(|n| n.as_str())
-                                .unwrap_or(default_artist)
-                                .to_string();
-                            let cover_xl = item.get("cover_xl").and_then(|c| c.as_str());
-                            let cover_big = item.get("cover_big").and_then(|c| c.as_str());
-                            let cover_med = item.get("cover_medium").and_then(|c| c.as_str());
+            .send();
 
-                            if let Some(full) = cover_xl.or(cover_big) {
-                                let thumb = cover_med.unwrap_or(full);
-                                if seen_urls.insert(full.to_string()) {
-                                    candidates.push(CoverCandidateDto {
-                                        source: "Deezer (1000px)".to_string(),
-                                        title,
-                                        artist: artist_name,
-                                        thumbnail_url: thumb.to_string(),
-                                        full_url: full.to_string(),
-                                        width: Some(1000),
-                                        height: Some(1000),
-                                    });
-                                }
-                            }
-                        }
-                    }
+        let resp = match tokio::time::timeout(Duration::from_millis(3500), req).await {
+            Ok(Ok(r)) => r,
+            _ => return Vec::new(),
+        };
+
+        if !resp.status().is_success() {
+            return Vec::new();
+        }
+
+        let json = match resp.json::<serde_json::Value>().await {
+            Ok(j) => j,
+            Err(_) => return Vec::new(),
+        };
+
+        let mut results = Vec::new();
+        if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
+            for item in data {
+                let title = item
+                    .get("title")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or(default_album)
+                    .to_string();
+                let artist_name = item
+                    .get("artist")
+                    .and_then(|a| a.get("name"))
+                    .and_then(|n| n.as_str())
+                    .unwrap_or(default_artist)
+                    .to_string();
+                let cover_xl = item.get("cover_xl").and_then(|c| c.as_str());
+                let cover_big = item.get("cover_big").and_then(|c| c.as_str());
+                let cover_med = item.get("cover_medium").and_then(|c| c.as_str());
+
+                if let Some(full) = cover_xl.or(cover_big) {
+                    let thumb = cover_med.unwrap_or(full);
+                    results.push(CoverCandidateDto {
+                        source: "Deezer (1000px)".to_string(),
+                        title,
+                        artist: artist_name,
+                        thumbnail_url: thumb.to_string(),
+                        full_url: full.to_string(),
+                        width: Some(1000),
+                        height: Some(1000),
+                    });
                 }
             }
         }
+        results
     }
 
     async fn query_itunes(
@@ -408,54 +416,61 @@ impl CoverArtArchiveClient {
         url: &str,
         default_album: &str,
         default_artist: &str,
-        candidates: &mut Vec<CoverCandidateDto>,
-        seen_urls: &mut std::collections::HashSet<String>,
-    ) {
+    ) -> Vec<CoverCandidateDto> {
         debug!("Wyszukiwanie okładek iTunes: {}", url);
-        if let Ok(resp) = self
+        let req = self
             .http
             .get(url)
             .header("User-Agent", "Auralune/0.1.0")
-            .send()
-            .await
-        {
-            if resp.status().is_success() {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    if let Some(results) = json.get("results").and_then(|r| r.as_array()) {
-                        for res in results {
-                            let title = res
-                                .get("collectionName")
-                                .and_then(|s| s.as_str())
-                                .unwrap_or(default_album)
-                                .to_string();
-                            let artist_name = res
-                                .get("artistName")
-                                .and_then(|s| s.as_str())
-                                .unwrap_or(default_artist)
-                                .to_string();
-                            if let Some(thumb) = res.get("artworkUrl100").and_then(|s| s.as_str()) {
-                                let full = thumb.replace("100x100bb.jpg", "1200x1200bb.jpg");
-                                let thumb_300 = thumb.replace("100x100bb.jpg", "300x300bb.jpg");
-                                if seen_urls.insert(full.clone()) {
-                                    candidates.push(CoverCandidateDto {
-                                        source: "Apple Music (1200px)".to_string(),
-                                        title,
-                                        artist: artist_name,
-                                        thumbnail_url: thumb_300,
-                                        full_url: full,
-                                        width: Some(1200),
-                                        height: Some(1200),
-                                    });
-                                }
-                            }
-                        }
-                    }
+            .send();
+
+        let resp = match tokio::time::timeout(Duration::from_millis(3500), req).await {
+            Ok(Ok(r)) => r,
+            _ => return Vec::new(),
+        };
+
+        if !resp.status().is_success() {
+            return Vec::new();
+        }
+
+        let json = match resp.json::<serde_json::Value>().await {
+            Ok(j) => j,
+            Err(_) => return Vec::new(),
+        };
+
+        let mut results = Vec::new();
+        if let Some(res_arr) = json.get("results").and_then(|r| r.as_array()) {
+            for res in res_arr {
+                let title = res
+                    .get("collectionName")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or(default_album)
+                    .to_string();
+                let artist_name = res
+                    .get("artistName")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or(default_artist)
+                    .to_string();
+                if let Some(thumb) = res.get("artworkUrl100").and_then(|s| s.as_str()) {
+                    let full = thumb.replace("100x100bb.jpg", "1200x1200bb.jpg");
+                    let thumb_300 = thumb.replace("100x100bb.jpg", "300x300bb.jpg");
+                    results.push(CoverCandidateDto {
+                        source: "Apple Music (1200px)".to_string(),
+                        title,
+                        artist: artist_name,
+                        thumbnail_url: thumb_300,
+                        full_url: full,
+                        width: Some(1200),
+                        height: Some(1200),
+                    });
                 }
             }
         }
+        results
     }
 
     /// Wyszukuje kandydatów na okładki w internecie (Deezer, Apple Music / iTunes) w stylu Poweramp Cover Art Picker.
+    /// Zapytania do serwisów są wykonywane współbieżnie (równolegle), z natychmiastowym buforowaniem w pamięci RAM.
     pub async fn search_cover_candidates(
         &self,
         album: &str,
@@ -463,93 +478,138 @@ impl CoverArtArchiveClient {
     ) -> Vec<CoverCandidateDto> {
         let clean_album = clean_album_title(album);
         let clean_artist = clean_artist_name(artist);
-        let raw_album = album.trim();
-        let raw_artist = artist.trim();
+
+        if clean_album.trim().is_empty() && clean_artist.trim().is_empty() {
+            return Vec::new();
+        }
+
+        let cache_key = format!(
+            "{}---{}",
+            clean_album.trim().to_lowercase(),
+            clean_artist.trim().to_lowercase()
+        );
+
+        // 1. Sprawdź szybki cache pamięci podręcznej (0ms)
+        {
+            let cache = self.search_cache.lock().await;
+            if let Some(cached) = cache.get(&cache_key) {
+                debug!(
+                    "Cover Art Search Cache Hit dla: '{}' / '{}'",
+                    clean_album, clean_artist
+                );
+                return cached.clone();
+            }
+        }
+
+        // 2. Przygotuj równoległe zapytania do Deezer i iTunes/Apple Music
+        let deezer_adv_url = if !clean_artist.is_empty() && !clean_album.is_empty() {
+            Some(format!(
+                "https://api.deezer.com/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
+                urlencoding::encode(&clean_artist),
+                urlencoding::encode(&clean_album)
+            ))
+        } else {
+            None
+        };
+
+        let deezer_general_query = format!("{} {}", clean_artist, clean_album)
+            .trim()
+            .to_string();
+        let deezer_gen_url = if !deezer_general_query.is_empty() {
+            Some(format!(
+                "https://api.deezer.com/search/album?q={}&limit=10",
+                urlencoding::encode(&deezer_general_query)
+            ))
+        } else {
+            None
+        };
+
+        let itunes_q1 = format!("{} {}", clean_album, clean_artist)
+            .trim()
+            .to_string();
+        let itunes_url_1 = if !itunes_q1.is_empty() {
+            Some(format!(
+                "https://itunes.apple.com/search?term={}&entity=album&limit=8",
+                urlencoding::encode(&itunes_q1)
+            ))
+        } else {
+            None
+        };
+
+        let itunes_q2 = format!("{} {}", clean_artist, clean_album)
+            .trim()
+            .to_string();
+        let itunes_url_2 = if !itunes_q2.is_empty() && itunes_q2 != itunes_q1 {
+            Some(format!(
+                "https://itunes.apple.com/search?term={}&entity=album&limit=8",
+                urlencoding::encode(&itunes_q2)
+            ))
+        } else {
+            None
+        };
+
+        // Równoległe pobieranie (concurrent tokio::join!)
+        let (res_deezer_adv, res_deezer_gen, res_itunes_1, res_itunes_2) = tokio::join!(
+            async {
+                if let Some(url) = deezer_adv_url {
+                    self.query_deezer(&url, album, artist).await
+                } else {
+                    Vec::new()
+                }
+            },
+            async {
+                if let Some(url) = deezer_gen_url {
+                    self.query_deezer(&url, album, artist).await
+                } else {
+                    Vec::new()
+                }
+            },
+            async {
+                if let Some(url) = itunes_url_1 {
+                    self.query_itunes(&url, album, artist).await
+                } else {
+                    Vec::new()
+                }
+            },
+            async {
+                if let Some(url) = itunes_url_2 {
+                    self.query_itunes(&url, album, artist).await
+                } else {
+                    Vec::new()
+                }
+            }
+        );
 
         let mut candidates = Vec::new();
         let mut seen_urls = std::collections::HashSet::new();
 
-        // 1. DEEZER API - doskonała jakość 1000x1000 i szeroki europejski i światowy katalog
-        if !clean_artist.is_empty() && !clean_album.is_empty() {
-            let deezer_adv = format!(
-                "https://api.deezer.com/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
-                urlencoding::encode(&clean_artist),
-                urlencoding::encode(&clean_album)
-            );
-            self.query_deezer(&deezer_adv, album, artist, &mut candidates, &mut seen_urls)
-                .await;
-        }
-
-        let deezer_general = format!("{} {}", clean_artist, clean_album)
-            .trim()
-            .to_string();
-        if !deezer_general.is_empty() {
-            let deezer_url = format!(
-                "https://api.deezer.com/search/album?q={}&limit=10",
-                urlencoding::encode(&deezer_general)
-            );
-            self.query_deezer(&deezer_url, album, artist, &mut candidates, &mut seen_urls)
-                .await;
-        }
-
-        if candidates.is_empty() && !clean_album.is_empty() {
-            let deezer_album_only = format!(
-                "https://api.deezer.com/search/album?q=album:\"{}\"&limit=6",
-                urlencoding::encode(&clean_album)
-            );
-            self.query_deezer(
-                &deezer_album_only,
-                album,
-                artist,
-                &mut candidates,
-                &mut seen_urls,
-            )
-            .await;
-        }
-
-        // 2. APPLE MUSIC / ITUNES SEARCH API (do 1200x1200px artwork)
-        let itunes_queries = vec![
-            format!("{} {}", clean_album, clean_artist)
-                .trim()
-                .to_string(),
-            format!("{} {}", clean_artist, clean_album)
-                .trim()
-                .to_string(),
-        ];
-
-        for q in itunes_queries {
-            if q.is_empty() {
-                continue;
-            }
-            let itunes_url = format!(
-                "https://itunes.apple.com/search?term={}&entity=album&limit=8",
-                urlencoding::encode(&q)
-            );
-            self.query_itunes(&itunes_url, album, artist, &mut candidates, &mut seen_urls)
-                .await;
-            if candidates.len() >= 12 {
-                break;
+        for cand in res_deezer_adv
+            .into_iter()
+            .chain(res_itunes_1)
+            .chain(res_deezer_gen)
+            .chain(res_itunes_2)
+        {
+            if seen_urls.insert(cand.full_url.clone()) {
+                candidates.push(cand);
             }
         }
 
         // Fallback dla raw query jeśli wyczyszczone dało niewiele wyników
-        if candidates.len() < 4 && raw_album != clean_album {
-            let raw_q = format!("{} {}", raw_album, raw_artist).trim().to_string();
-            let itunes_raw_url = format!(
+        let raw_album = album.trim();
+        if candidates.len() < 3 && raw_album != clean_album && !raw_album.is_empty() {
+            let fallback_url = format!(
                 "https://itunes.apple.com/search?term={}&entity=album&limit=6",
-                urlencoding::encode(&raw_q)
+                urlencoding::encode(raw_album)
             );
-            self.query_itunes(
-                &itunes_raw_url,
-                album,
-                artist,
-                &mut candidates,
-                &mut seen_urls,
-            )
-            .await;
+            let fallback_cands = self.query_itunes(&fallback_url, album, artist).await;
+            for cand in fallback_cands {
+                if seen_urls.insert(cand.full_url.clone()) {
+                    candidates.push(cand);
+                }
+            }
         }
 
-        // 3. RANKING I SORTOWANIE (dokładne dopasowanie tytułu i wykonawcy na pierwszym miejscu)
+        // Ranking i sortowanie (dokładne dopasowanie tytułu i wykonawcy na pierwszym miejscu)
         let target_album_lower = clean_album.to_lowercase();
         let target_artist_lower = clean_artist.to_lowercase();
 
@@ -578,6 +638,12 @@ impl CoverArtArchiveClient {
 
             b_score.cmp(&a_score)
         });
+
+        // Zapisz w pamięci podręcznej dla natychmiastowych ponownych otwarć
+        {
+            let mut cache = self.search_cache.lock().await;
+            cache.insert(cache_key, candidates.clone());
+        }
 
         candidates
     }

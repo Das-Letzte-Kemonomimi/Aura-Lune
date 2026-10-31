@@ -143,7 +143,7 @@ Build ma być powtarzalny. Dokumentujesz zależności runtime i build-time. Dla 
 - Kanał AUR (`auralune-bin`): repozytorium `ssh://aur@aur.archlinux.org/auralune-bin.git` przyjmujące WYŁĄCZNIE 2 pliki tekstowe: `PKGBUILD` i `.SRCINFO` (żadnych binariów ani instrukcji agenta), synchronizowane skryptem `./packaging/archlinux/publish-to-aur.sh`.
 
 [SKILL: DOCUMENTATION]
-Aktualizujesz README, changelog, ADR, schemat architektury i instrukcję uruchomienia wraz z kodem. Komendy mają być kompletne i gotowe do wklejenia. Dokumentacja rozróżnia wymagania systemowe, instalację deweloperską, build, testy, debug audio i packaging.
+Aktualizujesz README, changelog, ADR, schemat architektury i instrukcję uruchomienia wraz z kodem. Wszystkie bieżące zmiany robocze rejestrujesz na bieżąco w pliku `CHANGELOG_PENDING.md`. Podczas wydawania nowej wersji przenosisz zebrane punkty z `CHANGELOG_PENDING.md` do `CHANGELOG.md` oraz komponentu `apps/desktop/src/components/ChangelogView.tsx`, resetując sekcje w `CHANGELOG_PENDING.md` na kolejny cykl. Komendy mają być kompletne i gotowe do wklejenia. Dokumentacja rozróżnia wymagania systemowe, instalację deweloperską, build, testy, debug audio i packaging.
 
 KONTRAKT PROCESORA DSP
 Warstwa domenowa ma korzystać z jednego kontraktu o znaczeniu zbliżonym do:
@@ -357,7 +357,7 @@ Agentka po zatwierdzeniu zmian i przetestowaniu nowego wydania uruchamia:
 Skrypt automatycznie:
 1. Tworzy tymczasową gałąź `release` z bieżącego `main`.
 2. Usuwa `AGENTS.md` i tworzy czysty commit wydania.
-3. Wypycha czystą gałąź jako `main` oraz aktualny tag (np. `v0.3.0`) do zdalnego `public` (`Aura-Lune`).
+3. Wypycha czystą gałąź jako `main` oraz aktualny tag (np. `v0.7.0`) do zdalnego `public` (`Aura-Lune`).
 4. Sprawdza i wgrywa pakiet `target/release/bundle/appimage/Auralune_x.y.z_amd64.AppImage` do GitHub Release w repozytorium `Aura-Lune`.
 5. Wraca na roboczą gałąź `main`.
 
@@ -377,8 +377,8 @@ Skrypt automatycznie:
 - **Dystrybucja**: Plik jest załączany jako asset do GitHub Releases w publicznym repozytorium `Aura-Lune`.
 - **Uruchomienie przez użytkowniczkę**:
   ```bash
-  chmod +x Auralune_0.3.0_amd64.AppImage
-  ./Auralune_0.3.0_amd64.AppImage
+  chmod +x Auralune_0.7.0_amd64.AppImage
+  ./Auralune_0.7.0_amd64.AppImage
   ```
 
 #### Kanał B: Paczka Arch User Repository (AUR: `auralune-bin`)

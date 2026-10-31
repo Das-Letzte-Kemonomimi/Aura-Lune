@@ -268,7 +268,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 0 12px rgba(244, 63, 94, 0.35)' : 'none',
+                    boxShadow: isSelected ? '0 0 12px rgba(244, 63, 94, 0.35)' : undefined,
                   }}
                 >
                   {mins} {loc.stats.minsUnit}
@@ -287,7 +287,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                boxShadow: isEndOfTrack ? '0 0 12px rgba(244, 63, 94, 0.35)' : 'none',
+                boxShadow: isEndOfTrack ? '0 0 12px rgba(244, 63, 94, 0.35)' : undefined,
               }}
             >
               {loc.sleepTimerModal.endOfTrack}

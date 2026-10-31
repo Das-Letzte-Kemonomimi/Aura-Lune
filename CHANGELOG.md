@@ -9,6 +9,45 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.7.0] — „Gothic Embers & Verehrt 1999” - 2026-10-31
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Gotycki motyw i estetyka In Extremo 1999 (Gothic In Extremo 1999)**:
+  - Nowy, siódmy wbudowany motyw `gothic-in-extremo` („Gothic 1999 (In Extremo)”) zainspirowany kultowym albumem *Verehrt und Angespien* z 1999 roku oraz utworem *Herr Mannelig*.
+  - Paleta kolorystyczna: głęboka czerń obsydianu (`#080507`), kute żelazo i kamień krypt (`rgba(22, 13, 17, 0.88)`), panele ze stali (`rgba(28, 15, 21, 0.75)`), akcenty krwi i karmazynu (`#e11d48`), burgund (`#881337`), żar pochodni (`#f97316`), antyczne złoto i mosiądz (`#d97706`), oraz jasny runiczny pergamin (`#fef2f2`).
+  - Automatyczna migracja i seeding motywu w bazie SQLite przez `crates/storage`.
+  - Nowy tryb efektów cząsteczkowych otoczenia `AnimeAmbienceFX` — **Płonące Iskry / Embers 🔥**: wznoszące się w górę, pulsujące żarem iskry ognia z pochodni i palenisk z poświatą i subtelnym znoszeniem przez wiatr.
+  - Szybki dostęp do efektu iskier w nagłówku oraz z poziomu palety komend Ctrl+K.
+- **Elastyczny układ biblioteki albumów (Album Grid & List Layout)**:
+  - Naprawiono problem z przeskalowanymi, zbyt wielkimi kartami albumów — wprowadzono responsywną siatkę `repeat(auto-fill, minmax(...))` z maksymalnym limitem szerokości kafelka.
+  - Przełącznik widoku: **Siatka (Grid)** z 3 rozmiarami kafelków (**S** — 140px, **M** — 190px, **L** — 250px) oraz **Lista (List)** z czytelnymi, zwartymi wierszami (okładka, tytuł, wykonawca, rok, liczba utworów, łączny czas trwania i przyciski szybkiej akcji Odtwórz / Dodaj do kolejki).
+  - Filtr statusu okładki: *Wszystkie*, *Z okładką* oraz *Bez okładki*.
+  - Rozszerzone sortowanie albumów o liczbę utworów oraz łączny czas trwania (oprócz tytułu, wykonawcy i roku wydania).
+  - Trwałe zapamiętywanie wybranego trybu widoku i rozmiaru kafelków w `localStorage`.
+- **Ręczna konfiguracja bufora audio i rozmiaru bloku DSP w Ustawieniach**:
+  - Manualna regulacja bufora wyjściowego audio (`buffer_time_ms`, zakres 10–250 ms) oraz rozmiaru bloku procesora DSP (`dsp_block_size`, 256–8192 próbek).
+  - Przycisk przywracania wartości domyślnych (Default: 40 ms PipeWire, 2048 próbek DSP).
+  - Natychmiastowe zastosowanie zmian w działającym silniku potoku GStreamer / PipeWire bez konieczności restartu odtwarzacza.
+- **Dedykowane kontrolki na dolnym pasku odtwarzacza (Bottom Player Bar)**:
+  - Przyciski **Shuffle (Losowo)** oraz **Loop (Pętla: Wyłączona / Cała kolejka / Bieżący utwór)** z wyraźnymi stanami aktywnymi i kolorami akcentu.
+  - Szybki przełącznik silnika DSP typu split-button (Bypass / Rubber Band / SoundTouch) z menu kontekstowym pozwalającym na natychmiastową zmianę silnika jednym kliknięciem bez opuszczania widoku odtwarzania.
+- **Obsługa arkuszy CUE Sheet (.cue)**:
+  - Natywny parser arkuszy dyrektyw CUE w `crates/domain/src/cue.rs` (obsługa `FILE`, `TRACK`, `INDEX 01`, `TITLE`, `PERFORMER`).
+  - Modal `CueSheetModal.tsx` umożliwiający przeglądanie poszczególnych indeksów utworu, bezpośrednie odtwarzanie wybranego utworu z pliku-kontenera (FLAC/WAV/APE) oraz dodawanie ścieżek CUE do kolejki odtwarzania.
+- **Pływające powiadomienie głośności (Volume OSD)**:
+  - Elegancki wskaźnik HUD na środku ekranu pojawiający się podczas regulacji głośności kółkiem myszy lub klawiaturą z automatycznym łagodnym wygaszeniem.
+- **Rejestr zmian roboczych (`CHANGELOG_PENDING.md`)**:
+  - Dedykowany plik stagingowy w repozytorium, w którym agenci i deweloperzy na bieżąco rejestrują wprowadzane zmiany przed ich publikacją w oficjalnym changelogu.
+
+### Zmieniono (Changed)
+- **Uporządkowanie nagłówka aplikacji i sekcja About**:
+  - Uproszczono lewy górny nagłówek odtwarzacza: pozostawiono czysty glif Kitsune, nazwę Auralune oraz wskaźnik wersji nad logo.
+  - Wyczerpujące opisy, manifest misji, technologie i podziękowania przeniesiono do dedykowanej sekcji **O aplikacji (About)** w Ustawieniach.
+- Zaktualizowano wersję projektu do `0.7.0` we wszystkich plikach repozytorium (`Cargo.toml`, `package.json`, `tauri.conf.json`, `install.sh`, `PKGBUILD`, `PKGBUILD-bin`, `.SRCINFO`, `README.md`, `README.pl.md`, `App.tsx`, `ChangelogView.tsx`).
+
+---
+
 ## [0.6.5] — „Anime Web Radio, Live ICY Streams & Universal Installer” - 2026-10-26
 **Autorka**: Das Letzte Kemonomimi
 

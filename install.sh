@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-VERSION="0.6.5"
+VERSION="0.7.0"
 REPO="Das-Letzte-Kemonomimi/Aura-Lune"
 GITHUB_API="https://api.github.com/repos/${REPO}/releases"
 

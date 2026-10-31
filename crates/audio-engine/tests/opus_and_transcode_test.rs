@@ -310,3 +310,35 @@ fn test_transcode_range_with_file_uri_prefix() {
     assert!(output_wav.exists());
     let _ = fs::remove_file(&output_wav);
 }
+
+#[test]
+fn test_transcode_flac_range() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_flac = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    if !input_flac.exists() {
+        return;
+    }
+    let output_opus = root.join("tests/fixtures/test_flac_range.opus");
+    let _ = fs::remove_file(&output_opus);
+
+    let range = TimeRange::new(1000, Some(4000)).unwrap();
+    let res = Transcoder::transcode_with_dsp(
+        &input_flac,
+        &output_opus,
+        ExportFormat::Opus { bitrate_kbps: 192 },
+        None,
+        Some(&range),
+    );
+    assert!(res.is_ok());
+    let engine = AudioEngine::new().unwrap();
+    let uri = format!("file://{}", output_opus.canonicalize().unwrap().display());
+    engine.load_uri(&uri).expect("Załadowanie wycinka");
+    engine.play().expect("Odtworzenie wycinka");
+    std::thread::sleep(Duration::from_millis(50));
+    let dur = engine.duration();
+    println!("Exported range duration: {:?}", dur);
+    engine.stop().unwrap();
+    let _ = fs::remove_file(&output_opus);
+}

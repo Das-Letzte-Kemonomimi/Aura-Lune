@@ -24,6 +24,9 @@ interface CoverArtPickerModalProps {
   currentLang?: Language;
 }
 
+// Modułowy cache w pamięci RAM: natychmiastowe ładowanie wyników (0ms) dla wcześniej otwieranych albumów
+const localCoverCache = new Map<string, CoverCandidate[]>();
+
 export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
   isOpen,
   onClose,
@@ -50,12 +53,27 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
     if (isOpen) {
       setAlbumQuery(initialAlbum);
       setArtistQuery(initialArtist);
-      performSearch(initialAlbum, initialArtist);
+      const cacheKey = `${initialAlbum.trim().toLowerCase()}---${initialArtist.trim().toLowerCase()}`;
+      if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
+        setCandidates(localCoverCache.get(cacheKey)!);
+        setIsSearching(false);
+        setErrorMsg(null);
+      } else {
+        performSearch(initialAlbum, initialArtist);
+      }
     }
   }, [isOpen, initialAlbum, initialArtist]);
 
   const performSearch = async (album: string, artist: string) => {
     if (!album.trim() && !artist.trim()) return;
+    const cacheKey = `${album.trim().toLowerCase()}---${artist.trim().toLowerCase()}`;
+    if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
+      setCandidates(localCoverCache.get(cacheKey)!);
+      setIsSearching(false);
+      setErrorMsg(null);
+      return;
+    }
+
     setIsSearching(true);
     setErrorMsg(null);
     try {
@@ -64,6 +82,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         artist: artist.trim(),
       });
       setCandidates(results);
+      localCoverCache.set(cacheKey, results);
       if (results.length === 0) {
         setErrorMsg(t.covers.noCoversFound);
       }
@@ -162,8 +181,9 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(5, 7, 15, 0.85)',
-        backdropFilter: 'blur(12px)',
+        background: 'rgba(5, 7, 15, 0.88)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

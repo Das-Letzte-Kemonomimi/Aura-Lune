@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock } from 'lucide-react';
+import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from 'lucide-react';
 import { formatTimeMs } from './LoopEditorModal';
 
 export interface TrackBookmarkDto {
@@ -19,6 +19,8 @@ interface TrackBookmarksModalProps {
   onSeek: (positionMs: number) => void;
   onClose: () => void;
   onBookmarksUpdated?: () => void;
+  onExportRange?: (startMs: number, endMs: number | null) => void;
+  onSetAsLoop?: (startMs: number | null, endMs: number | null) => void;
 }
 
 export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
@@ -29,6 +31,8 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   onSeek,
   onClose,
   onBookmarksUpdated,
+  onExportRange,
+  onSetAsLoop,
 }) => {
   const [bookmarks, setBookmarks] = useState<TrackBookmarkDto[]>([]);
   const [newBookmarkName, setNewBookmarkName] = useState('');
@@ -330,6 +334,76 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
               Lista zapisanych punktów ({bookmarks.length})
             </span>
 
+            {bookmarks.length >= 2 && onExportRange && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(6, 182, 212, 0.1)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  marginBottom: '4px',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                    ✂️ Eksportuj fragment ze znacznikami
+                  </span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Zakres od pierwszego ({bookmarks[0].name}) do ostatniego ({bookmarks[bookmarks.length - 1].name})
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {onSetAsLoop && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSetAsLoop(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
+                        onClose();
+                      }}
+                      className="glass-card"
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-main)',
+                        fontSize: '0.76rem',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Pętla A-B
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onExportRange(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
+                      onClose();
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-pink))',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Scissors size={13} /> Eksportuj
+                  </button>
+                </div>
+              </div>
+            )}
+
             {isLoading && (
               <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
                 Ładowanie zakładek...
@@ -351,7 +425,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
               </div>
             )}
 
-            {bookmarks.map((bm) => (
+            {bookmarks.map((bm, idx) => (
               <div
                 key={bm.id}
                 style={{
@@ -448,6 +522,65 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {onSetAsLoop && (
+                    <button
+                      onClick={() => onSetAsLoop(bm.position_ms, null)}
+                      title="Ustaw ten znacznik jako Punkt A pętli"
+                      style={{
+                        background: 'rgba(6, 182, 212, 0.15)',
+                        border: '1px solid rgba(6, 182, 212, 0.35)',
+                        color: 'var(--accent-cyan)',
+                        cursor: 'pointer',
+                        padding: '4px 7px',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      A
+                    </button>
+                  )}
+                  {onSetAsLoop && (
+                    <button
+                      onClick={() => onSetAsLoop(null, bm.position_ms)}
+                      title="Ustaw ten znacznik jako Punkt B pętli"
+                      style={{
+                        background: 'rgba(236, 72, 153, 0.15)',
+                        border: '1px solid rgba(236, 72, 153, 0.35)',
+                        color: 'var(--accent-pink)',
+                        cursor: 'pointer',
+                        padding: '4px 7px',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      B
+                    </button>
+                  )}
+                  {onExportRange && idx < bookmarks.length - 1 && (
+                    <button
+                      onClick={() => {
+                        onExportRange(bm.position_ms, bookmarks[idx + 1].position_ms);
+                        onClose();
+                      }}
+                      title={`Eksportuj fragment od "${bm.name}" do "${bookmarks[idx + 1].name}"`}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--accent-cyan)',
+                        cursor: 'pointer',
+                        padding: '5px 8px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.72rem',
+                      }}
+                    >
+                      <Scissors size={12} />
+                    </button>
+                  )}
                   {editingId !== bm.id && (
                     <button
                       onClick={() => {

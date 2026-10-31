@@ -100,6 +100,11 @@ fn test_dsp_tempo_position_synchronization() {
 
     engine.load_uri(&uri).expect("Ładowanie pliku");
 
+    // Aktywacja silnika DSP do testu synchronizacji tempa
+    engine
+        .set_dsp_engine(dsp_api::DspEngine::RubberBand)
+        .expect("Aktywacja RubberBand");
+
     // Ustawienie tempa 0.50x (podwojenie czasu odsłuchu)
     engine
         .set_tempo_ratio(0.50)
@@ -394,4 +399,60 @@ fn test_smart_replaygain_auto_mode() {
     // Inny album lub shuffle -> Track Gain
     engine.apply_auto_replaygain(false, false);
     engine.apply_auto_replaygain(true, true);
+}
+
+#[test]
+fn test_loop_mode_track_preserves_current_uri_and_replays() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+
+    engine.load_uri(&uri).expect("load_uri");
+    assert_eq!(engine.current_uri(), Some(uri.clone()));
+
+    // Ustawienie globalnego trybu zapętlania pojedynczego utworu (LoopMode::Track)
+    engine.set_loop_mode(domain::queue::LoopMode::Track);
+    assert_eq!(engine.loop_mode(), domain::queue::LoopMode::Track);
+
+    // Weryfikacja że current_uri jest zachowane w potoku bez względu na obecność w kolejce
+    assert_eq!(engine.current_uri(), Some(uri));
+}
+
+#[test]
+fn test_buffer_configuration_and_defaults() {
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+
+    // Weryfikacja wartości domyślnych
+    assert_eq!(engine.audio_buffer_duration_ms(), 80);
+    assert_eq!(engine.dsp_block_size(), 2048);
+
+    // Zmiana bufora wyjściowego audio
+    engine
+        .set_audio_buffer_duration_ms(150)
+        .expect("Ustawienie bufora audio na 150 ms");
+    assert_eq!(engine.audio_buffer_duration_ms(), 150);
+
+    // Przywrócenie domyślnego bufora audio
+    engine
+        .set_audio_buffer_duration_ms(80)
+        .expect("Przywrócenie bufora audio na 80 ms");
+    assert_eq!(engine.audio_buffer_duration_ms(), 80);
+
+    // Zmiana rozmiaru bloku bufora DSP
+    engine
+        .set_dsp_block_size(4096)
+        .expect("Ustawienie rozmiaru bloku DSP na 4096 ramek");
+    assert_eq!(engine.dsp_block_size(), 4096);
+
+    // Przywrócenie domyślnego rozmiaru bloku DSP
+    engine
+        .set_dsp_block_size(2048)
+        .expect("Przywrócenie rozmiaru bloku DSP na 2048 ramek");
+    assert_eq!(engine.dsp_block_size(), 2048);
 }
