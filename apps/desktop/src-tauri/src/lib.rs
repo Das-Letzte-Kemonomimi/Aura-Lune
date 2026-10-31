@@ -53,6 +53,7 @@ pub struct AppState {
     pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
     pub latest_live_stream_tag: Arc<Mutex<Option<String>>>,
     pub discord_cover_cache: Arc<std::sync::RwLock<std::collections::HashMap<String, String>>>,
+    pub last_reported_pos_ms: std::sync::atomic::AtomicU64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -809,6 +810,18 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
                     *s = mags;
                 }
             }
+            PlayerEvent::TrackLooped => {
+                info!("get_status: odebrano zdarzenie PlayerEvent::TrackLooped (utwór zapętlony / Repeat)");
+                if let Some(discord) = &state.discord_rpc {
+                    discord.track_looped();
+                }
+                if let Some(mpris) = &state.mpris {
+                    let m = mpris.clone();
+                    state.rt.spawn(async move {
+                        m.emit_seeked(0).await;
+                    });
+                }
+            }
             PlayerEvent::Tag(tag) => {
                 if is_live_stream {
                     info!("Odebrano tag ze strumienia na żywo: {}", tag);
@@ -926,6 +939,29 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
     let dur_ms = state.engine.duration().map(|d| d.as_millis() as u64);
+
+    let prev_pos = state.last_reported_pos_ms.swap(pos_ms, std::sync::atomic::Ordering::Relaxed);
+    if state.engine.state() == PlaybackState::Playing {
+        let is_loop_restart = prev_pos > 3000 && pos_ms < 2500;
+        let is_major_rewind = prev_pos > pos_ms + 4000;
+        if is_loop_restart || is_major_rewind {
+            info!(
+                "Wykryto cofnięcie/zapętlenie pozycji z {} ms do {} ms — synchronizuję Discord RPC i MPRIS",
+                prev_pos, pos_ms
+            );
+            if let Some(discord) = &state.discord_rpc {
+                let dur = dur_ms.unwrap_or(0);
+                discord.update_playback_status(PlaybackState::Playing, pos_ms, dur);
+            }
+            if let Some(mpris) = &state.mpris {
+                let m = mpris.clone();
+                state.rt.spawn(async move {
+                    m.emit_seeked(pos_ms).await;
+                });
+            }
+        }
+    }
+
     let dsp = state.engine.dsp_params();
     let capabilities = state.engine.dsp_capabilities();
 
@@ -4023,6 +4059,22 @@ async fn set_discord_rpc_client_id(
 }
 
 #[tauri::command]
+fn notify_track_looped(position_ms: Option<u64>, state: State<'_, AppState>) -> Result<(), String> {
+    let pos = position_ms.unwrap_or(0);
+    let dur = state.engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
+    if let Some(discord) = &state.discord_rpc {
+        discord.update_playback_status(PlaybackState::Playing, pos, dur);
+    }
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.emit_seeked(pos).await;
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn get_track_bookmarks(
     track_id: i64,
     state: State<'_, AppState>,
@@ -4672,6 +4724,7 @@ pub fn run() {
                     latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
                     latest_live_stream_tag: Arc::new(Mutex::new(None)),
                     discord_cover_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+                    last_reported_pos_ms: std::sync::atomic::AtomicU64::new(0),
                 };
 
                 app.manage(app_state);
@@ -4920,6 +4973,7 @@ pub fn run() {
             get_discord_rpc_status,
             set_discord_rpc_enabled,
             set_discord_rpc_client_id,
+            notify_track_looped,
             get_track_bookmarks,
             add_track_bookmark,
             update_track_bookmark,

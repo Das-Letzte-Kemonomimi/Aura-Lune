@@ -45,6 +45,7 @@ enum DiscordRpcCommand {
         duration_ms: u64,
     },
     UpdatePosition(u64),
+    TrackLooped,
     ClearActivity,
     SetEnabled(bool),
     SetClientId(String),
@@ -112,6 +113,11 @@ impl DiscordRpcController {
         let _ = self.tx.send(DiscordRpcCommand::UpdatePosition(position_ms));
     }
 
+    /// Informuje o zapętleniu utworu od początku (Repeat Track / Loop).
+    pub fn track_looped(&self) {
+        let _ = self.tx.send(DiscordRpcCommand::TrackLooped);
+    }
+
     /// Czyści status aktywności na Discordzie.
     pub fn clear_activity(&self) {
         let _ = self.tx.send(DiscordRpcCommand::ClearActivity);
@@ -155,6 +161,7 @@ struct DiscordRpcWorker {
     nonce_counter: u64,
     dirty: bool,
     last_sent_at: Option<tokio::time::Instant>,
+    last_start_unix: Option<u64>,
 }
 
 impl DiscordRpcWorker {
@@ -172,6 +179,7 @@ impl DiscordRpcWorker {
             nonce_counter: 0,
             dirty: false,
             last_sent_at: None,
+            last_start_unix: None,
         }
     }
 
@@ -242,7 +250,17 @@ impl DiscordRpcWorker {
                             if duration_ms > 0 {
                                 self.current_duration_ms = duration_ms;
                             }
-                            let pos_jump = (self.current_position_ms as i64 - position_ms as i64).abs() > 2500;
+                            let now_unix = SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs();
+                            let estimated_current_pos_ms = if let Some(st) = self.last_start_unix {
+                                (now_unix.saturating_sub(st)) * 1000
+                            } else {
+                                self.current_position_ms
+                            };
+                            let pos_jump = (self.current_position_ms as i64 - position_ms as i64).abs() > 2500
+                                || (estimated_current_pos_ms as i64 - position_ms as i64).abs() > 2500;
                             self.current_position_ms = position_ms;
                             if state_changed || dur_changed || pos_jump {
                                 self.dirty = true;
@@ -250,12 +268,28 @@ impl DiscordRpcWorker {
                             }
                         }
                         DiscordRpcCommand::UpdatePosition(pos) => {
-                            let pos_jump = (self.current_position_ms as i64 - pos as i64).abs() > 2500;
+                            let now_unix = SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs();
+                            let estimated_current_pos_ms = if let Some(st) = self.last_start_unix {
+                                (now_unix.saturating_sub(st)) * 1000
+                            } else {
+                                self.current_position_ms
+                            };
+                            let pos_jump = (self.current_position_ms as i64 - pos as i64).abs() > 2500
+                                || (estimated_current_pos_ms as i64 - pos as i64).abs() > 2500;
                             self.current_position_ms = pos;
                             if pos_jump {
                                 self.dirty = true;
                                 self.schedule_flush(&mut flush_deadline);
                             }
+                        }
+                        DiscordRpcCommand::TrackLooped => {
+                            self.current_position_ms = 0;
+                            self.last_start_unix = None;
+                            self.dirty = true;
+                            self.schedule_flush(&mut flush_deadline);
                         }
                         DiscordRpcCommand::ClearActivity => {
                             self.playback_state = PlaybackState::Stopped;
@@ -305,6 +339,28 @@ impl DiscordRpcWorker {
                     }
                 }
                 _ = ticker.tick() => {
+                    let now_unix = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+
+                    // Jeśli utwór gra, ma określoną długość i czas na Discordzie przekroczył długość (pasek osiągnął 100%),
+                    // a odtwarzacz nadal gra (np. utwór zapętlił się bez jawnego powiadomienia), zaktualizuj pozycję.
+                    if self.enabled
+                        && self.playback_state == PlaybackState::Playing
+                        && self.current_duration_ms > 0
+                    {
+                        if let Some(start_t) = self.last_start_unix {
+                            let dur_secs = self.current_duration_ms / 1000;
+                            if dur_secs > 0 && now_unix > start_t + dur_secs + 1 {
+                                self.current_position_ms = 0;
+                                self.last_start_unix = Some(now_unix);
+                                self.dirty = true;
+                                self.schedule_flush(&mut flush_deadline);
+                            }
+                        }
+                    }
+
                     // Jeśli Discord RPC jest włączony, ale nie ma jeszcze połączenia (np. Vesktop/Discord uruchomiony później),
                     // to sprawdzaj gniazdo w tle i automatycznie wyślij aktywność bez konieczności interakcji użytkowniczki
                     if self.enabled
@@ -456,6 +512,10 @@ impl DiscordRpcWorker {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
+
+        let elapsed_secs = self.current_position_ms / 1000;
+        let start_time = now_unix.saturating_sub(elapsed_secs);
+        self.last_start_unix = Some(start_time);
 
         let activity = build_activity_payload(
             &track,

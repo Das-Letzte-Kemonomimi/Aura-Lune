@@ -18,6 +18,7 @@
 ### 🛠️ Poprawiono (Fixed)
 - **Auralune Recap (Wrapped)**: Usunięto błędy formatowania DTO powodujące wyświetlanie `NaN min` w łącznym czasie słuchania oraz pusty licznik odtworzonych utworów.
 - **Top Tracks & Top Artists**: Skorygowano sortowanie w zapytaniach SQLite (eliminacja niesortowanego zachowania złączeń `JOIN`), dodano pełne mapowanie wykonawców i zliczanie odtworzeń w widoku podsumowania, co wyeliminowało puste etykiety `#1 ( plays)`.
+- **Discord Rich Presence (RPC) & Repeat / Loop**: Wyeliminowano zawieszanie się paska postępu na końcu utworu (np. `1:48 / 1:48`) w trybach zapętlania (`Repeat Track`, `Repeat All`, pętla A-B). Dodano zdarzenie `PlayerEvent::TrackLooped`, śledzenie cofnięcia pozycji w `get_status` oraz kalkulację estymowanego czasu w `DiscordRpcWorker`, dzięki czemu Discord natychmiast resetuje pasek do `0:00` i odlicza kolejny obieg utworu.
 
 ### 🔄 Zmieniono (Changed)
 - Rozszerzono `RecapSummaryDto` o pola kompatybilności wstecznej oraz wprowadzono struktury `RecapTopTrackDto` i `RecapTopArtistDto`.

@@ -1774,6 +1774,7 @@ export default function App() {
               lastRecordedTrackRef.current.recorded = false;
               setScrobbledTrackId(null);
               setLastfmScrobbledTrackId(null);
+              invoke('notify_track_looped', { positionMs: res.position_ms }).catch(() => {});
             }
             lastTrackPositionMsRef.current = res.position_ms;
 
