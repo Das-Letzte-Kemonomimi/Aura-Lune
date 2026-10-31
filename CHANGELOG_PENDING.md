@@ -16,10 +16,11 @@
 - *(Brak oczekujących zmian — wersja 0.7.3 została pomyślnie wydana)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak)*
+- **Auralune Recap (Wrapped)**: Usunięto błędy formatowania DTO powodujące wyświetlanie `NaN min` w łącznym czasie słuchania oraz pusty licznik odtworzonych utworów.
+- **Top Tracks & Top Artists**: Skorygowano sortowanie w zapytaniach SQLite (eliminacja niesortowanego zachowania złączeń `JOIN`), dodano pełne mapowanie wykonawców i zliczanie odtworzeń w widoku podsumowania, co wyeliminowało puste etykiety `#1 ( plays)`.
 
 ### 🔄 Zmieniono (Changed)
-- *(Brak)*
+- Rozszerzono `RecapSummaryDto` o pola kompatybilności wstecznej oraz wprowadzono struktury `RecapTopTrackDto` i `RecapTopArtistDto`.
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
-- *(Brak)*
+- Dodano fallbacki do bazy danych przy zerowej historii odtworzeń (`listening_history`), uwzględniając sumaryczne statystyki z tabeli `tracks`.
