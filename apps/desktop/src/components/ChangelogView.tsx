@@ -18,11 +18,78 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.1',
+    codename: 'Gothic Embers & Loop Integrity',
+    date: '2026-10-31',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Anulowanie nakładki Drag & Drop: przycisk zamknięcia, obsługa klawisza Escape oraz kliknięcie w tło nakładki upuszczania plików.',
+        en: 'Cancelable Drag & Drop overlay: dedicated close button, Escape key support, and backdrop click dismiss.',
+        de: 'Abbrechbares Drag & Drop-Overlay: Eigener Schließen-Button, Escape-Taste und Klick auf den Hintergrund zum Schließen.',
+        fi: 'Peruutettava vedä ja pudota -peittokuva: sulkemispainike, Escape-näppäintuki ja taustan napsautuksella sulkeminen.',
+        la: 'Superpositio trahendi cancellabilis: clavis clausurae, subsidium clavis Escape et ictus in fundamentum.',
+      },
+      {
+        pl: 'Czytelne nazwy stacji Anime Radio: odtwarzacz i zakładka Now Playing prezentują właściwą nazwę wybranej stacji oraz czyste metadane na żywo zamiast technicznych hashy strumieni.',
+        en: 'Readable Anime Radio station names: the player and Now Playing view display the friendly station title and clean live tags instead of raw stream mount hashes.',
+        de: 'Lesbare Anime-Radio-Stationstitel: Player und Now-Playing-Ansicht zeigen den Sendernamen und saubere Live-Tags statt technischer Stream-Hashes.',
+        fi: 'Selkeät Anime Radio -asemien nimet: soitin ja Now Playing -näkymä näyttävät aseman nimen ja puhtaat livetiedot teknisten tiivisteiden sijaan.',
+        la: 'Nomina perspicua stationum radiophonicarum Anime: lusor et prospectus praesens titulum stationis et notas mundas demonstrant.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Poprawka zapętlania utworów (Repeat Track): wyeliminowano problem cichego przelotu paska po zakończeniu utworu poprzez reset flagi EOS w pipeline GStreamer.',
+        en: 'Repeat Track fix: resolved silent playback pass after track completion by properly resetting EOS in GStreamer sinks via State::Null transition.',
+        de: 'Repeat Track-Fehlerbehebung: Stumme Wiedergabe nach Trackende behoben durch korrektes EOS-Zurücksetzen in GStreamer-Sinks.',
+        fi: 'Kappaleen toiston (Repeat Track) korjaus: hiljainen toistokerta raidan päätyttyä korjattu nollaamalla EOS GStreamer-nieluissa.',
+        la: 'Emendatio circuli cantus (Repeat Track): silentium post finem cantus deletum per restitutionem signi EOS in receptaculo GStreamer.',
+      },
+      {
+        pl: 'Ochrona kolejki użytkowniczki: klikanie utworów w bibliotece ani upuszczanie folderów nie nadpisuje już manualnej kolejki odtwarzania.',
+        en: 'Queue preservation: clicking library tracks or dropping folders no longer overwrites or auto-populates the manual playback queue.',
+        de: 'Warteschlangen-Schutz: Das Anklicken von Bibliothekstiteln oder Ablegen von Ordnern überschreibt die manuelle Playlist-Warteschlange nicht mehr.',
+        fi: 'Jonon suojaus: kirjastoraitojen napsauttaminen tai kansioiden pudottaminen ei enää korvaa käyttäjän manuaalista toistojonoa.',
+        la: 'Tuitio seriei canendi: ictus in cantus bibliothecae vel demissio scriniorum seriem manualem non iam delet.',
+      },
+      {
+        pl: 'Zliczanie odtworzeń i statystyk: zliczanie odsłuchań rejestruje się poprawnie przy zapętleniach Repeat Track oraz dla krótkich utworów (<15 s).',
+        en: 'Play counts and recap stats: listening counts and time accurately record on Repeat Track loop iterations and for short tracks (<15s).',
+        de: 'Wiedergabezählung und Statistiken: Hörzeiten und Zähler werden bei Repeat-Track-Schleifen und kurzen Tracks (<15s) präzise erfasst.',
+        fi: 'Toistokertojen ja tilastojen laskenta: kuuntelukerrat tallentuvat oikein toistosilmukoissa sekä lyhyillä kappaleilla (<15s).',
+        la: 'Numeratio cantuum et rationes: auditus accurate computantur in circulis et cantibus brevibus (<15s).',
+      },
+      {
+        pl: 'Koegzystencja Discord Rich Presence z grami: usunięto cykliczny spam ramkami SET_ACTIVITY co 15 sekund, dzięki czemu Discord nie kasuje statusu aktywnej gry.',
+        en: 'Discord Rich Presence game coexistence: stopped redundant SET_ACTIVITY frames from wiping active game presences (e.g. Corpse Factory) every 15 seconds.',
+        de: 'Discord RPC-Koexistenz mit Spielen: Redundanter SET_ACTIVITY-Spam alle 15 Sekunden entfernt, damit Discord aktive Spiele nicht überschreibt.',
+        fi: 'Discord RPC ja pelitila: estetty ylimääräiset SET_ACTIVITY-lähetykset 15 sekunnin välein, jotta Discord ei pyyhi aktiivista pelitilaa.',
+        la: 'Coexistentia Discord RPC cum ludis: transmissio supervacua SET_ACTIVITY sublata ne status ludi deleatur.',
+      },
+      {
+        pl: 'Eliminacja fałszywego okna dropu przy wewnętrznym przeciąganiu: przeciąganie elementów wewnątrz aplikacji nie wyświetla już pełnoekranowej nakładki.',
+        en: 'Ignored internal element drags: reordering queue or dragging inside the UI no longer triggers the full-screen file drop overlay.',
+        de: 'Internes Ziehen von UI-Elementen gefiltert: Das Umsortieren der Queue löst kein Vollbild-Drop-Overlay mehr aus.',
+        fi: 'Sisäisen raahauksen korjaus: elementtien siirtely käyttöliittymässä ei enää aktivoi koko ruudun tiedostopudotusnäyttöä.',
+        la: 'Filtratio tractus interni: motus elementorum intra applicationem superimpositionem demittendi non iam excitat.',
+      },
+      {
+        pl: 'Stabilność skanowania biblioteki: asynchroniczne komendy Tauri oraz 15-sekundowy busy_timeout w SQLite eliminują zawieszanie się programu (Not Responding).',
+        en: 'Library scanner stability: native async Tauri commands and a 15-second SQLite busy timeout eliminate application freezes (Not Responding).',
+        de: 'Stabilität des Bibliotheksscanners: Native asynchrone Tauri-Befehle und 15s SQLite busy_timeout verhindern Einfrieren (Not Responding).',
+        fi: 'Kirjastoskannerin vakaus: natiivit asynkroniset Tauri-komennot ja 15s SQLite-aikakatkaisu estävät sovelluksen jäätymisen (Not Responding).',
+        la: 'Firmitas scrutatoris bibliothecae: mandata nativa asynchrona et mora 15s SQLite impediunt applicationem ne deficiat.',
+      },
+    ],
+  },
+  {
     version: '0.7.0',
     codename: 'Gothic Embers & Verehrt 1999',
     date: '2026-10-31',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Nowy motyw Gothic 1999 (In Extremo): mroczna, gotycka estetyka ery Verehrt und Angespien z kutej stali, obsydianu, karmazynowej krwi i żaru pochodni.',

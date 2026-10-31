@@ -455,8 +455,8 @@ impl AudioEngine {
 
         let mut inner = self.inner.lock().unwrap();
 
-        // Zatrzymanie potoku przed przebudową wejścia
-        let _ = inner.pipeline.set_state(gst::State::Ready);
+        // Zatrzymanie potoku przed przebudową wejścia (State::Null całkowicie resetuje EOS na zlewkach audio PipeWire)
+        let _ = inner.pipeline.set_state(gst::State::Null);
         inner.base_media_pos = Duration::ZERO;
         inner.base_sink_pts = Duration::ZERO;
 
@@ -679,8 +679,8 @@ impl AudioEngine {
             inner.base_sink_pts = Duration::ZERO;
             inner.pipeline.clone()
         };
-        pipeline.set_state(gst::State::Ready)?;
-        debug!("Stan potoku zmieniony na Stopped (Ready)");
+        pipeline.set_state(gst::State::Null)?;
+        debug!("Stan potoku zmieniony na Stopped (Null)");
         Ok(())
     }
 

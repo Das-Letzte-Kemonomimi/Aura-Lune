@@ -13,11 +13,10 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — wersja 0.7.0 została pomyślnie wydana)*
+- *(Brak oczekujących zmian — wersja 0.7.1 została pomyślnie wydana)*
 
 ### 🛠️ Poprawiono (Fixed)
-- **Zapamiętywanie pozycji przewijania listy albumów (Scroll Memory)**: Naprawiono resetowanie pozycji scrolla do samej góry po kliknięciu w dany album i powrocie przyciskiem „Wróć do wszystkich albumów”. Kontener biblioteki zapamiętuje teraz dokładną pozycję przewijania w momencie wejścia w album i bezszwowo przywraca ją przy powrocie (zarówno w widoku siatki kafelków, jak i listy), eliminując konieczność ponownego przewijania długiej biblioteki.
-- **Restart odtwarzania w trybie zapętlenia (Loop)**: Naprawiono błąd, w którym po dojściu utworu do końca (EOS) przy włączonym trybie `Loop Track` lub `Loop Queue` (dla pojedynczego utworu) dźwięk milkł, a pasek postępu odliczał czas na pustym potoku. Nieskuteczne wywołanie `seek(0)` na zablokowanym potoku po EOS zastąpiono deterministycznym przeładowaniem URI (`load_uri`) i płynnym wznowieniem odtwarzania od początku strumienia. Dodano testy integracyjne potwierdzające automatyczny powrót do stanu `Playing` z poprawnym resetem pozycji.
+- *(Brak)*
 
 ### 🔄 Zmieniono (Changed)
 - *(Brak)*
