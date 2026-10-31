@@ -105,16 +105,36 @@ else
     # 4. Pobieranie najnowszego AppImage z GitHub Releases
     echo -e "${BLUE}🔍 Sprawdzanie najnowszego wydania na GitHubie (${REPO})...${RESET}"
     
+    # Wykrywanie Bazzite / Fedora w celu pobrania wariantu o optymalnej kompatybilności GLIBC
+    IS_BAZZITE_OR_FEDORA=false
+    if [[ "${1:-}" == "--bazzite" || "${2:-}" == "--bazzite" ]]; then
+        IS_BAZZITE_OR_FEDORA=true
+    elif [[ -f /etc/os-release ]] && grep -qiE 'ID=bazzite|ID=fedora|ID_LIKE=.*fedora|ID_LIKE=.*bazzite' /etc/os-release; then
+        IS_BAZZITE_OR_FEDORA=true
+    fi
+
     DOWNLOAD_URL=""
     LATEST_JSON=$(curl -sSf "${GITHUB_API}/latest" 2>/dev/null || echo "")
     if [[ -n "$LATEST_JSON" ]]; then
-        DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
         TAG_NAME=$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4 || echo "v${VERSION}")
         echo -e "${CYAN}✨ Wykryto wydanie: ${TAG_NAME}${RESET}"
+
+        if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
+            echo -e "${GREEN}🎮 Wykryto system Bazzite / Fedora — wybieram dedykowany pakiet zgodny wstecznie z GLIBC 2.40!${RESET}"
+            DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "bazzite.*\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
+        fi
+
+        if [[ -z "$DOWNLOAD_URL" ]]; then
+            DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | grep -vi "bazzite" | head -n 1 | cut -d '"' -f 4 || echo "")
+        fi
     fi
 
     if [[ -z "$DOWNLOAD_URL" ]]; then
-        DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"
+        if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
+            DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_bazzite_amd64.AppImage"
+        else
+            DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"
+        fi
     fi
 
     echo -e "${BLUE}⬇️  Pobieranie Auralune AppImage...${RESET}"

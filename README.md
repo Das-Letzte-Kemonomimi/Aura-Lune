@@ -85,11 +85,17 @@ curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/mai
 The installer downloads the latest AppImage, installs icons, desktop entry (`auralune.desktop`), and a smart launcher with automatic FUSE 2 fallback.
 
 ### 2. Standalone AppImage (Manual)
-Download the latest standalone executable from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
-```bash
-chmod +x Auralune_0.7.3_amd64.AppImage
-./Auralune_0.7.3_amd64.AppImage
-```
+Download the appropriate package from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
+- **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
+  ```bash
+  chmod +x Auralune_0.7.3_bazzite_amd64.AppImage
+  ./Auralune_0.7.3_bazzite_amd64.AppImage
+  ```
+- **Arch / CachyOS / EndeavourOS / other distros**:
+  ```bash
+  chmod +x Auralune_0.7.3_amd64.AppImage
+  ./Auralune_0.7.3_amd64.AppImage
+  ```
 
 ### 3. Arch Linux / EndeavourOS / CachyOS (AUR)
 ```bash
