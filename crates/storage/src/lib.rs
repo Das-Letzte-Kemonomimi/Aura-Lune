@@ -1603,7 +1603,7 @@ mod tests {
 
         // 6. Test motywów anime i tokenów
         let themes = db.list_themes().await.unwrap();
-        assert_eq!(themes.len(), 6); // 6 domyślnych motywów anime zainicjowanych migracją
+        assert_eq!(themes.len(), 7); // 7 domyślnych motywów zainicjowanych migracją (w tym Gothic In Extremo 1999)
         let active = db.get_app_setting("active_theme_id").await.unwrap();
         assert_eq!(active, Some("cyber-kitsune".to_string()));
 

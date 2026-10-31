@@ -31,7 +31,7 @@ export function useVirtualScroll({
   itemHeight,
   containerRef,
   tableRef,
-  overscan = 16,
+  overscan = 24,
 }: VirtualScrollOptions): VirtualScrollResult {
   const [range, setRange] = useState<{ start: number; end: number }>({
     start: 0,
@@ -49,9 +49,16 @@ export function useVirtualScroll({
 
     let offsetTop = 0;
     if (tableRef?.current) {
-      const tableRect = tableRef.current.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      offsetTop = Math.max(0, tableRect.top - containerRect.top + scrollTop);
+      let el: HTMLElement | null = tableRef.current;
+      while (el && el !== container) {
+        offsetTop += el.offsetTop;
+        el = el.offsetParent as HTMLElement | null;
+      }
+      if (offsetTop === 0) {
+        const tableRect = tableRef.current.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        offsetTop = Math.max(0, Math.round(tableRect.top - containerRect.top + scrollTop));
+      }
     }
 
     // Liczba pikseli, o jaką przewinięto w głąb tabeli

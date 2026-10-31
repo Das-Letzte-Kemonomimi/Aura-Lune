@@ -54,6 +54,7 @@ struct DspNodeState {
     fifo: std::collections::VecDeque<f32>,
     out_buffer: Vec<f32>,
     current_pts: Option<u64>,
+    block_size: usize,
 }
 
 impl DspNodeState {
@@ -66,6 +67,7 @@ impl DspNodeState {
             fifo: std::collections::VecDeque::with_capacity(32768),
             out_buffer: Vec::with_capacity(16384),
             current_pts: None,
+            block_size: 2048,
         }
     }
 
@@ -82,13 +84,14 @@ impl DspNodeState {
 
         if let Ok(new_fmt) = AudioFormat::new(rate, channels) {
             info!(
-                "AuraluneDsp: Przygotowanie silników dla {} Hz, {} kanałów",
-                rate, channels
+                "AuraluneDsp: Przygotowanie silników dla {} Hz, {} kanałów (block_size: {})",
+                rate, channels, self.block_size
             );
-            if let Err(e) = self.rubberband.prepare(new_fmt, 4096) {
+            let prep_block = self.block_size.max(2048);
+            if let Err(e) = self.rubberband.prepare(new_fmt, prep_block) {
                 warn!("Błąd prepare RubberBand: {:?}", e);
             }
-            if let Err(e) = self.soundtouch.prepare(new_fmt, 4096) {
+            if let Err(e) = self.soundtouch.prepare(new_fmt, prep_block) {
                 warn!("Błąd prepare SoundTouch: {:?}", e);
             }
             let _ = self.rubberband.set_params(self.params);
@@ -97,13 +100,46 @@ impl DspNodeState {
         }
     }
 
+    fn set_block_size(&mut self, size: usize) {
+        let clamped = size.clamp(512, 16384);
+        self.block_size = clamped;
+        if let Some(fmt) = self.format {
+            let prep_block = clamped.max(2048);
+            let _ = self.rubberband.prepare(fmt, prep_block);
+            let _ = self.soundtouch.prepare(fmt, prep_block);
+            let _ = self.rubberband.set_params(self.params);
+            let _ = self.soundtouch.set_params(self.params);
+        }
+        info!(
+            "AuraluneDsp: Zaktualizowano block_size na {} ramek",
+            clamped
+        );
+    }
+
     fn set_params(&mut self, params: DspParams) -> Result<(), DspError> {
         params.validate()?;
+        let old_params = self.params;
         self.params = params;
         if self.format.is_some() {
             let _ = self.rubberband.set_params(params);
             let _ = self.soundtouch.set_params(params);
         }
+
+        // Gdy zmienia się prędkość (tempo/rate) lub tonacja, natychmiast zredukuj zalegające
+        // w FIFO próbki wygenerowane na starych parametrach. Zapobiega to efektowi opóźnienia
+        // oraz "pływania" dźwięku przed ustabilizowaniem nowej wartości.
+        let params_changed = (old_params.rate_ratio - params.rate_ratio).abs() > 1e-4
+            || (old_params.tempo_ratio - params.tempo_ratio).abs() > 1e-4
+            || (old_params.pitch_semitones - params.pitch_semitones).abs() > 1e-4;
+
+        if params_changed {
+            let channels = self.format.map(|f| f.channels as usize).unwrap_or(2);
+            let max_keep = 512 * channels;
+            if self.fifo.len() > max_keep {
+                self.fifo.truncate(max_keep);
+            }
+        }
+
         Ok(())
     }
 
@@ -288,12 +324,12 @@ impl AuraluneDspImpl {
 
         let mut buffers_to_push = Vec::with_capacity(8);
 
-        // Drenujemy wszystkie dostępne próbki w standardowych blokach do 2048 ramek (~46ms).
+        // Drenujemy wszystkie dostępne próbki w blokach do block_size ramek.
         // Wszelkie próbki wyprodukowane przez DSP są natychmiast wypychane w dół potoku,
         // co zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
         while !state.fifo.is_empty() {
             let available_samples = state.fifo.len();
-            let drain_samples = available_samples.min(2048 * channels);
+            let drain_samples = available_samples.min(state.block_size * channels);
             let out_frames = drain_samples / channels;
             let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
 
@@ -439,6 +475,18 @@ impl AuraluneDsp {
         let imp = self.imp();
         let mut state = imp.state.lock().unwrap();
         state.set_engine(engine);
+    }
+
+    pub fn set_block_size(&self, size: usize) {
+        let imp = self.imp();
+        let mut state = imp.state.lock().unwrap();
+        state.set_block_size(size);
+    }
+
+    pub fn block_size(&self) -> usize {
+        let imp = self.imp();
+        let state = imp.state.lock().unwrap();
+        state.block_size
     }
 
     pub fn dsp_params(&self) -> DspParams {

@@ -132,11 +132,44 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
             duration_ms: t.duration_ms as u64,
         }
     } else {
-        let title = std::path::Path::new(&path)
-            .file_name()
+        let meta = audio_engine::read_track_metadata(&path).ok();
+        let fallback_stem = std::path::Path::new(&path)
+            .file_stem()
             .and_then(|n| n.to_str())
             .unwrap_or(&path)
             .to_string();
+
+        let (title, artist, album) = if let Some(m) = meta {
+            let t = if !m.title.trim().is_empty() {
+                m.title
+            } else if fallback_stem.contains(" - ") {
+                fallback_stem
+                    .split_once(" - ")
+                    .map(|(_, t)| t.trim().to_string())
+                    .unwrap_or_else(|| fallback_stem.clone())
+            } else {
+                fallback_stem.clone()
+            };
+
+            let a = if !m.artist.trim().is_empty() {
+                m.artist
+            } else if fallback_stem.contains(" - ") {
+                fallback_stem
+                    .split_once(" - ")
+                    .map(|(a, _)| a.trim().to_string())
+                    .unwrap_or_else(|| "Plik lokalny".to_string())
+            } else {
+                "Plik lokalny".to_string()
+            };
+
+            (t, a, m.album)
+        } else if fallback_stem.contains(" - ") {
+            let (a, t) = fallback_stem.split_once(" - ").unwrap();
+            (t.trim().to_string(), a.trim().to_string(), None)
+        } else {
+            (fallback_stem, "Plik lokalny".to_string(), None)
+        };
+
         QueueItem {
             id: format!(
                 "file-{}",
@@ -148,8 +181,8 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
             track_id: None,
             uri: path.clone(),
             title,
-            artist: "Plik lokalny".to_string(),
-            album: None,
+            artist,
+            album,
             duration_ms: 0,
         }
     };
@@ -417,6 +450,51 @@ fn get_dsp_capabilities(state: State<'_, AppState>) -> DspCapabilities {
 }
 
 #[tauri::command]
+fn set_audio_buffer_duration_ms(buffer_ms: u64, state: State<'_, AppState>) -> Result<(), String> {
+    info!(
+        "Tauri command: set_audio_buffer_duration_ms({} ms)",
+        buffer_ms
+    );
+    state
+        .engine
+        .set_audio_buffer_duration_ms(buffer_ms)
+        .map_err(|e| e.to_string())?;
+    let db = state.db.clone();
+    state.rt.spawn(async move {
+        let _ = db
+            .set_app_setting("audio_buffer_ms", &buffer_ms.to_string())
+            .await;
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn get_audio_buffer_duration_ms(state: State<'_, AppState>) -> Result<u64, String> {
+    Ok(state.engine.audio_buffer_duration_ms())
+}
+
+#[tauri::command]
+fn set_dsp_block_size(block_size: usize, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_dsp_block_size({} ramek)", block_size);
+    state
+        .engine
+        .set_dsp_block_size(block_size)
+        .map_err(|e| e.to_string())?;
+    let db = state.db.clone();
+    state.rt.spawn(async move {
+        let _ = db
+            .set_app_setting("dsp_block_size", &block_size.to_string())
+            .await;
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn get_dsp_block_size(state: State<'_, AppState>) -> Result<usize, String> {
+    Ok(state.engine.dsp_block_size())
+}
+
+#[tauri::command]
 fn save_dsp_preset(name: String, state: State<'_, AppState>) -> Result<i64, String> {
     let dsp = state.engine.dsp_params();
     let db = state.db.clone();
@@ -538,11 +616,36 @@ fn update_mpris_metadata(
         });
     }
     if let Some(discord) = &state.discord_rpc {
-        let cache_key = format!(
-            "{}---{}",
-            artist.trim().to_lowercase(),
-            album.trim().to_lowercase()
-        );
+        let is_generic_album = album.trim().is_empty()
+            || album == "Auralune Player"
+            || album == "Auralune Library"
+            || album == "Live Stream"
+            || album == "Radio internetowe";
+
+        let mut effective_artist = artist.trim().to_string();
+        let mut effective_title = title.trim().to_string();
+        if (effective_artist == "Plik lokalny" || effective_artist.is_empty())
+            && effective_title.contains(" - ")
+        {
+            if let Some((a, t)) = effective_title.split_once(" - ") {
+                effective_artist = a.trim().to_string();
+                effective_title = t.trim().to_string();
+            }
+        }
+
+        let cache_key = if !is_generic_album {
+            format!(
+                "{}---{}",
+                effective_artist.trim().to_lowercase(),
+                album.trim().to_lowercase()
+            )
+        } else {
+            format!(
+                "{}---{}",
+                effective_artist.trim().to_lowercase(),
+                effective_title.trim().to_lowercase()
+            )
+        };
 
         // Do Discord RPC przekazujemy wyłącznie publiczne adresy HTTPS/HTTP.
         // Lokalny plik (file://) ani base64 nie są dostępne w internecie i psują widok na profilu Discorda.
@@ -555,18 +658,28 @@ fn update_mpris_metadata(
                 }
                 Some(art.clone())
             } else {
-                state
-                    .discord_cover_cache
-                    .read()
-                    .ok()
-                    .and_then(|cache| cache.get(&cache_key).cloned())
+                state.discord_cover_cache.read().ok().and_then(|cache| {
+                    cache.get(&cache_key).cloned().or_else(|| {
+                        let title_key = format!(
+                            "{}---{}",
+                            effective_artist.trim().to_lowercase(),
+                            effective_title.trim().to_lowercase()
+                        );
+                        cache.get(&title_key).cloned()
+                    })
+                })
             }
         } else {
-            state
-                .discord_cover_cache
-                .read()
-                .ok()
-                .and_then(|cache| cache.get(&cache_key).cloned())
+            state.discord_cover_cache.read().ok().and_then(|cache| {
+                cache.get(&cache_key).cloned().or_else(|| {
+                    let title_key = format!(
+                        "{}---{}",
+                        effective_artist.trim().to_lowercase(),
+                        effective_title.trim().to_lowercase()
+                    );
+                    cache.get(&title_key).cloned()
+                })
+            })
         };
 
         discord.update_track(desktop_integration::DiscordTrackInfo {
@@ -603,18 +716,24 @@ fn update_mpris_metadata(
         let needs_online_search = effective_discord_art.is_none();
 
         if needs_online_search
-            && (!artist.trim().is_empty() || !album.trim().is_empty() || !title.trim().is_empty())
+            && (!effective_artist.trim().is_empty()
+                || !album.trim().is_empty()
+                || !effective_title.trim().is_empty())
         {
             let discord_clone = discord.clone();
             let cover_archive = state.cover_archive.clone();
             let cache_clone = state.discord_cover_cache.clone();
-            let title_c = title.clone();
-            let artist_c = artist.clone();
+            let title_c = effective_title.clone();
+            let artist_c = effective_artist.clone();
             let album_c = album.clone();
             state.rt.spawn(async move {
-                let mut candidates = cover_archive
-                    .search_cover_candidates(&album_c, &artist_c)
-                    .await;
+                let mut candidates = if !is_generic_album {
+                    cover_archive
+                        .search_cover_candidates(&album_c, &artist_c)
+                        .await
+                } else {
+                    Vec::new()
+                };
                 if candidates.is_empty() && !title_c.trim().is_empty() {
                     candidates = cover_archive
                         .search_cover_candidates(&title_c, &artist_c)
@@ -647,6 +766,19 @@ fn update_mpris_metadata(
 
 #[tauri::command]
 fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
+    let q = state.engine.queue();
+    let current_track = q.current_item().cloned();
+
+    let is_live_stream = if let Some(ref item) = current_track {
+        item.id.starts_with("radio-")
+            || (item.track_id.is_none()
+                && (item.uri.starts_with("http://") || item.uri.starts_with("https://")))
+    } else if let Some(uri) = state.engine.current_uri() {
+        uri.starts_with("http://") || uri.starts_with("https://")
+    } else {
+        false
+    };
+
     let events = state.engine.poll_events();
     for event in events {
         match event {
@@ -656,32 +788,111 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
                 }
             }
             PlayerEvent::Tag(tag) => {
-                info!("Live stream tag: {}", tag);
-                if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-                    *t = Some(tag.clone());
-                }
-                if let Some(mpris) = &state.mpris {
-                    let m = mpris.clone();
-                    let tag_clone = tag.clone();
-                    state.rt.spawn(async move {
-                        let track_info = desktop_integration::MprisTrackInfo {
-                            title: tag_clone,
-                            artist: "Anime Web Radio".to_string(),
-                            album: "Live Stream".to_string(),
+                if is_live_stream {
+                    info!("Odebrano tag ze strumienia na żywo: {}", tag);
+                    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                        *t = Some(tag.clone());
+                    }
+
+                    // Parsuj "Wykonawca - Tytuł", jeśli strumień nadaje w tym formacie
+                    let (parsed_artist, parsed_title) = if let Some((a, t)) = tag.split_once(" - ")
+                    {
+                        (a.trim().to_string(), t.trim().to_string())
+                    } else {
+                        let station = current_track
+                            .as_ref()
+                            .map(|i| i.title.clone())
+                            .unwrap_or_else(|| "Radio internetowe".to_string());
+                        (station, tag.trim().to_string())
+                    };
+
+                    let station_album = current_track
+                        .as_ref()
+                        .map(|i| i.title.clone())
+                        .unwrap_or_else(|| "Radio internetowe".to_string());
+
+                    if let Some(mpris) = &state.mpris {
+                        let m = mpris.clone();
+                        let t_c = parsed_title.clone();
+                        let a_c = parsed_artist.clone();
+                        let al_c = station_album.clone();
+                        state.rt.spawn(async move {
+                            let track_info = desktop_integration::MprisTrackInfo {
+                                title: t_c,
+                                artist: a_c,
+                                album: al_c,
+                                duration_ms: 0,
+                                art_url: None,
+                            };
+                            m.update_track(track_info).await;
+                        });
+                    }
+                    if let Some(discord) = &state.discord_rpc {
+                        let cache_key = format!(
+                            "{}---{}",
+                            parsed_artist.trim().to_lowercase(),
+                            parsed_title.trim().to_lowercase()
+                        );
+                        let cached_art = state
+                            .discord_cover_cache
+                            .read()
+                            .ok()
+                            .and_then(|c| c.get(&cache_key).cloned());
+
+                        discord.update_track(desktop_integration::DiscordTrackInfo {
+                            title: parsed_title.clone(),
+                            artist: parsed_artist.clone(),
+                            album: station_album.clone(),
                             duration_ms: 0,
-                            art_url: None,
-                        };
-                        m.update_track(track_info).await;
-                    });
-                }
-                if let Some(discord) = &state.discord_rpc {
-                    discord.update_track(desktop_integration::DiscordTrackInfo {
-                        title: tag.clone(),
-                        artist: "Anime Web Radio".to_string(),
-                        album: "Live Stream".to_string(),
-                        duration_ms: 0,
-                        art_url: None,
-                    });
+                            art_url: cached_art.clone(),
+                        });
+
+                        if cached_art.is_none()
+                            && !parsed_artist.trim().is_empty()
+                            && !parsed_title.trim().is_empty()
+                        {
+                            let discord_clone = discord.clone();
+                            let cover_archive = state.cover_archive.clone();
+                            let cache_clone = state.discord_cover_cache.clone();
+                            let title_c = parsed_title.clone();
+                            let artist_c = parsed_artist.clone();
+                            let album_c = station_album.clone();
+                            state.rt.spawn(async move {
+                                let candidates = cover_archive
+                                    .search_cover_candidates(&title_c, &artist_c)
+                                    .await;
+                                if let Some(first) = candidates.first() {
+                                    let best_url = if !first.thumbnail_url.is_empty() {
+                                        first.thumbnail_url.clone()
+                                    } else {
+                                        first.full_url.clone()
+                                    };
+                                    if best_url.starts_with("http://")
+                                        || best_url.starts_with("https://")
+                                    {
+                                        if let Ok(mut cache) = cache_clone.write() {
+                                            cache.insert(cache_key, best_url.clone());
+                                        }
+                                        discord_clone.update_track(
+                                            desktop_integration::DiscordTrackInfo {
+                                                title: title_c,
+                                                artist: artist_c,
+                                                album: album_c,
+                                                duration_ms: 0,
+                                                art_url: Some(best_url),
+                                            },
+                                        );
+                                    }
+                                }
+                            });
+                        }
+                    }
+                } else {
+                    // Plik lokalny: metadane utworu i okładka są zarządzane przez bazę i sync_mpris_from_queue_item.
+                    // Nigdy nie wolno ich nadpisywać atrapami stacji radiowych ani zerować adresu okładki!
+                    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                        *t = None;
+                    }
                 }
             }
             _ => {}
@@ -696,18 +907,25 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
     let dsp = state.engine.dsp_params();
     let capabilities = state.engine.dsp_capabilities();
 
-    let q = state.engine.queue();
-    let current_track = q.current_item().cloned();
     let spectrum = state
         .latest_spectrum
         .lock()
         .map(|s| s.clone())
         .unwrap_or_default();
-    let live_stream_title = state
-        .latest_live_stream_tag
-        .lock()
-        .ok()
-        .and_then(|t| t.clone());
+    let live_stream_title = if is_live_stream {
+        state
+            .latest_live_stream_tag
+            .lock()
+            .ok()
+            .and_then(|t| t.clone())
+    } else {
+        if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+            if t.is_some() {
+                *t = None;
+            }
+        }
+        None
+    };
 
     PlaybackStatusDto {
         state: state.engine.state(),
@@ -2084,7 +2302,7 @@ fn auto_fetch_album_cover(
 }
 
 #[tauri::command]
-fn search_cover_candidates(
+async fn search_cover_candidates(
     album: String,
     artist: String,
     state: State<'_, AppState>,
@@ -2094,9 +2312,7 @@ fn search_cover_candidates(
         album, artist
     );
     let cover_archive = state.cover_archive.clone();
-    let candidates = state
-        .rt
-        .block_on(async move { cover_archive.search_cover_candidates(&album, &artist).await });
+    let candidates = cover_archive.search_cover_candidates(&album, &artist).await;
     Ok(candidates)
 }
 
@@ -2522,16 +2738,47 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0)
     };
-    let cache_key = format!(
-        "{}---{}",
-        artist.trim().to_lowercase(),
-        album.trim().to_lowercase()
-    );
-    let cached_art = state
-        .discord_cover_cache
-        .read()
-        .ok()
-        .and_then(|c| c.get(&cache_key).cloned());
+
+    let is_generic_album = album.trim().is_empty()
+        || album == "Auralune Player"
+        || album == "Auralune Library"
+        || album == "Live Stream"
+        || album == "Radio internetowe";
+
+    let mut effective_artist = artist.trim().to_string();
+    let mut effective_title = title.trim().to_string();
+    if (effective_artist == "Plik lokalny" || effective_artist.is_empty())
+        && effective_title.contains(" - ")
+    {
+        if let Some((a, t)) = effective_title.split_once(" - ") {
+            effective_artist = a.trim().to_string();
+            effective_title = t.trim().to_string();
+        }
+    }
+
+    let cache_key = if !is_generic_album {
+        format!(
+            "{}---{}",
+            effective_artist.trim().to_lowercase(),
+            album.trim().to_lowercase()
+        )
+    } else {
+        format!(
+            "{}---{}",
+            effective_artist.trim().to_lowercase(),
+            effective_title.trim().to_lowercase()
+        )
+    };
+    let cached_art = state.discord_cover_cache.read().ok().and_then(|c| {
+        c.get(&cache_key).cloned().or_else(|| {
+            let title_key = format!(
+                "{}---{}",
+                effective_artist.trim().to_lowercase(),
+                effective_title.trim().to_lowercase()
+            );
+            c.get(&title_key).cloned()
+        })
+    });
 
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
@@ -2564,17 +2811,25 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
         discord.update_playback_status(PlaybackState::Playing, 0, duration_ms);
         let needs_online_search = discord_art.is_none();
 
-        if needs_online_search && (!artist.trim().is_empty() || !album.trim().is_empty()) {
+        if needs_online_search
+            && (!effective_artist.trim().is_empty()
+                || !album.trim().is_empty()
+                || !effective_title.trim().is_empty())
+        {
             let discord_clone = discord.clone();
             let cover_archive = state.cover_archive.clone();
             let cache_clone = state.discord_cover_cache.clone();
-            let title_c = title.clone();
-            let artist_c = artist.clone();
+            let title_c = effective_title.clone();
+            let artist_c = effective_artist.clone();
             let album_c = album.clone();
             state.rt.spawn(async move {
-                let mut candidates = cover_archive
-                    .search_cover_candidates(&album_c, &artist_c)
-                    .await;
+                let mut candidates = if !is_generic_album {
+                    cover_archive
+                        .search_cover_candidates(&album_c, &artist_c)
+                        .await
+                } else {
+                    Vec::new()
+                };
                 if candidates.is_empty() && !title_c.trim().is_empty() {
                     candidates = cover_archive
                         .search_cover_candidates(&title_c, &artist_c)
@@ -2631,6 +2886,11 @@ fn set_queue(
         .set_queue(items, start_index)
         .map_err(|e| e.to_string())?;
     if let Some(item) = &active {
+        if !item.id.starts_with("radio-") {
+            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                *t = None;
+            }
+        }
         sync_mpris_from_queue_item(item, &state);
     }
     persist_queue_state(&state);
@@ -2768,6 +3028,11 @@ fn play_queue_index(index: usize, state: State<'_, AppState>) -> Result<Option<Q
     info!("Tauri command: play_queue_index({})", index);
     let active = state.engine.play_index(index).map_err(|e| e.to_string())?;
     if let Some(item) = &active {
+        if !item.id.starts_with("radio-") {
+            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                *t = None;
+            }
+        }
         sync_mpris_from_queue_item(item, &state);
     }
     persist_queue_state(&state);
@@ -2779,6 +3044,11 @@ fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
     info!("Tauri command: play_next()");
     let next_item = state.engine.play_next().map_err(|e| e.to_string())?;
     if let Some(item) = &next_item {
+        if !item.id.starts_with("radio-") {
+            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                *t = None;
+            }
+        }
         sync_mpris_from_queue_item(item, &state);
     }
     persist_queue_state(&state);
@@ -2790,6 +3060,11 @@ fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, String
     info!("Tauri command: play_previous()");
     let prev_item = state.engine.play_previous().map_err(|e| e.to_string())?;
     if let Some(item) = &prev_item {
+        if !item.id.starts_with("radio-") {
+            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+                *t = None;
+            }
+        }
         sync_mpris_from_queue_item(item, &state);
     }
     persist_queue_state(&state);
@@ -2841,8 +3116,8 @@ fn load_radio_stream(
         track_id: None,
         uri: url.clone(),
         title: station_name.clone(),
-        artist: "Anime Web Radio".to_string(),
-        album: Some("Live Stream".to_string()),
+        artist: station_name.clone(),
+        album: Some("Radio internetowe".to_string()),
         duration_ms: 0,
     };
 
@@ -3961,9 +4236,9 @@ pub fn run() {
                         }
                         if let Ok(saved) = serde_json::from_str::<SavedDsp>(&saved_json) {
                             let target_engine = match saved.engine.as_str() {
-                                "Bypass" => DspEngine::Bypass,
+                                "RubberBand" => DspEngine::RubberBand,
                                 "SoundTouch" => DspEngine::SoundTouch,
-                                _ => DspEngine::RubberBand,
+                                _ => DspEngine::Bypass,
                             };
                             let _ = engine.set_dsp_engine(target_engine);
                             if let Ok(params) = DspParams::new(
@@ -3982,6 +4257,38 @@ pub fn run() {
                                 saved.rate_ratio
                             );
                         }
+                    }
+                } else {
+                    // Domyślny silnik DSP przy uruchomieniu (Bypass jako domyślny)
+                    let default_engine_setting = rt.block_on(async {
+                        db.get_app_setting("dsp_default_engine").await.unwrap_or(None)
+                    });
+                    let target_engine = match default_engine_setting.as_deref() {
+                        Some("RubberBand") => DspEngine::RubberBand,
+                        Some("SoundTouch") => DspEngine::SoundTouch,
+                        _ => DspEngine::Bypass,
+                    };
+                    let _ = engine.set_dsp_engine(target_engine);
+                    tracing::info!("Uruchomiono silnik DSP w trybie domyślnym: {:?}", target_engine);
+                }
+
+                // Wczytanie zapisanego rozmiaru bufora wyjściowego audio (domyślnie: 80 ms)
+                let saved_audio_buffer = rt.block_on(async {
+                    db.get_app_setting("audio_buffer_ms").await.unwrap_or(None)
+                });
+                if let Some(buf_str) = saved_audio_buffer {
+                    if let Ok(ms) = buf_str.parse::<u64>() {
+                        let _ = engine.set_audio_buffer_duration_ms(ms);
+                    }
+                }
+
+                // Wczytanie zapisanego rozmiaru bloku przetwarzania DSP (domyślnie: 2048 ramek)
+                let saved_dsp_block = rt.block_on(async {
+                    db.get_app_setting("dsp_block_size").await.unwrap_or(None)
+                });
+                if let Some(block_str) = saved_dsp_block {
+                    if let Ok(size) = block_str.parse::<usize>() {
+                        let _ = engine.set_dsp_block_size(size);
                     }
                 }
 
@@ -4277,6 +4584,10 @@ pub fn run() {
             lastfm_validate_session,
             lastfm_update_now_playing,
             lastfm_scrobble,
+            set_audio_buffer_duration_ms,
+            get_audio_buffer_duration_ms,
+            set_dsp_block_size,
+            get_dsp_block_size,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");

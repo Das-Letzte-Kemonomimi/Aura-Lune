@@ -20,8 +20,8 @@ pub enum DspError {
 /// Dostępne silniki DSP do zmiany wysokości i tempa dźwięku.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DspEngine {
-    Bypass,
     #[default]
+    Bypass,
     RubberBand,
     SoundTouch,
 }

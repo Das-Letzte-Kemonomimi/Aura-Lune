@@ -41,14 +41,19 @@ impl ExportFormat {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DspExportSettings {
     /// Przesunięcie wysokości dźwięku w półtonach (-12.0 do +12.0).
+    #[serde(alias = "pitchSemitones")]
     pub pitch_semitones: f64,
     /// Mnożnik tempa (0.25 do 4.0).
+    #[serde(alias = "tempoRatio")]
     pub tempo_ratio: f64,
     /// Mnożnik szybkości odtwarzania (0.25 do 4.0).
+    #[serde(alias = "rateRatio")]
     pub rate_ratio: f64,
     /// Poziom pogłosu (0.0 do 1.0).
+    #[serde(alias = "reverbLevel")]
     pub reverb_level: f32,
     /// 10 pasm korektora graficznego (-24.0 do +12.0 dB).
+    #[serde(alias = "eqBands")]
     pub eq_bands: Option<Vec<f64>>,
 }
 
@@ -82,8 +87,10 @@ impl DspExportSettings {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeRange {
     /// Czas startu w milisekundach (Marker A).
+    #[serde(alias = "startMs")]
     pub start_ms: u64,
     /// Czas końca w milisekundach (Marker B). Jeśli `None`, eksport trwa do końca utworu.
+    #[serde(alias = "endMs")]
     pub end_ms: Option<u64>,
 }
 

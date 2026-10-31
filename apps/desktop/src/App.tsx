@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import {
   Play,
   Pause,
@@ -72,6 +74,8 @@ import {
   FileEdit,
   Layers,
   Tv,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
@@ -328,16 +332,16 @@ export default function App() {
     pitch_semitones: 0.0,
     tempo_ratio: 1.0,
     rate_ratio: 1.0,
-    engine: 'RubberBand',
+    engine: 'Bypass',
     capabilities: {
-      engine: 'RubberBand',
-      name: 'Rubber Band (R3 Fine)',
+      engine: 'Bypass',
+      name: 'Brak DSP (Direct Bypass)',
       min_pitch_semitones: -24.0,
       max_pitch_semitones: 24.0,
       min_tempo_ratio: 0.15,
       max_tempo_ratio: 4.0,
       supports_formants: false,
-      description: 'Precision R3 engine (studio quality)',
+      description: 'Czysty strumień bit-perfect bez procesora DSP (zerowe obciążenie)',
     },
     equalizer_enabled: false,
     equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -654,6 +658,10 @@ export default function App() {
 
   // Stan zapamiętywania ustawień DSP po uruchomieniu aplikacji
   const [dspAutoStartup, setDspAutoStartup] = useState<boolean>(false);
+  const [dspDefaultEngine, setDspDefaultEngine] = useState<'Bypass' | 'RubberBand' | 'SoundTouch'>('Bypass');
+  const [audioBufferMs, setAudioBufferMs] = useState<number>(80);
+  const [dspBlockSize, setDspBlockSize] = useState<number>(2048);
+  const [isDspQuickMenuOpen, setIsDspQuickMenuOpen] = useState<boolean>(false);
   const dspAutoStartupRef = useRef<boolean>(false);
   const lastActiveDspEngineRef = useRef<'RubberBand' | 'SoundTouch'>('RubberBand');
   const dspSaveTimeoutRef = useRef<any>(null);
@@ -871,7 +879,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.3.0'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.0'
   );
 
 
@@ -886,22 +894,12 @@ export default function App() {
   const [showLyrics, setShowLyrics] = useState(false);
 
   // Stan pływającego widżetu tekstu na pulpicie (Desktop Lyrics Overlay)
-  const [showDesktopLyrics, setShowDesktopLyrics] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('auralune_desktop_lyrics_open') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Zgodnie z wymaganiem: widżet nie uruchamia się samoczynnie przy starcie aplikacji,
+  // użytkowniczka decyduje w UI kiedy go pokazać/schować.
+  const [showDesktopLyrics, setShowDesktopLyrics] = useState<boolean>(false);
 
   const toggleDesktopLyrics = () => {
-    setShowDesktopLyrics((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('auralune_desktop_lyrics_open', String(next));
-      } catch {}
-      return next;
-    });
+    setShowDesktopLyrics((prev) => !prev);
   };
 
   // Stan Mini-Player (Floating PiP Widget)
@@ -929,6 +927,7 @@ export default function App() {
         saved === 'meteor_shower' ||
         saved === 'matrix_rain' ||
         saved === 'momiji' ||
+        saved === 'embers' ||
         saved === 'off'
       ) {
         return saved as AmbienceMode;
@@ -954,6 +953,8 @@ export default function App() {
           ? 'matrix_rain'
           : prev === 'matrix_rain'
           ? 'momiji'
+          : prev === 'momiji'
+          ? 'embers'
           : 'off';
       try {
         localStorage.setItem('auralune_ambience_mode', next);
@@ -973,6 +974,8 @@ export default function App() {
           ? t.notifications.ambienceMatrix
           : next === 'momiji'
           ? t.notifications.ambienceMomiji
+          : next === 'embers'
+          ? (language === 'pl' ? 'Otoczenie: Gotyckie Płonące Iskry 🔥' : 'Ambience: Gothic Burning Embers 🔥')
           : t.notifications.ambienceOff
       );
       return next;
@@ -1303,11 +1306,64 @@ export default function App() {
     return list;
   }, [filteredTracks, sortField, sortOrder, smartPlaylistFilter]);
 
-  const [albumSortField, setAlbumSortField] = useState<'title' | 'artist' | 'year'>('title');
+  const [albumSortField, setAlbumSortField] = useState<'title' | 'artist' | 'year' | 'tracks' | 'duration'>('title');
   const [albumSortOrder, setAlbumSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [albumViewMode, setAlbumViewMode] = useState<'grid' | 'list'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_album_view_mode');
+      return saved === 'list' || saved === 'grid' ? saved : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+  const [albumGridSize, setAlbumGridSize] = useState<'compact' | 'medium' | 'large'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_album_grid_size');
+      return saved === 'compact' || saved === 'medium' || saved === 'large' ? saved : 'medium';
+    } catch {
+      return 'medium';
+    }
+  });
+  const [albumCoverFilter, setAlbumCoverFilter] = useState<'all' | 'with-cover' | 'missing-cover'>('all');
+
+  const albumsWithCoverCount = useMemo(() => albums.filter((a) => !!a.cover_path).length, [albums]);
+  const albumsWithoutCoverCount = useMemo(() => albums.length - albumsWithCoverCount, [albums, albumsWithCoverCount]);
+
+  const formatAlbumDuration = useCallback((ms: number) => {
+    if (!ms || ms <= 0) return '';
+    const totalSec = Math.floor(ms / 1000);
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m`;
+    }
+    return `${mins}m ${secs}s`;
+  }, []);
 
   const sortedAlbums = useMemo(() => {
-    const list = [...filteredAlbums];
+    let list = albums.filter((a) => {
+      if (albumCoverFilter === 'with-cover' && !a.cover_path) return false;
+      if (albumCoverFilter === 'missing-cover' && a.cover_path) return false;
+      const q = normalizeStr(librarySearch.trim());
+      if (!q) return true;
+      const title = normalizeStr(a.title);
+      const artist = normalizeStr(a.album_artist);
+      return title.includes(q) || artist.includes(q);
+    });
+
+    const albumMetaMap = new Map<number, { count: number; duration: number }>();
+    if (albumSortField === 'tracks' || albumSortField === 'duration') {
+      for (const t of tracks) {
+        if (t.album_id != null) {
+          const cur = albumMetaMap.get(t.album_id) || { count: 0, duration: 0 };
+          cur.count += 1;
+          cur.duration += t.duration_ms || 0;
+          albumMetaMap.set(t.album_id, cur);
+        }
+      }
+    }
+
     list.sort((a, b) => {
       let cmp = 0;
       if (albumSortField === 'title') {
@@ -1316,11 +1372,19 @@ export default function App() {
         cmp = a.album_artist.localeCompare(b.album_artist);
       } else if (albumSortField === 'year') {
         cmp = (a.year || 0) - (b.year || 0);
+      } else if (albumSortField === 'tracks') {
+        const aCount = albumMetaMap.get(a.id)?.count || 0;
+        const bCount = albumMetaMap.get(b.id)?.count || 0;
+        cmp = aCount - bCount;
+      } else if (albumSortField === 'duration') {
+        const aDur = albumMetaMap.get(a.id)?.duration || 0;
+        const bDur = albumMetaMap.get(b.id)?.duration || 0;
+        cmp = aDur - bDur;
       }
       return albumSortOrder === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [filteredAlbums, albumSortField, albumSortOrder]);
+  }, [albums, tracks, librarySearch, albumCoverFilter, albumSortField, albumSortOrder]);
 
   const librarySearchInputRef = useRef<HTMLInputElement>(null);
   const mainContentRef = useRef<HTMLElement | null>(null);
@@ -1749,6 +1813,30 @@ export default function App() {
         dspAutoStartupRef.current = enabled;
       })
       .catch((e) => console.warn('Błąd odczytu dsp_restore_on_startup:', e));
+
+    invoke<string | null>('get_app_setting', { key: 'dsp_default_engine' })
+      .then((val) => {
+        if (val === 'RubberBand' || val === 'SoundTouch' || val === 'Bypass') {
+          setDspDefaultEngine(val);
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu dsp_default_engine:', e));
+
+    invoke<number>('get_audio_buffer_duration_ms')
+      .then((val) => {
+        if (typeof val === 'number' && val > 0) {
+          setAudioBufferMs(val);
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu get_audio_buffer_duration_ms:', e));
+
+    invoke<number>('get_dsp_block_size')
+      .then((val) => {
+        if (typeof val === 'number' && val > 0) {
+          setDspBlockSize(val);
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu get_dsp_block_size:', e));
 
     invoke<string | null>('get_app_setting', { key: 'close_to_tray' })
       .then((val) => {
@@ -2188,8 +2276,34 @@ export default function App() {
       })
       .catch(() => {});
 
-    // Rejestracja natywnych zdarzeń Drag & Drop z webview Tauri 2 (bez konfliktujących listenerów DOM)
-    let unlistenDragDrop: (() => void) | null = null;
+    // Niezbędne dla Linux/WebKitGTK: zapobieganie domyślnej akcji przeglądarki (przeładowanie strony/odrzucenie dropu z menedżera plików)
+    const handleWindowDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
+    const handleWindowDragLeave = (e: DragEvent) => {
+      if (e.relatedTarget === null) {
+        setIsDraggingOver(false);
+      }
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+    };
+
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('dragleave', handleWindowDragLeave);
+    window.addEventListener('drop', handleWindowDrop);
+
+    // Rejestracja zdarzeń drag & drop z Tauri 2 (webview + window + global event)
+    let unlistenWebview: (() => void) | null = null;
+    let unlistenWindow: (() => void) | null = null;
+    let unlistenTauriEvent: (() => void) | null = null;
+
     try {
       getCurrentWebview()
         .onDragDropEvent((event) => {
@@ -2205,17 +2319,55 @@ export default function App() {
           }
         })
         .then((unlisten) => {
-          unlistenDragDrop = unlisten;
+          unlistenWebview = unlisten;
         })
         .catch((err) => {
-          console.warn('onDragDropEvent niedostępne w tym środowisku:', err);
+          console.warn('getCurrentWebview.onDragDropEvent niedostępne:', err);
         });
     } catch (err) {
       console.warn('getCurrentWebview error:', err);
     }
 
+    try {
+      getCurrentWindow()
+        .onDragDropEvent((event) => {
+          if (event.payload.type === 'enter' || event.payload.type === 'over') {
+            setIsDraggingOver(true);
+          } else if (event.payload.type === 'drop') {
+            setIsDraggingOver(false);
+            if (event.payload.paths && event.payload.paths.length > 0) {
+              handleDropPaths(event.payload.paths);
+            }
+          } else if (event.payload.type === 'leave') {
+            setIsDraggingOver(false);
+          }
+        })
+        .then((unlisten) => {
+          unlistenWindow = unlisten;
+        })
+        .catch((err) => {
+          console.warn('getCurrentWindow.onDragDropEvent niedostępne:', err);
+        });
+    } catch (err) {
+      console.warn('getCurrentWindow error:', err);
+    }
+
+    listen<{ paths: string[] }>('tauri://drag-drop', (event) => {
+      setIsDraggingOver(false);
+      if (event.payload?.paths && event.payload.paths.length > 0) {
+        handleDropPaths(event.payload.paths);
+      }
+    }).then((unlisten) => {
+      unlistenTauriEvent = unlisten;
+    }).catch(() => {});
+
     return () => {
-      if (unlistenDragDrop) unlistenDragDrop();
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('dragleave', handleWindowDragLeave);
+      window.removeEventListener('drop', handleWindowDrop);
+      if (unlistenWebview) unlistenWebview();
+      if (unlistenWindow) unlistenWindow();
+      if (unlistenTauriEvent) unlistenTauriEvent();
     };
   }, []);
 
@@ -2431,8 +2583,8 @@ export default function App() {
     }
   }, [activeTrackId]);
 
-  // Odtwarzanie utworu z biblioteki z obsługą zakładek i ochroną przed wyścigami
-  const handlePlayLibraryTrack = async (track: TrackRecord) => {
+  // Odtwarzanie utworu z biblioteki z obsługą zakładek, kontekstu kolejki i globalnego Loop
+  const handlePlayLibraryTrack = async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
     if (isPlayingLibraryTrackRef.current) return;
     isPlayingLibraryTrackRef.current = true;
     const safetyTimeout = setTimeout(() => {
@@ -2456,14 +2608,35 @@ export default function App() {
         artUrl: appCover,
       }).catch(() => {});
 
-      await invoke('load_file', { path: track.path });
+      // 2. Obsługa kolejki: jeśli przekazano kontekst (np. album, playlista, widok biblioteki),
+      // ładujemy całą listę jako aktywną kolejkę z wybranym indeksem startowym.
+      // Dzięki temu zapętlanie (LoopMode::Queue i LoopMode::Track) oraz przyciski Poprzedni/Następny działają globalnie i bezbłędnie!
+      if (contextTracks && contextTracks.length > 0) {
+        const queueItems: QueueItem[] = contextTracks.map((t) => {
+          const mAlb = t.album_id ? albums.find((a) => a.id === t.album_id) : null;
+          return {
+            id: `q-${t.id}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            track_id: t.id,
+            uri: t.path,
+            title: t.title,
+            artist: t.artist,
+            album: mAlb?.title || null,
+            duration_ms: t.duration_ms,
+          };
+        });
+        const trackIdx = contextTracks.findIndex((t) => t.id === track.id);
+        const startIdx = trackIdx >= 0 ? trackIdx : 0;
+        await invoke('set_queue', { items: queueItems, startIndex: startIdx });
+        await refreshQueue();
+      } else {
+        await invoke('load_file', { path: track.path });
+        await invoke('play');
+        await refreshQueue();
+      }
 
       // Sprawdź czy jest zapisana zakładka (bookmark)
       const bookmark = await invoke<number | null>('get_bookmark', { trackId: track.id });
       setCurrentBookmark(bookmark ?? null);
-
-      // Najpierw start odtwarzania, aby GStreamer wszedł w stan Playing/Prerolled
-      await invoke('play');
 
       if (bookmark && bookmark > 2000) {
         try {
@@ -2528,6 +2701,30 @@ export default function App() {
     } finally {
       clearTimeout(safetyTimeout);
       isPlayingLibraryTrackRef.current = false;
+    }
+  };
+
+  const handlePlayAlbum = (albumTracks: TrackRecord[]) => {
+    const sorted = [...albumTracks].sort(
+      (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
+    );
+    if (sorted.length > 0) {
+      handlePlayLibraryTrack(sorted[0], sorted);
+    }
+  };
+
+  const handleAddAlbumToQueue = async (albumTracks: TrackRecord[]) => {
+    const sorted = [...albumTracks].sort(
+      (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
+    );
+    if (sorted.length > 0) {
+      try {
+        await invoke('add_uris_to_queue', { uris: sorted.map((t) => t.path) });
+        await refreshQueue();
+        showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sorted.length)));
+      } catch (e: any) {
+        showMessage(`${t.common.errorPrefix} ${e}`, true);
+      }
     }
   };
 
@@ -3275,6 +3472,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isSettingsOpen, isEditingDiscordClientId]);
 
+  useEffect(() => {
+    if (isSettingsOpen && settingsTab === 'transcode' && (filePath === 'tests/fixtures/test_sine_440hz.wav' || !filePath)) {
+      if (currentPlayingTrack?.path || status.current_track?.uri) {
+        handleUseCurrentTrackAsSource();
+      }
+    }
+  }, [isSettingsOpen, settingsTab, currentPlayingTrack, status.current_track]);
 
   const handleTestListenbrainz = async () => {
     if (!listenbrainzToken.trim()) {
@@ -3506,6 +3710,10 @@ export default function App() {
       });
       if (newVal) {
         await invoke('set_app_setting', {
+          key: 'dsp_default_engine',
+          value: status.engine,
+        });
+        await invoke('set_app_setting', {
           key: 'dsp_saved_settings',
           value: JSON.stringify({
             engine: status.engine,
@@ -3514,10 +3722,54 @@ export default function App() {
             rate_ratio: status.rate_ratio ?? 1.0,
           }),
         });
+        setDspDefaultEngine(status.engine as any);
         showMessage(t.notifications.dspAutostartOn);
       } else {
         showMessage(t.notifications.dspAutostartOff);
       }
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  const handleSetDefaultDspEngine = async (eng: 'Bypass' | 'RubberBand' | 'SoundTouch') => {
+    setDspDefaultEngine(eng);
+    try {
+      await invoke('set_app_setting', {
+        key: 'dsp_default_engine',
+        value: eng,
+      });
+      showMessage(`Zapisano domyślny silnik startowy DSP: ${eng === 'Bypass' ? 'Direct Bypass' : eng}`);
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  const handleSetAudioBuffer = async (val: number) => {
+    const clamped = Math.max(20, Math.min(2000, Math.round(val)));
+    setAudioBufferMs(clamped);
+    try {
+      await invoke('set_audio_buffer_duration_ms', { bufferMs: clamped });
+      showMessage(
+        language === 'pl'
+          ? `Ustawiono bufor audio: ${clamped} ms ${clamped === 80 ? '(domyślny)' : ''}`
+          : `Audio buffer set to: ${clamped} ms ${clamped === 80 ? '(default)' : ''}`
+      );
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  const handleSetDspBlockSize = async (size: number) => {
+    const clamped = Math.max(256, Math.min(16384, Math.round(size)));
+    setDspBlockSize(clamped);
+    try {
+      await invoke('set_dsp_block_size', { blockSize: clamped });
+      showMessage(
+        language === 'pl'
+          ? `Ustawiono bufor bloku DSP: ${clamped} ramek ${clamped === 2048 ? '(domyślny)' : ''}`
+          : `DSP block buffer size set to: ${clamped} frames ${clamped === 2048 ? '(default)' : ''}`
+      );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -3530,6 +3782,10 @@ export default function App() {
         value: 'true',
       });
       await invoke('set_app_setting', {
+        key: 'dsp_default_engine',
+        value: status.engine,
+      });
+      await invoke('set_app_setting', {
         key: 'dsp_saved_settings',
         value: JSON.stringify({
           engine: status.engine,
@@ -3538,9 +3794,10 @@ export default function App() {
           rate_ratio: status.rate_ratio ?? 1.0,
         }),
       });
+      setDspDefaultEngine(status.engine as any);
       setDspAutoStartup(true);
       dspAutoStartupRef.current = true;
-      showMessage(t.notifications.dspSavedAsStartup);
+      showMessage(`${t.notifications.dspSavedAsStartup} (${status.engine})`);
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -3644,6 +3901,20 @@ export default function App() {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
   };
+
+  const handleCycleDspEngine = async () => {
+    const engines: ('Bypass' | 'RubberBand' | 'SoundTouch')[] = ['Bypass', 'RubberBand', 'SoundTouch'];
+    const curIdx = engines.indexOf(status.engine as any);
+    const nextEngine = engines[(curIdx + 1) % engines.length];
+    await handleEngineChange(nextEngine);
+  };
+
+  useEffect(() => {
+    if (!isDspQuickMenuOpen) return;
+    const handleOutsideClick = () => setIsDspQuickMenuOpen(false);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [isDspQuickMenuOpen]);
 
   const loadPresets = async () => {
     try {
@@ -3962,14 +4233,27 @@ export default function App() {
       setFilePath(curPath);
       const lastDot = curPath.lastIndexOf('.');
       const base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
+
+      // Sprawdź czy mamy aktywne punkty pętli w RAM lub zapisane znaczniki w bibliotece dla tego utworu
+      let effectiveA = loopPointA;
+      let effectiveB = loopPointB;
+      if (effectiveA === null && effectiveB === null && currentTrackBookmarks.length >= 2) {
+        const bmA = currentTrackBookmarks.find((b) => /\b(a|punkt a|start|pocz[aą]tek)\b/i.test(b.name)) || currentTrackBookmarks[0];
+        const bmB = currentTrackBookmarks.find((b) => /\b(b|punkt b|stop|end|koniec)\b/i.test(b.name) && b.id !== bmA?.id) || currentTrackBookmarks[1];
+        if (bmA && bmB && bmB.position_ms > bmA.position_ms) {
+          effectiveA = bmA.position_ms;
+          effectiveB = bmB.position_ms;
+        }
+      }
+
       const rangeSuffix =
-        loopPointA !== null || loopPointB !== null
-          ? `_loop_${loopPointA !== null ? loopPointA : 0}-${loopPointB !== null ? loopPointB : 'end'}`
+        effectiveA !== null || effectiveB !== null
+          ? `_loop_${effectiveA !== null ? effectiveA : 0}-${effectiveB !== null ? effectiveB : 'end'}`
           : '';
       setTranscodeOutput(`${base}${rangeSuffix}.${transcodeFormat.toLowerCase()}`);
-      if (loopPointA !== null || loopPointB !== null) {
-        setTranscodeRangeA(loopPointA !== null ? `${loopPointA}ms` : '0ms');
-        setTranscodeRangeB(loopPointB !== null ? `${loopPointB}ms` : '');
+      if (effectiveA !== null || effectiveB !== null) {
+        setTranscodeRangeA(effectiveA !== null ? `${effectiveA}ms` : '0ms');
+        setTranscodeRangeB(effectiveB !== null ? `${effectiveB}ms` : '');
         setTranscodeApplyRange(true);
       }
       showMessage(loc.settings.useCurrentTrack);
@@ -3979,7 +4263,7 @@ export default function App() {
   };
 
   const handleExportLoopFromModal = (a: number | null, b: number | null) => {
-    let curPath = currentPlayingTrack?.path || status.current_track?.uri;
+    let curPath = currentPlayingTrack?.path || status.current_track?.uri || filePath;
     if (curPath) {
       if (curPath.startsWith('file://')) {
         try {
@@ -4000,6 +4284,33 @@ export default function App() {
     setSettingsTab('transcode');
     setIsSettingsOpen(true);
     showMessage(`Zaimportowano zakres pętli A-B do eksportu: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`);
+  };
+
+  const handleSaveLoopAsBookmarks = async (a: number | null, b: number | null) => {
+    if (!activeTrackId) {
+      showMessage(language === 'pl' ? 'Brak aktywnego utworu do zapisania znaczników' : 'No active track to save markers', true);
+      return;
+    }
+    try {
+      if (a !== null) {
+        await invoke('add_track_bookmark', {
+          trackId: activeTrackId,
+          name: 'Punkt A',
+          positionMs: a,
+        });
+      }
+      if (b !== null) {
+        await invoke('add_track_bookmark', {
+          trackId: activeTrackId,
+          name: 'Punkt B',
+          positionMs: b,
+        });
+      }
+      await refreshTrackBookmarks();
+      showMessage(language === 'pl' ? 'Zapisano punkty A i B jako trwałe znaczniki utworu!' : 'Saved points A and B as track bookmarks!');
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
   };
 
   const handleTranscode = async () => {
@@ -4049,9 +4360,18 @@ export default function App() {
         }
       }
 
+      let cleanOutput = transcodeOutput;
+      if (cleanOutput.startsWith('file://')) {
+        try {
+          cleanOutput = decodeURIComponent(cleanOutput.replace(/^file:\/\//, ''));
+        } catch {
+          cleanOutput = cleanOutput.replace(/^file:\/\//, '');
+        }
+      }
+
       await invoke('transcode_file', {
         inputPath: cleanInput,
-        outputPath: transcodeOutput,
+        outputPath: cleanOutput,
         format: formatObj,
         dspSettings,
         timeRange,
@@ -4060,18 +4380,18 @@ export default function App() {
       // Zindeksuj wyrenderowany utwór do bazy danych, aby uzyskać pełny rekord z metadanymi
       let renderedTrack: TrackRecord | null = null;
       try {
-        await invoke('scan_paths', { paths: [transcodeOutput] });
+        await invoke('scan_paths', { paths: [cleanOutput] });
         const updatedTracks = await invoke<TrackRecord[]>('get_library_tracks');
         const updatedAlbums = await invoke<AlbumRecord[]>('get_library_albums');
         setTracks(updatedTracks);
         setAlbums(updatedAlbums);
-        renderedTrack = updatedTracks.find((t) => t.path === transcodeOutput) || null;
+        renderedTrack = updatedTracks.find((t) => t.path === cleanOutput) || null;
       } catch (scanErr) {
         console.warn('Automatyczne indeksowanie wyrenderowanego pliku:', scanErr);
       }
 
       if (!renderedTrack) {
-        const fileName = transcodeOutput.split('/').pop() || transcodeOutput;
+        const fileName = cleanOutput.split('/').pop() || cleanOutput;
         const lastDot = fileName.lastIndexOf('.');
         const title = lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
         const calculatedDuration =
@@ -4080,7 +4400,7 @@ export default function App() {
             : currentPlayingTrack?.duration_ms || 180000;
         renderedTrack = {
           id: Date.now(),
-          path: transcodeOutput,
+          path: cleanOutput,
           title,
           artist: currentPlayingTrack?.artist || 'Auralune Render',
           album_artist: currentPlayingTrack?.album_artist || null,
@@ -4107,7 +4427,7 @@ export default function App() {
         await handleAddTrackToQueue(renderedTrack);
       }
 
-      showMessage(t.notifications.transcodeSuccessMsg.replace('{0}', transcodeOutput));
+      showMessage(t.notifications.transcodeSuccessMsg.replace('{0}', cleanOutput));
       await loadLibrary();
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4378,6 +4698,280 @@ const renderDevicesSection = () => (
               >
                 {dspAutoStartup ? loc.dsp.dspAutostartOn : loc.dsp.dspAutostartOff}
               </button>
+            </div>
+
+            {/* Opcja wyboru domyślnego silnika DSP przy uruchomieniu */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '14px',
+                borderRadius: '12px',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
+                  Domyślny silnik DSP przy uruchomieniu
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Określa który silnik jest aktywny po starcie aplikacji (domyślnie: Direct Bypass bez procesora DSP).
+                </div>
+              </div>
+              <select
+                value={dspDefaultEngine}
+                onChange={(e) => handleSetDefaultDspEngine(e.target.value as any)}
+                style={{ padding: '8px 30px 8px 12px' }}
+              >
+                <option value="Bypass">Direct Bypass (Domyślny - Czysty dźwięk)</option>
+                <option value="RubberBand">Rubber Band (Hi-Fi R3)</option>
+                <option value="SoundTouch">SoundTouch (Szybki)</option>
+              </select>
+            </div>
+
+            {/* Opcja bufora wyjściowego audio (PipeWire / ALSA) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '18px 20px',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Layers size={17} color="var(--accent-cyan)" />
+                    {language === 'pl' ? 'Bufor wyjściowy audio (PipeWire / ALSA)' : 'Audio Output Buffer (PipeWire / ALSA)'}
+                    {audioBufferMs === 80 && (
+                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
+                        {language === 'pl' ? 'Domyślny' : 'Default'}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
+                    {language === 'pl'
+                      ? 'Długość bufora kolejki przed wyjściem audio. Niższe wartości (30-60 ms) dają szybszą reakcję na pauzę i seek; wyższe (100-250 ms) zapobiegają trzaskom (underrun) pod obciążeniem.'
+                      : 'Queue buffer length before audio sink. Lower values (30-60 ms) reduce seek/pause latency; higher values (100-250 ms) prevent underruns on heavy CPU load.'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.05rem', fontWeight: 700, color: audioBufferMs === 80 ? 'var(--accent-green)' : 'var(--accent-pink)' }}>
+                    {audioBufferMs} ms
+                  </span>
+                  <button
+                    onClick={() => handleSetAudioBuffer(80)}
+                    disabled={audioBufferMs === 80}
+                    className="glass-card"
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      opacity: audioBufferMs === 80 ? 0.4 : 1,
+                      cursor: audioBufferMs === 80 ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: 'var(--accent-green)',
+                    }}
+                    title={language === 'pl' ? 'Przywróć domyślny bufor (80 ms)' : 'Reset to default buffer (80 ms)'}
+                  >
+                    <RotateCcw size={12} /> {language === 'pl' ? 'Domyślny (80 ms)' : 'Default (80 ms)'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Suwak + Presety */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '8px' }}>
+                <input
+                  type="range"
+                  min={20}
+                  max={500}
+                  step={5}
+                  value={audioBufferMs}
+                  onChange={(e) => handleSetAudioBuffer(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: 'var(--accent-pink)', cursor: 'pointer' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="number"
+                    min={20}
+                    max={2000}
+                    value={audioBufferMs}
+                    onChange={(e) => handleSetAudioBuffer(Number(e.target.value))}
+                    style={{
+                      width: '70px',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border-subtle)',
+                      color: '#fff',
+                    }}
+                  />
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ms</span>
+                </div>
+              </div>
+
+              {/* Szybkie presety bufora audio */}
+              <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+                {[
+                  { label: '30 ms (Ultra-low)', value: 30 },
+                  { label: '50 ms (Szybki)', value: 50 },
+                  { label: '80 ms (Domyślny)', value: 80, isDefault: true },
+                  { label: '150 ms (Stabilny)', value: 150 },
+                  { label: '250 ms (Bezpieczny)', value: 250 },
+                  { label: '500 ms (Duży bufor)', value: 500 },
+                ].map((preset) => {
+                  const isActive = audioBufferMs === preset.value;
+                  return (
+                    <button
+                      key={preset.value}
+                      onClick={() => handleSetAudioBuffer(preset.value)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: isActive ? 700 : 500,
+                        background: isActive
+                          ? (preset.isDefault ? 'rgba(16, 185, 129, 0.25)' : 'rgba(236, 72, 153, 0.25)')
+                          : 'rgba(255, 255, 255, 0.04)',
+                        border: isActive
+                          ? (preset.isDefault ? '1px solid var(--accent-green)' : '1px solid var(--accent-pink)')
+                          : '1px solid var(--border-subtle)',
+                        color: isActive
+                          ? (preset.isDefault ? 'var(--accent-green)' : 'var(--accent-pink)')
+                          : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Opcja rozmiaru bloku procesora DSP (Block Size) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '18px 20px',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Activity size={17} color="var(--accent-pink)" />
+                    {language === 'pl' ? 'Rozmiar bloku bufora DSP (Block Size)' : 'DSP Block Buffer Size (Block Size)'}
+                    {dspBlockSize === 2048 && (
+                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
+                        {language === 'pl' ? 'Domyślny' : 'Default'}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
+                    {language === 'pl'
+                      ? 'Liczba próbek audio przetwarzana w jednym cyklu DSP (Rubber Band / SoundTouch). Mniejszy blok (512-1024) = szybsza reakcja suwaków pitch/tempo; większy blok (2048-4096) = najwyższa jakość FFT i brak zakłóceń.'
+                      : 'Audio sample chunk size per DSP processing cycle (Rubber Band / SoundTouch). Smaller block (512-1024) = instant pitch/tempo responsiveness; larger block (2048-4096) = optimal FFT quality and glitch resistance.'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.05rem', fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
+                    {dspBlockSize} {language === 'pl' ? 'ramek' : 'frames'}
+                  </span>
+                  <button
+                    onClick={() => handleSetDspBlockSize(2048)}
+                    disabled={dspBlockSize === 2048}
+                    className="glass-card"
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      opacity: dspBlockSize === 2048 ? 0.4 : 1,
+                      cursor: dspBlockSize === 2048 ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: 'var(--accent-green)',
+                    }}
+                    title={language === 'pl' ? 'Przywróć domyślny rozmiar bloku (2048 ramek)' : 'Reset to default block size (2048 frames)'}
+                  >
+                    <RotateCcw size={12} /> {language === 'pl' ? 'Domyślny (2048)' : 'Default (2048)'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Szybkie presety bloku DSP */}
+              <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {[
+                  { label: '512 ramek (~11 ms)', value: 512 },
+                  { label: '1024 ramek (~23 ms)', value: 1024 },
+                  { label: '2048 ramek (Domyślny / ~46 ms)', value: 2048, isDefault: true },
+                  { label: '4096 ramek (~92 ms)', value: 4096 },
+                  { label: '8192 ramek (~185 ms)', value: 8192 },
+                ].map((preset) => {
+                  const isActive = dspBlockSize === preset.value;
+                  return (
+                    <button
+                      key={preset.value}
+                      onClick={() => handleSetDspBlockSize(preset.value)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.74rem',
+                        fontWeight: isActive ? 700 : 500,
+                        background: isActive
+                          ? (preset.isDefault ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.25)')
+                          : 'rgba(255, 255, 255, 0.04)',
+                        border: isActive
+                          ? (preset.isDefault ? '1px solid var(--accent-green)' : '1px solid var(--accent-cyan)')
+                          : '1px solid var(--border-subtle)',
+                        color: isActive
+                          ? (preset.isDefault ? 'var(--accent-green)' : 'var(--accent-cyan)')
+                          : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+
+                {/* Pole ręcznego wpisania dowolnej wielkości */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    {language === 'pl' ? 'Własny:' : 'Custom:'}
+                  </span>
+                  <input
+                    type="number"
+                    min={256}
+                    max={16384}
+                    step={256}
+                    value={dspBlockSize}
+                    onChange={(e) => handleSetDspBlockSize(Number(e.target.value))}
+                    style={{
+                      width: '80px',
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--border-subtle)',
+                      color: '#fff',
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Opcja powiadomień OSD Linuksa (libnotify / D-Bus) */}
@@ -5347,9 +5941,9 @@ const renderDevicesSection = () => (
                       marginTop: '4px',
                     }}
                   >
-                    {/* Przycisk synchronizacji z pętlą A-B z odtwarzacza jeśli ustawiona */}
-                    {(loopPointA !== null || loopPointB !== null) && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Przyciski synchronizacji z pętlą A-B z odtwarzacza oraz zapisanymi znacznikami */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {(loopPointA !== null || loopPointB !== null) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -5373,6 +5967,62 @@ const renderDevicesSection = () => (
                           <Repeat size={12} />
                           {loc.settings.transcodeFromPlayer} ({loopPointA !== null ? `A: ${formatTimeMs(loopPointA)}` : 'A: 0ms'} → {loopPointB !== null ? `B: ${formatTimeMs(loopPointB)}` : 'B: —'})
                         </button>
+                      )}
+
+                      {currentTrackBookmarks.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const bmA = currentTrackBookmarks.find((b) => /\b(a|punkt a|start|pocz[aą]tek)\b/i.test(b.name)) || currentTrackBookmarks[0];
+                            const bmB = currentTrackBookmarks.find((b) => /\b(b|punkt b|stop|end|koniec)\b/i.test(b.name) && b.id !== bmA?.id) || currentTrackBookmarks[1];
+                            setTranscodeRangeA(`${bmA.position_ms}ms`);
+                            setTranscodeRangeB(`${bmB.position_ms}ms`);
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(236, 72, 153, 0.15)',
+                            border: '1px solid rgba(236, 72, 153, 0.35)',
+                            color: 'var(--accent-pink)',
+                            fontSize: '0.76rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          <Bookmark size={12} />
+                          Zastosuj zapisane znaczniki A-B ({currentTrackBookmarks.length})
+                        </button>
+                      )}
+                    </div>
+
+                    {currentTrackBookmarks.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Zapisane znaczniki utworu:</span>
+                        {currentTrackBookmarks.map((bm) => (
+                          <div key={bm.id} style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem' }}>
+                            <span style={{ color: '#fff', fontWeight: 600 }}>{bm.name}</span>
+                            <span style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>({formatTimeMs(bm.position_ms)})</span>
+                            <button
+                              type="button"
+                              onClick={() => setTranscodeRangeA(`${bm.position_ms}ms`)}
+                              title={`Ustaw "${bm.name}" jako Punkt A`}
+                              style={{ background: 'rgba(6,182,212,0.2)', border: 'none', color: 'var(--accent-cyan)', borderRadius: '3px', padding: '1px 4px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                            >
+                              A
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTranscodeRangeB(`${bm.position_ms}ms`)}
+                              title={`Ustaw "${bm.name}" jako Punkt B`}
+                              style={{ background: 'rgba(236,72,153,0.2)', border: 'none', color: 'var(--accent-pink)', borderRadius: '3px', padding: '1px 4px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                            >
+                              B
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -6407,12 +7057,15 @@ const renderDevicesSection = () => (
           }}
         />
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Auralune Kitsune Player</h3>
+          <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>Auralune</span>
+            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem' }}>狐 Kitsune</span>
+          </h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
             {loc.settings.version} {appVersion} „Resonance & Flow” • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
-          <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.5 }}>
-            Auralune: Audio DSP Player for Linux. High quality, extensible foobar2000-like flexibility, and anime aesthetics.
+          <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+            Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics & real-time pitch/tempo modulation.
           </p>
           <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', fontWeight: 600 }}>
@@ -7734,186 +8387,231 @@ const renderDevicesSection = () => (
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '20px',
+          gap: '10px',
+          minWidth: 0,
+          flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img
-            src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
-            alt="Auralune Logo"
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              objectFit: 'contain',
-              background: 'rgba(0, 0, 0, 0.25)',
-              boxShadow: appIconStyle === 'classic' ? '0 0 16px rgba(168, 85, 247, 0.45)' : '0 0 16px rgba(236, 72, 153, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              padding: appIconStyle === 'classic' ? '0' : '2px',
-            }}
-          />
-          <div>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Auralune <span style={{ color: 'var(--accent-pink)', fontSize: '0.9rem' }}>狐 Kitsune</span></span>
-              <span style={{ fontSize: '0.72rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(168, 85, 247, 0.25)', color: 'var(--accent-purple)', fontWeight: 700, border: '1px solid rgba(168, 85, 247, 0.4)' }}>v{appVersion}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
+            <span
+              style={{
+                fontSize: '0.62rem',
+                lineHeight: 1,
+                padding: '2px 5px',
+                borderRadius: '4px',
+                background: 'rgba(168, 85, 247, 0.25)',
+                color: 'var(--accent-purple)',
+                fontWeight: 700,
+                border: '1px solid rgba(168, 85, 247, 0.4)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              v{appVersion}
+            </span>
+            <img
+              src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
+              alt="Auralune Logo"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '11px',
+                objectFit: 'contain',
+                background: 'rgba(0, 0, 0, 0.25)',
+                boxShadow: appIconStyle === 'classic' ? '0 0 16px rgba(168, 85, 247, 0.45)' : '0 0 16px rgba(236, 72, 153, 0.45)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                padding: appIconStyle === 'classic' ? '0' : '2px',
+                flexShrink: 0,
+              }}
+            />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h1
+              style={{
+                fontSize: '1.38rem',
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                margin: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>Auralune</span>
+              <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem', fontWeight: 600 }}>狐</span>
             </h1>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Linux High-Fidelity DSP & PipeWire Audio Engine
-            </p>
           </div>
         </div>
 
         {/* Zakładki główne aplikacji */}
-        <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+        <nav style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <button
             onClick={() => setActiveTab('player')}
             style={{
-              padding: '8px 16px',
+              padding: '7px 12px',
               borderRadius: '8px',
               background: activeTab === 'player' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
+            title={loc.nav.nowPlaying}
           >
-            {loc.nav.nowPlaying}
+            <Play size={14} />
+            <span className="header-nav-label">{loc.nav.nowPlaying}</span>
           </button>
           <button
             onClick={() => setActiveTab('library')}
             style={{
-              padding: '8px 16px',
+              padding: '7px 12px',
               borderRadius: '8px',
               background: activeTab === 'library' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
+            title={loc.nav.library}
           >
-            {loc.nav.library} ({tracks.length})
+            <Music size={14} />
+            <span className="header-nav-label">{loc.nav.library} ({tracks.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('playlists')}
             style={{
-              padding: '8px 16px',
+              padding: '7px 12px',
               borderRadius: '8px',
               background: activeTab === 'playlists' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
             }}
+            title={loc.nav.playlists}
           >
-            <ListPlus size={15} />
-            {loc.nav.playlists} ({playlists.length})
+            <ListPlus size={14} />
+            <span className="header-nav-label">{loc.nav.playlists} ({playlists.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('radio')}
             style={{
-              padding: '8px 16px',
+              padding: '7px 12px',
               borderRadius: '8px',
               background: activeTab === 'radio' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
             }}
+            title={loc.nav.radio || 'Radio'}
           >
-            <Radio size={15} />
-            {loc.nav.radio || 'Radio'}
+            <Radio size={14} />
+            <span className="header-nav-label">{loc.nav.radio || 'Radio'}</span>
           </button>
           <button
             onClick={() => setActiveTab('dsp')}
             style={{
-              padding: '8px 16px',
+              padding: '7px 12px',
               borderRadius: '8px',
               background: activeTab === 'dsp' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
             }}
+            title={loc.nav.dsp}
           >
-            <SlidersHorizontal size={15} />
-            {loc.nav.dsp}
+            <SlidersHorizontal size={14} />
+            <span className="header-nav-label">{loc.nav.dsp}</span>
           </button>
           <button
             onClick={() => setActiveTab('stats')}
             style={{
-              padding: '8px 16px',
+              padding: '7px 12px',
               borderRadius: '8px',
               background: activeTab === 'stats' ? 'var(--accent-purple)' : 'transparent',
               color: '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
             }}
+            title={loc.nav.stats}
           >
-            <BarChart3 size={15} />
-            {loc.nav.stats}
+            <BarChart3 size={14} />
+            <span className="header-nav-label">{loc.nav.stats}</span>
           </button>
         </nav>
 
         {/* Narzędzia i Ustawienia po prawej */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Przycisk Podsumowania Muzycznego (Auralune Recap / Spotify Wrapped) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexShrink: 0 }}>
+          {/* Przycisk Podsumowania Muzycznego (Auralune Recap) */}
           <button
             onClick={() => setIsRecapModalOpen(true)}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(168, 85, 247, 0.25))',
               border: '1px solid rgba(244, 63, 94, 0.45)',
               color: '#fff',
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
               boxShadow: '0 0 10px rgba(244, 63, 94, 0.2)',
               transition: 'all 0.2s ease',
+              flexShrink: 0,
             }}
             title={currentLang === 'pl' ? 'Auralune Recap (Tydzień, Miesiąc, Rok)' : 'Auralune Recap (Weekly, Monthly, Yearly)'}
           >
-            <Flame size={15} color="var(--accent-pink)" />
-            <span>Recap</span>
+            <Flame size={14} color="var(--accent-pink)" />
+            <span className="header-action-text">Recap</span>
           </button>
 
           {/* Przycisk Klucza i Tempa utworu */}
           <button
             onClick={() => setIsKeyBpmModalOpen(true)}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: 'rgba(6, 182, 212, 0.15)',
               border: '1px solid rgba(6, 182, 212, 0.35)',
               color: 'var(--accent-cyan)',
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              flexShrink: 0,
             }}
             title={currentLang === 'pl' ? 'Klucz i Tempo utworu (BPM & Key)' : 'Musical Key & Tempo (BPM & Key)'}
           >
-            <Activity size={15} color="var(--accent-cyan)" />
-            <span>Key & BPM</span>
+            <Activity size={14} color="var(--accent-cyan)" />
+            <span className="header-action-text">Key & BPM</span>
           </button>
 
-          {/* Wyłącznik Czasowy (Sleep Timer) z wyrazistym, neonowym podświetleniem */}
+          {/* Wyłącznik Czasowy (Sleep Timer) */}
           <button
             onClick={() => setIsSleepTimerOpen(true)}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background:
                 sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
@@ -7931,82 +8629,92 @@ const renderDevicesSection = () => (
                 sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
                   ? '0 0 14px rgba(6, 182, 212, 0.5)'
                   : 'none',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              flexShrink: 0,
             }}
             title={loc.player.sleepTimer}
           >
-            <Moon size={15} color={sleepTimerRemainingSec !== null ? 'var(--accent-cyan)' : 'currentColor'} />
-            {sleepTimerRemainingSec !== null
-              ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
-              : sleepTimerTargetMode === 'end_of_track'
-              ? (currentLang === 'pl' ? 'Koniec utworu' : 'End of Track')
-              : 'Timer'}
+            <Moon size={14} color={sleepTimerRemainingSec !== null ? 'var(--accent-cyan)' : 'currentColor'} />
+            <span className="header-action-text">
+              {sleepTimerRemainingSec !== null
+                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
+                : sleepTimerTargetMode === 'end_of_track'
+                ? (currentLang === 'pl' ? 'Koniec' : 'End')
+                : 'Timer'}
+            </span>
           </button>
+
+          {/* Teksty w oknie aplikacji */}
           <button
             onClick={() => setShowLyrics(!showLyrics)}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: showLyrics ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.06)',
               border: showLyrics ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
               color: showLyrics ? 'var(--accent-cyan)' : '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
             title={loc.shortcuts.lyrics}
           >
-            <Mic2 size={15} />
-            {loc.nav.lyrics}
+            <Mic2 size={14} />
+            <span className="header-action-text">{loc.nav.lyrics}</span>
           </button>
 
+          {/* Pływający Tekst na Pulpicie (HUD / Desktop Lyrics Overlay) */}
           <button
             onClick={toggleDesktopLyrics}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: showDesktopLyrics ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
               border: showDesktopLyrics ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
               color: showDesktopLyrics ? 'var(--accent-purple)' : '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              boxShadow: showDesktopLyrics ? '0 0 12px rgba(168, 85, 247, 0.35)' : 'none',
+              boxShadow: showDesktopLyrics ? '0 0 12px rgba(168, 85, 247, 0.35)' : undefined,
+              flexShrink: 0,
             }}
-            title={loc.lyricsView.desktopLyricsToggle}
+            title={loc.lyricsView?.desktopLyricsToggle || 'Pulpit HUD / Tekst (Desktop Lyrics)'}
           >
-            <Tv size={15} />
-            HUD
+            <Tv size={14} />
+            <span className="header-action-text">{loc.lyricsView?.desktopLyricsToggle || 'HUD'}</span>
           </button>
 
+          {/* Efekty cząsteczkowe Ambience */}
           <button
             onClick={cycleAmbienceMode}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: ambienceMode !== 'off' ? 'rgba(255, 105, 180, 0.22)' : 'rgba(255, 255, 255, 0.06)',
               border: ambienceMode !== 'off' ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
               color: ambienceMode !== 'off' ? 'var(--accent-pink)' : 'var(--text-secondary)',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              flexShrink: 0,
             }}
             title={`Ambience: ${
               ambienceMode === 'sakura'
@@ -8023,111 +8731,127 @@ const renderDevicesSection = () => (
                 ? 'Matrix 🟩'
                 : ambienceMode === 'momiji'
                 ? 'Momiji 🍁'
+                : ambienceMode === 'embers'
+                ? 'Embers 🔥'
                 : 'Off'
             }`}
           >
-            <Sparkles size={15} />
-            {ambienceMode === 'sakura'
-              ? 'Sakura 🌸'
-              : ambienceMode === 'neon_rain'
-              ? 'Neon 🌧️'
-              : ambienceMode === 'fireflies'
-              ? 'Świetliki ✨'
-              : ambienceMode === 'snow'
-              ? 'Śnieg ❄️'
-              : ambienceMode === 'meteor_shower'
-              ? 'Meteory 🌠'
-              : ambienceMode === 'matrix_rain'
-              ? 'Matrix 🟩'
-              : ambienceMode === 'momiji'
-              ? 'Momiji 🍁'
-              : loc.nav.effects}
+            <Sparkles size={14} />
+            <span className="header-action-text">
+              {ambienceMode === 'sakura'
+                ? 'Sakura 🌸'
+                : ambienceMode === 'neon_rain'
+                ? 'Neon 🌧️'
+                : ambienceMode === 'fireflies'
+                ? 'Świetliki ✨'
+                : ambienceMode === 'snow'
+                ? 'Śnieg ❄️'
+                : ambienceMode === 'meteor_shower'
+                ? 'Meteory 🌠'
+                : ambienceMode === 'matrix_rain'
+                ? 'Matrix 🟩'
+                : ambienceMode === 'momiji'
+                ? 'Momiji 🍁'
+                : ambienceMode === 'embers'
+                ? 'Iskry 🔥'
+                : loc.nav.effects}
+            </span>
           </button>
 
+          {/* Paleta komend Ctrl+K */}
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
             style={{
-              padding: '8px 12px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: 'rgba(168, 85, 247, 0.16)',
               border: '1px solid rgba(168, 85, 247, 0.35)',
               color: 'var(--accent-purple, #c084fc)',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              flexShrink: 0,
             }}
             title="Command Palette / Szukaj (Ctrl + K)"
           >
-            <Search size={15} />
+            <Search size={14} />
             <span style={{ fontSize: '0.72rem', opacity: 0.85, fontFamily: 'monospace' }}>Ctrl+K</span>
           </button>
 
+          {/* Pełny ekran */}
           <button
             onClick={() => setIsBigScreen(true)}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-secondary)',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
             title={loc.shortcuts.fullscreen}
           >
-            <Maximize2 size={15} />
-            {loc.nav.fullscreen}
+            <Maximize2 size={14} />
+            <span className="header-action-text">{loc.nav.fullscreen}</span>
           </button>
 
+          {/* Mini-Player */}
           <button
             onClick={toggleMiniPlayer}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-secondary)',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
             title={loc.shortcuts.miniPlayer}
           >
-            <Minimize2 size={15} />
-            {loc.nav.miniPlayer}
+            <Minimize2 size={14} />
+            <span className="header-action-text">{loc.nav.miniPlayer}</span>
           </button>
 
+          {/* Kolejka */}
           <button
             onClick={() => setIsQueueOpen(!isQueueOpen)}
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               background: isQueueOpen ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255, 255, 255, 0.06)',
               border: isQueueOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
               color: isQueueOpen ? 'var(--accent-pink)' : '#fff',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
+            title={`${loc.nav.queue} (${queue.items.length})`}
           >
-            <ListMusic size={15} />
-            {loc.nav.queue} ({queue.items.length})
+            <ListMusic size={14} />
+            <span className="header-action-text">{loc.nav.queue}</span> ({queue.items.length})
           </button>
 
+          {/* Ustawienia */}
           <button
             onClick={() => {
               setSettingsTab('themes');
@@ -8135,29 +8859,32 @@ const renderDevicesSection = () => (
             }}
             className="glass-card"
             style={{
-              padding: '8px 14px',
+              padding: '7px 10px',
               borderRadius: '8px',
               color: isSettingsOpen ? 'var(--accent-purple)' : '#fff',
               border: isSettingsOpen ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
               background: isSettingsOpen ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
-            title={loc.settings.subtitle}
+            title={loc.settings.title}
           >
-            <Settings size={15} />
-            {loc.settings.title}
+            <Settings size={14} />
+            <span className="header-action-text">{loc.settings.title}</span>
           </button>
 
           {/* Wybór języka interfejsu (Language Selector) */}
-          <LanguageSelector
-            currentLang={language}
-            onLanguageChange={handleLanguageChange}
-          />
+          <div style={{ flexShrink: 0 }}>
+            <LanguageSelector
+              currentLang={language}
+              onLanguageChange={handleLanguageChange}
+            />
+          </div>
         </div>
       </header>
 
@@ -8430,7 +9157,27 @@ const renderDevicesSection = () => (
                       if (currentAlbum) {
                         handleOpenCoverPicker(currentAlbum);
                       } else {
-                        handleFetchCurrentTrackCover();
+                        const trackAlbum = currentPlayingTrack?.album_id
+                          ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title
+                          : null;
+                        const targetTitle =
+                          status.current_track?.album ||
+                          trackAlbum ||
+                          status.current_track?.title ||
+                          currentPlayingTrack?.title ||
+                          'Unknown Album';
+                        const targetArtist =
+                          status.current_track?.artist ||
+                          currentPlayingTrack?.artist ||
+                          'Unknown Artist';
+                        handleOpenCoverPicker({
+                          id: 0,
+                          title: targetTitle,
+                          album_artist: targetArtist,
+                          year: null,
+                          cover_path: null,
+                          release_mbid: null,
+                        });
                       }
                     }}
                     title={loc.covers.matchCoverTitle}
@@ -8707,7 +9454,7 @@ const renderDevicesSection = () => (
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
-                          boxShadow: isSelected ? '0 0 14px rgba(244, 63, 94, 0.45)' : 'none',
+                          boxShadow: isSelected ? '0 0 14px rgba(244, 63, 94, 0.45)' : undefined,
                         }}
                       >
                         {isSelected && (
@@ -10740,12 +11487,12 @@ const renderDevicesSection = () => (
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       if (librarySubView === 'tracks' && sortedTracks.length > 0) {
-                        handlePlayLibraryTrack(sortedTracks[0]);
+                        handlePlayLibraryTrack(sortedTracks[0], sortedTracks);
                         showMessage(`Odtwarzanie ${sortedTracks[0].title} (dopasowano: ${sortedTracks.length})`);
                       } else if (librarySubView === 'albums' && sortedAlbums.length > 0) {
                         const albumTracks = tracks.filter((t) => t.album_id === sortedAlbums[0].id);
                         if (albumTracks.length > 0) {
-                          handlePlayLibraryTrack(albumTracks[0]);
+                          handlePlayLibraryTrack(albumTracks[0], albumTracks);
                           showMessage(`Odtwarzanie albumu ${sortedAlbums[0].title}`);
                         }
                       }
@@ -10949,7 +11696,7 @@ const renderDevicesSection = () => (
                       <button
                         onClick={() => {
                           if (sortedTracks.length > 0) {
-                            handlePlayLibraryTrack(sortedTracks[0]);
+                            handlePlayLibraryTrack(sortedTracks[0], sortedTracks);
                           }
                         }}
                         style={{
@@ -10998,56 +11745,56 @@ const renderDevicesSection = () => (
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
-                  <table ref={libraryTableRef} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <table ref={libraryTableRef} className="library-track-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(20, 16, 32, 0.95)', backdropFilter: 'blur(12px)' }}>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', height: '42px' }}>
                         <th
                           onClick={() => handleSort('default')}
-                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ width: '46px', padding: '10px 6px', cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
                           title={loc.library.sortDefaultTooltip}
                         >
                           # {sortField === 'default' && '•'}
                         </th>
                         <th
                           onClick={() => handleSort('title')}
-                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ width: '28%', padding: '10px 10px', cursor: 'pointer', userSelect: 'none' }}
                           title={loc.library.sortTitleTooltip}
                         >
                           {loc.library.sortTitle} {sortField === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                         </th>
                         <th
                           onClick={() => handleSort('artist')}
-                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ width: '20%', padding: '10px 10px', cursor: 'pointer', userSelect: 'none' }}
                           title={loc.library.sortArtistTooltip}
                         >
                           {loc.library.sortArtist} {sortField === 'artist' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                         </th>
                         <th
                           onClick={() => handleSort('format')}
-                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ width: '110px', padding: '10px 8px', cursor: 'pointer', userSelect: 'none' }}
                           title={loc.library.sortFormatTooltip}
                         >
                           {loc.library.sortFormat} {sortField === 'format' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                         </th>
-                        <th style={{ padding: '10px 12px' }}>{loc.library.quality}</th>
+                        <th style={{ width: '115px', padding: '10px 8px' }}>{loc.library.quality}</th>
                         <th
                           onClick={() => handleSort('duration')}
-                          style={{ padding: '10px 12px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ width: '75px', padding: '10px 8px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                           title={loc.library.sortDurationTooltip}
                         >
                           {loc.queue.duration} {sortField === 'duration' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                         </th>
                         <th
                           onClick={() => handleSort('plays')}
-                          style={{ padding: '10px 12px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ width: '75px', padding: '10px 6px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
                           title={loc.library.sortPlaysTooltip}
                         >
                           {loc.library.playsCol} {sortField === 'plays' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                         </th>
-                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <th style={{ width: '95px', padding: '10px 6px', textAlign: 'center' }}>
                           {currentLang === 'pl' ? 'Ocena' : 'Rating'}
                         </th>
-                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>{loc.library.actions}</th>
+                        <th style={{ width: '135px', padding: '10px 6px', textAlign: 'center' }}>{loc.library.actions}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -11158,32 +11905,34 @@ const renderDevicesSection = () => (
                             return (
                               <tr
                                 key={t.id}
-                                onClick={() => handlePlayLibraryTrack(t)}
-                                className="glass-card"
+                                onClick={() => handlePlayLibraryTrack(t, sortedTracks)}
+                                className="library-track-row glass-card"
                                 style={{
                                   cursor: 'pointer',
                                   background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
                                   borderBottom: '1px solid rgba(255,255,255,0.03)',
                                   height: '48px',
+                                  maxHeight: '48px',
+                                  boxSizing: 'border-box',
                                 }}
                               >
-                                <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                                   {activeTrackId === t.id && status.state === 'Playing' ? (
                                     <Zap size={14} color="var(--accent-pink)" />
                                   ) : (
                                     t.track_no || idx + 1
                                   )}
                                 </td>
-                                <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff', maxWidth: '320px' }}>
+                                <td className="library-track-cell" style={{ padding: '0 10px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
                                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
                                   </div>
                                 </td>
-                                <td style={{ padding: '12px', color: 'var(--text-secondary)', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.artist}>
+                                <td className="library-track-cell" style={{ padding: '0 10px', color: 'var(--text-secondary)' }} title={t.artist}>
                                   {t.artist}
                                 </td>
-                            <td style={{ padding: '12px' }}>
+                            <td className="library-track-cell" style={{ padding: '0 8px' }}>
                               <span
                                 style={{
                                   background:
@@ -11227,14 +11976,15 @@ const renderDevicesSection = () => (
                                 </span>
                               )}
                             </td>
-                            <td style={{ padding: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            <td className="library-track-cell" style={{ padding: '0 8px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}>
                               {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                            <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                               {formatTime(t.duration_ms)}
                             </td>
                             <td
-                              style={{ padding: '12px', textAlign: 'center' }}
+                              className="library-track-cell"
+                              style={{ padding: '0 6px', textAlign: 'center' }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setStatsModalTrack(t);
@@ -11246,7 +11996,7 @@ const renderDevicesSection = () => (
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '5px',
-                                  padding: '3px 9px',
+                                  padding: '3px 8px',
                                   borderRadius: '12px',
                                   background: t.play_count ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)',
                                   color: t.play_count ? 'var(--accent-amber)' : 'var(--text-muted)',
@@ -11263,7 +12013,8 @@ const renderDevicesSection = () => (
                               </span>
                             </td>
                             <td
-                              style={{ padding: '12px', textAlign: 'center' }}
+                              className="library-track-cell"
+                              style={{ padding: '0 4px', textAlign: 'center' }}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
@@ -11291,7 +12042,7 @@ const renderDevicesSection = () => (
                                 })}
                               </div>
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <td className="library-track-cell" style={{ padding: '0 6px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                                 <button
                                   onClick={(e) => handleToggleFavorite(t.id, e)}
@@ -11307,7 +12058,7 @@ const renderDevicesSection = () => (
                                   <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}
+                                  onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t, sortedTracks); }}
                                   title={loc.player.play}
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
                                 >
@@ -11578,7 +12329,7 @@ const renderDevicesSection = () => (
                               <button
                                 onClick={() => {
                                   if (albumTracks.length > 0) {
-                                    handlePlayLibraryTrack(albumTracks[0]);
+                                    handlePlayLibraryTrack(albumTracks[0], albumTracks);
                                   }
                                 }}
                                 disabled={albumTracks.length === 0}
@@ -11693,7 +12444,7 @@ const renderDevicesSection = () => (
                                 albumTracks.map((t, idx) => (
                                   <tr
                                     key={t.id}
-                                    onClick={() => handlePlayLibraryTrack(t)}
+                                    onClick={() => handlePlayLibraryTrack(t, albumTracks)}
                                     className="glass-card"
                                     style={{
                                       cursor: 'pointer',
@@ -11749,7 +12500,7 @@ const renderDevicesSection = () => (
                                           <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
                                         </button>
                                         <button
-                                          onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}
+                                          onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t, albumTracks); }}
                                           title={loc.player.play}
                                           style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
                                         >
@@ -11790,68 +12541,246 @@ const renderDevicesSection = () => (
                 </div>
               ) : (
                 <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {sortedAlbums.length !== albums.length
-                      ? loc.library.resultsAlbums.replace('{0}', String(sortedAlbums.length)).replace('{1}', String(albums.length))
-                      : loc.library.totalAlbums.replace('{0}', String(albums.length))}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ArrowUpDown size={13} color="var(--text-muted)" />
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{loc.library.albumsSortLabel}</span>
-                    <select
-                      value={albumSortField}
-                      onChange={(e) => setAlbumSortField(e.target.value as any)}
-                      style={{
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        padding: '5px 28px 5px 10px',
-                        borderRadius: '6px',
-                        background: 'rgba(20, 24, 44, 0.95)',
-                        border: '1px solid var(--border-subtle)',
-                        color: '#ffffff',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 8px center',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                      }}
-                    >
-                      <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortTitle}</option>
-                      <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortArtist}</option>
-                      <option value="year" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortYear}</option>
-                    </select>
-                    <button
-                      onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                      title={albumSortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
-                    >
-                      {albumSortOrder === 'asc' ? '▲' : '▼'}
-                    </button>
-                  </div>
-                </div>
+                <div>
+                  {/* Pasek narzędziowy widoku albumów: Filtry, Sortowanie, Rozmiar kafelków, Przełącznik Kafelki/Lista */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '16px',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      padding: '10px 14px',
+                      background: 'rgba(255, 255, 255, 0.025)',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    {/* Lewa strona: Licznik albumów + szybki filtr okładek */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700 }}>
+                        {sortedAlbums.length !== albums.length
+                          ? loc.library.resultsAlbums.replace('{0}', String(sortedAlbums.length)).replace('{1}', String(albums.length))
+                          : loc.library.totalAlbums.replace('{0}', String(albums.length))}
+                      </span>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                      {/* Filtr okładek */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          padding: '3px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        {[
+                          { id: 'all', label: language === 'pl' ? `Wszystkie (${albums.length})` : `All (${albums.length})` },
+                          { id: 'with-cover', label: language === 'pl' ? `Z okładką (${albumsWithCoverCount})` : `With cover (${albumsWithCoverCount})` },
+                          { id: 'missing-cover', label: language === 'pl' ? `Bez okładki (${albumsWithoutCoverCount})` : `Missing (${albumsWithoutCoverCount})` },
+                        ].map((f) => {
+                          const isActive = albumCoverFilter === f.id;
+                          return (
+                            <button
+                              key={f.id}
+                              onClick={() => setAlbumCoverFilter(f.id as any)}
+                              style={{
+                                padding: '3px 9px',
+                                borderRadius: '6px',
+                                fontSize: '0.70rem',
+                                fontWeight: isActive ? 700 : 500,
+                                background: isActive ? 'rgba(236, 72, 153, 0.22)' : 'transparent',
+                                border: isActive ? '1px solid var(--accent-pink)' : '1px solid transparent',
+                                color: isActive ? 'var(--accent-pink)' : 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {f.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Prawa strona: Sortowanie + Rozmiar kafelków + Wybór Kafelki / Lista */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {/* Sortowanie */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <ArrowUpDown size={13} color="var(--text-muted)" />
+                        <select
+                          value={albumSortField}
+                          onChange={(e) => setAlbumSortField(e.target.value as any)}
+                          style={{
+                            appearance: 'none',
+                            WebkitAppearance: 'none',
+                            padding: '5px 28px 5px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(20, 24, 44, 0.95)',
+                            border: '1px solid var(--border-subtle)',
+                            color: '#ffffff',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 8px center',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortTitle}</option>
+                          <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortArtist}</option>
+                          <option value="year" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortYear}</option>
+                          <option value="tracks" style={{ background: '#121424', color: '#fff' }}>{language === 'pl' ? 'Liczba utworów' : 'Track count'}</option>
+                          <option value="duration" style={{ background: '#121424', color: '#fff' }}>{language === 'pl' ? 'Czas trwania' : 'Total duration'}</option>
+                        </select>
+                        <button
+                          onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                          style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            color: 'var(--accent-cyan)',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                          title={albumSortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
+                        >
+                          {albumSortOrder === 'asc' ? '▲' : '▼'}
+                        </button>
+                      </div>
+
+                      <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
+
+                      {/* Rozmiar kafelków (widoczny w trybie kafelków) */}
+                      {albumViewMode === 'grid' && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            padding: '2px 4px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginRight: '2px', paddingLeft: '4px' }}>
+                            {language === 'pl' ? 'Rozmiar:' : 'Size:'}
+                          </span>
+                          {[
+                            { id: 'compact', label: 'S (160px)', title: language === 'pl' ? 'Kompaktowe kafelki' : 'Small tiles' },
+                            { id: 'medium', label: 'M (210px)', title: language === 'pl' ? 'Średnie kafelki' : 'Medium tiles' },
+                            { id: 'large', label: 'L (270px)', title: language === 'pl' ? 'Duże kafelki' : 'Large tiles' },
+                          ].map((s) => {
+                            const isCur = albumGridSize === s.id;
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={() => {
+                                  setAlbumGridSize(s.id as any);
+                                  localStorage.setItem('auralune_album_grid_size', s.id);
+                                }}
+                                style={{
+                                  padding: '3px 8px',
+                                  borderRadius: '5px',
+                                  fontSize: '0.70rem',
+                                  fontWeight: isCur ? 700 : 500,
+                                  background: isCur ? 'rgba(56, 189, 248, 0.22)' : 'transparent',
+                                  border: isCur ? '1px solid var(--accent-cyan)' : '1px solid transparent',
+                                  color: isCur ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                                  cursor: 'pointer',
+                                }}
+                                title={s.title}
+                              >
+                                {s.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Przełącznik widoku: Kafelki vs Lista */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          padding: '2px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <button
+                          onClick={() => {
+                            setAlbumViewMode('grid');
+                            localStorage.setItem('auralune_album_view_mode', 'grid');
+                          }}
+                          style={{
+                            padding: '5px 9px',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '0.72rem',
+                            fontWeight: albumViewMode === 'grid' ? 700 : 500,
+                            background: albumViewMode === 'grid' ? 'rgba(236, 72, 153, 0.25)' : 'transparent',
+                            border: albumViewMode === 'grid' ? '1px solid var(--accent-pink)' : '1px solid transparent',
+                            color: albumViewMode === 'grid' ? 'var(--accent-pink)' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                          title={language === 'pl' ? 'Widok kafelków' : 'Grid View'}
+                        >
+                          <LayoutGrid size={13} />
+                          <span>{language === 'pl' ? 'Kafelki' : 'Grid'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setAlbumViewMode('list');
+                            localStorage.setItem('auralune_album_view_mode', 'list');
+                          }}
+                          style={{
+                            padding: '5px 9px',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '0.72rem',
+                            fontWeight: albumViewMode === 'list' ? 700 : 500,
+                            background: albumViewMode === 'list' ? 'rgba(236, 72, 153, 0.25)' : 'transparent',
+                            border: albumViewMode === 'list' ? '1px solid var(--accent-pink)' : '1px solid transparent',
+                            color: albumViewMode === 'list' ? 'var(--accent-pink)' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                          title={language === 'pl' ? 'Widok listy' : 'List View'}
+                        >
+                          <List size={13} />
+                          <span>{language === 'pl' ? 'Lista' : 'List'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Zawartość: Pusta lista lub Kafelki lub Lista */}
                   {sortedAlbums.length === 0 ? (
-                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                    <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
                       {albums.length === 0 ? (
                         <span>{loc.library.emptyAlbums}</span>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                          <span>{loc.library.emptySearchAlbums.replace("{0}", librarySearch)}</span>
+                          <span>{loc.library.emptySearchAlbums.replace('{0}', librarySearch)}</span>
                           <button
-                            onClick={() => setLibrarySearch('')}
+                            onClick={() => {
+                              setLibrarySearch('');
+                              setAlbumCoverFilter('all');
+                            }}
                             style={{
                               padding: '5px 12px',
                               borderRadius: '6px',
@@ -11867,206 +12796,410 @@ const renderDevicesSection = () => (
                         </div>
                       )}
                     </div>
-                  ) : (
-                    sortedAlbums.map((album) => {
-                      const albumTracks = tracks.filter((t) => t.album_id === album.id);
-                      return (
-                      <div
-                        key={album.id}
-                        className="glass-card"
-                        onClick={() => setSelectedAlbumDetail(album)}
-                        style={{
-                          padding: '16px',
-                          borderRadius: '16px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '12px',
-                          cursor: 'pointer',
-                          transition: 'transform 0.2s ease, border-color 0.2s ease',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                        }}
-                      >
-                        {/* Podgląd okładki (kliknij aby wejść do środka albumu) */}
-                        <div
-                          style={{
-                            width: '100%',
-                            aspectRatio: '1/1',
-                            borderRadius: '12px',
-                            background: album.cover_path
-                              ? `url("${album.cover_path}") center/cover no-repeat`
-                              : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '1px solid var(--border-subtle)',
-                            position: 'relative',
-                            overflow: 'hidden',
-                          }}
-                          title="Kliknij, aby otworzyć utwory albumu"
-                        >
-                          {!album.cover_path && <Disc size={48} color="rgba(255,255,255,0.25)" />}
+                  ) : albumViewMode === 'list' ? (
+                    /* WIDOK LISTY ALBUMÓW */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {sortedAlbums.map((album) => {
+                        const albumTracks = tracks.filter((t) => t.album_id === album.id);
+                        const totalDurMs = albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
+                        const durText = formatAlbumDuration(totalDurMs);
+
+                        return (
                           <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenCoverPicker(album);
-                            }}
+                            key={album.id}
+                            className="glass-card"
+                            onClick={() => setSelectedAlbumDetail(album)}
                             style={{
-                              position: 'absolute',
-                              bottom: '6px',
-                              right: '6px',
-                              background: 'rgba(0,0,0,0.65)',
-                              padding: '3px 6px',
-                              borderRadius: '4px',
-                              fontSize: '0.65rem',
-                              color: 'var(--accent-pink)',
+                              padding: '10px 16px',
+                              borderRadius: '12px',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '3px',
+                              gap: '16px',
                               cursor: 'pointer',
+                              border: '1px solid rgba(255, 255, 255, 0.05)',
+                              transition: 'all 0.18s ease',
                             }}
-                            title={loc.covers.matchCoverTitle}
                           >
-                            <Sparkles size={10} /> {loc.covers.matchCover}
-                          </div>
-                        </div>
-
-                        <div>
-                          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                            {album.title}
-                          </h4>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                            {album.album_artist} {album.year ? `(${album.year})` : ''}
-                          </p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
-                            <span
+                            {/* Miniaturka okładki */}
+                            <div
                               style={{
-                                fontSize: '0.7rem',
-                                color: 'var(--accent-cyan)',
-                                background: 'rgba(6,182,212,0.12)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontWeight: 600,
+                                width: '52px',
+                                height: '52px',
+                                borderRadius: '8px',
+                                background: album.cover_path
+                                  ? `url("${album.cover_path}") center/cover no-repeat`
+                                  : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid var(--border-subtle)',
+                                flexShrink: 0,
+                                position: 'relative',
                               }}
+                              title={loc.covers.matchCoverTitle}
                             >
-                              {albumTracks.length} {loc.library.tracks}
-                            </span>
-                            {album.release_mbid && (
+                              {!album.cover_path && <Disc size={24} color="rgba(255,255,255,0.25)" />}
+                            </div>
+
+                            {/* Informacje o albumie */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {album.title}
+                                </span>
+                                {album.year && (
+                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                    ({album.year})
+                                  </span>
+                                )}
+                                {album.release_mbid && (
+                                  <span
+                                    style={{
+                                      fontSize: '0.64rem',
+                                      fontFamily: 'var(--font-mono)',
+                                      color: 'var(--accent-cyan)',
+                                      background: 'rgba(6,182,212,0.12)',
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                    }}
+                                  >
+                                    MBID
+                                  </span>
+                                )}
+                              </div>
+                              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '3px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {album.album_artist}
+                              </p>
+                            </div>
+
+                            {/* Liczba utworów i czas */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                               <span
                                 style={{
-                                  fontSize: '0.68rem',
-                                  fontFamily: 'var(--font-mono)',
-                                  color: 'var(--text-muted)',
-                                  background: 'rgba(255,255,255,0.06)',
-                                  padding: '2px 5px',
-                                  borderRadius: '4px',
+                                  fontSize: '0.72rem',
+                                  color: 'var(--accent-cyan)',
+                                  background: 'rgba(6,182,212,0.12)',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  fontWeight: 600,
                                 }}
                               >
-                                MBID
+                                {albumTracks.length} {loc.library.tracks}
                               </span>
-                            )}
-                          </div>
-                        </div>
+                              {durText && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={11} /> {durText}
+                                </span>
+                              )}
+                            </div>
 
-                        <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            const albumTracks = tracks
-                              .filter((t) => t.album_id === album.id)
-                              .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0));
-                            if (albumTracks.length > 0) {
-                              handlePlayLibraryTrack(albumTracks[0]);
-                            }
-                          }}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '8px',
-                            background: 'rgba(255,255,255,0.08)',
-                            color: 'var(--accent-pink)',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                          }}
-                          title={loc.player.play}
-                        >
-                          <Play size={13} /> {loc.player.play}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const albumTracks = tracks
-                              .filter((t) => t.album_id === album.id)
-                              .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0));
-                            if (albumTracks.length > 0) {
-                              await invoke('add_uris_to_queue', { uris: albumTracks.map((t) => t.path) });
-                              await refreshQueue();
-                              showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(albumTracks.length)));
-                            }
-                          }}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '8px',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: 'var(--accent-cyan)',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                          }}
-                          title={loc.library.addToQueue}
-                        >
-                          <Plus size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleOpenCoverPicker(album)}
-                          style={{
-                            flex: 1,
-                            padding: '8px 10px',
-                            borderRadius: '8px',
-                            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                            color: '#fff',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '5px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(244, 63, 94, 0.3)',
-                          }}
-                          title={loc.covers.matchCoverTitle}
-                        >
-                          <Sparkles size={13} /> {loc.covers.matchCover}
-                        </button>
-                        <button
-                          onClick={() => handleOpenMbModal(album)}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '8px',
-                            background: 'rgba(255,255,255,0.08)',
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                          }}
-                          title={loc.covers.matchCoverTitle}
-                        >
-                          <Search size={13} /> MBID
-                        </button>
-                      </div>
+                            {/* Przyciski akcji */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handlePlayAlbum(albumTracks)}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(255,255,255,0.08)',
+                                  color: 'var(--accent-pink)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.player.play}
+                              >
+                                <Play size={12} /> {loc.player.play}
+                              </button>
+                              <button
+                                onClick={() => handleAddAlbumToQueue(albumTracks)}
+                                style={{
+                                  padding: '6px 9px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(255,255,255,0.05)',
+                                  color: 'var(--accent-cyan)',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.library.addToQueue}
+                              >
+                                <Plus size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleOpenCoverPicker(album)}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: '6px',
+                                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                                  color: '#fff',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.covers.matchCoverTitle}
+                              >
+                                <Sparkles size={11} /> {loc.covers.matchCover}
+                              </button>
+                              <button
+                                onClick={() => handleOpenMbModal(album)}
+                                style={{
+                                  padding: '6px 9px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(255,255,255,0.06)',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.covers.matchCoverTitle}
+                              >
+                                <Search size={11} /> MBID
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })
-                )}
-              </div>
+                  ) : (
+                    /* WIDOK KAFELKÓW (Zabezpieczony przed rozciąganiem - auto-fill z limitem max-width) */
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns:
+                          albumGridSize === 'compact'
+                            ? 'repeat(auto-fill, minmax(155px, 190px))'
+                            : albumGridSize === 'large'
+                            ? 'repeat(auto-fill, minmax(240px, 290px))'
+                            : 'repeat(auto-fill, minmax(190px, 235px))',
+                        gap: albumGridSize === 'compact' ? '12px' : albumGridSize === 'large' ? '18px' : '14px',
+                      }}
+                    >
+                      {sortedAlbums.map((album) => {
+                        const albumTracks = tracks.filter((t) => t.album_id === album.id);
+                        const totalDurMs = albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
+                        const durText = formatAlbumDuration(totalDurMs);
+
+                        return (
+                          <div
+                            key={album.id}
+                            className="glass-card"
+                            onClick={() => setSelectedAlbumDetail(album)}
+                            style={{
+                              padding: albumGridSize === 'compact' ? '10px' : '14px',
+                              borderRadius: '14px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: albumGridSize === 'compact' ? '8px' : '10px',
+                              cursor: 'pointer',
+                              transition: 'transform 0.18s ease, border-color 0.18s ease',
+                              border: '1px solid rgba(255,255,255,0.06)',
+                              maxWidth: albumGridSize === 'compact' ? '200px' : albumGridSize === 'large' ? '300px' : '245px',
+                            }}
+                          >
+                            {/* Podgląd okładki (z przyciskiem dopasowania w rogu) */}
+                            <div
+                              style={{
+                                width: '100%',
+                                aspectRatio: '1/1',
+                                borderRadius: '10px',
+                                background: album.cover_path
+                                  ? `url("${album.cover_path}") center/cover no-repeat`
+                                  : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid var(--border-subtle)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                              }}
+                              title={language === 'pl' ? 'Kliknij, aby otworzyć utwory albumu' : 'Click to view album tracks'}
+                            >
+                              {!album.cover_path && <Disc size={albumGridSize === 'compact' ? 36 : 46} color="rgba(255,255,255,0.25)" />}
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenCoverPicker(album);
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  bottom: '5px',
+                                  right: '5px',
+                                  background: 'rgba(0,0,0,0.7)',
+                                  backdropFilter: 'blur(4px)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.64rem',
+                                  color: 'var(--accent-pink)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  cursor: 'pointer',
+                                  fontWeight: 600,
+                                }}
+                                title={loc.covers.matchCoverTitle}
+                              >
+                                <Sparkles size={10} /> {loc.covers.matchCover}
+                              </div>
+                            </div>
+
+                            {/* Tytuł i wykonawca */}
+                            <div style={{ flex: 1 }}>
+                              <h4
+                                style={{
+                                  fontSize: albumGridSize === 'compact' ? '0.84rem' : '0.90rem',
+                                  fontWeight: 700,
+                                  color: 'var(--text-primary)',
+                                  margin: 0,
+                                  lineHeight: 1.3,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
+                                title={album.title}
+                              >
+                                {album.title}
+                              </h4>
+                              <p
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: 'var(--text-secondary)',
+                                  margin: '3px 0 0 0',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {album.album_artist} {album.year ? `(${album.year})` : ''}
+                              </p>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px', flexWrap: 'wrap' }}>
+                                <span
+                                  style={{
+                                    fontSize: '0.66rem',
+                                    color: 'var(--accent-cyan)',
+                                    background: 'rgba(6,182,212,0.12)',
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {albumTracks.length} {loc.library.tracks}
+                                </span>
+                                {durText && (
+                                  <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
+                                    {durText}
+                                  </span>
+                                )}
+                                {album.release_mbid && (
+                                  <span
+                                    style={{
+                                      fontSize: '0.62rem',
+                                      fontFamily: 'var(--font-mono)',
+                                      color: 'var(--text-muted)',
+                                      background: 'rgba(255,255,255,0.06)',
+                                      padding: '1px 4px',
+                                      borderRadius: '4px',
+                                    }}
+                                  >
+                                    MBID
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Przyciski akcji na kafelku */}
+                            <div style={{ display: 'flex', gap: '6px', marginTop: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handlePlayAlbum(albumTracks)}
+                                style={{
+                                  padding: albumGridSize === 'compact' ? '6px 8px' : '7px 9px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(255,255,255,0.08)',
+                                  color: 'var(--accent-pink)',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.player.play}
+                              >
+                                <Play size={11} /> {loc.player.play}
+                              </button>
+                              <button
+                                onClick={() => handleAddAlbumToQueue(albumTracks)}
+                                style={{
+                                  padding: albumGridSize === 'compact' ? '6px 7px' : '7px 8px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(255,255,255,0.05)',
+                                  color: 'var(--accent-cyan)',
+                                  fontSize: '0.72rem',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.library.addToQueue}
+                              >
+                                <Plus size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleOpenCoverPicker(album)}
+                                style={{
+                                  flex: 1,
+                                  padding: albumGridSize === 'compact' ? '6px 6px' : '7px 8px',
+                                  borderRadius: '6px',
+                                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                                  color: '#fff',
+                                  fontSize: '0.70rem',
+                                  fontWeight: 700,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '3px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                }}
+                                title={loc.covers.matchCoverTitle}
+                              >
+                                <Sparkles size={11} />
+                                {albumGridSize !== 'compact' && <span>{loc.covers.matchCover}</span>}
+                              </button>
+                              <button
+                                onClick={() => handleOpenMbModal(album)}
+                                style={{
+                                  padding: albumGridSize === 'compact' ? '6px 7px' : '7px 8px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(255,255,255,0.07)',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.70rem',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '2px',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.covers.matchCoverTitle}
+                              >
+                                <Search size={11} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
             </div>
               )
             )}
@@ -12208,7 +13341,7 @@ const renderDevicesSection = () => (
                               (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
                             );
                             if (sorted.length > 0) {
-                              handlePlayLibraryTrack(sorted[0]);
+                              handlePlayLibraryTrack(sorted[0], sorted);
                             }
                           }}
                           style={{
@@ -12517,6 +13650,25 @@ const renderDevicesSection = () => (
                   <Save size={13} /> {loc.dsp.dspSaveStartupBtn}
                 </button>
 
+                {/* Wskaźnik domyślnego silnika startowego */}
+                <span
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                  title="Domyślny silnik DSP ładowany przy starcie programu"
+                >
+                  Start: <strong style={{ color: dspDefaultEngine === 'Bypass' ? 'var(--accent-green)' : 'var(--accent-pink)' }}>{dspDefaultEngine}</strong>
+                </span>
+
                 {/* Reset do wartości domyślnych */}
                 <button
                   onClick={handleResetDsp}
@@ -12653,9 +13805,47 @@ const renderDevicesSection = () => (
                 alignItems: 'center',
                 marginBottom: '24px',
                 fontSize: '0.8rem',
+                flexWrap: 'wrap',
+                gap: '10px',
               }}
             >
-              <span>{loc.dsp.engine}: {status.capabilities?.name || 'SoundTouch'}</span>
+              <span>{loc.dsp.engine}: <strong style={{ color: 'var(--accent-pink)' }}>{status.capabilities?.name || 'SoundTouch'}</strong></span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>
+                  {language === 'pl' ? 'Bufor bloku DSP:' : 'DSP Block Buffer:'}
+                </span>
+                <span style={{ fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
+                  {dspBlockSize} {language === 'pl' ? 'ramek' : 'frames'}
+                </span>
+                {dspBlockSize === 2048 && (
+                  <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
+                    {language === 'pl' ? 'Domyślny' : 'Default'}
+                  </span>
+                )}
+                {[
+                  { label: '1024', val: 1024 },
+                  { label: '2048 (Def)', val: 2048 },
+                  { label: '4096', val: 4096 },
+                ].map((b) => (
+                  <button
+                    key={b.val}
+                    onClick={() => handleSetDspBlockSize(b.val)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.72rem',
+                      fontWeight: dspBlockSize === b.val ? 700 : 500,
+                      background: dspBlockSize === b.val ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                      border: dspBlockSize === b.val ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                      color: dspBlockSize === b.val ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Informacja o aktywnym trybie Direct Bypass */}
@@ -13903,7 +15093,7 @@ const renderDevicesSection = () => (
             tracks={tracks}
             albums={albums}
             currentLang={language}
-            onPlayTrack={handlePlayLibraryTrack}
+            onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
             onOpenStatsModal={(t) => setStatsModalTrack(t)}
           />
         )}
@@ -13997,7 +15187,7 @@ const renderDevicesSection = () => (
                     <button
                       onClick={() => {
                         if (playlistTracks.length > 0) {
-                          handlePlayLibraryTrack(playlistTracks[0]);
+                          handlePlayLibraryTrack(playlistTracks[0], playlistTracks);
                         }
                       }}
                       disabled={playlistTracks.length === 0}
@@ -14097,7 +15287,7 @@ const renderDevicesSection = () => (
                             <td style={{ padding: '12px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                 <button
-                                  onClick={() => handlePlayLibraryTrack(item)}
+                                  onClick={() => handlePlayLibraryTrack(item, playlistTracks)}
                                   title={loc.player.play}
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}
                                 >
@@ -14352,7 +15542,28 @@ const renderDevicesSection = () => (
               maxWidth: '560px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              {/* Przycisk Shuffle (Odtwarzanie losowe) */}
+              <button
+                onClick={handleToggleShuffle}
+                style={{
+                  background: queue.shuffle ? 'rgba(6, 182, 212, 0.22)' : 'transparent',
+                  border: queue.shuffle ? '1px solid var(--accent-cyan)' : '1px solid transparent',
+                  color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.18s ease',
+                  boxShadow: queue.shuffle ? '0 0 10px rgba(6, 182, 212, 0.4)' : 'none',
+                }}
+                title={queue.shuffle ? (loc.player?.shuffleOn || 'Odtwarzanie losowe: Włączone') : (loc.player?.shuffleOff || 'Odtwarzanie losowe: Wyłączone')}
+              >
+                <Shuffle size={16} />
+              </button>
+
               <button
                 onClick={handlePrevious}
                 style={{
@@ -14402,6 +15613,34 @@ const renderDevicesSection = () => (
               >
                 <SkipForward size={18} />
               </button>
+
+              {/* Przycisk Loop (Zapętlanie utworu / kolejki) */}
+              <button
+                onClick={handleCycleLoopMode}
+                style={{
+                  background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.22)' : 'transparent',
+                  border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : '1px solid transparent',
+                  color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  transition: 'all 0.18s ease',
+                  boxShadow: queue.loop_mode !== 'None' ? '0 0 10px rgba(255, 77, 148, 0.4)' : 'none',
+                }}
+                title={
+                  queue.loop_mode === 'Track'
+                    ? (loc.player?.loopTrack || 'Pętla: Bieżący utwór')
+                    : queue.loop_mode === 'Queue'
+                    ? (loc.player?.loopQueue || 'Pętla: Cała kolejka')
+                    : (loc.player?.loopOff || 'Pętla: Wyłączona')
+                }
+              >
+                {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
+              </button>
             </div>
 
             {/* Suwak pozycji */}
@@ -14430,16 +15669,184 @@ const renderDevicesSection = () => (
           </div>
 
           {/* Prawa strona: Wskaźniki DSP, Głośność i Maksymalizacja */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '220px', justifyContent: 'flex-end' }}>
-            {/* Wskaźniki pitch/tempo */}
-            <div style={{ display: 'flex', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '240px', justifyContent: 'flex-end' }}>
+            {/* Przełącznik i wskaźnik silnika DSP */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: '16px',
+                  background:
+                    status.engine === 'Bypass'
+                      ? 'rgba(16, 185, 129, 0.14)'
+                      : status.engine === 'RubberBand'
+                      ? 'rgba(236, 72, 153, 0.16)'
+                      : 'rgba(6, 182, 212, 0.16)',
+                  border:
+                    status.engine === 'Bypass'
+                      ? '1px solid rgba(16, 185, 129, 0.45)'
+                      : status.engine === 'RubberBand'
+                      ? '1px solid rgba(236, 72, 153, 0.45)'
+                      : '1px solid rgba(6, 182, 212, 0.45)',
+                  boxShadow:
+                    status.engine === 'Bypass'
+                      ? '0 0 10px rgba(16, 185, 129, 0.22)'
+                      : status.engine === 'RubberBand'
+                      ? '0 0 10px rgba(236, 72, 153, 0.28)'
+                      : '0 0 10px rgba(6, 182, 212, 0.28)',
+                  transition: 'all 0.18s ease',
+                }}
+              >
+                {/* 1 kliknięcie natychmiast przełącza na kolejny silnik: Bypass -> Rubber Band -> SoundTouch */}
+                <button
+                  onClick={handleCycleDspEngine}
+                  style={{
+                    padding: '4px 7px 4px 10px',
+                    background: 'transparent',
+                    border: 'none',
+                    color:
+                      status.engine === 'Bypass'
+                        ? 'var(--accent-green)'
+                        : status.engine === 'RubberBand'
+                        ? 'var(--accent-pink)'
+                        : 'var(--accent-cyan)',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                  title={
+                    language === 'pl'
+                      ? `Silnik DSP: ${status.engine === 'Bypass' ? 'Direct Bypass (Czysty dźwięk)' : status.engine === 'RubberBand' ? 'Rubber Band (Hi-Fi R3)' : 'SoundTouch'}. Kliknij, aby natychmiast przełączyć.`
+                      : `DSP Engine: ${status.engine}. Click to cycle immediately.`
+                  }
+                >
+                  <Zap size={13} fill={status.engine !== 'Bypass' ? 'currentColor' : 'none'} />
+                  <span>{status.engine === 'RubberBand' ? 'Rubber Band' : status.engine}</span>
+                </button>
+
+                {/* Strzałka otwierająca listę wyboru silnika */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDspQuickMenuOpen(!isDspQuickMenuOpen);
+                  }}
+                  style={{
+                    padding: '4px 6px 4px 2px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+                    color:
+                      status.engine === 'Bypass'
+                        ? 'var(--accent-green)'
+                        : status.engine === 'RubberBand'
+                        ? 'var(--accent-pink)'
+                        : 'var(--accent-cyan)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={language === 'pl' ? 'Wybierz konkretny silnik DSP z listy' : 'Select specific DSP engine'}
+                >
+                  <ChevronUp
+                    size={12}
+                    style={{
+                      transform: isDspQuickMenuOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.18s ease',
+                    }}
+                  />
+                </button>
+
+                {/* Popover z bezpośrednim wyborem silnika */}
+                {isDspQuickMenuOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 8px)',
+                      right: 0,
+                      background: 'rgba(20, 20, 32, 0.96)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '12px',
+                      padding: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 0, 0, 0.4)',
+                      zIndex: 1000,
+                      minWidth: '205px',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 600 }}>
+                      {language === 'pl' ? 'Wybierz silnik DSP:' : 'Select DSP Engine:'}
+                    </div>
+                    {[
+                      {
+                        id: 'Bypass',
+                        name: 'Direct Bypass',
+                        desc: language === 'pl' ? 'Czysty dźwięk' : 'Clean audio',
+                        color: 'var(--accent-green)',
+                      },
+                      {
+                        id: 'RubberBand',
+                        name: 'Rubber Band',
+                        desc: 'Hi-Fi R3',
+                        color: 'var(--accent-pink)',
+                      },
+                      {
+                        id: 'SoundTouch',
+                        name: 'SoundTouch',
+                        desc: language === 'pl' ? 'Szybki silnik' : 'Fast engine',
+                        color: 'var(--accent-cyan)',
+                      },
+                    ].map((eng) => (
+                      <button
+                        key={eng.id}
+                        onClick={() => {
+                          handleEngineChange(eng.id as any);
+                          setIsDspQuickMenuOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '7px 10px',
+                          borderRadius: '8px',
+                          background: status.engine === eng.id ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                          border: status.engine === eng.id ? `1px solid ${eng.color}` : '1px solid transparent',
+                          color: status.engine === eng.id ? eng.color : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: status.engine === eng.id ? 700 : 500,
+                          textAlign: 'left',
+                          gap: '8px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Zap size={12} color={eng.color} fill={eng.id !== 'Bypass' ? eng.color : 'none'} />
+                          {eng.name}
+                        </span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{eng.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Wskaźniki modyfikacji pitch/tempo jeśli są niezerowe */}
               {status.pitch_semitones !== 0 && (
                 <span
                   style={{
-                    fontSize: '0.72rem',
+                    fontSize: '0.70rem',
                     padding: '2px 7px',
                     borderRadius: '6px',
-                    background: 'rgba(255, 77, 148, 0.15)',
+                    background: 'rgba(255, 77, 148, 0.18)',
                     color: 'var(--accent-pink)',
                     fontWeight: 600,
                   }}
@@ -14451,10 +15858,10 @@ const renderDevicesSection = () => (
               {status.tempo_ratio !== 1.0 && (
                 <span
                   style={{
-                    fontSize: '0.72rem',
+                    fontSize: '0.70rem',
                     padding: '2px 7px',
                     borderRadius: '6px',
-                    background: 'rgba(6, 182, 212, 0.15)',
+                    background: 'rgba(6, 182, 212, 0.18)',
                     color: 'var(--accent-cyan)',
                     fontWeight: 600,
                   }}
@@ -15035,7 +16442,12 @@ const renderDevicesSection = () => (
       {/* Pływający widżet tekstu na pulpicie (Desktop Lyrics Overlay) */}
       <DesktopLyricsOverlay
         isOpen={showDesktopLyrics}
-        onClose={() => setShowDesktopLyrics(false)}
+        onClose={() => {
+          setShowDesktopLyrics(false);
+          try {
+            localStorage.setItem('auralune_desktop_lyrics_open', 'false');
+          } catch {}
+        }}
         trackTitle={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
         trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
         trackAlbum={currentAlbum?.title || status.current_track?.album || null}
@@ -15092,6 +16504,7 @@ const renderDevicesSection = () => (
         }}
         onSeek={handleSeek}
         onExportLoop={handleExportLoopFromModal}
+        onSaveAsTrackBookmarks={handleSaveLoopAsBookmarks}
         loc={loc}
       />
 
@@ -15146,7 +16559,7 @@ const renderDevicesSection = () => (
         currentLang={language}
         onPlayTrackId={(id) => {
           const tr = tracks.find((t) => t.id === id);
-          if (tr) handlePlayLibraryTrack(tr);
+          if (tr) handlePlayLibraryTrack(tr, tracks);
         }}
       />
 
@@ -15177,7 +16590,7 @@ const renderDevicesSection = () => (
           isPlaying={status.state === 'Playing'}
           currentLang={language}
           onClose={() => setIsCommandPaletteOpen(false)}
-          onPlayTrack={(t) => handlePlayLibraryTrack(t)}
+          onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
           onAddToQueue={(t) => handleAddTrackToQueue(t)}
           onTogglePlay={handlePlayPause}
           onNext={handleNext}
@@ -15261,6 +16674,14 @@ const renderDevicesSection = () => (
           onSeek={(posMs) => handleSeek(posMs)}
           onClose={() => setIsBookmarksModalOpen(false)}
           onBookmarksUpdated={refreshTrackBookmarks}
+          onExportRange={(startMs, endMs) => handleExportLoopFromModal(startMs, endMs)}
+          onSetAsLoop={(startMs, endMs) => {
+            if (startMs !== null) setLoopPointA(startMs);
+            if (endMs !== null) setLoopPointB(endMs);
+            if (startMs !== null && endMs !== null) {
+              showMessage(`Ustawiono pętlę A-B ze znaczników: ${formatTimeMs(startMs)} → ${formatTimeMs(endMs)}`);
+            }
+          }}
         />
       )}
 

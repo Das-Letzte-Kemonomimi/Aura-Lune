@@ -60,7 +60,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
   {
     id: 'animenfo-radio',
     name: 'AnimeNfo Radio',
-    url: 'https://stream.animenfo.com:8000/live',
+    url: 'https://stream.zeno.fm/xwa8ckz7mzzuv',
     genre: 'Anime OST / Classics',
     description: 'Klasyczne i najnowsze openingi, endingi oraz ścieżki dźwiękowe z japońskich animacji.',
     homepage: 'https://animenfo.com',

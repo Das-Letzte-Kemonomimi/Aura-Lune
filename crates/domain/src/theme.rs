@@ -235,6 +235,33 @@ pub fn default_themes() -> Vec<Theme> {
             blur_radius: 12.0,
             attribution: Some("Cozy anime study desk & warm ambient lamp".to_string()),
         },
+        Theme {
+            id: "gothic-in-extremo".to_string(),
+            name: "Gothic 1999 (In Extremo)".to_string(),
+            schema_version: 1,
+            tokens: ThemeTokens {
+                bg_deep: "#080507".to_string(),
+                bg_surface: "rgba(22, 13, 17, 0.88)".to_string(),
+                bg_surface_hover: "rgba(38, 20, 26, 0.94)".to_string(),
+                bg_card: "rgba(28, 15, 21, 0.75)".to_string(),
+                border_subtle: "rgba(225, 29, 72, 0.20)".to_string(),
+                border_accent: "rgba(239, 68, 68, 0.60)".to_string(),
+                accent_pink: "#e11d48".to_string(),
+                accent_purple: "#881337".to_string(),
+                accent_cyan: "#f97316".to_string(),
+                accent_green: "#d97706".to_string(),
+                accent_amber: "#dc2626".to_string(),
+                text_primary: "#fef2f2".to_string(),
+                text_secondary: "#fecdd3".to_string(),
+                text_muted: "#78716c".to_string(),
+                shadow_glow: "0 0 28px rgba(225, 29, 72, 0.40), 0 0 12px rgba(249, 115, 22, 0.30)".to_string(),
+                shadow_card: "0 10px 32px rgba(5, 3, 5, 0.90)".to_string(),
+            },
+            background_ref: None,
+            overlay_opacity: 0.50,
+            blur_radius: 14.0,
+            attribution: Some("Dark medieval gothic metal, blackened iron & crimson embers (In Extremo 1999 aesthetic)".to_string()),
+        },
     ]
 }
 
@@ -245,7 +272,7 @@ mod tests {
     #[test]
     fn test_theme_validation() {
         let themes = default_themes();
-        assert_eq!(themes.len(), 6);
+        assert_eq!(themes.len(), 7);
         for t in themes {
             assert!(t.validate().is_ok());
         }

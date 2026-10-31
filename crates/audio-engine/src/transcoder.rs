@@ -66,7 +66,30 @@ impl Transcoder {
         } else {
             input_raw
         };
-        let output = output_path.as_ref();
+        let output_raw = output_path.as_ref();
+        let output_buf;
+        let output = if let Some(path_str) = output_raw.to_str() {
+            if path_str.starts_with("file://") {
+                if let Ok((p, _)) = glib::filename_from_uri(path_str) {
+                    output_buf = p;
+                    output_buf.as_path()
+                } else {
+                    let stripped = path_str.trim_start_matches("file://");
+                    output_buf = std::path::PathBuf::from(stripped);
+                    output_buf.as_path()
+                }
+            } else {
+                output_raw
+            }
+        } else {
+            output_raw
+        };
+
+        if let Some(parent) = output.parent() {
+            if !parent.as_os_str().is_empty() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+        }
 
         if !input.exists() {
             return Err(AudioEngineError::FileNotFound(input.display().to_string()));
@@ -277,14 +300,28 @@ impl Transcoder {
                 None => (gst::SeekType::None, gst::ClockTime::NONE),
             };
 
-            pipeline.seek(
+            let seek_res = pipeline.seek(
                 1.0,
                 gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
                 gst::SeekType::Set,
                 start,
                 stop_type,
                 stop,
-            )?;
+            );
+            if let Err(e) = seek_res {
+                debug!(
+                    "Dokładny seek (ACCURATE) A-B nie powiódł się ({}), próba ze standardowym FLUSH",
+                    e
+                );
+                pipeline.seek(
+                    1.0,
+                    gst::SeekFlags::FLUSH,
+                    gst::SeekType::Set,
+                    start,
+                    stop_type,
+                    stop,
+                )?;
+            }
         }
 
         // Uruchomienie potoku i oczekiwanie na zakończenie (EOS) lub błąd

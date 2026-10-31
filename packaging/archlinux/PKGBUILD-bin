@@ -1,6 +1,6 @@
 # Maintainer: Kitsune Player Team <team@auralune.org>
 pkgname=auralune-bin
-pkgver=0.6.5
+pkgver=0.7.0
 pkgrel=1
 
 pkgdesc="Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - binary AppImage package"

@@ -217,6 +217,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         },
       },
       {
+        id: 'action-ambience-embers',
+        type: 'action',
+        title: isPl ? 'Otoczenie: Gotyckie Płonące Iskry / Embers 🔥' : 'Ambience: Gothic Burning Embers 🔥',
+        subtitle: isPl ? 'Wznoszące się w górę płomienne iskry i żar ognia' : 'Rising gothic sparks & flame embers',
+        icon: <Sparkles size={18} />,
+        onExecute: () => {
+          onSetAmbience('embers');
+          onClose();
+        },
+      },
+      {
         id: 'action-ambience-off',
         type: 'action',
         title: isPl ? 'Wyłącz efekty otoczenia Anime' : 'Turn off Ambience Effects',

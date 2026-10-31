@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors } from 'lucide-react';
+import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } from 'lucide-react';
 
 export function parseTimeToMs(input: string): number | null {
   if (!input) return null;
@@ -66,6 +66,7 @@ export interface LoopEditorModalProps {
   onApplyLoop: (a: number | null, b: number | null) => void;
   onSeek: (positionMs: number) => void;
   onExportLoop?: (a: number | null, b: number | null) => void;
+  onSaveAsTrackBookmarks?: (a: number | null, b: number | null) => void;
   loc: any;
 }
 
@@ -79,6 +80,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   onApplyLoop,
   onSeek,
   onExportLoop,
+  onSaveAsTrackBookmarks,
   loc,
 }) => {
   const [inputA, setInputA] = useState('');
@@ -539,6 +541,36 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
               title="Eksportuj wybrany fragment A-B do pliku (Render / Transcode)"
             >
               <Scissors size={14} /> Eksportuj fragment A-B
+            </button>
+          )}
+
+          {onSaveAsTrackBookmarks && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isAValid && isBValid && isOrderValid) {
+                  onSaveAsTrackBookmarks(parsedA, parsedB);
+                }
+              }}
+              disabled={!isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null)}
+              className="glass-card"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: 'var(--accent-pink)',
+                border: '1px solid rgba(236, 72, 153, 0.4)',
+                background: 'rgba(236, 72, 153, 0.12)',
+                cursor: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 0.5 : 1,
+              }}
+              title="Zapisz te punkty A i B na stałe w bazie danych dla tego utworu"
+            >
+              <Bookmark size={14} /> Zapisz jako znaczniki utworu
             </button>
           )}
 

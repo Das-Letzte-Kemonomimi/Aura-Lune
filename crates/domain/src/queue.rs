@@ -58,9 +58,16 @@ impl PlaybackQueue {
     /// Jeśli utwór nie znajduje się w kolejce, nie dodaje go automatycznie do listy utworów —
     /// kolejka odtwarzania zawiera wyłącznie utwory celowo dodane przez użytkownika.
     pub fn set_active_item(&mut self, item: QueueItem) {
-        if let Some(pos) = self.items.iter().position(|i| i.uri == item.uri) {
+        if let Some(pos) = self.items.iter().position(|i| {
+            i.uri == item.uri
+                || (i.track_id.is_some() && item.track_id.is_some() && i.track_id == item.track_id)
+        }) {
             self.current_index = Some(pos);
             self.items[pos] = item;
+        } else if self.items.is_empty() {
+            self.items = vec![item];
+            self.current_index = Some(0);
+            self.rebuild_shuffle_order();
         } else {
             self.current_index = None;
         }

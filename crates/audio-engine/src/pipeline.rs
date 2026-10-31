@@ -37,6 +37,7 @@ pub enum PlayerEvent {
 struct PipelineInner {
     pipeline: gst::Pipeline,
     uri_decoder: Option<gst::Element>,
+    current_uri: Option<String>,
     audioconvert_in: gst::Element,
     dsp: crate::dsp_node::AuraluneDsp,
     freeverb: Option<gst::Element>,
@@ -47,7 +48,10 @@ struct PipelineInner {
     rglimiter: gst::Element,
     _spectrum: gst::Element,
     volume: gst::Element,
-    _sink: gst::Element,
+    queue_sink: gst::Element,
+    sink: gst::Element,
+    audio_buffer_ms: u64,
+    dsp_block_size: usize,
     state: PlaybackState,
     dsp_params: DspParams,
     last_active_dsp: Option<DspParams>,
@@ -137,32 +141,37 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki przed sinkiem: 800ms maks — optymalny dla natychmiastowej reakcji suwaków DSP
-        // przy jednoczesnej pełnej ochronie przed blokowaniem wątku przy dużych partiach ramek FLAC (~250-300ms na blok).
+        // Bufor kolejki przed sinkiem: 80ms maks — zapewnia natychmiastową, słyszalną reakcję
+        // na przesunięcie suwaków DSP (tempo, pitch, playback rate) bez wyczuwalnego opóźnienia i bez xrunów.
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
-            .property("max-size-time", 800_000_000u64)
+            .property("max-size-time", 80_000_000u64)
             .property("max-size-buffers", 0u32)
             .property("max-size-bytes", 0u32)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
-        // Preferencja: pipewiresink z bezpiecznym marginesem 100ms chroniącym przed jitterem planisty w systemie
+        // Preferencja: pipewiresink z marginesem 40ms (domyślnie slave-method=none),
+        // co eliminuje sztuczne resamplingi zegara GStreamera wywołujące efekt "pływania" dźwięku.
         let sink = match gst::ElementFactory::make("pipewiresink")
             .name("sink")
-            .property("processing-deadline", 100_000_000u64)
+            .property("processing-deadline", 40_000_000u64)
             .build()
         {
             Ok(pw_sink) => {
-                info!("Zainicjalizowano wyjście PipeWire z buforem 100ms");
+                info!("Zainicjalizowano wyjście PipeWire (40ms deadline, slave-method: none)");
                 pw_sink
             }
             Err(_) => {
                 warn!("Brak pipewiresink, używam fallbacku autoaudiosink");
-                gst::ElementFactory::make("autoaudiosink")
+                let auto_sink = gst::ElementFactory::make("autoaudiosink")
                     .name("sink")
                     .build()
-                    .map_err(|_| AudioEngineError::MissingElement("autoaudiosink"))?
+                    .map_err(|_| AudioEngineError::MissingElement("autoaudiosink"))?;
+                if auto_sink.find_property("slave-method").is_some() {
+                    auto_sink.set_property("slave-method", 0i32);
+                }
+                auto_sink
             }
         };
 
@@ -360,6 +369,7 @@ impl AudioEngine {
         let inner = Arc::new(Mutex::new(PipelineInner {
             pipeline,
             uri_decoder: None,
+            current_uri: None,
             audioconvert_in,
             dsp,
             freeverb,
@@ -370,7 +380,10 @@ impl AudioEngine {
             rglimiter,
             _spectrum: spectrum,
             volume,
-            _sink: sink,
+            queue_sink: queue_sink.clone(),
+            sink,
+            audio_buffer_ms: 80,
+            dsp_block_size: 2048,
             state: PlaybackState::Stopped,
             dsp_params: DspParams::default(),
             last_active_dsp: None,
@@ -498,6 +511,7 @@ impl AudioEngine {
         // Synchronizacja stanu nowego elementu z potokiem
         uri_decoder.sync_state_with_parent()?;
         inner.uri_decoder = Some(uri_decoder);
+        inner.current_uri = Some(uri.to_string());
         inner.state = PlaybackState::Stopped;
 
         info!("Załadowano URI: {}", uri);
@@ -911,6 +925,45 @@ impl AudioEngine {
         inner.dsp_params
     }
 
+    /// Ustawia rozmiar bufora wyjściowego audio w milisekundach (długość kolejki przed zlewem).
+    /// Domyślnie: 80 ms (dostępne wartości: 20 ms - 2000 ms).
+    pub fn set_audio_buffer_duration_ms(&self, buffer_ms: u64) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        let clamped = buffer_ms.clamp(20, 2000);
+        inner.audio_buffer_ms = clamped;
+        let time_ns = clamped * 1_000_000u64;
+        inner.queue_sink.set_property("max-size-time", time_ns);
+        if inner.sink.find_property("processing-deadline").is_some() {
+            let deadline_ns = (clamped / 2).clamp(10, 500) * 1_000_000u64;
+            inner.sink.set_property("processing-deadline", deadline_ns);
+        }
+        info!("Zaktualizowano bufor wyjściowy audio na {} ms", clamped);
+        Ok(())
+    }
+
+    /// Pobiera aktualny rozmiar bufora wyjściowego audio w milisekundach (domyślnie 80 ms).
+    pub fn audio_buffer_duration_ms(&self) -> u64 {
+        let inner = self.inner.lock().unwrap();
+        inner.audio_buffer_ms
+    }
+
+    /// Ustawia rozmiar bloku bufora przetwarzania DSP w ramkach.
+    /// Domyślnie: 2048 ramek (~46 ms). Dostępne wartości: 512 do 16384 ramek.
+    pub fn set_dsp_block_size(&self, block_size: usize) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        let clamped = block_size.clamp(512, 16384);
+        inner.dsp_block_size = clamped;
+        inner.dsp.set_block_size(clamped);
+        info!("Zaktualizowano rozmiar bloku DSP na {} ramek", clamped);
+        Ok(())
+    }
+
+    /// Pobiera aktualny rozmiar bloku bufora DSP w ramkach (domyślnie 2048 ramek).
+    pub fn dsp_block_size(&self) -> usize {
+        let inner = self.inner.lock().unwrap();
+        inner.dsp_block_size
+    }
+
     /// Przełącza silnik DSP (SoundTouch, Rubber Band lub Bypass).
     pub fn set_dsp_engine(&self, engine: DspEngine) -> Result<(), AudioEngineError> {
         let current = self.dsp_params();
@@ -997,6 +1050,12 @@ impl AudioEngine {
         inner.state
     }
 
+    /// Zwraca bieżące załadowane URI odtwarzacza (globalne).
+    pub fn current_uri(&self) -> Option<String> {
+        let inner = self.inner.lock().unwrap();
+        inner.current_uri.clone()
+    }
+
     /// Odpytuje magistralę GStreamera o oczekujące komunikaty bez blokowania wątku.
     pub fn poll_events(&self) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
@@ -1011,16 +1070,97 @@ impl AudioEngine {
                 match msg.view() {
                     MessageView::Eos(..) => {
                         info!("Otrzymano komunikat EOS (koniec strumienia)");
-                        {
-                            let mut inner = self.inner.lock().unwrap();
-                            inner.state = PlaybackState::Stopped;
-                        }
-                        // Automatyczne przejście do następnego utworu w kolejce
-                        if let Ok(Some(next_track)) = self.play_next() {
-                            info!(
-                                "Kolejka: automatyczne przejście po EOS do utworu: {}",
-                                next_track.title
-                            );
+
+                        let (loop_mode, queue_is_empty) = {
+                            let q = self.queue.lock().unwrap();
+                            (q.loop_mode, q.items.is_empty())
+                        };
+
+                        if loop_mode == LoopMode::Track {
+                            // Globalne powtórzenie bieżącego utworu — działa zawsze, niezależnie czy utwór
+                            // został uruchomiony z kolejki, biblioteki, albumu czy pojedynczego pliku
+                            let current_uri = {
+                                let inner = self.inner.lock().unwrap();
+                                inner.current_uri.clone()
+                            };
+                            if let Some(uri) = current_uri {
+                                info!("LoopMode::Track (global) — powtarzam utwór: {}", uri);
+                                if let Err(e) = self.seek(Duration::ZERO) {
+                                    debug!(
+                                        "Seek do 0 po EOS nie powiódł się ({}), przeładowuję URI: {}",
+                                        e, uri
+                                    );
+                                    if let Err(load_err) = self.load_uri(&uri) {
+                                        error!("Błąd ładowania URI przy powtarzaniu: {}", load_err);
+                                        let mut inner = self.inner.lock().unwrap();
+                                        inner.state = PlaybackState::Stopped;
+                                    } else if let Err(play_err) = self.play() {
+                                        error!(
+                                            "Błąd odtwarzania przy powtarzaniu utworu: {}",
+                                            play_err
+                                        );
+                                        let mut inner = self.inner.lock().unwrap();
+                                        inner.state = PlaybackState::Stopped;
+                                    }
+                                } else if let Err(play_err) = self.play() {
+                                    error!(
+                                        "Błąd wznowienia odtwarzania po seek na początek: {}",
+                                        play_err
+                                    );
+                                    let mut inner = self.inner.lock().unwrap();
+                                    inner.state = PlaybackState::Stopped;
+                                }
+                            } else {
+                                warn!("LoopMode::Track aktywny, ale brak URI do powtórzenia");
+                                let mut inner = self.inner.lock().unwrap();
+                                inner.state = PlaybackState::Stopped;
+                            }
+                        } else if loop_mode == LoopMode::Queue && queue_is_empty {
+                            // Pojedynczy utwór odtworzony poza kolejką z aktywnym trybem zapętlania (Queue / Loop All)
+                            let current_uri = {
+                                let inner = self.inner.lock().unwrap();
+                                inner.current_uri.clone()
+                            };
+                            if let Some(uri) = current_uri {
+                                info!(
+                                    "LoopMode::Queue (pojedynczy utwór) — powtarzam utwór: {}",
+                                    uri
+                                );
+                                if let Err(e) = self.seek(Duration::ZERO) {
+                                    debug!(
+                                        "Seek do 0 po EOS nie powiódł się ({}), przeładowuję URI: {}",
+                                        e, uri
+                                    );
+                                    if let Err(load_err) = self.load_uri(&uri) {
+                                        error!("Błąd ładowania URI: {}", load_err);
+                                        let mut inner = self.inner.lock().unwrap();
+                                        inner.state = PlaybackState::Stopped;
+                                    } else if let Err(play_err) = self.play() {
+                                        error!("Błąd odtwarzania: {}", play_err);
+                                        let mut inner = self.inner.lock().unwrap();
+                                        inner.state = PlaybackState::Stopped;
+                                    }
+                                } else if let Err(play_err) = self.play() {
+                                    error!("Błąd odtwarzania po seek: {}", play_err);
+                                    let mut inner = self.inner.lock().unwrap();
+                                    inner.state = PlaybackState::Stopped;
+                                }
+                            } else {
+                                let mut inner = self.inner.lock().unwrap();
+                                inner.state = PlaybackState::Stopped;
+                            }
+                        } else {
+                            {
+                                let mut inner = self.inner.lock().unwrap();
+                                inner.state = PlaybackState::Stopped;
+                            }
+                            // Automatyczne przejście do następnego utworu w kolejce
+                            if let Ok(Some(next_track)) = self.play_next() {
+                                info!(
+                                    "Kolejka: automatyczne przejście po EOS do utworu: {}",
+                                    next_track.title
+                                );
+                            }
                         }
                         events.push(PlayerEvent::Eos);
                     }
