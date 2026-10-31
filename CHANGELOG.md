@@ -9,6 +9,32 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.7.1] — „Gothic Embers & Loop Integrity” - 2026-10-31
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Anulowanie nakładki przeciągania plików (Cancelable Drag & Drop Overlay)**:
+  - Przycisk zamykający (`X`), obsługa klawisza `Escape` oraz kliknięcie w tło nakładki umożliwiają natychmiastowe wycofanie się z widoku upuszczania plików.
+- **Czytelne tytuły i stacje w Anime Radio**:
+  - Wyświetlacz odtwarzacza, pasek dolny, Mini Player oraz widok Kiosk wyświetlają przyjazną nazwę wybranej stacji radiowej oraz czyste metadane na żywo (`cleanLiveTitle`), eliminując surowe hashe i mount pointy Icecast (np. `xwa8ckz7mzzuv`).
+
+### Poprawiono (Fixed)
+- **Poprawka zapętlania utworów (Repeat Track / Loop)**:
+  - Naprawiono problem, w którym utwór po dojściu do końca (EOS) odtwarzał się w ciszy na pustym potoku, dopóki pasek nie przeszedł całego utworu. Przejście potoku GStreamer do stanu `State::Null` przy restarcie utworu poprawnie resetuje flagę `sink->eos` w nielu PipeWire/GStreamer.
+- **Ochrona kolejki użytkowniczki przed automatycznym nadpisywaniem**:
+  - Kliknięcie pojedynczego utworu w bibliotece ani przeciągnięcie folderu/plików nie zastępuje i nie zanieczyszcza już manualnej kolejki odtwarzania. Do kolejki trafiają wyłącznie pozycje dodane jawnie przez użytkowniczkę przyciskiem „+” lub „Dodaj do kolejki”.
+- **Zliczanie odtworzeń i statystyk przy pętlach i krótkich utworach**:
+  - Zaimplementowano detekcję cofnięcia pozycji (`loop rewind`), dzięki czemu odsłuchania i statystyki zliczają się poprawnie przy każdym obiegu zapętlenia `Repeat Track`.
+  - Zoptymalizowano próg zaliczenia odtworzenia dla krótkich utworów (`Math.min(15000, duration * 0.5)`).
+- **Koegzystencja Discord Rich Presence z grami**:
+  - Wyeliminowano spamowanie ramkami `SET_ACTIVITY` co 15 sekund przy odświeżaniu statystyk i metadanych. Dzięki temu Discord nie kasuje statusu aktywnej gry (np. Corpse Factory) i wyświetla obie aktywności jednocześnie.
+- **Wyeliminowanie fałszywego okna dropu przy wewnętrznym drag & drop**:
+  - Przeciąganie elementów interfejsu wewnątrz okna (np. zmiana kolejności utworów w kolejce) nie wywołuje już pełnoekranowej nakładki importu plików.
+- **Odporność na freeze podczas skanowania biblioteki**:
+  - Dodano 15-sekundowy `busy_timeout` w SQLite i przekształcono komendy pobierania biblioteki na natywne `async fn`, zapobiegając zawieszaniu się aplikacji (`Not Responding`) przy jednoczesnym odtwarzaniu i indeksowaniu plików.
+
+---
+
 ## [0.7.0] — „Gothic Embers & Verehrt 1999” - 2026-10-31
 **Autorka**: Das Letzte Kemonomimi
 

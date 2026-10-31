@@ -879,7 +879,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.0'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.1'
   );
 
 
@@ -1487,6 +1487,8 @@ export default function App() {
 
   const currentCover = currentAlbum?.cover_path || trackDirectCover || null;
 
+  const lastMprisSyncRef = useRef<string>('');
+
   // Automatyczna synchronizacja metadanych i okładki z MPRIS / Discord RPC przy każdej zmianie utworu lub okładki
   useEffect(() => {
     const title = currentPlayingTrack?.title || status.current_track?.title;
@@ -1497,6 +1499,10 @@ export default function App() {
     const artUrl = currentAlbum?.release_mbid
       ? `https://coverartarchive.org/release/${currentAlbum.release_mbid}/front-500`
       : currentCover;
+
+    const syncKey = `${title}|${artist}|${album}|${durationMs}|${artUrl || ''}`;
+    if (lastMprisSyncRef.current === syncKey) return;
+    lastMprisSyncRef.current = syncKey;
 
     invoke('update_mpris_metadata', {
       title,
@@ -1518,6 +1524,53 @@ export default function App() {
     currentAlbum?.release_mbid,
     currentCover,
   ]);
+
+  // Wyznaczenie czytelnego tytułu i wykonawcy z uwzględnieniem radia internetowego (Anime Radio)
+  const isPlayingRadio = Boolean(
+    currentRadioStation ||
+    (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) ||
+    (status.current_track?.uri && (status.current_track.uri.startsWith('http://') || status.current_track.uri.startsWith('https://')))
+  );
+
+  const cleanLiveTitle = status.live_stream_title && status.live_stream_title.trim() !== '-' && status.live_stream_title.trim() !== ''
+    ? status.live_stream_title.trim()
+    : null;
+
+  const effectiveDisplayTitle = useMemo(() => {
+    if (cleanLiveTitle) {
+      return cleanLiveTitle;
+    }
+    if (currentRadioStation?.name) {
+      return currentRadioStation.name;
+    }
+    if (currentPlayingTrack?.title) {
+      return currentPlayingTrack.title;
+    }
+    if (status.current_track?.title && !status.current_track.title.startsWith('http://') && !status.current_track.title.startsWith('https://')) {
+      return status.current_track.title;
+    }
+    if (filePath) {
+      const candidate = filePath.split('/').pop() || '';
+      if (!candidate.startsWith('http')) return candidate;
+    }
+    return loc.player.noTrack;
+  }, [cleanLiveTitle, currentRadioStation?.name, currentPlayingTrack?.title, status.current_track?.title, filePath, loc.player.noTrack]);
+
+  const effectiveDisplayArtist = useMemo(() => {
+    if (currentRadioStation?.name) {
+      if (cleanLiveTitle) {
+        return currentRadioStation.name;
+      }
+      return currentRadioStation.genre || 'Anime & Internet Radio';
+    }
+    if (currentPlayingTrack?.artist) {
+      return currentPlayingTrack.artist;
+    }
+    if (status.current_track?.artist && status.current_track.artist !== 'Unknown Artist') {
+      return status.current_track.artist;
+    }
+    return isPlayingRadio ? 'Anime Radio' : loc.player.unknownArtist;
+  }, [currentRadioStation, cleanLiveTitle, currentPlayingTrack?.artist, status.current_track?.artist, isPlayingRadio, loc.player.unknownArtist]);
 
   // Wizualizacja przebiegu utworu (Waveform) - deterministyczny profil fali dla bieżącego utworu
   const trackWaveformPeaks = useMemo(() => {
@@ -1646,6 +1699,7 @@ export default function App() {
 
   // Śledzenie odtworzenia dla inteligentnych playlist (Historia i Top Played)
   const lastRecordedTrackRef = useRef<{ id: number; recorded: boolean }>({ id: -1, recorded: false });
+  const lastTrackPositionMsRef = useRef<number>(0);
   const lastListeningTickRef = useRef<number>(Date.now());
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -1708,12 +1762,24 @@ export default function App() {
               lastListeningTickRef.current = Date.now();
             }
 
+            // Wykrycie zapętlenia/powtórzenia (Repeat Track / Loop):
+            // Jeśli bieżąca pozycja cofnęła się w okolicę początku (<3000ms),
+            // a poprzednio odtworzono ponad 5000ms, to utwór rozpoczął kolejny obieg!
+            if (res.position_ms < 3000 && lastTrackPositionMsRef.current > 5000) {
+              lastRecordedTrackRef.current.recorded = false;
+              setScrobbledTrackId(null);
+              setLastfmScrobbledTrackId(null);
+            }
+            lastTrackPositionMsRef.current = res.position_ms;
+
+            const playThresholdMs = Math.min(15000, (res.duration_ms && res.duration_ms > 0 ? res.duration_ms * 0.5 : 15000));
+
             if (lastRecordedTrackRef.current.id !== trackId) {
               lastRecordedTrackRef.current = { id: trackId, recorded: false };
             } else if (
               !lastRecordedTrackRef.current.recorded &&
               res.state === 'Playing' &&
-              res.position_ms >= 15000
+              res.position_ms >= playThresholdMs
             ) {
               lastRecordedTrackRef.current.recorded = true;
               invoke('record_track_play', { trackId }).catch((e) => console.warn('Błąd zapisu odtworzenia:', e));
@@ -2311,10 +2377,23 @@ export default function App() {
       .catch(() => {});
 
     // Niezbędne dla Linux/WebKitGTK: zapobieganie domyślnej akcji przeglądarki (przeładowanie strony/odrzucenie dropu z menedżera plików)
+    let isInternalDragging = false;
+    const handleDragStart = () => {
+      isInternalDragging = true;
+    };
+    const handleDragEnd = () => {
+      isInternalDragging = false;
+      setIsDraggingOver(false);
+    };
+
     const handleWindowDragOver = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsDraggingOver(true);
+      if (isInternalDragging) return;
+      const types = e.dataTransfer?.types;
+      if (types && (types.includes('Files') || Array.from(types).includes('Files'))) {
+        setIsDraggingOver(true);
+      }
     };
 
     const handleWindowDragLeave = (e: DragEvent) => {
@@ -2326,12 +2405,22 @@ export default function App() {
     const handleWindowDrop = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      isInternalDragging = false;
       setIsDraggingOver(false);
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDraggingOver(false);
+      }
+    };
+
+    window.addEventListener('dragstart', handleDragStart);
+    window.addEventListener('dragend', handleDragEnd);
     window.addEventListener('dragover', handleWindowDragOver);
     window.addEventListener('dragleave', handleWindowDragLeave);
     window.addEventListener('drop', handleWindowDrop);
+    window.addEventListener('keydown', handleKeyDown);
 
     // Rejestracja zdarzeń drag & drop z Tauri 2 (webview + window + global event)
     let unlistenWebview: (() => void) | null = null;
@@ -2342,7 +2431,9 @@ export default function App() {
       getCurrentWebview()
         .onDragDropEvent((event) => {
           if (event.payload.type === 'enter' || event.payload.type === 'over') {
-            setIsDraggingOver(true);
+            if (!isInternalDragging) {
+              setIsDraggingOver(true);
+            }
           } else if (event.payload.type === 'drop') {
             setIsDraggingOver(false);
             if (event.payload.paths && event.payload.paths.length > 0) {
@@ -2366,7 +2457,9 @@ export default function App() {
       getCurrentWindow()
         .onDragDropEvent((event) => {
           if (event.payload.type === 'enter' || event.payload.type === 'over') {
-            setIsDraggingOver(true);
+            if (!isInternalDragging) {
+              setIsDraggingOver(true);
+            }
           } else if (event.payload.type === 'drop') {
             setIsDraggingOver(false);
             if (event.payload.paths && event.payload.paths.length > 0) {
@@ -2396,9 +2489,12 @@ export default function App() {
     }).catch(() => {});
 
     return () => {
+      window.removeEventListener('dragstart', handleDragStart);
+      window.removeEventListener('dragend', handleDragEnd);
       window.removeEventListener('dragover', handleWindowDragOver);
       window.removeEventListener('dragleave', handleWindowDragLeave);
       window.removeEventListener('drop', handleWindowDrop);
+      window.removeEventListener('keydown', handleKeyDown);
       if (unlistenWebview) unlistenWebview();
       if (unlistenWindow) unlistenWindow();
       if (unlistenTauriEvent) unlistenTauriEvent();
@@ -2485,25 +2581,7 @@ export default function App() {
   const handleDropPaths = async (paths: string[]) => {
     if (!paths || paths.length === 0) return;
     try {
-      const currentQueue = await invoke<PlaybackQueue>('get_queue');
-      const startIdx = currentQueue.items.length;
-
-      // Dodaj WSZYSTKIE upuszczone pliki do kolejki w jednym wywołaniu backendu
-      // (poprzednia wersja wywoływała add_to_queue w pętli, co powodowało freeze)
-      await invoke<number>('add_uris_to_queue', { uris: paths });
-
-      // Odśwież widok kolejki
-      const updatedQueue = await invoke<PlaybackQueue>('get_queue');
-      setQueue(updatedQueue);
-
-      // Jeśli dodano utwór, natychmiast rozpocznij odtwarzanie od pierwszego dodanego
-      if (updatedQueue.items.length > startIdx) {
-        await handlePlayQueueIndex(startIdx);
-        setActiveTab('player');
-      }
-
-      // W tle zindeksuj metadane i zaktualizuj bibliotekę (nie blokuje UI ani audio)
-      handleScanPaths(paths).catch((e) => console.warn('Błąd indeksowania w tle:', e));
+      await handleScanPaths(paths);
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -2618,7 +2696,7 @@ export default function App() {
   }, [activeTrackId]);
 
   // Odtwarzanie utworu z biblioteki z obsługą zakładek, kontekstu kolejki i globalnego Loop
-  const handlePlayLibraryTrack = async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
+  const handlePlayLibraryTrack = async (track: TrackRecord, _contextTracks?: TrackRecord[]) => {
     if (isPlayingLibraryTrackRef.current) return;
     isPlayingLibraryTrackRef.current = true;
     const safetyTimeout = setTimeout(() => {
@@ -2642,31 +2720,10 @@ export default function App() {
         artUrl: appCover,
       }).catch(() => {});
 
-      // 2. Obsługa kolejki: jeśli przekazano kontekst (np. album, playlista, widok biblioteki),
-      // ładujemy całą listę jako aktywną kolejkę z wybranym indeksem startowym.
-      // Dzięki temu zapętlanie (LoopMode::Queue i LoopMode::Track) oraz przyciski Poprzedni/Następny działają globalnie i bezbłędnie!
-      if (contextTracks && contextTracks.length > 0) {
-        const queueItems: QueueItem[] = contextTracks.map((t) => {
-          const mAlb = t.album_id ? albums.find((a) => a.id === t.album_id) : null;
-          return {
-            id: `q-${t.id}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-            track_id: t.id,
-            uri: t.path,
-            title: t.title,
-            artist: t.artist,
-            album: mAlb?.title || null,
-            duration_ms: t.duration_ms,
-          };
-        });
-        const trackIdx = contextTracks.findIndex((t) => t.id === track.id);
-        const startIdx = trackIdx >= 0 ? trackIdx : 0;
-        await invoke('set_queue', { items: queueItems, startIndex: startIdx });
-        await refreshQueue();
-      } else {
-        await invoke('load_file', { path: track.path });
-        await invoke('play');
-        await refreshQueue();
-      }
+      // 2. Bezpośrednie załadowanie utworu do odtwarzacza — NIE nadpisujemy ani nie modyfikujemy kolejki użytkownika!
+      await invoke('load_file', { path: track.path });
+      await invoke('play');
+      await refreshQueue();
 
       // Sprawdź czy jest zapisana zakładka (bookmark)
       const bookmark = await invoke<number | null>('get_bookmark', { trackId: track.id });
@@ -8253,16 +8310,10 @@ const renderDevicesSection = () => (
 
   // Widok miniaturowego pływającego odtwarzacza (Floating Mini-Player / PiP)
   if (isMiniPlayer) {
-    const activeTrack = currentPlayingTrack || (status.current_track ? {
-      title: status.current_track.title,
-      artist: status.current_track.artist,
-      duration_ms: status.current_track.duration_ms,
-    } : null);
-
     return (
       <MiniPlayerWidget
-        title={activeTrack?.title || (filePath ? filePath.split('/').pop() || 'Auralune' : 'Auralune')}
-        artist={activeTrack?.artist || loc.player.noTrack}
+        title={effectiveDisplayTitle}
+        artist={effectiveDisplayArtist}
         coverUrl={currentCover}
         isPlaying={status.state === 'Playing'}
         positionMs={status.position_ms}
@@ -8334,6 +8385,7 @@ const renderDevicesSection = () => (
       {/* Globalny ekran nakładki przeciągania plików (Drag & Drop Overlay) */}
       {isDraggingOver && (
         <div
+          onClick={() => setIsDraggingOver(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -8349,11 +8401,39 @@ const renderDevicesSection = () => (
             border: '3px dashed var(--accent-pink)',
             borderRadius: '24px',
             margin: '16px',
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
             animation: 'pulse-drop 2s infinite ease-in-out',
+            cursor: 'pointer',
           }}
         >
+          {/* Przycisk zamknięcia / anulowania w prawym górnym rogu */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDraggingOver(false);
+            }}
+            title={loc.common?.cancel || 'Anuluj (Esc)'}
+            style={{
+              position: 'absolute',
+              top: '24px',
+              right: '24px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '50%',
+              width: '42px',
+              height: '42px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <X size={20} />
+          </button>
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               width: '100px',
               height: '100px',
@@ -8368,7 +8448,10 @@ const renderDevicesSection = () => (
           >
             <UploadCloud size={52} color="#fff" />
           </div>
-          <div style={{ textAlign: 'center', maxWidth: '600px', padding: '0 20px' }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ textAlign: 'center', maxWidth: '600px', padding: '0 20px' }}
+          >
             <h2
               style={{
                 fontSize: '2rem',
@@ -8394,6 +8477,7 @@ const renderDevicesSection = () => (
                 padding: '8px 16px',
                 borderRadius: '12px',
                 border: '1px solid var(--border-subtle)',
+                marginBottom: '16px',
               }}
             >
               {['FLAC', 'MP3', 'OGG', 'OPUS', 'WAV', 'M4A', 'AAC', 'ALAC'].map((fmt) => (
@@ -8409,6 +8493,30 @@ const renderDevicesSection = () => (
                   {fmt}
                 </span>
               ))}
+            </div>
+            <div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDraggingOver(false);
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  padding: '8px 20px',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <X size={16} />
+                {loc.common?.cancel || 'Anuluj'} (Esc)
+              </button>
             </div>
           </div>
         </div>
@@ -9304,7 +9412,7 @@ const renderDevicesSection = () => (
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
+                        {effectiveDisplayTitle}
                       </h3>
                       <p
                         style={{
@@ -9317,9 +9425,9 @@ const renderDevicesSection = () => (
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
+                        {effectiveDisplayArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
                       </p>
-                      {status.live_stream_title && (
+                      {cleanLiveTitle && (
                         <div
                           style={{
                             display: 'inline-flex',
@@ -9344,7 +9452,7 @@ const renderDevicesSection = () => (
                               boxShadow: '0 0 8px #ff4757',
                             }}
                           />
-                          <span>LIVE: {status.live_stream_title}</span>
+                          <span>LIVE: {cleanLiveTitle}</span>
                         </div>
                       )}
                     </div>
@@ -10249,8 +10357,8 @@ const renderDevicesSection = () => (
           {showLyrics && (
             <div style={{ height: '420px', width: '100%', marginBottom: '4px' }}>
               <LyricsView
-                trackTitle={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() || 'Auralune' : 'Auralune')}
-                trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || t.stats.unknownArtist}
+                trackTitle={effectiveDisplayTitle}
+                trackArtist={effectiveDisplayArtist}
                 trackAlbum={currentAlbum?.title || status.current_track?.album || null}
                 trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
                 durationSec={status.duration_ms ? status.duration_ms / 1000 : null}
@@ -15509,7 +15617,7 @@ const renderDevicesSection = () => (
                   textOverflow: 'ellipsis',
                 }}
               >
-                {currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || loc.player.noTrack}
+                {effectiveDisplayTitle}
               </p>
               <p
                 style={{
@@ -15521,7 +15629,7 @@ const renderDevicesSection = () => (
                   textOverflow: 'ellipsis',
                 }}
               >
-                {currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
+                {effectiveDisplayArtist}
                 {currentPlayingTrack?.format && (
                   <span
                     style={{
@@ -16448,8 +16556,8 @@ const renderDevicesSection = () => (
       {/* Tryb immersyjny Kiosk / Pełny ekran Now Playing (F11) */}
       {isBigScreen && (
         <BigScreenView
-          title={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
-          artist={currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
+          title={effectiveDisplayTitle}
+          artist={effectiveDisplayArtist}
           album={currentAlbum?.title || status.current_track?.album || null}
           format={currentPlayingTrack?.format || 'FLAC'}
           coverUrl={currentCover}
@@ -16482,8 +16590,8 @@ const renderDevicesSection = () => (
             localStorage.setItem('auralune_desktop_lyrics_open', 'false');
           } catch {}
         }}
-        trackTitle={currentPlayingTrack?.title || status.current_track?.title || (filePath ? filePath.split('/').pop() : '') || 'Auralune Audio Player'}
-        trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || loc.player.unknownArtist}
+        trackTitle={effectiveDisplayTitle}
+        trackArtist={effectiveDisplayArtist}
         trackAlbum={currentAlbum?.title || status.current_track?.album || null}
         trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
         coverUrl={currentCover}

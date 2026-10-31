@@ -18,7 +18,7 @@ use tracing::{debug, info};
 pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1563876157387186226";
 
 /// Informacje o utworze przesyłane do statusu Discord RPC.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DiscordTrackInfo {
     pub title: String,
     pub artist: String,
@@ -218,6 +218,7 @@ impl DiscordRpcWorker {
                     let Some(command) = cmd else { break };
                     match command {
                         DiscordRpcCommand::UpdateTrack(track) => {
+                            let track_changed = self.current_track.as_ref() != Some(&track);
                             if track.duration_ms > 0 {
                                 self.current_duration_ms = track.duration_ms;
                             }
@@ -225,8 +226,10 @@ impl DiscordRpcWorker {
                             if self.playback_state == PlaybackState::Stopped {
                                 self.playback_state = PlaybackState::Playing;
                             }
-                            self.dirty = true;
-                            self.schedule_flush(&mut flush_deadline);
+                            if track_changed {
+                                self.dirty = true;
+                                self.schedule_flush(&mut flush_deadline);
+                            }
                         }
                         DiscordRpcCommand::UpdatePlayback {
                             state,

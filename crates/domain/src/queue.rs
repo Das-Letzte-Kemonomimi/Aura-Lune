@@ -35,6 +35,8 @@ pub struct PlaybackQueue {
     pub shuffle: bool,
     pub shuffle_order: Vec<usize>,
     pub shuffle_cursor: usize,
+    #[serde(default)]
+    pub active_stream: Option<QueueItem>,
 }
 
 impl PlaybackQueue {
@@ -58,16 +60,13 @@ impl PlaybackQueue {
     /// Jeśli utwór nie znajduje się w kolejce, nie dodaje go automatycznie do listy utworów —
     /// kolejka odtwarzania zawiera wyłącznie utwory celowo dodane przez użytkownika.
     pub fn set_active_item(&mut self, item: QueueItem) {
+        self.active_stream = Some(item.clone());
         if let Some(pos) = self.items.iter().position(|i| {
             i.uri == item.uri
                 || (i.track_id.is_some() && item.track_id.is_some() && i.track_id == item.track_id)
         }) {
             self.current_index = Some(pos);
             self.items[pos] = item;
-        } else if self.items.is_empty() {
-            self.items = vec![item];
-            self.current_index = Some(0);
-            self.rebuild_shuffle_order();
         } else {
             self.current_index = None;
         }
@@ -143,7 +142,9 @@ impl PlaybackQueue {
 
     /// Zwraca aktualnie odtwarzany element kolejki.
     pub fn current_item(&self) -> Option<&QueueItem> {
-        self.current_index.and_then(|idx| self.items.get(idx))
+        self.current_index
+            .and_then(|idx| self.items.get(idx))
+            .or(self.active_stream.as_ref())
     }
 
     /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle.

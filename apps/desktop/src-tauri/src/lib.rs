@@ -93,7 +93,7 @@ pub struct ReplayGainScanSummaryDto {
 }
 
 #[tauri::command]
-fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
     info!("Tauri command: load_file('{}')", path);
     state.engine.load_uri(&path).map_err(|e| e.to_string())?;
 
@@ -101,25 +101,22 @@ fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
         *t = None;
     }
 
-    let db = state.db.clone();
-    let path_clone = path.clone();
-    let (track_opt, album_title) = state.rt.block_on(async move {
-        let t = db.get_track_by_path(&path_clone).await.ok().flatten();
-        let a = if let Some(ref tr) = t {
-            if let Some(album_id) = tr.album_id {
-                db.get_album_by_id(album_id)
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|alb| alb.title)
-            } else {
-                None
-            }
+    let track_opt = state.db.get_track_by_path(&path).await.ok().flatten();
+    let album_title = if let Some(ref tr) = track_opt {
+        if let Some(album_id) = tr.album_id {
+            state
+                .db
+                .get_album_by_id(album_id)
+                .await
+                .ok()
+                .flatten()
+                .map(|alb| alb.title)
         } else {
             None
-        };
-        (t, a)
-    });
+        }
+    } else {
+        None
+    };
 
     let queue_item = if let Some(t) = track_opt {
         QueueItem {
@@ -1723,12 +1720,8 @@ fn get_app_version() -> String {
 }
 
 #[tauri::command]
-fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
-    let db = state.db.clone();
-    state
-        .rt
-        .block_on(async move { db.list_tracks().await })
-        .map_err(|e| e.to_string())
+async fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+    state.db.list_tracks().await.map_err(|e| e.to_string())
 }
 
 fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
@@ -1769,12 +1762,8 @@ fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
 }
 
 #[tauri::command]
-fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecord>, String> {
-    let db = state.db.clone();
-    let albums = state
-        .rt
-        .block_on(async move { db.list_albums().await })
-        .map_err(|e| e.to_string())?;
+async fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecord>, String> {
+    let albums = state.db.list_albums().await.map_err(|e| e.to_string())?;
 
     let mut resolved = Vec::with_capacity(albums.len());
     for mut album in albums {
@@ -1787,12 +1776,8 @@ fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecord>, St
 }
 
 #[tauri::command]
-fn get_library_artists(state: State<'_, AppState>) -> Result<Vec<ArtistRecord>, String> {
-    let db = state.db.clone();
-    state
-        .rt
-        .block_on(async move { db.list_artists().await })
-        .map_err(|e| e.to_string())
+async fn get_library_artists(state: State<'_, AppState>) -> Result<Vec<ArtistRecord>, String> {
+    state.db.list_artists().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2808,7 +2793,6 @@ fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
             art_url: discord_art.clone(),
         };
         discord.update_track(track_info);
-        discord.update_playback_status(PlaybackState::Playing, 0, duration_ms);
         let needs_online_search = discord_art.is_none();
 
         if needs_online_search

@@ -125,7 +125,8 @@ impl Database {
         let path_str = path.as_ref().to_str().unwrap_or("auralune.db");
         let opts = SqliteConnectOptions::from_str(path_str)?
             .create_if_missing(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .busy_timeout(std::time::Duration::from_secs(15));
 
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
