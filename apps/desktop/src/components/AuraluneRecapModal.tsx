@@ -20,6 +20,7 @@ interface TopTrackDto {
   album?: string;
   play_count: number;
   total_time_ms: number;
+  total_play_time_ms?: number;
 }
 
 interface TopArtistDto {
@@ -30,10 +31,12 @@ interface TopArtistDto {
 
 interface RecapSummaryDto {
   period: string;
-  total_listening_seconds: number;
-  total_tracks_played: number;
+  total_listening_seconds?: number;
+  total_listened_ms?: number;
+  total_tracks_played?: number;
+  tracks_played_count?: number;
   top_tracks: TopTrackDto[];
-  top_artists: TopArtistDto[];
+  top_artists: TopArtistDto[] | [string, number][];
 }
 
 interface AuraluneRecapModalProps {
@@ -85,8 +88,12 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
   if (!isOpen) return null;
 
   const formatHoursMins = (totalSec: number) => {
-    const hours = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
+    if (isNaN(totalSec) || totalSec == null || totalSec <= 0) {
+      return '0 min';
+    }
+    const sec = Math.floor(totalSec);
+    const hours = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
     if (hours > 0) {
       return `${hours}h ${mins}m`;
     }
@@ -94,6 +101,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
   };
 
   const formatTrackMs = (ms: number) => {
+    if (isNaN(ms) || ms == null || ms <= 0) return '';
     const sec = Math.floor(ms / 1000);
     const mins = Math.floor(sec / 60);
     const remSec = sec % 60;
@@ -238,274 +246,327 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
           </div>
         </div>
 
-        {/* Zawartość Recap */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <Sparkles size={28} className="animate-spin" style={{ margin: '0 auto 12px' }} />
-            <div>{currentLang === 'pl' ? 'Generowanie podsumowania...' : 'Generating your musical rewind...'}</div>
-          </div>
-        ) : !recapData || recapData.total_listening_seconds === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '48px 20px',
-              background: 'rgba(255, 255, 255, 0.02)',
-              borderRadius: '16px',
-              border: '1px dashed var(--border-subtle)',
-            }}
-          >
-            <Music size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 700 }}>
-              {currentLang === 'pl' ? 'Brak zarejestrowanych odsłuchań' : 'No listening history yet'}
-            </h3>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '420px', marginInline: 'auto' }}>
-              {currentLang === 'pl'
-                ? 'Włącz swoje ulubione utwory w Auralune, a aplikacja automatycznie stworzy dla Ciebie zestawienia tygodniowe, miesięczne i roczne!'
-                : 'Play some tunes in Auralune and your weekly, monthly, and yearly stats will appear here automatically!'}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Główne kafelki liczników */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              {/* Łączny czas */}
+        {/* Obliczone i znormalizowane statystyki */}
+        {(() => {
+          const totalSeconds =
+            recapData?.total_listening_seconds ??
+            (recapData?.total_listened_ms != null ? Math.round(recapData.total_listened_ms / 1000) : 0);
+
+          const totalTracks =
+            recapData?.total_tracks_played ??
+            recapData?.tracks_played_count ??
+            0;
+
+          const normalizedTracks: TopTrackDto[] = (recapData?.top_tracks || []).map((t: any) => ({
+            id: t.id,
+            title: t.title || 'Unknown Title',
+            artist: t.artist || 'Unknown Artist',
+            album: t.album,
+            play_count: t.play_count ?? 0,
+            total_time_ms: t.total_time_ms ?? t.total_play_time_ms ?? 0,
+          }));
+
+          const normalizedArtists: TopArtistDto[] = (recapData?.top_artists || [])
+            .map((item: any) => {
+              if (Array.isArray(item)) {
+                return {
+                  artist: String(item[0] || ''),
+                  play_count: typeof item[1] === 'number' ? Math.max(1, Math.round(item[1] / 180000)) : 1,
+                  total_time_ms: typeof item[1] === 'number' ? item[1] : 0,
+                };
+              }
+              return {
+                artist: item.artist || '',
+                play_count:
+                  item.play_count ??
+                  (item.total_time_ms ? Math.max(1, Math.round(item.total_time_ms / 180000)) : 0),
+                total_time_ms: item.total_time_ms ?? 0,
+              };
+            })
+            .filter((a) => Boolean(a.artist));
+
+          const hasData =
+            Boolean(recapData) &&
+            (totalSeconds > 0 || totalTracks > 0 || normalizedTracks.length > 0 || normalizedArtists.length > 0);
+
+          if (loading) {
+            return (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+                <Sparkles size={28} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                <div>{currentLang === 'pl' ? 'Generowanie podsumowania...' : 'Generating your musical rewind...'}</div>
+              </div>
+            );
+          }
+
+          if (!hasData) {
+            return (
               <div
                 style={{
-                  background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(168, 85, 247, 0.1))',
-                  border: '1px solid rgba(244, 63, 94, 0.35)',
+                  textAlign: 'center',
+                  padding: '48px 20px',
+                  background: 'rgba(255, 255, 255, 0.02)',
                   borderRadius: '16px',
-                  padding: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
+                  border: '1px dashed var(--border-subtle)',
                 }}
               >
+                <Music size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 700 }}>
+                  {currentLang === 'pl' ? 'Brak zarejestrowanych odsłuchań' : 'No listening history yet'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '420px', marginInline: 'auto' }}>
+                  {currentLang === 'pl'
+                    ? 'Włącz swoje ulubione utwory w Auralune, a aplikacja automatycznie stworzy dla Ciebie zestawienia tygodniowe, miesięczne i roczne!'
+                    : 'Play some tunes in Auralune and your weekly, monthly, and yearly stats will appear here automatically!'}
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <>
+              {/* Główne kafelki liczników */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                {/* Łączny czas */}
                 <div
                   style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '14px',
-                    background: 'rgba(244, 63, 94, 0.25)',
+                    background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(168, 85, 247, 0.1))',
+                    border: '1px solid rgba(244, 63, 94, 0.35)',
+                    borderRadius: '16px',
+                    padding: '20px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    gap: '16px',
                   }}
                 >
-                  <Clock size={24} color="var(--accent-pink, #f43f5e)" />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {currentLang === 'pl' ? 'CZAS SŁUCHANIA' : 'TOTAL TIME SPENT'}
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
+                      background: 'rgba(244, 63, 94, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Clock size={24} color="var(--accent-pink, #f43f5e)" />
                   </div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
-                    {formatHoursMins(recapData.total_listening_seconds)}
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {currentLang === 'pl' ? 'CZAS SŁUCHANIA' : 'TOTAL TIME SPENT'}
+                    </div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+                      {formatHoursMins(totalSeconds)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Odsłuchane utwory */}
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.1))',
+                    border: '1px solid rgba(6, 182, 212, 0.35)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
+                      background: 'rgba(6, 182, 212, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Music size={24} color="var(--accent-cyan, #06b6d4)" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {currentLang === 'pl' ? 'ODTWÓRZONE UTWORY' : 'TRACKS PLAYED'}
+                    </div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+                      {totalTracks}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Odsłuchane utwory */}
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.1))',
-                  border: '1px solid rgba(6, 182, 212, 0.35)',
-                  borderRadius: '16px',
-                  padding: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                }}
-              >
+              {/* Ranking Top Utworów */}
+              {normalizedTracks.length > 0 && (
                 <div
                   style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '14px',
-                    background: 'rgba(6, 182, 212, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '16px',
+                    padding: '18px',
                   }}
                 >
-                  <Music size={24} color="var(--accent-cyan, #06b6d4)" />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {currentLang === 'pl' ? 'ODTWÓRZONE UTWORY' : 'TRACKS PLAYED'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                    <Trophy size={18} color="var(--accent-amber, #f59e0b)" />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                      {currentLang === 'pl' ? 'Najczęściej odtwarzane utwory' : 'Your Top Tracks'}
+                    </span>
                   </div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
-                    {recapData.total_tracks_played}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Ranking Top Utworów */}
-            {recapData.top_tracks.length > 0 && (
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '16px',
-                  padding: '18px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                  <Trophy size={18} color="var(--accent-amber, #f59e0b)" />
-                  <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                    {currentLang === 'pl' ? 'Najczęściej odtwarzane utwory' : 'Your Top Tracks'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {recapData.top_tracks.map((track, index) => {
-                    const isTop1 = index === 0;
-                    return (
-                      <div
-                        key={track.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          borderRadius: '12px',
-                          background: isTop1
-                            ? 'linear-gradient(90deg, rgba(244, 63, 94, 0.18), rgba(255, 255, 255, 0.03))'
-                            : 'rgba(255, 255, 255, 0.02)',
-                          border: isTop1
-                            ? '1px solid rgba(244, 63, 94, 0.35)'
-                            : '1px solid transparent',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
-                          <span
-                            style={{
-                              fontSize: '0.9rem',
-                              fontWeight: 800,
-                              color: isTop1
-                                ? 'var(--accent-amber, #f59e0b)'
-                                : 'var(--text-muted)',
-                              width: '20px',
-                              textAlign: 'center',
-                            }}
-                          >
-                            #{index + 1}
-                          </span>
-
-                          <div style={{ overflow: 'hidden' }}>
-                            <div
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {normalizedTracks.map((track, index) => {
+                      const isTop1 = index === 0;
+                      return (
+                        <div
+                          key={track.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            borderRadius: '12px',
+                            background: isTop1
+                              ? 'linear-gradient(90deg, rgba(244, 63, 94, 0.18), rgba(255, 255, 255, 0.03))'
+                              : 'rgba(255, 255, 255, 0.02)',
+                            border: isTop1
+                              ? '1px solid rgba(244, 63, 94, 0.35)'
+                              : '1px solid transparent',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                            <span
                               style={{
-                                fontSize: '0.86rem',
-                                fontWeight: 700,
-                                color: '#fff',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                fontSize: '0.9rem',
+                                fontWeight: 800,
+                                color: isTop1
+                                  ? 'var(--accent-amber, #f59e0b)'
+                                  : 'var(--text-muted)',
+                                width: '20px',
+                                textAlign: 'center',
                               }}
                             >
-                              {track.title}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: '0.76rem',
-                                color: 'var(--text-secondary)',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {track.artist}
+                              #{index + 1}
+                            </span>
+
+                            <div style={{ overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  fontSize: '0.86rem',
+                                  fontWeight: 700,
+                                  color: '#fff',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {track.title}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '0.76rem',
+                                  color: 'var(--text-secondary)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {track.artist}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                              {track.play_count} {currentLang === 'pl' ? 'odtw.' : 'plays'}
-                            </div>
-                            {track.total_time_ms > 0 && (
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                {formatTrackMs(track.total_time_ms)}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                                {track.play_count} {currentLang === 'pl' ? 'odtw.' : 'plays'}
                               </div>
+                              {track.total_time_ms > 0 && (
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                  {formatTrackMs(track.total_time_ms)}
+                                </div>
+                              )}
+                            </div>
+
+                            {onPlayTrackId && (
+                              <button
+                                onClick={() => onPlayTrackId(track.id)}
+                                style={{
+                                  width: '30px',
+                                  height: '30px',
+                                  borderRadius: '50%',
+                                  background: 'rgba(244, 63, 94, 0.25)',
+                                  border: '1px solid rgba(244, 63, 94, 0.4)',
+                                  color: '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <Play size={12} style={{ marginLeft: '2px' }} />
+                              </button>
                             )}
                           </div>
-
-                          {onPlayTrackId && (
-                            <button
-                              onClick={() => onPlayTrackId(track.id)}
-                              style={{
-                                width: '30px',
-                                height: '30px',
-                                borderRadius: '50%',
-                                background: 'rgba(244, 63, 94, 0.25)',
-                                border: '1px solid rgba(244, 63, 94, 0.4)',
-                                color: '#fff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Play size={12} style={{ marginLeft: '2px' }} />
-                            </button>
-                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Ranking Top Wykonawców */}
+              {normalizedArtists.length > 0 && (
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '16px',
+                    padding: '18px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <User size={18} color="var(--accent-purple, #a855f7)" />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                      {currentLang === 'pl' ? 'Ulubieni wykonawcy' : 'Top Artists'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {normalizedArtists.map((artist, idx) => (
+                      <div
+                        key={`${artist.artist}-${idx}`}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '12px',
+                          background: 'rgba(168, 85, 247, 0.12)',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-purple)' }}>
+                          #{idx + 1}
+                        </span>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
+                          {artist.artist}
+                        </span>
+                        {artist.play_count > 0 && (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            ({artist.play_count} {currentLang === 'pl' ? 'odtw.' : 'plays'})
+                          </span>
+                        )}
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Ranking Top Wykonawców */}
-            {recapData.top_artists.length > 0 && (
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '16px',
-                  padding: '18px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                  <User size={18} color="var(--accent-purple, #a855f7)" />
-                  <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                    {currentLang === 'pl' ? 'Ulubieni wykonawcy' : 'Top Artists'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {recapData.top_artists.map((artist, idx) => (
-                    <div
-                      key={artist.artist}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: '12px',
-                        background: 'rgba(168, 85, 247, 0.12)',
-                        border: '1px solid rgba(168, 85, 247, 0.3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                      }}
-                    >
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-purple)' }}>
-                        #{idx + 1}
-                      </span>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
-                        {artist.artist}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        ({artist.play_count} {currentLang === 'pl' ? 'odtw.' : 'plays'})
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          );
+        })()}
 
         {/* Stopka */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>

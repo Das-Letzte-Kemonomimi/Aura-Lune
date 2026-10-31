@@ -54,14 +54,36 @@ pub struct TrackRecord {
     pub rating: Option<i64>,
 }
 
+/// Pojedynczy utwór w podsumowaniu Recap.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct RecapTopTrackDto {
+    pub id: i64,
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub play_count: i64,
+    pub total_time_ms: i64,
+    pub total_play_time_ms: i64,
+}
+
+/// Pojedynczy wykonawca w podsumowaniu Recap.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct RecapTopArtistDto {
+    pub artist: String,
+    pub play_count: i64,
+    pub total_time_ms: i64,
+}
+
 /// Podsumowanie statystyk odsłuchów (Recap / Unwrapped)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct RecapSummaryDto {
     pub period: String,
     pub total_listened_ms: i64,
+    pub total_listening_seconds: i64,
     pub tracks_played_count: i64,
-    pub top_tracks: Vec<TrackRecord>,
-    pub top_artists: Vec<(String, i64)>,
+    pub total_tracks_played: i64,
+    pub top_tracks: Vec<RecapTopTrackDto>,
+    pub top_artists: Vec<RecapTopArtistDto>,
 }
 
 /// Grupa potencjalnych duplikatów utworu w bibliotece.
@@ -1245,86 +1267,187 @@ impl Database {
         .fetch_one(&self.pool)
         .await?;
 
-        let total_listened_ms: i64 = total_row.try_get("total_ms").unwrap_or(0);
-        let tracks_played_count: i64 = total_row.try_get("tracks_count").unwrap_or(0);
+        let mut total_listened_ms: i64 = total_row.try_get("total_ms").unwrap_or(0);
+        let mut tracks_played_count: i64 = total_row.try_get("tracks_count").unwrap_or(0);
 
-        let top_track_rows = sqlx::query(
-            r#"
-            SELECT t.*
-            FROM tracks t
-            JOIN (
-                SELECT track_id, SUM(duration_ms) as dur
-                FROM listening_history
-                WHERE played_at >= ?1
-                GROUP BY track_id
-                ORDER BY dur DESC
-                LIMIT 5
-            ) h ON t.id = h.track_id;
-            "#,
-        )
-        .bind(since_epoch_secs)
-        .fetch_all(&self.pool)
-        .await?;
+        if since_epoch_secs == 0 {
+            if let Ok(tracks_total_row) = sqlx::query(
+                "SELECT COALESCE(SUM(total_play_time_ms), 0) as total_ms, COUNT(DISTINCT id) as tracks_count FROM tracks WHERE play_count > 0 OR total_play_time_ms > 0;",
+            )
+            .fetch_one(&self.pool)
+            .await
+            {
+                let tracks_total_ms: i64 = tracks_total_row.try_get("total_ms").unwrap_or(0);
+                let tracks_count: i64 = tracks_total_row.try_get("tracks_count").unwrap_or(0);
+                total_listened_ms = total_listened_ms.max(tracks_total_ms);
+                tracks_played_count = tracks_played_count.max(tracks_count);
+            }
+        }
 
         let mut top_tracks = Vec::new();
-        for row in top_track_rows {
-            if let Ok(t) = TrackRecord::from_row(&row) {
-                top_tracks.push(t);
+
+        if since_epoch_secs > 0 {
+            let top_track_rows = sqlx::query(
+                r#"
+                SELECT 
+                    t.id, 
+                    t.title, 
+                    t.artist, 
+                    a.title as album, 
+                    COALESCE(t.play_count, 0) as play_count, 
+                    COALESCE(h.dur, 0) as total_time_ms
+                FROM (
+                    SELECT track_id, SUM(duration_ms) as dur
+                    FROM listening_history
+                    WHERE played_at >= ?1
+                    GROUP BY track_id
+                    ORDER BY dur DESC
+                    LIMIT 5
+                ) h
+                JOIN tracks t ON t.id = h.track_id
+                LEFT JOIN albums a ON a.id = t.album_id
+                ORDER BY h.dur DESC, t.play_count DESC;
+                "#,
+            )
+            .bind(since_epoch_secs)
+            .fetch_all(&self.pool)
+            .await?;
+
+            for row in top_track_rows {
+                let id: i64 = row.try_get("id").unwrap_or(0);
+                let title: String = row.try_get("title").unwrap_or_default();
+                let artist: String = row.try_get("artist").unwrap_or_default();
+                let album: Option<String> = row.try_get("album").ok();
+                let play_count: i64 = row.try_get("play_count").unwrap_or(0);
+                let total_time_ms: i64 = row.try_get("total_time_ms").unwrap_or(0);
+
+                top_tracks.push(RecapTopTrackDto {
+                    id,
+                    title,
+                    artist,
+                    album,
+                    play_count,
+                    total_time_ms,
+                    total_play_time_ms: total_time_ms,
+                });
             }
         }
 
         if top_tracks.is_empty() {
-            top_tracks = sqlx::query_as::<_, TrackRecord>(
-                "SELECT * FROM tracks WHERE play_count > 0 ORDER BY play_count DESC, total_play_time_ms DESC LIMIT 5;",
+            let all_time_rows = sqlx::query(
+                r#"
+                SELECT 
+                    t.id, 
+                    t.title, 
+                    t.artist, 
+                    a.title as album, 
+                    COALESCE(t.play_count, 0) as play_count, 
+                    COALESCE(t.total_play_time_ms, 0) as total_time_ms
+                FROM tracks t
+                LEFT JOIN albums a ON a.id = t.album_id
+                WHERE COALESCE(t.play_count, 0) > 0 OR COALESCE(t.total_play_time_ms, 0) > 0
+                ORDER BY COALESCE(t.play_count, 0) DESC, COALESCE(t.total_play_time_ms, 0) DESC
+                LIMIT 5;
+                "#,
             )
             .fetch_all(&self.pool)
-            .await
-            .unwrap_or_default();
+            .await?;
+
+            for row in all_time_rows {
+                let id: i64 = row.try_get("id").unwrap_or(0);
+                let title: String = row.try_get("title").unwrap_or_default();
+                let artist: String = row.try_get("artist").unwrap_or_default();
+                let album: Option<String> = row.try_get("album").ok();
+                let play_count: i64 = row.try_get("play_count").unwrap_or(0);
+                let total_time_ms: i64 = row.try_get("total_time_ms").unwrap_or(0);
+
+                top_tracks.push(RecapTopTrackDto {
+                    id,
+                    title,
+                    artist,
+                    album,
+                    play_count,
+                    total_time_ms,
+                    total_play_time_ms: total_time_ms,
+                });
+            }
         }
 
-        let artist_rows = sqlx::query(
-            r#"
-            SELECT t.artist, SUM(h.duration_ms) as total_dur
-            FROM listening_history h
-            JOIN tracks t ON t.id = h.track_id
-            WHERE h.played_at >= ?1 AND t.artist IS NOT NULL AND t.artist != ''
-            GROUP BY t.artist
-            ORDER BY total_dur DESC
-            LIMIT 5;
-            "#,
-        )
-        .bind(since_epoch_secs)
-        .fetch_all(&self.pool)
-        .await?;
-
         let mut top_artists = Vec::new();
-        for r in artist_rows {
-            let artist: String = r.try_get("artist").unwrap_or_default();
-            let dur: i64 = r.try_get("total_dur").unwrap_or(0);
-            if !artist.is_empty() {
-                top_artists.push((artist, dur));
+
+        if since_epoch_secs > 0 {
+            let artist_rows = sqlx::query(
+                r#"
+                SELECT 
+                    t.artist, 
+                    SUM(h.duration_ms) as total_dur
+                FROM listening_history h
+                JOIN tracks t ON t.id = h.track_id
+                WHERE h.played_at >= ?1 AND t.artist IS NOT NULL AND TRIM(t.artist) != ''
+                GROUP BY t.artist
+                ORDER BY total_dur DESC
+                LIMIT 5;
+                "#,
+            )
+            .bind(since_epoch_secs)
+            .fetch_all(&self.pool)
+            .await?;
+
+            for r in artist_rows {
+                let artist: String = r.try_get("artist").unwrap_or_default();
+                let dur: i64 = r.try_get("total_dur").unwrap_or(0);
+                if !artist.is_empty() {
+                    let estimated_plays = std::cmp::max(1, dur / 180_000);
+                    top_artists.push(RecapTopArtistDto {
+                        artist,
+                        play_count: estimated_plays,
+                        total_time_ms: dur,
+                    });
+                }
             }
         }
 
         if top_artists.is_empty() {
             let fallback_artists = sqlx::query(
-                "SELECT artist, SUM(COALESCE(play_count, 0)) as total_plays FROM tracks WHERE artist IS NOT NULL AND artist != '' GROUP BY artist ORDER BY total_plays DESC LIMIT 5;",
+                r#"
+                SELECT 
+                    artist, 
+                    SUM(COALESCE(play_count, 0)) as total_plays,
+                    SUM(COALESCE(total_play_time_ms, 0)) as total_dur
+                FROM tracks 
+                WHERE artist IS NOT NULL AND TRIM(artist) != '' 
+                GROUP BY artist 
+                HAVING total_plays > 0 OR total_dur > 0
+                ORDER BY total_plays DESC, total_dur DESC 
+                LIMIT 5;
+                "#,
             )
             .fetch_all(&self.pool)
             .await?;
+
             for r in fallback_artists {
                 let artist: String = r.try_get("artist").unwrap_or_default();
                 let plays: i64 = r.try_get("total_plays").unwrap_or(0);
-                if plays > 0 {
-                    top_artists.push((artist, plays * 180_000));
+                let dur: i64 = r.try_get("total_dur").unwrap_or(0);
+                if !artist.is_empty() && (plays > 0 || dur > 0) {
+                    top_artists.push(RecapTopArtistDto {
+                        artist,
+                        play_count: plays,
+                        total_time_ms: if dur > 0 { dur } else { plays * 180_000 },
+                    });
                 }
             }
         }
 
+        let total_listening_seconds = total_listened_ms / 1000;
+        let total_tracks_played = tracks_played_count;
+
         Ok(RecapSummaryDto {
             period: period.to_string(),
             total_listened_ms,
+            total_listening_seconds,
             tracks_played_count,
+            total_tracks_played,
             top_tracks,
             top_artists,
         })
@@ -1579,7 +1702,7 @@ mod tests {
         assert_eq!(recap.tracks_played_count, 1);
         assert_eq!(recap.top_tracks.len(), 1);
         assert_eq!(recap.top_artists.len(), 1);
-        assert_eq!(recap.top_artists[0].0, "RADWIMPS");
+        assert_eq!(recap.top_artists[0].artist, "RADWIMPS");
 
         let hires = db.list_hires_tracks().await.unwrap();
         assert_eq!(hires.len(), 1);
