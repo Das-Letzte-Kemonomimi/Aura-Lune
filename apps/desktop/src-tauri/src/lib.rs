@@ -79,7 +79,20 @@ pub struct PlaybackStatusDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportedItemDto {
+    pub file_path: String,
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub format: String,
+    pub track: Option<storage::TrackRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UrlImportResultDto {
+    pub total_downloaded: usize,
+    pub items: Vec<ImportedItemDto>,
     pub file_path: String,
     pub title: String,
     pub artist: String,
@@ -3111,10 +3124,15 @@ fn get_stop_after_current(state: State<'_, AppState>) -> bool {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn import_audio_from_url(
     url: String,
     target_dir: Option<String>,
     format: Option<String>,
+    bitrate: Option<String>,
+    download_playlist: Option<bool>,
+    max_items: Option<u32>,
+    folder_structure: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<UrlImportResultDto, String> {
     let clean_url = url.trim().to_string();
@@ -3125,7 +3143,10 @@ async fn import_audio_from_url(
         return Err("Nieprawidłowy protokół URL (wymagany http:// lub https://).".to_string());
     }
 
-    info!("Tauri command: import_audio_from_url('{}')", clean_url);
+    info!(
+        "Tauri command: import_audio_from_url('{}', format={:?}, bitrate={:?}, playlist={:?}, max={:?})",
+        clean_url, format, bitrate, download_playlist, max_items
+    );
 
     // 1. Sprawdź obecność yt-dlp w systemie
     let which_res = tokio::process::Command::new("which")
@@ -3174,34 +3195,130 @@ async fn import_audio_from_url(
         _ => "flac",
     };
 
-    // 4. Uruchomienie yt-dlp z bezpiecznym wektorem argumentów (bez shell injection)
-    let output_template = format!("{}/%(title)s.%(ext)s", dest_dir.display());
+    // 4. Jakość / bitrate (czyszczenie i mapowanie na preferowaną wartość ffmpeg yt-dlp)
+    let clean_bitrate = match bitrate
+        .as_deref()
+        .unwrap_or("0")
+        .trim()
+        .to_lowercase()
+        .as_str()
+    {
+        "320" | "320k" | "320kbps" => "320",
+        "256" | "256k" | "256kbps" => "256",
+        "192" | "192k" | "192kbps" => "192",
+        "160" | "160k" | "160kbps" => "160",
+        "128" | "128k" | "128kbps" => "128",
+        "96" | "96k" | "96kbps" => "96",
+        _ => "0",
+    };
+
+    // 5. Struktura folderów i szablon wyjściowy
+    let structure_mode = folder_structure.as_deref().unwrap_or("flat");
+    let template_rel = match structure_mode {
+        "artist_album" => "%(artist,uploader,channel|Unknown Artist)s/%(album,playlist_title|Singles)s/%(playlist_index&{:02d} - |)s%(title)s.%(ext)s",
+        "playlist" => "%(playlist_title,album,uploader,channel|Downloads)s/%(playlist_index&{:02d} - |)s%(title)s.%(ext)s",
+        _ => "%(title)s.%(ext)s",
+    };
+    let output_template = format!("{}/{}", dest_dir.display(), template_rel);
+
+    let is_playlist = download_playlist.unwrap_or(false);
     info!(
-        "Uruchamiam yt-dlp dla formatu {} ze ścieżką szablonu: {}",
-        audio_fmt, output_template
+        "Uruchamiam yt-dlp: fmt={}, bitrate={}, playlist={}, max={:?}, template={}",
+        audio_fmt, clean_bitrate, is_playlist, max_items, output_template
     );
 
-    let output = tokio::process::Command::new("yt-dlp")
-        .arg("--no-playlist")
-        .arg("-x")
+    let start_time = std::time::SystemTime::now();
+
+    let mut cmd = tokio::process::Command::new("yt-dlp");
+    if is_playlist {
+        cmd.arg("--yes-playlist");
+        if let Some(max) = max_items {
+            if max > 0 {
+                cmd.arg("--max-downloads").arg(max.to_string());
+            }
+        }
+    } else {
+        cmd.arg("--no-playlist");
+    }
+
+    cmd.arg("-x")
         .arg("--audio-format")
         .arg(audio_fmt)
         .arg("--audio-quality")
-        .arg("0")
+        .arg(clean_bitrate)
         .arg("--embed-thumbnail")
         .arg("--add-metadata")
         .arg("-o")
         .arg(&output_template)
         .arg("--print")
         .arg("after_move:filepath")
-        .arg(&clean_url)
+        .arg(&clean_url);
+
+    let output = cmd
         .output()
         .await
         .map_err(|e| format!("Błąd uruchomienia procesu yt-dlp: {}", e))?;
 
-    if !output.status.success() {
-        let stderr_str = String::from_utf8_lossy(&output.stderr);
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
+
+    // Szukamy ścieżek plików w liniach wyjścia (kolejność pobrania)
+    let mut resolved_files: Vec<PathBuf> = Vec::new();
+    for line in stdout_str.lines() {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            let p = PathBuf::from(trimmed);
+            if p.exists() && p.is_file() && !resolved_files.contains(&p) {
+                resolved_files.push(p);
+            }
+        }
+    }
+
+    // Kod 101 w yt-dlp oznacza celowe zatrzymanie po osiągnięciu --max-downloads (MaxDownloadsReached)
+    let is_successful_exit = output.status.success() || output.status.code() == Some(101);
+
+    // Fallback: jeśli ze stdoutu nie udało się odczytać ścieżek, przeszukaj katalog rekurencyjnie
+    if resolved_files.is_empty() {
+        let mut dirs_to_visit = vec![dest_dir.clone()];
+        let since = start_time
+            .checked_sub(Duration::from_secs(5))
+            .unwrap_or(start_time);
+        let mut discovered = Vec::new();
+
+        while let Some(current_dir) = dirs_to_visit.pop() {
+            if let Ok(mut read_dir) = tokio::fs::read_dir(&current_dir).await {
+                while let Ok(Some(entry)) = read_dir.next_entry().await {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        dirs_to_visit.push(path);
+                    } else if path.is_file() {
+                        let ext = path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("")
+                            .to_lowercase();
+                        if matches!(
+                            ext.as_str(),
+                            "flac" | "mp3" | "ogg" | "opus" | "wav" | "m4a" | "aac" | "alac"
+                        ) {
+                            if let Ok(meta) = entry.metadata().await {
+                                if let Ok(modified) = meta.modified() {
+                                    if modified >= since {
+                                        discovered.push((path, modified));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        discovered.sort_by_key(|(_, m)| *m);
+        resolved_files = discovered.into_iter().map(|(p, _)| p).collect();
+    }
+
+    if !is_successful_exit && resolved_files.is_empty() {
         let err_detail = if !stderr_str.trim().is_empty() {
             stderr_str.trim()
         } else {
@@ -3214,101 +3331,101 @@ async fn import_audio_from_url(
         ));
     }
 
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-
-    // Szukamy ścieżki pliku w liniach wyjścia
-    let mut resolved_file: Option<PathBuf> = None;
-    for line in stdout_str.lines().rev() {
-        let p = PathBuf::from(line.trim());
-        if p.exists() && p.is_file() {
-            resolved_file = Some(p);
-            break;
-        }
+    if resolved_files.is_empty() {
+        return Err(
+            "Pobieranie zakończone, lecz nie odnaleziono pobranych plików w folderze docelowym."
+                .to_string(),
+        );
     }
 
-    // Fallback: jeśli nie znaleziono ze stdoutu, wyszukaj najnowszy plik w katalogu docelowym
-    let final_path = if let Some(p) = resolved_file {
-        p
-    } else {
-        let mut newest_file: Option<(PathBuf, std::time::SystemTime)> = None;
-        if let Ok(mut entries) = tokio::fs::read_dir(&dest_dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                let p = entry.path();
-                if p.is_file() {
-                    if let Ok(meta) = entry.metadata().await {
-                        if let Ok(modified) = meta.modified() {
-                            if newest_file.as_ref().is_none_or(|(_, m)| modified > *m) {
-                                newest_file = Some((p, modified));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        newest_file.map(|(p, _)| p).ok_or_else(|| {
-            "Pobieranie zakończone, lecz nie odnaleziono pliku w folderze docelowym.".to_string()
-        })?
-    };
+    info!(
+        "Pobrano {} plików audio z URL. Rozpoczynam indeksowanie w bibliotece...",
+        resolved_files.len()
+    );
 
-    info!("Pobrano plik audio z URL: {:?}", final_path);
-
-    // 5. Natychmiastowe zindeksowanie pliku w bazie Auralune
-    let _ = state
+    // 6. Natychmiastowe zindeksowanie pobranych plików w bazie Auralune
+    state
         .scanner
-        .scan_paths(std::slice::from_ref(&final_path), &state.db)
+        .scan_paths(&resolved_files, &state.db)
         .await
-        .map_err(|e| format!("Błąd indeksowania utworu w bibliotece: {}", e))?;
+        .map_err(|e| format!("Błąd indeksowania utworów w bibliotece: {}", e))?;
 
-    // 6. Pobierz rekord utworu z bazy
-    let final_path_str = final_path.to_string_lossy().to_string();
-    let track_record = state
-        .db
-        .get_track_by_path(&final_path_str)
-        .await
-        .ok()
-        .flatten();
+    // 7. Zbuduj listę rekordów dla zwróconych plików
+    let mut items = Vec::new();
+    for path in &resolved_files {
+        let final_path_str = path.to_string_lossy().to_string();
+        let track_record = state
+            .db
+            .get_track_by_path(&final_path_str)
+            .await
+            .ok()
+            .flatten();
 
-    let title = track_record
-        .as_ref()
-        .map(|t| t.title.clone())
-        .unwrap_or_else(|| {
-            final_path
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Pobrany utwór".to_string())
-        });
+        let title = track_record
+            .as_ref()
+            .map(|t| t.title.clone())
+            .unwrap_or_else(|| {
+                path.file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Pobrany utwór".to_string())
+            });
 
-    let artist = track_record
-        .as_ref()
-        .map(|t| t.artist.clone())
-        .unwrap_or_else(|| "Nieznany wykonawca".to_string());
+        let artist = track_record
+            .as_ref()
+            .map(|t| t.artist.clone())
+            .unwrap_or_else(|| "Nieznany wykonawca".to_string());
 
-    let album = if let Some(ref tr) = track_record {
-        if let Some(album_id) = tr.album_id {
-            state
-                .db
-                .get_album_by_id(album_id)
-                .await
-                .ok()
-                .flatten()
-                .map(|a| a.title)
+        let album = if let Some(ref tr) = track_record {
+            if let Some(album_id) = tr.album_id {
+                state
+                    .db
+                    .get_album_by_id(album_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|a| a.title)
+            } else {
+                None
+            }
         } else {
             None
-        }
-    } else {
-        None
-    };
+        };
 
-    let duration_ms = track_record.as_ref().map(|t| t.duration_ms);
+        let duration_ms = track_record.as_ref().map(|t| t.duration_ms);
+
+        items.push(ImportedItemDto {
+            file_path: final_path_str,
+            title,
+            artist,
+            album,
+            duration_ms,
+            format: audio_fmt.to_uppercase(),
+            track: track_record,
+        });
+    }
+
+    let total_downloaded = items.len();
+    let first = items.first().cloned();
 
     Ok(UrlImportResultDto {
-        file_path: final_path_str,
-        title,
-        artist,
-        album,
-        duration_ms,
+        total_downloaded,
+        items: items.clone(),
+        file_path: first
+            .as_ref()
+            .map(|i| i.file_path.clone())
+            .unwrap_or_default(),
+        title: first
+            .as_ref()
+            .map(|i| i.title.clone())
+            .unwrap_or_else(|| "Pobrano utwory".to_string()),
+        artist: first
+            .as_ref()
+            .map(|i| i.artist.clone())
+            .unwrap_or_else(|| "Różni wykonawcy".to_string()),
+        album: first.as_ref().and_then(|i| i.album.clone()),
+        duration_ms: first.as_ref().and_then(|i| i.duration_ms),
         format: audio_fmt.to_uppercase(),
-        track: track_record,
+        track: first.and_then(|i| i.track),
     })
 }
 
