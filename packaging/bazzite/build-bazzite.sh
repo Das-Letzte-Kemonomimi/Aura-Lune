@@ -17,6 +17,9 @@ mkdir -p "${APPDIR}/usr/share/icons/hicolor/128x128/apps"
 mkdir -p "${APPDIR}/usr/share/icons/hicolor/512x512/apps"
 mkdir -p "${OUTPUT_DIR}"
 
+echo "--> Weryfikacja i budowanie produkcyjnego frontendu (Vite/dist)..."
+npm --prefix "${ROOT_DIR}/apps/desktop" run build
+
 # 1. Sprawdzenie obecności pliku binarnego skompilowanego w kontenerze Fedory
 BINARY="${ROOT_DIR}/target-fedora/release/auralune-desktop"
 if [ ! -f "$BINARY" ]; then
