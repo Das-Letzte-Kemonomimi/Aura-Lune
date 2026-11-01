@@ -4587,6 +4587,7 @@ export default function App() {
             pitch_semitones: status.pitch_semitones ?? 0.0,
             tempo_ratio: status.tempo_ratio ?? 1.0,
             rate_ratio: status.rate_ratio ?? 1.0,
+            engine: status.engine || 'RubberBand',
             reverb_level: reverbEnabled ? reverbLevel : 0.0,
             eq_bands: status.equalizer_enabled !== false ? (status.equalizer_bands || null) : null,
           }

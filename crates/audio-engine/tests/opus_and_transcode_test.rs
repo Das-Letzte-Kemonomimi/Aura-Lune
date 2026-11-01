@@ -153,6 +153,7 @@ fn test_transcoding_with_dsp_nightcore_bounce() {
         pitch_semitones: 3.0,
         tempo_ratio: 1.25,
         rate_ratio: 1.0,
+        engine: Some("RubberBand".into()),
         reverb_level: 0.15,
         eq_bands: Some(vec![3.0, 2.0, 0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0]),
     };
@@ -236,6 +237,7 @@ fn test_transcode_range_with_dsp_nightcore() {
         pitch_semitones: 4.0,
         tempo_ratio: 1.3,
         rate_ratio: 1.0,
+        engine: Some("RubberBand".into()),
         reverb_level: 0.1,
         eq_bands: None,
     };
@@ -352,3 +354,36 @@ fn test_transcode_flac_range() {
     engine.stop().unwrap();
     let _ = fs::remove_file(&output_opus);
 }
+
+#[test]
+fn test_transcode_slowed_rubberband() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let output_slowed_wav = root.join("tests/fixtures/test_slowed_rubberband.wav");
+    let _ = fs::remove_file(&output_slowed_wav);
+
+    let dsp_settings = DspExportSettings {
+        pitch_semitones: 2.0,
+        tempo_ratio: 0.55,
+        rate_ratio: 1.0,
+        engine: Some("RubberBand".into()),
+        reverb_level: 0.0,
+        eq_bands: None,
+    };
+
+    Transcoder::transcode_with_dsp(
+        &input_wav,
+        &output_slowed_wav,
+        ExportFormat::Wav,
+        Some(&dsp_settings),
+        None,
+    )
+    .expect("Transkodowanie slowed z RubberBand powinno się powieść");
+
+    assert!(output_slowed_wav.exists());
+    assert!(fs::metadata(&output_slowed_wav).unwrap().len() > 100);
+    let _ = fs::remove_file(&output_slowed_wav);
+}
+
