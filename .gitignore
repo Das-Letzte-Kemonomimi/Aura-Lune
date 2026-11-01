@@ -14,3 +14,15 @@ packaging/archlinux/src/
 packaging/archlinux/pkg/
 packaging/archlinux/*.pkg.tar.*
 *.AppImage
+
+# Android secrets and build artifacts
+*.jks
+*.keystore
+keystore.properties
+local.properties
+*.key
+*.pem
+.gradle/
+**/build/
+*.apk
+*.aab
