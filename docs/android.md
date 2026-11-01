@@ -80,7 +80,75 @@ adb install -r apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universa
 
 ---
 
-## 4. Podpisywanie i budowanie wersji produkcyjnej (Release)
+## 4. Konfiguracja i uruchomienie emulatora Androida (KVM)
+
+Na Linuksie (Arch / EndeavourOS / CachyOS) emulator Androida działa z pełną akceleracją sprzętową KVM, osiągając wydajność natywną.
+
+### Krok 1: Sprawdzenie akceleracji sprzętowej KVM
+Upewnij się, że moduł KVM jest załadowany:
+```bash
+ls -la /dev/kvm
+# Powinno zwrócić np. crw-rw-rw- lub crw-rw---- root kvm
+```
+Jeżeli Twój użytkownik nie jest w grupie `kvm`, dodaj go: `sudo usermod -aG kvm $USER`.
+
+### Krok 2: Instalacja pakietu emulatora i obrazu systemu
+Uruchom `sdkmanager` (zainstaluje silnik emulatora i oficjalny obraz Android 34 x86_64 z Google APIs):
+```bash
+JAVA_HOME=/home/mimi/Android/jdk-21 \
+ANDROID_HOME=/home/mimi/Android/Sdk \
+/home/mimi/Android/Sdk/cmdline-tools/latest/bin/sdkmanager \
+  "emulator" \
+  "system-images;android-34;google_apis;x86_64"
+```
+
+### Krok 3: Utworzenie wirtualnego urządzenia (AVD)
+Utwórz urządzenie o nazwie `AuraluneDev` (np. profil Pixel 6):
+```bash
+JAVA_HOME=/home/mimi/Android/jdk-21 \
+ANDROID_HOME=/home/mimi/Android/Sdk \
+/home/mimi/Android/Sdk/cmdline-tools/latest/bin/avdmanager create avd \
+  -n AuraluneDev \
+  -k "system-images;android-34;google_apis;x86_64" \
+  -d "pixel_6"
+```
+
+### Krok 4: Uruchomienie emulatora
+Uruchom emulator z akceleracją GPU hosta:
+```bash
+/home/mimi/Android/Sdk/emulator/emulator -avd AuraluneDev -gpu host &
+```
+Poczekaj, aż emulator zakończy start systemu (możesz sprawdzić stan poleceniem: `/home/mimi/Android/Sdk/platform-tools/adb wait-for-device`).
+
+### Krok 5: Zbudowanie APK dla architektury x86_64 i instalacja
+Aby aplikacja działała z maksymalną wydajnością bez translacji binarnej, skompiluj pakiet pod `x86_64`:
+```bash
+JAVA_HOME=/home/mimi/Android/jdk-21 \
+ANDROID_HOME=/home/mimi/Android/Sdk \
+NDK_HOME=/home/mimi/Android/Sdk/ndk/26.1.10909125 \
+npm run tauri -- android build --debug --target x86_64 --ci
+```
+
+Następnie zainstaluj na uruchomionym emulatorze:
+```bash
+/home/mimi/Android/Sdk/platform-tools/adb install -r apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+```
+
+### Krok 6: Wgranie przykładowej muzyki do pamięci emulatora
+Aby w bibliotece od razu pojawiły się utwory:
+```bash
+/home/mimi/Android/Sdk/platform-tools/adb push tests/fixtures/test_sine_440hz.wav /storage/emulated/0/Music/
+/home/mimi/Android/Sdk/platform-tools/adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///storage/emulated/0/Music/test_sine_440hz.wav
+```
+
+### Krok 7: Uruchomienie Auralune na emulatorze
+```bash
+/home/mimi/Android/Sdk/platform-tools/adb shell am start -n com.auralune.player/.MainActivity
+```
+
+---
+
+## 5. Podpisywanie i budowanie wersji produkcyjnej (Release)
 
 ### Generowanie klucza wydania (Keystore)
 
