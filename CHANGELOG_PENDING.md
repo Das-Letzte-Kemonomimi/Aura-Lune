@@ -13,10 +13,10 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — wersja 0.7.5 została pomyślnie wydana)*
+- *(Brak oczekujących zmian — wersja 0.7.7 została pomyślnie wydana)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak)*
+- *(Brak oczekujących zmian — wersja 0.7.7 została pomyślnie wydana)*
 
 ### 🔄 Zmieniono (Changed)
 - *(Brak)*

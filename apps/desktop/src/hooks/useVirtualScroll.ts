@@ -48,17 +48,10 @@ export function useVirtualScroll({
     const clientHeight = container.clientHeight || window.innerHeight;
 
     let offsetTop = 0;
-    if (tableRef?.current) {
-      let el: HTMLElement | null = tableRef.current;
-      while (el && el !== container) {
-        offsetTop += el.offsetTop;
-        el = el.offsetParent as HTMLElement | null;
-      }
-      if (offsetTop === 0) {
-        const tableRect = tableRef.current.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        offsetTop = Math.max(0, Math.round(tableRect.top - containerRect.top + scrollTop));
-      }
+    if (tableRef?.current && container) {
+      const tableRect = tableRef.current.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      offsetTop = Math.max(0, Math.round(tableRect.top - containerRect.top + scrollTop));
     }
 
     // Liczba pikseli, o jaką przewinięto w głąb tabeli
