@@ -159,7 +159,7 @@ export function generateFrequencyResponseCurve(
       );
     }
 
-    points.push({ freq, db: Math.max(-36, Math.min(24, totalDb)) });
+    points.push({ freq, db: Math.max(-28, Math.min(16, totalDb)) });
   }
 
   return points;
@@ -186,17 +186,17 @@ export function normXToFreq(normX: number): number {
 }
 
 /**
- * Konwertuje wzmocnienie (dB w zakresie -24..+24) na znormalizowaną pozycję Y (0..1, gdzie 0 to góra +24dB, 1 to dół -24dB).
+ * Konwertuje wzmocnienie (dB w zakresie -24..+12) na znormalizowaną pozycję Y (0..1, gdzie 0 to góra +12dB, 1 to dół -24dB).
  */
-export function gainToNormY(gainDb: number, minDb: number = -24, maxDb: number = 24): number {
+export function gainToNormY(gainDb: number, minDb: number = -24, maxDb: number = 12): number {
   const clamped = Math.max(minDb, Math.min(maxDb, gainDb));
   return 1 - (clamped - minDb) / (maxDb - minDb);
 }
 
 /**
- * Konwertuje pozycję Y (0..1) na wzmocnienie dB.
+ * Konwertuje pozycję Y (0..1) na wzmocnienie dB w zakresie -24..+12.
  */
-export function normYToGain(normY: number, minDb: number = -24, maxDb: number = 24): number {
+export function normYToGain(normY: number, minDb: number = -24, maxDb: number = 12): number {
   const clamped = Math.max(0, Math.min(1, normY));
   return minDb + (1 - clamped) * (maxDb - minDb);
 }

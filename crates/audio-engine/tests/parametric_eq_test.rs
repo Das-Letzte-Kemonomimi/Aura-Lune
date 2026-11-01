@@ -22,6 +22,7 @@ fn test_audio_engine_parametric_eq_lifecycle() {
             ParametricBand::new("b2", ParametricFilterType::Peak, 500.0, -2.5, 1.41),
             ParametricBand::new("b3", ParametricFilterType::Peak, 2500.0, 3.0, 2.0),
             ParametricBand::new("b4", ParametricFilterType::HighShelf, 9000.0, -1.5, 0.71),
+            ParametricBand::new("b5", ParametricFilterType::Peak, 1000.0, 18.0, 1.41),
         ],
     };
 
@@ -32,7 +33,7 @@ fn test_audio_engine_parametric_eq_lifecycle() {
     let current = engine.get_parametric_eq_state();
     assert!(current.enabled);
     assert_eq!(current.preamp_db, -5.0);
-    assert_eq!(current.bands.len(), 4);
+    assert_eq!(current.bands.len(), 5);
     assert_eq!(current.bands[0].filter_type, ParametricFilterType::LowShelf);
     assert_eq!(current.bands[0].freq, 80.0);
     assert_eq!(current.bands[0].gain_db, 4.0);

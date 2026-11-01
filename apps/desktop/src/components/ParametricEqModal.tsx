@@ -34,7 +34,7 @@ interface ParametricEqModalProps {
 }
 
 const FREQ_GRID_LINES = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-const GAIN_GRID_LINES = [18, 12, 6, 0, -6, -12, -18];
+const GAIN_GRID_LINES = [12, 6, 0, -6, -12, -18, -24];
 
 export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
   isOpen,
@@ -61,6 +61,38 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingBandId, setDraggingBandId] = useState<string | null>(null);
 
+  // Throttling IPC do backendu (płynne 60/120 FPS bez zalewania GStreamera)
+  const throttleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestStateRef = useRef<ParametricEqStateDto>(state);
+  latestStateRef.current = state;
+
+  const sendToBackend = (st: ParametricEqStateDto) => {
+    invoke('set_parametric_eq_state', { eqState: st }).catch((e) =>
+      console.error('Błąd zapisu stanu PEQ:', e)
+    );
+  };
+
+  const applyStateToBackend = (newState: ParametricEqStateDto, immediate = false) => {
+    setState(newState);
+    latestStateRef.current = newState;
+
+    if (immediate) {
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+      sendToBackend(newState);
+      return;
+    }
+
+    if (!throttleTimeoutRef.current) {
+      throttleTimeoutRef.current = setTimeout(() => {
+        throttleTimeoutRef.current = null;
+        sendToBackend(latestStateRef.current);
+      }, 35);
+    }
+  };
+
   // Pobranie aktualnego stanu PEQ i presetów z backendu
   useEffect(() => {
     if (!isOpen) return;
@@ -71,7 +103,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
           setState(s);
           setSelectedBandId(s.bands[0].id);
         } else {
-          // Jeśli pusty, załaduj domyślne pasma
+          // Jeśli pusty, załaduj domyślne pasma i zsynchronizuj z silnikiem audio
           const defaultState: ParametricEqStateDto = {
             enabled: false,
             preamp_db: 0.0,
@@ -85,6 +117,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
           };
           setState(defaultState);
           setSelectedBandId('b1');
+          sendToBackend(defaultState);
         }
       })
       .catch((e) => console.error('Błąd pobierania stanu PEQ:', e));
@@ -94,23 +127,15 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
       .catch((e) => console.error('Błąd pobierania presetów PEQ:', e));
   }, [isOpen]);
 
-  // Aplikowanie zmian do backendu z debouncem
-  const applyStateToBackend = (newState: ParametricEqStateDto) => {
-    setState(newState);
-    invoke('set_parametric_eq_state', { eqState: newState }).catch((e) =>
-      console.error('Błąd zapisu stanu PEQ:', e)
-    );
-  };
-
   // Przełączanie włączenia / bypass
   const handleToggleEnabled = () => {
     const updated = { ...state, enabled: !state.enabled };
-    applyStateToBackend(updated);
+    applyStateToBackend(updated, true);
   };
 
-  // Zmiana preamp
+  // Zmiana preamp (z automatyczną aktywacją)
   const handlePreampChange = (val: number) => {
-    const updated = { ...state, preamp_db: Math.round(val * 10) / 10 };
+    const updated = { ...state, enabled: true, preamp_db: Math.round(val * 10) / 10 };
     applyStateToBackend(updated);
   };
 
@@ -140,7 +165,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
       preamp_db: 0.0,
       bands: state.bands.map((b) => ({ ...b, gain_db: 0.0 })),
     };
-    applyStateToBackend(updated);
+    applyStateToBackend(updated, true);
     setSelectedPresetName('');
   };
 
@@ -153,7 +178,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
         preamp_db: found.state.preamp_db,
         bands: found.state.bands.map((b) => ({ ...b })),
       };
-      applyStateToBackend(updated);
+      applyStateToBackend(updated, true);
       setSelectedPresetName(presetName);
       if (updated.bands.length > 0) {
         setSelectedBandId(updated.bands[0].id);
@@ -175,9 +200,10 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
     };
     const updated = {
       ...state,
+      enabled: true,
       bands: [...state.bands, newBand],
     };
-    applyStateToBackend(updated);
+    applyStateToBackend(updated, true);
     setSelectedBandId(newId);
   };
 
@@ -188,16 +214,17 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
       ...state,
       bands: state.bands.filter((b) => b.id !== id),
     };
-    applyStateToBackend(updated);
+    applyStateToBackend(updated, true);
     if (selectedBandId === id) {
       setSelectedBandId(updated.bands[0]?.id || null);
     }
   };
 
-  // Edycja pojedynczego pasma
+  // Edycja pojedynczego pasma (automatycznie włącza PEQ, aby użytkownik słyszał zmiany)
   const handleUpdateBand = (id: string, patch: Partial<ParametricBandDto>) => {
     const updated = {
       ...state,
+      enabled: true,
       bands: state.bands.map((b) => (b.id === id ? { ...b, ...patch } : b)),
     };
     applyStateToBackend(updated);
@@ -208,13 +235,13 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
     return generateFrequencyResponseCurve(state.bands, state.preamp_db, state.enabled, 160);
   }, [state]);
 
-  // Generowanie ścieżki SVG dla krzywej
+  // Generowanie ścieżki SVG dla krzywej (-24 dB do +12 dB)
   const svgPathD = useMemo(() => {
     if (curvePoints.length === 0) return '';
     return curvePoints
       .map((pt, idx) => {
         const x = freqToNormX(pt.freq) * 1000;
-        const y = gainToNormY(pt.db, -24, 24) * 360;
+        const y = gainToNormY(pt.db, -24, 12) * 360;
         return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(' ');
@@ -222,7 +249,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
 
   const svgAreaD = useMemo(() => {
     if (!svgPathD) return '';
-    const zeroY = gainToNormY(0, -24, 24) * 360;
+    const zeroY = gainToNormY(0, -24, 12) * 360;
     return `${svgPathD} L 1000,${zeroY} L 0,${zeroY} Z`;
   }, [svgPathD]);
 
@@ -241,7 +268,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
     const normY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
     const newFreq = Math.round(normXToFreq(normX));
-    const newGain = Math.round(normYToGain(normY, -24, 24) * 10) / 10;
+    const newGain = Math.round(normYToGain(normY, -24, 12) * 10) / 10;
 
     handleUpdateBand(draggingBandId, { freq: newFreq, gain_db: newGain });
   };
@@ -252,6 +279,8 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
         (e.target as Element).releasePointerCapture(e.pointerId);
       } catch {}
       setDraggingBandId(null);
+      // Natychmiastowe wysłanie ostatecznego stanu po zakończeniu przeciągania
+      applyStateToBackend(latestStateRef.current, true);
     }
   };
 
@@ -610,6 +639,42 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
             overflow: 'hidden',
           }}
         >
+          {/* Wskaźnik stanu aktywności (Bypass vs Aktywny) */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: state.enabled ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.18)',
+              border: `1px solid ${state.enabled ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.5)'}`,
+              borderRadius: '20px',
+              padding: '3px 12px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              color: state.enabled ? '#6ee7b7' : '#fca5a5',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              zIndex: 10,
+              pointerEvents: 'none',
+              backdropFilter: 'blur(6px)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+            }}
+          >
+            {state.enabled ? (
+              <>
+                <Check size={12} color="#34d399" />
+                PEQ Aktywny — korekcja audio włączona w czasie rzeczywistym
+              </>
+            ) : (
+              <>
+                <AlertTriangle size={12} color="#f87171" />
+                PEQ w trybie Bypass (wyłączony) — kliknij Włącz lub przesuń pasmo
+              </>
+            )}
+          </div>
+
           <svg
             ref={svgRef}
             viewBox="0 0 1000 360"
@@ -658,9 +723,9 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
               );
             })}
 
-            {/* Siatka pozioma (wzmocnienie w dB) */}
+            {/* Siatka pozioma (wzmocnienie w dB: -24 dB do +12 dB) */}
             {GAIN_GRID_LINES.map((db) => {
-              const y = gainToNormY(db, -24, 24) * 360;
+              const y = gainToNormY(db, -24, 12) * 360;
               const isZero = db === 0;
               return (
                 <g key={`gain-${db}`}>
@@ -707,7 +772,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
             {/* Węzły pasm (interaktywne punkty do przeciągania) */}
             {state.bands.map((band, idx) => {
               const cx = freqToNormX(band.freq) * 1000;
-              const cy = gainToNormY(band.gain_db, -24, 24) * 360;
+              const cy = gainToNormY(band.gain_db, -24, 12) * 360;
               const color = PEQ_BAND_COLORS[idx % PEQ_BAND_COLORS.length];
               const isSelected = band.id === selectedBandId;
 
@@ -941,7 +1006,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                     <input
                       type="range"
                       min="-24"
-                      max="24"
+                      max="12"
                       step="0.5"
                       value={band.gain_db}
                       onChange={(e) =>

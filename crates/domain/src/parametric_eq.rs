@@ -43,8 +43,8 @@ impl ParametricFilterType {
 
 pub const MIN_PARAMETRIC_FREQ: f64 = 10.0;
 pub const MAX_PARAMETRIC_FREQ: f64 = 24000.0;
-pub const MIN_PARAMETRIC_GAIN_DB: f64 = -30.0;
-pub const MAX_PARAMETRIC_GAIN_DB: f64 = 24.0;
+pub const MIN_PARAMETRIC_GAIN_DB: f64 = -24.0;
+pub const MAX_PARAMETRIC_GAIN_DB: f64 = 12.0;
 pub const MIN_PARAMETRIC_Q: f64 = 0.05;
 pub const MAX_PARAMETRIC_Q: f64 = 20.0;
 pub const MIN_PREAMP_DB: f64 = -30.0;
