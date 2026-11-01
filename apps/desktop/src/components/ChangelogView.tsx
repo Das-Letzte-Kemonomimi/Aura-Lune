@@ -18,11 +18,42 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.8.2',
+    codename: 'Pure Flow & Transcode Stability',
+    date: '2026-11-01',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Eliminacja zawieszenia (100% CPU deadlock) przy wyłączaniu ReplayGain: naprawiono pętlę zwrotną w powiadomieniach właściwości GStreamera; element wewnętrzny rgvolume-volume jest teraz przełączany w natywny tryb zero-overhead passthrough.',
+        en: 'Elimination of hang (100% CPU deadlock) when disabling ReplayGain (Off): removed circular property notify loop in GStreamer pipeline; rgvolume-volume now seamlessly switches to native zero-overhead passthrough.',
+        de: 'Behebung des Einfrierens (100% CPU Deadlock) beim Deaktivieren von ReplayGain: Zirkuläre Eigenschaftsbenachrichtigungen behoben; rgvolume-volume wechselt nun in den nativen Zero-Overhead-Passthrough-Modus.',
+        fi: 'ReplayGainin poiskytkennän jäätymisen (100% CPU deadlock) korjaus: poistettu kiertävä ominaisuusilmoitussilmukka; rgvolume-volume kytkeytyy nyt suoraan häviöttömään passthrough-tilaan.',
+        la: 'Solutio suspensionis (100% CPU deadlock) in ReplayGain avertendo: circulus notificationum sublatus; rgvolume-volume nunc in modum passthrough sine onere commutatur.',
+      },
+      {
+        pl: 'Eliminacja zawieszenia przy eksporcie pliku (pusty plik 0 bajtów): dodano uniwersalny blok audioconvert przed enkoderami (FLAC/Opus/WAV), zabezpieczono pętlę magistrali limitem czasu oraz przeniesiono transkodowanie do asynchronicznego wątku z animowanym wskaźnikiem ładowania.',
+        en: 'Elimination of hang during audio export (empty 0 byte file): added universal audioconvert format negotiation block before encoders (FLAC/Opus/WAV), bounded bus message loop with safety timeout, and moved transcode to async worker with UI spinner.',
+        de: 'Behebung des Einfrierens beim Audioexport (leere 0-Byte-Datei): Universeller audioconvert-Block vor Encodern (FLAC/Opus/WAV) hinzugefügt, Bus-Schleife mit Timeout abgesichert und Transkodierung in asynchronen Thread mit Ladeanimation verlegt.',
+        fi: 'Ääniviennin jäätymisen (tyhjä 0 tavun tiedosto) korjaus: lisätty yleinen audioconvert-muunnoslohko ennen koodereita (FLAC/Opus/WAV), suojattu väyläsilmukka aikakatkaisulla ja siirretty koodaus asynkroniseen säikeeseen latausosoittimella.',
+        la: 'Solutio suspensionis in fasciculo exportando (vacuus 0 byte fasciculus): additus est gradus audioconvert ante codicatores (FLAC/Opus/WAV), laqueus magistratus tempore praefinito munitus et translatio in filum asynchronum translata.',
+      },
+      {
+        pl: 'Stabilizacja i auto-aktywacja Korektora Parametrycznego (PEQ Studio): zabezpieczono pasma przed przekroczeniem zakresu GStreamera (-24..+12 dB) eliminując panikę glib FFI, oraz wprowadzono automatyczne włączanie korektora przy modyfikacji parametrów filtrów.',
+        en: 'Stabilization & auto-activation of Parametric EQ (PEQ Studio): clamped filter gains to GStreamer hardware range (-24..+12 dB) preventing glib FFI panics, and auto-enabled EQ upon user editing.',
+        de: 'Stabilisierung & Auto-Aktivierung des Parametrischen EQs (PEQ Studio): Filterverstärkung auf GStreamer-Bereich (-24..+12 dB) begrenzt, um FFI-Panics zu verhindern, und automatische EQ-Aktivierung bei Bearbeitung eingeführt.',
+        fi: 'Parametrisen taajuuskorjaimen (PEQ Studio) stabilointi ja automaattinen aktivointi: suodatinvahvistukset rajattu GStreamerin rajoihin (-24..+12 dB) estäen FFI-kaatumiset, ja EQ aktivoituu automaattisesti parametreja muokattaessa.',
+        la: 'Stabilizatio et activatio automatica Aequatoris Parametrici (PEQ Studio): amplificatio ad fines GStreamer (-24..+12 dB) cohibita ad panicam vitandam, et aequator automatice excitatur cum parametri mutantur.',
+      },
+    ],
+  },
+  {
     version: '0.8.1',
     codename: 'Parametric Warmth & Studio Dynamics',
     date: '2026-11-01',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Wielopasmowy Korektor Parametryczny (Parametric EQ Studio): zaawansowany procesor PEQ (od 1 do 32 pasm) z filtrami Peak, Low Shelf i High Shelf, precyzyjną dobrocią Q, kalkulacją bezpiecznego zapasu dynamiki (Safe Preamp), fabrycznymi presetami (Harman Target Baseline, Vocal Clarity, Sub-Bass Punch) oraz pełnym importem/eksportem profili EqualizerAPO / AutoEQ .txt.',
