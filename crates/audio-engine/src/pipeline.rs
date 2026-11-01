@@ -1522,15 +1522,18 @@ impl AudioEngine {
         inner.peq_preamp.set_property("volume", linear_preamp);
 
         // 2. Pasma korektora parametrycznego
-        let num_bands = state.bands.len().max(1) as u32;
-        inner.peq_equalizer.set_property("num-bands", num_bands);
+        let num_bands = (state.bands.len().max(1) as u32).min(64);
+        let current_num_bands: u32 = inner.peq_equalizer.property("num-bands");
+        if current_num_bands != num_bands {
+            inner.peq_equalizer.set_property("num-bands", num_bands);
+        }
 
         if let Ok(child_proxy) = inner
             .peq_equalizer
             .clone()
             .dynamic_cast::<gst::ChildProxy>()
         {
-            for (i, band) in state.bands.iter().enumerate() {
+            for (i, band) in state.bands.iter().take(64).enumerate() {
                 if let Some(child) = child_proxy.child_by_index(i as u32) {
                     let gain = if enabled && band.enabled {
                         band.gain_db.clamp(
@@ -1545,7 +1548,7 @@ impl AudioEngine {
                         band.freq
                             .clamp(domain::MIN_PARAMETRIC_FREQ, domain::MAX_PARAMETRIC_FREQ),
                     );
-                    child.set_property("bandwidth", band.bandwidth_hz());
+                    child.set_property("bandwidth", band.bandwidth_hz().clamp(1.0, 24000.0));
                     child.set_property("gain", gain);
                     let type_str = match band.filter_type {
                         domain::ParametricFilterType::Peak => "peak",
