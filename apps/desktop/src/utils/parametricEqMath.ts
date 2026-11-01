@@ -1,4 +1,21 @@
-export type ParametricFilterType = 'peak' | 'low-shelf' | 'high-shelf';
+export type ParametricFilterType =
+  | 'peak'
+  | 'low-shelf'
+  | 'high-shelf'
+  | 'low_shelf'
+  | 'high_shelf';
+
+export function normalizeFilterType(t: string | undefined): 'peak' | 'low-shelf' | 'high-shelf' {
+  if (!t) return 'peak';
+  const lower = t.toLowerCase();
+  if (lower === 'low-shelf' || lower === 'low_shelf' || lower === 'lsc' || lower === 'lsq' || lower === 'ls') {
+    return 'low-shelf';
+  }
+  if (lower === 'high-shelf' || lower === 'high_shelf' || lower === 'hsc' || lower === 'hsq' || lower === 'hs') {
+    return 'high-shelf';
+  }
+  return 'peak';
+}
 
 export interface ParametricBandDto {
   id: string;
@@ -50,7 +67,8 @@ export function calculateBiquadResponseDb(
   q: number,
   fs: number = 48000
 ): number {
-  if (gainDb === 0 && filterType === 'peak') return 0;
+  const normType = normalizeFilterType(filterType);
+  if (gainDb === 0 && normType === 'peak') return 0;
 
   const w0 = (2 * Math.PI * f0) / fs;
   const cosW0 = Math.cos(w0);
@@ -66,7 +84,7 @@ export function calculateBiquadResponseDb(
   let a1 = 0;
   let a2 = 0;
 
-  switch (filterType) {
+  switch (normType) {
     case 'peak': {
       b0 = 1 + alpha * A;
       b1 = -2 * cosW0;

@@ -2,14 +2,17 @@ use serde::{Deserialize, Serialize};
 
 /// Typ filtru biquad w korektorze parametrycznym.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum ParametricFilterType {
     /// Filtr dzwonowy / szczytowy (Peak / Bell filter)
     #[default]
+    #[serde(alias = "peak", alias = "pk", alias = "bell")]
     Peak,
     /// Półka dolna (Low Shelf filter)
+    #[serde(alias = "low_shelf", alias = "lowshelf", alias = "lsc")]
     LowShelf,
     /// Półka górna (High Shelf filter)
+    #[serde(alias = "high_shelf", alias = "highshelf", alias = "hsc")]
     HighShelf,
 }
 
@@ -478,5 +481,12 @@ Filter 4: ON HSC Fc 8500.0 Hz Gain -2.5 dB Q 0.71
         };
 
         assert_eq!(state.calculate_safe_preamp(), -7.5);
+    }
+
+    #[test]
+    fn test_deserialize_hyphenated_filter_types() {
+        let json = r#"{"enabled":true,"preamp_db":0.0,"bands":[{"id":"b1","filter_type":"low-shelf","freq":80.0,"gain_db":0.0,"q":0.707,"enabled":true},{"id":"b5","filter_type":"high-shelf","freq":10000.0,"gain_db":0.0,"q":0.707,"enabled":true}]}"#;
+        let res: Result<ParametricEqState, _> = serde_json::from_str(json);
+        assert!(res.is_ok(), "Failed to deserialize: {:?}", res);
     }
 }
