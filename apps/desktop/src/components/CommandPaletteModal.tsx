@@ -15,6 +15,9 @@ import {
   Layers,
   Square,
   Download,
+  Waves,
+  Disc3,
+  Headphones,
 } from 'lucide-react';
 import type { Language } from '../i18n';
 
@@ -48,6 +51,9 @@ interface CommandPaletteModalProps {
   onResetDsp: () => void;
   onOpenBigScreen: () => void;
   onOpenReplayGainScanner: () => void;
+  onOpenSoundscape?: () => void;
+  onOpenHarmonicSuggester?: () => void;
+  onOpenAutoEq?: () => void;
   onSelectTab: (tab: string) => void;
 }
 
@@ -70,6 +76,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onResetDsp,
   onOpenBigScreen,
   onOpenReplayGainScanner,
+  onOpenSoundscape,
+  onOpenHarmonicSuggester,
+  onOpenAutoEq,
   onSelectTab,
 }) => {
   const [query, setQuery] = useState('');
@@ -177,6 +186,54 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         badge: 'F11',
         onExecute: () => {
           onOpenBigScreen();
+          onClose();
+        },
+      },
+      {
+        id: 'action-soundscape-mixer',
+        type: 'action',
+        title: isPl ? 'Generator Dźwięków Tła (Lofi Soundscape Mixer)' : 'Lofi Soundscape Mixer',
+        subtitle: isPl
+          ? 'Deszcz, trzask winyla, ognisko, wiatr z dzwonkami Furin, kawiarnia'
+          : 'Rain, vinyl crackle, campfire, wind & chimes, cafe ambience',
+        icon: <Waves size={18} />,
+        badge: 'Ambience',
+        onExecute: () => {
+          if (onOpenSoundscape) {
+            onOpenSoundscape();
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'action-harmonic-suggester',
+        type: 'action',
+        title: isPl ? 'Harmonic Queue Assistant & DJ Crossfade' : 'Harmonic Queue Assistant & DJ Crossfade',
+        subtitle: isPl
+          ? 'Podpowiedzi pasujących utworów (Camelot Wheel ±1 krok, BPM ±6%) oraz beat-matched crossfade'
+          : 'Harmonic next-track suggestions (Camelot wheel ±1 step, BPM ±6%) and beat-matched crossfade',
+        icon: <Disc3 size={18} />,
+        badge: 'DJ / Camelot',
+        onExecute: () => {
+          if (onOpenHarmonicSuggester) {
+            onOpenHarmonicSuggester();
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'action-auto-eq-profiles',
+        type: 'action',
+        title: isPl ? 'Baza profili słuchawkowych AutoEQ (1-klikowy EQ)' : 'AutoEQ Headphone Profiles (1-click EQ)',
+        subtitle: isPl
+          ? 'Profile kompensacji Harmana dla ponad 160 modeli słuchawek (Moondrop, Sennheiser, Sony, Beyer...)'
+          : 'Harman target compensation profiles for 160+ headphones (Moondrop, Sennheiser, Sony, Beyer...)',
+        icon: <Headphones size={18} />,
+        badge: 'Harman EQ',
+        onExecute: () => {
+          if (onOpenAutoEq) {
+            onOpenAutoEq();
+          }
           onClose();
         },
       },

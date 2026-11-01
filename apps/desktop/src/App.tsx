@@ -58,6 +58,8 @@ import {
   Minimize2,
   Mic2,
   Heart,
+  Waves,
+  Disc3,
   Flame,
   ArrowUpDown,
   ArrowLeft,
@@ -108,6 +110,10 @@ import { RadioView, type RadioStation } from './components/RadioView';
 import { SaveQueueModal } from './components/SaveQueueModal';
 import { AddRadioStationModal } from './components/AddRadioStationModal';
 import { UrlAudioImportModal } from './components/UrlAudioImportModal';
+import { SoundscapeModal } from './components/SoundscapeModal';
+import { soundscapeEngine } from './utils/soundscapeAudio';
+import { HarmonicSuggesterModal } from './components/HarmonicSuggesterModal';
+import { AutoEqModal } from './components/AutoEqModal';
 import { useVirtualScroll } from './hooks/useVirtualScroll';
 import { type Language, getTranslations } from './i18n';
 
@@ -995,9 +1001,21 @@ export default function App() {
           ? (language === 'pl' ? 'Otoczenie: Gotyckie Płonące Iskry 🔥' : 'Ambience: Gothic Burning Embers 🔥')
           : t.notifications.ambienceOff
       );
+      try {
+        soundscapeEngine.syncWithVisualAmbience(next);
+      } catch (_) {}
       return next;
     });
   };
+
+  // Stan modala Generatora Dźwięków Tła (Soundscape / Lofi Ambience)
+  const [isSoundscapeOpen, setIsSoundscapeOpen] = useState(false);
+
+  // Stan modala Miksowania Harmonicznego & DJ Crossfade
+  const [isHarmonicSuggesterOpen, setIsHarmonicSuggesterOpen] = useState(false);
+
+  // Stan modala Bazy Profili Słuchawkowych AutoEQ
+  const [isAutoEqOpen, setIsAutoEqOpen] = useState(false);
 
   // Stan trybu pełnoekranowego Kiosk / Big Screen Now Playing
   const [isBigScreen, setIsBigScreen] = useState(false);
@@ -9108,6 +9126,60 @@ const renderDevicesSection = () => (
             </span>
           </button>
 
+          {/* Mikser Dźwięków Tła Soundscape */}
+          <button
+            onClick={() => setIsSoundscapeOpen(true)}
+            style={{
+              padding: '7px 10px',
+              borderRadius: '8px',
+              background: soundscapeEngine.isSoundscapeActive()
+                ? 'rgba(56, 189, 248, 0.22)'
+                : 'rgba(255, 255, 255, 0.06)',
+              border: soundscapeEngine.isSoundscapeActive()
+                ? '1px solid #38bdf8'
+                : '1px solid var(--border-subtle)',
+              color: soundscapeEngine.isSoundscapeActive()
+                ? '#38bdf8'
+                : 'var(--text-secondary)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+            }}
+            title={loc.nav.soundscape + ' (Lofi Ambience)'}
+          >
+            <Waves size={14} />
+            <span className="header-action-text">{loc.nav.soundscape}</span>
+          </button>
+
+          {/* Miksowanie Harmoniczne & DJ Crossfade */}
+          <button
+            onClick={() => setIsHarmonicSuggesterOpen(true)}
+            style={{
+              padding: '7px 10px',
+              borderRadius: '8px',
+              background: 'rgba(236, 72, 153, 0.16)',
+              border: '1px solid rgba(236, 72, 153, 0.35)',
+              color: 'var(--accent-pink, #f472b6)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+            }}
+            title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}
+          >
+            <Disc3 size={14} />
+            <span className="header-action-text">{loc.nav.harmonicSuggester}</span>
+          </button>
+
           {/* Paleta komend Ctrl+K */}
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
@@ -15355,6 +15427,27 @@ const renderDevicesSection = () => (
                     {loc.dsp.reset} (0 dB)
                   </button>
 
+                  {/* Przycisk Bazy Profili Słuchawkowych AutoEQ */}
+                  <button
+                    onClick={() => setIsAutoEqOpen(true)}
+                    title="Baza profili słuchawkowych AutoEQ (Harman Target dla 160+ modeli)"
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: 'rgba(59, 130, 246, 0.2)',
+                      border: '1px solid rgba(59, 130, 246, 0.45)',
+                      color: '#60a5fa',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Headphones size={13} /> AutoEQ
+                  </button>
+
                   {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
                   <button
                     onClick={handleEqToggle}
@@ -16910,6 +17003,99 @@ const renderDevicesSection = () => (
         onCancelTimer={handleCancelSleepTimer}
       />
 
+      {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
+      <SoundscapeModal
+        isOpen={isSoundscapeOpen}
+        onClose={() => setIsSoundscapeOpen(false)}
+        currentLang={language}
+      />
+
+      {/* Modal Miksowania Harmonicznego & DJ Crossfade */}
+      <HarmonicSuggesterModal
+        isOpen={isHarmonicSuggesterOpen}
+        onClose={() => setIsHarmonicSuggesterOpen(false)}
+        currentTrack={
+          currentPlayingTrack
+            ? {
+                id: currentPlayingTrack.id,
+                uri: currentPlayingTrack.path,
+                title: currentPlayingTrack.title,
+                artist: currentPlayingTrack.artist,
+                album: currentPlayingTrack.album_id
+                  ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title || null
+                  : null,
+                duration_ms: currentPlayingTrack.duration_ms,
+                bpm: currentPlayingTrack.bpm,
+                initial_key: currentPlayingTrack.initial_key,
+              }
+            : null
+        }
+        libraryTracks={tracks.map((t) => ({
+          id: t.id,
+          uri: t.path,
+          title: t.title,
+          artist: t.artist,
+          album: t.album_id ? albums.find((a) => a.id === t.album_id)?.title || null : null,
+          duration_ms: t.duration_ms,
+          bpm: t.bpm,
+          initial_key: t.initial_key,
+        }))}
+        onPlayTrack={(ht) => {
+          const fullTrack = tracks.find((t) => t.id === ht.id);
+          if (fullTrack) {
+            handlePlayLibraryTrack(fullTrack);
+            setIsHarmonicSuggesterOpen(false);
+          }
+        }}
+        onEnqueueTrack={(ht, playNext) => {
+          const fullTrack = tracks.find((t) => t.id === ht.id);
+          if (fullTrack) {
+            if (playNext) {
+              handleAddTrackNextToQueue(fullTrack);
+            } else {
+              handleAddTrackToQueue(fullTrack);
+            }
+          }
+        }}
+        onSyncTempo={(targetBpm) => {
+          const curBpm = currentPlayingTrack?.bpm;
+          if (curBpm && curBpm > 0) {
+            const ratio = Math.min(3.0, Math.max(0.25, Math.round((targetBpm / curBpm) * 100) / 100));
+            handleTempoChange(ratio);
+            showMessage(`Dopasowano tempo DSP: ${ratio}x (${curBpm.toFixed(1)} → ${targetBpm.toFixed(1)} BPM)`);
+          } else {
+            showMessage(`Bieżący utwór nie posiada wykrytego BPM do synchronizacji`, true);
+          }
+        }}
+        crossfadeDurationMs={crossfadeDuration}
+        onSetCrossfadeDuration={handleCrossfadeDurationChange}
+        currentLang={language}
+      />
+
+      {/* Modal Bazy Profili Słuchawkowych AutoEQ */}
+      <AutoEqModal
+        isOpen={isAutoEqOpen}
+        onClose={() => setIsAutoEqOpen(false)}
+        currentBands={status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+        onApplyProfile={async (bands, preampDb, profileName) => {
+          try {
+            await invoke('set_equalizer_bands', { bands });
+            await invoke('set_equalizer_enabled', { enabled: true });
+            setStatus((prev) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
+            showMessage(
+              `Zastosowano profil słuchawek AutoEQ: ${profileName}${
+                preampDb !== 0 ? ` (Preamp: ${preampDb.toFixed(1)} dB)` : ''
+              }`
+            );
+            setIsAutoEqOpen(false);
+          } catch (e: any) {
+            showMessage(`${t.common.errorPrefix} ${e}`, true);
+          }
+        }}
+        onResetFlat={handleResetEq}
+        currentLang={language}
+      />
+
       {/* Modal Szczegółowych Statystyk Utworu */}
       {statsModalTrack && (
         <TrackStatsModal
@@ -17044,6 +17230,9 @@ const renderDevicesSection = () => (
           onOpenReplayGainScanner={() => {
             setActiveTab('devices');
           }}
+          onOpenSoundscape={() => setIsSoundscapeOpen(true)}
+          onOpenHarmonicSuggester={() => setIsHarmonicSuggesterOpen(true)}
+          onOpenAutoEq={() => setIsAutoEqOpen(true)}
           onSelectTab={(tab) => setActiveTab(tab as any)}
         />
       )}

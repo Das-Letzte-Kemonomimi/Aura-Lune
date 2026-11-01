@@ -10,6 +10,9 @@ export interface Translations {
     settings: string;
     lyrics: string;
     effects: string;
+    soundscape: string;
+    harmonicSuggester: string;
+    autoEq: string;
     fullscreen: string;
     miniPlayer: string;
     queue: string;
@@ -798,6 +801,9 @@ export const translations: Record<Language, Translations> = {
       settings: 'Settings',
       lyrics: 'Lyrics',
       effects: 'Ambience',
+      soundscape: 'Soundscape',
+      harmonicSuggester: 'Harmonic DJ Suggester',
+      autoEq: 'AutoEQ Headphone Profiles',
       fullscreen: 'Full Screen',
       miniPlayer: 'Mini Player',
       queue: 'Queue',
@@ -1585,6 +1591,9 @@ export const translations: Record<Language, Translations> = {
       settings: 'Ustawienia',
       lyrics: 'Teksty',
       effects: 'Efekty',
+      soundscape: 'Dźwięki tła',
+      harmonicSuggester: 'Miksowanie harmoniczne (DJ)',
+      autoEq: 'Profile słuchawkowe AutoEQ',
       fullscreen: 'Pełny ekran',
       miniPlayer: 'Mini-Player',
       queue: 'Kolejka',
@@ -2372,6 +2381,9 @@ export const translations: Record<Language, Translations> = {
       settings: 'Einstellungen',
       lyrics: 'Songtexte',
       effects: 'Ambiente',
+      soundscape: 'Klanglandschaft',
+      harmonicSuggester: 'Harmonischer DJ-Mixer',
+      autoEq: 'AutoEQ-Kopfhörerprofile',
       fullscreen: 'Vollbild',
       miniPlayer: 'Mini-Player',
       queue: 'Warteschlange',
@@ -3159,6 +3171,9 @@ export const translations: Record<Language, Translations> = {
       settings: 'Asetukset',
       lyrics: 'Sanoitukset',
       effects: 'Tunnelma',
+      soundscape: 'Äänimaisema',
+      harmonicSuggester: 'Harmoninen DJ-avustaja',
+      autoEq: 'AutoEQ-kuulokeprofiilit',
       fullscreen: 'Koko näyttö',
       miniPlayer: 'Mini-soitin',
       queue: 'Jono',
@@ -3946,6 +3961,9 @@ export const translations: Record<Language, Translations> = {
       settings: 'Optiones',
       lyrics: 'Carmina',
       effects: 'Effectus',
+      soundscape: 'Sonitus',
+      harmonicSuggester: 'Harmonicus DJ Suggester',
+      autoEq: 'AutoEQ Auriculares Formae',
       fullscreen: 'Plena Facies',
       miniPlayer: 'Parvus Lusor',
       queue: 'Ordo',
