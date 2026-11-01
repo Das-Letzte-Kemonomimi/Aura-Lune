@@ -1,6 +1,6 @@
 # Instrukcja i Przewodnik Deweloperski: Auralune na Androida
 
-Dokument opisuje architekturę, wymagania środowiskowe, procedurę budowania oraz podpisywania wydań wersji mobilnej Auralune (Kitsune Player) na platformę Android (wersja 0.1.0).
+Dokument opisuje architekturę, wymagania środowiskowe, procedurę budowania oraz podpisywania wydań wersji mobilnej Auralune (Kitsune Player) na platformę Android (wersja 0.1.1).
 
 ---
 

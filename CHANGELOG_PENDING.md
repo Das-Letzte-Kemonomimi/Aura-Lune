@@ -13,8 +13,8 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- **Port na platformę Android (v0.1.0)**:
-  - Dedykowana gałąź `android/v0.1.0` z kompletną obsługą kompilacji APK przez Tauri 2 Mobile.
+- **Port na platformę Android (v0.1.1)**:
+  - Dedykowana gałąź `android/v0.1.1` z kompletną obsługą kompilacji APK przez Tauri 2 Mobile.
   - Czysty dekoder Rust Symphonia obsługujący FLAC, MP3, WAV, OGG/Vorbis, AAC/M4A.
   - Zagnieżdżony silnik SoundTouch C++ kompilowany bezpośrednio przez `cc` dla architektury `aarch64`.
   - Natywne wyjście audio Android NDK AAudio o niskiej latencji.

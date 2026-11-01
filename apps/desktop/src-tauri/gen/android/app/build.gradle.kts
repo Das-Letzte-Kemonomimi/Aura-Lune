@@ -22,8 +22,8 @@ android {
         applicationId = "com.auralune.player"
         minSdk = 26
         targetSdk = 34
-        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
-        versionName = tauriProperties.getProperty("tauri.android.versionName", "0.1.0")
+        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "2").toInt()
+        versionName = tauriProperties.getProperty("tauri.android.versionName", "0.1.1")
     }
     buildTypes {
         getByName("debug") {
