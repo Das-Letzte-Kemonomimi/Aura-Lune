@@ -402,6 +402,81 @@ fn test_smart_replaygain_auto_mode() {
 }
 
 #[test]
+fn test_replaygain_toggle_modes_while_playing() {
+    use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+    engine.load_uri(&uri).expect("load_uri");
+    engine.play().expect("play");
+
+    // Domyślny status (Off)
+    let (tgt, res, lim) = engine.replaygain_status();
+    assert_eq!((tgt, res, lim), (0.0, 0.0, false));
+
+    // Przełączenie na Track Gain
+    engine
+        .set_replaygain(ReplayGainConfig {
+            mode: ReplayGainMode::Track,
+            pre_amp_db: 1.0,
+            fallback_gain_db: -6.0,
+            prevent_clipping: true,
+        })
+        .expect("set_replaygain Track");
+    assert_eq!(engine.replaygain_config().mode, ReplayGainMode::Track);
+
+    // Przełączenie na Album Gain
+    engine
+        .set_replaygain(ReplayGainConfig {
+            mode: ReplayGainMode::Album,
+            pre_amp_db: 0.0,
+            fallback_gain_db: -3.0,
+            prevent_clipping: false,
+        })
+        .expect("set_replaygain Album");
+    assert_eq!(engine.replaygain_config().mode, ReplayGainMode::Album);
+
+    // Przełączenie z powrotem na Off (nie może powodować zawieszenia / nieskończonej pętli!)
+    engine
+        .set_replaygain(ReplayGainConfig {
+            mode: ReplayGainMode::Off,
+            pre_amp_db: 0.0,
+            fallback_gain_db: -6.0,
+            prevent_clipping: true,
+        })
+        .expect("set_replaygain Off");
+    assert_eq!(engine.replaygain_config().mode, ReplayGainMode::Off);
+    let (tgt_off, res_off, lim_off) = engine.replaygain_status();
+    assert_eq!((tgt_off, res_off, lim_off), (0.0, 0.0, false));
+
+    // Ponowne włączenie i wyłączenie w czasie odtwarzania
+    engine
+        .set_replaygain(ReplayGainConfig {
+            mode: ReplayGainMode::Auto,
+            pre_amp_db: -1.0,
+            fallback_gain_db: -6.0,
+            prevent_clipping: true,
+        })
+        .expect("set_replaygain Auto");
+    engine
+        .set_replaygain(ReplayGainConfig {
+            mode: ReplayGainMode::Off,
+            pre_amp_db: 0.0,
+            fallback_gain_db: -6.0,
+            prevent_clipping: true,
+        })
+        .expect("set_replaygain Off again");
+
+    engine.stop().expect("stop");
+}
+
+#[test]
 fn test_loop_mode_track_preserves_current_uri_and_replays() {
     let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()

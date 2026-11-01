@@ -54,6 +54,7 @@ struct PipelineInner {
     bs2b: Option<gst::Element>,
     cutter: Option<gst::Element>,
     rgvolume: gst::Element,
+    rgvolume_child: Option<gst_base::BaseTransform>,
     rglimiter: gst::Element,
     _spectrum: gst::Element,
     volume: gst::Element,
@@ -307,6 +308,18 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("rgvolume"))?;
 
+        let rgvolume_child = rgvolume
+            .clone()
+            .dynamic_cast::<gst::Bin>()
+            .ok()
+            .and_then(|bin| bin.by_name("rgvolume-volume"))
+            .and_then(|elem| elem.dynamic_cast::<gst_base::BaseTransform>().ok());
+
+        // Domyślnie ReplayGain jest wyłączony (Off) - ustawiamy passthrough, aby strumień audio przechodził bez żadnych modyfikacji
+        if let Some(ref child) = rgvolume_child {
+            child.set_passthrough(true);
+        }
+
         let rglimiter = gst::ElementFactory::make("rglimiter")
             .name("rglimiter")
             .property("enabled", false)
@@ -504,6 +517,7 @@ impl AudioEngine {
             bs2b,
             cutter,
             rgvolume: rgvolume.clone(),
+            rgvolume_child,
             rglimiter,
             _spectrum: spectrum,
             volume,
@@ -536,15 +550,6 @@ impl AudioEngine {
         }));
 
         let replaygain_mode = Arc::new(AtomicU8::new(ReplayGainMode::Off as u8));
-        let rg_mode_for_notify = replaygain_mode.clone();
-
-        // Nasłuchiwanie zmian tagów w rgvolume: gdy tryb to Off, neutralizujemy na bieżąco BEZ blokowania mutexu inner
-        rgvolume.connect_notify(Some("target-gain"), move |rgv, _pspec| {
-            if rg_mode_for_notify.load(Ordering::Relaxed) == ReplayGainMode::Off as u8 {
-                let target: f64 = rgv.property("target-gain");
-                rgv.set_property("pre-amp", -target);
-            }
-        });
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
         let stop_after_current = Arc::new(AtomicBool::new(false));
@@ -1911,11 +1916,17 @@ impl AudioEngine {
         inner.replaygain_config = config;
         match config.mode {
             ReplayGainMode::Off => {
-                let target_gain: f64 = inner.rgvolume.property("target-gain");
-                inner.rgvolume.set_property("pre-amp", -target_gain);
+                if let Some(ref child) = inner.rgvolume_child {
+                    child.set_passthrough(true);
+                }
+                inner.rgvolume.set_property("pre-amp", 0.0f64);
+                inner.rgvolume.set_property("fallback-gain", 0.0f64);
                 inner.rglimiter.set_property("enabled", false);
             }
             ReplayGainMode::Track => {
+                if let Some(ref child) = inner.rgvolume_child {
+                    child.set_passthrough(false);
+                }
                 inner.rgvolume.set_property("album-mode", false);
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
                 inner
@@ -1926,6 +1937,9 @@ impl AudioEngine {
                     .set_property("enabled", config.prevent_clipping);
             }
             ReplayGainMode::Album => {
+                if let Some(ref child) = inner.rgvolume_child {
+                    child.set_passthrough(false);
+                }
                 inner.rgvolume.set_property("album-mode", true);
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
                 inner
@@ -1936,6 +1950,9 @@ impl AudioEngine {
                     .set_property("enabled", config.prevent_clipping);
             }
             ReplayGainMode::Auto => {
+                if let Some(ref child) = inner.rgvolume_child {
+                    child.set_passthrough(false);
+                }
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
                 inner
                     .rgvolume
@@ -1973,6 +1990,9 @@ impl AudioEngine {
     /// Zwraca bieżący status normalizacji ReplayGain: (target_gain_db, result_gain_db, limiter_enabled).
     pub fn replaygain_status(&self) -> (f64, f64, bool) {
         let inner = self.inner.lock().unwrap();
+        if inner.replaygain_config.mode == ReplayGainMode::Off {
+            return (0.0, 0.0, false);
+        }
         let target: f64 = inner.rgvolume.property("target-gain");
         let result: f64 = inner.rgvolume.property("result-gain");
         let limiter: bool = inner.rglimiter.property("enabled");
