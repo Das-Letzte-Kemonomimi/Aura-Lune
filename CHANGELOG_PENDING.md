@@ -13,15 +13,22 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — wersja 0.7.7 została pomyślnie wydana)*
+- **Port na platformę Android (v0.1.0)**:
+  - Dedykowana gałąź `android/v0.1.0` z kompletną obsługą kompilacji APK przez Tauri 2 Mobile.
+  - Czysty dekoder Rust Symphonia obsługujący FLAC, MP3, WAV, OGG/Vorbis, AAC/M4A.
+  - Zagnieżdżony silnik SoundTouch C++ kompilowany bezpośrednio przez `cc` dla architektury `aarch64`.
+  - Natywne wyjście audio Android NDK AAudio o niskiej latencji.
+  - Usługa pierwszoplanowa `AuraluneMediaService` z `MediaSession`, sterowaniem na ekranie blokady, powiadomieniem z przyciskami transportu i automatyczną pauzą po odłączeniu słuchawek.
+  - Adaptacja interfejsu dotykowego z obsługą Safe Area Insets (`--sat`, `--sab`, `--sal`, `--sar`) oraz powiększonymi celami dotykowymi.
+  - Dokumentacja deweloperska i budowania w `docs/android.md` oraz ADR w `docs/adr/0012-android-port.md`.
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak oczekujących zmian — wersja 0.7.7 została pomyślnie wydana)*
+- *(Brak)*
 
 ### 🔄 Zmieniono (Changed)
-- *(Brak)*
+- Warunkowa kompilacja pipeline'u GStreamera oraz modułów integracji desktopowej (MPRIS D-Bus, zasobnik systemowy) dla środowisk nie-linuksowych.
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
-- *(Brak)*
+- Wprowadzenie generycznej cechy `AudioBackend` w `crates/audio-engine/src/backend.rs`, umożliwiającej czystą separację silnika GStreamer (Linux) od backendu AAudio (Android) bez naruszania logiki domenowej.
 
 
