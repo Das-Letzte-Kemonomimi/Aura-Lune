@@ -14,6 +14,7 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [dependencies]
 tauri = { version = "2", features = ["image-png", "tray-icon"] }
+tauri-plugin-single-instance = "2"
 audio-engine = { path = "../../../crates/audio-engine" }
 domain = { path = "../../../crates/domain" }
 dsp-api = { path = "../../../crates/dsp-api" }
@@ -32,6 +33,7 @@ lofty.workspace = true
 base64 = { workspace = true }
 glib = { workspace = true }
 walkdir = { workspace = true }
+url = "2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

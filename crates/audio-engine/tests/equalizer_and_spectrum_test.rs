@@ -31,3 +31,45 @@ fn test_audio_engine_equalizer_and_spectrum() {
     engine.set_equalizer_enabled(true);
     assert!(engine.is_equalizer_enabled());
 }
+
+#[test]
+fn test_audio_engine_spectrum_emission() {
+    use audio_engine::PlayerEvent;
+    use std::path::PathBuf;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("Nie udało się utworzyć AudioEngine");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+    engine.load_uri(&uri).expect("Błąd load_uri");
+    engine.play().expect("Błąd play");
+
+    let mut spectrum_received = false;
+    let mut magnitudes = Vec::new();
+    for _ in 0..20 {
+        sleep(Duration::from_millis(50));
+        let events = engine.poll_events();
+        for ev in events {
+            if let PlayerEvent::Spectrum(mags) = ev {
+                magnitudes = mags;
+                spectrum_received = true;
+            }
+        }
+        if spectrum_received {
+            break;
+        }
+    }
+    engine.stop().ok();
+    assert!(
+        spectrum_received,
+        "Powinien zostać odebrany co najmniej jeden komunikat PlayerEvent::Spectrum"
+    );
+    assert_eq!(magnitudes.len(), 16, "Spektrum powinno zawierać 16 pasm");
+}

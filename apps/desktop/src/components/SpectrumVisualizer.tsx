@@ -70,9 +70,9 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       const height = canvas.height || 88;
       ctx.clearRect(0, 0, width, height);
 
-      // Weź 16-24 pasm z backendu lub minimalny szum w spoczynku
+      // Weź 16 pasm z backendu lub minimalny stan w spoczynku
       const currentSpectrum = spectrumRef.current;
-      const bands = currentSpectrum && currentSpectrum.length > 0 ? currentSpectrum : Array(16).fill(0.02);
+      const bands = currentSpectrum && currentSpectrum.length > 0 ? currentSpectrum : Array(16).fill(0.0);
       const bandCount = bands.length;
 
       // Inicjalizacja tablic wygładzania i szczytów
@@ -81,11 +81,11 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
 
       // Aktualizacja wartości wygładzonych i grawitacji szczytów
       for (let i = 0; i < bandCount; i++) {
-        const raw = isPlaying ? Math.min(1.0, Math.max(0.04, bands[i])) : 0.02;
+        const raw = isPlaying ? Math.min(1.0, Math.max(0.0, bands[i])) : 0.0;
         // Dynamiczny boost nieliniowy dla pasm audio, aby słupki żywo skakały na pełną wysokość
-        const boosted = isPlaying ? Math.min(1.0, Math.pow(raw, 0.62) * 1.38) : 0.02;
+        const boosted = isPlaying ? Math.min(1.0, Math.pow(raw, 0.72) * 1.35) : 0.0;
         // Wygładzanie wykładnicze (lerp)
-        smoothedRef.current[i] += (boosted - smoothedRef.current[i]) * 0.42;
+        smoothedRef.current[i] += (boosted - smoothedRef.current[i]) * 0.45;
 
         // Szczyty
         if (smoothedRef.current[i] > peaksRef.current[i]) {
