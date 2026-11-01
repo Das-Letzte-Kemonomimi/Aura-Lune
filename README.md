@@ -7,7 +7,7 @@
   <p><strong>A native, deeply customizable Linux music player marrying the ergonomics of Poweramp, the flexibility of foobar2000, swappable real-time DSP engines, and an anime glassmorphism aesthetic.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v0.7.7"><img src="https://img.shields.io/badge/version-0.7.7_“Precision_Loop_%26_Seamless_Flow”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v0.8.0"><img src="https://img.shields.io/badge/version-0.8.0_“Harmonic_Flow_%26_Ambient_Focus”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="License" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platform-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platform" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>
@@ -88,13 +88,13 @@ The installer downloads the latest AppImage, installs icons, desktop entry (`aur
 Download the appropriate package from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
 - **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
   ```bash
-  chmod +x Auralune_0.7.7_bazzite_amd64.AppImage
-  ./Auralune_0.7.7_bazzite_amd64.AppImage
+  chmod +x Auralune_0.8.0_bazzite_amd64.AppImage
+  ./Auralune_0.8.0_bazzite_amd64.AppImage
   ```
 - **Arch / CachyOS / EndeavourOS / other distros**:
   ```bash
-  chmod +x Auralune_0.7.7_amd64.AppImage
-  ./Auralune_0.7.7_amd64.AppImage
+  chmod +x Auralune_0.8.0_amd64.AppImage
+  ./Auralune_0.8.0_amd64.AppImage
   ```
 
 ### 3. Arch Linux / EndeavourOS / CachyOS (AUR)
