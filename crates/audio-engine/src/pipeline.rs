@@ -2,7 +2,9 @@
 
 use crate::error::AudioEngineError;
 use domain::crossfeed::CrossfeedConfig;
+use domain::dynamics::{DynamicsState, SaturatorConfig};
 use domain::equalizer::EqualizerState;
+use domain::parametric_eq::ParametricEqState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
 use domain::silence::SilenceTrimmingConfig;
@@ -14,7 +16,7 @@ use gstreamer as gst;
 use gstreamer_base as gst_base;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
@@ -43,6 +45,12 @@ struct PipelineInner {
     dsp: crate::dsp_node::AuraluneDsp,
     freeverb: Option<gst::Element>,
     equalizer: gst::Element,
+    peq_preamp: gst::Element,
+    peq_equalizer: gst::Element,
+    compressor: gst::Element,
+    compressor_makeup: gst::Element,
+    _saturator: gst::Element,
+    saturator_config: Arc<RwLock<SaturatorConfig>>,
     bs2b: Option<gst::Element>,
     cutter: Option<gst::Element>,
     rgvolume: gst::Element,
@@ -57,6 +65,8 @@ struct PipelineInner {
     dsp_params: DspParams,
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
+    parametric_eq_state: ParametricEqState,
+    dynamics_state: DynamicsState,
     replaygain_config: ReplayGainConfig,
     crossfeed_config: CrossfeedConfig,
     silence_trimming_config: SilenceTrimmingConfig,
@@ -122,6 +132,91 @@ impl AudioEngine {
             .name("equalizer_10bands")
             .build()
             .map_err(|_| AudioEngineError::MissingElement("equalizer-10bands"))?;
+
+        let peq_preamp = gst::ElementFactory::make("volume")
+            .name("peq_preamp")
+            .property("volume", 1.0f64)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("volume"))?;
+
+        let peq_equalizer = gst::ElementFactory::make("equalizer-nbands")
+            .name("peq_equalizer")
+            .property("num-bands", 1u32)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("equalizer-nbands"))?;
+
+        // Moduły Studia Dynamiki:
+        // 1. Kompresor dynamiki (audiodynamic)
+        let compressor = match gst::ElementFactory::make("audiodynamic")
+            .name("compressor_dynamics")
+            .property_from_str("mode", "compressor")
+            .property_from_str("characteristics", "soft-knee")
+            .property("ratio", 3.0f32)
+            .property("threshold", 0.125f32)
+            .build()
+        {
+            Ok(c) => {
+                if let Ok(transform) = c.clone().dynamic_cast::<gst_base::BaseTransform>() {
+                    transform.set_passthrough(true); // Domyślnie wyłączony (bypass)
+                }
+                c
+            }
+            Err(e) => {
+                warn!("Brak elementu audiodynamic (gst-plugins-good): {:?}", e);
+                return Err(AudioEngineError::MissingElement("audiodynamic"));
+            }
+        };
+
+        // 2. Wzmocnienie wyrównawcze (makeup gain) kompresora
+        let compressor_makeup = gst::ElementFactory::make("volume")
+            .name("compressor_makeup")
+            .property("volume", 1.0f64)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("volume"))?;
+
+        // 3. Saturator analogowy (lampa elektronowa / taśma) z sondą bufora F32LE
+        let saturator = gst::ElementFactory::make("identity")
+            .name("analog_saturator")
+            .property("silent", true)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("identity"))?;
+
+        let saturator_config = Arc::new(RwLock::new(domain::dynamics::SaturatorConfig::default()));
+        let sat_cfg_clone = Arc::clone(&saturator_config);
+
+        if let Some(src_pad) = saturator.static_pad("src") {
+            src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, info| {
+                if let Some(gst::PadProbeData::Buffer(ref mut buffer)) = info.data {
+                    let config = if let Ok(guard) = sat_cfg_clone.read() {
+                        *guard
+                    } else {
+                        return gst::PadProbeReturn::Ok;
+                    };
+
+                    if !config.enabled || config.mode == domain::dynamics::SaturatorMode::Off {
+                        return gst::PadProbeReturn::Ok;
+                    }
+
+                    let buffer_mut = buffer.make_mut();
+                    if let Ok(mut map) = buffer_mut.map_writable() {
+                        let slice = map.as_mut_slice();
+                        let f32_count = slice.len() / std::mem::size_of::<f32>();
+                        if f32_count > 0 {
+                            let f32_slice = unsafe {
+                                std::slice::from_raw_parts_mut(
+                                    slice.as_mut_ptr() as *mut f32,
+                                    f32_count,
+                                )
+                            };
+                            for s in f32_slice.iter_mut() {
+                                *s = config.process_sample(*s);
+                            }
+                        }
+                    }
+                }
+                gst::PadProbeReturn::Ok
+            });
+        }
 
         let spectrum = gst::ElementFactory::make("spectrum")
             .name("spectrum_analyzer")
@@ -283,6 +378,11 @@ impl AudioEngine {
 
         pipeline.add_many([
             &equalizer,
+            &peq_preamp,
+            &peq_equalizer,
+            &compressor,
+            &compressor_makeup,
+            &saturator,
             &queue_sink,
             &audioconvert_out,
             &rgvolume,
@@ -329,17 +429,36 @@ impl AudioEngine {
                 })?;
         }
 
-        // equalizer -> (bs2b) -> queue_sink
+        // equalizer -> peq_preamp -> peq_equalizer
+        equalizer.link(&peq_preamp).map_err(|_| {
+            AudioEngineError::ElementLink("Błąd linkowania equalizer z peq_preamp".into())
+        })?;
+        peq_preamp.link(&peq_equalizer).map_err(|_| {
+            AudioEngineError::ElementLink("Błąd linkowania peq_preamp z peq_equalizer".into())
+        })?;
+
+        // peq_equalizer -> compressor -> compressor_makeup -> saturator
+        peq_equalizer.link(&compressor).map_err(|_| {
+            AudioEngineError::ElementLink("Błąd linkowania peq_equalizer z compressor".into())
+        })?;
+        compressor.link(&compressor_makeup).map_err(|_| {
+            AudioEngineError::ElementLink("Błąd linkowania compressor z compressor_makeup".into())
+        })?;
+        compressor_makeup.link(&saturator).map_err(|_| {
+            AudioEngineError::ElementLink("Błąd linkowania compressor_makeup z saturator".into())
+        })?;
+
+        // saturator -> (bs2b) -> queue_sink
         if let Some(ref bs) = bs2b {
-            equalizer.link(bs).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania equalizer z bs2b".into())
+            saturator.link(bs).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania saturator z bs2b".into())
             })?;
             bs.link(&queue_sink).map_err(|_| {
                 AudioEngineError::ElementLink("Błąd linkowania bs2b z queue_sink".into())
             })?;
         } else {
-            equalizer.link(&queue_sink).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania equalizer z queue_sink".into())
+            saturator.link(&queue_sink).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania saturator z queue_sink".into())
             })?;
         }
 
@@ -376,6 +495,12 @@ impl AudioEngine {
             dsp,
             freeverb,
             equalizer,
+            peq_preamp,
+            peq_equalizer,
+            compressor,
+            compressor_makeup,
+            _saturator: saturator,
+            saturator_config,
             bs2b,
             cutter,
             rgvolume: rgvolume.clone(),
@@ -390,6 +515,8 @@ impl AudioEngine {
             dsp_params: DspParams::default(),
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
+            parametric_eq_state: ParametricEqState::default(),
+            dynamics_state: domain::dynamics::DynamicsState::default(),
             replaygain_config: ReplayGainConfig::default(),
             crossfeed_config: CrossfeedConfig::default(),
             silence_trimming_config: SilenceTrimmingConfig::default(),
@@ -1356,6 +1483,192 @@ impl AudioEngine {
     }
 
     // ==========================================
+    // METODY OBSŁUGI KOREKTORA PARAMETRYCZNEGO (PEQ)
+    // ==========================================
+
+    /// Zwraca aktualny stan korektora parametrycznego.
+    pub fn get_parametric_eq_state(&self) -> ParametricEqState {
+        let inner = self.inner.lock().unwrap();
+        inner.parametric_eq_state.clone()
+    }
+
+    /// Sprawdza, czy korektor parametryczny jest włączony.
+    pub fn is_parametric_eq_enabled(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner.parametric_eq_state.enabled
+    }
+
+    /// Ustawia i aplikuje kompletny stan korektora parametrycznego (pasma, preamp, bypass).
+    pub fn set_parametric_eq_state(
+        &self,
+        state: &ParametricEqState,
+    ) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.parametric_eq_state = state.clone();
+
+        let enabled = state.enabled;
+
+        // 1. Preamp: linear = 10^(preamp_db / 20.0)
+        let linear_preamp = if enabled {
+            10.0f64.powf(
+                state
+                    .preamp_db
+                    .clamp(domain::MIN_PREAMP_DB, domain::MAX_PREAMP_DB)
+                    / 20.0,
+            )
+        } else {
+            1.0
+        };
+        inner.peq_preamp.set_property("volume", linear_preamp);
+
+        // 2. Pasma korektora parametrycznego
+        let num_bands = state.bands.len().max(1) as u32;
+        inner.peq_equalizer.set_property("num-bands", num_bands);
+
+        if let Ok(child_proxy) = inner
+            .peq_equalizer
+            .clone()
+            .dynamic_cast::<gst::ChildProxy>()
+        {
+            for (i, band) in state.bands.iter().enumerate() {
+                if let Some(child) = child_proxy.child_by_index(i as u32) {
+                    let gain = if enabled && band.enabled {
+                        band.gain_db.clamp(
+                            domain::MIN_PARAMETRIC_GAIN_DB,
+                            domain::MAX_PARAMETRIC_GAIN_DB,
+                        )
+                    } else {
+                        0.0
+                    };
+                    child.set_property(
+                        "freq",
+                        band.freq
+                            .clamp(domain::MIN_PARAMETRIC_FREQ, domain::MAX_PARAMETRIC_FREQ),
+                    );
+                    child.set_property("bandwidth", band.bandwidth_hz());
+                    child.set_property("gain", gain);
+                    let type_str = match band.filter_type {
+                        domain::ParametricFilterType::Peak => "peak",
+                        domain::ParametricFilterType::LowShelf => "low-shelf",
+                        domain::ParametricFilterType::HighShelf => "high-shelf",
+                    };
+                    child.set_property_from_str("type", type_str);
+                }
+            }
+            if state.bands.is_empty() {
+                if let Some(child) = child_proxy.child_by_index(0) {
+                    child.set_property("gain", 0.0f64);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Włącza lub wyłącza korektor parametryczny (bypass).
+    pub fn set_parametric_eq_enabled(&self, enabled: bool) -> Result<(), AudioEngineError> {
+        let mut state = {
+            let inner = self.inner.lock().unwrap();
+            inner.parametric_eq_state.clone()
+        };
+        state.enabled = enabled;
+        self.set_parametric_eq_state(&state)
+    }
+
+    /// Ustawia wzmocnienie przedwzmacniacza PEQ (preamp) w dB.
+    pub fn set_parametric_eq_preamp(&self, preamp_db: f64) -> Result<(), AudioEngineError> {
+        let mut state = {
+            let inner = self.inner.lock().unwrap();
+            inner.parametric_eq_state.clone()
+        };
+        state.preamp_db = preamp_db;
+        self.set_parametric_eq_state(&state)
+    }
+
+    // ==========================================
+    // METODY OBSŁUGI STUDIA DYNAMIKI (COMPRESSOR, SATURATOR, LIMITER)
+    // ==========================================
+
+    /// Pobiera bieżący stan Studia Dynamiki (kompresor, saturator, limiter).
+    pub fn get_dynamics_state(&self) -> domain::dynamics::DynamicsState {
+        let inner = self.inner.lock().unwrap();
+        inner.dynamics_state
+    }
+
+    pub fn is_compressor_enabled(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner.dynamics_state.compressor.enabled
+    }
+
+    pub fn is_saturator_enabled(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner.dynamics_state.saturator.enabled
+    }
+
+    /// Aplikuje kompletny stan Studia Dynamiki w locie bez trzasków i przerw.
+    pub fn set_dynamics_state(
+        &self,
+        state: &domain::dynamics::DynamicsState,
+    ) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.dynamics_state = *state;
+
+        // 1. Kompresor dynamiki
+        let comp = state.compressor.clamped();
+        inner.compressor.set_property("ratio", comp.ratio);
+        inner
+            .compressor
+            .set_property("threshold", comp.linear_threshold());
+        inner.compressor.set_property_from_str(
+            "characteristics",
+            if comp.soft_knee {
+                "soft-knee"
+            } else {
+                "hard-knee"
+            },
+        );
+        if let Ok(transform) = inner
+            .compressor
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(!comp.enabled);
+        }
+
+        // Makeup gain
+        let makeup_vol = if comp.enabled {
+            comp.linear_makeup_gain()
+        } else {
+            1.0f64
+        };
+        inner.compressor_makeup.set_property("volume", makeup_vol);
+
+        // 2. Saturator analogowy
+        if let Ok(mut guard) = inner.saturator_config.write() {
+            *guard = state.saturator.clamped();
+        }
+
+        // 3. Limiter słuchawkowy (rglimiter)
+        inner
+            .rglimiter
+            .set_property("enabled", state.limiter.enabled);
+
+        Ok(())
+    }
+
+    pub fn set_compressor_enabled(&self, enabled: bool) -> Result<(), AudioEngineError> {
+        let mut state = self.get_dynamics_state();
+        state.compressor.enabled = enabled;
+        self.set_dynamics_state(&state)
+    }
+
+    pub fn set_saturator_enabled(&self, enabled: bool) -> Result<(), AudioEngineError> {
+        let mut state = self.get_dynamics_state();
+        state.saturator.enabled = enabled;
+        self.set_dynamics_state(&state)
+    }
+
+    // ==========================================
     // METODY OBSŁUGI KOLEJKI ODTWARZANIA (QUEUE)
     // ==========================================
 
@@ -1770,16 +2083,17 @@ impl AudioEngine {
         (inner.stereo_widener_active, inner.stereo_widener_amount)
     }
 
-    /// Włącza lub wyłącza True-Peak Limiter (rglimiter).
+    /// Włącza lub wyłącza True-Peak Limiter (rglimiter) oraz synchronizuje stan Studia Dynamiki.
     pub fn set_limiter_enabled(&self, enabled: bool) {
-        let inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
+        inner.dynamics_state.limiter.enabled = enabled;
         inner.rglimiter.set_property("enabled", enabled);
     }
 
     /// Sprawdza, czy True-Peak Limiter (rglimiter) jest włączony.
     pub fn is_limiter_enabled(&self) -> bool {
         let inner = self.inner.lock().unwrap();
-        inner.rglimiter.property("enabled")
+        inner.dynamics_state.limiter.enabled
     }
 
     /// Ustawia czas płynnego przejścia (crossfade) w milisekundach (0 - 8000 ms).

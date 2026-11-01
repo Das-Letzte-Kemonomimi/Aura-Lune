@@ -13,6 +13,8 @@ export interface Translations {
     soundscape: string;
     harmonicSuggester: string;
     autoEq: string;
+    parametricEq: string;
+    dynamicsStudio: string;
     fullscreen: string;
     miniPlayer: string;
     queue: string;
@@ -804,6 +806,8 @@ export const translations: Record<Language, Translations> = {
       soundscape: 'Soundscape',
       harmonicSuggester: 'Harmonic DJ Suggester',
       autoEq: 'AutoEQ Headphone Profiles',
+      parametricEq: 'Parametric EQ Studio',
+      dynamicsStudio: 'Dynamics & Analog Warmth Studio',
       fullscreen: 'Full Screen',
       miniPlayer: 'Mini Player',
       queue: 'Queue',
@@ -1594,6 +1598,8 @@ export const translations: Record<Language, Translations> = {
       soundscape: 'Dźwięki tła',
       harmonicSuggester: 'Miksowanie harmoniczne (DJ)',
       autoEq: 'Profile słuchawkowe AutoEQ',
+      parametricEq: 'Korektor parametryczny (PEQ)',
+      dynamicsStudio: 'Studio Dynamiki & Lampy',
       fullscreen: 'Pełny ekran',
       miniPlayer: 'Mini-Player',
       queue: 'Kolejka',
@@ -2384,6 +2390,8 @@ export const translations: Record<Language, Translations> = {
       soundscape: 'Klanglandschaft',
       harmonicSuggester: 'Harmonischer DJ-Mixer',
       autoEq: 'AutoEQ-Kopfhörerprofile',
+      parametricEq: 'Parametrischer Equalizer (PEQ)',
+      dynamicsStudio: 'Dynamik- & Röhrenwärme-Studio',
       fullscreen: 'Vollbild',
       miniPlayer: 'Mini-Player',
       queue: 'Warteschlange',
@@ -3174,6 +3182,8 @@ export const translations: Record<Language, Translations> = {
       soundscape: 'Äänimaisema',
       harmonicSuggester: 'Harmoninen DJ-avustaja',
       autoEq: 'AutoEQ-kuulokeprofiilit',
+      parametricEq: 'Parametrinen taajuuskorjain (PEQ)',
+      dynamicsStudio: 'Dynamiikka- & putkilämpöstudio',
       fullscreen: 'Koko näyttö',
       miniPlayer: 'Mini-soitin',
       queue: 'Jono',
@@ -3964,6 +3974,8 @@ export const translations: Record<Language, Translations> = {
       soundscape: 'Sonitus',
       harmonicSuggester: 'Harmonicus DJ Suggester',
       autoEq: 'AutoEQ Auriculares Formae',
+      parametricEq: 'Aequator Parametricus (PEQ)',
+      dynamicsStudio: 'Officina Dynamicae et Caloris',
       fullscreen: 'Plena Facies',
       miniPlayer: 'Parvus Lusor',
       queue: 'Ordo',

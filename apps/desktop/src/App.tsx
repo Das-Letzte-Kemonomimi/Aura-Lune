@@ -114,6 +114,8 @@ import { SoundscapeModal } from './components/SoundscapeModal';
 import { soundscapeEngine } from './utils/soundscapeAudio';
 import { HarmonicSuggesterModal } from './components/HarmonicSuggesterModal';
 import { AutoEqModal } from './components/AutoEqModal';
+import { ParametricEqModal } from './components/ParametricEqModal';
+import { DynamicsStudioModal } from './components/DynamicsStudioModal';
 import { useVirtualScroll } from './hooks/useVirtualScroll';
 import { type Language, getTranslations } from './i18n';
 
@@ -262,6 +264,10 @@ interface PlaybackStatus {
   current_track?: QueueItem | null;
   equalizer_enabled?: boolean;
   equalizer_bands?: number[];
+  parametric_eq_enabled?: boolean;
+  compressor_enabled?: boolean;
+  saturator_enabled?: boolean;
+  limiter_enabled?: boolean;
   spectrum?: number[];
   replaygain_config?: {
     mode: 'Off' | 'Track' | 'Album';
@@ -356,6 +362,10 @@ export default function App() {
     },
     equalizer_enabled: false,
     equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    parametric_eq_enabled: false,
+    compressor_enabled: false,
+    saturator_enabled: false,
+    limiter_enabled: true,
     spectrum: Array(16).fill(0.05),
   });
 
@@ -1016,6 +1026,12 @@ export default function App() {
 
   // Stan modala Bazy Profili Słuchawkowych AutoEQ
   const [isAutoEqOpen, setIsAutoEqOpen] = useState(false);
+
+  // Stan modala Wielopasmowego Korektora Parametrycznego (PEQ Studio)
+  const [isParametricEqOpen, setIsParametricEqOpen] = useState(false);
+
+  // Stan modala Studia Dynamiki & Nasycenia Analogowego (Kompresor, Lampa, Taśma, Limiter)
+  const [isDynamicsStudioOpen, setIsDynamicsStudioOpen] = useState(false);
 
   // Stan trybu pełnoekranowego Kiosk / Big Screen Now Playing
   const [isBigScreen, setIsBigScreen] = useState(false);
@@ -15448,6 +15464,84 @@ const renderDevicesSection = () => (
                     <Headphones size={13} /> AutoEQ
                   </button>
 
+                  {/* Przycisk Wielopasmowego Korektora Parametrycznego PEQ */}
+                  <button
+                    onClick={() => setIsParametricEqOpen(true)}
+                    title="Wielopasmowy korektor parametryczny (PEQ) — filtry Peak/Shelf, biquad, import EqualizerAPO"
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: status.parametric_eq_enabled ? 'rgba(168, 85, 247, 0.32)' : 'rgba(168, 85, 247, 0.16)',
+                      border: status.parametric_eq_enabled ? '1px solid rgba(168, 85, 247, 0.7)' : '1px solid rgba(168, 85, 247, 0.35)',
+                      color: status.parametric_eq_enabled ? '#f3e8ff' : '#c084fc',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: status.parametric_eq_enabled ? '0 0 10px rgba(168, 85, 247, 0.3)' : 'none',
+                    }}
+                  >
+                    <Sliders size={13} /> PEQ Studio
+                    {status.parametric_eq_enabled && (
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: '#c084fc',
+                          boxShadow: '0 0 6px #e879f9',
+                        }}
+                      />
+                    )}
+                  </button>
+
+                  {/* Przycisk Studia Dynamiki & Lampy (Kompresor / Saturator / Limiter) */}
+                  <button
+                    onClick={() => setIsDynamicsStudioOpen(true)}
+                    title="Studio Dynamiki & Lampy — kompresor dynamiki, nasycenie taśmowe, ciepło lampowe i limiter słuchawkowy"
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background:
+                        status.compressor_enabled || status.saturator_enabled
+                          ? 'rgba(236, 72, 153, 0.3)'
+                          : 'rgba(236, 72, 153, 0.14)',
+                      border:
+                        status.compressor_enabled || status.saturator_enabled
+                          ? '1px solid rgba(236, 72, 153, 0.7)'
+                          : '1px solid rgba(236, 72, 153, 0.35)',
+                      color:
+                        status.compressor_enabled || status.saturator_enabled ? '#fdf4ff' : '#f472b6',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow:
+                        status.compressor_enabled || status.saturator_enabled
+                          ? '0 0 10px rgba(236, 72, 153, 0.3)'
+                          : 'none',
+                    }}
+                  >
+                    <Activity size={13} /> Dynamics Studio
+                    {(status.compressor_enabled || status.saturator_enabled) && (
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: '#ec4899',
+                          boxShadow: '0 0 6px #f472b6',
+                        }}
+                      />
+                    )}
+                  </button>
+
                   {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
                   <button
                     onClick={handleEqToggle}
@@ -17096,6 +17190,20 @@ const renderDevicesSection = () => (
         currentLang={language}
       />
 
+      {/* Modal Wielopasmowego Korektora Parametrycznego PEQ Studio */}
+      <ParametricEqModal
+        isOpen={isParametricEqOpen}
+        onClose={() => setIsParametricEqOpen(false)}
+        currentLang={language}
+      />
+
+      {/* Modal Studia Dynamiki & Nasycenia Analogowego (Kompresor, Lampa, Taśma, Limiter) */}
+      <DynamicsStudioModal
+        isOpen={isDynamicsStudioOpen}
+        onClose={() => setIsDynamicsStudioOpen(false)}
+        currentLang={language}
+      />
+
       {/* Modal Szczegółowych Statystyk Utworu */}
       {statsModalTrack && (
         <TrackStatsModal
@@ -17233,6 +17341,8 @@ const renderDevicesSection = () => (
           onOpenSoundscape={() => setIsSoundscapeOpen(true)}
           onOpenHarmonicSuggester={() => setIsHarmonicSuggesterOpen(true)}
           onOpenAutoEq={() => setIsAutoEqOpen(true)}
+          onOpenParametricEq={() => setIsParametricEqOpen(true)}
+          onOpenDynamicsStudio={() => setIsDynamicsStudioOpen(true)}
           onSelectTab={(tab) => setActiveTab(tab as any)}
         />
       )}

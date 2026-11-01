@@ -74,6 +74,10 @@ pub struct PlaybackStatusDto {
     pub current_track: Option<QueueItem>,
     pub equalizer_enabled: bool,
     pub equalizer_bands: [f64; 10],
+    pub parametric_eq_enabled: bool,
+    pub compressor_enabled: bool,
+    pub saturator_enabled: bool,
+    pub limiter_enabled: bool,
     pub spectrum: Vec<f32>,
     pub replaygain_config: ReplayGainConfig,
     pub replaygain_status: (f64, f64, bool),
@@ -1154,6 +1158,10 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         current_track,
         equalizer_enabled: state.engine.is_equalizer_enabled(),
         equalizer_bands: state.engine.get_equalizer_bands(),
+        parametric_eq_enabled: state.engine.is_parametric_eq_enabled(),
+        compressor_enabled: state.engine.is_compressor_enabled(),
+        saturator_enabled: state.engine.is_saturator_enabled(),
+        limiter_enabled: state.engine.is_limiter_enabled(),
         spectrum,
         replaygain_config: state.engine.replaygain_config(),
         replaygain_status: state.engine.replaygain_status(),
@@ -1192,6 +1200,106 @@ fn set_equalizer_enabled(enabled: bool, state: State<'_, AppState>) -> Result<()
 #[tauri::command]
 fn get_equalizer_presets() -> Vec<EqualizerPreset> {
     EqualizerPreset::default_presets()
+}
+
+#[tauri::command]
+fn get_parametric_eq_state(state: State<'_, AppState>) -> domain::ParametricEqState {
+    state.engine.get_parametric_eq_state()
+}
+
+#[tauri::command]
+fn set_parametric_eq_state(
+    eq_state: domain::ParametricEqState,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: set_parametric_eq_state(enabled={}, preamp={} dB, bands={})",
+        eq_state.enabled,
+        eq_state.preamp_db,
+        eq_state.bands.len()
+    );
+    state
+        .engine
+        .set_parametric_eq_state(&eq_state)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_parametric_eq_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_parametric_eq_enabled({})", enabled);
+    state
+        .engine
+        .set_parametric_eq_enabled(enabled)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_parametric_eq_preamp(preamp_db: f64, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_parametric_eq_preamp({} dB)", preamp_db);
+    state
+        .engine
+        .set_parametric_eq_preamp(preamp_db)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_parametric_eq_presets() -> Vec<domain::ParametricEqPreset> {
+    domain::ParametricEqPreset::default_presets()
+}
+
+#[tauri::command]
+fn parse_equalizer_apo_config(text: String) -> Result<domain::ParametricEqState, String> {
+    domain::ParametricEqState::parse_equalizer_apo(&text)
+}
+
+#[tauri::command]
+fn export_equalizer_apo_config(eq_state: domain::ParametricEqState) -> String {
+    eq_state.export_to_equalizer_apo()
+}
+
+#[tauri::command]
+fn get_dynamics_state(state: State<'_, AppState>) -> domain::DynamicsState {
+    state.engine.get_dynamics_state()
+}
+
+#[tauri::command]
+fn set_dynamics_state(
+    dynamics_state: domain::DynamicsState,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: set_dynamics_state(comp={}, sat={}, lim={})",
+        dynamics_state.compressor.enabled,
+        dynamics_state.saturator.enabled,
+        dynamics_state.limiter.enabled
+    );
+    state
+        .engine
+        .set_dynamics_state(&dynamics_state)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_compressor_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_compressor_enabled({})", enabled);
+    state
+        .engine
+        .set_compressor_enabled(enabled)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_saturator_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_saturator_enabled({})", enabled);
+    state
+        .engine
+        .set_saturator_enabled(enabled)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_dynamics_presets() -> Vec<domain::DynamicsPreset> {
+    domain::DynamicsPreset::default_presets()
 }
 
 #[tauri::command]
@@ -5067,6 +5175,18 @@ pub fn run() {
             set_equalizer_bands,
             set_equalizer_enabled,
             get_equalizer_presets,
+            get_parametric_eq_state,
+            set_parametric_eq_state,
+            set_parametric_eq_enabled,
+            set_parametric_eq_preamp,
+            get_parametric_eq_presets,
+            parse_equalizer_apo_config,
+            export_equalizer_apo_config,
+            get_dynamics_state,
+            set_dynamics_state,
+            set_compressor_enabled,
+            set_saturator_enabled,
+            get_dynamics_presets,
             get_replaygain_config,
             set_replaygain_config,
             get_replaygain_status,

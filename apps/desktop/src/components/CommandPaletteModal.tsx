@@ -54,6 +54,8 @@ interface CommandPaletteModalProps {
   onOpenSoundscape?: () => void;
   onOpenHarmonicSuggester?: () => void;
   onOpenAutoEq?: () => void;
+  onOpenParametricEq?: () => void;
+  onOpenDynamicsStudio?: () => void;
   onSelectTab: (tab: string) => void;
 }
 
@@ -79,6 +81,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenSoundscape,
   onOpenHarmonicSuggester,
   onOpenAutoEq,
+  onOpenParametricEq,
+  onOpenDynamicsStudio,
   onSelectTab,
 }) => {
   const [query, setQuery] = useState('');
@@ -233,6 +237,38 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         onExecute: () => {
           if (onOpenAutoEq) {
             onOpenAutoEq();
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'action-parametric-eq',
+        type: 'action',
+        title: isPl ? 'Korektor Parametryczny (PEQ Studio)' : 'Parametric EQ Studio (PEQ)',
+        subtitle: isPl
+          ? 'Wielopasmowy korektor z filtrami Peak/Shelf, regulacją Q, krzywą biquad i importem EqualizerAPO'
+          : 'Multi-band parametric EQ with Peak/Shelf filters, Q control, biquad curve, and EqualizerAPO import',
+        icon: <Sliders size={18} />,
+        badge: 'PEQ Studio',
+        onExecute: () => {
+          if (onOpenParametricEq) {
+            onOpenParametricEq();
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'action-dynamics-studio',
+        type: 'action',
+        title: isPl ? 'Studio Dynamiki & Lampy (Dynamics Studio)' : 'Dynamics & Warmth Studio',
+        subtitle: isPl
+          ? 'Kompresor dynamiki, nasycenie taśmowe, ciepło lampowe i limiter słuchawkowy'
+          : 'Dynamic range compressor, tape saturation, tube warmth and headphone limiter',
+        icon: <Activity size={18} />,
+        badge: 'Dynamics',
+        onExecute: () => {
+          if (onOpenDynamicsStudio) {
+            onOpenDynamicsStudio();
           }
           onClose();
         },

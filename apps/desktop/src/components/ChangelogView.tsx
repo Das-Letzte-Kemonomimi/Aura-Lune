@@ -18,11 +18,35 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.8.1',
+    codename: 'Parametric Warmth & Studio Dynamics',
+    date: '2026-11-01',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Wielopasmowy Korektor Parametryczny (Parametric EQ Studio): zaawansowany procesor PEQ (od 1 do 32 pasm) z filtrami Peak, Low Shelf i High Shelf, precyzyjną dobrocią Q, kalkulacją bezpiecznego zapasu dynamiki (Safe Preamp), fabrycznymi presetami (Harman Target Baseline, Vocal Clarity, Sub-Bass Punch) oraz pełnym importem/eksportem profili EqualizerAPO / AutoEQ .txt.',
+        en: 'Multi-Band Parametric Equalizer Studio (PEQ Studio): advanced parametric equalizer (1 to 32 bands) with Peak, Low Shelf, and High Shelf filters, Q bandwidth control, Safe Preamp clipping prevention, factory presets (Harman Target, Vocal Clarity, Sub-Bass Punch), and full EqualizerAPO / AutoEQ .txt import/export.',
+        de: 'Parametrisches Equalizer-Studio (PEQ): Fortschrittlicher parametrischer EQ (1 bis 32 Bänder) mit Peak-, Low-Shelf- und High-Shelf-Filtern, Q-Gütefaktor, Safe Preamp Headroom-Schutz, Werksvoreinstellungen (Harman Target, Vocal Clarity) und vollständigem EqualizerAPO / AutoEQ .txt Import/Export.',
+        fi: 'Parametrinen taajuuskorjainstudio (PEQ): monikaistainen parametrinen EQ (1-32 kaistaa) Peak-, Low Shelf- ja High Shelf -suodattimilla, Q-arvon säädöllä, Safe Preamp -suojauksella, esiasetuksilla (Harman Target, Vocal Clarity) ja täydellä EqualizerAPO / AutoEQ .txt -tuonnilla ja -viennillä.',
+        la: 'Aequatoris Parametrici Officina (PEQ): provectus aequator parametricus (1 ad 32 fasces) cum filtrorum Peak, Low Shelf et High Shelf, moderatione Q, praemunitione Safe Preamp, formis praefinitis et plena translatione EqualizerAPO / AutoEQ .txt.',
+      },
+      {
+        pl: 'Studio Dynamiki & Lampy (Dynamics & Warmth Studio): kompresor dynamiki z regulacją progu (-60..0 dBFS), stosunku ratio (1:1..20:1), przełączaniem Soft/Hard Knee i wzmocnieniem Makeup Gain, połączony z bezalokacyjną emulacją nasycenia lampowego (parzyste harmoniczne triody), taśmy magnetofonowej (arctan) i master limiterem słuchawkowym chroniącym słuch.',
+        en: 'Dynamics & Analog Warmth Studio: Dynamic Range Compressor (audiodynamic with threshold, ratio, soft/hard knee, and makeup gain) paired with zero-allocation waveshaping saturation (Triode even harmonic warmth, tape saturation arctan compression) and headphone protection limiter.',
+        de: 'Dynamik- & Röhrenwärme-Studio: Dynamikbereichs-Kompressor (mit Threshold, Ratio, Soft/Hard Knee und Makeup Gain) kombiniert mit analoger Sättigung (Trioden-Röhrenwärme, Bandsättigung) und Kopfhörerschutz-Limiter.',
+        fi: 'Dynamiikka- & putkilämpöstudio: dynamiikkakompressori (Threshold, Ratio, Soft/Hard Knee, Makeup Gain) yhdistettynä analogiseen saturaatioon (triodiputken parilliset harmoniset, nauhasaturaatio) ja kuulokkeita suojaavaan master-limitteriin.',
+        la: 'Officina Dynamicae et Caloris: compressor dynamicae cum moderatione Threshold, Ratio, Knee et Makeup Gain, coniunctus cum saturatione tubi electronici (harmonicae pares), taeniae magneticae et limite tutelae auricularum.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.8.0',
     codename: 'Harmonic Flow & Ambient Focus',
     date: '2026-11-01',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Dźwiękowy generator tła (Soundscape / Lofi Ambience): 5 nieskończonych, proceduralnych warstw syntezy Web Audio API miksowanych na żywo z muzyką (deszcz z kroplami, trzask winyla, ognisko z iskrami, wiatr z dzwonkami Furin w japońskiej skali Insen, szum brązowy kawiarni). Zawiera presety i synchronizację z cząsteczkami anime.',
