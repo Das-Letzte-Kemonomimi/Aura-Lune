@@ -18,11 +18,42 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.8.0',
+    codename: 'Harmonic Flow & Ambient Focus',
+    date: '2026-11-01',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Dźwiękowy generator tła (Soundscape / Lofi Ambience): 5 nieskończonych, proceduralnych warstw syntezy Web Audio API miksowanych na żywo z muzyką (deszcz z kroplami, trzask winyla, ognisko z iskrami, wiatr z dzwonkami Furin w japońskiej skali Insen, szum brązowy kawiarni). Zawiera presety i synchronizację z cząsteczkami anime.',
+        en: 'Soundscape & Lofi Ambience generator: 5 endless procedural Web Audio API synthesis layers mixed live with playback (rain with droplets, vinyl crackle, campfire embers, wind with Japanese Furin chimes in Insen scale, cafe brown noise). Features quick presets and anime particle auto-sync.',
+        de: 'Klanglandschaft & Lofi-Ambiente-Generator: 5 endlose prozedurale Web-Audio-Syntheseschichten gemischt mit der Musik (Regen mit Tropfen, Vinylknistern, Lagerfeuer, Wind mit Furin-Glocken in Insen-Skala, braunes Café-Rauschen). Mit Presets und Anime-Partikel-Sync.',
+        fi: 'Äänimaisema & Lofi-tunnelmageneraattori: 5 loputonta proseduraalista Web Audio -syntetisaatiokerrosta reaaliaikaisessa miksauksessa (sade pisaroineen, vinyylin rahina, nuotio, tuuli ja japanilaiset Furin-kellot Insen-asteikossa, kahvilan ruskea kohina). Esiasetukset ja anime-partikkelisynkronointi.',
+        la: 'Sonitus & Lofi generator: 5 perpetua strata synthesis Web Audio API cum cantu mixta (pluvia cum guttis, crepitus disci, ignis, ventus cum campanis Furin in scala Insen, sonitus fuscus). Modis praefinitis et particulis anime congruentibus.',
+      },
+      {
+        pl: 'Harmonic Queue Assistant & DJ Beat-Matched Crossfade: inteligentny asystent kolejki dopasowujący tonacje koła Camelota (Camelot Wheel ±1 krok, relacje mol/dur, modulacje energii) oraz zbliżone BPM (±6% i half/double time). Wprowadza DJ Crossfade dopasowany do 1, 2 lub 4 taktów (4, 8, 16 beatów) oraz synchronizację tempa DSP.',
+        en: 'Harmonic Queue Assistant & DJ Beat-Matched Crossfade: intelligent harmonic mixing assistant based on Camelot Wheel (same key, ±1 step, relative major/minor, energy boosts) and BPM compatibility (±6% and half/double-time). Features beat-matched crossfades (1, 2, or 4 bars / 4, 8, 16 beats) and DSP tempo sync.',
+        de: 'Harmonischer Warteschlangen-Assistent & DJ-Crossfade: Intelligentes harmonisches Mischen basierend auf dem Camelot-Rad (gleiche Tonart, ±1 Schritt, Dur/Moll-Wechsel, Energieschübe) und BPM (±6%). Bietet Beat-angepassten Crossfade (1, 2 oder 4 Takte) und DSP-Tempo-Sync.',
+        fi: 'Harmoninen jonoavustaja & DJ Beat-Matched Crossfade: älykäs harmoninen miksausavustaja Camelot-pyörän (sama sävellaji, ±1 askel, duuri/molli, energiannostot) ja BPM-yhteensopivuuden (±6%) perusteella. Sisältää rytmiin sovitun crossfaden (1, 2 tai 4 tahtia) ja DSP-temposynkronoinnin.',
+        la: 'Adiutor ordinis harmonicus & DJ Beat-Matched Crossfade: mixtura harmonica secundum rotam Camelot (idem tonus, ±1 gradus, mol/dur, vis augmentum) et BPM congruentia. Praebet transitum ritmicum (1, 2 vel 4 mensurae) et congruitionem celeritatis DSP.',
+      },
+      {
+        pl: 'Baza profili słuchawkowych AutoEQ (1-klikowy Parametric EQ): baza ponad 160 precyzyjnych pomiarów słuchawek nausznych i dokanałowych IEM (Moondrop, Sennheiser, Sony, Beyerdynamic, Apple, Hifiman, Truthear) skalowana do 10-pasmowego korektora Auralune z kompensacją Harmana i zabezpieczeniem Preamp.',
+        en: 'AutoEQ Headphone Profiles Database (1-click EQ): curated database of 160+ measured over-ear and IEM headphones (Moondrop, Sennheiser, Sony, Beyerdynamic, Apple, Hifiman, Truthear) mapped to Auralune 10-band graphic EQ with Harman Target curve and digital clipping prevention preamp.',
+        de: 'AutoEQ-Kopfhörerdatenbank (1-Klick-EQ): Kuratierte Datenbank von über 160 gemessenen Kopfhörern und IEMs (Moondrop, Sennheiser, Sony, Beyerdynamic, Apple, Hifiman, Truthear), angepasst an den 10-Band-EQ von Auralune mit Harman-Kurve und Preamp-Clippingschutz.',
+        fi: 'AutoEQ-kuulokeprofiilitietokanta (1-klikkauksen EQ): yli 160 kuuloke- ja IEM-mallin mittaustietokanta (Moondrop, Sennheiser, Sony, Beyerdynamic, Apple, Hifiman, Truthear) sovitettuna Auralunen 10-kaistaiseen taajuuskorjaimeen Harman Target -käyrällä ja Preamp-suojauksella.',
+        la: 'AutoEQ index auricularum formarum: plus quam 160 mensurae auricularum et IEM (Moondrop, Sennheiser, Sony, Beyerdynamic, Apple, Hifiman, Truthear) ad aequatorem 10-fascium Auralune aptatae cum curva Harman et tutela Preamp.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.7.7',
     codename: 'Precision Loop & Seamless Flow',
     date: '2026-11-01',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Precyzyjne kolejkowanie pojedynczych utworów (Single-Track Playback): kliknięcie utworu w tabeli biblioteki, wynikach wyszukiwania, palecie komend (Ctrl+K) lub statystykach odtwarza wyłącznie ten konkretny utwór (jako 1-elementową kolejkę w trybie replace lub dopisując go na koniec w trybie append), eliminując niepożądane dodawanie całej biblioteki.',
