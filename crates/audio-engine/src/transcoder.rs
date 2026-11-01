@@ -241,7 +241,7 @@ impl Transcoder {
             last_elem.link(&audioconvert_post)?;
             audioconvert_post
         } else {
-            audioresample
+            audioresample.clone()
         };
 
         // W zależności od formatu docelowego dodajemy odpowiedni encoder i opcjonalny muxer
@@ -300,7 +300,10 @@ impl Transcoder {
                 None => (gst::SeekType::None, gst::ClockTime::NONE),
             };
 
-            let seek_res = pipeline.seek(
+            // Wykonujemy seek bezpośrednio na elemencie audioresample (przed procesorem DSP 'pitch').
+            // Dzięki temu wartości punktów A i B są interpretowane w bezwzględnej osi czasu pliku
+            // źródłowego i nie ulegają zniekształceniu/przeskalowaniu przez tempo i rate efektu DSP.
+            let seek_res = audioresample.seek(
                 1.0,
                 gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
                 gst::SeekType::Set,
@@ -313,7 +316,7 @@ impl Transcoder {
                     "Dokładny seek (ACCURATE) A-B nie powiódł się ({}), próba ze standardowym FLUSH",
                     e
                 );
-                pipeline.seek(
+                audioresample.seek(
                     1.0,
                     gst::SeekFlags::FLUSH,
                     gst::SeekType::Set,

@@ -1431,6 +1431,11 @@ impl AudioEngine {
             let mut q = self.queue.lock().unwrap();
             if index < q.items.len() {
                 q.current_index = Some(index);
+                if q.shuffle && !q.shuffle_order.is_empty() {
+                    if let Some(pos) = q.shuffle_order.iter().position(|&x| x == index) {
+                        q.shuffle_cursor = pos;
+                    }
+                }
                 q.current_item().cloned()
             } else {
                 None

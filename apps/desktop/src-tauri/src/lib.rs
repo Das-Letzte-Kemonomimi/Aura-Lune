@@ -35,7 +35,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, DuplicateGroup, TrackRecord};
 use tauri::{Emitter, Manager, State};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -3223,9 +3223,36 @@ fn clear_queue(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn play_queue_index(index: usize, state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
-    info!("Tauri command: play_queue_index({})", index);
-    let active = state.engine.play_index(index).map_err(|e| e.to_string())?;
+fn play_queue_index(
+    index: usize,
+    expected_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Option<QueueItem>, String> {
+    info!(
+        "Tauri command: play_queue_index({}, expected_id: {:?})",
+        index, expected_id
+    );
+    let target_index = if let Some(ref target_id) = expected_id {
+        let q = state.engine.queue();
+        if index < q.items.len() && q.items[index].id == *target_id {
+            index
+        } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
+            warn!(
+                "play_queue_index: korekta indeksu z {} na {} dla utworu {}",
+                index, found, target_id
+            );
+            found
+        } else {
+            index
+        }
+    } else {
+        index
+    };
+
+    let active = state
+        .engine
+        .play_index(target_index)
+        .map_err(|e| e.to_string())?;
     if let Some(item) = &active {
         if !item.id.starts_with("radio-") {
             if let Ok(mut t) = state.latest_live_stream_tag.lock() {

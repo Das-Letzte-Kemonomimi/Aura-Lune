@@ -9,6 +9,32 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.7.7] — „Precision Loop & Seamless Flow” - 2026-11-01
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Precyzyjne kolejkowanie pojedynczych utworów (`Single-Track Playback`)**:
+  - Kliknięcie utworu w tabeli biblioteki, wynikach wyszukiwania, palecie komend (Ctrl+K) lub modalach statystyk odtwarza wyłącznie ten konkretny utwór (zakładając 1-elementową kolejkę w trybie `replace` lub dodając go na koniec w trybie `append`), eliminując niepożądane pakowanie całej 3-tysięcznej biblioteki do kolejki.
+- **Stały dolny pasek odtwarzacza w widoku Odtwarzacza (Now Playing Dock)**:
+  - Gdy użytkownik przewija dużą kolejkę lub widok odtwarzacza w dół, dolny pasek ze sterowaniem (Play/Pause, Next/Prev, suwak czasu, głośność, okładka) automatycznie pojawia się na dole ekranu, uniemożliwiając utratę kontroli nad odtwarzaniem. Dodano także 1-klikowy powrót na samą górę (`Scroll to Top`).
+
+### Poprawiono (Fixed)
+- **Precyzja eksportu fragmentu A-B z włączonym DSP (Nightcore/Slowed/Tempo/Rate)**:
+  - Wykonywanie seeka w potoku transkodera GStreamera przeniesiono bezpośrednio na element `audioresample` przed filtrem DSP `pitch`.
+  - Wyeliminowano błąd, w którym filtr `pitch` mnożył punkty A i B przez współczynnik tempa i szybkości (`tempo * rate`), przesuwając początek i koniec wycinka (np. 1.25x dalej w Nightcore lub ucinając za wcześnie w Slowed). Po poprawce fragment A-B jest precyzyjnie wycinany w bezwzględnej osi czasu pliku źródłowego z dokładnością co do próbki.
+- **Eliminacja zalewania kolejki biblioteką (3k utworów) i naprawa 3 trybów kolejkowania (`albumPlaybackMode`)**:
+  - Wyeliminowano przekazywanie `sortedTracks` do wierszy tabeli biblioteki.
+  - Naprawiono i ujednoznaczniono 3 tryby w *Ustawienia -> Audio i Odtwarzacz*:
+    - `replace`: Zastępuje kolejkę wybranym albumem/playlistą (lub tylko 1 klikniętym utworem/plikiem).
+    - `append`: Dopisuje kliknięty album/playlistę lub 1 utwór/plik na koniec kolejki.
+    - `single`: Odtwarza bezpośrednio kliknięty utwór/plik bez modyfikowania kolejki.
+    - Otwieranie plików z systemu (`pick_files`) oraz przyciski dodawania do kolejki (`+`) respektują wybrane zasady.
+- **Precyzja wirtualizacji kolejki (Virtual Scroll) i odporność wyboru utworu (`play_queue_index`)**:
+  - Skorygowano wysokość wiersza `itemHeight` (72px standard / 54px compact) oraz wyliczanie `offsetTop` tabeli przez `getBoundingClientRect()`, likwidując kumulacyjny błąd przesunięcia pozycji przy przewijaniu.
+  - Dodano opcjonalny parametr `expected_id` do komendy backendu `play_queue_index`, weryfikujący zgodność ID klikniętego wiersza z kolejką silnika audio, zapobiegając odtworzeniu przesuniętego lub innego utworu.
+
+---
+
 ## [0.7.5] — „Single Flow & Harmonic Resonance” - 2026-11-01
 **Autorka**: Das Letzte Kemonomimi
 

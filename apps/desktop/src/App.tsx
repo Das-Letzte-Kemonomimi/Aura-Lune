@@ -896,7 +896,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.5'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.7'
   );
 
 
@@ -1425,7 +1425,7 @@ export default function App() {
     overscan: 20,
   });
 
-  // Wirtualizacja listy w kolejce odtwarzania
+  // Wirtualizacja listy w kolejce odtwarzania (precyzyjna wysokość wiersza 72px / 54px compact)
   const {
     startIndex: queueStartIndex,
     endIndex: queueEndIndex,
@@ -1433,11 +1433,26 @@ export default function App() {
     bottomSpacerHeight: queueBottomSpacer,
   } = useVirtualScroll({
     itemCount: filteredQueueItems.length,
-    itemHeight: queueColumns.compactMode ? 42 : 56,
+    itemHeight: queueColumns.compactMode ? 54 : 72,
     containerRef: mainContentRef,
     tableRef: queueListRef,
-    overscan: 16,
+    overscan: 20,
   });
+
+  // Wykrywanie przewinięcia widoku poniżej górnego panelu odtwarzacza
+  const [isPlayerScrolledDown, setIsPlayerScrolledDown] = useState(false);
+
+  useEffect(() => {
+    const el = mainContentRef.current;
+    if (!el) return;
+    const checkScroll = () => {
+      const scrolled = el.scrollTop > 300;
+      setIsPlayerScrolledDown((prev) => (prev !== scrolled ? scrolled : prev));
+    };
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    checkScroll();
+    return () => el.removeEventListener('scroll', checkScroll);
+  }, [activeTab]);
 
   // Aktualnie odtwarzany utwór i powiązana okładka albumu
   const currentPlayingTrack = useMemo(() => {
@@ -2594,8 +2609,35 @@ export default function App() {
       if (selected && selected.length > 0) {
         showMessage(t.notifications.filesSelectedDolphin.replace('{0}', String(selected.length)));
         await handleScanPaths(selected);
-        await handleLoadFile(selected[0]);
-        await invoke('play');
+
+        const items: QueueItem[] = selected.map((filePath, idx) => {
+          const matchingTrack = tracks.find((tr) => tr.path === filePath || filePath.endsWith(tr.path));
+          const alb = matchingTrack ? albums.find((a) => a.id === matchingTrack.album_id) : null;
+          const fname = filePath.split('/').pop() || filePath;
+          return {
+            id: `picked-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+            track_id: matchingTrack?.id ?? null,
+            uri: filePath,
+            title: matchingTrack?.title || fname,
+            artist: matchingTrack?.artist || 'Plik lokalny',
+            album: alb?.title || null,
+            duration_ms: (matchingTrack?.duration_ms || 0) as any,
+          };
+        });
+
+        if (albumPlaybackMode === 'replace') {
+          await invoke('set_queue', { items, startIndex: 0 });
+          await refreshQueue();
+        } else if (albumPlaybackMode === 'append') {
+          const currentLen = queue.items.length;
+          const combined = [...queue.items, ...items];
+          await invoke('set_queue', { items: combined, startIndex: currentLen });
+          await refreshQueue();
+        } else {
+          await handleLoadFile(selected[0]);
+          await invoke('play');
+          await refreshQueue();
+        }
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -2746,15 +2788,15 @@ export default function App() {
       }).catch(() => {});
 
       // 2. Zarządzanie kolejką odtwarzania w zależności od albumPlaybackMode i przekazanego kontekstu
-      const hasContext = Boolean(contextTracks && contextTracks.length > 0);
+      const effectiveTracks = contextTracks && contextTracks.length > 0 ? contextTracks : [track];
 
-      if (hasContext && albumPlaybackMode === 'replace') {
-        const trackIdx = contextTracks!.findIndex((t) => t.id === track.id);
+      if (albumPlaybackMode === 'replace') {
+        const trackIdx = effectiveTracks.findIndex((t) => t.id === track.id);
         const startIndex = trackIdx >= 0 ? trackIdx : 0;
-        const queueItems: QueueItem[] = contextTracks!.map((t) => {
+        const queueItems: QueueItem[] = effectiveTracks.map((t, idx) => {
           const alb = albums.find((a) => a.id === t.album_id);
           return {
-            id: `track-${t.id}`,
+            id: `track-${t.id}-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
             track_id: t.id,
             uri: t.path,
             title: t.title,
@@ -2765,13 +2807,13 @@ export default function App() {
         });
         await invoke('set_queue', { items: queueItems, startIndex });
         await refreshQueue();
-      } else if (hasContext && albumPlaybackMode === 'append') {
-        const trackIdx = contextTracks!.findIndex((t) => t.id === track.id);
+      } else if (albumPlaybackMode === 'append') {
+        const trackIdx = effectiveTracks.findIndex((t) => t.id === track.id);
         const startIndex = trackIdx >= 0 ? trackIdx : 0;
-        const queueItems: QueueItem[] = contextTracks!.map((t) => {
+        const queueItems: QueueItem[] = effectiveTracks.map((t, idx) => {
           const alb = albums.find((a) => a.id === t.album_id);
           return {
-            id: `track-${t.id}-${Date.now()}`,
+            id: `track-${t.id}-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
             track_id: t.id,
             uri: t.path,
             title: t.title,
@@ -2786,7 +2828,7 @@ export default function App() {
         await invoke('set_queue', { items: combined, startIndex: targetIdx });
         await refreshQueue();
       } else {
-        // Tryb 'single' lub brak kontekstu: bezpośrednie załadowanie utworu bez modyfikacji kolejki
+        // Tryb 'single': bezpośrednie załadowanie utworu bez modyfikacji kolejki
         await invoke('load_file', { path: track.path });
         await invoke('play');
         await refreshQueue();
@@ -3255,9 +3297,17 @@ export default function App() {
     }
   };
 
-  const handlePlayQueueIndex = async (index: number) => {
+  const handlePlayQueueIndex = async (index: number, queueItem?: QueueItem) => {
     try {
-      const item = await invoke<QueueItem | null>('play_queue_index', { index });
+      let targetIndex = index;
+      if (queueItem && queue.items[targetIndex]?.id !== queueItem.id) {
+        const found = queue.items.findIndex((it) => it.id === queueItem.id);
+        if (found >= 0) targetIndex = found;
+      }
+      const item = await invoke<QueueItem | null>('play_queue_index', {
+        index: targetIndex,
+        expectedId: queueItem?.id ?? null,
+      });
       await refreshQueue();
       if (item) {
         showMessage(t.notifications.playingMsg.replace('{0}', item.title));
@@ -5223,7 +5273,7 @@ const renderDevicesSection = () => (
                   }}
                 >
                   {albumPlaybackMode === 'replace'
-                    ? (language === 'pl' ? 'Cały album (Zastąp)' : 'Whole Album (Replace)')
+                    ? (language === 'pl' ? 'Zastąp kolejkę' : 'Replace queue')
                     : albumPlaybackMode === 'append'
                     ? (language === 'pl' ? 'Dopisz do kolejki' : 'Append to queue')
                     : (language === 'pl' ? 'Pojedynczy utwór' : 'Single track')}
@@ -9206,7 +9256,7 @@ const renderDevicesSection = () => (
       )}
 
       {/* Główna zawartość */}
-      <main ref={mainContentRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: activeTab !== 'player' ? '88px' : '0' }}>
+      <main ref={mainContentRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: (activeTab !== 'player' || isPlayerScrolledDown) ? '88px' : '0' }}>
         {/* ZAKŁADKA 1: ODTWARZACZ (NOWOCZESNY WIDOK HI-FI DESKTOP) */}
         {activeTab === 'player' && (
           <div style={{ maxWidth: 'min(1500px, 95vw)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
@@ -11086,8 +11136,8 @@ const renderDevicesSection = () => (
                       onDragStart={(e) => handleQueueDragStart(idx, e)}
                       onDragOver={(e) => handleQueueDragOver(idx, e)}
                       onDrop={(e) => handleQueueDrop(idx, e)}
-                      onClick={() => handlePlayQueueIndex(idx)}
-                      onDoubleClick={() => handlePlayQueueIndex(idx)}
+                      onClick={() => handlePlayQueueIndex(idx, item)}
+                      onDoubleClick={() => handlePlayQueueIndex(idx, item)}
                       className="glass-card"
                       style={{
                         display: 'grid',
@@ -11286,7 +11336,7 @@ const renderDevicesSection = () => (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handlePlayQueueIndex(idx);
+                              handlePlayQueueIndex(idx, item);
                             }}
                             title={loc.queue.playThis}
                             style={{
@@ -11833,8 +11883,8 @@ const renderDevicesSection = () => (
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       if (librarySubView === 'tracks' && sortedTracks.length > 0) {
-                        handlePlayLibraryTrack(sortedTracks[0], sortedTracks);
-                        showMessage(`Odtwarzanie ${sortedTracks[0].title} (dopasowano: ${sortedTracks.length})`);
+                        handlePlayLibraryTrack(sortedTracks[0]);
+                        showMessage(`Odtwarzanie ${sortedTracks[0].title}`);
                       } else if (librarySubView === 'albums' && sortedAlbums.length > 0) {
                         const albumTracks = tracks.filter((t) => t.album_id === sortedAlbums[0].id);
                         if (albumTracks.length > 0) {
@@ -12251,7 +12301,7 @@ const renderDevicesSection = () => (
                             return (
                               <tr
                                 key={t.id}
-                                onClick={() => handlePlayLibraryTrack(t, sortedTracks)}
+                                onClick={() => handlePlayLibraryTrack(t)}
                                 className="library-track-row glass-card"
                                 style={{
                                   cursor: 'pointer',
@@ -12404,7 +12454,7 @@ const renderDevicesSection = () => (
                                   <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t, sortedTracks); }}
+                                  onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}
                                   title={loc.player.play}
                                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
                                 >
@@ -15439,7 +15489,7 @@ const renderDevicesSection = () => (
             tracks={tracks}
             albums={albums}
             currentLang={language}
-            onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
+            onPlayTrack={(t) => handlePlayLibraryTrack(t)}
             onOpenStatsModal={(t) => setStatsModalTrack(t)}
           />
         )}
@@ -15749,8 +15799,8 @@ const renderDevicesSection = () => (
         )}
       </main>
 
-      {/* Pływający dolny dok odtwarzacza (Mini-Player) — widoczny w zakładkach innych niż Odtwarzacz */}
-      {activeTab !== 'player' && (status.state === 'Playing' || status.state === 'Paused' || currentPlayingTrack || status.current_track || filePath) && (
+      {/* Pływający dolny dok odtwarzacza (Mini-Player) — widoczny w innych zakładkach ORAZ po przewinięciu Odtwarzacza */}
+      {(activeTab !== 'player' || isPlayerScrolledDown) && (status.state === 'Playing' || status.state === 'Paused' || currentPlayingTrack || status.current_track || filePath) && (
         <div
           style={{
             position: 'fixed',
@@ -15767,11 +15817,18 @@ const renderDevicesSection = () => (
             justifyContent: 'space-between',
             padding: '0 24px',
             gap: '16px',
+            animation: 'fadeIn 0.2s ease',
           }}
         >
-          {/* Lewa strona: Mini okładka, Tytuł, Wykonawca i format — kliknięcie przełącza do pełnego Odtwarzacza */}
+          {/* Lewa strona: Mini okładka, Tytuł, Wykonawca i format — kliknięcie przełącza do pełnego Odtwarzacza lub przewija do góry */}
           <div
-            onClick={() => setActiveTab('player')}
+            onClick={() => {
+              if (activeTab === 'player') {
+                mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                setActiveTab('player');
+              }
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -15780,7 +15837,7 @@ const renderDevicesSection = () => (
               maxWidth: '30%',
               cursor: 'pointer',
             }}
-            title={loc.bottomDock.openFullPlayer}
+            title={activeTab === 'player' ? (language === 'pl' ? 'Przewiń do góry do pełnego odtwarzacza' : 'Scroll to top') : loc.bottomDock.openFullPlayer}
           >
             <div
               style={{
@@ -16270,9 +16327,15 @@ const renderDevicesSection = () => (
               />
             </div>
 
-            {/* Przycisk przejścia do pełnego ekranu Odtwarzacza */}
+            {/* Przycisk przejścia do pełnego ekranu Odtwarzacza lub przewinięcia do góry */}
             <button
-              onClick={() => setActiveTab('player')}
+              onClick={() => {
+                if (activeTab === 'player') {
+                  mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  setActiveTab('player');
+                }
+              }}
               className="glass-card"
               style={{
                 padding: '6px 8px',
@@ -16284,9 +16347,9 @@ const renderDevicesSection = () => (
                 gap: '4px',
                 fontSize: '0.75rem',
               }}
-              title={t.bottomDock.openFullPlayer}
+              title={activeTab === 'player' ? (language === 'pl' ? 'Przewiń do góry do odtwarzacza' : 'Scroll to top') : t.bottomDock.openFullPlayer}
             >
-              <Maximize2 size={14} />
+              {activeTab === 'player' ? <ChevronUp size={15} /> : <Maximize2 size={14} />}
             </button>
 
             {/* Przycisk przejścia do mini-player */}
@@ -16377,7 +16440,7 @@ const renderDevicesSection = () => (
                 return (
                   <div
                     key={item.id}
-                    onClick={() => handlePlayQueueIndex(idx)}
+                    onClick={() => handlePlayQueueIndex(idx, item)}
                     className="glass-card"
                     style={{
                       padding: '12px 14px',
@@ -16931,7 +16994,7 @@ const renderDevicesSection = () => (
         currentLang={language}
         onPlayTrackId={(id) => {
           const tr = tracks.find((t) => t.id === id);
-          if (tr) handlePlayLibraryTrack(tr, tracks);
+          if (tr) handlePlayLibraryTrack(tr);
         }}
       />
 
@@ -16963,7 +17026,7 @@ const renderDevicesSection = () => (
           currentLang={language}
           stopAfterCurrent={status.stop_after_current ?? false}
           onClose={() => setIsCommandPaletteOpen(false)}
-          onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
+          onPlayTrack={(t) => handlePlayLibraryTrack(t)}
           onAddToQueue={(t) => handleAddTrackToQueue(t)}
           onTogglePlay={handlePlayPause}
           onNext={handleNext}
@@ -16990,7 +17053,7 @@ const renderDevicesSection = () => (
         isOpen={isUrlImportModalOpen}
         currentLang={language}
         onClose={() => setIsUrlImportModalOpen(false)}
-        onPlayTrack={(t) => handlePlayLibraryTrack(t, tracks)}
+        onPlayTrack={(t) => handlePlayLibraryTrack(t)}
         onAddToQueue={(t) => handleAddTrackToQueue(t)}
         onLibraryUpdated={async () => {
           try {

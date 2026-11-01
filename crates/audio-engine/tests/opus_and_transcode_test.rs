@@ -265,6 +265,16 @@ fn test_transcode_range_with_dsp_nightcore() {
     engine.load_uri(&uri).expect("Załadowanie wycinka z DSP");
     engine.play().expect("Odtworzenie wycinka z DSP");
     sleep(Duration::from_millis(100));
+    let dur = engine.duration();
+    println!(
+        "test_transcode_range_with_dsp_nightcore duration: {:?}",
+        dur
+    );
+    assert!(
+        dur.is_some_and(|d| d.as_millis() >= 700 && d.as_millis() <= 850),
+        "Wycinek 1000ms przyspieszony 1.3x powinien trwać ~769ms, a trwał: {:?}",
+        dur
+    );
     engine.stop().unwrap();
 
     let _ = fs::remove_file(&output_range_opus);

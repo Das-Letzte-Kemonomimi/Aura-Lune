@@ -18,11 +18,50 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.7',
+    codename: 'Precision Loop & Seamless Flow',
+    date: '2026-11-01',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Precyzyjne kolejkowanie pojedynczych utworów (Single-Track Playback): kliknięcie utworu w tabeli biblioteki, wynikach wyszukiwania, palecie komend (Ctrl+K) lub statystykach odtwarza wyłącznie ten konkretny utwór (jako 1-elementową kolejkę w trybie replace lub dopisując go na koniec w trybie append), eliminując niepożądane dodawanie całej biblioteki.',
+        en: 'Single-track playback queuing: clicking a track in library table, search results, command palette (Ctrl+K) or stats plays only that specific track (as a 1-item queue in replace mode or appending it in append mode), eliminating accidental queuing of the entire library.',
+        de: 'Präzise Einzeltitel-Wiedergabe: Das Anklicken eines Titels in der Bibliothekstabelle, der Suche, der Befehlspalette (Strg+K) oder den Statistiken spielt nur diesen einzelnen Titel ab, anstatt die gesamte Bibliothek einzureihen.',
+        fi: 'Tarkka yksittäiskappaleiden jonotus: kappaleen klikkaaminen kirjastotaulukossa, haussa, komentovalikossa (Ctrl+K) tai tilastoissa toistaa vain kyseisen kappaleen korvaamatta jonoa koko kirjastolla.',
+        la: 'Ordinatio carminum singularium: carmine in indice bibliothecae, inquisitione vel mandato electo tantum id carmen canitur, ne universa bibliotheca in ordinem temere adiciatur.',
+      },
+      {
+        pl: 'Pływający dolny dock odtwarzacza (Now Playing Floating Dock): gdy kolejka lub widok odtwarzacza jest przewijany w dół, na dole ekranu pojawia się dokujący pasek sterowania (Play/Pause, Seek, głośność, okładka) wraz z przyciskiem szybkiego powrotu na górę.',
+        en: 'Floating Now Playing dock on scroll: scrolling down a long queue smoothly docks the essential player controls (Play/Pause, seekbar, volume, cover) at the bottom edge with a one-click scroll-to-top button.',
+        de: 'Schwebendes Wiedergabe-Dock beim Scrollen: Beim Herabscrollen einer langen Warteschlange dockt die kompakte Steuerleiste (Play/Pause, Suchleiste, Lautstärke, Cover) mit Schnellrückkehr nach oben an.',
+        fi: 'Kelluva toistopalkki vieritettäessä: pitkää jonoa alaspäin vieritettäessä tärkeimmät toisto-ohjaimet (Play/Pause, aikajana, äänenvoimakkuus, kansi) kiinnittyvät alareunaan pikanäppäimellä ylös palaamiseen.',
+        la: 'Navicula canendi fluens in volutatione: cum ordo longus deorsum volvitur, gubernacula princeps (Play/Pause, linea temporis, sonus, imago) ad imam paginam alligantur cum reditu celeri.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Precyzyjny eksport fragmentu A-B z DSP: seek potoku transkodera przeniesiono przed filtr DSP pitch (bezpośrednio na audioresample). Zapobiega to przesunięciu punktów startu i końca przez współczynnik tempa/szybkości (Nightcore/Slowed) i gwarantuje eksport zgodny z zaznaczeniem co do próbki.',
+        en: 'Accurate A-B loop DSP export: moved transcoder seek upstream of the pitch DSP filter (directly onto audioresample). This prevents tempo/rate scaling from shifting start and end cut points (Nightcore/Slowed), ensuring sample-accurate range export.',
+        de: 'Präziser A-B-Schleifenexport mit DSP: Transcoder-Seek vor den Pitch-DSP-Filter verlegt (direkt auf audioresample). Verhindert, dass Tempo/Rate-Faktoren Schnittpunkte verschieben (Nightcore/Slowed) und garantiert sample-genauen Export.',
+        fi: 'Tarkka A-B-silukan DSP-vienti: transkooderin seek siirretty ennen pitch-DSP-suodatinta (suoraan audioresample-elementtiin). Estää tempo/rate-kertoimien leikkauspisteiden siirtymisen (Nightcore/Slowed) ja takaa tarkan viennin.',
+        la: 'Exitus accuratus A-B fragmenti cum DSP: transcodatri seek ante filtrum pitch positus est (ad audioresample). Hoc prohibet ne gradus celeritatis puncta secandi moveant (Nightcore/Slowed) et accurate exportat.',
+      },
+      {
+        pl: 'Naprawa 3 trybów kolejkowania (albumPlaybackMode) i eliminacja zalewania kolejki: poprawiono tryby Replace, Append i Single w Ustawieniach, naprawiono dodawanie plików zewnętrznych oraz przycisków w kolejce, a także usunięto błąd wirtualizacji Virtual Scroll.',
+        en: 'Fixed 3 queuing modes (albumPlaybackMode) & library overflow: resolved Replace, Append, and Single modes in Settings, fixed external file opening and queue action buttons, and corrected row offset calculation in Virtual Scroll.',
+        de: '3 Warteschlangen-Modi (albumPlaybackMode) & Überfüllung behoben: Korrektur der Modi Replace, Append und Single in den Einstellungen, Behebung des Öffnens externer Dateien sowie Behebung von Versatzfehlern im Virtual Scroll.',
+        fi: 'Korjattu 3 jonotustilaa (albumPlaybackMode) ja jonon ylitäyttyminen: korjattu Replace-, Append- ja Single-tilat asetuksissa, korjattu ulkoisten tiedostojen avaaminen ja virtuaalivierityksen rivisiirtymät.',
+        la: '3 modi ordinandi (albumPlaybackMode) et impletio superflua emendati: modi Replace, Append et Single correcti sunt, apertio fasciculorum externorum atque computatio ordinis in volutatione emendata.',
+      },
+    ],
+  },
+  {
     version: '0.7.5',
     codename: 'Single Flow & Harmonic Resonance',
     date: '2026-11-01',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Architektura Single-Instance: wdrożono blokadę wielokrotnych instancji – klikanie plików audio w menedżerze plików (Dolphin, Nautilus, Thunar) nie otwiera nowych okien, lecz przywraca aktywne okno i natychmiast odtwarza utwór przez gniazdo IPC.',
