@@ -22,5 +22,9 @@ gstreamer-audio = { workspace = true }
 gstreamer-app = { workspace = true }
 glib = { workspace = true }
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = "0.1"
+jni = "0.21"
+
 [dev-dependencies]
 tracing-subscriber = "0.3"

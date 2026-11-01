@@ -1478,6 +1478,24 @@ fn is_kde_environment() -> bool {
 
 #[tauri::command]
 async fn pick_folder() -> Result<Option<String>, String> {
+    #[cfg(target_os = "android")]
+    {
+        let standard_paths = [
+            "/storage/emulated/0/Music",
+            "/sdcard/Music",
+            "/storage/emulated/0/Download",
+            "/sdcard/Download",
+            "/storage/emulated/0/Audiobooks",
+        ];
+        for p in standard_paths {
+            if std::path::Path::new(p).exists() {
+                return Ok(Some(p.to_string()));
+            }
+        }
+        return Ok(Some("/storage/emulated/0/Music".to_string()));
+    }
+
+    #[cfg(not(target_os = "android"))]
     tokio::task::spawn_blocking(|| {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 
@@ -1532,6 +1550,41 @@ async fn pick_folder() -> Result<Option<String>, String> {
 
 #[tauri::command]
 async fn pick_files() -> Result<Vec<String>, String> {
+    #[cfg(target_os = "android")]
+    {
+        let standard_dirs = [
+            "/storage/emulated/0/Music",
+            "/sdcard/Music",
+            "/storage/emulated/0/Download",
+            "/sdcard/Download",
+        ];
+        let mut found = Vec::new();
+        for dir in standard_dirs {
+            let p = std::path::Path::new(dir);
+            if p.exists() && p.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(p) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                            let ext_lower = ext.to_lowercase();
+                            if [
+                                "mp3", "flac", "ogg", "opus", "wav", "m4a", "aac", "alac", "aiff",
+                            ]
+                            .contains(&ext_lower.as_str())
+                            {
+                                if let Some(s) = path.to_str() {
+                                    found.push(s.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return Ok(found);
+    }
+
+    #[cfg(not(target_os = "android"))]
     tokio::task::spawn_blocking(|| {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 

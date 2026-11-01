@@ -76,6 +76,9 @@ mod aaudio_ffi {
     }
 }
 
+#[cfg(target_os = "android")]
+static GLOBAL_ENGINE: Mutex<Option<AudioEngine>> = Mutex::new(None);
+
 /// Bezpieczny wielowątkowo kontroler odtwarzacza dla platformy Android.
 #[derive(Clone)]
 pub struct AudioEngine {
@@ -459,7 +462,7 @@ impl AudioEngine {
             })
             .map_err(|e| AudioEngineError::Backend(format!("Błąd wątku audio Android: {}", e)))?;
 
-        Ok(Self {
+        let engine = Self {
             state,
             queue,
             current_uri,
@@ -485,7 +488,27 @@ impl AudioEngine {
             spectrum_bands,
             events,
             audio_command_tx: tx,
-        })
+        };
+
+        #[cfg(target_os = "android")]
+        {
+            *GLOBAL_ENGINE.lock().unwrap() = Some(engine.clone());
+        }
+
+        Ok(engine)
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn sync_media_service(&self, is_playing: bool) {
+        let uri = self.current_uri.lock().unwrap().clone().unwrap_or_default();
+        let fname = std::path::Path::new(&uri)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Auralune")
+            .to_string();
+        let dur = self.duration_ms.load(Ordering::Relaxed);
+        let pos = self.position_ms.load(Ordering::Relaxed);
+        update_android_media_service(is_playing, &fname, "Auralune", "", dur, pos);
     }
 
     pub fn load_uri(&self, uri_or_path: &str) -> Result<(), AudioEngineError> {
@@ -493,11 +516,15 @@ impl AudioEngine {
         let _ = self
             .audio_command_tx
             .send(AudioCommand::Load(uri_or_path.to_string()));
+        #[cfg(target_os = "android")]
+        self.sync_media_service(false);
         Ok(())
     }
 
     pub fn play(&self) -> Result<(), AudioEngineError> {
         let _ = self.audio_command_tx.send(AudioCommand::Play);
+        #[cfg(target_os = "android")]
+        self.sync_media_service(true);
         Ok(())
     }
 
@@ -507,6 +534,8 @@ impl AudioEngine {
 
     pub fn pause(&self) -> Result<(), AudioEngineError> {
         let _ = self.audio_command_tx.send(AudioCommand::Pause);
+        #[cfg(target_os = "android")]
+        self.sync_media_service(false);
         Ok(())
     }
 
@@ -516,6 +545,8 @@ impl AudioEngine {
 
     pub fn stop(&self) -> Result<(), AudioEngineError> {
         let _ = self.audio_command_tx.send(AudioCommand::Stop);
+        #[cfg(target_os = "android")]
+        self.sync_media_service(false);
         Ok(())
     }
 
@@ -930,5 +961,105 @@ impl AudioEngine {
 
     pub fn reverb_params(&self) -> (bool, f64, f64, f64, f64) {
         *self.reverb_params.lock().unwrap()
+    }
+}
+
+#[cfg(target_os = "android")]
+pub fn update_android_media_service(
+    is_playing: bool,
+    title: &str,
+    artist: &str,
+    album: &str,
+    duration_ms: u64,
+    position_ms: u64,
+) {
+    let ctx = ndk_context::android_context();
+    let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
+    if vm_ptr.is_null() {
+        return;
+    }
+    let vm = unsafe { jni::JavaVM::from_raw(vm_ptr) };
+    if let Ok(vm) = vm {
+        if let Ok(mut env) = vm.attach_current_thread() {
+            if let Ok(class) = env.find_class("com/auralune/player/MediaBridge") {
+                if let (Ok(j_title), Ok(j_artist), Ok(j_album)) = (
+                    env.new_string(title),
+                    env.new_string(artist),
+                    env.new_string(album),
+                ) {
+                    let _ = env.call_static_method(
+                        class,
+                        "updatePlaybackState",
+                        "(ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJ)V",
+                        &[
+                            jni::objects::JValue::Bool(if is_playing { 1 } else { 0 }),
+                            (&j_title).into(),
+                            (&j_artist).into(),
+                            (&j_album).into(),
+                            jni::objects::JValue::Long(duration_ms as i64),
+                            jni::objects::JValue::Long(position_ms as i64),
+                        ],
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+pub mod jni_exports {
+    use super::*;
+
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_com_auralune_player_MediaBridge_nativePlay(
+        _env: *mut std::ffi::c_void,
+        _class: *mut std::ffi::c_void,
+    ) {
+        if let Some(engine) = GLOBAL_ENGINE.lock().unwrap().as_ref() {
+            let _ = engine.play();
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_com_auralune_player_MediaBridge_nativePause(
+        _env: *mut std::ffi::c_void,
+        _class: *mut std::ffi::c_void,
+    ) {
+        if let Some(engine) = GLOBAL_ENGINE.lock().unwrap().as_ref() {
+            let _ = engine.pause();
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_com_auralune_player_MediaBridge_nativeSeek(
+        _env: *mut std::ffi::c_void,
+        _class: *mut std::ffi::c_void,
+        position_ms: i64,
+    ) {
+        if let Some(engine) = GLOBAL_ENGINE.lock().unwrap().as_ref() {
+            if position_ms >= 0 {
+                let _ = engine.seek(Duration::from_millis(position_ms as u64));
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_com_auralune_player_MediaBridge_nativeNext(
+        _env: *mut std::ffi::c_void,
+        _class: *mut std::ffi::c_void,
+    ) {
+        if let Some(engine) = GLOBAL_ENGINE.lock().unwrap().as_ref() {
+            engine.events.lock().unwrap().push_back(PlayerEvent::Eos);
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_com_auralune_player_MediaBridge_nativePrevious(
+        _env: *mut std::ffi::c_void,
+        _class: *mut std::ffi::c_void,
+    ) {
+        if let Some(engine) = GLOBAL_ENGINE.lock().unwrap().as_ref() {
+            let _ = engine.seek(Duration::ZERO);
+        }
     }
 }

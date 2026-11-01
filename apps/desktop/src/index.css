@@ -349,3 +349,37 @@ button:disabled,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Adaptacja mobilna / Android Touch & Safe Area Insets */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+body {
+  padding-top: var(--sat);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+  /* Zwiększone hitboxy dla dotyku (min 40px/44px) */
+  button, input[type="button"], input[type="submit"] {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+
+  /* Płynne przewijanie dotykowe na urządzeniach mobilnych */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dopasowanie paddingu kontenera głównego do paska gestów Androida */
+  main {
+    padding-bottom: calc(var(--sab) + 90px) !important;
+  }
+}
