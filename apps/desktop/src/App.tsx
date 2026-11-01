@@ -835,6 +835,7 @@ export default function App() {
   const [transcodeRangeA, setTranscodeRangeA] = useState<string>('');
   const [transcodeRangeB, setTranscodeRangeB] = useState<string>('');
   const [transcodeAutoEnqueue, setTranscodeAutoEnqueue] = useState(true);
+  const [isTranscoding, setIsTranscoding] = useState(false);
   const [lastExportedTrack, setLastExportedTrack] = useState<TrackRecord | null>(null);
   const [isPickingSource, setIsPickingSource] = useState(false);
   const [isPickingDestination, setIsPickingDestination] = useState(false);
@@ -4571,6 +4572,8 @@ export default function App() {
   };
 
   const handleTranscode = async () => {
+    if (isTranscoding) return;
+    setIsTranscoding(true);
     try {
       let formatObj: any = { Wav: null };
       if (transcodeFormat === 'Opus') {
@@ -4688,6 +4691,8 @@ export default function App() {
       await loadLibrary();
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
+    } finally {
+      setIsTranscoding(false);
     }
   };
 
@@ -6577,18 +6582,31 @@ const renderDevicesSection = () => (
 
               <button
                 onClick={handleTranscode}
+                disabled={isTranscoding}
                 style={{
                   marginTop: '14px',
                   padding: '14px',
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                  background: isTranscoding
+                    ? 'rgba(168, 85, 247, 0.35)'
+                    : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
                   color: '#fff',
                   fontWeight: 700,
                   fontSize: '0.95rem',
-                  boxShadow: 'var(--shadow-glow)',
+                  boxShadow: isTranscoding ? 'none' : 'var(--shadow-glow)',
+                  cursor: isTranscoding ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: isTranscoding ? 0.75 : 1,
+                  transition: 'all 0.2s ease',
                 }}
               >
-                {loc.settings.exportOpus}
+                {isTranscoding && <Loader2 size={18} className="spin" />}
+                {isTranscoding
+                  ? (language === 'pl' ? 'Renderowanie i eksport...' : 'Rendering and exporting...')
+                  : loc.settings.exportOpus}
               </button>
 
               {/* Panel akcji po pomyślnym wyrenderowaniu */}

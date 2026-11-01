@@ -9,7 +9,7 @@ use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// Transkoder formatów audio.
 pub struct Transcoder;
@@ -230,7 +230,8 @@ impl Transcoder {
                 if let Ok(eq) = gst::ElementFactory::make("equalizer-10bands").build() {
                     for (i, &gain) in bands.iter().take(10).enumerate() {
                         let prop = format!("band{}", i);
-                        eq.set_property(&prop, gain);
+                        let clamped = gain.clamp(-24.0, 12.0);
+                        eq.set_property(&prop, clamped);
                     }
                     pipeline.add(&eq)?;
                     last_elem.link(&eq)?;
@@ -243,6 +244,24 @@ impl Transcoder {
         } else {
             audioresample.clone()
         };
+
+        // Gwarantujemy uniwersalną konwersję formatu próbek (audioconvert + audioresample) tuż przed enkoderem.
+        // Jest to krytyczne, gdyż enkodery (zwłaszcza flacenc) akceptują wyłącznie całkowitoliczbowe
+        // próbki PCM (S16LE, S24LE, S32LE) i bez audioconvert potok zawiesza się na negocjacji capsów
+        // (tworząc pusty plik 0 bajtów bez wygenerowania EOS).
+        let audioconvert_enc = gst::ElementFactory::make("audioconvert")
+            .name("transcoder_audioconvert_enc")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
+        let audioresample_enc = gst::ElementFactory::make("audioresample")
+            .name("transcoder_audioresample_enc")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
+
+        pipeline.add_many([&audioconvert_enc, &audioresample_enc])?;
+        source_for_encoder.link(&audioconvert_enc)?;
+        audioconvert_enc.link(&audioresample_enc)?;
+        let final_source = audioresample_enc;
 
         // W zależności od formatu docelowego dodajemy odpowiedni encoder i opcjonalny muxer
         match format {
@@ -257,7 +276,7 @@ impl Transcoder {
                     .map_err(|_| AudioEngineError::MissingElement("oggmux"))?;
 
                 pipeline.add_many([&opusenc, &oggmux])?;
-                source_for_encoder.link(&opusenc)?;
+                final_source.link(&opusenc)?;
                 opusenc.link(&oggmux)?;
                 oggmux.link(&filesink)?;
             }
@@ -268,7 +287,7 @@ impl Transcoder {
                 flacenc.set_property_from_str("quality", &compression_level.min(8).to_string());
 
                 pipeline.add(&flacenc)?;
-                source_for_encoder.link(&flacenc)?;
+                final_source.link(&flacenc)?;
                 flacenc.link(&filesink)?;
             }
             ExportFormat::Wav => {
@@ -277,7 +296,7 @@ impl Transcoder {
                     .map_err(|_| AudioEngineError::MissingElement("wavenc"))?;
 
                 pipeline.add(&wavenc)?;
-                source_for_encoder.link(&wavenc)?;
+                final_source.link(&wavenc)?;
                 wavenc.link(&filesink)?;
             }
         }
@@ -334,11 +353,21 @@ impl Transcoder {
             AudioEngineError::ElementLink("Brak magistrali potoku transkodera".into())
         })?;
 
-        for msg in bus.iter_timed(gst::ClockTime::NONE) {
+        let mut got_eos = false;
+        let timeout = gst::ClockTime::from_seconds(180);
+        while let Some(msg) = bus.timed_pop_filtered(
+            timeout,
+            &[
+                gst::MessageType::Eos,
+                gst::MessageType::Error,
+                gst::MessageType::Warning,
+            ],
+        ) {
             use gst::MessageView;
             match msg.view() {
                 MessageView::Eos(..) => {
                     debug!("Transkodowanie ukończone pomyślnie (EOS)");
+                    got_eos = true;
                     break;
                 }
                 MessageView::Error(err) => {
@@ -348,8 +377,23 @@ impl Transcoder {
                     let _ = pipeline.set_state(gst::State::Null);
                     return Err(AudioEngineError::ElementLink(err_msg));
                 }
+                MessageView::Warning(warn) => {
+                    warn!(
+                        "Ostrzeżenie transkodera: {} ({:?})",
+                        warn.error(),
+                        warn.debug()
+                    );
+                }
                 _ => {}
             }
+        }
+
+        if !got_eos {
+            let _ = pipeline.set_state(gst::State::Null);
+            return Err(AudioEngineError::ElementLink(
+                "Upłynął limit czasu transkodowania (timeout 180s) lub potok nie wygenerował EOS"
+                    .into(),
+            ));
         }
 
         pipeline.set_state(gst::State::Null)?;
