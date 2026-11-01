@@ -192,23 +192,39 @@ impl Transcoder {
                 .build()
                 .map_err(|_| AudioEngineError::MissingElement("capsfilter"))?;
 
-            let pitch_scale = (2.0f32).powf(dsp.pitch_semitones as f32 / 12.0f32);
-            let pitch_elem = gst::ElementFactory::make("pitch")
-                .property("pitch", pitch_scale)
-                .property("tempo", dsp.tempo_ratio as f32)
-                .property("rate", dsp.rate_ratio as f32)
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("pitch"))?;
+            let _ = crate::dsp_node::register_dsp_element();
+
+            let selected_engine = match dsp.engine.as_deref() {
+                Some("SoundTouch") | Some("soundtouch") => dsp_api::DspEngine::SoundTouch,
+                _ => dsp_api::DspEngine::RubberBand,
+            };
+
+            info!(
+                "Transkoder: Inicjalizacja procesora DSP {:?} (tempo={}, pitch={}, rate={})",
+                selected_engine, dsp.tempo_ratio, dsp.pitch_semitones, dsp.rate_ratio
+            );
+
+            let dsp_elem = crate::dsp_node::AuraluneDsp::new(Some("transcoder_dsp"));
+            let dsp_params = dsp_api::DspParams {
+                tempo_ratio: dsp.tempo_ratio,
+                pitch_semitones: dsp.pitch_semitones,
+                rate_ratio: dsp.rate_ratio,
+                engine: selected_engine,
+            };
+            if let Err(e) = dsp_elem.set_params(dsp_params) {
+                warn!("Błąd set_params w transkoderze: {:?}", e);
+            }
+            dsp_elem.set_engine(selected_engine);
 
             let audioconvert_post = gst::ElementFactory::make("audioconvert")
                 .build()
                 .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
 
-            pipeline.add_many([&capsfilter_dsp, &pitch_elem, &audioconvert_post])?;
+            pipeline.add_many([&capsfilter_dsp, dsp_elem.upcast_ref(), &audioconvert_post])?;
             audioresample.link(&capsfilter_dsp)?;
-            capsfilter_dsp.link(&pitch_elem)?;
+            capsfilter_dsp.link(&dsp_elem)?;
 
-            let mut last_elem = pitch_elem;
+            let mut last_elem = dsp_elem.upcast::<gst::Element>();
 
             // Freeverb
             if dsp.reverb_level > 0.001 {

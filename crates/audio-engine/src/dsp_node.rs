@@ -224,6 +224,10 @@ impl ObjectImpl for AuraluneDspImpl {
                 sinkpad_src_event.push_event(event)
             });
 
+            let srcpad_query = self.srcpad.clone();
+            self.sinkpad
+                .set_query_function(move |_pad, _parent, query| srcpad_query.peer_query(query));
+
             let sinkpad_query = self.sinkpad.clone();
             self.srcpad
                 .set_query_function(move |_pad, _parent, query| sinkpad_query.peer_query(query));
@@ -379,6 +383,16 @@ impl AuraluneDspImpl {
             EventView::FlushStop(..) | EventView::Seek(..) => {
                 if let Ok(mut state) = state_arc.lock() {
                     state.reset();
+                }
+                srcpad.push_event(event)
+            }
+            EventView::Caps(c) => {
+                if let Some(s) = c.caps().structure(0) {
+                    if let (Ok(rate), Ok(channels)) = (s.get::<i32>("rate"), s.get::<i32>("channels")) {
+                        if let Ok(mut state) = state_arc.lock() {
+                            state.prepare_if_needed(rate as u32, channels as u32);
+                        }
+                    }
                 }
                 srcpad.push_event(event)
             }

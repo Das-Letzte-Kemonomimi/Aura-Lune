@@ -49,6 +49,9 @@ pub struct DspExportSettings {
     /// Mnożnik szybkości odtwarzania (0.25 do 4.0).
     #[serde(alias = "rateRatio")]
     pub rate_ratio: f64,
+    /// Wybór silnika DSP: "RubberBand" lub "SoundTouch" (domyślnie "RubberBand").
+    #[serde(default)]
+    pub engine: Option<String>,
     /// Poziom pogłosu (0.0 do 1.0).
     #[serde(alias = "reverbLevel")]
     pub reverb_level: f32,
@@ -63,6 +66,7 @@ impl Default for DspExportSettings {
             pitch_semitones: 0.0,
             tempo_ratio: 1.0,
             rate_ratio: 1.0,
+            engine: None,
             reverb_level: 0.0,
             eq_bands: None,
         }

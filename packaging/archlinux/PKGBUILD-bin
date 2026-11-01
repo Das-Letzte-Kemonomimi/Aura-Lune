@@ -31,7 +31,7 @@ optdepends=(
 )
 options=('!strip')
 source=("$pkgname-$pkgver.AppImage::$url/releases/download/v$pkgver/Auralune_${pkgver}_amd64.AppImage")
-sha256sums=('a9bf4977a9423907b9f4223aa79779b3df9c06908ae19ff3b19e2473604236cb')
+sha256sums=('82698db3fe2f4dae37055c25135912efdb7fb8930dc0611b8e2954571d494b02')
 
 
 
