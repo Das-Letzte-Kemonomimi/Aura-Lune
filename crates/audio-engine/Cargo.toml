@@ -13,6 +13,7 @@ thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
 lofty.workspace = true
+symphonia = { version = "0.5.4", default-features = false, features = ["all"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gstreamer = { workspace = true }

@@ -6,13 +6,16 @@
 //! 2. Algorytm autokorelacji obwiedni transjentów energii (onset detection) do wykrywania BPM.
 //! 3. Opcjonalne odczytywanie metadanych tagów ID3/Vorbis (BPM, TKEY/INITIALKEY) jeśli są dostępne.
 
+#[cfg(target_os = "linux")]
 use gst::prelude::*;
+#[cfg(target_os = "linux")]
 use gstreamer as gst;
-use gstreamer_app as gst_app;
+#[cfg(target_os = "linux")]
 use gstreamer_audio as gst_audio;
 use lofty::file::TaggedFileExt;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
+#[cfg(target_os = "linux")]
 use std::path::Path;
 
 pub const CHROMATIC_NOTES: [&str; 12] = [
@@ -135,139 +138,17 @@ pub fn parse_musical_key(raw: &str) -> Option<(usize, bool)> {
 }
 
 /// Dekoduje reprezentatywny fragment utworu do pamięci (mono, 22050 Hz F32LE)
-/// za pomocą potoku GStreamer appsink.
+/// za pomocą uniwersalnego dekodera Symphonia (działa w 100% czystym Rust na Linux i Android).
 pub fn decode_snippet_for_analysis(
     uri_or_path: &str,
     max_duration_sec: f64,
 ) -> Result<Vec<f32>, String> {
-    let _ = gst::init();
-    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
-        uri_or_path.to_string()
-    } else if uri_or_path.starts_with("file://") {
-        let stripped = uri_or_path.trim_start_matches("file://");
-        glib::filename_to_uri(Path::new(stripped), None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| uri_or_path.to_string())
+    let file_path = if let Some(stripped) = uri_or_path.strip_prefix("file://") {
+        stripped
     } else {
-        let path = Path::new(uri_or_path);
-        if !path.exists() {
-            return Err(format!("Plik nie istnieje: {}", uri_or_path));
-        }
-        let canonical = path
-            .canonicalize()
-            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
-        glib::filename_to_uri(&canonical, None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
+        uri_or_path
     };
-
-    let pipeline = gst::Pipeline::new();
-
-    let uridecodebin = gst::ElementFactory::make("uridecodebin")
-        .property("uri", &uri)
-        .build()
-        .map_err(|e| format!("Brak uridecodebin: {}", e))?;
-
-    let audioconvert = gst::ElementFactory::make("audioconvert")
-        .build()
-        .map_err(|e| format!("Brak audioconvert: {}", e))?;
-
-    let audioresample = gst::ElementFactory::make("audioresample")
-        .build()
-        .map_err(|e| format!("Brak audioresample: {}", e))?;
-
-    let caps = gst_audio::AudioCapsBuilder::new()
-        .format(gst_audio::AudioFormat::F32le)
-        .rate(22050)
-        .channels(1)
-        .build();
-
-    let capsfilter = gst::ElementFactory::make("capsfilter")
-        .property("caps", &caps)
-        .build()
-        .map_err(|e| format!("Brak capsfilter: {}", e))?;
-
-    let appsink = gst_app::AppSink::builder()
-        .caps(&caps)
-        .property("sync", false)
-        .max_buffers(2000)
-        .drop(false)
-        .build();
-
-    pipeline
-        .add_many([
-            &uridecodebin,
-            &audioconvert,
-            &audioresample,
-            &capsfilter,
-            appsink.upcast_ref(),
-        ])
-        .map_err(|e| format!("Błąd dodawania do potoku: {}", e))?;
-
-    gst::Element::link_many([
-        &audioconvert,
-        &audioresample,
-        &capsfilter,
-        appsink.upcast_ref(),
-    ])
-    .map_err(|e| format!("Błąd linkowania elementów: {}", e))?;
-
-    let convert_sink_pad = audioconvert
-        .static_pad("sink")
-        .ok_or_else(|| "Brak sink pad w audioconvert".to_string())?;
-
-    uridecodebin.connect_pad_added(move |_bin, src_pad| {
-        if convert_sink_pad.is_linked() {
-            return;
-        }
-        let caps = src_pad
-            .current_caps()
-            .unwrap_or_else(|| src_pad.query_caps(None));
-        if let Some(structure) = caps.structure(0) {
-            if structure.name().starts_with("audio/") {
-                let _ = src_pad.link(&convert_sink_pad);
-            }
-        }
-    });
-
-    pipeline
-        .set_state(gst::State::Playing)
-        .map_err(|e| format!("Błąd uruchomienia dekodera: {}", e))?;
-
-    let sample_rate = 22050usize;
-    let target_samples = (max_duration_sec * sample_rate as f64).round() as usize;
-    let mut collected: Vec<f32> = Vec::with_capacity(target_samples);
-
-    let start_time = std::time::Instant::now();
-    let max_wait = std::time::Duration::from_millis(6000);
-
-    while collected.len() < target_samples && start_time.elapsed() < max_wait {
-        if appsink.is_eos() {
-            break;
-        }
-        if let Ok(sample) = appsink.pull_sample() {
-            if let Some(buffer) = sample.buffer() {
-                if let Ok(map) = buffer.map_readable() {
-                    let num_floats = map.len() / std::mem::size_of::<f32>();
-                    let slice = unsafe {
-                        std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats)
-                    };
-                    collected.extend_from_slice(slice);
-                }
-            }
-        } else {
-            // Krótka przerwa w oczekiwaniu na próbki
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-    }
-
-    let _ = pipeline.set_state(gst::State::Null);
-
-    if collected.is_empty() {
-        return Err("Nie udało się zdekodować próbek audio".to_string());
-    }
-
-    Ok(collected)
+    crate::symphonia_decoder::decode_snippet_mono_resampled(file_path, 22050, max_duration_sec)
 }
 
 /// Wykrywa BPM na podstawie autokorelacji obwiedni onsetów energii w sygnale audio.
@@ -628,22 +509,13 @@ pub struct ReplayGainAnalysisResult {
 
 /// Przeprowadza pełną, bitowo dokładną analizę głośności EBU R128 / ReplayGain 2.0
 /// utworu za pomocą potoku GStreamer `rganalysis` i `fakesink` (ultra-szybka analiza bez czasu rzeczywistego).
+#[cfg(target_os = "linux")]
 pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisResult, String> {
     let _ = gst::init();
     let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
         uri_or_path.to_string()
-    } else if uri_or_path.starts_with("file://") {
-        if let Ok((path, _)) = glib::filename_from_uri(uri_or_path) {
-            if path.exists() {
-                glib::filename_to_uri(&path, None)
-                    .map(|u| u.to_string())
-                    .unwrap_or_else(|_| uri_or_path.to_string())
-            } else {
-                uri_or_path.to_string()
-            }
-        } else {
-            uri_or_path.to_string()
-        }
+    } else if let Some(stripped) = uri_or_path.strip_prefix("file://") {
+        format!("file://{}", stripped)
     } else {
         let path = Path::new(uri_or_path);
         if !path.exists() {
@@ -652,9 +524,7 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
         let canonical = path
             .canonicalize()
             .map_err(|e| format!("Błąd ścieżki: {}", e))?;
-        glib::filename_to_uri(&canonical, None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
+        format!("file://{}", canonical.display())
     };
 
     let pipeline = gst::Pipeline::new();
@@ -795,6 +665,17 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
         reference_level_db: ref_level,
         album_gain_db: album_gain,
         album_peak,
+    })
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn analyze_track_replaygain(_uri_or_path: &str) -> Result<ReplayGainAnalysisResult, String> {
+    Ok(ReplayGainAnalysisResult {
+        track_gain_db: 0.0,
+        track_peak: 1.0,
+        reference_level_db: 89.0,
+        album_gain_db: None,
+        album_peak: None,
     })
 }
 

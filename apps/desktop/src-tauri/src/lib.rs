@@ -2916,10 +2916,12 @@ fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), String>
     if mini {
         let _ = window.set_min_size(Some(tauri::LogicalSize::new(320.0, 120.0)));
         let _ = window.set_size(tauri::LogicalSize::new(360.0, 150.0));
+        #[cfg(desktop)]
         let _ = window.set_always_on_top(true);
     } else {
         let _ = window.set_min_size(Some(tauri::LogicalSize::new(320.0, 120.0)));
         let _ = window.set_size(tauri::LogicalSize::new(1080.0, 760.0));
+        #[cfg(desktop)]
         let _ = window.set_always_on_top(false);
     }
     Ok(())
@@ -4559,7 +4561,10 @@ async fn save_track_key_bpm(
     Ok(())
 }
 
-fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
+fn update_system_icons(
+    #[allow(unused_variables)] app: &tauri::AppHandle,
+    style: &str,
+) -> Result<(), String> {
     let clean_style = if style == "classic" {
         "classic"
     } else {
@@ -4573,7 +4578,8 @@ fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String
         include_bytes!("../icons/icon_lineout.png").to_vec()
     };
 
-    // 1. Zaktualizuj ikonę okna Tauri w locie
+    // 1. Zaktualizuj ikonę okna Tauri w locie (desktop)
+    #[cfg(desktop)]
     if let Some(window) = app.get_webview_window("main") {
         if let Ok(tauri_icon) = tauri::image::Image::from_bytes(&icon_bytes) {
             let _ = window.set_icon(tauri_icon);
@@ -4632,6 +4638,7 @@ Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
     Ok(())
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
@@ -4732,28 +4739,35 @@ pub fn run() {
         }
     };
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            info!("Wykryto próbę uruchomienia kolejnej instancji Auralune. Args: {:?}, Cwd: {}", argv, cwd);
+    let builder = tauri::Builder::default();
 
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        info!(
+            "Wykryto próbę uruchomienia kolejnej instancji Auralune. Args: {:?}, Cwd: {}",
+            argv, cwd
+        );
 
-            let files = extract_audio_paths_from_args(&argv, Some(&cwd));
-            if !files.is_empty() {
-                if let Some(state) = app.try_state::<AppState>() {
-                    let state_clone = state.inner().clone();
-                    let app_handle = app.clone();
-                    let rt = state_clone.rt.clone();
-                    rt.spawn(async move {
-                        enqueue_and_play_files(files, &state_clone, &app_handle).await;
-                    });
-                }
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
+
+        let files = extract_audio_paths_from_args(&argv, Some(&cwd));
+        if !files.is_empty() {
+            if let Some(state) = app.try_state::<AppState>() {
+                let state_clone = state.inner().clone();
+                let app_handle = app.clone();
+                let rt = state_clone.rt.clone();
+                rt.spawn(async move {
+                    enqueue_and_play_files(files, &state_clone, &app_handle).await;
+                });
             }
-        }))
+        }
+    }));
+
+    builder
         .setup({
             let rt = rt.clone();
             let engine = engine.clone();
@@ -4948,70 +4962,73 @@ pub fn run() {
                 // Aplikacja wybranego stylu ikony aplikacji
                 let _ = update_system_icons(app.handle(), &icon_style);
 
-                // Inicjalizacja zasobnika systemowego (System Tray) na pulpicie Linuksa
-                let show_i = tauri::menu::MenuItem::with_id(app, "tray_show", "🌸 Pokaż Auralune / Show Window", true, None::<&str>)?;
-                let play_i = tauri::menu::MenuItem::with_id(app, "tray_play_pause", "⏯️ Odtwórz / Wstrzymaj (Play/Pause)", true, None::<&str>)?;
-                let next_i = tauri::menu::MenuItem::with_id(app, "tray_next", "⏭️ Następny utwór / Next", true, None::<&str>)?;
-                let prev_i = tauri::menu::MenuItem::with_id(app, "tray_prev", "⏮️ Poprzedni utwór / Previous", true, None::<&str>)?;
-                let quit_i = tauri::menu::MenuItem::with_id(app, "tray_quit", "🚪 Zakończ / Quit", true, None::<&str>)?;
-                let tray_menu = tauri::menu::Menu::with_items(app, &[&show_i, &play_i, &next_i, &prev_i, &quit_i])?;
+                #[cfg(desktop)]
+                {
+                    // Inicjalizacja zasobnika systemowego (System Tray) na pulpicie Linuksa
+                    let show_i = tauri::menu::MenuItem::with_id(app, "tray_show", "🌸 Pokaż Auralune / Show Window", true, None::<&str>)?;
+                    let play_i = tauri::menu::MenuItem::with_id(app, "tray_play_pause", "⏯️ Odtwórz / Wstrzymaj (Play/Pause)", true, None::<&str>)?;
+                    let next_i = tauri::menu::MenuItem::with_id(app, "tray_next", "⏭️ Następny utwór / Next", true, None::<&str>)?;
+                    let prev_i = tauri::menu::MenuItem::with_id(app, "tray_prev", "⏮️ Poprzedni utwór / Previous", true, None::<&str>)?;
+                    let quit_i = tauri::menu::MenuItem::with_id(app, "tray_quit", "🚪 Zakończ / Quit", true, None::<&str>)?;
+                    let tray_menu = tauri::menu::Menu::with_items(app, &[&show_i, &play_i, &next_i, &prev_i, &quit_i])?;
 
-                if let Some(default_icon) = app.default_window_icon() {
-                    let _ = tauri::tray::TrayIconBuilder::new()
-                        .icon(default_icon.clone())
-                        .tooltip("Auralune — Kitsune Music Player")
-                        .menu(&tray_menu)
-                        .show_menu_on_left_click(false)
-                        .on_menu_event(|app, event| {
-                            match event.id.as_ref() {
-                                "tray_show" => {
+                    if let Some(default_icon) = app.default_window_icon() {
+                        let _ = tauri::tray::TrayIconBuilder::new()
+                            .icon(default_icon.clone())
+                            .tooltip("Auralune — Kitsune Music Player")
+                            .menu(&tray_menu)
+                            .show_menu_on_left_click(false)
+                            .on_menu_event(|app, event| {
+                                match event.id.as_ref() {
+                                    "tray_show" => {
+                                        if let Some(window) = app.get_webview_window("main") {
+                                            let _ = window.show();
+                                            let _ = window.unminimize();
+                                            let _ = window.set_focus();
+                                        }
+                                    }
+                                    "tray_play_pause" => {
+                                        let state = app.state::<AppState>();
+                                        if state.engine.state() == domain::PlaybackState::Playing {
+                                            let _ = state.engine.pause();
+                                        } else {
+                                            let _ = state.engine.play();
+                                        }
+                                    }
+                                    "tray_next" => {
+                                        let state = app.state::<AppState>();
+                                        let _ = state.engine.play_next();
+                                    }
+                                    "tray_prev" => {
+                                        let state = app.state::<AppState>();
+                                        let _ = state.engine.play_previous();
+                                    }
+                                    "tray_quit" => {
+                                        app.exit(0);
+                                    }
+                                    _ => {}
+                                }
+                            })
+                            .on_tray_icon_event(|tray, event| {
+                                if let tauri::tray::TrayIconEvent::Click {
+                                    button: tauri::tray::MouseButton::Left,
+                                    button_state: tauri::tray::MouseButtonState::Up,
+                                    ..
+                                } = event {
+                                    let app = tray.app_handle();
                                     if let Some(window) = app.get_webview_window("main") {
-                                        let _ = window.show();
-                                        let _ = window.unminimize();
-                                        let _ = window.set_focus();
+                                        if window.is_visible().unwrap_or(false) {
+                                            let _ = window.hide();
+                                        } else {
+                                            let _ = window.show();
+                                            let _ = window.unminimize();
+                                            let _ = window.set_focus();
+                                        }
                                     }
                                 }
-                                "tray_play_pause" => {
-                                    let state = app.state::<AppState>();
-                                    if state.engine.state() == domain::PlaybackState::Playing {
-                                        let _ = state.engine.pause();
-                                    } else {
-                                        let _ = state.engine.play();
-                                    }
-                                }
-                                "tray_next" => {
-                                    let state = app.state::<AppState>();
-                                    let _ = state.engine.play_next();
-                                }
-                                "tray_prev" => {
-                                    let state = app.state::<AppState>();
-                                    let _ = state.engine.play_previous();
-                                }
-                                "tray_quit" => {
-                                    app.exit(0);
-                                }
-                                _ => {}
-                            }
-                        })
-                        .on_tray_icon_event(|tray, event| {
-                            if let tauri::tray::TrayIconEvent::Click {
-                                button: tauri::tray::MouseButton::Left,
-                                button_state: tauri::tray::MouseButtonState::Up,
-                                ..
-                            } = event {
-                                let app = tray.app_handle();
-                                if let Some(window) = app.get_webview_window("main") {
-                                    if window.is_visible().unwrap_or(false) {
-                                        let _ = window.hide();
-                                    } else {
-                                        let _ = window.show();
-                                        let _ = window.unminimize();
-                                        let _ = window.set_focus();
-                                    }
-                                }
-                            }
-                        })
-                        .build(app);
+                            })
+                            .build(app);
+                    }
                 }
 
                 // Obsługa minimalizacji do zasobnika systemowego przy zamykaniu okna

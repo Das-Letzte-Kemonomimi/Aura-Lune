@@ -35,6 +35,7 @@ pub const RUBBERBAND_OPTION_WINDOW_STANDARD: c_int = 0x00000000;
 pub const RUBBERBAND_OPTION_WINDOW_SHORT: c_int = 0x00100000;
 pub const RUBBERBAND_OPTION_WINDOW_LONG: c_int = 0x00200000;
 
+#[cfg(not(target_os = "android"))]
 extern "C" {
     pub fn rubberband_new(
         sample_rate: c_uint,
@@ -76,4 +77,74 @@ extern "C" {
 
     pub fn rubberband_set_max_process_size(state: RubberBandState, samples: c_uint);
     pub fn rubberband_get_samples_required(state: RubberBandState) -> c_uint;
+}
+
+#[cfg(target_os = "android")]
+pub use stubs::*;
+
+#[cfg(target_os = "android")]
+mod stubs {
+    use super::*;
+
+    pub unsafe fn rubberband_new(
+        _sample_rate: c_uint,
+        _channels: c_uint,
+        _options: c_int,
+        _initial_time_ratio: c_double,
+        _initial_pitch_scale: c_double,
+    ) -> RubberBandState {
+        std::ptr::null_mut()
+    }
+
+    pub unsafe fn rubberband_delete(_state: RubberBandState) {}
+    pub unsafe fn rubberband_reset(_state: RubberBandState) {}
+
+    pub unsafe fn rubberband_set_time_ratio(_state: RubberBandState, _ratio: c_double) {}
+    pub unsafe fn rubberband_set_pitch_scale(_state: RubberBandState, _scale: c_double) {}
+
+    pub unsafe fn rubberband_get_time_ratio(_state: RubberBandState) -> c_double {
+        1.0
+    }
+    pub unsafe fn rubberband_get_pitch_scale(_state: RubberBandState) -> c_double {
+        1.0
+    }
+
+    pub unsafe fn rubberband_get_latency(_state: RubberBandState) -> c_uint {
+        0
+    }
+    pub unsafe fn rubberband_get_start_delay(_state: RubberBandState) -> c_uint {
+        0
+    }
+    pub unsafe fn rubberband_get_preferred_start_pad(_state: RubberBandState) -> c_uint {
+        0
+    }
+
+    pub unsafe fn rubberband_process(
+        _state: RubberBandState,
+        _input: *const *const c_float,
+        _samples: c_uint,
+        _final_: c_int,
+    ) {
+    }
+
+    pub unsafe fn rubberband_available(_state: RubberBandState) -> c_int {
+        0
+    }
+
+    pub unsafe fn rubberband_retrieve(
+        _state: RubberBandState,
+        _output: *const *mut c_float,
+        _samples: c_uint,
+    ) -> c_uint {
+        0
+    }
+
+    pub unsafe fn rubberband_get_channel_count(_state: RubberBandState) -> c_uint {
+        0
+    }
+
+    pub unsafe fn rubberband_set_max_process_size(_state: RubberBandState, _samples: c_uint) {}
+    pub unsafe fn rubberband_get_samples_required(_state: RubberBandState) -> c_uint {
+        0
+    }
 }

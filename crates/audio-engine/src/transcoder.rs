@@ -6,14 +6,18 @@
 
 use crate::error::AudioEngineError;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
+#[cfg(target_os = "linux")]
 use gst::prelude::*;
+#[cfg(target_os = "linux")]
 use gstreamer as gst;
 use std::path::Path;
+#[cfg(target_os = "linux")]
 use tracing::{debug, error, info};
 
 /// Transkoder formatów audio.
 pub struct Transcoder;
 
+#[cfg(target_os = "linux")]
 impl Transcoder {
     /// Konwertuje plik wejściowy do wybranego formatu docelowego (bez modyfikacji DSP i całego utworu).
     ///
@@ -355,5 +359,41 @@ impl Transcoder {
         pipeline.set_state(gst::State::Null)?;
         info!("Plik przekonwertowany i zapisany: {}", output.display());
         Ok(())
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+impl Transcoder {
+    pub fn transcode(
+        _input_path: impl AsRef<Path>,
+        _output_path: impl AsRef<Path>,
+        _format: ExportFormat,
+    ) -> Result<(), AudioEngineError> {
+        Err(AudioEngineError::Backend(
+            "Transkodowanie na tej platformie jest w trakcie przygotowywania".into(),
+        ))
+    }
+
+    pub fn transcode_range(
+        _input_path: impl AsRef<Path>,
+        _output_path: impl AsRef<Path>,
+        _format: ExportFormat,
+        _range: &TimeRange,
+    ) -> Result<(), AudioEngineError> {
+        Err(AudioEngineError::Backend(
+            "Transkodowanie na tej platformie jest w trakcie przygotowywania".into(),
+        ))
+    }
+
+    pub fn transcode_with_dsp(
+        _input_path: impl AsRef<Path>,
+        _output_path: impl AsRef<Path>,
+        _format: ExportFormat,
+        _dsp_settings: Option<&DspExportSettings>,
+        _range: Option<&TimeRange>,
+    ) -> Result<(), AudioEngineError> {
+        Err(AudioEngineError::Backend(
+            "Transkodowanie na tej platformie jest w trakcie przygotowywania".into(),
+        ))
     }
 }

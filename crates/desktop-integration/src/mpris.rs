@@ -9,8 +9,12 @@ use mpris_server::{
     LoopStatus, Metadata, PlaybackRate, PlaybackStatus, PlayerInterface, Property, RootInterface,
     Server, Signal, Time, TrackId, Volume,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+#[cfg(target_os = "linux")]
+use std::sync::Mutex;
+#[cfg(target_os = "linux")]
 use std::time::Duration;
+#[cfg(target_os = "linux")]
 use tracing::{debug, info};
 
 /// Kontekst i stan pojedynczego utworu dla D-Bus MPRIS.
@@ -31,6 +35,7 @@ pub struct AuraluneMprisHandler {
     current_track: Arc<Mutex<Option<MprisTrackInfo>>>,
 }
 
+#[cfg(target_os = "linux")]
 impl AuraluneMprisHandler {
     pub fn new(engine: Arc<AudioEngine>) -> Self {
         Self {
@@ -45,6 +50,7 @@ impl AuraluneMprisHandler {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl RootInterface for AuraluneMprisHandler {
     async fn raise(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Raise()");
@@ -106,6 +112,7 @@ impl RootInterface for AuraluneMprisHandler {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl PlayerInterface for AuraluneMprisHandler {
     async fn next(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Next()");

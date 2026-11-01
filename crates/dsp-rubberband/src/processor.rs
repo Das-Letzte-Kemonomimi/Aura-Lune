@@ -98,6 +98,13 @@ impl AudioProcessor for RubberBandProcessor {
         };
 
         if state.is_null() {
+            #[cfg(target_os = "android")]
+            return Err(DspError::Internal {
+                engine: "RubberBand",
+                message: "Silnik RubberBand nie jest obsługiwany natywnie na Androidzie. Wybierz silnik SoundTouch w ustawieniach DSP.".to_string(),
+            });
+
+            #[cfg(not(target_os = "android"))]
             return Err(DspError::Internal {
                 engine: "RubberBand",
                 message: "rubberband_new zwrócił wskaźnik NULL".to_string(),

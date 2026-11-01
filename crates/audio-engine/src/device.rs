@@ -2,7 +2,9 @@
 
 use crate::error::AudioEngineError;
 use domain::device::{AudioCard, AudioCardProfile, BluetoothCodec};
+#[cfg(target_os = "linux")]
 use std::process::Command;
+#[cfg(target_os = "linux")]
 use tracing::info;
 
 /// Menedżer urządzeń audio i profili PipeWire.
