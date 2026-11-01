@@ -18,21 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
-/// Zdarzenia emitowane przez magistralę (Bus) odtwarzacza.
-#[derive(Debug, Clone, PartialEq)]
-pub enum PlayerEvent {
-    StateChanged {
-        old: PlaybackState,
-        new: PlaybackState,
-    },
-    Eos,
-    TrackLooped,
-    Error(String),
-    Warning(String),
-    Buffering(i32),
-    Spectrum(Vec<f32>),
-    Tag(String),
-}
+pub use crate::backend::PlayerEvent;
 
 /// Wewnętrzny stan potoku audio.
 struct PipelineInner {

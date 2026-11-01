@@ -9,15 +9,17 @@ domain = { path = "../domain" }
 dsp-api = { path = "../dsp-api" }
 dsp-rubberband = { path = "../dsp-rubberband" }
 dsp-soundtouch = { path = "../dsp-soundtouch" }
-gstreamer.workspace = true
-gstreamer-base.workspace = true
-gstreamer-audio.workspace = true
-gstreamer-app.workspace = true
-glib.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
 lofty.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gstreamer = { workspace = true }
+gstreamer-base = { workspace = true }
+gstreamer-audio = { workspace = true }
+gstreamer-app = { workspace = true }
+glib = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = "0.3"

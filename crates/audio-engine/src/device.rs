@@ -10,6 +10,7 @@ pub struct DeviceManager;
 
 impl DeviceManager {
     /// Pobiera listę wszystkich wykrytych kart dźwiękowych i ich profili.
+    #[cfg(target_os = "linux")]
     pub fn list_cards() -> Result<Vec<AudioCard>, AudioEngineError> {
         let output = Command::new("pactl")
             .arg("list")
@@ -29,7 +30,13 @@ impl DeviceManager {
         Ok(Self::parse_cards(&text))
     }
 
+    #[cfg(not(target_os = "linux"))]
+    pub fn list_cards() -> Result<Vec<AudioCard>, AudioEngineError> {
+        Ok(vec![])
+    }
+
     /// Przełącza profil danej karty dźwiękowej (np. na pro-audio lub kodek Bluetooth).
+    #[cfg(target_os = "linux")]
     pub fn set_card_profile(card_name: &str, profile_name: &str) -> Result<(), AudioEngineError> {
         info!(
             "Przełączanie profilu karty '{}' na '{}'",
@@ -53,6 +60,11 @@ impl DeviceManager {
         Ok(())
     }
 
+    #[cfg(not(target_os = "linux"))]
+    pub fn set_card_profile(_card_name: &str, _profile_name: &str) -> Result<(), AudioEngineError> {
+        Ok(())
+    }
+
     /// Przełącza profil kodeka Bluetooth na wybranej karcie Bluetooth.
     pub fn set_bluetooth_codec(
         card_name: &str,
@@ -68,6 +80,7 @@ impl DeviceManager {
     }
 
     /// Wyłącza tryb Pro Audio i bezpiecznie przywraca standardowy profil stereo (np. output:analog-stereo).
+    #[cfg(target_os = "linux")]
     pub fn disable_pro_audio(card_name: &str) -> Result<String, AudioEngineError> {
         let cards = Self::list_cards()?;
         let card = cards.iter().find(|c| c.name == card_name).ok_or_else(|| {
@@ -96,6 +109,11 @@ impl DeviceManager {
         );
         Self::set_card_profile(card_name, &fallback_profile)?;
         Ok(fallback_profile)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn disable_pro_audio(_card_name: &str) -> Result<String, AudioEngineError> {
+        Ok("default".to_string())
     }
 
     /// Parsuje tekst wyjściowy z `pactl list cards`.

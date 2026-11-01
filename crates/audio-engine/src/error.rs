@@ -1,20 +1,25 @@
+#[cfg(target_os = "linux")]
 use gstreamer as gst;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AudioEngineError {
+    #[cfg(target_os = "linux")]
     #[error("Błąd GStreamera: {0}")]
     Gst(#[from] glib::Error),
 
+    #[cfg(target_os = "linux")]
     #[error("Błąd zmiany stanu GStreamera: {0}")]
     StateChange(#[from] gst::StateChangeError),
 
+    #[cfg(target_os = "linux")]
     #[error("Operacja GStreamera nie powiodła się: {0}")]
     Bool(#[from] glib::BoolError),
 
-    #[error("Błąd elementu GStreamera: brak elementu '{0}' w systemie")]
+    #[error("Błąd elementu: brak elementu '{0}' w systemie")]
     MissingElement(&'static str),
 
+    #[cfg(target_os = "linux")]
     #[error("Błąd padu GStreamera: {0}")]
     PadLink(#[from] gst::PadLinkError),
 
@@ -35,4 +40,7 @@ pub enum AudioEngineError {
 
     #[error("Plik nie istnieje lub jest nieosiągalny: {0}")]
     FileNotFound(String),
+
+    #[error("Błąd backendu audio: {0}")]
+    Backend(String),
 }

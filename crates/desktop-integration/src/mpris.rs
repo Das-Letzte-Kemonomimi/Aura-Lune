@@ -2,7 +2,9 @@
 
 use audio_engine::AudioEngine;
 use domain::PlaybackState;
+#[cfg(target_os = "linux")]
 use mpris_server::zbus::fdo;
+#[cfg(target_os = "linux")]
 use mpris_server::{
     LoopStatus, Metadata, PlaybackRate, PlaybackStatus, PlayerInterface, Property, RootInterface,
     Server, Signal, Time, TrackId, Volume,
@@ -21,6 +23,7 @@ pub struct MprisTrackInfo {
     pub art_url: Option<String>,
 }
 
+#[cfg(target_os = "linux")]
 /// Obiekt obsługujący wywołania RPC ze środowiska graficznego (KDE/GNOME/Waybar/playerctl).
 #[derive(Clone)]
 pub struct AuraluneMprisHandler {
@@ -331,12 +334,14 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 }
 
+#[cfg(target_os = "linux")]
 /// Kontroler D-Bus MPRIS zarządzający serwerem i wysyłaniem sygnałów PropertiesChanged.
 pub struct MprisController {
     server: Server<AuraluneMprisHandler>,
     handler: AuraluneMprisHandler,
 }
 
+#[cfg(target_os = "linux")]
 impl MprisController {
     /// Inicjalizuje i rejestruje odtwarzacz w sesyjnej magistrali D-Bus jako org.mpris.MediaPlayer2.auralune.
     pub async fn start(engine: Arc<AudioEngine>) -> Result<Self, mpris_server::zbus::Error> {
@@ -406,4 +411,20 @@ impl MprisController {
             debug!("Błąd wysyłania PropertiesChanged(Volume): {}", e);
         }
     }
+}
+
+#[cfg(not(target_os = "linux"))]
+/// Atrapa kontrolera MPRIS dla platform niemających D-Bus (Android/Windows/macOS).
+pub struct MprisController;
+
+#[cfg(not(target_os = "linux"))]
+impl MprisController {
+    pub async fn start(_engine: Arc<AudioEngine>) -> Result<Self, String> {
+        Ok(Self)
+    }
+
+    pub async fn update_track(&self, _info: MprisTrackInfo) {}
+    pub async fn update_playback_status(&self, _state: PlaybackState) {}
+    pub async fn emit_seeked(&self, _position_ms: u64) {}
+    pub async fn update_volume(&self, _volume: f64) {}
 }
