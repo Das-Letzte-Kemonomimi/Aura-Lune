@@ -3,8 +3,13 @@ import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } fro
 
 export function parseTimeToMs(input: string): number | null {
   if (!input) return null;
-  const str = input.trim().toLowerCase();
+  let str = input.trim().toLowerCase();
   if (!str) return null;
+
+  // Usuń prefiksy typu 'a:', 'b:', 'punkt a:', 'punkt b:' (np. gdy ktoś wklei "A: 0:22.449")
+  str = str.replace(/^(?:punkt\s*)?[ab]\s*:\s*/i, '').trim();
+  // Zamień przecinki dziesiętne na kropki (np. "0:22,449" -> "0:22.449", "22,449" -> "22.449")
+  str = str.replace(',', '.');
 
   // 1. Jawny sufiks 'ms': np. "860ms", "860 ms"
   if (str.endsWith('ms')) {

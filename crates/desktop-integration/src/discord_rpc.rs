@@ -125,11 +125,21 @@ impl DiscordRpcController {
 
     /// Włącza lub wyłącza Discord RPC.
     pub fn set_enabled(&self, enabled: bool) {
+        if let Ok(mut s) = self.status.write() {
+            s.enabled = enabled;
+            if !enabled {
+                s.connected = false;
+                s.current_activity = None;
+            }
+        }
         let _ = self.tx.send(DiscordRpcCommand::SetEnabled(enabled));
     }
 
     /// Zmienia Application ID Discorda.
     pub fn set_client_id(&self, client_id: String) {
+        if let Ok(mut s) = self.status.write() {
+            s.client_id = client_id.clone();
+        }
         let _ = self.tx.send(DiscordRpcCommand::SetClientId(client_id));
     }
 

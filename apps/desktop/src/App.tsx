@@ -3731,12 +3731,47 @@ export default function App() {
   }, [isSettingsOpen, isEditingDiscordClientId]);
 
   useEffect(() => {
-    if (isSettingsOpen && settingsTab === 'transcode' && (filePath === 'tests/fixtures/test_sine_440hz.wav' || !filePath)) {
-      if (currentPlayingTrack?.path || status.current_track?.uri) {
-        handleUseCurrentTrackAsSource();
+    if (isSettingsOpen && settingsTab === 'transcode') {
+      const curPath = currentPlayingTrack?.path || status.current_track?.uri;
+      if (curPath && (!filePath || filePath === 'tests/fixtures/test_sine_440hz.wav')) {
+        let clean = curPath;
+        if (clean.startsWith('file://')) {
+          try {
+            clean = decodeURIComponent(clean.replace(/^file:\/\//, ''));
+          } catch {
+            clean = clean.replace(/^file:\/\//, '');
+          }
+        }
+        setFilePath(clean);
+      }
+
+      // Jeśli w odtwarzaczu jest zdefiniowana aktywna pętla A-B, natychmiast synchronizujemy ją do formularza eksportu!
+      if (loopPointA !== null || loopPointB !== null) {
+        const strA = loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000';
+        const strB = loopPointB !== null ? formatTimeMs(loopPointB) : '';
+        setTranscodeRangeA(strA);
+        setTranscodeRangeB(strB);
+        setTranscodeApplyRange(true);
+
+        const targetSource = curPath || filePath;
+        if (targetSource) {
+          let clean = targetSource;
+          if (clean.startsWith('file://')) {
+            try {
+              clean = decodeURIComponent(clean.replace(/^file:\/\//, ''));
+            } catch {
+              clean = clean.replace(/^file:\/\//, '');
+            }
+          }
+          const lastDot = clean.lastIndexOf('.');
+          let base = lastDot > 0 ? clean.substring(0, lastDot) : clean;
+          base = base.replace(/_loop_\d+-(?:\d+|end)$/i, '');
+          const suffix = `_loop_${loopPointA !== null ? loopPointA : 0}-${loopPointB !== null ? loopPointB : 'end'}`;
+          setTranscodeOutput(`${base}${suffix}.${transcodeFormat.toLowerCase()}`);
+        }
       }
     }
-  }, [isSettingsOpen, settingsTab, currentPlayingTrack, status.current_track]);
+  }, [isSettingsOpen, settingsTab, loopPointA, loopPointB, currentPlayingTrack, status.current_track]);
 
   const handleTestListenbrainz = async () => {
     if (!listenbrainzToken.trim()) {
@@ -4436,15 +4471,55 @@ export default function App() {
     }
   };
 
+  const updateTranscodeOutputFilename = (
+    sourcePath?: string,
+    fmt?: string,
+    rangeAVal?: string,
+    rangeBVal?: string,
+    applyRange?: boolean
+  ) => {
+    const curSource = sourcePath || filePath;
+    if (!curSource) return;
+    let clean = curSource;
+    if (clean.startsWith('file://')) {
+      try {
+        clean = decodeURIComponent(clean.replace(/^file:\/\//, ''));
+      } catch {
+        clean = clean.replace(/^file:\/\//, '');
+      }
+    }
+    const lastDot = clean.lastIndexOf('.');
+    let base = lastDot > 0 ? clean.substring(0, lastDot) : clean;
+    base = base.replace(/_loop_\d+-(?:\d+|end)$/i, '');
+
+    const targetFormat = (fmt || transcodeFormat).toLowerCase();
+    const shouldApply = applyRange !== undefined ? applyRange : transcodeApplyRange;
+    if (!shouldApply) {
+      setTranscodeOutput(`${base}.${targetFormat}`);
+      return;
+    }
+
+    const rA = rangeAVal !== undefined ? rangeAVal : transcodeRangeA;
+    const rB = rangeBVal !== undefined ? rangeBVal : transcodeRangeB;
+
+    let pA = parseTimeToMs(rA);
+    if (pA === null && loopPointA !== null) pA = loopPointA;
+    if (pA === null) pA = 0;
+
+    let pB = parseTimeToMs(rB);
+    if (pB === null && loopPointB !== null) pB = loopPointB;
+
+    const rangeSuffix = `_loop_${pA}-${pB !== null ? pB : 'end'}`;
+    setTranscodeOutput(`${base}${rangeSuffix}.${targetFormat}`);
+  };
+
   const handlePickTranscodeSource = async () => {
     try {
       setIsPickingSource(true);
       const selected = await invoke<string | null>('pick_single_audio_file');
       if (selected) {
         setFilePath(selected);
-        const lastDot = selected.lastIndexOf('.');
-        const base = lastDot > 0 ? selected.substring(0, lastDot) : selected;
-        setTranscodeOutput(`${base}.${transcodeFormat.toLowerCase()}`);
+        updateTranscodeOutputFilename(selected, transcodeFormat, transcodeRangeA, transcodeRangeB, transcodeApplyRange);
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4490,7 +4565,8 @@ export default function App() {
       }
       setFilePath(curPath);
       const lastDot = curPath.lastIndexOf('.');
-      const base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
+      let base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
+      base = base.replace(/_loop_\d+-(?:\d+|end)$/i, '');
 
       // Sprawdź czy mamy aktywne punkty pętli w RAM lub zapisane znaczniki w bibliotece dla tego utworu
       let effectiveA = loopPointA;
@@ -4510,8 +4586,8 @@ export default function App() {
           : '';
       setTranscodeOutput(`${base}${rangeSuffix}.${transcodeFormat.toLowerCase()}`);
       if (effectiveA !== null || effectiveB !== null) {
-        setTranscodeRangeA(effectiveA !== null ? `${effectiveA}ms` : '0ms');
-        setTranscodeRangeB(effectiveB !== null ? `${effectiveB}ms` : '');
+        setTranscodeRangeA(effectiveA !== null ? formatTimeMs(effectiveA) : '0:00.000');
+        setTranscodeRangeB(effectiveB !== null ? formatTimeMs(effectiveB) : '');
         setTranscodeApplyRange(true);
       }
       showMessage(loc.settings.useCurrentTrack);
@@ -4532,12 +4608,13 @@ export default function App() {
       }
       setFilePath(curPath);
       const lastDot = curPath.lastIndexOf('.');
-      const base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
+      let base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
+      base = base.replace(/_loop_\d+-(?:\d+|end)$/i, '');
       const rangeSuffix = `_loop_${a !== null ? a : 0}-${b !== null ? b : 'end'}`;
       setTranscodeOutput(`${base}${rangeSuffix}.${transcodeFormat.toLowerCase()}`);
     }
-    setTranscodeRangeA(a !== null ? `${a}ms` : '0ms');
-    setTranscodeRangeB(b !== null ? `${b}ms` : '');
+    setTranscodeRangeA(a !== null ? formatTimeMs(a) : '0:00.000');
+    setTranscodeRangeB(b !== null ? formatTimeMs(b) : '');
     setTranscodeApplyRange(true);
     setSettingsTab('transcode');
     setIsSettingsOpen(true);
@@ -4604,6 +4681,7 @@ export default function App() {
 
         if (parsedB !== null && parsedB <= parsedA) {
           showMessage(loc.settings.transcodeEndMustBeGreater, true);
+          setIsTranscoding(false);
           return;
         }
         timeRange = {
@@ -4628,6 +4706,12 @@ export default function App() {
         } catch {
           cleanOutput = cleanOutput.replace(/^file:\/\//, '');
         }
+      }
+
+      // Gwarancja spójności: jeśli eksportujemy pętlę A-B, a w nazwie pliku znajduje się wzorzec _loop_...,
+      // podmieniamy go na aktualne, sparsowane milisekundy wybranego wycinka (zabezpieczenie przed starym sufiksem)
+      if (timeRange && cleanOutput.includes('_loop_')) {
+        cleanOutput = cleanOutput.replace(/_loop_\d+-(?:\d+|end)(\.[a-z0-9]+)$/i, `_loop_${timeRange.start_ms}-${timeRange.end_ms ?? 'end'}$1`);
       }
 
       await invoke('transcode_file', {
@@ -6066,8 +6150,7 @@ const renderDevicesSection = () => (
                       key={fmt}
                       onClick={() => {
                         setTranscodeFormat(fmt);
-                        const base = filePath.substring(0, filePath.lastIndexOf('.')) || filePath;
-                        setTranscodeOutput(`${base}.${fmt.toLowerCase()}`);
+                        updateTranscodeOutputFilename(filePath, fmt, transcodeRangeA, transcodeRangeB, transcodeApplyRange);
                       }}
                       style={{
                         padding: '10px 20px',
@@ -6235,14 +6318,20 @@ const renderDevicesSection = () => (
                     onChange={(e) => {
                       const enabled = e.target.checked;
                       setTranscodeApplyRange(enabled);
+                      let nextA = transcodeRangeA;
+                      let nextB = transcodeRangeB;
                       if (enabled) {
                         if (loopPointA !== null || loopPointB !== null) {
-                          setTranscodeRangeA(loopPointA !== null ? `${loopPointA}ms` : '0ms');
-                          setTranscodeRangeB(loopPointB !== null ? `${loopPointB}ms` : '');
+                          nextA = loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000';
+                          nextB = loopPointB !== null ? formatTimeMs(loopPointB) : '';
+                          setTranscodeRangeA(nextA);
+                          setTranscodeRangeB(nextB);
                         } else if (!transcodeRangeA && !transcodeRangeB) {
-                          setTranscodeRangeA('0ms');
+                          nextA = '0:00.000';
+                          setTranscodeRangeA(nextA);
                         }
                       }
+                      updateTranscodeOutputFilename(filePath, transcodeFormat, nextA, nextB, enabled);
                     }}
                     style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
                   />
@@ -6286,8 +6375,12 @@ const renderDevicesSection = () => (
                         <button
                           type="button"
                           onClick={() => {
-                            if (loopPointA !== null) setTranscodeRangeA(`${loopPointA}ms`);
-                            if (loopPointB !== null) setTranscodeRangeB(`${loopPointB}ms`);
+                            const strA = loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000';
+                            const strB = loopPointB !== null ? formatTimeMs(loopPointB) : '';
+                            setTranscodeRangeA(strA);
+                            setTranscodeRangeB(strB);
+                            updateTranscodeOutputFilename(filePath, transcodeFormat, strA, strB, true);
+                            showMessage(`Zastosowano pętlę A-B: ${strA} → ${strB || 'koniec'}`);
                           }}
                           style={{
                             padding: '4px 10px',
@@ -6314,8 +6407,12 @@ const renderDevicesSection = () => (
                           onClick={() => {
                             const bmA = currentTrackBookmarks.find((b) => /\b(a|punkt a|start|pocz[aą]tek)\b/i.test(b.name)) || currentTrackBookmarks[0];
                             const bmB = currentTrackBookmarks.find((b) => /\b(b|punkt b|stop|end|koniec)\b/i.test(b.name) && b.id !== bmA?.id) || currentTrackBookmarks[1];
-                            setTranscodeRangeA(`${bmA.position_ms}ms`);
-                            setTranscodeRangeB(`${bmB.position_ms}ms`);
+                            const strA = formatTimeMs(bmA.position_ms);
+                            const strB = formatTimeMs(bmB.position_ms);
+                            setTranscodeRangeA(strA);
+                            setTranscodeRangeB(strB);
+                            updateTranscodeOutputFilename(filePath, transcodeFormat, strA, strB, true);
+                            showMessage(`Zastosowano znaczniki utworu: ${bmA.name} (${strA}) → ${bmB.name} (${strB})`);
                           }}
                           style={{
                             padding: '4px 10px',
@@ -6346,7 +6443,11 @@ const renderDevicesSection = () => (
                             <span style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>({formatTimeMs(bm.position_ms)})</span>
                             <button
                               type="button"
-                              onClick={() => setTranscodeRangeA(`${bm.position_ms}ms`)}
+                              onClick={() => {
+                                const strA = formatTimeMs(bm.position_ms);
+                                setTranscodeRangeA(strA);
+                                updateTranscodeOutputFilename(filePath, transcodeFormat, strA, transcodeRangeB, transcodeApplyRange);
+                              }}
                               title={`Ustaw "${bm.name}" jako Punkt A`}
                               style={{ background: 'rgba(6,182,212,0.2)', border: 'none', color: 'var(--accent-cyan)', borderRadius: '3px', padding: '1px 4px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
                             >
@@ -6354,7 +6455,11 @@ const renderDevicesSection = () => (
                             </button>
                             <button
                               type="button"
-                              onClick={() => setTranscodeRangeB(`${bm.position_ms}ms`)}
+                              onClick={() => {
+                                const strB = formatTimeMs(bm.position_ms);
+                                setTranscodeRangeB(strB);
+                                updateTranscodeOutputFilename(filePath, transcodeFormat, transcodeRangeA, strB, transcodeApplyRange);
+                              }}
                               title={`Ustaw "${bm.name}" jako Punkt B`}
                               style={{ background: 'rgba(236,72,153,0.2)', border: 'none', color: 'var(--accent-pink)', borderRadius: '3px', padding: '1px 4px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
                             >
@@ -6379,9 +6484,13 @@ const renderDevicesSection = () => (
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <input
                             type="text"
-                            placeholder="np. 0ms, 860ms, 0:15.5"
+                            placeholder="np. 0:00.000, 0:22.449, 860ms"
                             value={transcodeRangeA}
-                            onChange={(e) => setTranscodeRangeA(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setTranscodeRangeA(val);
+                              updateTranscodeOutputFilename(filePath, transcodeFormat, val, transcodeRangeB, transcodeApplyRange);
+                            }}
                             style={{
                               flex: 1,
                               padding: '6px 10px',
@@ -6395,7 +6504,11 @@ const renderDevicesSection = () => (
                           />
                           <button
                             type="button"
-                            onClick={() => setTranscodeRangeA(`${status.position_ms}ms`)}
+                            onClick={() => {
+                              const strA = formatTimeMs(status.position_ms);
+                              setTranscodeRangeA(strA);
+                              updateTranscodeOutputFilename(filePath, transcodeFormat, strA, transcodeRangeB, transcodeApplyRange);
+                            }}
                             title="Ustaw na bieżącą pozycję odtwarzacza"
                             style={{
                               padding: '6px 8px',
@@ -6413,8 +6526,12 @@ const renderDevicesSection = () => (
                           {loopPointA !== null && (
                             <button
                               type="button"
-                              onClick={() => setTranscodeRangeA(`${loopPointA}ms`)}
-                              title="Pobierz punkt A z pętli"
+                              onClick={() => {
+                                const strA = formatTimeMs(loopPointA);
+                                setTranscodeRangeA(strA);
+                                updateTranscodeOutputFilename(filePath, transcodeFormat, strA, transcodeRangeB, transcodeApplyRange);
+                              }}
+                              title="Pobierz punkt A z pętli odtwarzacza"
                               style={{
                                 padding: '6px 8px',
                                 borderRadius: '6px',
@@ -6447,9 +6564,13 @@ const renderDevicesSection = () => (
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <input
                             type="text"
-                            placeholder="np. 2500ms, 1:30 (lub puste)"
+                            placeholder="np. 0:40.690, 1:30.000 (lub puste)"
                             value={transcodeRangeB}
-                            onChange={(e) => setTranscodeRangeB(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setTranscodeRangeB(val);
+                              updateTranscodeOutputFilename(filePath, transcodeFormat, transcodeRangeA, val, transcodeApplyRange);
+                            }}
                             style={{
                               flex: 1,
                               padding: '6px 10px',
@@ -6463,7 +6584,11 @@ const renderDevicesSection = () => (
                           />
                           <button
                             type="button"
-                            onClick={() => setTranscodeRangeB(`${status.position_ms}ms`)}
+                            onClick={() => {
+                              const strB = formatTimeMs(status.position_ms);
+                              setTranscodeRangeB(strB);
+                              updateTranscodeOutputFilename(filePath, transcodeFormat, transcodeRangeA, strB, transcodeApplyRange);
+                            }}
                             title="Ustaw na bieżącą pozycję odtwarzacza"
                             style={{
                               padding: '6px 8px',
@@ -6481,8 +6606,12 @@ const renderDevicesSection = () => (
                           {loopPointB !== null && (
                             <button
                               type="button"
-                              onClick={() => setTranscodeRangeB(`${loopPointB}ms`)}
-                              title="Pobierz punkt B z pętli"
+                              onClick={() => {
+                                const strB = formatTimeMs(loopPointB);
+                                setTranscodeRangeB(strB);
+                                updateTranscodeOutputFilename(filePath, transcodeFormat, transcodeRangeA, strB, transcodeApplyRange);
+                              }}
+                              title="Pobierz punkt B z pętli odtwarzacza"
                               style={{
                                 padding: '6px 8px',
                                 borderRadius: '6px',
