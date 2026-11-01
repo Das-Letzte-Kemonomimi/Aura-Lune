@@ -28,9 +28,12 @@ fn main() {
         build.file("soundtouch-src/source/PeakFinder.cpp");
         build.file("soundtouch-src/source/BPMDetect.cpp");
 
+        build.file("soundtouch-src/source/cpu_detect_x86.cpp");
+
         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
         if target_arch == "x86" || target_arch == "x86_64" {
-            build.file("soundtouch-src/source/cpu_detect_x86.cpp");
+            build.file("soundtouch-src/source/sse_optimized.cpp");
+            build.file("soundtouch-src/source/mmx_optimized.cpp");
         }
     }
 

@@ -161,6 +161,22 @@ impl Database {
         Ok(db)
     }
 
+    /// Otwiera bazę danych w pamięci podręcznej RAM (np. testy lub fallback gdy dostęp do pamięci masowej jest ograniczony).
+    pub async fn open_in_memory() -> Result<Self, StorageError> {
+        let opts = SqliteConnectOptions::from_str(":memory:")?
+            .busy_timeout(std::time::Duration::from_secs(15));
+
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await?;
+
+        let db = Self { pool };
+        db.run_migrations().await?;
+        info!("Baza danych SQLite zainicjalizowana w pamięci (in-memory)");
+        Ok(db)
+    }
+
     /// Inicjalizuje tabele i indeksy w bazie danych.
     pub async fn run_migrations(&self) -> Result<(), StorageError> {
         sqlx::query(

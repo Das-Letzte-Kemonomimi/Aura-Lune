@@ -50,32 +50,44 @@ Do zbudowania aplikacji wymagane są:
    ```
 3. **Android SDK & NDK**:
    - `ANDROID_HOME=/home/mimi/Android/Sdk`
-   - `NDK_HOME=/home/mimi/Android/Sdk/ndk/26.1.10909125`
+   - `NDK_HOME=/home/mimi/Android/Sdk/ndk/27.2.12479018`
    - Platformy: `android-34` oraz `android-36`
    - Build-Tools: `34.0.0` lub `36.0.0`
 4. **Node.js**: wersja 20+ oraz zależności (`npm install`).
 
 ---
 
-## 3. Kompilacja i budowanie (Debug APK)
+## 3. Kompilacja i pakiety APK (Release & Debug)
 
-Aby zbudować wersję debugową dla procesorów ARM64 (`aarch64`):
-
+### Opcja A: Zoptymalizowany pakiet Release APK (~35 MB — Zalecany na telefon)
+Pakiet ze zoptymalizowanym kodem, minifikacją i usuniętymi symbolami debug (podpisany kluczem testowym, gotowy do bezpośredniej instalacji):
 ```bash
 JAVA_HOME=/home/mimi/Android/jdk-21 \
 ANDROID_HOME=/home/mimi/Android/Sdk \
 NDK_HOME=/home/mimi/Android/Sdk/ndk/26.1.10909125 \
-npm run tauri -- android build --debug --target aarch64 --ci
+npm run tauri -- android build --target aarch64 --apk --ci
+```
+Lokalizacja pliku `.apk`:
+```
+apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
 ```
 
-Wynikowy plik `.apk` jest generowany w:
+### Opcja B: Uniwersalny pakiet Debug (ARM64 telefon + x86_64 emulator)
+Zawiera pełne symbole diagnostyczne dla procesorów telefonów (`arm64-v8a`) oraz emulatora PC (`x86_64`):
+```bash
+JAVA_HOME=/home/mimi/Android/jdk-21 \
+ANDROID_HOME=/home/mimi/Android/Sdk \
+NDK_HOME=/home/mimi/Android/Sdk/ndk/26.1.10909125 \
+npm run tauri -- android build --debug --target aarch64 --target x86_64 --apk --ci
+```
+Lokalizacja pliku `.apk`:
 ```
 apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
 ```
 
 Instalacja na podłączonym urządzeniu lub emulatorze (`adb`):
 ```bash
-adb install -r apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+adb install -r apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
 ```
 
 ---
@@ -125,7 +137,7 @@ Aby aplikacja działała z maksymalną wydajnością bez translacji binarnej, sk
 ```bash
 JAVA_HOME=/home/mimi/Android/jdk-21 \
 ANDROID_HOME=/home/mimi/Android/Sdk \
-NDK_HOME=/home/mimi/Android/Sdk/ndk/26.1.10909125 \
+NDK_HOME=/home/mimi/Android/Sdk/ndk/27.2.12479018 \
 npm run tauri -- android build --debug --target x86_64 --ci
 ```
 
@@ -144,6 +156,12 @@ Aby w bibliotece od razu pojawiły się utwory:
 ### Krok 7: Uruchomienie Auralune na emulatorze
 ```bash
 /home/mimi/Android/Sdk/platform-tools/adb shell am start -n com.auralune.player/.MainActivity
+```
+
+### ⚡ Szybki skrypt automatyczny (All-in-one)
+Dla wygody przygotowano skrypt `scripts/run-android-emulator.sh`, który sprawdza stan emulatora, uruchamia go w tle (jeśli nie działa), oczekuje na boot systemu, instaluje APK i uruchamia podgląd logów:
+```bash
+./scripts/run-android-emulator.sh
 ```
 
 ---
@@ -199,7 +217,7 @@ Budowanie wydania produkcyjnego (AAB / APK):
 ```bash
 JAVA_HOME=/home/mimi/Android/jdk-21 \
 ANDROID_HOME=/home/mimi/Android/Sdk \
-NDK_HOME=/home/mimi/Android/Sdk/ndk/26.1.10909125 \
+NDK_HOME=/home/mimi/Android/Sdk/ndk/27.2.12479018 \
 npm run tauri -- android build --target aarch64 --ci
 ```
 

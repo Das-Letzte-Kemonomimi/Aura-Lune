@@ -10,10 +10,14 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
-    enableEdgeToEdge()
+    try {
+      enableEdgeToEdge()
+    } catch (_: Throwable) {}
     super.onCreate(savedInstanceState)
-    MediaBridge.init(this)
-    requestMediaPermissions()
+    try {
+      MediaBridge.init(this)
+      requestMediaPermissions()
+    } catch (_: Throwable) {}
   }
 
   private fun requestMediaPermissions() {

@@ -37,6 +37,9 @@ use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, DuplicateGro
 use tauri::{Emitter, Manager, State};
 use tracing::{error, info, warn};
 
+#[cfg(target_os = "android")]
+pub use audio_engine::android_backend::jni_exports::*;
+
 #[derive(Clone)]
 pub struct AppState {
     pub engine: Arc<AudioEngine>,
@@ -4775,12 +4778,12 @@ pub fn run() {
         }
     }
 
-    tracing_subscriber::fmt()
+    let _ = tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
                 .add_directive(tracing::Level::INFO.into()),
         )
-        .init();
+        .try_init();
 
     let rt = Arc::new(tokio::runtime::Runtime::new().expect("Błąd tworzenia runtime tokio"));
 
@@ -4825,6 +4828,19 @@ pub fn run() {
             let rt = rt.clone();
             let engine = engine.clone();
             move |app| {
+                #[cfg(target_os = "android")]
+                let data_dir = {
+                    let default_android_dir = PathBuf::from("/data/data/com.auralune.player/files");
+                    let _ = fs::create_dir_all(&default_android_dir);
+                    match app.path().app_data_dir() {
+                        Ok(p) if p.to_string_lossy() != "." && p.to_string_lossy() != "/" => {
+                            let _ = fs::create_dir_all(&p);
+                            p
+                        }
+                        _ => default_android_dir,
+                    }
+                };
+                #[cfg(not(target_os = "android"))]
                 let data_dir = app
                     .path()
                     .app_data_dir()
@@ -4832,12 +4848,39 @@ pub fn run() {
                 let _ = fs::create_dir_all(&data_dir);
                 let db_path = data_dir.join("auralune_library.db");
                 let cache_dir = data_dir.join("cache");
+                let _ = fs::create_dir_all(&cache_dir);
 
-                let db = rt.block_on(async {
-                    Database::open(&db_path)
-                        .await
-                        .expect("Błąd otwarcia bazy SQLite")
-                });
+                let db = match rt.block_on(async { Database::open(&db_path).await }) {
+                    Ok(d) => d,
+                    Err(err) => {
+                        error!(
+                            "Nie udało się otworzyć bazy SQLite w {}: {:?}. Próba z fallbackiem...",
+                            db_path.display(),
+                            err
+                        );
+                        #[cfg(target_os = "android")]
+                        let alt_path = PathBuf::from("/data/data/com.auralune.player/files/auralune_library.db");
+                        #[cfg(not(target_os = "android"))]
+                        let alt_path = PathBuf::from("auralune_library.db");
+
+                        let _ = fs::create_dir_all(alt_path.parent().unwrap_or(&alt_path));
+                        match rt.block_on(async { Database::open(&alt_path).await }) {
+                            Ok(d) => d,
+                            Err(err2) => {
+                                error!(
+                                    "Nie udało się otworzyć bazy SQLite w fallbacku {}: {:?}. Użycie bazy in-memory.",
+                                    alt_path.display(),
+                                    err2
+                                );
+                                rt.block_on(async {
+                                    Database::open_in_memory()
+                                        .await
+                                        .expect("Krytyczny błąd: nie można zainicjalizować in-memory SQLite")
+                                })
+                            }
+                        }
+                    }
+                };
 
                 // Przywrócenie ostatniego stanu kolejki odtwarzania z bazy danych
                 if let Ok(Some(saved_queue)) = rt.block_on(async { db.load_queue_state().await }) {
@@ -4957,6 +5000,7 @@ pub fn run() {
                 }
 
                 // Wczytanie wybranego stylu ikony aplikacji (domyślnie: lineout dopasowany do motywu)
+                #[cfg(desktop)]
                 let icon_style = rt.block_on(async {
                     db.get_app_setting("app_icon_style").await.unwrap_or(None)
                 }).unwrap_or_else(|| "lineout".to_string());
@@ -5012,7 +5056,8 @@ pub fn run() {
                 }
 
 
-                // Aplikacja wybranego stylu ikony aplikacji
+                // Aplikacja wybranego stylu ikony aplikacji (tylko desktop)
+                #[cfg(desktop)]
                 let _ = update_system_icons(app.handle(), &icon_style);
 
                 #[cfg(desktop)]
@@ -5084,6 +5129,7 @@ pub fn run() {
                     }
                 }
 
+                #[cfg(desktop)]
                 // Obsługa minimalizacji do zasobnika systemowego przy zamykaniu okna
                 if let Some(main_window) = app.get_webview_window("main") {
                     let main_window_clone = main_window.clone();

@@ -65,25 +65,21 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '12px',
+        boxSizing: 'border-box',
       }}
     >
       <div
-        className="glass-card"
+        className="glass-card onboarding-card"
         style={{
-          width: '100%',
-          maxWidth: '560px',
-          borderRadius: '24px',
           background: 'linear-gradient(145deg, rgba(22, 24, 44, 0.96), rgba(12, 14, 26, 0.98))',
           border: '1px solid rgba(168, 85, 247, 0.4)',
           boxShadow: '0 24px 64px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.25)',
-          padding: '32px',
           color: '#fff',
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '90vh',
-          overflowY: 'auto',
+          boxSizing: 'border-box',
         }}
       >
         {/* Zamknięcie */}
@@ -287,7 +283,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
                 {currentLang === 'pl' ? 'Język interfejsu (Language):' : 'Interface Language:'}
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div className="onboarding-grid-langs" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: '8px' }}>
                 {[
                   { id: 'en', label: 'English 🇬🇧' },
                   { id: 'pl', label: 'Polski 🇵🇱' },
@@ -394,7 +390,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
                 {currentLang === 'pl' ? 'Pozycja transparentnego wskaźnika głośności (HUD):' : 'Volume HUD (OSD) Placement:'}
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div className="onboarding-grid-hud" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '8px' }}>
                 {[
                   { id: 'center', label: currentLang === 'pl' ? 'Środek' : 'Center' },
                   { id: 'top-right', label: currentLang === 'pl' ? 'Prawy góra' : 'Top Right' },

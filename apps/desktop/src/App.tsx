@@ -8541,7 +8541,7 @@ const renderDevicesSection = () => (
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px', position: 'relative' }}>
+    <div className="app-container">
       {/* Dynamiczne tło anime z kontrolowanym rozmyciem i nakładką (obsługa statycznych grafik oraz wideo MP4/WebM) */}
       {themeBgImage && (themeBgImage.toLowerCase().endsWith('.mp4') || themeBgImage.toLowerCase().endsWith('.webm') || themeBgImage.startsWith('data:video/')) ? (
         <video
@@ -8795,7 +8795,7 @@ const renderDevicesSection = () => (
         </div>
 
         {/* Zakładki główne aplikacji */}
-        <nav style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+        <nav className="header-nav-container" style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <button
             onClick={() => setActiveTab('player')}
             style={{
@@ -8907,7 +8907,7 @@ const renderDevicesSection = () => (
         </nav>
 
         {/* Narzędzia i Ustawienia po prawej */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexShrink: 0 }}>
+        <div className="header-tools-container" style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexShrink: 0 }}>
           {/* Przycisk Podsumowania Muzycznego (Auralune Recap) */}
           <button
             onClick={() => setIsRecapModalOpen(true)}
@@ -9025,6 +9025,7 @@ const renderDevicesSection = () => (
 
           {/* Pływający Tekst na Pulpicie (HUD / Desktop Lyrics Overlay) */}
           <button
+            className="desktop-only"
             onClick={toggleDesktopLyrics}
             style={{
               padding: '7px 10px',
@@ -9110,6 +9111,7 @@ const renderDevicesSection = () => (
 
           {/* Paleta komend Ctrl+K */}
           <button
+            className="desktop-only"
             onClick={() => setIsCommandPaletteOpen(true)}
             style={{
               padding: '7px 10px',
@@ -9134,6 +9136,7 @@ const renderDevicesSection = () => (
 
           {/* Pełny ekran */}
           <button
+            className="desktop-only"
             onClick={() => setIsBigScreen(true)}
             style={{
               padding: '7px 10px',
@@ -9422,10 +9425,11 @@ const renderDevicesSection = () => (
             </div>
 
             {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: '28px', alignItems: 'center' }}>
+            <div className="now-playing-grid">
               {/* Kolumna lewa: Okładka / Winyl */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div
+                  className="now-playing-cover-box"
                   style={{
                     width: '220px',
                     height: '220px',
@@ -9606,7 +9610,7 @@ const renderDevicesSection = () => (
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <h3
                         style={{
@@ -9732,6 +9736,7 @@ const renderDevicesSection = () => (
 
                       {(currentPlayingTrack?.path || status.current_track?.uri || filePath) && (
                         <button
+                          className="desktop-only"
                           onClick={(e) =>
                             handleOpenContainingFolder(
                               currentPlayingTrack?.path || status.current_track?.uri || filePath,
@@ -10062,9 +10067,9 @@ const renderDevicesSection = () => (
                 </div>
 
                 {/* Przyciski sterowania odtwarzaniem */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="now-playing-controls-row">
                   {/* Narzędzia lewe: Zakładka, Pętla A-B, Sleep Timer, Skróty */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="now-playing-tools-group">
                     {/* Przycisk Zakładki (Bookmark) */}
                     {currentBookmark === null ? (
                       <button
@@ -10278,7 +10283,7 @@ const renderDevicesSection = () => (
                     {/* Przycisk Skrótów klawiszowych */}
                     <button
                       onClick={() => setIsShortcutsModalOpen(true)}
-                      className="glass-card"
+                      className="glass-card desktop-only"
                       style={{
                         padding: '6px 8px',
                         display: 'flex',
@@ -10316,7 +10321,7 @@ const renderDevicesSection = () => (
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="now-playing-transport-group">
                     {/* Shuffle Button */}
                     <button
                       onClick={handleToggleShuffle}
@@ -10443,7 +10448,7 @@ const renderDevicesSection = () => (
                   </div>
 
                   {/* Volume Slider */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="now-playing-volume-group">
                     {status.volume === 0 ? <VolumeX size={16} color="var(--text-muted)" /> : <Volume2 size={16} color="var(--text-secondary)" />}
                     <input
                       type="range"
@@ -10468,16 +10473,18 @@ const renderDevicesSection = () => (
             <div
               className="glass-card"
               style={{
-                padding: '10px 18px',
+                padding: '10px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 borderRadius: '12px',
                 background: 'rgba(0,0,0,0.28)',
                 border: '1px solid var(--border-subtle)',
+                flexWrap: 'wrap',
+                gap: '8px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   DSP:
                 </span>
