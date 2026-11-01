@@ -9,6 +9,41 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.8.1] — „Parametric Warmth & Studio Dynamics” - 2026-11-01
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Wielopasmowy Korektor Parametryczny (Parametric EQ Studio)**:
+  - Architektura procesora PEQ w domenie (`crates/domain/src/parametric_eq.rs`) obsługująca dowolną liczbę pasm (od 1 do 32) z filtrami: Peak (dzwonowy), Low Shelf (półkowy dolny) oraz High Shelf (półkowy górny), z precyzyjną regulacją dobroci $Q$ oraz szerokości pasma.
+  - Wbudowany algorytm kalkulacji bezpiecznego wzmocnienia przedwzmacniacza (**Safe Preamp / Headroom Protection**), automatycznie wyliczający ujemny offset wzmocnienia, aby uniemożliwić cyfrowe przesterowanie (clipping) sygnału audio przy podbiciach pasm.
+  - Kompletny parser i eksporter konfiguracji **EqualizerAPO / AutoEQ** w formacie tekstowym `.txt` (`parse_equalizer_apo` oraz `export_to_equalizer_apo`), umożliwiający import profili słuchawkowych i głośnikowych z forów audiofilskich oraz zewnętrznych baz pomiarowych.
+  - Fabryczne presety brzmieniowe: *Harman Target Baseline (Krzywa Harmana)*, *Vocal Clarity & Air*, *Sub-Bass Punch & Rumble*, *De-Esser (Sibilance Control)* oraz *Flat (Neutral)*.
+  - Nowe komendy Tauri: `get_parametric_eq_state`, `set_parametric_eq_state`, `set_parametric_eq_enabled`, `set_parametric_eq_preamp`, `get_parametric_eq_presets`, `parse_equalizer_apo_config`, `export_equalizer_apo_config`.
+  - Dedykowany, luksusowy interfejs anime glassmorphism `ParametricEqModal.tsx` wyposażony w interaktywny wykres odpowiedzi częstotliwościowej (krzywa biquad oparta o Audio EQ Cookbook Roberta Bristowa-Johnsona), skalę logarytmiczną 20 Hz – 20 kHz, przeciągane węzły pasm (drag & drop), wskaźnik headroomu i cyfrowego clippingu, szafę parametrów pasm oraz okno dialogowe importu/eksportu EqualizerAPO.
+  - Integracja ze skrótem w Palecie Komend (Ctrl+K -> `Korektor Parametryczny (PEQ Studio)`) oraz szybkim przyciskiem w zakładce DSP z dynamiczną diodą stanu.
+  - Wielojęzyczne tłumaczenia dla interfejsu PEQ Studio (PL, EN, DE, FI, LA).
+- **Studio Kompresora & Nasycenia Analogowego (Dynamics & Warmth Studio)**:
+  - Architektura procesora dynamiki w domenie (`crates/domain/src/dynamics.rs`) zintegrowana z kompresorem dynamiki (DRC), emulacją nasycenia lampowego/taśmowego oraz sprzętowym limiterem słuchawkowym.
+  - Kompresor dynamiki oparty o element GStreamera `audiodynamic` z regulacją progu (`threshold_db`, -60 do 0 dBFS), stosunku kompresji (`ratio`, 1:1 do 20:1), przełączaniem charakterystyki kolana (Soft-Knee vs Hard-Knee) oraz wzmocnieniem wyrównawczym (Makeup Gain od 0 do +24 dB).
+  - Silnik nasycenia analogowego i ciepła lampowego (Analog Tube & Tape Saturation) wykonujący bezalokacyjne przekształcenia nieliniowe (waveshaping) na próbkach F32LE bezpośrednio w sondzie bufora potoku (`gst::PadProbeType::BUFFER`):
+    - *Lampa Elektronowa (Tube Warmth / Triode)* — asymetryczne nasycenie generujące przyjemne dla ucha parzyste harmoniczne (2nd harmonic) i ciepły, miękki bas;
+    - *Taśma Analogowa (Tape Saturation)* — symetryczna kompresja szczytów fali audio zaokrąglająca ostre soprany i dająca analogową gęstość taśmy;
+    - *Overdrive Harmoniczny* — nasycenie hiperboliczne ożywiające utwory lo-fi i dynamiczne anime rock OP.
+  - Fabryczne presety brzmieniowe: *Vintage Tube Amplifier*, *Warm Analog Tape Deck*, *Anime Broadcast & Radio*, *Lo-Fi Crunchy Vinyl*, *Headphone Hearing Protection* oraz *Direct Bypass*.
+  - Nowe komendy Tauri: `get_dynamics_state`, `set_dynamics_state`, `set_compressor_enabled`, `set_saturator_enabled`, `get_dynamics_presets`.
+  - Interaktywny, luksusowy interfejs modalny `DynamicsStudioModal.tsx` w estetyce anime glassmorphism z dynamicznymi wykresami SVG odpowiedzi kompresora i nieliniowej krzywej transferu $f(x)$ falowego saturatora.
+  - Integracja z zakładką DSP (przycisk *Dynamics Studio* z podwójną diodą aktywności) oraz Paletą Komend (Ctrl+K).
+
+### Zmieniono (Changed)
+- Rozszerzono `PlaybackStatusDto` oraz stan odtwarzacza o pola `parametric_eq_enabled`, `compressor_enabled`, `saturator_enabled` oraz `limiter_enabled`.
+
+### Wydajność i Architektura (Performance & Internal)
+- Wpięto dynamiczny łańcuch `peq_preamp` (`volume`) oraz `peq_equalizer` (`equalizer-nbands`) w potok GStreamera z dynamiczną manipulacją pasm w czasie rzeczywistym poprzez `gst::ChildProxy` bez trzasków i przerw w odtwarzaniu bit-perfect.
+- Wpięto łańcuch `compressor` (`audiodynamic`) -> `compressor_makeup` (`volume`) -> `saturator` (`identity` z sondą F32LE) z trybem zerowego obciążenia CPU (bit-perfect `set_passthrough(true)` oraz natychmiastowym pomijaniem sondy, gdy moduły są wyłączone).
+- Dodano zestaw testów jednostkowych i integracyjnych: `crates/audio-engine/tests/dynamics_test.rs`, `crates/audio-engine/tests/parametric_eq_test.rs` oraz testy w `crates/domain/src/dynamics.rs` i `crates/domain/src/parametric_eq.rs`.
+
+---
+
 ## [0.8.0] — „Harmonic Flow & Ambient Focus” - 2026-11-01
 **Autorka**: Das Letzte Kemonomimi
 

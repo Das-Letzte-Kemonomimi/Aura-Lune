@@ -2,8 +2,10 @@ pub mod bookmark;
 pub mod crossfeed;
 pub mod cue;
 pub mod device;
+pub mod dynamics;
 pub mod equalizer;
 pub mod m3u;
+pub mod parametric_eq;
 pub mod playlist;
 pub mod queue;
 pub mod renamer;
@@ -15,8 +17,16 @@ pub mod transcode;
 pub use bookmark::TrackBookmark;
 pub use crossfeed::{CrossfeedConfig, CrossfeedPreset};
 pub use cue::{CueSheet, CueTrack};
+pub use dynamics::{
+    CompressorConfig, DynamicsPreset, DynamicsState, LimiterConfig, SaturatorConfig, SaturatorMode,
+};
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
 pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
+pub use parametric_eq::{
+    ParametricBand, ParametricEqPreset, ParametricEqState, ParametricFilterType,
+    MAX_PARAMETRIC_FREQ, MAX_PARAMETRIC_GAIN_DB, MAX_PARAMETRIC_Q, MAX_PREAMP_DB,
+    MIN_PARAMETRIC_FREQ, MIN_PARAMETRIC_GAIN_DB, MIN_PARAMETRIC_Q, MIN_PREAMP_DB,
+};
 pub use playlist::Playlist;
 pub use queue::{LoopMode, PlaybackQueue, QueueItem};
 pub use renamer::{

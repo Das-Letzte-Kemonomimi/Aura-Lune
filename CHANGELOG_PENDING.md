@@ -13,15 +13,13 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — wersja 0.8.0 została pomyślnie wydana)*
+- *(Brak oczekujących zmian — wersja 0.8.1 została pomyślnie wydana)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak oczekujących zmian — wersja 0.8.0 została pomyślnie wydana)*
+- *(Brak oczekujących zmian — wersja 0.8.1 została pomyślnie wydana)*
 
 ### 🔄 Zmieniono (Changed)
 - *(Brak)*
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
 - *(Brak)*
-
-
