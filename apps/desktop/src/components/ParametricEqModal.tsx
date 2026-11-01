@@ -20,6 +20,7 @@ import {
   gainToNormY,
   normXToFreq,
   normYToGain,
+  normalizeFilterType,
   PEQ_BAND_COLORS,
   type ParametricBandDto,
   type ParametricEqPresetDto,
@@ -100,8 +101,16 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
     invoke<ParametricEqStateDto>('get_parametric_eq_state')
       .then((s) => {
         if (s && s.bands && s.bands.length > 0) {
-          setState(s);
-          setSelectedBandId(s.bands[0].id);
+          const normState: ParametricEqStateDto = {
+            ...s,
+            bands: s.bands.map((b) => ({
+              ...b,
+              filter_type: normalizeFilterType(b.filter_type),
+            })),
+          };
+          setState(normState);
+          latestStateRef.current = normState;
+          setSelectedBandId(normState.bands[0].id);
         } else {
           // Jeśli pusty, załaduj domyślne pasma i zsynchronizuj z silnikiem audio
           const defaultState: ParametricEqStateDto = {
@@ -116,6 +125,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
             ],
           };
           setState(defaultState);
+          latestStateRef.current = defaultState;
           setSelectedBandId('b1');
           sendToBackend(defaultState);
         }
@@ -123,7 +133,19 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
       .catch((e) => console.error('Błąd pobierania stanu PEQ:', e));
 
     invoke<ParametricEqPresetDto[]>('get_parametric_eq_presets')
-      .then((p) => setPresets(p || []))
+      .then((p) => {
+        const normPresets = (p || []).map((preset) => ({
+          ...preset,
+          state: {
+            ...preset.state,
+            bands: (preset.state.bands || []).map((b) => ({
+              ...b,
+              filter_type: normalizeFilterType(b.filter_type),
+            })),
+          },
+        }));
+        setPresets(normPresets);
+      })
       .catch((e) => console.error('Błąd pobierania presetów PEQ:', e));
   }, [isOpen]);
 
@@ -176,7 +198,10 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
       const updated: ParametricEqStateDto = {
         enabled: true,
         preamp_db: found.state.preamp_db,
-        bands: found.state.bands.map((b) => ({ ...b })),
+        bands: found.state.bands.map((b) => ({
+          ...b,
+          filter_type: normalizeFilterType(b.filter_type),
+        })),
       };
       applyStateToBackend(updated, true);
       setSelectedPresetName(presetName);
@@ -199,9 +224,9 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
       enabled: true,
     };
     const updated = {
-      ...state,
+      ...latestStateRef.current,
       enabled: true,
-      bands: [...state.bands, newBand],
+      bands: [...latestStateRef.current.bands, newBand],
     };
     applyStateToBackend(updated, true);
     setSelectedBandId(newId);
@@ -210,9 +235,10 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
   // Usuwanie pasma
   const handleDeleteBand = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const current = latestStateRef.current;
     const updated = {
-      ...state,
-      bands: state.bands.filter((b) => b.id !== id),
+      ...current,
+      bands: current.bands.filter((b) => b.id !== id),
     };
     applyStateToBackend(updated, true);
     if (selectedBandId === id) {
@@ -222,10 +248,21 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
 
   // Edycja pojedynczego pasma (automatycznie włącza PEQ, aby użytkownik słyszał zmiany)
   const handleUpdateBand = (id: string, patch: Partial<ParametricBandDto>) => {
+    const current = latestStateRef.current;
     const updated = {
-      ...state,
+      ...current,
       enabled: true,
-      bands: state.bands.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+      bands: current.bands.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              ...patch,
+              filter_type: patch.filter_type
+                ? normalizeFilterType(patch.filter_type)
+                : normalizeFilterType(b.filter_type),
+            }
+          : b
+      ),
     };
     applyStateToBackend(updated);
   };
@@ -258,7 +295,11 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
     e.stopPropagation();
     setDraggingBandId(bandId);
     setSelectedBandId(bandId);
-    (e.target as Element).setPointerCapture(e.pointerId);
+    if (svgRef.current) {
+      try {
+        svgRef.current.setPointerCapture(e.pointerId);
+      } catch {}
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -275,9 +316,11 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (draggingBandId) {
-      try {
-        (e.target as Element).releasePointerCapture(e.pointerId);
-      } catch {}
+      if (svgRef.current) {
+        try {
+          svgRef.current.releasePointerCapture(e.pointerId);
+        } catch {}
+      }
       setDraggingBandId(null);
       // Natychmiastowe wysłanie ostatecznego stanu po zakończeniu przeciągania
       applyStateToBackend(latestStateRef.current, true);
@@ -292,11 +335,18 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
         text: importText,
       });
       if (parsed && parsed.bands.length > 0) {
-        applyStateToBackend(parsed);
+        const normParsed: ParametricEqStateDto = {
+          ...parsed,
+          bands: parsed.bands.map((b) => ({
+            ...b,
+            filter_type: normalizeFilterType(b.filter_type),
+          })),
+        };
+        applyStateToBackend(normParsed, true);
         setIsImportModalOpen(false);
         setImportText('');
-        if (parsed.bands[0]) {
-          setSelectedBandId(parsed.bands[0].id);
+        if (normParsed.bands[0]) {
+          setSelectedBandId(normParsed.bands[0].id);
         }
       } else {
         setImportError('Nie znaleziono pasm w podanym tekście.');
@@ -936,7 +986,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
 
                   {/* Typ filtru */}
                   <select
-                    value={band.filter_type}
+                    value={normalizeFilterType(band.filter_type)}
                     onChange={(e) =>
                       handleUpdateBand(band.id, {
                         filter_type: e.target.value as ParametricFilterType,

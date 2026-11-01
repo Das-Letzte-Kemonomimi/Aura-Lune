@@ -98,6 +98,12 @@ pub struct AudioEngine {
 impl AudioEngine {
     /// Inicjalizuje GStreamer oraz tworzy bazowy potok odtwarzacza.
     pub fn new() -> Result<Self, AudioEngineError> {
+        static GST_INIT_ONCE: std::sync::Once = std::sync::Once::new();
+        GST_INIT_ONCE.call_once(|| {
+            let _ = gst::init();
+            let _ = gst::ElementFactory::make("equalizer-10bands").build();
+            let _ = gst::ElementFactory::make("equalizer-nbands").build();
+        });
         gst::init()?;
         let _ = crate::dsp_node::register_dsp_element();
 
