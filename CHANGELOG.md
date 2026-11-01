@@ -9,6 +9,35 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.7.5] — „Single Flow & Harmonic Resonance” - 2026-11-01
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Architektura Single-Instance i obsługa otwierania plików z menedżera (IPC)**:
+  - Zintegrowano oficjalny plugin `tauri-plugin-single-instance`, zapobiegając uruchamianiu wielu równoległych instancji i okien Auralune przy otwieraniu plików audio (np. wielokrotnym klikaniu plików w Dolphinie, Nautilusie, Thunarze czy Nemo).
+  - Wprowadzono automatyczne przywracanie i aktywowanie istniejącego okna (`unminimize`, `show`, `set_focus`), gdy użytkownik otwiera plik z zewnątrz.
+  - Zaimplementowano bezpieczny parser argumentów CLI i protokołów (`file://` z obsługą dekodowania URL oraz relatywnych ścieżek `cwd`), przekazujący otwierane utwory bezpośrednio do aktywnej instancji odtwarzacza.
+  - Dodano emisję zdarzenia `queue_changed` z backendu do frontendu, dzięki czemu kolejka w interfejsie natychmiast odświeża się po otwarciu pliku z zewnątrz.
+- **Konfigurowalne zachowanie odtwarzania albumów i playlist**:
+  - Dodano opcję w *Ustawienia -> Audio i Odtwarzacz* (`albumPlaybackMode` zapisywany w `localStorage` oraz w bazie SQLite):
+    - `replace` (domyślny): kliknięcie „Odtwórz album” lub utworu z albumu/playlisty (albo pliku z zewnątrz) zastępuje kolejkę i rozpoczyna odtwarzanie od wskazanego numeru, umożliwiając naturalne działanie autoplay (EOS) oraz przycisków „Dalej / Poprzedni” (Skip).
+    - `append`: dodaje utwory na koniec istniejącej kolejki.
+    - `single`: ładuje wyłącznie pojedynczy kliknięty utwór (bez modyfikacji kolejki).
+  - Dodano pełne tłumaczenia dla wszystkich 5 języków (`pl`, `en`, `de`, `fi`, `la`).
+
+### Poprawiono (Fixed)
+- **Odtwarzanie albumów i Autoplay**: Naprawiono błąd, w którym kliknięcie „Odtwórz album” lub utworu w widoku albumu/playlisty odtwarzało tylko pojedynczą piosenkę bez wypełniania kolejki (`queue`), przez co zdarzenie końca utworu (GStreamer EOS) nie przechodziło do następnego utworu, a przycisk „Dalej” (Next / Skip) nie reagował.
+- **Live FFT Spectrum Visualizer**: Rozwiązano problem „martwych/płaskich” słupków wyższych częstotliwości w analizatorze widma:
+  - Zwiększono rozdzielczość FFT GStreamera z 16 liniowych pasm do 64 pasm, dodając algorytm logarytmicznego grupowania (`log_pool_to_16_bands`) zgodny z ludzką percepcją słuchu (od sub-basu 30 Hz do tonów wysokich 20 kHz).
+  - Obniżono próg czułości (`threshold`) z -60 dBFS do -75 dBFS oraz wprowadzono czułą nieliniową normalizację decybeli.
+  - Przepięto element `spectrum` przed element `volume` w potoku audio (`rgvolume -> rglimiter -> spectrum -> volume`), dzięki czemu wizualizer zachowuje pełną dynamikę i nie zamiera przy słuchaniu na niskim poziomie głośności.
+  - Zaimplementowano `Drop for PipelineInner` (automatyczne przestawianie potoku do `Null` przy zwalnianiu zasobów), zapobiegając ostrzeżeniom GStreamera i błędom pamięci podczas zamykania.
+
+### Zmieniono (Changed)
+- **SpectrumVisualizer (Frontend)**: Zaktualizowano krzywą dynamiki i usunięto sztuczne podbijanie zerowych pasm w spoczynku, zapewniając żywy taniec słupków we wszystkich trybach wizualizacji (Bars, Retro, Wave, Anime Circle, Oscilloscope, Mirrored).
+
+---
+
 ## [0.7.4] — „Presence & Recap Harmony” - 2026-10-31
 **Autorka**: Das Letzte Kemonomimi
 

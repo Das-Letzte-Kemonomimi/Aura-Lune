@@ -18,11 +18,50 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.7.5',
+    codename: 'Single Flow & Harmonic Resonance',
+    date: '2026-11-01',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Architektura Single-Instance: wdrożono blokadę wielokrotnych instancji – klikanie plików audio w menedżerze plików (Dolphin, Nautilus, Thunar) nie otwiera nowych okien, lecz przywraca aktywne okno i natychmiast odtwarza utwór przez gniazdo IPC.',
+        en: 'Single-Instance architecture: implemented single-instance lock – opening audio files from file managers (Dolphin, Nautilus, Thunar) no longer spawns multiple windows, but focuses the running window and plays via IPC.',
+        de: 'Single-Instance-Architektur: Verhindert mehrfache App-Fenster beim Öffnen von Audiodateien im Dateimanager; das aktive Fenster wird fokussiert und der Titel per IPC wiedergegeben.',
+        fi: 'Single-Instance-arkkitehtuuri: estää useiden sovellusikkunoiden avautumisen tiedostonhallinnasta; olemassa oleva ikkuna aktivoidaan ja kappale toistetaan suoraan IPC-kanavan kautta.',
+        la: 'Architectura Instantiae Singularis: impedit quominus plures fenestrae aperiantur; fenestra currens ad frontem revocatur et carmen per IPC statim canitur.',
+      },
+      {
+        pl: 'Konfigurowalne odtwarzanie albumów i playlist: nowa opcja w Ustawieniach pozwalająca wybrać zachowanie przy kliknięciu albumu lub pliku (zastąpienie kolejki, dopisanie do kolejki lub pojedynczy utwór).',
+        en: 'Configurable album & playlist playback: new Settings option allowing users to choose queue behavior when clicking an album or track (replace queue, append to queue, or single track).',
+        de: 'Konfigurierbare Album- und Wiedergabelistenwiedergabe: Neue Einstellung zur Auswahl des Verhaltens beim Anklicken (Warteschlange ersetzen, anhängen oder Einzeltitel).',
+        fi: 'Mukautettava albumien ja soittolistojen toisto: uusi asetus toistokäyttäytymiselle (korvaa jono, lisää jonoon tai toista vain yksi kappale).',
+        la: 'Modus canendi album et indicem electio: nova optio in ordinationibus ad ordinem agendi definiendum (substitutio ordinis, adiectio vel carmen singulare).',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Odtwarzanie całych albumów i autoplay: naprawiono błąd, w którym kliknięcie albumu nie zasilało kolejki utworów, przez co odtwarzacz nie przechodził do kolejnych piosenek (EOS) a przyciski Dalej / Poprzedni nie działały.',
+        en: 'Album playback & autoplay: fixed an issue where playing an album did not populate the queue, preventing automatic playback advance (EOS) and disabling skip buttons.',
+        de: 'Albumwiedergabe und Autoplay: Fehler behoben, bei dem das Abspielen eines Albums die Warteschlange nicht füllte, sodass der nächste Titel nicht automatisch abgespielt wurde.',
+        fi: 'Albumien toisto ja automaattitoisto: korjattu ongelma, jossa albumin toistaminen ei täyttänyt jonoa, estäen automaattisen siirtymisen seuraavaan kappaleeseen.',
+        la: 'Albumi cantus et autoplay: sublatus defectus ubi cantus albi ordinem non implebat, quominus proximum carmen sponte incipere posset.',
+      },
+      {
+        pl: 'Analizator widma FFT w czasie rzeczywistym: zwiększono rozdzielczość FFT do 64 pasm z logarytmicznym grupowaniem percepcyjnym, obniżono próg czułości do -75 dBFS i przeniesiono element spectrum przed regulator głośności.',
+        en: 'Real-time FFT spectrum visualizer: increased FFT resolution to 64 bands with logarithmic pooling, lowered sensitivity threshold to -75 dBFS, and moved spectrum element before volume control.',
+        de: 'Echtzeit-FFT-Spektrumanalysator: Erhöhte Auflösung auf 64 Bänder mit logarithmischer Bündelung, gesenkte Empfindlichkeitsschwelle auf -75 dBFS und Spektrum vor den Lautstärkeregler verlegt.',
+        fi: 'Reaaliaikainen FFT-spektrianalysaattori: resoluutio nostettu 64 kaistaan logaritmisella ryhmittelyllä, herkkyyskynnys laskettu -75 dBFS:ään ja spektrielementti siirretty ennen äänenvoimakkuutta.',
+        la: 'Spectri FFT visualizator: resolutio ad 64 fascias aucta cum glomeratione logarithmica, limes ad -75 dBFS deductus et elementum ante soni gubernaculum positum.',
+      },
+    ],
+  },
+  {
     version: '0.7.4',
     codename: 'Presence & Recap Harmony',
     date: '2026-10-31',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Kompatybilność z Bazzite, SteamOS i dystrybucjami immutable: dedykowana paczka AppImage zlinkowana w hermetycznym kontenerze Fedora Atomic Desktop, eliminująca konflikty symboli glibc i webkit2gtk.',

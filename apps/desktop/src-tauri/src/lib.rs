@@ -34,9 +34,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, DuplicateGroup, TrackRecord};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tracing::{error, info};
 
+#[derive(Clone)]
 pub struct AppState {
     pub engine: Arc<AudioEngine>,
     pub db: Arc<Database>,
@@ -53,7 +54,7 @@ pub struct AppState {
     pub latest_spectrum: Arc<Mutex<Vec<f32>>>,
     pub latest_live_stream_tag: Arc<Mutex<Option<String>>>,
     pub discord_cover_cache: Arc<std::sync::RwLock<std::collections::HashMap<String, String>>>,
-    pub last_reported_pos_ms: std::sync::atomic::AtomicU64,
+    pub last_reported_pos_ms: Arc<std::sync::atomic::AtomicU64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,16 +119,8 @@ pub struct ReplayGainScanSummaryDto {
     pub errors: usize,
 }
 
-#[tauri::command]
-async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
-    info!("Tauri command: load_file('{}')", path);
-    state.engine.load_uri(&path).map_err(|e| e.to_string())?;
-
-    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-        *t = None;
-    }
-
-    let track_opt = state.db.get_track_by_path(&path).await.ok().flatten();
+pub(crate) async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
+    let track_opt = state.db.get_track_by_path(path).await.ok().flatten();
     let album_title = if let Some(ref tr) = track_opt {
         if let Some(album_id) = tr.album_id {
             state
@@ -144,7 +137,7 @@ async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), Strin
         None
     };
 
-    let queue_item = if let Some(t) = track_opt {
+    if let Some(t) = track_opt {
         QueueItem {
             id: format!("track-{}", t.id),
             track_id: Some(t.id),
@@ -155,14 +148,14 @@ async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), Strin
             duration_ms: t.duration_ms as u64,
         }
     } else {
-        let meta = audio_engine::read_track_metadata(&path).ok();
-        let fallback_stem = std::path::Path::new(&path)
+        let meta = audio_engine::read_track_metadata(path).ok();
+        let fallback_stem = std::path::Path::new(path)
             .file_stem()
             .and_then(|n| n.to_str())
-            .unwrap_or(&path)
+            .unwrap_or(path)
             .to_string();
 
-        let (title, artist, album) = if let Some(m) = meta {
+        let (title, artist, album, duration_ms) = if let Some(m) = meta {
             let t = if !m.title.trim().is_empty() {
                 m.title
             } else if fallback_stem.contains(" - ") {
@@ -185,12 +178,12 @@ async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), Strin
                 "Plik lokalny".to_string()
             };
 
-            (t, a, m.album)
+            (t, a, m.album, 0)
         } else if fallback_stem.contains(" - ") {
             let (a, t) = fallback_stem.split_once(" - ").unwrap();
-            (t.trim().to_string(), a.trim().to_string(), None)
+            (t.trim().to_string(), a.trim().to_string(), None, 0)
         } else {
-            (fallback_stem, "Plik lokalny".to_string(), None)
+            (fallback_stem, "Plik lokalny".to_string(), None, 0)
         };
 
         QueueItem {
@@ -202,13 +195,171 @@ async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), Strin
                     .as_millis()
             ),
             track_id: None,
-            uri: path.clone(),
+            uri: path.to_string(),
             title,
             artist,
             album,
-            duration_ms: 0,
+            duration_ms,
         }
-    };
+    }
+}
+
+fn normalize_path_or_url(input: &str, cwd: Option<&str>) -> Option<String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if trimmed.starts_with("file://") {
+        if let Ok(parsed) = url::Url::parse(trimmed) {
+            if let Ok(path) = parsed.to_file_path() {
+                if path.exists() {
+                    return Some(path.to_string_lossy().to_string());
+                }
+            }
+        }
+        let stripped = trimmed.trim_start_matches("file://");
+        let p = std::path::Path::new(stripped);
+        if p.exists() {
+            return Some(p.to_string_lossy().to_string());
+        }
+    } else if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        return Some(trimmed.to_string());
+    }
+
+    let p = std::path::Path::new(trimmed);
+    if p.is_file() {
+        if let Ok(canonical) = p.canonicalize() {
+            return Some(canonical.to_string_lossy().to_string());
+        }
+        return Some(trimmed.to_string());
+    }
+
+    if let Some(c) = cwd {
+        let joined = std::path::Path::new(c).join(trimmed);
+        if joined.is_file() {
+            if let Ok(canonical) = joined.canonicalize() {
+                return Some(canonical.to_string_lossy().to_string());
+            }
+            return Some(joined.to_string_lossy().to_string());
+        }
+    }
+
+    None
+}
+
+fn is_supported_audio(path: &str) -> bool {
+    let p = std::path::Path::new(path);
+    if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+        matches!(
+            ext.to_ascii_lowercase().as_str(),
+            "mp3"
+                | "flac"
+                | "ogg"
+                | "opus"
+                | "wav"
+                | "wave"
+                | "m4a"
+                | "aac"
+                | "alac"
+                | "aiff"
+                | "aif"
+                | "wma"
+                | "m3u"
+                | "m3u8"
+                | "cue"
+        )
+    } else {
+        false
+    }
+}
+
+pub(crate) fn extract_audio_paths_from_args(args: &[String], cwd: Option<&str>) -> Vec<String> {
+    let mut results = Vec::new();
+    for arg in args.iter().skip(1) {
+        if arg.starts_with('-') {
+            continue;
+        }
+        if let Some(valid_path) = normalize_path_or_url(arg, cwd) {
+            if is_supported_audio(&valid_path)
+                || valid_path.starts_with("http://")
+                || valid_path.starts_with("https://")
+            {
+                results.push(valid_path);
+            }
+        }
+    }
+    results
+}
+
+pub(crate) async fn enqueue_and_play_files(
+    files: Vec<String>,
+    state: &AppState,
+    app_handle: &tauri::AppHandle,
+) {
+    if files.is_empty() {
+        return;
+    }
+
+    info!(
+        "Przetwarzanie i odtwarzanie plików zewnętrznych: {:?}",
+        files
+    );
+
+    let playback_mode = state
+        .db
+        .get_app_setting("album_playback_mode")
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| "replace".to_string());
+
+    let mut new_items = Vec::new();
+    for f in &files {
+        new_items.push(resolve_queue_item(f, state).await);
+    }
+
+    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+        *t = None;
+    }
+
+    if playback_mode == "append" {
+        let mut current_queue = state.engine.queue();
+        let start_index = current_queue.items.len();
+        current_queue.items.extend(new_items);
+        let _ = state
+            .engine
+            .set_queue(current_queue.items, Some(start_index));
+    } else {
+        // "replace" lub domyślnie: zastąp całą kolejkę i odtwórz od pierwszego utworu
+        let _ = state.engine.set_queue(new_items.clone(), Some(0));
+        if let Some(first) = new_items.first() {
+            state.engine.set_active_item(first.clone());
+            sync_mpris_from_queue_item(first, state);
+        }
+    }
+
+    let _ = state.engine.play_with_fade(true);
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        state.rt.spawn(async move {
+            m.update_playback_status(PlaybackState::Playing).await;
+        });
+    }
+
+    persist_queue_state(state);
+    let _ = app_handle.emit("queue_changed", ());
+}
+
+#[tauri::command]
+async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: load_file('{}')", path);
+    state.engine.load_uri(&path).map_err(|e| e.to_string())?;
+
+    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+        *t = None;
+    }
+
+    let queue_item = resolve_queue_item(&path, &state).await;
 
     state.engine.set_active_item(queue_item.clone());
     sync_mpris_from_queue_item(&queue_item, &state);
@@ -940,7 +1091,9 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         .unwrap_or(0);
     let dur_ms = state.engine.duration().map(|d| d.as_millis() as u64);
 
-    let prev_pos = state.last_reported_pos_ms.swap(pos_ms, std::sync::atomic::Ordering::Relaxed);
+    let prev_pos = state
+        .last_reported_pos_ms
+        .swap(pos_ms, std::sync::atomic::Ordering::Relaxed);
     if state.engine.state() == PlaybackState::Playing {
         let is_loop_restart = prev_pos > 3000 && pos_ms < 2500;
         let is_major_rewind = prev_pos > pos_ms + 4000;
@@ -4061,7 +4214,11 @@ async fn set_discord_rpc_client_id(
 #[tauri::command]
 fn notify_track_looped(position_ms: Option<u64>, state: State<'_, AppState>) -> Result<(), String> {
     let pos = position_ms.unwrap_or(0);
-    let dur = state.engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
+    let dur = state
+        .engine
+        .duration()
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
     if let Some(discord) = &state.discord_rpc {
         discord.update_playback_status(PlaybackState::Playing, pos, dur);
     }
@@ -4549,6 +4706,27 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            info!("Wykryto próbę uruchomienia kolejnej instancji Auralune. Args: {:?}, Cwd: {}", argv, cwd);
+
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+
+            let files = extract_audio_paths_from_args(&argv, Some(&cwd));
+            if !files.is_empty() {
+                if let Some(state) = app.try_state::<AppState>() {
+                    let state_clone = state.inner().clone();
+                    let app_handle = app.clone();
+                    let rt = state_clone.rt.clone();
+                    rt.spawn(async move {
+                        enqueue_and_play_files(files, &state_clone, &app_handle).await;
+                    });
+                }
+            }
+        }))
         .setup({
             let rt = rt.clone();
             let engine = engine.clone();
@@ -4704,6 +4882,7 @@ pub fn run() {
                 ));
 
 
+                let rt_for_cli = rt.clone();
                 let app_state = AppState {
                     engine,
                     db: Arc::new(db),
@@ -4719,10 +4898,24 @@ pub fn run() {
                     latest_spectrum: Arc::new(Mutex::new(vec![0.0f32; 16])),
                     latest_live_stream_tag: Arc::new(Mutex::new(None)),
                     discord_cover_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
-                    last_reported_pos_ms: std::sync::atomic::AtomicU64::new(0),
+                    last_reported_pos_ms: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 };
 
+                let state_for_cli = app_state.clone();
                 app.manage(app_state);
+
+                // Sprawdź czy aplikacja została uruchomiona z argumentami CLI (np. kliknięcie pliku audio w menedżerze plików)
+                let cli_args = std::env::args().collect::<Vec<String>>();
+                let initial_files = extract_audio_paths_from_args(&cli_args, None);
+
+                if !initial_files.is_empty() {
+                    info!("Uruchomiono Auralune z plikami CLI: {:?}", initial_files);
+                    let app_handle_for_cli = app.handle().clone();
+                    rt_for_cli.spawn(async move {
+                        tokio::time::sleep(Duration::from_millis(150)).await;
+                        enqueue_and_play_files(initial_files, &state_for_cli, &app_handle_for_cli).await;
+                    });
+                }
 
 
                 // Aplikacja wybranego stylu ikony aplikacji

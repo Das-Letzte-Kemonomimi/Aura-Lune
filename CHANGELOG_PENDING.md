@@ -13,7 +13,7 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — wersja 0.7.4 została pomyślnie wydana)*
+- *(Brak oczekujących zmian — wersja 0.7.5 została pomyślnie wydana)*
 
 ### 🛠️ Poprawiono (Fixed)
 - *(Brak)*
@@ -23,4 +23,5 @@
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
 - *(Brak)*
+
 

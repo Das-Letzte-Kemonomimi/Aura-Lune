@@ -496,6 +496,11 @@ export interface Translations {
     crossfadeDisabled: string;
     crossfadeTime: string;
     downloadHubBtn: string;
+    albumPlaybackTitle: string;
+    albumPlaybackDesc: string;
+    albumPlaybackReplace: string;
+    albumPlaybackAppend: string;
+    albumPlaybackSingle: string;
   };
   shortcuts: {
     title: string;
@@ -1279,6 +1284,11 @@ export const translations: Record<Language, Translations> = {
       crossfadeDisabled: 'Disabled (0.0s - instant cut)',
       crossfadeTime: 'Fade duration: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
+      albumPlaybackTitle: 'Album & Playlist Playback (Autoplay & Queue)',
+      albumPlaybackDesc: 'Controls what happens when clicking "Play Album" or a track in an album/playlist list:',
+      albumPlaybackReplace: 'Replace queue with album/list and play (Default — recommended)',
+      albumPlaybackAppend: 'Append tracks to current queue and play',
+      albumPlaybackSingle: 'Play only the clicked track (no queue, no autoplay)',
     },
     shortcuts: {
       title: 'Keyboard Shortcuts',
@@ -2061,6 +2071,11 @@ export const translations: Record<Language, Translations> = {
       crossfadeDisabled: 'Wyłączony (0.0s - natychmiastowe cięcie)',
       crossfadeTime: 'Czas przenikania: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
+      albumPlaybackTitle: 'Odtwarzanie albumów i playlist (Autoplay & Kolejka)',
+      albumPlaybackDesc: 'Określa, co dzieje się po kliknięciu „Odtwórz album” lub utworu na liście albumu/playlisty:',
+      albumPlaybackReplace: 'Zastąp kolejkę i odtwarzaj cały album/listę (domyślnie — zalecane)',
+      albumPlaybackAppend: 'Dodaj utwory na koniec bieżącej kolejki i odtwórz',
+      albumPlaybackSingle: 'Odtwarzaj tylko kliknięty utwór (bez kolejki i autoodtwarzania)',
     },
     shortcuts: {
       title: 'Skróty Klawiszowe',
@@ -2843,6 +2858,11 @@ export const translations: Record<Language, Translations> = {
       crossfadeDisabled: 'Deaktiviert (0.0s - sofortiger Schnitt)',
       crossfadeTime: 'Überblendzeit: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
+      albumPlaybackTitle: 'Album- & Playlist-Wiedergabe (Autoplay & Warteschlange)',
+      albumPlaybackDesc: 'Bestimmt das Verhalten beim Klicken auf „Album abspielen” oder einen Titel:',
+      albumPlaybackReplace: 'Warteschlange ersetzen und ganzes Album abspielen (Standard — empfohlen)',
+      albumPlaybackAppend: 'An aktuelle Warteschlange anhängen und abspielen',
+      albumPlaybackSingle: 'Nur den angeklickten Titel abspielen (ohne Warteschlange)',
     },
     shortcuts: {
       title: 'Tastaturkürzel',
@@ -3625,6 +3645,11 @@ export const translations: Record<Language, Translations> = {
       crossfadeDisabled: 'Pois päältä (0.0s - välitön leikkaus)',
       crossfadeTime: 'Häivytysaika: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
+      albumPlaybackTitle: 'Albumin ja soittolistan toisto (Autoplay & Jono)',
+      albumPlaybackDesc: 'Määrittää, mitä tapahtuu klikattaessa "Toista albumi" tai kappaletta:',
+      albumPlaybackReplace: 'Korvaa jono ja toista koko albumi/lista (Oletus — suositeltu)',
+      albumPlaybackAppend: 'Lisää nykyisen jonon perään ja toista',
+      albumPlaybackSingle: 'Toista vain klikattu kappale (ei jonoa)',
     },
     shortcuts: {
       title: 'Pikanäppäimet',
@@ -4407,6 +4432,11 @@ export const translations: Record<Language, Translations> = {
       crossfadeDisabled: 'Inactivum (0.0s - sectio immediata)',
       crossfadeTime: 'Tempus transitus: {0}s ({1} ms)',
       downloadHubBtn: 'Legal Download Hub',
+      albumPlaybackTitle: 'De Cantuum Albi et Indicem Canendi (Autoplay & Ordo)',
+      albumPlaybackDesc: 'Definit quid fiat cum album vel canticum in indice eligitur:',
+      albumPlaybackReplace: 'Ordinem substitue et totum album cane (Defaltum — probatum)',
+      albumPlaybackAppend: 'Ordini currente adde et cane',
+      albumPlaybackSingle: 'Solum canticum selectum cane (sine ordine)',
     },
     shortcuts: {
       title: 'Compendia Claviaturae',

@@ -237,6 +237,9 @@ interface DspPresetRecord {
   rate_ratio: number;
 }
 
+export type AlbumPlaybackBehavior = 'replace' | 'append' | 'single';
+
+
 interface PlaybackStatus {
   state: 'Playing' | 'Paused' | 'Stopped';
   position_ms: number;
@@ -688,6 +691,18 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<'themes' | 'devices' | 'transcode' | 'about' | 'changelog' | 'backup'>('themes');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
   const [showDownloadHub, setShowDownloadHub] = useState<boolean>(false);
+
+  // Zachowanie odtwarzania albumów i playlist (Autoplay & Kolejka)
+  const [albumPlaybackMode, setAlbumPlaybackMode] = useState<AlbumPlaybackBehavior>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_album_playback_mode') as AlbumPlaybackBehavior;
+      if (saved === 'replace' || saved === 'append' || saved === 'single') {
+        return saved;
+      }
+    } catch {}
+    return 'replace'; // Domyślnie: zastąp kolejkę i odtwarzaj cały album z autoplay & skip
+  });
+
 
   // Discord Rich Presence (RPC)
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState<boolean>(true);
@@ -2422,6 +2437,19 @@ export default function App() {
     let unlistenWebview: (() => void) | null = null;
     let unlistenWindow: (() => void) | null = null;
     let unlistenTauriEvent: (() => void) | null = null;
+    let unlistenQueueEvent: (() => void) | null = null;
+
+    listen('queue_changed', () => {
+      refreshQueue();
+    }).then((unlisten) => {
+      unlistenQueueEvent = unlisten;
+    }).catch(() => {});
+
+    // Synchronizuj tryb odtwarzania albumów z backendem SQLite
+    const savedAlbumMode = localStorage.getItem('auralune_album_playback_mode');
+    if (savedAlbumMode) {
+      invoke('set_app_setting', { key: 'album_playback_mode', value: savedAlbumMode }).catch(() => {});
+    }
 
     try {
       getCurrentWebview()
@@ -2494,6 +2522,7 @@ export default function App() {
       if (unlistenWebview) unlistenWebview();
       if (unlistenWindow) unlistenWindow();
       if (unlistenTauriEvent) unlistenTauriEvent();
+      if (unlistenQueueEvent) unlistenQueueEvent();
     };
   }, []);
 
@@ -2692,7 +2721,7 @@ export default function App() {
   }, [activeTrackId]);
 
   // Odtwarzanie utworu z biblioteki z obsługą zakładek, kontekstu kolejki i globalnego Loop
-  const handlePlayLibraryTrack = async (track: TrackRecord, _contextTracks?: TrackRecord[]) => {
+  const handlePlayLibraryTrack = async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
     if (isPlayingLibraryTrackRef.current) return;
     isPlayingLibraryTrackRef.current = true;
     const safetyTimeout = setTimeout(() => {
@@ -2716,10 +2745,52 @@ export default function App() {
         artUrl: appCover,
       }).catch(() => {});
 
-      // 2. Bezpośrednie załadowanie utworu do odtwarzacza — NIE nadpisujemy ani nie modyfikujemy kolejki użytkownika!
-      await invoke('load_file', { path: track.path });
-      await invoke('play');
-      await refreshQueue();
+      // 2. Zarządzanie kolejką odtwarzania w zależności od albumPlaybackMode i przekazanego kontekstu
+      const hasContext = Boolean(contextTracks && contextTracks.length > 0);
+
+      if (hasContext && albumPlaybackMode === 'replace') {
+        const trackIdx = contextTracks!.findIndex((t) => t.id === track.id);
+        const startIndex = trackIdx >= 0 ? trackIdx : 0;
+        const queueItems: QueueItem[] = contextTracks!.map((t) => {
+          const alb = albums.find((a) => a.id === t.album_id);
+          return {
+            id: `track-${t.id}`,
+            track_id: t.id,
+            uri: t.path,
+            title: t.title,
+            artist: t.artist,
+            album: alb?.title || t.album_artist || null,
+            duration_ms: (t.duration_ms || 0) as any,
+          };
+        });
+        await invoke('set_queue', { items: queueItems, startIndex });
+        await refreshQueue();
+      } else if (hasContext && albumPlaybackMode === 'append') {
+        const trackIdx = contextTracks!.findIndex((t) => t.id === track.id);
+        const startIndex = trackIdx >= 0 ? trackIdx : 0;
+        const queueItems: QueueItem[] = contextTracks!.map((t) => {
+          const alb = albums.find((a) => a.id === t.album_id);
+          return {
+            id: `track-${t.id}-${Date.now()}`,
+            track_id: t.id,
+            uri: t.path,
+            title: t.title,
+            artist: t.artist,
+            album: alb?.title || t.album_artist || null,
+            duration_ms: (t.duration_ms || 0) as any,
+          };
+        });
+        const currentLen = queue.items.length;
+        const targetIdx = currentLen + startIndex;
+        const combined = [...queue.items, ...queueItems];
+        await invoke('set_queue', { items: combined, startIndex: targetIdx });
+        await refreshQueue();
+      } else {
+        // Tryb 'single' lub brak kontekstu: bezpośrednie załadowanie utworu bez modyfikacji kolejki
+        await invoke('load_file', { path: track.path });
+        await invoke('play');
+        await refreshQueue();
+      }
 
       // Sprawdź czy jest zapisana zakładka (bookmark)
       const bookmark = await invoke<number | null>('get_bookmark', { trackId: track.id });
@@ -2791,12 +2862,13 @@ export default function App() {
     }
   };
 
-  const handlePlayAlbum = (albumTracks: TrackRecord[]) => {
+  const handlePlayAlbum = (albumTracks: TrackRecord[], startIndex = 0) => {
     const sorted = [...albumTracks].sort(
       (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
     );
     if (sorted.length > 0) {
-      handlePlayLibraryTrack(sorted[0], sorted);
+      const target = sorted[startIndex] || sorted[0];
+      handlePlayLibraryTrack(target, sorted);
     }
   };
 
@@ -5120,6 +5192,82 @@ const renderDevicesSection = () => (
                   ? (language === 'pl' ? 'Włączone' : 'Enabled')
                   : (language === 'pl' ? 'Wyłączone' : 'Disabled')}
               </button>
+            </div>
+
+            {/* Opcja zachowania odtwarzania albumów i playlist (Autoplay & Kolejka) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '18px 20px',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+                background: 'rgba(255, 255, 255, 0.03)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ListMusic size={18} color="var(--accent-pink, #ec4899)" />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
+                    {loc.settings.albumPlaybackTitle}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    background: 'rgba(236, 72, 153, 0.2)',
+                    color: 'var(--accent-pink)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                  }}
+                >
+                  {albumPlaybackMode === 'replace'
+                    ? (language === 'pl' ? 'Cały album (Zastąp)' : 'Whole Album (Replace)')
+                    : albumPlaybackMode === 'append'
+                    ? (language === 'pl' ? 'Dopisz do kolejki' : 'Append to queue')
+                    : (language === 'pl' ? 'Pojedynczy utwór' : 'Single track')}
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {loc.settings.albumPlaybackDesc}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                {[
+                  { id: 'replace', label: loc.settings.albumPlaybackReplace },
+                  { id: 'append', label: loc.settings.albumPlaybackAppend },
+                  { id: 'single', label: loc.settings.albumPlaybackSingle },
+                ].map((item) => {
+                  const isActive = albumPlaybackMode === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setAlbumPlaybackMode(item.id as AlbumPlaybackBehavior);
+                        localStorage.setItem('auralune_album_playback_mode', item.id);
+                        invoke('set_app_setting', { key: 'album_playback_mode', value: item.id }).catch(() => {});
+                        showMessage(item.label);
+                      }}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        background: isActive ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        border: isActive ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                        color: isActive ? '#fff' : 'var(--text-muted)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {isActive ? '✓ ' : ''}{item.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Opcja normalizacji głośności ReplayGain 2.0 / EBU R128 */}
@@ -12527,7 +12675,7 @@ const renderDevicesSection = () => (
                               <button
                                 onClick={() => {
                                   if (albumTracks.length > 0) {
-                                    handlePlayLibraryTrack(albumTracks[0], albumTracks);
+                                    handlePlayAlbum(albumTracks, 0);
                                   }
                                 }}
                                 disabled={albumTracks.length === 0}
