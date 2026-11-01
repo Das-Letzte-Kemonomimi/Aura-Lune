@@ -388,7 +388,9 @@ impl AuraluneDspImpl {
             }
             EventView::Caps(c) => {
                 if let Some(s) = c.caps().structure(0) {
-                    if let (Ok(rate), Ok(channels)) = (s.get::<i32>("rate"), s.get::<i32>("channels")) {
+                    if let (Ok(rate), Ok(channels)) =
+                        (s.get::<i32>("rate"), s.get::<i32>("channels"))
+                    {
                         if let Ok(mut state) = state_arc.lock() {
                             state.prepare_if_needed(rate as u32, channels as u32);
                         }

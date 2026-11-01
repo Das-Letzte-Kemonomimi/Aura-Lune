@@ -387,3 +387,70 @@ fn test_transcode_slowed_rubberband() {
     let _ = fs::remove_file(&output_slowed_wav);
 }
 
+#[test]
+fn test_transcode_different_ranges_with_rubberband_slowed() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+
+    let input_flac = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    if !input_flac.exists() {
+        return;
+    }
+
+    let out1 = root.join("tests/fixtures/test_range1.opus");
+    let out2 = root.join("tests/fixtures/test_range2.opus");
+    let _ = fs::remove_file(&out1);
+    let _ = fs::remove_file(&out2);
+
+    let dsp_settings = DspExportSettings {
+        pitch_semitones: -3.0,
+        tempo_ratio: 0.55,
+        rate_ratio: 1.0,
+        engine: Some("RubberBand".into()),
+        reverb_level: 0.15,
+        eq_bands: None,
+    };
+
+    // Zakres 1: 219336ms do 228354ms (9.018 sekundy źródłowo)
+    let range1 = TimeRange::new(219336, Some(228354)).unwrap();
+    Transcoder::transcode_with_dsp(
+        &input_flac,
+        &out1,
+        ExportFormat::Opus { bitrate_kbps: 192 },
+        Some(&dsp_settings),
+        Some(&range1),
+    )
+    .expect("Transkodowanie zakresu 1");
+
+    // Zakres 2: 22449ms do 40690ms (18.241 sekundy źródłowo)
+    let range2 = TimeRange::new(22449, Some(40690)).unwrap();
+    Transcoder::transcode_with_dsp(
+        &input_flac,
+        &out2,
+        ExportFormat::Opus { bitrate_kbps: 192 },
+        Some(&dsp_settings),
+        Some(&range2),
+    )
+    .expect("Transkodowanie zakresu 2");
+
+    assert!(out1.exists(), "Plik 1 musi istnieć");
+    assert!(out2.exists(), "Plik 2 musi istnieć");
+
+    let size1 = fs::metadata(&out1).unwrap().len();
+    let size2 = fs::metadata(&out2).unwrap().len();
+    println!(
+        "Rozmiary plików: out1 (9s) = {}, out2 (18s) = {}",
+        size1, size2
+    );
+
+    // Zakres 2 jest dwukrotnie dłuższy niż zakres 1, więc rozmiar pliku out2 musi być wyraźnie większy niż out1!
+    assert!(
+        size2 > (size1 * 15 / 10),
+        "Plik zakresu 2 (18s) musi być wyraźnie większy niż plik zakresu 1 (9s)! size1={}, size2={}",
+        size1,
+        size2
+    );
+
+    let _ = fs::remove_file(&out1);
+    let _ = fs::remove_file(&out2);
+}
