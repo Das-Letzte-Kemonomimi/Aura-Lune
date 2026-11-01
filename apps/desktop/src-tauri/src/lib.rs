@@ -1519,20 +1519,28 @@ async fn set_app_setting(
 }
 
 #[tauri::command]
-fn transcode_file(
+async fn transcode_file(
     input_path: String,
     output_path: String,
     format: ExportFormat,
     dsp_settings: Option<DspExportSettings>,
     time_range: Option<TimeRange>,
 ) -> Result<(), String> {
-    Transcoder::transcode_with_dsp(
-        &input_path,
-        &output_path,
-        format,
-        dsp_settings.as_ref(),
-        time_range.as_ref(),
-    )
+    info!(
+        "Tauri command: transcode_file('{}' -> '{}')",
+        input_path, output_path
+    );
+    tauri::async_runtime::spawn_blocking(move || {
+        Transcoder::transcode_with_dsp(
+            &input_path,
+            &output_path,
+            format,
+            dsp_settings.as_ref(),
+            time_range.as_ref(),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())
 }
 
