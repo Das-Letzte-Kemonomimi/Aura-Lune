@@ -80,9 +80,8 @@ struct PipelineInner {
     base_sink_pts: Duration,
     user_volume: f64,
     seek_seq: u64,
-    stereo_widener: Option<gst::Element>,
-    stereo_widener_active: bool,
-    stereo_widener_amount: f64,
+    _stereo_widener: gst::Element,
+    stereo_widener_config: Arc<RwLock<domain::dynamics::StereoWidenerConfig>>,
     crossfade_duration_ms: u64,
 }
 
@@ -225,6 +224,54 @@ impl AudioEngine {
             });
         }
 
+        // 4. Stereo Widener (baza stereo / Stereo Stage) z natywną sondą bufora F32LE (Mid-Side Matrix)
+        let stereo_widener = gst::ElementFactory::make("identity")
+            .name("stereo_widener")
+            .property("silent", true)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("identity"))?;
+
+        let stereo_widener_config =
+            Arc::new(RwLock::new(domain::dynamics::StereoWidenerConfig::default()));
+        let widener_cfg_clone = Arc::clone(&stereo_widener_config);
+
+        if let Some(src_pad) = stereo_widener.static_pad("src") {
+            src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, info| {
+                if let Some(gst::PadProbeData::Buffer(ref mut buffer)) = info.data {
+                    let config = if let Ok(guard) = widener_cfg_clone.read() {
+                        *guard
+                    } else {
+                        return gst::PadProbeReturn::Ok;
+                    };
+
+                    if !config.enabled || config.width <= 0.0 {
+                        return gst::PadProbeReturn::Ok;
+                    }
+
+                    let buffer_mut = buffer.make_mut();
+                    if let Ok(mut map) = buffer_mut.map_writable() {
+                        let slice = map.as_mut_slice();
+                        let f32_count = slice.len() / std::mem::size_of::<f32>();
+                        if f32_count >= 2 {
+                            let f32_slice = unsafe {
+                                std::slice::from_raw_parts_mut(
+                                    slice.as_mut_ptr() as *mut f32,
+                                    f32_count,
+                                )
+                            };
+
+                            for frame in f32_slice.as_chunks_mut::<2>().0 {
+                                let (l, r) = config.process_frame(frame[0], frame[1]);
+                                frame[0] = l;
+                                frame[1] = r;
+                            }
+                        }
+                    }
+                }
+                gst::PadProbeReturn::Ok
+            });
+        }
+
         let spectrum = gst::ElementFactory::make("spectrum")
             .name("spectrum_analyzer")
             .property("bands", 64u32)
@@ -337,24 +384,6 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
 
-        let stereo = match gst::ElementFactory::make("stereo")
-            .name("stereo_widener")
-            .property("active", false)
-            .property("stereo", 0.1f32)
-            .build()
-        {
-            Ok(s) => Some(s),
-            Err(e) => {
-                warn!("Brak elementu stereo (gst-plugins-good): {:?}", e);
-                None
-            }
-        };
-
-        let audioconvert_stereo = gst::ElementFactory::make("audioconvert")
-            .name("audioconvert_stereo")
-            .build()
-            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
-
         // Element Bauer stereophonic-to-binaural (Crossfeed bs2b) dla odsłuchu słuchawkowego
         let bs2b = match gst::ElementFactory::make("bs2b")
             .name("bs2b_crossfeed")
@@ -402,6 +431,7 @@ impl AudioEngine {
             &compressor,
             &compressor_makeup,
             &saturator,
+            &stereo_widener,
             &queue_sink,
             &audioconvert_out,
             &rgvolume,
@@ -412,9 +442,6 @@ impl AudioEngine {
             &sink,
         ])?;
 
-        if let Some(ref st) = stereo {
-            pipeline.add_many([st, &audioconvert_stereo])?;
-        }
         if let Some(ref bs) = bs2b {
             pipeline.add(bs)?;
         }
@@ -466,29 +493,28 @@ impl AudioEngine {
         compressor_makeup.link(&saturator).map_err(|_| {
             AudioEngineError::ElementLink("Błąd linkowania compressor_makeup z saturator".into())
         })?;
+        saturator.link(&stereo_widener).map_err(|_| {
+            AudioEngineError::ElementLink("Błąd linkowania saturator ze stereo_widener".into())
+        })?;
 
-        // saturator -> (bs2b) -> queue_sink
+        // stereo_widener -> (bs2b) -> queue_sink
         if let Some(ref bs) = bs2b {
-            saturator.link(bs).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania saturator z bs2b".into())
+            stereo_widener.link(bs).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania stereo_widener z bs2b".into())
             })?;
             bs.link(&queue_sink).map_err(|_| {
                 AudioEngineError::ElementLink("Błąd linkowania bs2b z queue_sink".into())
             })?;
         } else {
-            saturator.link(&queue_sink).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania saturator z queue_sink".into())
+            stereo_widener.link(&queue_sink).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania stereo_widener z queue_sink".into())
             })?;
         }
 
-        // queue_sink -> audioconvert_out -> (stereo -> audioconvert_stereo) -> (cutter -> audioconvert_cutter) -> rgvolume -> rglimiter -> spectrum -> volume -> audioconvert_sink -> sink
+        // queue_sink -> audioconvert_out -> (cutter -> audioconvert_cutter) -> rgvolume -> rglimiter -> spectrum -> volume -> audioconvert_sink -> sink
         let mut out_chain: Vec<&gst::Element> = Vec::new();
         out_chain.push(&queue_sink);
         out_chain.push(&audioconvert_out);
-        if let Some(ref st) = stereo {
-            out_chain.push(st);
-            out_chain.push(&audioconvert_stereo);
-        }
         if let Some(ref ct) = cutter {
             out_chain.push(ct);
             out_chain.push(&audioconvert_cutter);
@@ -549,9 +575,8 @@ impl AudioEngine {
             base_sink_pts: Duration::ZERO,
             user_volume: 1.0,
             seek_seq: 0,
-            stereo_widener: stereo,
-            stereo_widener_active: false,
-            stereo_widener_amount: 0.1,
+            _stereo_widener: stereo_widener,
+            stereo_widener_config,
             crossfade_duration_ms: 1500,
         }));
 
@@ -2089,27 +2114,39 @@ impl AudioEngine {
 
     /// Włącza lub wyłącza rozszerzanie bazy stereo (Stereo Widener).
     pub fn set_stereo_widener_active(&self, active: bool) {
-        let mut inner = self.inner.lock().unwrap();
-        inner.stereo_widener_active = active;
-        if let Some(ref st) = inner.stereo_widener {
-            st.set_property("active", active);
-        }
+        let config = {
+            let inner = self.inner.lock().unwrap();
+            Arc::clone(&inner.stereo_widener_config)
+        };
+        if let Ok(mut cfg) = config.write() {
+            cfg.enabled = active;
+        };
     }
 
     /// Ustawia intensywność rozszerzania stereo w zakresie 0.0 - 1.0.
     pub fn set_stereo_widener_amount(&self, amount: f64) {
-        let mut inner = self.inner.lock().unwrap();
-        let clamped = amount.clamp(0.0, 1.0);
-        inner.stereo_widener_amount = clamped;
-        if let Some(ref st) = inner.stereo_widener {
-            st.set_property("stereo", clamped as f32);
-        }
+        let config = {
+            let inner = self.inner.lock().unwrap();
+            Arc::clone(&inner.stereo_widener_config)
+        };
+        let clamped = amount.clamp(0.0, 1.0) as f32;
+        if let Ok(mut cfg) = config.write() {
+            cfg.width = clamped;
+        };
     }
 
     /// Zwraca parametry rozszerzania stereo: (active, amount).
     pub fn stereo_widener_params(&self) -> (bool, f64) {
-        let inner = self.inner.lock().unwrap();
-        (inner.stereo_widener_active, inner.stereo_widener_amount)
+        let config = {
+            let inner = self.inner.lock().unwrap();
+            Arc::clone(&inner.stereo_widener_config)
+        };
+        let res = if let Ok(cfg) = config.read() {
+            (cfg.enabled, cfg.width as f64)
+        } else {
+            (false, 0.15)
+        };
+        res
     }
 
     /// Włącza lub wyłącza True-Peak Limiter (rglimiter) oraz synchronizuje stan Studia Dynamiki.
