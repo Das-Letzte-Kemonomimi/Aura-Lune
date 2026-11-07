@@ -10155,11 +10155,31 @@ const renderDevicesSection = () => (
             </div>
 
             {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '28px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: nowPlayingVisualMode === 'vumeter' ? '280px 1fr' : '240px 1fr',
+                gap: '26px',
+                alignItems: 'center',
+                transition: 'grid-template-columns 0.2s ease',
+              }}
+            >
               {/* Kolumna lewa: Okładka / Winyl / VU-Meter */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Wskaźnik VU */}
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', background: 'rgba(0, 0, 0, 0.35)', padding: '3px', borderRadius: '8px', width: '100%', maxWidth: '240px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    marginBottom: '10px',
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    padding: '3px',
+                    borderRadius: '8px',
+                    width: '100%',
+                    maxWidth: nowPlayingVisualMode === 'vumeter' ? '280px' : '240px',
+                    transition: 'max-width 0.2s ease',
+                  }}
+                >
                   <button
                     onClick={() => handleSelectNowPlayingVisualMode('cover')}
                     style={{
@@ -10236,7 +10256,7 @@ const renderDevicesSection = () => (
                     spectrum={status.spectrum}
                     volume={status.volume}
                     isPlaying={status.state === 'Playing'}
-                    style={{ width: '240px' }}
+                    style={{ width: '100%', height: '175px' }}
                   />
                 ) : (
                   <div
@@ -10315,79 +10335,142 @@ const renderDevicesSection = () => (
                   </div>
                 )}
 
-                {/* Przyciski okładki: Dopasuj online oraz Wgraj własną z dysku */}
-                <div style={{ marginTop: '10px', display: 'flex', gap: '8px', width: '100%', maxWidth: '240px' }}>
-                  <button
-                    onClick={() => {
-                      if (currentAlbum) {
-                        handleOpenCoverPicker(currentAlbum);
-                      } else {
-                        const trackAlbum = currentPlayingTrack?.album_id
-                          ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title
-                          : null;
-                        const targetTitle =
-                          status.current_track?.album ||
-                          trackAlbum ||
-                          status.current_track?.title ||
-                          currentPlayingTrack?.title ||
-                          'Unknown Album';
-                        const targetArtist =
-                          status.current_track?.artist ||
-                          currentPlayingTrack?.artist ||
-                          'Unknown Artist';
-                        handleOpenCoverPicker({
-                          id: 0,
-                          title: targetTitle,
-                          album_artist: targetArtist,
-                          year: null,
-                          cover_path: null,
-                          release_mbid: null,
-                        });
-                      }
-                    }}
-                    title={loc.covers.matchCoverTitle}
+                {/* Przyciski lub kontrolki pod elementem wizualnym w zależności od trybu */}
+                {nowPlayingVisualMode === 'cover' ? (
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '8px', width: '100%', maxWidth: '240px' }}>
+                    <button
+                      onClick={() => {
+                        if (currentAlbum) {
+                          handleOpenCoverPicker(currentAlbum);
+                        } else {
+                          const trackAlbum = currentPlayingTrack?.album_id
+                            ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title
+                            : null;
+                          const targetTitle =
+                            status.current_track?.album ||
+                            trackAlbum ||
+                            status.current_track?.title ||
+                            currentPlayingTrack?.title ||
+                            'Unknown Album';
+                          const targetArtist =
+                            status.current_track?.artist ||
+                            currentPlayingTrack?.artist ||
+                            'Unknown Artist';
+                          handleOpenCoverPicker({
+                            id: 0,
+                            title: targetTitle,
+                            album_artist: targetArtist,
+                            year: null,
+                            cover_path: null,
+                            release_mbid: null,
+                          });
+                        }
+                      }}
+                      title={loc.covers.matchCoverTitle}
+                      style={{
+                        flex: 1,
+                        padding: '7px 8px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.2))',
+                        border: '1px solid rgba(244, 63, 94, 0.35)',
+                        color: '#fff',
+                        fontSize: '0.73rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <Sparkles size={12} color="var(--accent-pink)" /> {loc.covers.matchCover}
+                    </button>
+                    <button
+                      onClick={() => handleUploadCustomCoverDirect(currentAlbum)}
+                      title={loc.covers.uploadCustomCover}
+                      style={{
+                        flex: 1,
+                        padding: '7px 8px',
+                        borderRadius: '8px',
+                        background: 'rgba(6, 182, 212, 0.15)',
+                        border: '1px solid rgba(6, 182, 212, 0.35)',
+                        color: '#fff',
+                        fontSize: '0.73rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <Upload size={12} color="var(--accent-cyan)" /> {loc.covers.uploadCustomCover}
+                    </button>
+                  </div>
+                ) : nowPlayingVisualMode === 'turntable' ? (
+                  <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <div
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-muted)',
+                        fontSize: '0.68rem',
+                        fontFamily: 'var(--font-mono)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <Disc3 size={11} color="var(--accent-pink)" />
+                      {status.state === 'Playing'
+                        ? (language === 'pl' ? '33⅓ RPM • Ramię opuszczone' : '33⅓ RPM • Tonearm Engaged')
+                        : (language === 'pl' ? 'Pauza • Ramię zaparkowane' : 'Paused • Tonearm Parked')}
+                    </div>
+                  </div>
+                ) : (
+                  <div
                     style={{
-                      flex: 1,
-                      padding: '7px 8px',
-                      borderRadius: '8px',
-                      background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.2))',
-                      border: '1px solid rgba(244, 63, 94, 0.35)',
-                      color: '#fff',
-                      fontSize: '0.73rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
+                      marginTop: '8px',
                       display: 'flex',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      transition: 'all 0.2s',
+                      width: '100%',
+                      maxWidth: '280px',
+                      padding: '0 4px',
                     }}
                   >
-                    <Sparkles size={12} color="var(--accent-pink)" /> {loc.covers.matchCover}
-                  </button>
-                  <button
-                    onClick={() => handleUploadCustomCoverDirect(currentAlbum)}
-                    title={loc.covers.uploadCustomCover}
-                    style={{
-                      flex: 1,
-                      padding: '7px 8px',
-                      borderRadius: '8px',
-                      background: 'rgba(6, 182, 212, 0.15)',
-                      border: '1px solid rgba(6, 182, 212, 0.35)',
-                      color: '#fff',
-                      fontSize: '0.73rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <Upload size={12} color="var(--accent-cyan)" /> {loc.covers.uploadCustomCover}
-                  </button>
-                </div>
+                    <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      0 VU = +4 dBu (1.23V)
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        color: status.state === 'Playing' ? 'var(--accent-green)' : 'var(--text-muted)',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '5px',
+                          height: '5px',
+                          borderRadius: '50%',
+                          background: status.state === 'Playing' ? 'var(--accent-green)' : 'var(--text-muted)',
+                          boxShadow: status.state === 'Playing' ? '0 0 6px var(--accent-green)' : 'none',
+                        }}
+                      />
+                      {status.state === 'Playing'
+                        ? (language === 'pl' ? 'Miernik aktywny' : 'Meter Active')
+                        : (language === 'pl' ? 'Czuwanie' : 'Standby')}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Kolumna prawa: Tytuł, Wykonawca, Spektrogram, Seeker i Przyciski */}
