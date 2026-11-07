@@ -350,6 +350,10 @@ export interface Translations {
     volumeUnitDesc: string;
     volumeUnitPercent: string;
     volumeUnitDb: string;
+    restoreSessionTitle: string;
+    restoreSessionDesc: string;
+    restoreSessionOn: string;
+    restoreSessionOff: string;
     exportOpus: string;
     about: string;
     author: string;
@@ -1149,6 +1153,10 @@ export const translations: Record<Language, Translations> = {
       volumeUnitDesc: 'Display volume as percentage (0% - 100%) or studio decibels (-∞ dB to 0.0 dB)',
       volumeUnitPercent: 'Percentage (%)',
       volumeUnitDb: 'Decibels (dB)',
+      restoreSessionTitle: 'Restore Playback Session on Startup',
+      restoreSessionDesc: 'Remembers the current track, playback position, volume level (dB), DSP parameters, and queue upon restarting.',
+      restoreSessionOn: 'Enabled',
+      restoreSessionOff: 'Disabled',
       exportOpus: 'Export & Opus',
       about: 'About Auralune',
       author: 'Author',
@@ -1947,6 +1955,10 @@ export const translations: Record<Language, Translations> = {
       volumeUnitDesc: 'Wybierz wyświetlanie głośności w procentach (0% – 100%) lub w decybelach studyjnych (-∞ dB do 0.0 dB)',
       volumeUnitPercent: 'Procenty (%)',
       volumeUnitDb: 'Decybele (dB)',
+      restoreSessionTitle: 'Zapamiętywanie sesji odtwarzania przy uruchomieniu',
+      restoreSessionDesc: 'Zapamiętuje bieżący utwór, pozycję w utworze, poziom głośności (dB), parametry DSP oraz stan kolejki przy ponownym uruchomieniu.',
+      restoreSessionOn: 'Włączone',
+      restoreSessionOff: 'Wyłączone',
       exportOpus: 'Eksport & Opus',
       about: 'O programie',
       author: 'Autorka',
@@ -2745,6 +2757,10 @@ export const translations: Record<Language, Translations> = {
       volumeUnitDesc: 'Lautstärke in Prozent (0% – 100%) oder Studio-Dezibel (-∞ dB bis 0.0 dB) anzeigen',
       volumeUnitPercent: 'Prozent (%)',
       volumeUnitDb: 'Dezibel (dB)',
+      restoreSessionTitle: 'Wiedergabesitzung beim Start wiederherstellen',
+      restoreSessionDesc: 'Merkt sich den aktuellen Titel, die Wiedergabeposition, die Lautstärke (dB), die DSP-Parameter und die Warteschlange beim Neustart.',
+      restoreSessionOn: 'Aktiviert',
+      restoreSessionOff: 'Deaktiviert',
       exportOpus: 'Export & Opus',
       about: 'Über Auralune',
       author: 'Autorin',
@@ -3543,6 +3559,10 @@ export const translations: Record<Language, Translations> = {
       volumeUnitDesc: 'Näytä äänenvoimakkuus prosentteina (0% – 100%) tai studiodesibeleinä (-∞ dB – 0.0 dB)',
       volumeUnitPercent: 'Prosentit (%)',
       volumeUnitDb: 'Desibelit (dB)',
+      restoreSessionTitle: 'Palauta toistoistunto käynnistettäessä',
+      restoreSessionDesc: 'Muistaa nykyisen kappaleen, toistokohdan, äänenvoimakkuuden (dB), DSP-parametrit ja toistojonon uudelleenkäynnistyksen yhteydessä.',
+      restoreSessionOn: 'Käytössä',
+      restoreSessionOff: 'Pois käytöstä',
       exportOpus: 'Vienti & Opus',
       about: 'Tietoja ohjelmasta',
       author: 'Tekijä',
@@ -4341,6 +4361,10 @@ export const translations: Record<Language, Translations> = {
       volumeUnitDesc: 'Monstra volumen per centesimas (0% - 100%) an per decibel (-∞ dB ad 0.0 dB)',
       volumeUnitPercent: 'Centesimae (%)',
       volumeUnitDb: 'Decibel (dB)',
+      restoreSessionTitle: 'Restaura sessionem auditionis in initio',
+      restoreSessionDesc: 'Meminit currentem cantum, locum auditionis, volumen (dB), parametros DSP et seriem cum denuo incipit.',
+      restoreSessionOn: 'Activatum',
+      restoreSessionOff: 'Inactivatum',
       exportOpus: 'Exportatio & Opus',
       about: 'De Auralune',
       author: 'Auctrix',

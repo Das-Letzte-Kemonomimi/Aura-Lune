@@ -5104,6 +5104,56 @@ pub fn run() {
                     }
                 }
 
+                // Przywrócenie pełnego stanu sesji odtwarzania (utwór, pozycja, głośność dB, parametry)
+                let restore_session_setting = rt.block_on(async {
+                    db.get_app_setting("restore_session_on_startup").await.unwrap_or(None)
+                });
+                let should_restore_session = restore_session_setting.as_deref() != Some("false");
+
+                if should_restore_session {
+                    if let Some(session_json) = rt.block_on(async {
+                        db.get_app_setting("playback_session_state").await.unwrap_or(None)
+                    }) {
+                        #[derive(serde::Deserialize, Debug)]
+                        struct SavedSessionState {
+                            volume: Option<f64>,
+                            position_ms: Option<u64>,
+                            uri: Option<String>,
+                        }
+
+                        if let Ok(session) = serde_json::from_str::<SavedSessionState>(&session_json) {
+                            // 1. Przywróć głośność w audio engine od samego startu
+                            if let Some(vol) = session.volume {
+                                let clamped = vol.clamp(0.0, 1.0);
+                                let _ = engine.set_volume(clamped);
+                                info!(
+                                    "Przywrócono zapisaną głośność sesji: {:.2} ({:.1} dB)",
+                                    clamped,
+                                    if clamped <= 0.0001 { -100.0 } else { 20.0 * clamped.log10() }
+                                );
+                            }
+
+                            // 2. Jeśli kolejka była pusta, ale jest zapisany plik/URI — załaduj w stanie pauzy
+                            if engine.queue().items.is_empty() {
+                                if let Some(ref uri) = session.uri {
+                                    if !uri.is_empty() {
+                                        let _ = engine.load_uri(uri);
+                                        let _ = engine.pause();
+                                    }
+                                }
+                            }
+
+                            // 3. Przywróć pozycję w utworze
+                            if let Some(pos_ms) = session.position_ms {
+                                if pos_ms > 1000 {
+                                    let _ = engine.seek(std::time::Duration::from_millis(pos_ms));
+                                    info!("Przywrócono pozycję odtwarzania sesji: {} ms", pos_ms);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Wczytanie wybranego stylu ikony aplikacji (domyślnie: lineout dopasowany do motywu)
                 let icon_style = rt.block_on(async {
                     db.get_app_setting("app_icon_style").await.unwrap_or(None)
