@@ -18,6 +18,7 @@
 - [x] **Konfigurowalny bufor audio**: Zmiana rozmiaru bufora `audio_buffer_duration_ms` (10 ms – 1000 ms) w Ustawieniach.
 - [x] **Gapless Playback**: Bezprzerwowe odtwarzanie kolejnych utworów przy wsparciu dekodera.
 - [x] **Smart Silence Trimming**: Automatyczne wykrywanie i przycinanie ciszy na początku i końcu utworu (`get_silence_trimming_config` / `set_silence_trimming_config`).
+- [x] **Pełne zapamiętywanie sesji odtwarzania (Session Persistence)**: Opcjonalne przywracanie ostatniego utworu, dokładnej pozycji czasowej, poziomu głośności (liniowego oraz dB), parametrów DSP oraz trybu widoku po ponownym uruchomieniu z dedykowanym przyciskiem w Ustawieniach.
 
 ---
 

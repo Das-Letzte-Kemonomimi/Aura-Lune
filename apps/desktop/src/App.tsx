@@ -882,6 +882,41 @@ export default function App() {
     handleSetVolumeUnit(volumeUnit === 'percent' ? 'db' : 'percent');
   };
 
+  // Opcja zapamiętywania sesji odtwarzania przy ponownym uruchomieniu (utwór, pozycja, głośność dB, DSP, kolejka)
+  const [restoreSessionOnStartup, setRestoreSessionOnStartup] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_restore_session_on_startup');
+      return saved !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleRestoreSessionOnStartup = async () => {
+    const next = !restoreSessionOnStartup;
+    setRestoreSessionOnStartup(next);
+    try {
+      localStorage.setItem('auralune_restore_session_on_startup', String(next));
+    } catch {}
+    try {
+      await invoke('set_app_setting', {
+        key: 'restore_session_on_startup',
+        value: next ? 'true' : 'false',
+      });
+      showMessage(
+        next
+          ? (language === 'pl'
+              ? 'Włączono zapamiętywanie sesji odtwarzania przy ponownym uruchomieniu'
+              : 'Enabled restoring playback session on startup')
+          : (language === 'pl'
+              ? 'Wyłączono zapamiętywanie sesji odtwarzania przy ponownym uruchomieniu'
+              : 'Disabled restoring playback session on startup')
+      );
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
   const formatVolumeValue = (vol: number, unit: 'percent' | 'db' = volumeUnit): string => {
     if (unit === 'db') {
       if (vol <= 0.0001) return '-∞ dB';
@@ -2248,7 +2283,154 @@ export default function App() {
         threshold_db: savedStThreshold,
       },
     }).catch((e) => console.warn('Błąd inicjalizacji Silence Trimming:', e));
+
+    // Inicjalizacja i przywrócenie sesji odtwarzania (utwór, pozycja, głośność dB, DSP)
+    invoke<string | null>('get_app_setting', { key: 'restore_session_on_startup' })
+      .then((val) => {
+        if (val !== null) {
+          setRestoreSessionOnStartup(val !== 'false');
+        }
+      })
+      .catch((e) => console.warn('Błąd odczytu restore_session_on_startup:', e));
+
+    const shouldRestore = localStorage.getItem('auralune_restore_session_on_startup') !== 'false';
+    if (shouldRestore) {
+      const savedLocal = localStorage.getItem('auralune_playback_session');
+      if (savedLocal) {
+        try {
+          const session = JSON.parse(savedLocal);
+          if (session) {
+            if (typeof session.volume === 'number') {
+              const vol = Math.max(0, Math.min(1.0, session.volume));
+              setStatus((prev) => ({ ...prev, volume: vol }));
+              invoke('set_volume', { volume: vol }).catch(() => {});
+            }
+            if (session.volume_unit === 'percent' || session.volume_unit === 'db') {
+              setVolumeUnit(session.volume_unit);
+            }
+            if (session.nowplaying_visual_mode) {
+              setNowPlayingVisualMode(session.nowplaying_visual_mode);
+            }
+            if (session.position_ms && session.position_ms > 1000) {
+              setTimeout(() => {
+                invoke('seek', { positionMs: session.position_ms }).catch(() => {});
+              }, 450);
+            }
+          }
+        } catch {}
+      }
+    }
   }, []);
+
+  // Automatyczne, asynchroniczne zapisywanie stanu sesji odtwarzania (utwór, pozycja, głośność dB, DSP, widok)
+  const lastSavedSessionRef = useRef<string>('');
+  useEffect(() => {
+    if (!restoreSessionOnStartup) return;
+
+    const currentUri = status.current_track?.uri || filePath;
+    const currentPos = status.position_ms;
+    const currentVol = status.volume ?? 1.0;
+
+    const sessionPayload = {
+      volume: currentVol,
+      volume_unit: volumeUnit,
+      track_id: status.current_track?.track_id || activeTrackId,
+      uri: currentUri,
+      title: status.current_track?.title || null,
+      artist: status.current_track?.artist || null,
+      album: status.current_track?.album || null,
+      position_ms: currentPos,
+      duration_ms: status.duration_ms,
+      pitch_semitones: status.pitch_semitones,
+      tempo_ratio: status.tempo_ratio,
+      rate_ratio: status.rate_ratio,
+      engine: status.engine,
+      equalizer_enabled: status.equalizer_enabled,
+      equalizer_bands: status.equalizer_bands,
+      nowplaying_visual_mode: nowPlayingVisualMode,
+    };
+
+    const serialized = JSON.stringify(sessionPayload);
+    try {
+      localStorage.setItem('auralune_playback_session', serialized);
+    } catch {}
+
+    const timer = setTimeout(() => {
+      if (serialized !== lastSavedSessionRef.current) {
+        lastSavedSessionRef.current = serialized;
+        invoke('set_app_setting', {
+          key: 'playback_session_state',
+          value: serialized,
+        }).catch(() => {});
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [
+    restoreSessionOnStartup,
+    status.current_track,
+    filePath,
+    status.position_ms,
+    status.volume,
+    volumeUnit,
+    activeTrackId,
+    status.duration_ms,
+    status.pitch_semitones,
+    status.tempo_ratio,
+    status.rate_ratio,
+    status.engine,
+    status.equalizer_enabled,
+    status.equalizer_bands,
+    nowPlayingVisualMode,
+  ]);
+
+  // Zapisanie sesji w chwili zamykania okna lub przeładowania
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!restoreSessionOnStartup) return;
+      const currentUri = status.current_track?.uri || filePath;
+      const sessionPayload = {
+        volume: status.volume ?? 1.0,
+        volume_unit: volumeUnit,
+        track_id: status.current_track?.track_id || activeTrackId,
+        uri: currentUri,
+        title: status.current_track?.title || null,
+        artist: status.current_track?.artist || null,
+        album: status.current_track?.album || null,
+        position_ms: status.position_ms,
+        duration_ms: status.duration_ms,
+        pitch_semitones: status.pitch_semitones,
+        tempo_ratio: status.tempo_ratio,
+        rate_ratio: status.rate_ratio,
+        engine: status.engine,
+        equalizer_enabled: status.equalizer_enabled,
+        equalizer_bands: status.equalizer_bands,
+        nowplaying_visual_mode: nowPlayingVisualMode,
+      };
+      try {
+        localStorage.setItem('auralune_playback_session', JSON.stringify(sessionPayload));
+      } catch {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [
+    restoreSessionOnStartup,
+    status.current_track,
+    filePath,
+    status.position_ms,
+    status.volume,
+    volumeUnit,
+    activeTrackId,
+    status.duration_ms,
+    status.pitch_semitones,
+    status.tempo_ratio,
+    status.rate_ratio,
+    status.engine,
+    status.equalizer_enabled,
+    status.equalizer_bands,
+    nowPlayingVisualMode,
+  ]);
 
   const handleToggleSeekFade = async () => {
     const newVal = !seekFadeEnabled;
@@ -5354,6 +5536,46 @@ const renderDevicesSection = () => (
                   dB (-∞ do 0.0 dB)
                 </button>
               </div>
+            </div>
+
+            {/* Opcja zapamiętywania sesji odtwarzania przy ponownym uruchomieniu (utwór, pozycja, głośność dB, DSP, kolejka) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: restoreSessionOnStartup ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid var(--border-subtle)',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <History size={16} color="var(--accent-purple)" />
+                  {loc.settings.restoreSessionTitle}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  {loc.settings.restoreSessionDesc}
+                </div>
+              </div>
+              <button
+                onClick={handleToggleRestoreSessionOnStartup}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: restoreSessionOnStartup ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                  border: restoreSessionOnStartup ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
+                  color: restoreSessionOnStartup ? 'var(--accent-purple)' : 'var(--text-muted)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {restoreSessionOnStartup ? loc.settings.restoreSessionOn : loc.settings.restoreSessionOff}
+              </button>
             </div>
 
             {/* Opcja zapamiętywania ustawień DSP przy uruchomieniu aplikacji */}
