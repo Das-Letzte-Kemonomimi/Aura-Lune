@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Disc } from 'lucide-react';
 
 interface VinylTurntableProps {
   coverUrl?: string | null;
   isPlaying: boolean;
+  tempo?: number; // mnożnik tempa DSP (np. 0.35x - 3.00x)
+  rate?: number;  // mnożnik szybkości odtwarzania (np. 1.0x)
+  bpm?: number | null;
   trackTitle?: string;
   artistName?: string;
   onTogglePlayPause?: () => void;
@@ -15,6 +18,9 @@ interface VinylTurntableProps {
 export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   coverUrl,
   isPlaying,
+  tempo = 1.0,
+  rate = 1.0,
+  bpm,
   trackTitle = 'Nieznany utwór',
   artistName = 'Auralune Player',
   onTogglePlayPause,
@@ -24,8 +30,63 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 }) => {
   const [rpm, setRpm] = useState<33 | 45>(33);
 
-  // Czas obrotu: 33 1/3 RPM = ok. 1.8 sekundy na obrót, 45 RPM = 1.33 sekundy
-  const spinDuration = rpm === 33 ? '1.8s' : '1.33s';
+  // Efektywny mnożnik prędkości obrotu płyty zsynchronizowany z DSP (Tempo + Rate)
+  const effectiveSpeed = Math.max(0.1, Math.min(4.0, (tempo || 1.0) * (rate || 1.0)));
+
+  // Obliczenie aktualnej fizycznej prędkości obrotowej (RPM)
+  const currentRpm = (rpm * effectiveSpeed).toFixed(1);
+
+  // Kąt obrotu płyty i fizyczna prędkość kątowa z płynną bezwładnością (Direct-Drive motor inertia)
+  const platterRef = useRef<HTMLDivElement | null>(null);
+  const angleRef = useRef<number>(0);
+  const currentSpeedRef = useRef<number>(0); // w stopniach na sekundę
+  const lastTimeRef = useRef<number>(performance.now());
+  const [displayRpm, setDisplayRpm] = useState<string>(currentRpm);
+
+  // Docelowa prędkość w stopniach na sekundę:
+  // 33 1/3 RPM = 33.333 * 360 / 60 = 200 deg/s
+  // 45 RPM = 45 * 360 / 60 = 270 deg/s
+  const baseDegPerSec = rpm === 33 ? 200 : 270;
+  const targetDegPerSec = isPlaying ? baseDegPerSec * effectiveSpeed : 0;
+
+  useEffect(() => {
+    setDisplayRpm(currentRpm);
+  }, [currentRpm]);
+
+  useEffect(() => {
+    let animId: number;
+    lastTimeRef.current = performance.now();
+
+    const updatePlatter = (now: number) => {
+      const dt = Math.min(0.1, (now - lastTimeRef.current) / 1000);
+      lastTimeRef.current = now;
+
+      // Płynne nabieranie i wytracanie prędkości (bezwładność silnika)
+      const lerpFactor = isPlaying ? 0.08 : 0.04;
+      currentSpeedRef.current += (targetDegPerSec - currentSpeedRef.current) * lerpFactor;
+
+      // Jeśli prędkość jest bardzo mała i nie odtwarzamy, całkowicie zatrzymaj
+      if (!isPlaying && Math.abs(currentSpeedRef.current) < 0.1) {
+        currentSpeedRef.current = 0;
+      }
+
+      // Aktualizacja kąta obrotu
+      if (currentSpeedRef.current > 0.01) {
+        angleRef.current = (angleRef.current + currentSpeedRef.current * dt) % 360;
+        if (platterRef.current) {
+          platterRef.current.style.transform = `rotate(${angleRef.current.toFixed(2)}deg)`;
+        }
+      }
+
+      animId = requestAnimationFrame(updatePlatter);
+    };
+
+    animId = requestAnimationFrame(updatePlatter);
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [isPlaying, targetDegPerSec]);
 
   // Kąt ramienia gramofonu:
   // Spoczynek (park): -28 stopni
@@ -52,6 +113,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         justifyContent: 'center',
         overflow: 'hidden',
         userSelect: 'none',
+        boxSizing: 'border-box',
         ...style,
       }}
     >
@@ -73,64 +135,76 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
           justifyContent: 'center',
         }}
       >
-        {/* Rowki płyty winylowej z animowanym blaskiem refleksów światła */}
+        {/* Obracająca się warstwa winylu (Grooves + Dynamic Highlights + Center Label) */}
         <div
-          style={{
-            position: 'absolute',
-            inset: '6px',
-            borderRadius: '50%',
-            background:
-              'repeating-radial-gradient(circle, transparent 0, transparent 2px, rgba(255, 255, 255, 0.035) 3px, transparent 4px)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Dynamiczny optyczny refleks winylu wirujący z płytą */}
-        <div
+          ref={platterRef}
           style={{
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background:
-              'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.08) 45deg, transparent 90deg, transparent 180deg, rgba(255,255,255,0.08) 225deg, transparent 270deg)',
-            animation: isPlaying ? `spin ${spinDuration} linear infinite` : 'none',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Centralna etykieta płyty (Spindle Label) z okładką albumu */}
-        <div
-          style={{
-            width: `${Math.round((size - 56) * 0.44)}px`,
-            height: `${Math.round((size - 56) * 0.44)}px`,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            position: 'relative',
-            border: '3px solid #1a1727',
-            boxShadow: '0 0 8px rgba(0,0,0,0.8)',
-            animation: isPlaying ? `spin ${spinDuration} linear infinite` : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: coverUrl
-              ? `url("${coverUrl}") center/cover no-repeat`
-              : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+            willChange: 'transform',
           }}
         >
-          {!coverUrl && <Disc size={28} color="#fff" />}
-
-          {/* Centralny trzpień (Spindle hole) */}
+          {/* Rowki płyty winylowej z teksturą mikrorowków */}
           <div
             style={{
               position: 'absolute',
-              width: '12px',
-              height: '12px',
+              inset: '6px',
               borderRadius: '50%',
-              background: '#0a0812',
-              border: '2px solid #silver',
-              boxShadow: 'inset 0 0 4px #000',
+              background:
+                'repeating-radial-gradient(circle, transparent 0, transparent 2px, rgba(255, 255, 255, 0.035) 3px, transparent 4px)',
+              pointerEvents: 'none',
             }}
           />
+
+          {/* Optyczny refleks światła na rowkach winylu (krzyż optyczny) */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              background:
+                'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.08) 45deg, transparent 90deg, transparent 180deg, rgba(255,255,255,0.08) 225deg, transparent 270deg)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Centralna etykieta płyty (Spindle Label) z okładką albumu */}
+          <div
+            style={{
+              width: `${Math.round((size - 56) * 0.44)}px`,
+              height: `${Math.round((size - 56) * 0.44)}px`,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              position: 'relative',
+              border: '3px solid #1a1727',
+              boxShadow: '0 0 8px rgba(0,0,0,0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: coverUrl
+                ? `url("${coverUrl}") center/cover no-repeat`
+                : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+            }}
+          >
+            {!coverUrl && <Disc size={28} color="#fff" />}
+
+            {/* Centralny trzpień (Spindle hole) */}
+            <div
+              style={{
+                position: 'absolute',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: '#0a0812',
+                border: '2px solid silver',
+                boxShadow: 'inset 0 0 4px #000',
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -230,6 +304,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               e.stopPropagation();
               setRpm(33);
             }}
+            title="Prędkość nominalna 33⅓ RPM"
             style={{
               padding: '2px 7px',
               borderRadius: '4px',
@@ -239,6 +314,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               cursor: 'pointer',
               fontSize: '0.68rem',
               fontWeight: 700,
+              transition: 'all 0.15s ease',
             }}
           >
             33⅓
@@ -248,6 +324,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               e.stopPropagation();
               setRpm(45);
             }}
+            title="Prędkość nominalna 45 RPM"
             style={{
               padding: '2px 7px',
               borderRadius: '4px',
@@ -257,13 +334,14 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               cursor: 'pointer',
               fontSize: '0.68rem',
               fontWeight: 700,
+              transition: 'all 0.15s ease',
             }}
           >
             45
           </button>
         </div>
 
-        {/* Strobe Light status */}
+        {/* Dynamiczny wskaźnik prędkości Direct Drive z uwzględnieniem DSP */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)' }}>
           <span
             style={{
@@ -272,10 +350,15 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               borderRadius: '50%',
               background: isPlaying ? '#22c55e' : '#ef4444',
               boxShadow: isPlaying ? '0 0 6px #22c55e' : 'none',
+              transition: 'background 0.3s ease',
             }}
           />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.66rem' }}>
-            {isPlaying ? 'HI-FI DIRECT DRIVE' : 'STANDBY'}
+            {isPlaying
+              ? `${displayRpm} RPM • ${effectiveSpeed !== 1.0 ? `${effectiveSpeed.toFixed(2)}x DSP` : 'DIRECT DRIVE'}${
+                  bpm ? ` (${Math.round(bpm * effectiveSpeed)} BPM)` : ''
+                }`
+              : 'STANDBY'}
           </span>
         </div>
       </div>

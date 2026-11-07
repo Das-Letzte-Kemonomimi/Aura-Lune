@@ -10246,6 +10246,17 @@ const renderDevicesSection = () => (
                   <VinylTurntable
                     coverUrl={currentCover}
                     isPlaying={status.state === 'Playing'}
+                    tempo={status.tempo_ratio ?? 1.0}
+                    rate={status.rate_ratio ?? 1.0}
+                    bpm={
+                      currentPlayingTrack?.bpm ||
+                      tracks.find(
+                        (t) =>
+                          (status.current_track?.track_id && t.id === status.current_track.track_id) ||
+                          t.path === status.current_track?.uri
+                      )?.bpm ||
+                      null
+                    }
                     trackTitle={status.current_track?.title || currentPlayingTrack?.title}
                     artistName={status.current_track?.artist || currentPlayingTrack?.artist}
                     onTogglePlayPause={handlePlayPause}
