@@ -13,13 +13,13 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.0)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.1)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.0)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.1)*
 
 ### 🔄 Zmieniono (Changed)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.0)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.1)*
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.0)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.1)*

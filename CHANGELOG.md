@@ -9,6 +9,21 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.9.1] — „Kitsune Kinetic Groove” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Fizyka obrotu płyty winylowej zsynchronizowana z DSP i BPM (`VinylTurntable`)**: Płyta gramofonowa wiruje teraz z realistyczną bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania (`rate_ratio`) oraz tempem utworu (BPM). Wdrożono płynny rozruch silnika, wyhamowywanie na pauzie bez szarpnięć (zachowanie kąta spoczynkowego), spójną rotację rowków, blasków i okładki albumu oraz dynamiczny odczyt fizycznych RPM i BPM na obudowie.
+- **Udoskonalona geometria i skalowanie Stereo VU-Meter (`VuMeterWidget`)**: Dokładne proporcje skali IEC VU (zakres 70° od -125° do -55°), pełne obramowanie tarczy bez wykraczania skali poza obudowę wskaźnika (`ctx.clip()`), czytelny cyfrowy odczyt dB w wyciętym okienku LCD bez kolizji z czapką igły oraz kompaktowe selektory motywów Amber/Sakura/Cyan z optymalizacją pod ekrany HiDPI/Retina.
+- **Dedykowane paski parametrów pod wizualizacją w sekcji Now Playing**: Rozdzielenie kontrolek pod odtwarzaczem w zależności od aktywnego trybu – przyciski okładki (*Dopasuj okładkę / Wgraj własną*) widoczne tylko w trybie Cover, wskaźnik pracy gramofonu Direct-Drive w trybie Vinyl, a w trybie VU-Meter parametry kalibracji studyjnej (`0 VU = +4 dBu / 1.23V` • `Miernik aktywny`).
+- **Dynamiczne rozszerzenie kolumny w trybie VU-Meter**: Lewa kolumna odtwarzacza płynnie adaptuje się z 240px do 280px w trybie VU, zapewniając pełną czytelność obu kanałów stereo bez ściskania elementów.
+
+### Poprawiono (Fixed)
+- **Eliminacja ucinania przycisków motywu podświetlenia w VU-Meter**: Zastąpiono przepełniające się długie etykiety zwięzłymi pigułkami, usuwając nachodzenie na siebie napisów i ucinanie przycisków w ciasnych oknach.
+- **Kolizja odczytu dB ze wskazówką**: Wyeliminowano nakładanie się tekstu dB na czapkę osi obrotu igły miernika analogowego.
+
+---
+
 ## [0.9.0] — „Kitsune Infinity & Analog Warmth” - 2026-11-07
 **Autorka**: Das Letzte Kemonomimi
 

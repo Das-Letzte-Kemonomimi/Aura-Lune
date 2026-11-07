@@ -1,4 +1,4 @@
-# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v0.8.3)
+# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v0.9.1)
 
 > **OBOWIĄZKOWA INSTRUKCJA DLA KAŻDEGO AGENTA I PROGRAMISTY:**
 > 1. **ZAWSZE przed proponowaniem nowych funkcji, planowaniem roadmapy lub refaktoryzacją PRZECZYTAJ TEN PLIK**, aby nigdy nie sugerować i nie dublować funkcji, które są już wdrożone w kodzie.
@@ -154,9 +154,9 @@
   - Czysty, immersyjny widok na pełny ekran z powiększoną grafiką, waveformem, neonowymi wskaźnikami i zegarem.
   - Możliwość przełączenia dolnego widżetu pomiędzy analizatorem widma FFT a analogowym wskaźnikiem VU-Meter.
 - [x] **Analogowy wskaźnik stereo VU-Meter (`VuMeterWidget`)**:
-  - Dwuigłowy wskaźnik wychyłowy L/R z fizyką balistyki analogowej (szybki atak, płynne opadanie), skalą dB (-20 do +3 dB), diodą przesteru Peak LED oraz 3 motywami podświetlenia (Amber Glow 70s, Sakura Pink, Cyber Neon).
+  - Dwuigłowy wskaźnik wychyłowy L/R z fizyką balistyki analogowej (szybki atak, płynne opadanie), precyzyjną geometrią skali IEC VU (-20 do +3 dB), zabezpieczeniem clip bez wychodzenia skali poza obudowę, cyfrowym badge LCD dB, diodą przesteru Peak LED oraz 3 motywami podświetlenia (Amber, Sakura, Cyan).
 - [x] **Interaktywny gramofon winylowy Hi-Fi (`VinylTurntable`)**:
-  - Wirująca płyta winylowa z refleksami rowków, centralną etykietą z okładką albumu bieżącego utworu, ruchomym ramieniem (tonearm opadający przy Play i parkujący przy Pause) oraz przełącznikiem 33⅓ / 45 RPM.
+  - Wirująca płyta winylowa z fizyką i bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania oraz tempem utworu (BPM), z płynnym rozruchem i wyhamowywaniem na pauzie, ruchomym ramieniem mechanicznym oraz wskaźnikiem RPM na żywo.
 - [x] **Oscyloskop wektorowy fazy Lissajous**:
   - Nowy tryb Lissajous / Stereo Vectorscope XY w `SpectrumVisualizer`, wizualizujący korelację fazową stereo w czasie rzeczywistym.
 - [x] **Kompaktowy Mini-Player (`MiniPlayerWidget`)**:
