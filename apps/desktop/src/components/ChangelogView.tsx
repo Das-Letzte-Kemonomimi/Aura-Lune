@@ -18,11 +18,50 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.9.1',
+    codename: 'Kitsune Kinetic Groove',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Fizyka obrotu płyty winylowej zsynchronizowana z DSP i BPM: płyta wiruje z realistyczną bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania oraz tempem utworu. Płynny rozruch, wyhamowywanie na pauzie bez szarpnięć i odczyt RPM na żywo.',
+        en: 'Dynamic Vinyl Turntable physics synced with DSP & BPM: record spins with realistic Direct-Drive inertia dynamically scaling with DSP Tempo (0.25x – 3.00x), playback rate, and song BPM. Smooth motor acceleration, deceleration on pause, and live RPM readout.',
+        de: 'Dynamische Plattenspieler-Physik synchronisiert mit DSP & BPM: Schallplatte dreht sich mit Direktantriebs-Trägheit, abgestimmt auf DSP-Tempo (0.25x – 3.00x), Wiedergaberate und BPM.',
+        fi: 'Dynaaminen vinyylisoittimen pyörimisfysiikka synkronoituna DSP:n ja BPM:n kanssa: levy pyörii suoravetomoottorin inertialla DSP-tempon (0.25x – 3.00x), toistonopeuden ja BPM:n mukaan.',
+        la: 'Physica gyrandi disci vinylei synchronizata cum DSP et BPM: discus gyratur cum inertia motoris Direct-Drive secundum DSP velocitatem et cantus rhythmum.',
+      },
+      {
+        pl: 'Udoskonalona geometria i skalowanie Stereo VU-Meter: precyzyjne proporcje skali IEC VU, pełne obramowanie tarczy bez wychodzenia skali poza obudowę, czytelny cyfrowy odczyt dB w okienku LCD bez kolizji z igłą oraz kompaktowe selektory motywów Amber/Sakura/Cyan.',
+        en: 'Refined Stereo VU-Meter geometry & scaling: precise IEC VU scale proportions, clipped faceplate eliminating gauge overflow, recessed LCD dB readout without needle collision, and compact Amber/Sakura/Cyan theme selectors.',
+        de: 'Verbesserte Stereo-VU-Meter-Geometrie: Präzise IEC VU-Skalenproportionen, saubere Gehäusekanten ohne Überlauf, versenktes LCD-dB-Display ohne Zeigerkollision und kompakte Themenknöpfe.',
+        fi: 'Tarkennettu stereo-VU-mittarin geometria ja skaalaus: tarkat IEC VU -asteikkosuhteet, rajattu mittaripohja ilman reunan ylitystä, upotettu LCD-dB-lukema ja kompaktit teemavalitsimet.',
+        la: 'Geometria emendata indicis stereo VU-Meter: proportiones accuratae scalae IEC VU, tabula circumscripta sine overflow, numerus dB in fenestra LCD et electores compendiarii.',
+      },
+      {
+        pl: 'Dedykowane paski parametrów pod wizualizacją: rozdzielenie kontrolek w sekcji Now Playing – przyciski okładki tylko w trybie Cover, wskaźnik pracy gramofonu w trybie Vinyl, a w trybie VU-Meter parametry kalibracji studyjnej (0 VU = +4 dBu / 1.23V).',
+        en: 'Dedicated context bars beneath visualizer: cover buttons only in Cover mode, turntable status in Vinyl mode, and studio calibration info (0 VU = +4 dBu / 1.23V) in VU-Meter mode.',
+        de: 'Kontextbezogene Statusleisten unter der Visualisierung: Cover-Schaltflächen nur im Cover-Modus, Plattenspieler-Status im Vinyl-Modus und Studiokalibrierung im VU-Modus.',
+        fi: 'Omat tilapalkit visualisoinnin alla: kansipainikkeet vain kansitilassa, äänivarren tila vinyylitilassa ja studiokalibrointitieto VU-mittaritilassa.',
+        la: 'Fasciae contextuales sub imagine: globuli operculi tantum in modo Cover, status brachii in modo Vinyl, et calibratio studii in modo VU-Meter.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Usunięto ucinanie przycisków motywu podświetlenia w ciasnych widokach VU-Meter oraz nachodzenie na siebie napisów nagłówka.',
+        en: 'Fixed backlight theme button clipping and header label text wrapping in narrow VU-Meter layouts.',
+        de: 'Behoben: Abschneiden der Themenknöpfe und Überlappen von Überschriften bei schmaler VU-Meter-Ansicht.',
+        fi: 'Korjattu taustavaloteemapainikkeiden leikkautuminen ja otsikkotekstien päällekkäisyys kapeissa VU-näkymissä.',
+        la: 'Correcta intersectio textuum et praecisio globulorum in angustis spatiis indicis VU-Meter.',
+      },
+    ],
+  },
+  {
     version: '0.9.0',
     codename: 'Kitsune Infinity & Analog Warmth',
     date: '2026-11-07',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Bauer Headphone Crossfeed (bs2b) w DSP Studio: dedykowana karta z presetami Default, Chu Moy, Jan Meier i suwakami Custom dostępna bezpośrednio w zakładce DSP.',
