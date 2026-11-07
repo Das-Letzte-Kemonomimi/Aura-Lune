@@ -12,6 +12,7 @@ import {
   Sliders,
   Radio,
   FileAudio,
+  ArrowRight,
   ShieldCheck,
   Headphones,
   Sparkles,
@@ -352,13 +353,13 @@ export default function App() {
     engine: 'Bypass',
     capabilities: {
       engine: 'Bypass',
-      name: 'Brak DSP (Direct Bypass)',
+      name: 'Direct Bypass (No DSP)',
       min_pitch_semitones: -24.0,
       max_pitch_semitones: 24.0,
       min_tempo_ratio: 0.15,
       max_tempo_ratio: 4.0,
       supports_formants: false,
-      description: 'Czysty strumień bit-perfect bez procesora DSP (zerowe obciążenie)',
+      description: 'Bit-perfect direct stream without DSP (zero CPU overhead)',
     },
     equalizer_enabled: false,
     equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -440,7 +441,25 @@ export default function App() {
 
   // Stan korektora graficznego EQ & Spectrum
   const [eqPresets, setEqPresets] = useState<EqualizerPreset[]>([]);
-  const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Płaski (Flat)');
+  const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Flat');
+  const getEqPresetDisplayName = (name: string, isPl: boolean) => {
+    switch (name) {
+      case 'Flat':
+      case 'Płaski (Flat)':
+        return isPl ? 'Płaski (Flat)' : 'Flat';
+      case 'Bass Boost':
+      case 'Mocny Bass (Bass Boost)':
+        return isPl ? 'Mocny Bass (Bass Boost)' : 'Bass Boost';
+      case 'Electronic / Dance':
+      case 'Elektroniczna / Dance':
+        return isPl ? 'Elektroniczna / Dance' : 'Electronic / Dance';
+      case 'Classical / Acoustic':
+      case 'Klasyczna / Akustyczna':
+        return isPl ? 'Klasyczna / Akustyczna' : 'Classical / Acoustic';
+      default:
+        return name;
+    }
+  };
   const [eqAutoStartup, setEqAutoStartup] = useState<boolean>(false);
   const [seekFadeEnabled, setSeekFadeEnabled] = useState<boolean>(true);
 
@@ -788,6 +807,40 @@ export default function App() {
       return false;
     }
   });
+  // Format wyświetlania głośności: 'percent' (0% - 100%) vs 'db' (-inf do 0.0 dB)
+  const [volumeUnit, setVolumeUnit] = useState<'percent' | 'db'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_volume_unit');
+      return saved === 'db' ? 'db' : 'percent';
+    } catch {
+      return 'percent';
+    }
+  });
+
+  const handleSetVolumeUnit = (unit: 'percent' | 'db') => {
+    setVolumeUnit(unit);
+    try {
+      localStorage.setItem('auralune_volume_unit', unit);
+    } catch {}
+    showMessage(
+      language === 'pl'
+        ? `Zmieniono format wyświetlania głośności: ${unit === 'db' ? 'Decybele (dB)' : 'Procenty (%)'}`
+        : `Volume display format set to: ${unit === 'db' ? 'Decibels (dB)' : 'Percentage (%)'}`
+    );
+  };
+
+  const handleToggleVolumeUnit = () => {
+    handleSetVolumeUnit(volumeUnit === 'percent' ? 'db' : 'percent');
+  };
+
+  const formatVolumeValue = (vol: number, unit: 'percent' | 'db' = volumeUnit): string => {
+    if (unit === 'db') {
+      if (vol <= 0.0001) return '-∞ dB';
+      const db = 20 * Math.log10(vol);
+      return `${db >= 0 ? '0.0' : db.toFixed(1)} dB`;
+    }
+    return `${Math.round(vol * 100)}%`;
+  };
 
   // Reverb DSP State
   const [reverbEnabled, setReverbEnabled] = useState<boolean>(false);
@@ -836,6 +889,8 @@ export default function App() {
   const [transcodeRangeB, setTranscodeRangeB] = useState<string>('');
   const [transcodeAutoEnqueue, setTranscodeAutoEnqueue] = useState(true);
   const [isTranscoding, setIsTranscoding] = useState(false);
+  const [transcodeProgress, setTranscodeProgress] = useState<{ percent: number; position_ms?: number; duration_ms?: number } | null>(null);
+  const [transcodeElapsedSeconds, setTranscodeElapsedSeconds] = useState<number>(0);
   const [lastExportedTrack, setLastExportedTrack] = useState<TrackRecord | null>(null);
   const [isPickingSource, setIsPickingSource] = useState(false);
   const [isPickingDestination, setIsPickingDestination] = useState(false);
@@ -913,7 +968,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.8.0'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.8.3'
   );
 
 
@@ -1880,7 +1935,7 @@ export default function App() {
                   listenedAt: Math.floor(Date.now() / 1000),
                 })
                   .then(() => {
-                    showMessage(`Scrobble wysłany do ListenBrainz: ${currentTrackObj.title}`);
+                    showMessage(language === 'pl' ? `Scrobble wysłany do ListenBrainz: ${currentTrackObj.title}` : `Scrobbled to ListenBrainz: ${currentTrackObj.title}`);
                   })
                   .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
               }
@@ -1913,7 +1968,7 @@ export default function App() {
                   },
                 })
                   .then(() => {
-                    showMessage(`Scrobble wysłany do Last.fm: ${currentTrackObj.title}`);
+                    showMessage(language === 'pl' ? `Scrobble wysłany do Last.fm: ${currentTrackObj.title}` : `Scrobbled to Last.fm: ${currentTrackObj.title}`);
                   })
                   .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
               }
@@ -2488,6 +2543,13 @@ export default function App() {
     let unlistenWindow: (() => void) | null = null;
     let unlistenTauriEvent: (() => void) | null = null;
     let unlistenQueueEvent: (() => void) | null = null;
+    let unlistenTranscodeEvent: (() => void) | null = null;
+
+    listen<{ percent: number; position_ms?: number; duration_ms?: number }>('transcode_progress', (event) => {
+      setTranscodeProgress(event.payload);
+    }).then((unlisten) => {
+      unlistenTranscodeEvent = unlisten;
+    }).catch(() => {});
 
     listen('queue_changed', () => {
       refreshQueue();
@@ -2573,8 +2635,21 @@ export default function App() {
       if (unlistenWindow) unlistenWindow();
       if (unlistenTauriEvent) unlistenTauriEvent();
       if (unlistenQueueEvent) unlistenQueueEvent();
+      if (unlistenTranscodeEvent) unlistenTranscodeEvent();
     };
   }, []);
+
+  // Licznik czasu renderowania w tle
+  useEffect(() => {
+    if (!isTranscoding) {
+      setTranscodeElapsedSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setTranscodeElapsedSeconds((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isTranscoding]);
 
   const showMessage = (msg: string, isError = false) => {
     // Wyświetlaj komunikat tylko przy rzeczywistych błędach (brak natrętnych powiadomień na górze przy każdej akcji)
@@ -2989,7 +3064,7 @@ export default function App() {
     try {
       await invoke('delete_bookmark', { trackId: activeTrackId });
       setCurrentBookmark(null);
-      showMessage(loc.player.bookmarkDeleted || 'Usunięto zakładkę dla tego utworu');
+      showMessage(loc.player.bookmarkDeleted || (language === 'pl' ? 'Usunięto zakładkę dla tego utworu' : 'Removed bookmark for this track'));
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -2998,7 +3073,7 @@ export default function App() {
   // Skok do zapisanej zakładki
   const handleJumpToBookmark = async (pos: number) => {
     await handleSeek(pos);
-    showMessage((loc.player.bookmarkJump || 'Skocz do zakładki ({0})').replace('{0}', formatTime(pos)));
+    showMessage((loc.player.bookmarkJump || (language === 'pl' ? 'Skocz do zakładki ({0})' : 'Jump to bookmark ({0})')).replace('{0}', formatTime(pos)));
   };
 
   // Sterowanie odtwarzaczem
@@ -3075,25 +3150,33 @@ export default function App() {
         targetPitch = 0.0;
         targetRate = 1.25;
         bands = [0, 0, 0, 0, 1.0, 1.5, 2.5, 3.0, 2.5, 2.0];
-        msg = 'Aktywowano klimat Nightcore: +25% szybkości odtwarzania (Playback Speed)!';
+        msg = language === 'pl'
+          ? 'Aktywowano klimat Nightcore: +25% szybkości odtwarzania (Playback Speed)!'
+          : 'Activated Nightcore vibe: +25% playback speed!';
       } else if (vibe === 'slowed') {
         targetTempo = 0.85;
         targetPitch = -2.0;
         targetRate = 1.0;
         bands = [4.5, 4.0, 3.0, 1.0, 0, 0, -1.0, -1.5, -2.5, -3.0];
-        msg = 'Aktywowano klimat Slowed & Lo-Fi: -15% tempo, -2.0st pitch!';
+        msg = language === 'pl'
+          ? 'Aktywowano klimat Slowed & Lo-Fi: -15% tempo, -2.0st pitch!'
+          : 'Activated Slowed & Lo-Fi vibe: -15% tempo, -2.0st pitch!';
       } else if (vibe === 'vocal') {
         targetTempo = 1.0;
         targetPitch = 0.0;
         targetRate = 1.0;
         bands = [-2.0, -1.5, -1.0, 0, 1.5, 3.5, 4.0, 3.0, 1.5, 0.5];
-        msg = 'Aktywowano Anime Vocal Boost: uwypuklone pasmo wokalne!';
+        msg = language === 'pl'
+          ? 'Aktywowano Anime Vocal Boost: uwypuklone pasmo wokalne!'
+          : 'Activated Anime Vocal Boost: enhanced vocal frequencies!';
       } else if (vibe === 'bass') {
         targetTempo = 1.0;
         targetPitch = 0.0;
         targetRate = 1.0;
         bands = [6.0, 5.5, 3.5, 1.0, 0, 0, 0, 0.5, 1.0, 1.0];
-        msg = 'Aktywowano Bass Impact: podbicie sub-basu +6dB!';
+        msg = language === 'pl'
+          ? 'Aktywowano Bass Impact: podbicie sub-basu +6dB!'
+          : 'Activated Bass Impact: +6dB sub-bass boost!';
       } else if (vibe === 'flat') {
         targetTempo = 1.0;
         targetPitch = 0.0;
@@ -3323,9 +3406,13 @@ export default function App() {
       const newVal = await invoke<boolean>('toggle_stop_after_current');
       setStatus((prev) => ({ ...prev, stop_after_current: newVal }));
       if (newVal) {
-        showMessage('Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)');
+        showMessage(language === 'pl'
+          ? 'Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)'
+          : 'Stop After Current Track: ON (foobar2000)');
       } else {
-        showMessage('Zatrzymaj po bieżącym utworze: WYŁĄCZONE');
+        showMessage(language === 'pl'
+          ? 'Zatrzymaj po bieżącym utworze: WYŁĄCZONE'
+          : 'Stop After Current Track: OFF');
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -3622,7 +3709,9 @@ export default function App() {
 
       await refreshPlaylists();
       showMessage(
-        `Zaimportowano '${res.playlist_name}': ${res.matched_tracks}/${res.total_entries} utworów z biblioteki.`
+        language === 'pl'
+          ? `Zaimportowano '${res.playlist_name}': ${res.matched_tracks}/${res.total_entries} utworów z biblioteki.`
+          : `Imported '${res.playlist_name}': ${res.matched_tracks}/${res.total_entries} tracks from library.`
       );
     } catch (err: any) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
@@ -3672,8 +3761,8 @@ export default function App() {
       await invoke('set_app_setting', { key: 'close_to_tray', value: String(enabled) });
       showMessage(
         enabled
-          ? 'Włączono minimalizowanie do zasobnika systemowego'
-          : 'Wyłączono minimalizowanie do zasobnika systemowego'
+          ? (language === 'pl' ? 'Włączono minimalizowanie do zasobnika systemowego' : 'Minimize to system tray enabled')
+          : (language === 'pl' ? 'Wyłączono minimalizowanie do zasobnika systemowego' : 'Minimize to system tray disabled')
       );
     } catch (e: any) {
       console.warn('Błąd zapisu close_to_tray:', e);
@@ -3686,8 +3775,8 @@ export default function App() {
       await invoke('set_discord_rpc_enabled', { enabled });
       showMessage(
         enabled
-          ? 'Włączono integrację Discord Rich Presence (RPC)'
-          : 'Wyłączono integrację Discord Rich Presence (RPC)'
+          ? (language === 'pl' ? 'Włączono integrację Discord Rich Presence (RPC)' : 'Discord Rich Presence (RPC) enabled')
+          : (language === 'pl' ? 'Wyłączono integrację Discord Rich Presence (RPC)' : 'Discord Rich Presence (RPC) disabled')
       );
       const st = await invoke<{ enabled: boolean; connected: boolean; client_id: string }>('get_discord_rpc_status');
       if (st) {
@@ -3798,7 +3887,11 @@ export default function App() {
     setListenbrainzEnabled(enabled);
     try {
       await invoke('set_app_setting', { key: 'listenbrainz_enabled', value: enabled ? 'true' : 'false' });
-      showMessage(enabled ? 'ListenBrainz Scrobbler włączony' : 'ListenBrainz Scrobbler wyłączony');
+      showMessage(
+        enabled
+          ? (language === 'pl' ? 'ListenBrainz Scrobbler włączony' : 'ListenBrainz Scrobbler enabled')
+          : (language === 'pl' ? 'ListenBrainz Scrobbler wyłączony' : 'ListenBrainz Scrobbler disabled')
+      );
     } catch (e) {
       console.warn('Błąd zapisu listenbrainz_enabled:', e);
     }
@@ -3845,7 +3938,7 @@ export default function App() {
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${session.username}`);
       await invoke('set_app_setting', { key: 'lastfm_session_key', value: session.session_key });
       await invoke('set_app_setting', { key: 'lastfm_username', value: session.username });
-      showMessage(`Last.fm: Zalogowano pomyślnie jako @${session.username}`);
+      showMessage(language === 'pl' ? `Last.fm: Zalogowano pomyślnie jako @${session.username}` : `Last.fm: Successfully logged in as @${session.username}`);
     } catch (err: any) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
     } finally {
@@ -3860,7 +3953,7 @@ export default function App() {
     setLastfmStatusMsg(null);
     await invoke('set_app_setting', { key: 'lastfm_session_key', value: '' });
     await invoke('set_app_setting', { key: 'lastfm_username', value: '' });
-    showMessage('Odłączono konto Last.fm');
+    showMessage(language === 'pl' ? 'Odłączono konto Last.fm' : 'Disconnected Last.fm account');
   };
 
   const handleManualLastfmSessionKeyChange = async (key: string) => {
@@ -3880,7 +3973,7 @@ export default function App() {
       setLastfmUsername(user);
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${user}`);
       await invoke('set_app_setting', { key: 'lastfm_username', value: user });
-      showMessage(`Last.fm: Połączono jako @${user}`);
+      showMessage(language === 'pl' ? `Last.fm: Połączono jako @${user}` : `Last.fm: Connected as @${user}`);
     } catch (err: any) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
     } finally {
@@ -3892,7 +3985,11 @@ export default function App() {
     setLastfmEnabled(enabled);
     try {
       await invoke('set_app_setting', { key: 'lastfm_enabled', value: enabled ? 'true' : 'false' });
-      showMessage(enabled ? 'Last.fm Scrobbler włączony' : 'Last.fm Scrobbler wyłączony');
+      showMessage(
+        enabled
+          ? (language === 'pl' ? 'Last.fm Scrobbler włączony' : 'Last.fm Scrobbler enabled')
+          : (language === 'pl' ? 'Last.fm Scrobbler wyłączony' : 'Last.fm Scrobbler disabled')
+      );
     } catch (e) {
       console.warn('Błąd zapisu lastfm_enabled:', e);
     }
@@ -3964,7 +4061,11 @@ export default function App() {
     try {
       await invoke('set_limiter_enabled', { enabled });
       await invoke('set_app_setting', { key: 'limiter_enabled', value: enabled ? 'true' : 'false' });
-      showMessage(enabled ? 'True-Peak Limiter włączony' : 'True-Peak Limiter wyłączony');
+      showMessage(
+        enabled
+          ? (language === 'pl' ? 'True-Peak Limiter włączony' : 'True-Peak Limiter enabled')
+          : (language === 'pl' ? 'True-Peak Limiter wyłączony' : 'True-Peak Limiter disabled')
+      );
     } catch (e) {
       console.warn('Błąd przełączania limitera:', e);
     }
@@ -4032,7 +4133,11 @@ export default function App() {
         key: 'dsp_default_engine',
         value: eng,
       });
-      showMessage(`Zapisano domyślny silnik startowy DSP: ${eng === 'Bypass' ? 'Direct Bypass' : eng}`);
+      showMessage(
+        language === 'pl'
+          ? `Zapisano domyślny silnik startowy DSP: ${eng === 'Bypass' ? 'Direct Bypass' : eng}`
+          : `Saved default DSP startup engine: ${eng === 'Bypass' ? 'Direct Bypass' : eng}`
+      );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -4274,7 +4379,11 @@ export default function App() {
     try {
       await invoke('set_equalizer_bands', { bands: preset.bands });
       setStatus((prev) => ({ ...prev, equalizer_bands: preset.bands }));
-      showMessage(`Zastosowano profil korektora: ${preset.name}`);
+      showMessage(
+        language === 'pl'
+          ? `Zastosowano profil korektora: ${preset.name}`
+          : `Applied EQ preset: ${getEqPresetDisplayName(preset.name, false)}`
+      );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -4284,7 +4393,7 @@ export default function App() {
     const flatBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     try {
       await invoke('set_equalizer_bands', { bands: flatBands });
-      setSelectedEqPreset('Płaski (Flat)');
+      setSelectedEqPreset(language === 'pl' ? 'Płaski (Flat)' : 'Flat');
       setStatus((prev) => ({ ...prev, equalizer_bands: flatBands }));
       showMessage(t.notifications.dspPresetFlat);
     } catch (e: any) {
@@ -4330,77 +4439,7 @@ export default function App() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // 3. Globalne skróty klawiszowe odtwarzacza
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (document.activeElement?.tagName || '').toLowerCase();
-      if (tag === 'input' || tag === 'textarea') return;
 
-      if (e.code === 'Space') {
-        e.preventDefault();
-        handlePlayPause();
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handleSeek(Math.max(0, status.position_ms - 5000));
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        const maxPos = status.duration_ms || status.position_ms + 5000;
-        handleSeek(Math.min(maxPos, status.position_ms + 5000));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        handleVolumeChange(Math.min(1.0, Math.round((status.volume + 0.05) * 100) / 100));
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        handleVolumeChange(Math.max(0.0, Math.round((status.volume - 0.05) * 100) / 100));
-      } else if (e.key === 'm' || e.key === 'M') {
-        e.preventDefault();
-        handleToggleMute();
-      } else if (e.key === '[') {
-        e.preventDefault();
-        handlePitchChange(Math.max(-12, (status.pitch_semitones ?? 0) - 1.0));
-      } else if (e.key === ']') {
-        e.preventDefault();
-        handlePitchChange(Math.min(12, (status.pitch_semitones ?? 0) + 1.0));
-      } else if (e.key === '-' || e.key === '_') {
-        e.preventDefault();
-        handleTempoChange(Math.max(0.25, Math.round(((status.tempo_ratio ?? 1.0) - 0.05) * 100) / 100));
-      } else if (e.key === '=' || e.key === '+') {
-        e.preventDefault();
-        handleTempoChange(Math.min(3.0, Math.round(((status.tempo_ratio ?? 1.0) + 0.05) * 100) / 100));
-      } else if (e.key === '0') {
-        e.preventDefault();
-        handleResetDsp();
-      } else if (e.key === 's' || e.key === 'S') {
-        e.preventDefault();
-        handleToggleShuffle();
-      } else if (e.key === 'l' || e.key === 'L') {
-        e.preventDefault();
-        handleCycleLoopMode();
-      } else if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        handleNext();
-      } else if (e.key === 'p' || e.key === 'P') {
-        e.preventDefault();
-        handlePrevious();
-      } else if (e.key === 'a' || e.key === 'A') {
-        e.preventDefault();
-        setLoopPointA(status.position_ms);
-      } else if (e.key === 'b' || e.key === 'B') {
-        e.preventDefault();
-        setLoopPointB(status.position_ms);
-      } else if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
-        setLoopPointA(null);
-        setLoopPointB(null);
-      } else if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-        e.preventDefault();
-        setIsShortcutsModalOpen((prev) => !prev);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [status, queue, loopPointA, loopPointB]);
 
   const handleEnableProAudio = async (cardName: string) => {
     try {
@@ -4618,7 +4657,11 @@ export default function App() {
     setTranscodeApplyRange(true);
     setSettingsTab('transcode');
     setIsSettingsOpen(true);
-    showMessage(`Zaimportowano zakres pętli A-B do eksportu: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`);
+    showMessage(
+      language === 'pl'
+        ? `Zaimportowano zakres pętli A-B do eksportu: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`
+        : `Imported A-B loop range for export: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`
+    );
   };
 
   const handleSaveLoopAsBookmarks = async (a: number | null, b: number | null) => {
@@ -4651,6 +4694,13 @@ export default function App() {
   const handleTranscode = async () => {
     if (isTranscoding) return;
     setIsTranscoding(true);
+    setTranscodeProgress({ percent: 0 });
+    setTranscodeElapsedSeconds(0);
+    showMessage(
+      language === 'pl'
+        ? '🚀 Rozpoczęto renderowanie w tle! Możesz swobodnie korzystać z odtwarzacza.'
+        : '🚀 Export started in the background! You can freely continue using the player.'
+    );
     try {
       let formatObj: any = { Wav: null };
       if (transcodeFormat === 'Opus') {
@@ -4778,6 +4828,7 @@ export default function App() {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
       setIsTranscoding(false);
+      setTranscodeProgress(null);
     }
   };
 
@@ -4793,37 +4844,57 @@ export default function App() {
   // ============================================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      const isInputActive = activeTag === 'input' || activeTag === 'textarea';
+      const activeEl = document.activeElement as HTMLElement | null;
+      const activeTag = (activeEl?.tagName || '').toLowerCase();
+      const isRangeInput = activeTag === 'input' && (activeEl as HTMLInputElement)?.type === 'range';
+      const isTextInput = (activeTag === 'input' && !isRangeInput) || activeTag === 'textarea' || activeEl?.isContentEditable;
 
       // Klawisz Escape zamyka okna modalne, szufladę kolejki, tryb pełnoekranowy lub usuwa focus z pól tekstowych
       if (e.key === 'Escape') {
         setIsBigScreen(false);
-        if (isInputActive) {
-          (document.activeElement as HTMLElement).blur();
+        if (activeEl) {
+          activeEl.blur();
         }
         setIsSettingsOpen(false);
         setIsQueueOpen(false);
         setIsQuickLoadOpen(false);
         setShowPlaylistModal(false);
         setIsScanFolderOpen(false);
+        setIsShortcutsModalOpen(false);
         return;
       }
 
       // Jeśli użytkownik wprowadza tekst, nie przechwytujemy skrótów odtwarzacza
-      if (isInputActive) {
+      if (isTextInput) {
         return;
       }
 
+      // Jeśli aktywny jest suwak (input range, np. suwak głośności, seek lub parametrów DSP),
+      // klawisze strzałek w górę/dół normalnie zmieniają wartość natywnie o 1%.
+      // Usuwamy natychmiast focus z suwaka i blokujemy domyślny event, aby zadziałał globalny skrót odtwarzacza (np. głośność ±5%, seek ±5s, spacja).
+      if (isRangeInput) {
+        const isPlayerControlKey = [
+          'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space',
+          'KeyM', 'KeyN', 'KeyP', 'KeyQ', 'KeyT', 'KeyF', 'KeyK',
+          'BracketLeft', 'BracketRight', 'Minus', 'Equal', 'Digit0',
+          'KeyS', 'KeyL', 'KeyA', 'KeyB', 'KeyC', 'Slash',
+        ].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'm', 'M', 'n', 'N', 'p', 'P', 'q', 'Q', 't', 'T', 'f', 'F', '[', ']', '-', '=', '0', 's', 'S', 'l', 'L', 'a', 'A', 'b', 'B', 'c', 'C', '?'].includes(e.key);
+
+        if (isPlayerControlKey) {
+          e.preventDefault();
+          activeEl?.blur();
+        }
+      }
+
       // Spacja: Odtwarzaj / Wstrzymaj (Play / Pause)
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
         handlePlayPause();
         return;
       }
 
       // Strzałka w prawo: przewijanie do przodu o 5s (lub Następny przy Ctrl)
-      if (e.code === 'ArrowRight') {
+      if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
         e.preventDefault();
         if (e.ctrlKey || e.metaKey) {
           handleNext();
@@ -4838,7 +4909,7 @@ export default function App() {
       }
 
       // Strzałka w lewo: przewijanie w tył o 5s (lub Poprzedni przy Ctrl)
-      if (e.code === 'ArrowLeft') {
+      if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
         e.preventDefault();
         if (e.ctrlKey || e.metaKey) {
           handlePrevious();
@@ -4852,25 +4923,27 @@ export default function App() {
       }
 
       // Strzałka w górę: Głośność +5%
-      if (e.code === 'ArrowUp') {
+      if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
         e.preventDefault();
         const newVol = Math.min(1.0, Math.round((statusRef.current.volume + 0.05) * 100) / 100);
         handleVolumeChange(newVol);
-        showMessage(t.notifications.volumeMsg.replace('{0}', String(Math.round(newVol * 100))));
+        const formatted = formatVolumeValue(newVol);
+        showMessage(t.notifications.volumeMsg.replace('{0}%', formatted).replace('{0}', formatted));
         return;
       }
 
       // Strzałka w dół: Głośność -5%
-      if (e.code === 'ArrowDown') {
+      if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
         e.preventDefault();
         const newVol = Math.max(0, Math.round((statusRef.current.volume - 0.05) * 100) / 100);
         handleVolumeChange(newVol);
-        showMessage(t.notifications.volumeMsg.replace('{0}', String(Math.round(newVol * 100))));
+        const formatted = formatVolumeValue(newVol);
+        showMessage(t.notifications.volumeMsg.replace('{0}%', formatted).replace('{0}', formatted));
         return;
       }
 
       // Klawisz F2 lub Shift + M: Przełącznik Mini-Player
-      if (e.code === 'F2' || (e.code === 'KeyM' && e.shiftKey)) {
+      if (e.code === 'F2' || (e.code === 'KeyM' && e.shiftKey) || (e.key === 'M' && e.shiftKey)) {
         e.preventDefault();
         toggleMiniPlayer();
         return;
@@ -4884,7 +4957,7 @@ export default function App() {
       }
 
       // Klawisz M: Mute / Unmute
-      if (e.code === 'KeyM') {
+      if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         const currentVol = statusRef.current.volume;
         const newVol = currentVol === 0 ? 1.0 : 0;
@@ -4893,43 +4966,113 @@ export default function App() {
         return;
       }
 
+      // Klawisze [ i ]: Zmiana wysokości dźwięku (Pitch Shift -1 / +1 półton)
+      if (e.key === '[' || e.code === 'BracketLeft') {
+        e.preventDefault();
+        handlePitchChange(Math.max(-12, (statusRef.current.pitch_semitones ?? 0) - 1.0));
+        return;
+      }
+      if (e.key === ']' || e.code === 'BracketRight') {
+        e.preventDefault();
+        handlePitchChange(Math.min(12, (statusRef.current.pitch_semitones ?? 0) + 1.0));
+        return;
+      }
+
+      // Klawisze - i +: Zmiana tempa (Tempo Stretch -5% / +5%)
+      if (e.key === '-' || e.key === '_' || e.code === 'Minus') {
+        e.preventDefault();
+        handleTempoChange(Math.max(0.25, Math.round(((statusRef.current.tempo_ratio ?? 1.0) - 0.05) * 100) / 100));
+        return;
+      }
+      if (e.key === '=' || e.key === '+' || e.code === 'Equal') {
+        e.preventDefault();
+        handleTempoChange(Math.min(3.0, Math.round(((statusRef.current.tempo_ratio ?? 1.0) + 0.05) * 100) / 100));
+        return;
+      }
+
+      // Klawisz 0: Reset parametrów DSP do stanu neutralnego
+      if (e.key === '0' || e.code === 'Digit0') {
+        e.preventDefault();
+        handleResetDsp();
+        return;
+      }
+
+      // Klawisz S: Przełącznik odtwarzania losowego (Shuffle)
+      if (e.code === 'KeyS' || e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        handleToggleShuffle();
+        return;
+      }
+
+      // Klawisz L: Cykliczne przełączanie trybu pętli (Loop Off -> Track -> Queue)
+      if (e.code === 'KeyL' || e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        handleCycleLoopMode();
+        return;
+      }
+
+      // Klawisze A, B, C: Punkty pętli A-B oraz wyczyszczenie
+      if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        setLoopPointA(statusRef.current.position_ms);
+        return;
+      }
+      if (e.code === 'KeyB' || e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        setLoopPointB(statusRef.current.position_ms);
+        return;
+      }
+      if (e.code === 'KeyC' || e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        setLoopPointA(null);
+        setLoopPointB(null);
+        return;
+      }
+
+      // Klawisz ?: Okno skrótów klawiszowych
+      if (e.key === '?' || (e.key === '/' && e.shiftKey) || (e.code === 'Slash' && e.shiftKey)) {
+        e.preventDefault();
+        setIsShortcutsModalOpen((prev) => !prev);
+        return;
+      }
+
       // Klawisz T: Przełącznik tekstów piosenek (Lyrics)
-      if (e.code === 'KeyT') {
+      if (e.code === 'KeyT' || e.key === 't' || e.key === 'T') {
         e.preventDefault();
         setShowLyrics((prev) => !prev);
         return;
       }
 
       // Klawisz N: Następny utwór
-      if (e.code === 'KeyN') {
+      if (e.code === 'KeyN' || e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         handleNext();
         return;
       }
 
       // Klawisz P: Poprzedni utwór
-      if (e.code === 'KeyP') {
+      if (e.code === 'KeyP' || e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         handlePrevious();
         return;
       }
 
       // Klawisz Q: Przełącznik szuflady kolejki
-      if (e.code === 'KeyQ') {
+      if (e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q') {
         e.preventDefault();
         setIsQueueOpen((prev) => !prev);
         return;
       }
 
       // Ctrl+K lub Cmd+K: Paleta komend / Spotlight
-      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK') {
+      if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyK' || e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
         return;
       }
 
       // Klawisz F lub Ctrl+F: Skocz do wyszukiwarki w Bibliotece
-      if ((e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && e.code === 'KeyF')) {
+      if (((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F'))) {
         e.preventDefault();
         setActiveTab('library');
         setTimeout(() => {
@@ -5008,6 +5151,66 @@ const renderDevicesSection = () => (
               </button>
             </div>
 
+            {/* Opcja formatu wyświetlania poziomu głośności (% vs dB) */}
+            <div
+              className="glass-card"
+              style={{
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '14px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Volume2 size={16} color="var(--accent-cyan)" />
+                  {loc.settings.volumeUnitTitle}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  {loc.settings.volumeUnitDesc}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+                <button
+                  type="button"
+                  onClick={() => handleSetVolumeUnit('percent')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '7px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: 'none',
+                    background: volumeUnit === 'percent' ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'transparent',
+                    color: volumeUnit === 'percent' ? '#fff' : 'var(--text-muted)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  % (0 – 100%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetVolumeUnit('db')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '7px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: 'none',
+                    background: volumeUnit === 'db' ? 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))' : 'transparent',
+                    color: volumeUnit === 'db' ? '#fff' : 'var(--text-muted)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  dB (-∞ do 0.0 dB)
+                </button>
+              </div>
+            </div>
+
             {/* Opcja zapamiętywania ustawień DSP przy uruchomieniu aplikacji */}
             <div
               className="glass-card"
@@ -5061,10 +5264,12 @@ const renderDevicesSection = () => (
             >
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
-                  Domyślny silnik DSP przy uruchomieniu
+                  {language === 'pl' ? 'Domyślny silnik DSP przy uruchomieniu' : 'Default DSP Engine on Startup'}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Określa który silnik jest aktywny po starcie aplikacji (domyślnie: Direct Bypass bez procesora DSP).
+                  {language === 'pl'
+                    ? 'Określa który silnik jest aktywny po starcie aplikacji (domyślnie: Direct Bypass bez procesora DSP).'
+                    : 'Determines which DSP engine is active upon application launch (default: Direct Bypass without DSP processing).'}
                 </div>
               </div>
               <select
@@ -5072,9 +5277,13 @@ const renderDevicesSection = () => (
                 onChange={(e) => handleSetDefaultDspEngine(e.target.value as any)}
                 style={{ padding: '8px 30px 8px 12px' }}
               >
-                <option value="Bypass">Direct Bypass (Domyślny - Czysty dźwięk)</option>
+                <option value="Bypass">
+                  {language === 'pl' ? 'Direct Bypass (Domyślny - Czysty dźwięk)' : 'Direct Bypass (Default - Pure Sound)'}
+                </option>
                 <option value="RubberBand">Rubber Band (Hi-Fi R3)</option>
-                <option value="SoundTouch">SoundTouch (Szybki)</option>
+                <option value="SoundTouch">
+                  {language === 'pl' ? 'SoundTouch (Szybki)' : 'SoundTouch (Fast)'}
+                </option>
               </select>
             </div>
 
@@ -5168,11 +5377,11 @@ const renderDevicesSection = () => (
               <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
                 {[
                   { label: '30 ms (Ultra-low)', value: 30 },
-                  { label: '50 ms (Szybki)', value: 50 },
-                  { label: '80 ms (Domyślny)', value: 80, isDefault: true },
-                  { label: '150 ms (Stabilny)', value: 150 },
-                  { label: '250 ms (Bezpieczny)', value: 250 },
-                  { label: '500 ms (Duży bufor)', value: 500 },
+                  { label: language === 'pl' ? '50 ms (Szybki)' : '50 ms (Fast)', value: 50 },
+                  { label: language === 'pl' ? '80 ms (Domyślny)' : '80 ms (Default)', value: 80, isDefault: true },
+                  { label: language === 'pl' ? '150 ms (Stabilny)' : '150 ms (Stable)', value: 150 },
+                  { label: language === 'pl' ? '250 ms (Bezpieczny)' : '250 ms (Safe)', value: 250 },
+                  { label: language === 'pl' ? '500 ms (Duży bufor)' : '500 ms (Large buffer)', value: 500 },
                 ].map((preset) => {
                   const isActive = audioBufferMs === preset.value;
                   return (
@@ -5260,11 +5469,11 @@ const renderDevicesSection = () => (
               {/* Szybkie presety bloku DSP */}
               <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {[
-                  { label: '512 ramek (~11 ms)', value: 512 },
-                  { label: '1024 ramek (~23 ms)', value: 1024 },
-                  { label: '2048 ramek (Domyślny / ~46 ms)', value: 2048, isDefault: true },
-                  { label: '4096 ramek (~92 ms)', value: 4096 },
-                  { label: '8192 ramek (~185 ms)', value: 8192 },
+                  { label: language === 'pl' ? '512 ramek (~11 ms)' : '512 frames (~11 ms)', value: 512 },
+                  { label: language === 'pl' ? '1024 ramek (~23 ms)' : '1024 frames (~23 ms)', value: 1024 },
+                  { label: language === 'pl' ? '2048 ramek (Domyślny / ~46 ms)' : '2048 frames (Default / ~46 ms)', value: 2048, isDefault: true },
+                  { label: language === 'pl' ? '4096 ramek (~92 ms)' : '4096 frames (~92 ms)', value: 4096 },
+                  { label: language === 'pl' ? '8192 ramek (~185 ms)' : '8192 frames (~185 ms)', value: 8192 },
                 ].map((preset) => {
                   const isActive = dspBlockSize === preset.value;
                   return (
@@ -6350,7 +6559,7 @@ const renderDevicesSection = () => (
                           border: '1px solid rgba(6, 182, 212, 0.35)',
                         }}
                       >
-                        Pętla A-B: {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
+                        {language === 'pl' ? 'Pętla A-B:' : 'A-B Loop:'} {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
                       </span>
                     )}
                   </span>
@@ -6380,7 +6589,11 @@ const renderDevicesSection = () => (
                             setTranscodeRangeA(strA);
                             setTranscodeRangeB(strB);
                             updateTranscodeOutputFilename(filePath, transcodeFormat, strA, strB, true);
-                            showMessage(`Zastosowano pętlę A-B: ${strA} → ${strB || 'koniec'}`);
+                            showMessage(
+                              language === 'pl'
+                                ? `Zastosowano pętlę A-B: ${strA} → ${strB || 'koniec'}`
+                                : `Applied A-B loop: ${strA} → ${strB || 'end'}`
+                            );
                           }}
                           style={{
                             padding: '4px 10px',
@@ -6412,7 +6625,11 @@ const renderDevicesSection = () => (
                             setTranscodeRangeA(strA);
                             setTranscodeRangeB(strB);
                             updateTranscodeOutputFilename(filePath, transcodeFormat, strA, strB, true);
-                            showMessage(`Zastosowano znaczniki utworu: ${bmA.name} (${strA}) → ${bmB.name} (${strB})`);
+                            showMessage(
+                              language === 'pl'
+                                ? `Zastosowano znaczniki utworu: ${bmA.name} (${strA}) → ${bmB.name} (${strB})`
+                                : `Applied track bookmarks: ${bmA.name} (${strA}) → ${bmB.name} (${strB})`
+                            );
                           }}
                           style={{
                             padding: '4px 10px',
@@ -6429,7 +6646,9 @@ const renderDevicesSection = () => (
                           }}
                         >
                           <Bookmark size={12} />
-                          Zastosuj zapisane znaczniki A-B ({currentTrackBookmarks.length})
+                          {language === 'pl'
+                            ? `Zastosuj zapisane znaczniki A-B (${currentTrackBookmarks.length})`
+                            : `Apply saved A-B bookmarks (${currentTrackBookmarks.length})`}
                         </button>
                       )}
                     </div>
@@ -6509,7 +6728,7 @@ const renderDevicesSection = () => (
                               setTranscodeRangeA(strA);
                               updateTranscodeOutputFilename(filePath, transcodeFormat, strA, transcodeRangeB, transcodeApplyRange);
                             }}
-                            title="Ustaw na bieżącą pozycję odtwarzacza"
+                            title={language === 'pl' ? 'Ustaw na bieżącą pozycję odtwarzacza' : 'Set to current player position'}
                             style={{
                               padding: '6px 8px',
                               borderRadius: '6px',
@@ -6531,7 +6750,7 @@ const renderDevicesSection = () => (
                                 setTranscodeRangeA(strA);
                                 updateTranscodeOutputFilename(filePath, transcodeFormat, strA, transcodeRangeB, transcodeApplyRange);
                               }}
-                              title="Pobierz punkt A z pętli odtwarzacza"
+                              title={language === 'pl' ? 'Pobierz punkt A z pętli odtwarzacza' : 'Get point A from player loop'}
                               style={{
                                 padding: '6px 8px',
                                 borderRadius: '6px',
@@ -6558,13 +6777,13 @@ const renderDevicesSection = () => (
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                             {parseTimeToMs(transcodeRangeB) !== null
                               ? formatTimeMs(parseTimeToMs(transcodeRangeB))
-                              : '(Koniec utworu)'}
+                              : (language === 'pl' ? '(Koniec utworu)' : '(End of track)')}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <input
                             type="text"
-                            placeholder="np. 0:40.690, 1:30.000 (lub puste)"
+                            placeholder={language === 'pl' ? 'np. 0:40.690, 1:30.000 (lub puste)' : 'e.g. 0:40.690, 1:30.000 (or empty)'}
                             value={transcodeRangeB}
                             onChange={(e) => {
                               const val = e.target.value;
@@ -6589,7 +6808,7 @@ const renderDevicesSection = () => (
                               setTranscodeRangeB(strB);
                               updateTranscodeOutputFilename(filePath, transcodeFormat, transcodeRangeA, strB, transcodeApplyRange);
                             }}
-                            title="Ustaw na bieżącą pozycję odtwarzacza"
+                            title={language === 'pl' ? 'Ustaw na bieżącą pozycję odtwarzacza' : 'Set to current player position'}
                             style={{
                               padding: '6px 8px',
                               borderRadius: '6px',
@@ -6611,7 +6830,7 @@ const renderDevicesSection = () => (
                                 setTranscodeRangeB(strB);
                                 updateTranscodeOutputFilename(filePath, transcodeFormat, transcodeRangeA, strB, transcodeApplyRange);
                               }}
-                              title="Pobierz punkt B z pętli odtwarzacza"
+                              title={language === 'pl' ? 'Pobierz punkt B z pętli odtwarzacza' : 'Get point B from player loop'}
                               style={{
                                 padding: '6px 8px',
                                 borderRadius: '6px',
@@ -6679,7 +6898,7 @@ const renderDevicesSection = () => (
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          <span>✂️ Eksport: od {formatTimeMs(pA)} do końca utworu</span>
+                          <span>✂️ {language === 'pl' ? `Eksport: od ${formatTimeMs(pA)} do końca utworu` : `Export: from ${formatTimeMs(pA)} to end of track`}</span>
                         </div>
                       );
                     })()}
@@ -6710,6 +6929,89 @@ const renderDevicesSection = () => (
                 <span>{loc.settings.transcodeAutoEnqueue}</span>
               </label>
 
+              {/* Aktywny panel postępu renderowania w tle */}
+              {isTranscoding && (
+                <div
+                  className="glass-card"
+                  style={{
+                    marginTop: '16px',
+                    padding: '16px 20px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(236, 72, 153, 0.12) 100%)',
+                    border: '1px solid var(--accent-pink)',
+                    boxShadow: '0 4px 24px rgba(236, 72, 153, 0.22)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    animation: 'fadeIn 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Loader2 size={18} className="spin" color="var(--accent-pink)" />
+                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#fff' }}>
+                        {language === 'pl' ? 'Renderowanie potoku audio w toku...' : 'Rendering audio in background...'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {Math.floor(transcodeElapsedSeconds / 60)}:{(transcodeElapsedSeconds % 60).toString().padStart(2, '0')}
+                      </span>
+                      <span style={{ fontSize: '0.94rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)' }}>
+                        {transcodeProgress && transcodeProgress.percent > 0 ? `${Math.round(transcodeProgress.percent)}%` : '0%'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Pasek postępu */}
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: transcodeProgress && transcodeProgress.percent > 0
+                          ? `${Math.min(100, Math.max(3, transcodeProgress.percent))}%`
+                          : '12%',
+                        height: '100%',
+                        background: 'linear-gradient(90deg, var(--accent-pink), var(--accent-purple))',
+                        borderRadius: '3px',
+                        transition: 'width 0.2s ease',
+                        boxShadow: '0 0 10px rgba(236, 72, 153, 0.5)',
+                        animation: !transcodeProgress || transcodeProgress.percent === 0 ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                      }}
+                    />
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    {language === 'pl'
+                      ? 'Potok GStreamer przetwarza dźwięk asynchronicznie w tle. Aplikacja nie ulega zamrożeniu — możesz swobodnie słuchać muzyki lub zamknąć to okno.'
+                      : 'GStreamer is rendering audio asynchronously in the background. The app is never blocked — feel free to listen to music or close this window.'}
+                  </p>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="glass-card"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        color: 'var(--accent-cyan)',
+                        border: '1px solid rgba(6, 182, 212, 0.3)',
+                        background: 'rgba(6, 182, 212, 0.08)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <ArrowRight size={13} />
+                      {language === 'pl' ? 'Minimalizuj do tła (Zamknij okno)' : 'Run in background (Close window)'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={handleTranscode}
                 disabled={isTranscoding}
@@ -6735,7 +7037,9 @@ const renderDevicesSection = () => (
               >
                 {isTranscoding && <Loader2 size={18} className="spin" />}
                 {isTranscoding
-                  ? (language === 'pl' ? 'Renderowanie i eksport...' : 'Rendering and exporting...')
+                  ? (language === 'pl'
+                      ? `Renderowanie w tle (${transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0}%)...`
+                      : `Rendering in background (${transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0}%)...`)
                   : loc.settings.exportOpus}
               </button>
 
@@ -7069,7 +7373,7 @@ const renderDevicesSection = () => (
                         {loc.settings.dragDropWallpaper}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                        PNG, JPG, WebP • Kliknij lub przeciągnij plik tutaj
+                        PNG, JPG, WebP • {language === 'pl' ? 'Kliknij lub przeciągnij plik tutaj' : 'Click or drop file here'}
                       </div>
                     </div>
                   </div>
@@ -7543,7 +7847,7 @@ const renderDevicesSection = () => (
             <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem' }}>狐 Kitsune</span>
           </h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
-            {loc.settings.version} {appVersion} „Resonance & Flow” • {loc.settings.author}: Das Letzte Kemonomimi
+            {loc.settings.version} {appVersion} „Resonance & Harmonic Flow” • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
           <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics & real-time pitch/tempo modulation.
@@ -7858,6 +8162,52 @@ const renderDevicesSection = () => (
             >
               {instantVolume ? (currentLang === 'pl' ? '⚡ Natychmiast' : '⚡ Instant') : (currentLang === 'pl' ? '🌊 Płynnie (Fade)' : '🌊 Smooth Fade')}
             </button>
+          </div>
+
+          {/* Jednostka wyświetlania głośności: Procenty vs Decybele */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: '#fff' }}>
+                {loc.settings.volumeUnitTitle}
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {volumeUnit === 'db' ? loc.settings.volumeUnitDb : loc.settings.volumeUnitPercent}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+              <button
+                type="button"
+                onClick={() => handleSetVolumeUnit('percent')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: volumeUnit === 'percent' ? 'var(--accent-pink)' : 'transparent',
+                  color: volumeUnit === 'percent' ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                %
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetVolumeUnit('db')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'transparent',
+                  color: volumeUnit === 'db' ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                dB
+              </button>
+            </div>
           </div>
 
           {/* Pozycja OSD głośności */}
@@ -8185,7 +8535,7 @@ const renderDevicesSection = () => (
                   gap: '6px',
                 }}
               >
-                <span>Zaawansowane (własny Client ID Discorda)</span>
+                <span>{currentLang === 'pl' ? 'Zaawansowane (własny Client ID Discorda)' : 'Advanced (Custom Discord Client ID)'}</span>
               </summary>
               <div style={{ marginTop: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -8647,7 +8997,7 @@ const renderDevicesSection = () => (
                     </label>
                     <input
                       type="text"
-                      placeholder="Domyślny Auralune API Key"
+                      placeholder={currentLang === 'pl' ? 'Domyślny Auralune API Key' : 'Default Auralune API Key'}
                       value={lastfmCustomKey}
                       onChange={(e) => handleSaveLastfmCustomKeys(e.target.value, lastfmCustomSecret)}
                       style={{
@@ -8669,7 +9019,7 @@ const renderDevicesSection = () => (
                     </label>
                     <input
                       type="password"
-                      placeholder="Domyślny Auralune API Secret"
+                      placeholder={currentLang === 'pl' ? 'Domyślny Auralune API Secret' : 'Default Auralune API Secret'}
                       value={lastfmCustomSecret}
                       onChange={(e) => handleSaveLastfmCustomKeys(lastfmCustomKey, e.target.value)}
                       style={{
@@ -8712,11 +9062,13 @@ const renderDevicesSection = () => (
         pitchSemitones={status.pitch_semitones}
         tempoRatio={status.tempo_ratio}
         currentLang={language}
+        volumeUnit={volumeUnit}
         onPlayPause={handlePlayPause}
         onPrev={handlePrevious}
         onNext={handleNext}
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
+        onToggleVolumeUnit={handleToggleVolumeUnit}
         onRestore={toggleMiniPlayer}
       />
     );
@@ -8764,7 +9116,7 @@ const renderDevicesSection = () => (
       />
 
       {/* Ekranowe OSD głośności z konfigurowalnym położeniem */}
-      <VolumeOsd volume={status.volume} position={volumeOsdPosition} />
+      <VolumeOsd volume={status.volume} position={volumeOsdPosition} unit={volumeUnit} />
 
       {/* Efekt otoczenia Anime (Sakura Petals / Neon Rain) */}
       <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} />
@@ -9275,17 +9627,17 @@ const renderDevicesSection = () => (
                 : ambienceMode === 'neon_rain'
                 ? 'Neon 🌧️'
                 : ambienceMode === 'fireflies'
-                ? 'Świetliki ✨'
+                ? (language === 'pl' ? 'Świetliki ✨' : 'Fireflies ✨')
                 : ambienceMode === 'snow'
-                ? 'Śnieg ❄️'
+                ? (language === 'pl' ? 'Śnieg ❄️' : 'Snow ❄️')
                 : ambienceMode === 'meteor_shower'
-                ? 'Meteory 🌠'
+                ? (language === 'pl' ? 'Meteory 🌠' : 'Meteors 🌠')
                 : ambienceMode === 'matrix_rain'
                 ? 'Matrix 🟩'
                 : ambienceMode === 'momiji'
                 ? 'Momiji 🍁'
                 : ambienceMode === 'embers'
-                ? 'Iskry 🔥'
+                ? (language === 'pl' ? 'Iskry 🔥' : 'Embers 🔥')
                 : loc.nav.effects}
             </span>
           </button>
@@ -10112,7 +10464,7 @@ const renderDevicesSection = () => (
                             border: '1px solid rgba(6, 182, 212, 0.4)',
                             cursor: 'pointer',
                           }}
-                          title={`${loc.player.editLoop || 'Edytuj pętlę A-B'} (Kliknij, aby edytować milisekundy)`}
+                          title={`${loc.player.editLoop || (language === 'pl' ? 'Edytuj pętlę A-B' : 'Edit A-B loop')} (${language === 'pl' ? 'Kliknij, aby edytować milisekundy' : 'Click to edit milliseconds'})`}
                         >
                           {loc.player.loopAB}: {formatTimeMs(loopPointA)} → {formatTimeMs(loopPointB)}
                         </span>
@@ -10193,7 +10545,7 @@ const renderDevicesSection = () => (
                           cursor: 'pointer',
                           zIndex: 2,
                         }}
-                        title={`Punkt A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - kliknij, aby edytować`}
+                        title={language === 'pl' ? `Punkt A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - kliknij, aby edytować` : `Point A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - click to edit`}
                       >
                         A
                       </div>
@@ -10216,7 +10568,7 @@ const renderDevicesSection = () => (
                           cursor: 'pointer',
                           zIndex: 2,
                         }}
-                        title={`Punkt B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - kliknij, aby edytować`}
+                        title={language === 'pl' ? `Punkt B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - kliknij, aby edytować` : `Point B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - click to edit`}
                       >
                         B
                       </div>
@@ -10247,7 +10599,7 @@ const renderDevicesSection = () => (
                           gap: '2px',
                           boxShadow: '0 0 8px rgba(251, 191, 36, 0.4)',
                         }}
-                        title={`${(loc.player.bookmarkJump || 'Skocz do zakładki ({0})').replace('{0}', formatTime(currentBookmark))} (Kliknij, aby skoczyć)`}
+                        title={`${(loc.player.bookmarkJump || (language === 'pl' ? 'Skocz do zakładki ({0})' : 'Jump to bookmark ({0})')).replace('{0}', formatTime(currentBookmark))} (${language === 'pl' ? 'Kliknij, aby skoczyć' : 'Click to jump'})`}
                       >
                         <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
                       </div>
@@ -10277,7 +10629,7 @@ const renderDevicesSection = () => (
                             cursor: 'pointer',
                             boxShadow: '0 0 6px rgba(6, 182, 212, 0.9)',
                           }}
-                          title={`📌 ${bm.name} - ${formatTimeMs(bm.position_ms)} (Kliknij, aby skoczyć)`}
+                          title={`📌 ${bm.name} - ${formatTimeMs(bm.position_ms)} (${language === 'pl' ? 'Kliknij, aby skoczyć' : 'Click to jump'})`}
                         />
                       );
                     })}
@@ -10287,6 +10639,13 @@ const renderDevicesSection = () => (
                       max={status.duration_ms || 100}
                       value={status.position_ms}
                       onChange={(e) => handleSeek(Number(e.target.value))}
+                      onPointerUp={(e) => e.currentTarget.blur()}
+                      onMouseUp={(e) => e.currentTarget.blur()}
+                      onKeyDown={(e) => {
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                          e.currentTarget.blur();
+                        }
+                      }}
                       style={{
                         width: '100%',
                         position: 'relative',
@@ -10305,7 +10664,7 @@ const renderDevicesSection = () => (
                     {currentBookmark === null ? (
                       <button
                         onClick={handleSaveBookmark}
-                        title={loc.player.bookmarkDesc || 'Zapisz zakładkę odtwarzania'}
+                        title={loc.player.bookmarkDesc || (language === 'pl' ? 'Zapisz zakładkę odtwarzania' : 'Save playback bookmark')}
                         className="glass-card"
                         style={{
                           padding: '6px 10px',
@@ -10324,7 +10683,7 @@ const renderDevicesSection = () => (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                         <button
                           onClick={handleSaveBookmark}
-                          title={loc.player.bookmarkDesc || 'Zapisz nową zakładkę na bieżącej pozycji'}
+                          title={loc.player.bookmarkDesc || (language === 'pl' ? 'Zapisz nową zakładkę na bieżącej pozycji' : 'Save new bookmark at current position')}
                           className="glass-card"
                           style={{
                             padding: '6px 8px',
@@ -10344,7 +10703,7 @@ const renderDevicesSection = () => (
                         <button
                           onClick={() => handleJumpToBookmark(currentBookmark)}
                           className="glass-card"
-                          title={(loc.player.bookmarkJump || 'Skocz do zakładki ({0})').replace('{0}', formatTime(currentBookmark))}
+                          title={(loc.player.bookmarkJump || (language === 'pl' ? 'Skocz do zakładki ({0})' : 'Jump to bookmark ({0})')).replace('{0}', formatTime(currentBookmark))}
                           style={{
                             padding: '6px 6px',
                             fontSize: '0.72rem',
@@ -10364,7 +10723,7 @@ const renderDevicesSection = () => (
                         <button
                           onClick={handleDeleteBookmark}
                           className="glass-card"
-                          title={loc.player.bookmarkDelete || 'Usuń zakładkę'}
+                          title={loc.player.bookmarkDelete || (language === 'pl' ? 'Usuń zakładkę' : 'Delete bookmark')}
                           style={{
                             padding: '6px 6px',
                             color: '#ff6b81',
@@ -10384,7 +10743,7 @@ const renderDevicesSection = () => (
                     <button
                       onClick={() => setIsBookmarksModalOpen(true)}
                       className="glass-card"
-                      title="Wielopunktowe znaczniki utworu (Cue Points)"
+                      title={language === 'pl' ? 'Wielopunktowe znaczniki utworu (Cue Points)' : 'Track Cue Points / Bookmarks'}
                       style={{
                         padding: '6px 9px',
                         display: 'flex',
@@ -10399,7 +10758,7 @@ const renderDevicesSection = () => (
                       }}
                     >
                       <Bookmark size={13} color="var(--accent-cyan)" />
-                      {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : 'Punkty'}
+                      {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : (language === 'pl' ? 'Punkty' : 'Points')}
                     </button>
 
                     {/* Przyciski Pętli A-B */}
@@ -10417,7 +10776,7 @@ const renderDevicesSection = () => (
                           border: loopPointA !== null ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
                           cursor: 'pointer',
                         }}
-                        title={`${loc.shortcuts.loopA} (Kliknij, aby ustawić punkt A na bieżącej pozycji)`}
+                        title={`${loc.shortcuts.loopA} (${language === 'pl' ? 'Kliknij, aby ustawić punkt A na bieżącej pozycji' : 'Click to set point A at current position'})`}
                       >
                         {loopPointA !== null ? `A: ${formatTimeMs(loopPointA)}` : 'A'}
                       </button>
@@ -10434,7 +10793,7 @@ const renderDevicesSection = () => (
                           border: loopPointB !== null ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
                           cursor: 'pointer',
                         }}
-                        title={`${loc.shortcuts.loopB} (Kliknij, aby ustawić punkt B na bieżącej pozycji)`}
+                        title={`${loc.shortcuts.loopB} (${language === 'pl' ? 'Kliknij, aby ustawić punkt B na bieżącej pozycji' : 'Click to set point B at current position'})`}
                       >
                         {loopPointB !== null ? `B: ${formatTimeMs(loopPointB)}` : 'B'}
                       </button>
@@ -10452,7 +10811,7 @@ const renderDevicesSection = () => (
                           alignItems: 'center',
                           gap: '4px',
                         }}
-                        title={loc.player.editLoop || 'Edytuj zakres pętli w milisekundach (np. 860ms)'}
+                        title={loc.player.editLoop || (language === 'pl' ? 'Edytuj zakres pętli w milisekundach (np. 860ms)' : 'Edit loop range in milliseconds (e.g. 860ms)')}
                       >
                         <Sliders size={12} />
                       </button>
@@ -10679,8 +11038,14 @@ const renderDevicesSection = () => (
                   </div>
 
                   {/* Volume Slider */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {status.volume === 0 ? <VolumeX size={16} color="var(--text-muted)" /> : <Volume2 size={16} color="var(--text-secondary)" />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={handleToggleMute}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                      title={status.volume === 0 ? loc.player.unmute : loc.player.mute}
+                    >
+                      {status.volume === 0 ? <VolumeX size={16} color="var(--text-muted)" /> : <Volume2 size={16} color="var(--text-secondary)" />}
+                    </button>
                     <input
                       type="range"
                       min={0}
@@ -10688,13 +11053,41 @@ const renderDevicesSection = () => (
                       step={0.01}
                       value={status.volume}
                       onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                      onPointerUp={(e) => e.currentTarget.blur()}
+                      onMouseUp={(e) => e.currentTarget.blur()}
+                      onKeyDown={(e) => {
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                          e.currentTarget.blur();
+                        }
+                      }}
                       style={{
-                        width: '130px',
+                        width: '120px',
                         cursor: 'pointer',
                         background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
                       }}
-                      title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
+                      title={`${loc.player.volume}: ${formatVolumeValue(status.volume)} (${Math.round(status.volume * 100)}%)`}
                     />
+                    <button
+                      type="button"
+                      onClick={handleToggleVolumeUnit}
+                      title={language === 'pl' ? 'Kliknij, aby przełączyć jednostkę: % ↔ dB' : 'Click to toggle unit: % ↔ dB'}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '6px',
+                        padding: '2px 6px',
+                        fontSize: '0.74rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        color: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'var(--accent-pink)',
+                        cursor: 'pointer',
+                        minWidth: '52px',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {formatVolumeValue(status.volume)}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -10941,7 +11334,7 @@ const renderDevicesSection = () => (
                 {/* Stop After Current Badge Button (foobar2000 classic) */}
                 <button
                   onClick={handleToggleStopAfterCurrent}
-                  title="Zatrzymaj odtwarzanie po zakończeniu bieżącego utworu (Stop After Current Track — foobar2000)"
+                  title={language === 'pl' ? 'Zatrzymaj odtwarzanie po zakończeniu bieżącego utworu (Stop After Current Track — foobar2000)' : 'Stop playback after current track finishes (Stop After Current Track — foobar2000)'}
                   className="glass-card"
                   style={{
                     padding: '6px 11px',
@@ -11600,6039 +11993,5 @@ const renderDevicesSection = () => (
                             padding: '4px',
                             borderRadius: '6px',
                             display: 'flex',
-                          }}
-                        >
-                          <ChevronUp size={15} />
-                        </button>
-                        <button
-                          disabled={idx === queue.items.length - 1}
-                          onClick={(e) => handleMoveQueueItem(idx, idx + 1, e)}
-                          title={loc.queue.moveDown}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: idx === queue.items.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
-                            cursor: idx === queue.items.length - 1 ? 'default' : 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                          }}
-                        >
-                          <ChevronDown size={15} />
-                        </button>
-                        <button
-                          onClick={(e) => handleOpenContainingFolder(item.uri, e)}
-                          title={loc.queue.openContainingFolder}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            transition: 'color 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-cyan)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-                        >
-                          <FolderOpen size={14} />
-                        </button>
-                        <button
-                          onClick={(e) => handleRemoveFromQueue(item.id, e)}
-                          title={loc.queue.remove}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'rgba(255, 107, 129, 0.7)',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            transition: 'color 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-pink)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255, 107, 129, 0.7)')}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {queueBottomSpacer > 0 && <div style={{ height: `${queueBottomSpacer}px`, pointerEvents: 'none' }} />}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-
-        {/* ZAKŁADKA 2: BIBLIOTEKA (ETAP 2) */}
-        {activeTab === 'library' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: 'min(1500px, 95vw)', margin: '0 auto' }}>
-            {/* Nagłówek biblioteki: tytuł, statystyka i przyciski akcji */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 700 }}>
-                  <Music size={22} color="var(--accent-purple)" /> {loc.library.title}
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      background: 'rgba(168, 85, 247, 0.2)',
-                      color: 'var(--accent-purple)',
-                      border: '1px solid rgba(168, 85, 247, 0.3)',
-                    }}
-                  >
-                    {filteredTracks.length !== tracks.length ? `${filteredTracks.length} / ${tracks.length}` : `${tracks.length} ${loc.library.tracks}`}
-                  </span>
-                </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {loc.library.subtitle}
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => setShowDownloadHub(true)}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, rgba(235, 116, 34, 0.35), rgba(255, 77, 148, 0.25))',
-                    border: '1px solid rgba(235, 116, 34, 0.6)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 10px rgba(235, 116, 34, 0.25)',
-                  }}
-                  title={loc.settings.downloadHubBtn}
-                >
-                  <Download size={15} color="#eb7422" /> {loc.settings.downloadHubBtn}
-                </button>
-
-                <button
-                  onClick={() => setIsUrlImportModalOpen(true)}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.3))',
-                    border: '1px solid #c084fc',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 10px rgba(168, 85, 247, 0.25)',
-                  }}
-                  title="Wklejenie linku (YouTube, SoundCloud itp.), pobranie audio przez yt-dlp z okładką i natychmiastowe zindeksowanie"
-                >
-                  <Globe size={15} color="#d8b4fe" /> Importuj z URL (yt-dlp)
-                </button>
-
-                <button
-                  onClick={handlePickFolder}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(244, 63, 94, 0.25))',
-                    border: '1px solid var(--accent-purple)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 10px rgba(168, 85, 247, 0.25)',
-                  }}
-                  title={loc.library.addFolder}
-                >
-                  <FolderPlus size={15} color="var(--accent-pink)" /> {loc.library.addFolder}
-                </button>
-                <button
-                  onClick={handlePickFiles}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#fff',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid var(--border-subtle)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                  }}
-                  title={loc.library.addFiles}
-                >
-                  <FilePlus size={15} color="var(--accent-cyan)" /> {loc.library.addFiles}
-                </button>
-                <button
-                  onClick={() => setIsScanFolderOpen(!isScanFolderOpen)}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: isScanFolderOpen ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                    border: isScanFolderOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                    background: isScanFolderOpen ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                  }}
-                  title={loc.library.manualPath}
-                >
-                  <FolderOpen size={14} /> {loc.library.manualPath}
-                </button>
-                <button
-                  onClick={loadLibrary}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#fff',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                  }}
-                  title={loc.library.refresh}
-                >
-                  <RefreshCw size={14} /> {loc.library.refresh}
-                </button>
-
-                <button
-                  onClick={() => setIsFacetsFilterEnabled((prev) => !prev)}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: isFacetsFilterEnabled ? '#fff' : 'var(--text-secondary)',
-                    border: isFacetsFilterEnabled ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                    background: isFacetsFilterEnabled ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                    fontSize: '0.8rem',
-                    fontWeight: isFacetsFilterEnabled ? 700 : 500,
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                  }}
-                  title={loc.library.facetsToggle}
-                >
-                  <Layers size={14} color="var(--accent-pink)" /> {loc.library.facetsToggle}
-                </button>
-
-                <button
-                  onClick={() => setIsDuplicateFinderOpen(true)}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                  }}
-                  title={loc.library.duplicateFinder}
-                >
-                  <Copy size={14} color="var(--accent-cyan)" /> {loc.library.duplicateFinder}
-                </button>
-
-                <button
-                  onClick={() => setIsFileRenamerOpen(true)}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                  }}
-                  title={loc.library.fileRenamer}
-                >
-                  <FileEdit size={14} color="#fbbf24" /> {loc.library.fileRenamer}
-                </button>
-              </div>
-            </div>
-
-            {/* Rozwijany panel skanera katalogu (niewidoczny domyślnie, nie marnuje miejsca) */}
-            {isScanFolderOpen && (
-              <div
-                className="glass-card"
-                style={{
-                  padding: '16px 18px',
-                  borderRadius: '14px',
-                  border: '1px solid var(--border-accent)',
-                  marginBottom: '20px',
-                  background: 'rgba(0,0,0,0.4)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    {loc.library.scanPathLabel}
-                  </label>
-                  <button
-                    onClick={() => setIsScanFolderOpen(false)}
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input
-                    type="text"
-                    value={scanFolder}
-                    onChange={(e) => setScanFolder(e.target.value)}
-                    placeholder={loc.library.scanPathPlaceholder}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'rgba(0,0,0,0.3)',
-                      color: '#fff',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.85rem',
-                    }}
-                  />
-                  <button
-                    onClick={handlePickFolder}
-                    className="glass-card"
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--accent-cyan)',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                    }}
-                    title={loc.library.browseDolphinTooltip}
-                  >
-                    <FolderOpen size={15} /> {loc.library.browseDolphin}
-                  </button>
-                  <button
-                    onClick={handleScanLibrary}
-                    disabled={isScanning}
-                    style={{
-                      padding: '8px 18px',
-                      borderRadius: '8px',
-                      background: isScanning ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                      color: '#fff',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: isScanning ? 'default' : 'pointer',
-                      border: 'none',
-                    }}
-                  >
-                    <RefreshCw size={15} className={isScanning ? 'spin' : ''} /> {isScanning ? loc.library.scanning : loc.library.runScan}
-                  </button>
-                </div>
-                {scanResult && (
-                  <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: 'var(--accent-green)' }}>
-                    ✓ {loc.library.scanSummary
-                      .replace('{0}', String(scanResult.total_files_found))
-                      .replace('{1}', String(scanResult.new_or_updated_tracks))
-                      .replace('{2}', String(scanResult.skipped_unchanged))}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Kompaktowe statystyki biblioteki */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '18px' }}>
-              <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Music size={22} color="var(--accent-pink)" />
-                <div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{loc.library.tracks}</span>
-                  <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{tracks.length}</p>
-                </div>
-              </div>
-
-              <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Disc size={22} color="var(--accent-purple)" />
-                <div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{loc.library.albums}</span>
-                  <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{albums.length}</p>
-                </div>
-              </div>
-
-              <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Clock size={22} color="var(--accent-cyan)" />
-                <div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{loc.library.totalDuration}</span>
-                  <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-                    {formatTime(tracks.reduce((acc, t) => acc + t.duration_ms, 0))}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* 3-Kolumnowy panel filtrów fasetowych (foobar2000 Facets) */}
-            {isFacetsFilterEnabled && (
-              <div style={{ marginBottom: '18px' }}>
-                <FacetsFilterPane
-                  tracks={tracks}
-                  albums={albums}
-                  selectedFormat={facetSelectedFormat}
-                  selectedArtist={facetSelectedArtist}
-                  selectedAlbumId={facetSelectedAlbumId}
-                  onSelectFormat={setFacetSelectedFormat}
-                  onSelectArtist={setFacetSelectedArtist}
-                  onSelectAlbumId={setFacetSelectedAlbumId}
-                  onResetAll={() => {
-                    setFacetSelectedFormat(null);
-                    setFacetSelectedArtist(null);
-                    setFacetSelectedAlbumId(null);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Pasek narzędziowy: widoki Utwory/Albumy, Live Search i filtry formatów */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '12px',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                marginBottom: '18px',
-                background: 'rgba(0,0,0,0.2)',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              {/* Przełącznik widoku: Utwory vs Albumy */}
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={() => setLibrarySubView('tracks')}
-                  style={{
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    background: librarySubView === 'tracks' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Music size={14} /> {loc.library.tracks} ({filteredTracks.length})
-                </button>
-                <button
-                  onClick={() => {
-                    setLibrarySubView('albums');
-                    handleBackFromAlbumDetail();
-                  }}
-                  style={{
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    background: librarySubView === 'albums' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Disc size={14} /> {loc.library.albums} ({filteredAlbums.length})
-                </button>
-                <button
-                  onClick={() => setLibrarySubView('artists')}
-                  style={{
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    background: librarySubView === 'artists' ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Mic2 size={14} /> {loc.library.artists || 'Wykonawcy'} ({filteredArtists.length})
-                </button>
-              </div>
-
-              {/* Pole wyszukiwania Live Search */}
-              <div style={{ position: 'relative', flex: '1 1 200px' }}>
-                <Search
-                  size={14}
-                  style={{
-                    position: 'absolute',
-                    left: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-muted)',
-                  }}
-                />
-                <input
-                  ref={librarySearchInputRef}
-                  type="text"
-                  placeholder={loc.library.searchPlaceholder}
-                  value={librarySearch}
-                  onChange={(e) => setLibrarySearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      if (librarySubView === 'tracks' && sortedTracks.length > 0) {
-                        handlePlayLibraryTrack(sortedTracks[0]);
-                        showMessage(`Odtwarzanie ${sortedTracks[0].title}`);
-                      } else if (librarySubView === 'albums' && sortedAlbums.length > 0) {
-                        const albumTracks = tracks.filter((t) => t.album_id === sortedAlbums[0].id);
-                        if (albumTracks.length > 0) {
-                          handlePlayLibraryTrack(albumTracks[0], albumTracks);
-                          showMessage(`Odtwarzanie albumu ${sortedAlbums[0].title}`);
-                        }
-                      }
-                    } else if (e.key === 'Escape') {
-                      setLibrarySearch('');
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '7px 30px 7px 32px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontSize: '0.8rem',
-                  }}
-                />
-                {librarySearch && (
-                  <button
-                    onClick={() => setLibrarySearch('')}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-
-              {/* Filtry formatów audio */}
-              <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                {(['all', 'flac', 'mp3', 'opus', 'wav', 'lossless'] as const).map((fmt) => {
-                  const label =
-                    fmt === 'all'
-                      ? loc.library.all
-                      : fmt === 'lossless'
-                      ? loc.library.lossless
-                      : fmt.toUpperCase();
-                  const isSelected = libraryFormatFilter === fmt;
-                  return (
-                    <button
-                      key={fmt}
-                      onClick={() => setLibraryFormatFilter(fmt)}
-                      style={{
-                        padding: '5px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        background: isSelected ? 'var(--accent-purple)' : 'rgba(255, 255, 255, 0.05)',
-                        color: isSelected ? '#fff' : 'var(--text-secondary)',
-                        border: isSelected ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Kontrola sortowania */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                <ArrowUpDown size={13} color="var(--text-muted)" />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{loc.library.sortBy}</span>
-                <select
-                  value={sortField}
-                  onChange={(e) => setSortField(e.target.value as any)}
-                  style={{
-                    appearance: 'none',
-                    WebkitAppearance: 'none',
-                    padding: '5px 28px 5px 10px',
-                    borderRadius: '6px',
-                    background: 'rgba(20, 24, 44, 0.95)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#ffffff',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  <option value="default" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDefault}</option>
-                  <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortTitle}</option>
-                  <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortArtist}</option>
-                  <option value="duration" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDuration}</option>
-                  <option value="format" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortFormat}</option>
-                  <option value="date" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDate}</option>
-                  <option value="plays" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortPlays}</option>
-                </select>
-                {sortField !== 'default' && (
-                  <button
-                    onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      color: 'var(--accent-cyan)',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                    title={sortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
-                  >
-                    {sortOrder === 'asc' ? '▲' : '▼'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Widok 1: Tabela utworów */}
-            {librarySubView === 'tracks' && (
-              <div>
-                {/* Inteligentne Playlisty (Smart Playlists) */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700 }}>{loc.library.collection}</span>
-                  {[
-                    { id: 'all', label: loc.library.smartAll, icon: Music, color: 'var(--accent-purple)' },
-                    { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, color: 'var(--accent-pink)' },
-                    { id: 'top_rated', label: currentLang === 'pl' ? 'Ocenione (★★★★+)' : 'Top Rated', icon: Star, color: 'var(--accent-amber)' },
-                    { id: 'history', label: loc.library.smartHistory, icon: Clock, color: 'var(--accent-cyan)' },
-                    { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, color: 'var(--accent-amber)' },
-                    { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, color: 'var(--accent-purple)' },
-                    { id: 'high_bpm', label: currentLang === 'pl' ? 'Szybkie tempo (>130 BPM)' : 'Fast (>130 BPM)', icon: Zap, color: 'var(--accent-pink)' },
-                    { id: 'forgotten', label: currentLang === 'pl' ? 'Zapomniane (0 odtworzeń)' : 'Forgotten Gems', icon: Moon, color: 'var(--accent-cyan)' },
-                  ].map((item) => {
-                    const isSelected = smartPlaylistFilter === item.id;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setSmartPlaylistFilter(item.id as any)}
-                        style={{
-                          padding: '5px 12px',
-                          borderRadius: '20px',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          background: isSelected ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                          color: isSelected ? '#fff' : 'var(--text-secondary)',
-                          border: isSelected ? `1px solid ${item.color}` : '1px solid var(--border-subtle)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          boxShadow: isSelected ? `0 0 10px ${item.color}40` : 'none',
-                        }}
-                      >
-                        <Icon size={13} color={isSelected ? item.color : 'var(--text-muted)'} fill={item.id === 'favorites' && isSelected ? item.color : 'none'} />
-                        {item.label}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    onClick={() => setIsCueModalOpen(true)}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: '20px',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      background: 'rgba(168, 85, 247, 0.12)',
-                      color: 'var(--accent-purple, #c084fc)',
-                      border: '1px solid rgba(168, 85, 247, 0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                      marginLeft: 'auto',
-                    }}
-                    title={currentLang === 'pl' ? 'Otwórz arkusz CUE i odtwarzaj wirtualne utwory' : 'Open CUE Sheet'}
-                  >
-                    <FileCode size={13} />
-                    {currentLang === 'pl' ? 'Arkusz CUE' : 'CUE Sheet'}
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {sortedTracks.length !== tracks.length
-                      ? loc.library.resultsCount.replace('{0}', String(sortedTracks.length)).replace('{1}', String(tracks.length))
-                      : loc.library.totalTracksCount.replace('{0}', String(tracks.length))}
-                    {sortField !== 'default' && ` • ${loc.library.sortedBy.replace('{0}', sortField).replace('{1}', sortOrder === 'asc' ? loc.library.sortedAsc : loc.library.sortedDesc)}`}
-                    {smartPlaylistFilter === 'history' && ` • ${loc.library.sortedNewest}`}
-                    {smartPlaylistFilter === 'top_played' && ` • ${loc.library.sortedPlays}`}
-                  </span>
-                  {sortedTracks.length > 0 && (sortField !== 'default' || librarySearch.trim() !== '' || smartPlaylistFilter !== 'all') && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          if (sortedTracks.length > 0) {
-                            handlePlayLibraryTrack(sortedTracks[0], sortedTracks);
-                          }
-                        }}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: '8px',
-                          background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                          color: '#fff',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          border: 'none',
-                        }}
-                      >
-                        <Play size={14} /> {loc.library.playSorted}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (sortedTracks.length > 0) {
-                            await invoke('add_uris_to_queue', { uris: sortedTracks.map((t) => t.path) });
-                            await refreshQueue();
-                            showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sortedTracks.length)));
-                          }
-                        }}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          background: 'rgba(255,255,255,0.08)',
-                          color: 'var(--accent-cyan)',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          cursor: 'pointer',
-                          border: 'none',
-                        }}
-                        title={loc.library.addToQueue}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table ref={libraryTableRef} className="library-track-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                    <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(20, 16, 32, 0.95)', backdropFilter: 'blur(12px)' }}>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', height: '42px' }}>
-                        <th
-                          onClick={() => handleSort('default')}
-                          style={{ width: '46px', padding: '10px 6px', cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
-                          title={loc.library.sortDefaultTooltip}
-                        >
-                          # {sortField === 'default' && '•'}
-                        </th>
-                        <th
-                          onClick={() => handleSort('title')}
-                          style={{ width: '28%', padding: '10px 10px', cursor: 'pointer', userSelect: 'none' }}
-                          title={loc.library.sortTitleTooltip}
-                        >
-                          {loc.library.sortTitle} {sortField === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
-                        </th>
-                        <th
-                          onClick={() => handleSort('artist')}
-                          style={{ width: '20%', padding: '10px 10px', cursor: 'pointer', userSelect: 'none' }}
-                          title={loc.library.sortArtistTooltip}
-                        >
-                          {loc.library.sortArtist} {sortField === 'artist' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
-                        </th>
-                        <th
-                          onClick={() => handleSort('format')}
-                          style={{ width: '110px', padding: '10px 8px', cursor: 'pointer', userSelect: 'none' }}
-                          title={loc.library.sortFormatTooltip}
-                        >
-                          {loc.library.sortFormat} {sortField === 'format' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
-                        </th>
-                        <th style={{ width: '115px', padding: '10px 8px' }}>{loc.library.quality}</th>
-                        <th
-                          onClick={() => handleSort('duration')}
-                          style={{ width: '75px', padding: '10px 8px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
-                          title={loc.library.sortDurationTooltip}
-                        >
-                          {loc.queue.duration} {sortField === 'duration' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
-                        </th>
-                        <th
-                          onClick={() => handleSort('plays')}
-                          style={{ width: '75px', padding: '10px 6px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
-                          title={loc.library.sortPlaysTooltip}
-                        >
-                          {loc.library.playsCol} {sortField === 'plays' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
-                        </th>
-                        <th style={{ width: '95px', padding: '10px 6px', textAlign: 'center' }}>
-                          {currentLang === 'pl' ? 'Ocena' : 'Rating'}
-                        </th>
-                        <th style={{ width: '135px', padding: '10px 6px', textAlign: 'center' }}>{loc.library.actions}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedTracks.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            {tracks.length === 0 ? (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: '14px',
-                                  padding: '24px 12px',
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width: '56px',
-                                    height: '56px',
-                                    borderRadius: '50%',
-                                    background: 'rgba(168, 85, 247, 0.15)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    border: '1px solid var(--accent-purple)',
-                                  }}
-                                >
-                                  <FolderPlus size={28} color="var(--accent-purple)" />
-                                </div>
-                                <div>
-                                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 6px 0', color: '#fff' }}>
-                                    {loc.library.empty}
-                                  </h4>
-                                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-                                    {loc.library.emptyHint}
-                                  </p>
-                                </div>
-                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                  <button
-                                    onClick={handlePickFolder}
-                                    style={{
-                                      padding: '8px 16px',
-                                      borderRadius: '8px',
-                                      background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-                                      color: '#fff',
-                                      fontWeight: 600,
-                                      fontSize: '0.8rem',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                    }}
-                                  >
-                                    <FolderPlus size={14} /> {loc.library.addFolder}...
-                                  </button>
-                                  <button
-                                    onClick={handlePickFiles}
-                                    style={{
-                                      padding: '8px 16px',
-                                      borderRadius: '8px',
-                                      background: 'rgba(255, 255, 255, 0.08)',
-                                      border: '1px solid var(--border-accent)',
-                                      color: '#fff',
-                                      fontWeight: 600,
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                    }}
-                                  >
-                                    <FilePlus size={14} color="var(--accent-cyan)" /> {loc.library.addFiles}...
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                                <span>{loc.library.emptySearchTracks.replace("{0}", librarySearch)}</span>
-                                <button
-                                  onClick={() => setLibrarySearch('')}
-                                  style={{
-                                    padding: '5px 12px',
-                                    borderRadius: '6px',
-                                    background: 'rgba(255, 255, 255, 0.08)',
-                                    border: '1px solid var(--border-subtle)',
-                                    color: 'var(--accent-cyan)',
-                                    fontSize: '0.78rem',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  {loc.library.clearSearch}
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ) : (
-                        <>
-                          {trackTopSpacer > 0 && (
-                            <tr style={{ height: `${trackTopSpacer}px`, pointerEvents: 'none' }}>
-                              <td colSpan={9} style={{ height: `${trackTopSpacer}px`, padding: 0, border: 'none' }} />
-                            </tr>
-                          )}
-                          {sortedTracks.slice(trackStartIndex, trackEndIndex).map((t, localIdx) => {
-                            const idx = trackStartIndex + localIdx;
-                            return (
-                              <tr
-                                key={t.id}
-                                onClick={() => handlePlayLibraryTrack(t)}
-                                className="library-track-row glass-card"
-                                style={{
-                                  cursor: 'pointer',
-                                  background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                                  borderBottom: '1px solid rgba(255,255,255,0.03)',
-                                  height: '48px',
-                                  maxHeight: '48px',
-                                  boxSizing: 'border-box',
-                                }}
-                              >
-                                <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                                  {activeTrackId === t.id && status.state === 'Playing' ? (
-                                    <Zap size={14} color="var(--accent-pink)" />
-                                  ) : (
-                                    t.track_no || idx + 1
-                                  )}
-                                </td>
-                                <td className="library-track-cell" style={{ padding: '0 10px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
-                                  </div>
-                                </td>
-                                <td className="library-track-cell" style={{ padding: '0 10px', color: 'var(--text-secondary)' }} title={t.artist}>
-                                  {t.artist}
-                                </td>
-                            <td className="library-track-cell" style={{ padding: '0 8px' }}>
-                              <span
-                                style={{
-                                  background:
-                                    (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
-                                      ? 'rgba(6, 182, 212, 0.2)'
-                                      : 'rgba(255,255,255,0.08)',
-                                  color:
-                                    (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
-                                      ? 'var(--accent-cyan)'
-                                      : 'inherit',
-                                  padding: '2px 7px',
-                                  borderRadius: '5px',
-                                  fontSize: '0.7rem',
-                                  fontFamily: 'var(--font-mono)',
-                                  fontWeight: 600,
-                                  border:
-                                    (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
-                                      ? '1px solid rgba(6, 182, 212, 0.35)'
-                                      : 'none',
-                                }}
-                              >
-                                {t.format}
-                                {(t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? ' Hi-Res' : ''}
-                              </span>
-                              {t.replaygain_track_gain !== null && t.replaygain_track_gain !== undefined && (
-                                <span
-                                  style={{
-                                    marginLeft: '6px',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                    fontSize: '0.66rem',
-                                    fontFamily: 'var(--font-mono)',
-                                    fontWeight: 700,
-                                    background: 'rgba(168, 85, 247, 0.2)',
-                                    color: 'var(--accent-purple, #c084fc)',
-                                    border: '1px solid rgba(168, 85, 247, 0.4)',
-                                  }}
-                                  title={`ReplayGain: ${t.replaygain_track_gain >= 0 ? '+' : ''}${t.replaygain_track_gain.toFixed(1)} dB (Peak: ${t.replaygain_track_peak ? t.replaygain_track_peak.toFixed(3) : '1.0'})`}
-                                >
-                                  RG {t.replaygain_track_gain >= 0 ? `+${t.replaygain_track_gain.toFixed(1)}` : t.replaygain_track_gain.toFixed(1)}
-                                </span>
-                              )}
-                            </td>
-                            <td className="library-track-cell" style={{ padding: '0 8px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}>
-                              {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
-                            </td>
-                            <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                              {formatTime(t.duration_ms)}
-                            </td>
-                            <td
-                              className="library-track-cell"
-                              style={{ padding: '0 6px', textAlign: 'center' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setStatsModalTrack(t);
-                              }}
-                              title={loc.player.trackStats}
-                            >
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  padding: '3px 8px',
-                                  borderRadius: '12px',
-                                  background: t.play_count ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                                  color: t.play_count ? 'var(--accent-amber)' : 'var(--text-muted)',
-                                  fontWeight: 700,
-                                  fontFamily: 'var(--font-mono)',
-                                  fontSize: '0.74rem',
-                                  cursor: 'pointer',
-                                  border: t.play_count ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid transparent',
-                                  transition: 'all 0.15s ease',
-                                }}
-                              >
-                                <Flame size={12} color={t.play_count ? 'var(--accent-amber)' : 'var(--text-muted)'} />
-                                {t.play_count || 0}
-                              </span>
-                            </td>
-                            <td
-                              className="library-track-cell"
-                              style={{ padding: '0 4px', textAlign: 'center' }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
-                                {[1, 2, 3, 4, 5].map((star) => {
-                                  const active = (t.rating || 0) >= star;
-                                  return (
-                                    <button
-                                      key={star}
-                                      onClick={() => handleSetTrackRating(t.id, t.rating === star ? 0 : star)}
-                                      style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        padding: '1px',
-                                        cursor: 'pointer',
-                                        color: active ? '#f59e0b' : 'rgba(255, 255, 255, 0.15)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        transition: 'transform 0.1s ease',
-                                      }}
-                                      title={currentLang === 'pl' ? `Ocena: ${star}/5` : `Rating: ${star}/5`}
-                                    >
-                                      <Star size={12} fill={active ? '#f59e0b' : 'none'} />
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                            <td className="library-track-cell" style={{ padding: '0 6px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                                <button
-                                  onClick={(e) => handleToggleFavorite(t.id, e)}
-                                  title={t.is_favorite ? loc.library.removeFromFavorites : loc.library.addToFavorites}
-                                  style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: t.is_favorite ? 'var(--accent-pink)' : 'var(--text-muted)',
-                                    cursor: 'pointer',
-                                    padding: '4px',
-                                  }}
-                                >
-                                  <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}
-                                  title={loc.player.play}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <Play size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => handleAddTrackToQueue(t, e)}
-                                  title={loc.library.addToQueue}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <Plus size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
-                                  title={currentLang === 'pl' ? 'Edytor tagów / Właściwości utworu' : 'Tag Editor / Track Properties'}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan, #06b6d4)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <TagIcon size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleScanTrackReplayGain(t); }}
-                                  title={loc.settings.scanReplayGainTrack}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple, #c084fc)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <Activity size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => handleAddTrackNextToQueue(t, e)}
-                                  title={loc.library.playNext}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <ListPlus size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setTrackToAddToPlaylist(t); setShowPlaylistModal(true); }}
-                                  title={loc.library.addToPlaylist}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-amber)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <FolderPlus size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setStatsModalTrack(t); }}
-                                  title={loc.player.trackStats}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-amber)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <BarChart3 size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => handleOpenContainingFolder(t.path, e)}
-                                  title={loc.library.openContainingFolder}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
-                                >
-                                  <FolderOpen size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {trackBottomSpacer > 0 && (
-                        <tr style={{ height: `${trackBottomSpacer}px`, pointerEvents: 'none' }}>
-                          <td colSpan={9} style={{ height: `${trackBottomSpacer}px`, padding: 0, border: 'none' }} />
-                        </tr>
-                      )}
-                    </>
-                  )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Widok 2: Siatka albumów i okładek (Etap 6) lub widok szczegółowy wybranego albumu */}
-            {librarySubView === 'albums' && (
-              selectedAlbumDetail ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                  {/* Pasek nawigacyjny powrotu */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button
-                      onClick={handleBackFromAlbumDetail}
-                      className="glass-card"
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--accent-cyan)',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <ArrowLeft size={16} />
-                      {loc.library.backToAlbums || '← Wróć do wszystkich albumów'}
-                    </button>
-
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {selectedAlbumDetail.title}
-                    </span>
-                  </div>
-
-                  {/* Szczegóły wybranego albumu (Hero Header + Lista utworów) */}
-                  {(() => {
-                    const albumTracks = tracks
-                      .filter((t) => t.album_id === selectedAlbumDetail.id)
-                      .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0));
-                    const totalDurationMs = albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
-                    const uniqueFormats = Array.from(new Set(albumTracks.map((t) => t.format).filter(Boolean)));
-                    const hasHiRes = albumTracks.some((t) => (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200);
-
-                    return (
-                      <>
-                        <div
-                          className="glass-card"
-                          style={{
-                            padding: '24px',
-                            borderRadius: '20px',
-                            display: 'flex',
-                            gap: '24px',
-                            alignItems: 'center',
-                            background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.75), rgba(15, 20, 35, 0.75))',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-                            position: 'relative',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {/* Duża okładka albumu */}
-                          <div
-                            style={{
-                              width: '180px',
-                              height: '180px',
-                              minWidth: '180px',
-                              borderRadius: '16px',
-                              background: selectedAlbumDetail.cover_path
-                                ? `url("${selectedAlbumDetail.cover_path}") center/cover no-repeat`
-                                : 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(6,182,212,0.2))',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '1px solid rgba(255,255,255,0.15)',
-                              boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
-                              position: 'relative',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {!selectedAlbumDetail.cover_path && <Disc size={64} color="rgba(255,255,255,0.3)" />}
-                            <button
-                              onClick={() => handleOpenCoverPicker(selectedAlbumDetail)}
-                              title={loc.covers.matchCover}
-                              style={{
-                                position: 'absolute',
-                                bottom: '8px',
-                                right: '8px',
-                                background: 'rgba(0,0,0,0.75)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                fontSize: '0.7rem',
-                                color: 'var(--accent-pink)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Sparkles size={12} /> {loc.covers.matchCover}
-                            </button>
-                          </div>
-
-                          {/* Metadane albumu */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <span
-                                style={{
-                                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                                  color: '#fff',
-                                  fontSize: '0.68rem',
-                                  fontWeight: 700,
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.05em',
-                                }}
-                              >
-                                ALBUM
-                              </span>
-                              {hasHiRes && (
-                                <span
-                                  style={{
-                                    background: 'rgba(6, 182, 212, 0.2)',
-                                    border: '1px solid var(--accent-cyan)',
-                                    color: 'var(--accent-cyan)',
-                                    fontSize: '0.68rem',
-                                    fontWeight: 700,
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
-                                  }}
-                                >
-                                  HI-RES AUDIO
-                                </span>
-                              )}
-                              {uniqueFormats.map((fmt) => (
-                                <span
-                                  key={fmt}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.08)',
-                                    color: 'var(--text-muted)',
-                                    fontSize: '0.68rem',
-                                    fontFamily: 'var(--font-mono)',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                  }}
-                                >
-                                  {fmt}
-                                </span>
-                              ))}
-                              {selectedAlbumDetail.release_mbid && (
-                                <span
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    fontFamily: 'var(--font-mono)',
-                                    color: 'var(--accent-cyan)',
-                                    background: 'rgba(6,182,212,0.12)',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                  }}
-                                >
-                                  MBID: {selectedAlbumDetail.release_mbid.slice(0, 8)}...
-                                </span>
-                              )}
-                            </div>
-
-                            <h2
-                              style={{
-                                margin: 0,
-                                fontSize: '1.8rem',
-                                fontWeight: 800,
-                                color: '#fff',
-                                lineHeight: 1.2,
-                                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-                              }}
-                            >
-                              {selectedAlbumDetail.title}
-                            </h2>
-
-                            <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--accent-pink)' }}>
-                              {selectedAlbumDetail.album_artist}
-                              {selectedAlbumDetail.year ? ` • ${selectedAlbumDetail.year}` : ''}
-                            </p>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <Music size={14} color="var(--accent-cyan)" /> {albumTracks.length} {loc.library.tracks}
-                              </span>
-                              <span>•</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <Clock size={14} color="var(--text-muted)" /> {formatTime(totalDurationMs)}
-                              </span>
-                            </div>
-
-                            {/* Przyciski akcji na albumie */}
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                              <button
-                                onClick={() => {
-                                  if (albumTracks.length > 0) {
-                                    handlePlayAlbum(albumTracks, 0);
-                                  }
-                                }}
-                                disabled={albumTracks.length === 0}
-                                style={{
-                                  padding: '9px 18px',
-                                  borderRadius: '10px',
-                                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                                  color: '#fff',
-                                  fontSize: '0.85rem',
-                                  fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '7px',
-                                  cursor: albumTracks.length === 0 ? 'default' : 'pointer',
-                                  border: 'none',
-                                  boxShadow: '0 4px 14px rgba(236, 72, 153, 0.4)',
-                                }}
-                              >
-                                <Play size={16} fill="#fff" /> {loc.player.play} od początku
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (albumTracks.length > 0) {
-                                    await invoke('add_uris_to_queue', { uris: albumTracks.map((t) => t.path) });
-                                    await refreshQueue();
-                                    showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(albumTracks.length)));
-                                  }
-                                }}
-                                disabled={albumTracks.length === 0}
-                                className="glass-card"
-                                style={{
-                                  padding: '9px 16px',
-                                  borderRadius: '10px',
-                                  background: 'rgba(255,255,255,0.08)',
-                                  color: 'var(--accent-cyan)',
-                                  fontSize: '0.85rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '7px',
-                                  cursor: albumTracks.length === 0 ? 'default' : 'pointer',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                }}
-                                title={loc.library.addToQueue}
-                              >
-                                <Plus size={16} /> Dodaj cały album do kolejki
-                              </button>
-                              <button
-                                onClick={() => handleOpenCoverPicker(selectedAlbumDetail)}
-                                className="glass-card"
-                                style={{
-                                  padding: '9px 14px',
-                                  borderRadius: '10px',
-                                  background: 'rgba(255,255,255,0.05)',
-                                  color: '#fff',
-                                  fontSize: '0.82rem',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  cursor: 'pointer',
-                                  border: '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                <Sparkles size={15} color="var(--accent-pink)" /> {loc.covers.matchCover}
-                              </button>
-                              {albumTracks.length > 0 && (
-                                <button
-                                  onClick={(e) => handleOpenContainingFolder(albumTracks[0].path, e)}
-                                  className="glass-card"
-                                  style={{
-                                    padding: '9px 14px',
-                                    borderRadius: '10px',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    color: 'var(--text-muted)',
-                                    fontSize: '0.82rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    cursor: 'pointer',
-                                    border: '1px solid rgba(255,255,255,0.08)',
-                                  }}
-                                  title={loc.library.openContainingFolder}
-                                >
-                                  <FolderOpen size={15} color="var(--accent-cyan)" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Tabela utworów wybranego albumu */}
-                        <div style={{ overflowX: 'auto', marginTop: '10px' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                                <th style={{ padding: '10px 12px', width: '45px' }}>#</th>
-                                <th style={{ padding: '10px 12px' }}>{loc.library.sortTitle}</th>
-                                <th style={{ padding: '10px 12px' }}>{loc.library.sortArtist}</th>
-                                <th style={{ padding: '10px 12px' }}>Format</th>
-                                <th style={{ padding: '10px 12px', textAlign: 'right' }}>{loc.queue.duration}</th>
-                                <th style={{ padding: '10px 12px', textAlign: 'center', width: '160px' }}>Akcje</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {albumTracks.length === 0 ? (
-                                <tr>
-                                  <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                    Brak utworów przypisanych do tego albumu w bibliotece.
-                                  </td>
-                                </tr>
-                              ) : (
-                                albumTracks.map((t, idx) => (
-                                  <tr
-                                    key={t.id}
-                                    onClick={() => handlePlayLibraryTrack(t, albumTracks)}
-                                    className="glass-card"
-                                    style={{
-                                      cursor: 'pointer',
-                                      background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                                      borderBottom: '1px solid rgba(255,255,255,0.03)',
-                                      height: '48px',
-                                      transition: 'background 0.15s ease',
-                                    }}
-                                  >
-                                    <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                      {activeTrackId === t.id && status.state === 'Playing' ? (
-                                        <Zap size={14} color="var(--accent-pink)" />
-                                      ) : (
-                                        t.track_no ? (t.disc_no && t.disc_no > 1 ? `${t.disc_no}.${t.track_no}` : t.track_no) : idx + 1
-                                      )}
-                                    </td>
-                                    <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff', maxWidth: '340px' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
-                                      </div>
-                                    </td>
-                                    <td style={{ padding: '12px', color: 'var(--text-secondary)', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.artist}>
-                                      {t.artist}
-                                    </td>
-                                    <td style={{ padding: '12px' }}>
-                                      <span
-                                        style={{
-                                          background: (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.08)',
-                                          color: (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'var(--accent-cyan)' : 'inherit',
-                                          padding: '2px 7px',
-                                          borderRadius: '5px',
-                                          fontSize: '0.7rem',
-                                          fontFamily: 'var(--font-mono)',
-                                          fontWeight: 600,
-                                          border: (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? '1px solid rgba(6, 182, 212, 0.4)' : 'none',
-                                        }}
-                                      >
-                                        {t.format}
-                                        {t.bit_depth && t.bit_depth >= 24 ? ` ${t.bit_depth}b` : ''}
-                                      </span>
-                                    </td>
-                                    <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                                      {formatTime(t.duration_ms)}
-                                    </td>
-                                    <td style={{ padding: '12px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                        <button
-                                          onClick={(e) => handleToggleFavorite(t.id, e)}
-                                          title={t.is_favorite ? loc.library.removeFromFavorites : loc.library.addToFavorites}
-                                          style={{ background: 'transparent', border: 'none', color: t.is_favorite ? 'var(--accent-pink)' : 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                                        >
-                                          <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
-                                        </button>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t, albumTracks); }}
-                                          title={loc.player.play}
-                                          style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
-                                        >
-                                          <Play size={15} />
-                                        </button>
-                                        <button
-                                          onClick={(e) => handleAddTrackToQueue(t, e)}
-                                          title={loc.library.addToQueue}
-                                          style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
-                                        >
-                                          <Plus size={15} />
-                                        </button>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
-                                          title="Edytor tagów"
-                                          style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
-                                        >
-                                          <TagIcon size={15} />
-                                        </button>
-                                        <button
-                                          onClick={(e) => handleOpenContainingFolder(t.path, e)}
-                                          title={loc.library.openContainingFolder}
-                                          style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
-                                        >
-                                          <FolderOpen size={15} />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <div>
-                <div>
-                  {/* Pasek narzędziowy widoku albumów: Filtry, Sortowanie, Rozmiar kafelków, Przełącznik Kafelki/Lista */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '16px',
-                      flexWrap: 'wrap',
-                      gap: '12px',
-                      padding: '10px 14px',
-                      background: 'rgba(255, 255, 255, 0.025)',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    {/* Lewa strona: Licznik albumów + szybki filtr okładek */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700 }}>
-                        {sortedAlbums.length !== albums.length
-                          ? loc.library.resultsAlbums.replace('{0}', String(sortedAlbums.length)).replace('{1}', String(albums.length))
-                          : loc.library.totalAlbums.replace('{0}', String(albums.length))}
-                      </span>
-
-                      {/* Filtr okładek */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          padding: '3px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        {[
-                          { id: 'all', label: language === 'pl' ? `Wszystkie (${albums.length})` : `All (${albums.length})` },
-                          { id: 'with-cover', label: language === 'pl' ? `Z okładką (${albumsWithCoverCount})` : `With cover (${albumsWithCoverCount})` },
-                          { id: 'missing-cover', label: language === 'pl' ? `Bez okładki (${albumsWithoutCoverCount})` : `Missing (${albumsWithoutCoverCount})` },
-                        ].map((f) => {
-                          const isActive = albumCoverFilter === f.id;
-                          return (
-                            <button
-                              key={f.id}
-                              onClick={() => setAlbumCoverFilter(f.id as any)}
-                              style={{
-                                padding: '3px 9px',
-                                borderRadius: '6px',
-                                fontSize: '0.70rem',
-                                fontWeight: isActive ? 700 : 500,
-                                background: isActive ? 'rgba(236, 72, 153, 0.22)' : 'transparent',
-                                border: isActive ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                                color: isActive ? 'var(--accent-pink)' : 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                              }}
-                            >
-                              {f.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Prawa strona: Sortowanie + Rozmiar kafelków + Wybór Kafelki / Lista */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      {/* Sortowanie */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <ArrowUpDown size={13} color="var(--text-muted)" />
-                        <select
-                          value={albumSortField}
-                          onChange={(e) => setAlbumSortField(e.target.value as any)}
-                          style={{
-                            appearance: 'none',
-                            WebkitAppearance: 'none',
-                            padding: '5px 28px 5px 10px',
-                            borderRadius: '6px',
-                            background: 'rgba(20, 24, 44, 0.95)',
-                            border: '1px solid var(--border-subtle)',
-                            color: '#ffffff',
-                            fontSize: '0.74rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 8px center',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                          }}
-                        >
-                          <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortTitle}</option>
-                          <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortArtist}</option>
-                          <option value="year" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortYear}</option>
-                          <option value="tracks" style={{ background: '#121424', color: '#fff' }}>{language === 'pl' ? 'Liczba utworów' : 'Track count'}</option>
-                          <option value="duration" style={{ background: '#121424', color: '#fff' }}>{language === 'pl' ? 'Czas trwania' : 'Total duration'}</option>
-                        </select>
-                        <button
-                          onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                          style={{
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            padding: '4px 8px',
-                            color: 'var(--accent-cyan)',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                          title={albumSortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
-                        >
-                          {albumSortOrder === 'asc' ? '▲' : '▼'}
-                        </button>
-                      </div>
-
-                      <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
-
-                      {/* Rozmiar kafelków (widoczny w trybie kafelków) */}
-                      {albumViewMode === 'grid' && (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            padding: '2px 4px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-subtle)',
-                          }}
-                        >
-                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginRight: '2px', paddingLeft: '4px' }}>
-                            {language === 'pl' ? 'Rozmiar:' : 'Size:'}
-                          </span>
-                          {[
-                            { id: 'compact', label: 'S (160px)', title: language === 'pl' ? 'Kompaktowe kafelki' : 'Small tiles' },
-                            { id: 'medium', label: 'M (210px)', title: language === 'pl' ? 'Średnie kafelki' : 'Medium tiles' },
-                            { id: 'large', label: 'L (270px)', title: language === 'pl' ? 'Duże kafelki' : 'Large tiles' },
-                          ].map((s) => {
-                            const isCur = albumGridSize === s.id;
-                            return (
-                              <button
-                                key={s.id}
-                                onClick={() => {
-                                  setAlbumGridSize(s.id as any);
-                                  localStorage.setItem('auralune_album_grid_size', s.id);
-                                }}
-                                style={{
-                                  padding: '3px 8px',
-                                  borderRadius: '5px',
-                                  fontSize: '0.70rem',
-                                  fontWeight: isCur ? 700 : 500,
-                                  background: isCur ? 'rgba(56, 189, 248, 0.22)' : 'transparent',
-                                  border: isCur ? '1px solid var(--accent-cyan)' : '1px solid transparent',
-                                  color: isCur ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                                  cursor: 'pointer',
-                                }}
-                                title={s.title}
-                              >
-                                {s.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Przełącznik widoku: Kafelki vs Lista */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          padding: '2px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <button
-                          onClick={() => {
-                            setAlbumViewMode('grid');
-                            localStorage.setItem('auralune_album_view_mode', 'grid');
-                          }}
-                          style={{
-                            padding: '5px 9px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '0.72rem',
-                            fontWeight: albumViewMode === 'grid' ? 700 : 500,
-                            background: albumViewMode === 'grid' ? 'rgba(236, 72, 153, 0.25)' : 'transparent',
-                            border: albumViewMode === 'grid' ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                            color: albumViewMode === 'grid' ? 'var(--accent-pink)' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                          }}
-                          title={language === 'pl' ? 'Widok kafelków' : 'Grid View'}
-                        >
-                          <LayoutGrid size={13} />
-                          <span>{language === 'pl' ? 'Kafelki' : 'Grid'}</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setAlbumViewMode('list');
-                            localStorage.setItem('auralune_album_view_mode', 'list');
-                          }}
-                          style={{
-                            padding: '5px 9px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '0.72rem',
-                            fontWeight: albumViewMode === 'list' ? 700 : 500,
-                            background: albumViewMode === 'list' ? 'rgba(236, 72, 153, 0.25)' : 'transparent',
-                            border: albumViewMode === 'list' ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                            color: albumViewMode === 'list' ? 'var(--accent-pink)' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                          }}
-                          title={language === 'pl' ? 'Widok listy' : 'List View'}
-                        >
-                          <List size={13} />
-                          <span>{language === 'pl' ? 'Lista' : 'List'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Zawartość: Pusta lista lub Kafelki lub Lista */}
-                  {sortedAlbums.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-                      {albums.length === 0 ? (
-                        <span>{loc.library.emptyAlbums}</span>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                          <span>{loc.library.emptySearchAlbums.replace('{0}', librarySearch)}</span>
-                          <button
-                            onClick={() => {
-                              setLibrarySearch('');
-                              setAlbumCoverFilter('all');
-                            }}
-                            style={{
-                              padding: '5px 12px',
-                              borderRadius: '6px',
-                              background: 'rgba(255, 255, 255, 0.08)',
-                              border: '1px solid var(--border-subtle)',
-                              color: 'var(--accent-cyan)',
-                              fontSize: '0.78rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {loc.library.clearSearch}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : albumViewMode === 'list' ? (
-                    /* WIDOK LISTY ALBUMÓW */
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {sortedAlbums.map((album) => {
-                        const albumTracks = tracks.filter((t) => t.album_id === album.id);
-                        const totalDurMs = albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
-                        const durText = formatAlbumDuration(totalDurMs);
-
-                        return (
-                          <div
-                            key={album.id}
-                            className="glass-card"
-                            onClick={() => handleOpenAlbumDetail(album)}
-                            style={{
-                              padding: '10px 16px',
-                              borderRadius: '12px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '16px',
-                              cursor: 'pointer',
-                              border: '1px solid rgba(255, 255, 255, 0.05)',
-                              transition: 'all 0.18s ease',
-                            }}
-                          >
-                            {/* Miniaturka okładki */}
-                            <div
-                              style={{
-                                width: '52px',
-                                height: '52px',
-                                borderRadius: '8px',
-                                background: album.cover_path
-                                  ? `url("${album.cover_path}") center/cover no-repeat`
-                                  : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: '1px solid var(--border-subtle)',
-                                flexShrink: 0,
-                                position: 'relative',
-                              }}
-                              title={loc.covers.matchCoverTitle}
-                            >
-                              {!album.cover_path && <Disc size={24} color="rgba(255,255,255,0.25)" />}
-                            </div>
-
-                            {/* Informacje o albumie */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {album.title}
-                                </span>
-                                {album.year && (
-                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                    ({album.year})
-                                  </span>
-                                )}
-                                {album.release_mbid && (
-                                  <span
-                                    style={{
-                                      fontSize: '0.64rem',
-                                      fontFamily: 'var(--font-mono)',
-                                      color: 'var(--accent-cyan)',
-                                      background: 'rgba(6,182,212,0.12)',
-                                      padding: '1px 5px',
-                                      borderRadius: '4px',
-                                    }}
-                                  >
-                                    MBID
-                                  </span>
-                                )}
-                              </div>
-                              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '3px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {album.album_artist}
-                              </p>
-                            </div>
-
-                            {/* Liczba utworów i czas */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                              <span
-                                style={{
-                                  fontSize: '0.72rem',
-                                  color: 'var(--accent-cyan)',
-                                  background: 'rgba(6,182,212,0.12)',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {albumTracks.length} {loc.library.tracks}
-                              </span>
-                              {durText && (
-                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <Clock size={11} /> {durText}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Przyciski akcji */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => handlePlayAlbum(albumTracks)}
-                                style={{
-                                  padding: '6px 12px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(255,255,255,0.08)',
-                                  color: 'var(--accent-pink)',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.player.play}
-                              >
-                                <Play size={12} /> {loc.player.play}
-                              </button>
-                              <button
-                                onClick={() => handleAddAlbumToQueue(albumTracks)}
-                                style={{
-                                  padding: '6px 9px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(255,255,255,0.05)',
-                                  color: 'var(--accent-cyan)',
-                                  fontSize: '0.75rem',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.library.addToQueue}
-                              >
-                                <Plus size={13} />
-                              </button>
-                              <button
-                                onClick={() => handleOpenCoverPicker(album)}
-                                style={{
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                                  color: '#fff',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.covers.matchCoverTitle}
-                              >
-                                <Sparkles size={11} /> {loc.covers.matchCover}
-                              </button>
-                              <button
-                                onClick={() => handleOpenMbModal(album)}
-                                style={{
-                                  padding: '6px 9px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(255,255,255,0.06)',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.covers.matchCoverTitle}
-                              >
-                                <Search size={11} /> MBID
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    /* WIDOK KAFELKÓW (Zabezpieczony przed rozciąganiem - auto-fill z limitem max-width) */
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns:
-                          albumGridSize === 'compact'
-                            ? 'repeat(auto-fill, minmax(155px, 190px))'
-                            : albumGridSize === 'large'
-                            ? 'repeat(auto-fill, minmax(240px, 290px))'
-                            : 'repeat(auto-fill, minmax(190px, 235px))',
-                        gap: albumGridSize === 'compact' ? '12px' : albumGridSize === 'large' ? '18px' : '14px',
-                      }}
-                    >
-                      {sortedAlbums.map((album) => {
-                        const albumTracks = tracks.filter((t) => t.album_id === album.id);
-                        const totalDurMs = albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
-                        const durText = formatAlbumDuration(totalDurMs);
-
-                        return (
-                          <div
-                            key={album.id}
-                            className="glass-card"
-                            onClick={() => handleOpenAlbumDetail(album)}
-                            style={{
-                              padding: albumGridSize === 'compact' ? '10px' : '14px',
-                              borderRadius: '14px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: albumGridSize === 'compact' ? '8px' : '10px',
-                              cursor: 'pointer',
-                              transition: 'transform 0.18s ease, border-color 0.18s ease',
-                              border: '1px solid rgba(255,255,255,0.06)',
-                              maxWidth: albumGridSize === 'compact' ? '200px' : albumGridSize === 'large' ? '300px' : '245px',
-                            }}
-                          >
-                            {/* Podgląd okładki (z przyciskiem dopasowania w rogu) */}
-                            <div
-                              style={{
-                                width: '100%',
-                                aspectRatio: '1/1',
-                                borderRadius: '10px',
-                                background: album.cover_path
-                                  ? `url("${album.cover_path}") center/cover no-repeat`
-                                  : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: '1px solid var(--border-subtle)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                              }}
-                              title={language === 'pl' ? 'Kliknij, aby otworzyć utwory albumu' : 'Click to view album tracks'}
-                            >
-                              {!album.cover_path && <Disc size={albumGridSize === 'compact' ? 36 : 46} color="rgba(255,255,255,0.25)" />}
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenCoverPicker(album);
-                                }}
-                                style={{
-                                  position: 'absolute',
-                                  bottom: '5px',
-                                  right: '5px',
-                                  background: 'rgba(0,0,0,0.7)',
-                                  backdropFilter: 'blur(4px)',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.64rem',
-                                  color: 'var(--accent-pink)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  cursor: 'pointer',
-                                  fontWeight: 600,
-                                }}
-                                title={loc.covers.matchCoverTitle}
-                              >
-                                <Sparkles size={10} /> {loc.covers.matchCover}
-                              </div>
-                            </div>
-
-                            {/* Tytuł i wykonawca */}
-                            <div style={{ flex: 1 }}>
-                              <h4
-                                style={{
-                                  fontSize: albumGridSize === 'compact' ? '0.84rem' : '0.90rem',
-                                  fontWeight: 700,
-                                  color: 'var(--text-primary)',
-                                  margin: 0,
-                                  lineHeight: 1.3,
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                }}
-                                title={album.title}
-                              >
-                                {album.title}
-                              </h4>
-                              <p
-                                style={{
-                                  fontSize: '0.75rem',
-                                  color: 'var(--text-secondary)',
-                                  margin: '3px 0 0 0',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {album.album_artist} {album.year ? `(${album.year})` : ''}
-                              </p>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px', flexWrap: 'wrap' }}>
-                                <span
-                                  style={{
-                                    fontSize: '0.66rem',
-                                    color: 'var(--accent-cyan)',
-                                    background: 'rgba(6,182,212,0.12)',
-                                    padding: '1px 5px',
-                                    borderRadius: '4px',
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {albumTracks.length} {loc.library.tracks}
-                                </span>
-                                {durText && (
-                                  <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
-                                    {durText}
-                                  </span>
-                                )}
-                                {album.release_mbid && (
-                                  <span
-                                    style={{
-                                      fontSize: '0.62rem',
-                                      fontFamily: 'var(--font-mono)',
-                                      color: 'var(--text-muted)',
-                                      background: 'rgba(255,255,255,0.06)',
-                                      padding: '1px 4px',
-                                      borderRadius: '4px',
-                                    }}
-                                  >
-                                    MBID
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Przyciski akcji na kafelku */}
-                            <div style={{ display: 'flex', gap: '6px', marginTop: 'auto' }} onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => handlePlayAlbum(albumTracks)}
-                                style={{
-                                  padding: albumGridSize === 'compact' ? '6px 8px' : '7px 9px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(255,255,255,0.08)',
-                                  color: 'var(--accent-pink)',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.player.play}
-                              >
-                                <Play size={11} /> {loc.player.play}
-                              </button>
-                              <button
-                                onClick={() => handleAddAlbumToQueue(albumTracks)}
-                                style={{
-                                  padding: albumGridSize === 'compact' ? '6px 7px' : '7px 8px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(255,255,255,0.05)',
-                                  color: 'var(--accent-cyan)',
-                                  fontSize: '0.72rem',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.library.addToQueue}
-                              >
-                                <Plus size={12} />
-                              </button>
-                              <button
-                                onClick={() => handleOpenCoverPicker(album)}
-                                style={{
-                                  flex: 1,
-                                  padding: albumGridSize === 'compact' ? '6px 6px' : '7px 8px',
-                                  borderRadius: '6px',
-                                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                                  color: '#fff',
-                                  fontSize: '0.70rem',
-                                  fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '3px',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                }}
-                                title={loc.covers.matchCoverTitle}
-                              >
-                                <Sparkles size={11} />
-                                {albumGridSize !== 'compact' && <span>{loc.covers.matchCover}</span>}
-                              </button>
-                              <button
-                                onClick={() => handleOpenMbModal(album)}
-                                style={{
-                                  padding: albumGridSize === 'compact' ? '6px 7px' : '7px 8px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(255,255,255,0.07)',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.70rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '2px',
-                                  cursor: 'pointer',
-                                }}
-                                title={loc.covers.matchCoverTitle}
-                              >
-                                <Search size={11} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-            </div>
-              )
-            )}
-
-          {/* Widok 3: Wykonawcy / Artyści */}
-          {librarySubView === 'artists' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {filteredArtists.length !== new Set(tracks.map((t) => t.artist || loc.stats.unknownArtist)).size
-                    ? loc.library.resultsArtists.replace('{0}', String(filteredArtists.length))
-                    : loc.library.totalArtists.replace('{0}', String(filteredArtists.length))}
-                </span>
-              </div>
-
-              {filteredArtists.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-                  <span>{loc.library.emptySearchArtists.replace("{0}", librarySearch)}</span>
-                  {librarySearch && (
-                    <div style={{ marginTop: '12px' }}>
-                      <button
-                        onClick={() => setLibrarySearch('')}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: '8px',
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid var(--border-subtle)',
-                          color: 'var(--accent-cyan)',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {loc.library.clearSearch}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                  {filteredArtists.map((artist) => (
-                    <div
-                      key={artist.name}
-                      className="glass-card"
-                      style={{
-                        padding: '16px',
-                        borderRadius: '16px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                        transition: 'transform 0.2s ease, border-color 0.2s ease',
-                        position: 'relative',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div
-                          style={{
-                            width: '64px',
-                            height: '64px',
-                            borderRadius: '50%',
-                            background: artist.sampleCover
-                              ? `url("${artist.sampleCover}") center/cover no-repeat`
-                              : 'linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(168, 85, 247, 0.25))',
-                            border: '2px solid rgba(236, 72, 153, 0.4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            boxShadow: '0 4px 14px rgba(236, 72, 153, 0.2)',
-                          }}
-                        >
-                          {!artist.sampleCover && <Mic2 size={26} color="var(--accent-pink)" />}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <h4
-                            style={{
-                              fontSize: '1rem',
-                              fontWeight: 700,
-                              color: '#fff',
-                              margin: 0,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                            title={artist.name}
-                          >
-                            {artist.name}
-                          </h4>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-                            <span
-                              style={{
-                                fontSize: '0.7rem',
-                                padding: '2px 7px',
-                                borderRadius: '6px',
-                                background: 'rgba(255,255,255,0.06)',
-                                color: 'var(--text-secondary)',
-                              }}
-                            >
-                              {loc.library.artistTracksCount.replace('{0}', String(artist.tracks.length))}
-                            </span>
-                            {artist.albumIds.size > 0 && (
-                              <span
-                                style={{
-                                  fontSize: '0.7rem',
-                                  padding: '2px 7px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(168, 85, 247, 0.12)',
-                                  color: 'var(--accent-purple)',
-                                }}
-                              >
-                                {loc.library.artistAlbumsCount.replace('{0}', String(artist.albumIds.size))}
-                              </span>
-                            )}
-                            {artist.totalPlays > 0 && (
-                              <span
-                                style={{
-                                  fontSize: '0.7rem',
-                                  padding: '2px 7px',
-                                  borderRadius: '6px',
-                                  background: 'rgba(236, 72, 153, 0.15)',
-                                  color: 'var(--accent-pink)',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                }}
-                              >
-                                <Flame size={10} /> {artist.totalPlays}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
-                        <button
-                          onClick={() => {
-                            const sorted = [...artist.tracks].sort(
-                              (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
-                            );
-                            if (sorted.length > 0) {
-                              handlePlayLibraryTrack(sorted[0], sorted);
-                            }
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                            color: '#fff',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(236, 72, 153, 0.3)',
-                          }}
-                        >
-                          <Play size={13} fill="#fff" /> {loc.player.play}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const sorted = [...artist.tracks].sort(
-                              (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
-                            );
-                            if (sorted.length > 0) {
-                              await invoke('add_uris_to_queue', { uris: sorted.map((t) => t.path) });
-                              await refreshQueue();
-                              showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sorted.length)));
-                            }
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            background: 'rgba(255,255,255,0.08)',
-                            color: 'var(--accent-cyan)',
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                            border: 'none',
-                          }}
-                          title={loc.library.addToQueue}
-                        >
-                          <Plus size={13} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setLibrarySearch(artist.name);
-                            setLibrarySubView('tracks');
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--accent-cyan)',
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            cursor: 'pointer',
-                          }}
-                          title={currentLang === 'pl' ? 'Filtruj utwory tego wykonawcy' : 'Filter tracks by this artist'}
-                        >
-                          <ListMusic size={13} /> Utwory
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Modal dopasowywania wydań MusicBrainz (Etap 6) */}
-          {selectedAlbumForMb && (
-              <div
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  background: 'rgba(0,0,0,0.7)',
-                  backdropFilter: 'blur(8px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 100,
-                  padding: '20px',
-                }}
-              >
-                <div
-                  className="glass-panel"
-                  style={{
-                    width: '100%',
-                    maxWidth: '680px',
-                    maxHeight: '85vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '24px',
-                    borderRadius: '20px',
-                    border: '1px solid var(--border-accent)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Globe size={22} color="var(--accent-cyan)" />
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                        Dopasowanie wydania w MusicBrainz
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setSelectedAlbumForMb(null)}
-                      style={{
-                        background: 'transparent',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                    {loc.covers.mbSubtitle}
-                  </p>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginBottom: '16px' }}>
-                    <input
-                      type="text"
-                      value={mbSearchTitle}
-                      onChange={(e) => setMbSearchTitle(e.target.value)}
-                      placeholder={loc.covers.searchAlbumPlaceholder}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        background: 'rgba(0,0,0,0.3)',
-                        border: '1px solid var(--border-subtle)',
-                        color: '#fff',
-                        fontSize: '0.85rem',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      value={mbSearchArtist}
-                      onChange={(e) => setMbSearchArtist(e.target.value)}
-                      placeholder={loc.covers.searchArtistPlaceholder}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        background: 'rgba(0,0,0,0.3)',
-                        border: '1px solid var(--border-subtle)',
-                        color: '#fff',
-                        fontSize: '0.85rem',
-                      }}
-                    />
-                    <button
-                      onClick={handleSearchMusicBrainz}
-                      disabled={isSearchingMb}
-                      style={{
-                        padding: '10px 18px',
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        color: '#fff',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <Search size={15} />
-                      {isSearchingMb ? loc.covers.searching : loc.covers.searchBtn}
-                    </button>
-                  </div>
-
-                  {/* Lista kandydatów */}
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {mbCandidates.length === 0 && !isSearchingMb && (
-                      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '24px' }}>
-                        {loc.covers.mbSearchHint}
-                      </p>
-                    )}
-
-                    {mbCandidates.map((cand) => (
-                      <div
-                        key={cand.mbid}
-                        className="glass-card"
-                        style={{
-                          padding: '14px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: '12px',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                              {cand.title}
-                            </strong>
-                            <span
-                              style={{
-                                fontSize: '0.7rem',
-                                fontWeight: 700,
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                background: cand.score >= 90 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                                color: cand.score >= 90 ? 'var(--accent-green)' : 'var(--accent-amber)',
-                              }}
-                            >
-                              {cand.score}% {loc.covers.mbMatchScore}
-                            </span>
-                          </div>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                            {loc.player.artist}: {cand.artist} {cand.date ? `| ${cand.date}` : ''} {cand.country ? `(${cand.country})` : ''} {cand.track_count ? `| ${loc.library.tracks}: ${cand.track_count}` : ''}
-                          </p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                            MBID: {cand.mbid}
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => handleSelectCandidateAndFetchCover(cand)}
-                          disabled={isFetchingCover}
-                          style={{
-                            padding: '8px 14px',
-                            borderRadius: '8px',
-                            background: 'var(--accent-cyan)',
-                            color: '#000',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.8rem',
-                            cursor: isFetchingCover ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          <CheckCircle size={14} />
-                          {isFetchingCover ? loc.covers.downloading : loc.covers.applyCover}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ZAKŁADKA 3: DSP STUDIO (ETAP 3) */}
-        {activeTab === 'dsp' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: '880px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sliders size={20} color="var(--accent-purple)" /> {loc.dsp.title}
-                </h2>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  {loc.dsp.subtitle}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                {/* Przełącznik zapamiętywania parametrów DSP przy starcie programu */}
-                <button
-                  onClick={handleToggleDspAutoStartup}
-                  title={loc.dsp.dspAutostart}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    background: dspAutoStartup ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${dspAutoStartup ? 'var(--accent-green)' : 'var(--border-subtle)'}`,
-                    color: dspAutoStartup ? 'var(--accent-green)' : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {dspAutoStartup ? `✓ ${loc.dsp.dspAutostartOn}` : `○ ${loc.dsp.dspAutostartOff}`}
-                </button>
-
-                {/* Zapisz bieżące ustawienia jako domyślne startowe */}
-                <button
-                  onClick={handleSaveDspStartupDefault}
-                  title={loc.dsp.dspSaveStartupBtn}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    color: 'var(--accent-amber)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <Save size={13} /> {loc.dsp.dspSaveStartupBtn}
-                </button>
-
-                {/* Wskaźnik domyślnego silnika startowego */}
-                <span
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                  title="Domyślny silnik DSP ładowany przy starcie programu"
-                >
-                  Start: <strong style={{ color: dspDefaultEngine === 'Bypass' ? 'var(--accent-green)' : 'var(--accent-pink)' }}>{dspDefaultEngine}</strong>
-                </span>
-
-                {/* Reset do wartości domyślnych */}
-                <button
-                  onClick={handleResetDsp}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: 'var(--accent-cyan)',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <RotateCcw size={13} /> {loc.dsp.reset}
-                </button>
-              </div>
-            </div>
-
-            {/* Wybór silnika DSP: SoundTouch vs Rubber Band */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '10px', fontWeight: 600 }}>
-                {loc.dsp.engine}:
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-                {/* Karta Bypass (Bez DSP / Czysty dźwięk) */}
-                <div
-                  onClick={() => handleEngineChange('Bypass')}
-                  className="glass-card"
-                  style={{
-                    padding: '16px',
-                    cursor: 'pointer',
-                    borderRadius: '14px',
-                    border: status.engine === 'Bypass' ? '2px solid var(--accent-green)' : '1px solid var(--border-subtle)',
-                    background: status.engine === 'Bypass' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0,0,0,0.2)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{loc.dsp.bypass}</span>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        color: 'var(--accent-green)',
-                      }}
-                    >
-                      DIRECT
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    {loc.dsp.bypassDesc}
-                  </p>
-                </div>
-
-                {/* Karta Rubber Band */}
-                <div
-                  onClick={() => handleEngineChange('RubberBand')}
-                  className="glass-card"
-                  style={{
-                    padding: '16px',
-                    cursor: 'pointer',
-                    borderRadius: '14px',
-                    border: status.engine === 'RubberBand' ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                    background: status.engine === 'RubberBand' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(0,0,0,0.2)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{loc.dsp.rubberband}</span>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(244, 63, 94, 0.2)',
-                        color: 'var(--accent-pink)',
-                      }}
-                    >
-                      HI-FI (MSC)
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    {loc.dsp.rubberbandDesc}
-                  </p>
-                </div>
-
-                {/* Karta SoundTouch */}
-                <div
-                  onClick={() => handleEngineChange('SoundTouch')}
-                  className="glass-card"
-                  style={{
-                    padding: '16px',
-                    cursor: 'pointer',
-                    borderRadius: '14px',
-                    border: status.engine === 'SoundTouch' ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-                    background: status.engine === 'SoundTouch' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(0,0,0,0.2)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{loc.dsp.soundtouch}</span>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(56, 189, 248, 0.2)',
-                        color: 'var(--accent-cyan)',
-                      }}
-                    >
-                      LOW CPU
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    {loc.dsp.soundtouchDesc}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pasek telemetrii silnika */}
-            <div
-              style={{
-                background: 'rgba(0,0,0,0.25)',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '24px',
-                fontSize: '0.8rem',
-                flexWrap: 'wrap',
-                gap: '10px',
-              }}
-            >
-              <span>{loc.dsp.engine}: <strong style={{ color: 'var(--accent-pink)' }}>{status.capabilities?.name || 'SoundTouch'}</strong></span>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>
-                  {language === 'pl' ? 'Bufor bloku DSP:' : 'DSP Block Buffer:'}
-                </span>
-                <span style={{ fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
-                  {dspBlockSize} {language === 'pl' ? 'ramek' : 'frames'}
-                </span>
-                {dspBlockSize === 2048 && (
-                  <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
-                    {language === 'pl' ? 'Domyślny' : 'Default'}
-                  </span>
-                )}
-                {[
-                  { label: '1024', val: 1024 },
-                  { label: '2048 (Def)', val: 2048 },
-                  { label: '4096', val: 4096 },
-                ].map((b) => (
-                  <button
-                    key={b.val}
-                    onClick={() => handleSetDspBlockSize(b.val)}
-                    style={{
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      fontSize: '0.72rem',
-                      fontWeight: dspBlockSize === b.val ? 700 : 500,
-                      background: dspBlockSize === b.val ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                      border: dspBlockSize === b.val ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                      color: dspBlockSize === b.val ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Informacja o aktywnym trybie Direct Bypass */}
-            {status.engine === 'Bypass' && (
-              <div
-                style={{
-                  background: 'rgba(16, 185, 129, 0.12)',
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  marginBottom: '22px',
-                  fontSize: '0.8rem',
-                  color: '#a7f3d0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  lineHeight: 1.4,
-                }}
-              >
-                <Info size={18} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-                <span>{loc.dsp.bypassActiveNotice}</span>
-              </div>
-            )}
-
-            {/* Suwak Pitch Shift z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>{loc.dsp.pitch}:</label>
-                  <button
-                    onClick={() => handlePitchChange(Math.max(-24, Math.round(((status.pitch_semitones ?? 0) - 0.1) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="-0.1 semitone"
-                  >
-                    -0.1
-                  </button>
-                  <button
-                    onClick={() => handlePitchChange(Math.max(-24, Math.round(((status.pitch_semitones ?? 0) - 0.01) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="-0.01 semitone"
-                  >
-                    -0.01
-                  </button>
-                  <button
-                    onClick={() => handlePitchChange(Math.min(24, Math.round(((status.pitch_semitones ?? 0) + 0.01) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="+0.01 semitone"
-                  >
-                    +0.01
-                  </button>
-                  <button
-                    onClick={() => handlePitchChange(Math.min(24, Math.round(((status.pitch_semitones ?? 0) + 0.1) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="+0.1 semitone"
-                  >
-                    +0.1
-                  </button>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input
-                    type="text"
-                    value={
-                      editingPitch !== null
-                        ? editingPitch
-                        : (status.pitch_semitones ?? 0) > 0
-                        ? `+${(status.pitch_semitones ?? 0).toFixed(2)}`
-                        : (status.pitch_semitones ?? 0).toFixed(2)
-                    }
-                    onFocus={(e) => {
-                      setEditingPitch(
-                        (status.pitch_semitones ?? 0) > 0
-                          ? `+${(status.pitch_semitones ?? 0).toFixed(2)}`
-                          : (status.pitch_semitones ?? 0).toFixed(2)
-                      );
-                      e.target.select();
-                    }}
-                    onChange={(e) => setEditingPitch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        const step = e.shiftKey ? 0.01 : 0.1;
-                        const clean = (editingPitch ?? `${status.pitch_semitones ?? 0}`).replace(',', '.').trim();
-                        const current = parseFloat(clean);
-                        if (!isNaN(current)) {
-                          const next = Math.min(24, Math.round((current + step) * 100) / 100);
-                          setEditingPitch(next > 0 ? `+${next.toFixed(2)}` : next.toFixed(2));
-                          handlePitchChange(next);
-                        }
-                      } else if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        const step = e.shiftKey ? 0.01 : 0.1;
-                        const clean = (editingPitch ?? `${status.pitch_semitones ?? 0}`).replace(',', '.').trim();
-                        const current = parseFloat(clean);
-                        if (!isNaN(current)) {
-                          const next = Math.max(-24, Math.round((current - step) * 100) / 100);
-                          setEditingPitch(next > 0 ? `+${next.toFixed(2)}` : next.toFixed(2));
-                          handlePitchChange(next);
-                        }
-                      } else if (e.key === 'Enter') {
-                        const clean = (editingPitch ?? '').replace(',', '.').trim();
-                        const val = parseFloat(clean);
-                        if (!isNaN(val)) {
-                          const min = status.capabilities?.min_pitch_semitones ?? -24;
-                          const max = status.capabilities?.max_pitch_semitones ?? 24;
-                          const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                          handlePitchChange(clamped);
-                        }
-                        setEditingPitch(null);
-                        e.currentTarget.blur();
-                      } else if (e.key === 'Escape') {
-                        setEditingPitch(null);
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    onBlur={() => {
-                      if (editingPitch !== null) {
-                        const clean = editingPitch.replace(',', '.').trim();
-                        const val = parseFloat(clean);
-                        if (!isNaN(val)) {
-                          const min = status.capabilities?.min_pitch_semitones ?? -24;
-                          const max = status.capabilities?.max_pitch_semitones ?? 24;
-                          const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                          handlePitchChange(clamped);
-                        }
-                        setEditingPitch(null);
-                      }
-                    }}
-                    placeholder="0.00"
-                    title="Wpisz wartość i naciśnij Enter (lub użyj strzałek góra/dół)"
-                    style={{
-                      width: '60px',
-                      padding: '2px 6px',
-                      fontSize: '0.82rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      color: 'var(--accent-pink)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(244, 63, 94, 0.4)',
-                      borderRadius: '6px',
-                      outline: 'none',
-                      cursor: 'text',
-                    }}
-                  />
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600, fontSize: '0.85rem' }}>
-                    {loc.dsp.semitones} ({Math.round((status.pitch_semitones ?? 0) * 100)} {loc.dsp.cents}) | {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
-                  </span>
-                </div>
-              </div>
-              <input
-                type="range"
-                min={status.capabilities?.min_pitch_semitones ?? -12}
-                max={status.capabilities?.max_pitch_semitones ?? 12}
-                step={0.01}
-                value={status.pitch_semitones ?? 0}
-                onChange={(e) => handlePitchChange(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[-12, -7, -2, 0, 2, 7, 12].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => handlePitchChange(st)}
-                    style={{
-                      flex: 1,
-                      padding: '7px 0',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      background: st === 0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                      border: st === 0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                      color: st === 0 ? 'var(--accent-cyan)' : '#fff',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {st === 0 ? `0 ${loc.dsp.semitones}` : st > 0 ? `+${st}` : st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Suwak Tempo (Time Stretch) z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>{loc.dsp.tempo}:</label>
-                  <button
-                    onClick={() => handleTempoChange(Math.max(0.1, Math.round(((status.tempo_ratio ?? 1) - 0.1) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="-0.1x"
-                  >
-                    -0.1x
-                  </button>
-                  <button
-                    onClick={() => handleTempoChange(Math.max(0.1, Math.round(((status.tempo_ratio ?? 1) - 0.01) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="-0.01x"
-                  >
-                    -0.01x
-                  </button>
-                  <button
-                    onClick={() => handleTempoChange(Math.min(3.0, Math.round(((status.tempo_ratio ?? 1) + 0.01) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="+0.01x"
-                  >
-                    +0.01x
-                  </button>
-                  <button
-                    onClick={() => handleTempoChange(Math.min(3.0, Math.round(((status.tempo_ratio ?? 1) + 0.1) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="+0.1x"
-                  >
-                    +0.1x
-                  </button>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input
-                    type="text"
-                    value={
-                      editingTempo !== null
-                        ? editingTempo
-                        : (status.tempo_ratio ?? 1).toFixed(2)
-                    }
-                    onFocus={(e) => {
-                      setEditingTempo((status.tempo_ratio ?? 1).toFixed(2));
-                      e.target.select();
-                    }}
-                    onChange={(e) => setEditingTempo(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        const step = e.shiftKey ? 0.01 : 0.1;
-                        const clean = (editingTempo ?? `${status.tempo_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const current = parseFloat(clean);
-                        if (!isNaN(current)) {
-                          const next = Math.min(3.0, Math.round((current + step) * 100) / 100);
-                          setEditingTempo(next.toFixed(2));
-                          handleTempoChange(next);
-                        }
-                      } else if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        const step = e.shiftKey ? 0.01 : 0.1;
-                        const clean = (editingTempo ?? `${status.tempo_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const current = parseFloat(clean);
-                        if (!isNaN(current)) {
-                          const next = Math.max(0.1, Math.round((current - step) * 100) / 100);
-                          setEditingTempo(next.toFixed(2));
-                          handleTempoChange(next);
-                        }
-                      } else if (e.key === 'Enter') {
-                        const clean = (editingTempo ?? '').replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const val = parseFloat(clean);
-                        if (!isNaN(val)) {
-                          const min = status.capabilities?.min_tempo_ratio ?? 0.1;
-                          const max = status.capabilities?.max_tempo_ratio ?? 3.0;
-                          const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                          handleTempoChange(clamped);
-                        }
-                        setEditingTempo(null);
-                        e.currentTarget.blur();
-                      } else if (e.key === 'Escape') {
-                        setEditingTempo(null);
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    onBlur={() => {
-                      if (editingTempo !== null) {
-                        const clean = editingTempo.replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const val = parseFloat(clean);
-                        if (!isNaN(val)) {
-                          const min = status.capabilities?.min_tempo_ratio ?? 0.1;
-                          const max = status.capabilities?.max_tempo_ratio ?? 3.0;
-                          const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                          handleTempoChange(clamped);
-                        }
-                        setEditingTempo(null);
-                      }
-                    }}
-                    placeholder="1.00"
-                    title="Wpisz tempo (np. 1.25 lub 1,25) i naciśnij Enter (lub użyj strzałek góra/dół)"
-                    style={{
-                      width: '60px',
-                      padding: '2px 6px',
-                      fontSize: '0.82rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      color: 'var(--accent-cyan)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(6, 182, 212, 0.4)',
-                      borderRadius: '6px',
-                      outline: 'none',
-                      cursor: 'text',
-                    }}
-                  />
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '0.85rem' }}>
-                    x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
-                  </span>
-                </div>
-              </div>
-              <input
-                type="range"
-                min={status.capabilities?.min_tempo_ratio ?? 0.5}
-                max={status.capabilities?.max_tempo_ratio ?? 2.0}
-                step={0.01}
-                value={status.tempo_ratio ?? 1}
-                onChange={(e) => handleTempoChange(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[0.75, 1.0, 1.25, 1.5, 1.75].map((tr) => (
-                  <button
-                    key={tr}
-                    onClick={() => handleTempoChange(tr)}
-                    style={{
-                      flex: 1,
-                      padding: '7px 0',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      background: tr === 1.0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                      border: tr === 1.0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                      color: tr === 1.0 ? 'var(--accent-cyan)' : '#fff',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {tr === 1.0 ? '1.0x' : `${tr}x`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Suwak Szybkości (Rate) z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                    {loc.dsp.speed}:
-                  </label>
-                  <button
-                    onClick={() => handleRateChange(Math.max(0.1, Math.round(((status.rate_ratio ?? 1) - 0.1) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="-0.1x"
-                  >
-                    -0.1x
-                  </button>
-                  <button
-                    onClick={() => handleRateChange(Math.max(0.1, Math.round(((status.rate_ratio ?? 1) - 0.01) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="-0.01x"
-                  >
-                    -0.01x
-                  </button>
-                  <button
-                    onClick={() => handleRateChange(Math.min(3.0, Math.round(((status.rate_ratio ?? 1) + 0.01) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="+0.01x"
-                  >
-                    +0.01x
-                  </button>
-                  <button
-                    onClick={() => handleRateChange(Math.min(3.0, Math.round(((status.rate_ratio ?? 1) + 0.1) * 100) / 100))}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                    title="+0.1x"
-                  >
-                    +0.1x
-                  </button>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input
-                    type="text"
-                    value={
-                      editingRate !== null
-                        ? editingRate
-                        : (status.rate_ratio ?? 1).toFixed(2)
-                    }
-                    onFocus={(e) => {
-                      setEditingRate((status.rate_ratio ?? 1).toFixed(2));
-                      e.target.select();
-                    }}
-                    onChange={(e) => setEditingRate(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        const step = e.shiftKey ? 0.01 : 0.1;
-                        const clean = (editingRate ?? `${status.rate_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const current = parseFloat(clean);
-                        if (!isNaN(current)) {
-                          const next = Math.min(3.0, Math.round((current + step) * 100) / 100);
-                          setEditingRate(next.toFixed(2));
-                          handleRateChange(next);
-                        }
-                      } else if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        const step = e.shiftKey ? 0.01 : 0.1;
-                        const clean = (editingRate ?? `${status.rate_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const current = parseFloat(clean);
-                        if (!isNaN(current)) {
-                          const next = Math.max(0.1, Math.round((current - step) * 100) / 100);
-                          setEditingRate(next.toFixed(2));
-                          handleRateChange(next);
-                        }
-                      } else if (e.key === 'Enter') {
-                        const clean = (editingRate ?? '').replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const val = parseFloat(clean);
-                        if (!isNaN(val)) {
-                          const clamped = Math.max(0.1, Math.min(3.0, Math.round(val * 100) / 100));
-                          handleRateChange(clamped);
-                        }
-                        setEditingRate(null);
-                        e.currentTarget.blur();
-                      } else if (e.key === 'Escape') {
-                        setEditingRate(null);
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    onBlur={() => {
-                      if (editingRate !== null) {
-                        const clean = editingRate.replace('x', '').replace('X', '').replace(',', '.').trim();
-                        const val = parseFloat(clean);
-                        if (!isNaN(val)) {
-                          const clamped = Math.max(0.1, Math.min(3.0, Math.round(val * 100) / 100));
-                          handleRateChange(clamped);
-                        }
-                        setEditingRate(null);
-                      }
-                    }}
-                    placeholder="1.00"
-                    title="Wpisz prędkość (np. 1.15 lub 1,15) i naciśnij Enter (lub użyj strzałek góra/dół)"
-                    style={{
-                      width: '60px',
-                      padding: '2px 6px',
-                      fontSize: '0.82rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      color: 'var(--accent-amber)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                      borderRadius: '6px',
-                      outline: 'none',
-                      cursor: 'text',
-                    }}
-                  />
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600, fontSize: '0.85rem' }}>
-                    x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
-                  </span>
-                </div>
-              </div>
-              <input
-                type="range"
-                min={0.5}
-                max={2.0}
-                step={0.01}
-                value={status.rate_ratio ?? 1}
-                onChange={(e) => handleRateChange(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[0.8, 0.9, 1.0, 1.1, 1.25].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => handleRateChange(r)}
-                    style={{
-                      flex: 1,
-                      padding: '7px 0',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      background: r === 1.0 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                      border: r === 1.0 ? '1px solid var(--accent-amber)' : '1px solid var(--border-subtle)',
-                      color: r === 1.0 ? 'var(--accent-amber)' : '#fff',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {r === 1.0 ? '1.0x' : `${r}x`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Panel Efektu Pogłosu Reverb (GStreamer Freeverb) */}
-            <div
-              style={{
-                background: 'rgba(0, 0, 0, 0.28)',
-                padding: '20px',
-                borderRadius: '16px',
-                border: `1px solid ${reverbEnabled ? 'rgba(168, 85, 247, 0.4)' : 'var(--border-subtle)'}`,
-                marginBottom: '28px',
-                boxShadow: reverbEnabled ? '0 4px 20px rgba(168, 85, 247, 0.15)' : 'none',
-                transition: 'all 0.25s ease',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Sparkles size={20} color={reverbEnabled ? 'var(--accent-purple)' : 'var(--text-muted)'} />
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                      {currentLang === 'pl' ? 'Przestrzenny Pogłos (Reverb Freeverb)' : 'Spatial Reverb (Freeverb DSP)'}
-                    </h4>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                      {currentLang === 'pl' ? 'Wierne symulowanie akustyki pomieszczeń i hal' : 'Studio acoustic hall and room simulation'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleUpdateReverb(!reverbEnabled)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    fontSize: '0.76rem',
-                    fontWeight: 700,
-                    background: reverbEnabled ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.06)',
-                    border: `1px solid ${reverbEnabled ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
-                    color: reverbEnabled ? 'var(--accent-purple)' : 'var(--text-muted)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {reverbEnabled ? '● REVERB ON' : '○ REVERB BYPASS'}
-                </button>
-              </div>
-
-              {/* Suwaki parametrów Reverb */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', opacity: reverbEnabled ? 1 : 0.45 }}>
-                {/* Rozmiar pomieszczenia (Room Size) */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Room Size (Rozmiar):</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbRoomSize * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    disabled={!reverbEnabled}
-                    value={reverbRoomSize}
-                    onChange={(e) => handleUpdateReverb(true, Number(e.target.value))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Tłumienie (Damping) */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Damping (Tłumienie):</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbDamping * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    disabled={!reverbEnabled}
-                    value={reverbDamping}
-                    onChange={(e) => handleUpdateReverb(true, undefined, Number(e.target.value))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Szerokość stereo (Width) */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Stereo Width (Szerokość):</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbWidth * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    disabled={!reverbEnabled}
-                    value={reverbWidth}
-                    onChange={(e) => handleUpdateReverb(true, undefined, undefined, Number(e.target.value))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Poziom pogłosu (Wet Level) */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Wet Level (Nasycenie):</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbLevel * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    disabled={!reverbEnabled}
-                    value={reverbLevel}
-                    onChange={(e) => handleUpdateReverb(true, undefined, undefined, undefined, Number(e.target.value))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              </div>
-
-              {/* Szybkie presety pogłosu */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-                  Presety:
-                </span>
-                <button
-                  onClick={() => handleUpdateReverb(true, 0.40, 0.50, 0.70, 0.25)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.72rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Small Room
-                </button>
-                <button
-                  onClick={() => handleUpdateReverb(true, 0.70, 0.30, 0.90, 0.35)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.72rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Ambient Hall
-                </button>
-                <button
-                  onClick={() => handleUpdateReverb(true, 0.85, 0.15, 1.0, 0.45)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.72rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cathedral
-                </button>
-                {/* Wymarzony profil użytkowniczki: Slowed + Reverb */}
-                <button
-                  onClick={() => {
-                    handleTempoChange(0.82);
-                    handlePitchChange(-2.0);
-                    handleUpdateReverb(true, 0.75, 0.35, 1.0, 0.40);
-                    showMessage('Aktywowano profil: Slowed + Reverb 🌌');
-                  }}
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: '8px',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(168, 85, 247, 0.3))',
-                    border: '1px solid var(--accent-pink)',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🌌 Slowed + Reverb
-                </button>
-              </div>
-            </div>
-
-            {/* Menedżer presetów DSP (SQLite) */}
-            <div
-              style={{
-                background: 'rgba(0,0,0,0.25)',
-                padding: '16px',
-                borderRadius: '14px',
-                border: '1px solid var(--border-subtle)',
-                marginBottom: '28px',
-              }}
-            >
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-                {loc.dsp.eqPresets}:
-              </label>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: presets.length > 0 ? '12px' : '0' }}>
-                <input
-                  type="text"
-                  placeholder={loc.dsp.presetNamePlaceholder}
-                  value={newPresetName}
-                  onChange={(e) => setNewPresetName(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                  }}
-                />
-                <button
-                  onClick={handleSavePreset}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                    color: '#fff',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Save size={14} /> {loc.dsp.savePreset}
-                </button>
-              </div>
-
-              {presets.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {presets.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleLoadPreset(p)}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        color: '#fff',
-                        background: 'rgba(25, 28, 48, 0.7)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Sparkles size={12} color="var(--accent-pink)" />
-                      <span>{p.name}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-                        ({p.pitch_semitones > 0 ? `+${p.pitch_semitones}` : p.pitch_semitones}st, {p.tempo_ratio}x)
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* SEKCJA 2.5: POWERAMP DSP STUDIO (BASS BOOST, STEREO WIDENER, TRUE-PEAK LIMITER) */}
-            <div
-              style={{
-                marginTop: '24px',
-                padding: '20px',
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderRadius: '16px',
-                border: '1px solid var(--border-subtle)',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '20px',
-              }}
-            >
-              {/* KARTA 1: BASS BOOST (SUB-BAS EXCITER) */}
-              <div
-                style={{
-                  padding: '16px',
-                  borderRadius: '12px',
-                  background: 'rgba(255, 77, 148, 0.05)',
-                  border: '1px solid rgba(255, 77, 148, 0.2)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Flame size={18} color="var(--accent-pink)" />
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                        {loc.dsp.bassBoostTitle}
-                      </h4>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {loc.dsp.bassBoostDesc}
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      color: bassBoost > 0 ? 'var(--accent-pink)' : 'var(--text-muted)',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      background: bassBoost > 0 ? 'rgba(255, 77, 148, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                    }}
-                  >
-                    +{bassBoost.toFixed(1)} dB
-                  </span>
-                </div>
-
-                <input
-                  type="range"
-                  min={0}
-                  max={12}
-                  step={0.5}
-                  value={bassBoost}
-                  onChange={(e) => handleBassBoostChange(Number(e.target.value))}
-                  style={{ width: '100%', cursor: 'pointer' }}
-                />
-
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {[0, 3, 6, 9, 12].map((db) => (
-                    <button
-                      key={db}
-                      onClick={() => handleBassBoostChange(db)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        background: bassBoost === db ? 'rgba(255, 77, 148, 0.3)' : 'rgba(255, 255, 255, 0.05)',
-                        border: `1px solid ${bassBoost === db ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-                        color: bassBoost === db ? 'var(--accent-pink)' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {db === 0 ? '0 dB (Off)' : `+${db} dB`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* KARTA 2: STEREO WIDENER (BAZA STEREO) */}
-              <div
-                style={{
-                  padding: '16px',
-                  borderRadius: '12px',
-                  background: 'rgba(56, 189, 248, 0.05)',
-                  border: '1px solid rgba(56, 189, 248, 0.2)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <SlidersHorizontal size={18} color="var(--accent-cyan)" />
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                        {loc.dsp.stereoWidenerTitle}
-                      </h4>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {loc.dsp.stereoWidenerDesc}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleToggleStereoWidener(!stereoWidenerActive)}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      background: stereoWidenerActive ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                      border: `1px solid ${stereoWidenerActive ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
-                      color: stereoWidenerActive ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {stereoWidenerActive ? '● WIDENER ON' : '○ BYPASS'}
-                  </button>
-                </div>
-
-                <div style={{ opacity: stereoWidenerActive ? 1 : 0.45 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Szerokość sceny stereo:</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                      {Math.round(stereoWidenerAmount * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    disabled={!stereoWidenerActive}
-                    value={stereoWidenerAmount}
-                    onChange={(e) => handleStereoWidenerAmountChange(Number(e.target.value))}
-                    style={{ width: '100%', cursor: stereoWidenerActive ? 'pointer' : 'not-allowed' }}
-                  />
-                </div>
-              </div>
-
-              {/* KARTA 3: TRUE-PEAK LIMITER */}
-              <div
-                style={{
-                  padding: '16px',
-                  borderRadius: '12px',
-                  background: 'rgba(34, 197, 94, 0.05)',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <ShieldCheck size={18} color="var(--accent-green)" />
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                          {loc.dsp.limiterTitle}
-                        </h4>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {loc.dsp.limiterDesc}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleToggleLimiter(!limiterEnabled)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        background: limiterEnabled ? 'rgba(34, 197, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                        border: `1px solid ${limiterEnabled ? 'var(--accent-green)' : 'var(--border-subtle)'}`,
-                        color: limiterEnabled ? 'var(--accent-green)' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {limiterEnabled ? '● LIMITER ON' : '○ BYPASS'}
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    fontSize: '0.75rem',
-                    color: limiterEnabled ? '#86efac' : 'var(--text-muted)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <CheckCircle size={14} />
-                  <span>
-                    {limiterEnabled
-                      ? 'Automatyczna ochrona przed przesterowaniem (GStreamer RgLimiter)'
-                      : 'Limiter wyłączony — możliwe przesterowanie przy podbitym EQ'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* SEKCJA 3: 10-PASMOWY KOREKTOR GRAFICZNY (EQUALIZER) */}
-            <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Sliders size={18} color="var(--accent-pink)" /> {loc.dsp.equalizer}
-                  </h3>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {loc.dsp.eqDesc}
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {/* Wybór presetu EQ */}
-                  <select
-                    value={selectedEqPreset}
-                    onChange={(e) => handleApplyEqPreset(e.target.value)}
-                    style={{
-                      appearance: 'none',
-                      WebkitAppearance: 'none',
-                      padding: '6px 30px 6px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(20, 24, 44, 0.95)',
-                      color: '#ffffff',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 10px center',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                    }}
-                  >
-                    {eqPresets.map((preset) => (
-                      <option key={preset.name} value={preset.name} style={{ background: '#181824', color: '#fff' }}>
-                        {preset.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Przycisk Reset EQ */}
-                  <button
-                    onClick={handleResetEq}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid var(--border-subtle)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {loc.dsp.reset} (0 dB)
-                  </button>
-
-                  {/* Przycisk Bazy Profili Słuchawkowych AutoEQ */}
-                  <button
-                    onClick={() => setIsAutoEqOpen(true)}
-                    title="Baza profili słuchawkowych AutoEQ (Harman Target dla 160+ modeli)"
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      background: 'rgba(59, 130, 246, 0.2)',
-                      border: '1px solid rgba(59, 130, 246, 0.45)',
-                      color: '#60a5fa',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
-                  >
-                    <Headphones size={13} /> AutoEQ
-                  </button>
-
-                  {/* Przycisk Wielopasmowego Korektora Parametrycznego PEQ */}
-                  <button
-                    onClick={() => setIsParametricEqOpen(true)}
-                    title="Wielopasmowy korektor parametryczny (PEQ) — filtry Peak/Shelf, biquad, import EqualizerAPO"
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      background: status.parametric_eq_enabled ? 'rgba(168, 85, 247, 0.32)' : 'rgba(168, 85, 247, 0.16)',
-                      border: status.parametric_eq_enabled ? '1px solid rgba(168, 85, 247, 0.7)' : '1px solid rgba(168, 85, 247, 0.35)',
-                      color: status.parametric_eq_enabled ? '#f3e8ff' : '#c084fc',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: status.parametric_eq_enabled ? '0 0 10px rgba(168, 85, 247, 0.3)' : 'none',
-                    }}
-                  >
-                    <Sliders size={13} /> PEQ Studio
-                    {status.parametric_eq_enabled && (
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: '#c084fc',
-                          boxShadow: '0 0 6px #e879f9',
-                        }}
-                      />
-                    )}
-                  </button>
-
-                  {/* Przycisk Studia Dynamiki & Lampy (Kompresor / Saturator / Limiter) */}
-                  <button
-                    onClick={() => setIsDynamicsStudioOpen(true)}
-                    title="Studio Dynamiki & Lampy — kompresor dynamiki, nasycenie taśmowe, ciepło lampowe i limiter słuchawkowy"
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      background:
-                        status.compressor_enabled || status.saturator_enabled
-                          ? 'rgba(236, 72, 153, 0.3)'
-                          : 'rgba(236, 72, 153, 0.14)',
-                      border:
-                        status.compressor_enabled || status.saturator_enabled
-                          ? '1px solid rgba(236, 72, 153, 0.7)'
-                          : '1px solid rgba(236, 72, 153, 0.35)',
-                      color:
-                        status.compressor_enabled || status.saturator_enabled ? '#fdf4ff' : '#f472b6',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow:
-                        status.compressor_enabled || status.saturator_enabled
-                          ? '0 0 10px rgba(236, 72, 153, 0.3)'
-                          : 'none',
-                    }}
-                  >
-                    <Activity size={13} /> Dynamics Studio
-                    {(status.compressor_enabled || status.saturator_enabled) && (
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: '#ec4899',
-                          boxShadow: '0 0 6px #f472b6',
-                        }}
-                      />
-                    )}
-                  </button>
-
-                  {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
-                  <button
-                    onClick={handleEqToggle}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      background: status.equalizer_enabled !== false ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
-                      border: status.equalizer_enabled !== false ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                      color: status.equalizer_enabled !== false ? 'var(--accent-pink)' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {status.equalizer_enabled !== false ? `● ${loc.dsp.eqEnabled}` : `○ ${loc.dsp.eqBypass}`}
-                  </button>
-
-                  {/* Przełącznik autostartu EQ */}
-                  <button
-                    onClick={handleToggleEqAutoStartup}
-                    title={loc.dsp.eqAutostart}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      background: eqAutoStartup ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                      border: `1px solid ${eqAutoStartup ? 'var(--accent-green)' : 'var(--border-subtle)'}`,
-                      color: eqAutoStartup ? 'var(--accent-green)' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {eqAutoStartup ? `✓ ${loc.dsp.eqAutostartOn}` : `○ ${loc.dsp.eqAutostartOff}`}
-                  </button>
-                </div>
-              </div>
-
-              {/* 10 pasm w ergonomicznym układzie 2-kolumnowym */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '12px',
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '16px',
-                  borderRadius: '16px',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                {EQUALIZER_BANDS.map((band, idx) => {
-                  const gain = (status.equalizer_bands && status.equalizer_bands[idx]) ?? 0;
-                  return (
-                    <div
-                      key={band.freq}
-                      style={{
-                        padding: '10px 14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                        background: 'rgba(25, 28, 48, 0.6)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '8px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginRight: '6px' }}>
-                            {band.freq}
-                          </span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            ({band.label})
-                          </span>
-                        </div>
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            background: gain > 0 ? 'rgba(255, 77, 148, 0.2)' : gain < 0 ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.06)',
-                            color: gain > 0 ? 'var(--accent-pink)' : gain < 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                          }}
-                        >
-                          {gain > 0 ? `+${gain.toFixed(1)} dB` : `${gain.toFixed(1)} dB`}
-                        </span>
-                      </div>
-
-                      <input
-                        type="range"
-                        min={-24}
-                        max={12}
-                        step={0.5}
-                        value={gain}
-                        disabled={status.equalizer_enabled === false}
-                        onChange={(e) => handleEqBandChange(idx, Number(e.target.value))}
-                        style={{
-                          width: '100%',
-                          cursor: status.equalizer_enabled === false ? 'not-allowed' : 'pointer',
-                          opacity: status.equalizer_enabled === false ? 0.4 : 1,
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* SEKCJA 4: NEONOWY ANALIZATOR WIDMA FFT (SPECTRUM VISUALIZER) */}
-            <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Activity size={18} color="var(--accent-cyan)" /> {loc.dsp.spectrumTitle}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  16 FFT Bands | GStreamer FFT Analyzer (60 FPS)
-                </span>
-              </div>
-
-              <SpectrumVisualizer
-                spectrum={status.spectrum}
-                isPlaying={status.state === 'Playing'}
-                style={{ height: '110px', width: '100%' }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ZAKŁADKA: CENTRUM STATYSTYK & PODSUMOWANIE (AURALUNE RECAP) */}
-        {activeTab === 'stats' && (
-          <StatsDashboardView
-            tracks={tracks}
-            albums={albums}
-            currentLang={language}
-            onPlayTrack={(t) => handlePlayLibraryTrack(t)}
-            onOpenStatsModal={(t) => setStatsModalTrack(t)}
-          />
-        )}
-
-        {/* ZAKŁADKA: PLAYLISTY (ETAP 7) */}
-        {activeTab === 'playlists' && (
-          <div className="glass-panel" style={{ padding: '28px', maxWidth: 'min(1500px, 95vw)', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <ListMusic size={20} color="var(--accent-pink)" /> {loc.playlists.title} ({playlists.length})
-                </h2>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                  {loc.playlists.subtitle}
-                </p>
-              </div>
-
-              {/* Nowa playlista input */}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  placeholder={loc.playlists.namePlaceholder}
-                  value={newPlaylistName}
-                  onChange={(e) => setNewPlaylistName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                  }}
-                />
-                <button
-                  onClick={handleCreatePlaylist}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    border: 'none',
-                  }}
-                >
-                  <Plus size={16} /> {loc.playlists.create}
-                </button>
-                <button
-                  onClick={handleImportPlaylistM3u8}
-                  className="glass-card"
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                  }}
-                  title={loc.playlists.importM3u8}
-                >
-                  <Upload size={16} color="var(--accent-cyan)" /> {loc.playlists.importM3u8}
-                </button>
-              </div>
-            </div>
-
-            {/* Siatka playlist lub szczegóły wybranej playlisty */}
-            {selectedPlaylist ? (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <div>
-                    <button
-                      onClick={() => { setSelectedPlaylist(null); setPlaylistTracks([]); }}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', fontSize: '0.8rem', padding: 0, marginBottom: '6px' }}
-                    >
-                      {loc.playlists.backToList}
-                    </button>
-                    <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>{selectedPlaylist.name}</h3>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {playlistTracks.length} {loc.library.tracks} • {new Date(selectedPlaylist.created_at * 1000).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                      onClick={() => {
-                        if (playlistTracks.length > 0) {
-                          handlePlayLibraryTrack(playlistTracks[0], playlistTracks);
-                        }
-                      }}
-                      disabled={playlistTracks.length === 0}
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        color: '#fff',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: playlistTracks.length === 0 ? 'default' : 'pointer',
-                        opacity: playlistTracks.length === 0 ? 0.5 : 1,
-                        border: 'none',
-                      }}
-                    >
-                      <Play size={16} /> {loc.player.play}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (playlistTracks.length > 0) {
-                          await invoke('add_uris_to_queue', { uris: playlistTracks.map((t) => t.path) });
-                          await refreshQueue();
-                          showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(playlistTracks.length)));
-                        }
-                      }}
-                      disabled={playlistTracks.length === 0}
-                      className="glass-card"
-                      style={{
-                        padding: '8px 14px',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: playlistTracks.length === 0 ? 'default' : 'pointer',
-                        opacity: playlistTracks.length === 0 ? 0.5 : 1,
-                      }}
-                      title={loc.library.addToQueue}
-                    >
-                      <Plus size={16} /> {loc.library.addToQueue}
-                    </button>
-                    <button
-                      onClick={() => handleExportPlaylistM3u8(selectedPlaylist)}
-                      className="glass-card"
-                      style={{ padding: '8px 14px', color: 'var(--accent-pink)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                      title={loc.playlists.exportM3u8}
-                    >
-                      <Download size={16} /> {loc.playlists.exportM3u8}
-                    </button>
-                    <button
-                      onClick={() => handleDeletePlaylist(selectedPlaylist.id, selectedPlaylist.name)}
-                      className="glass-card"
-                      style={{ padding: '8px 14px', color: '#ff6b81', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <Trash2 size={16} /> {loc.playlists.delete}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tabela utworów w wybranej playliście */}
-                {playlistTracks.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                    {loc.playlists.emptyHint}
-                  </div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '10px 12px' }}>#</th>
-                          <th style={{ padding: '10px 12px' }}>{loc.player.track}</th>
-                          <th style={{ padding: '10px 12px' }}>{loc.player.artist}</th>
-                          <th style={{ padding: '10px 12px' }}>Format</th>
-                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>{loc.queue.duration}</th>
-                          <th style={{ padding: '10px 12px', textAlign: 'center' }}>{loc.common.edit}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {playlistTracks.map((item, idx) => (
-                          <tr
-                            key={`${item.id}-${idx}`}
-                            className="glass-card"
-                            style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
-                          >
-                            <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                            <td style={{ padding: '12px', fontWeight: 600 }}>{item.title}</td>
-                            <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{item.artist}</td>
-                            <td style={{ padding: '12px' }}>
-                              <span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}>
-                                {item.format}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{formatTime(item.duration_ms)}</td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                <button
-                                  onClick={() => handlePlayLibraryTrack(item, playlistTracks)}
-                                  title={loc.player.play}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}
-                                >
-                                  <Play size={16} />
-                                </button>
-                                <button
-                                  onClick={(e) => handleAddTrackToQueue(item, e)}
-                                  title={loc.playlists.addToQueue}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer' }}
-                                >
-                                  <Plus size={16} />
-                                </button>
-                                <button
-                                  onClick={(e) => handleOpenContainingFolder(item.path, e)}
-                                  title={loc.library.openContainingFolder}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer' }}
-                                >
-                                  <FolderOpen size={15} />
-                                </button>
-                                <button
-                                  onClick={(e) => handleRemoveTrackFromPlaylist(selectedPlaylist.id, item.id, e)}
-                                  title={loc.playlists.delete}
-                                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-                {playlists.length === 0 ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
-                    <ListMusic size={44} style={{ opacity: 0.3, marginBottom: '14px' }} />
-                    <p style={{ margin: 0, fontSize: '0.95rem' }}>{loc.playlists.empty}</p>
-                    <p style={{ fontSize: '0.8rem', marginTop: '6px', opacity: 0.7 }}>{loc.playlists.emptyHint}</p>
-                  </div>
-                ) : (
-                  playlists.map((pl) => (
-                    <div
-                      key={pl.id}
-                      className="glass-card"
-                      style={{
-                        padding: '20px',
-                        borderRadius: '14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '14px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onClick={() => handleOpenPlaylist(pl)}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                          <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>{pl.name}</h4>
-                          <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)' }}>
-                            {pl.track_count} {loc.library.tracks}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {new Date(pl.created_at * 1000).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>{loc.playlists.playAll} →</span>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleExportPlaylistM3u8(pl); }}
-                            title={loc.playlists.exportM3u8}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
-                          >
-                            <Download size={15} />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(pl.id, pl.name); }}
-                            title={loc.playlists.delete}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Zakładka: Anime Web Radio */}
-        {activeTab === 'radio' && (
-          <RadioView
-            currentLang={language}
-            currentStation={currentRadioStation}
-            isPlaying={status.state === 'Playing'}
-            liveStreamTitle={status.live_stream_title}
-            customStations={customRadioStations}
-            onPlayStation={handlePlayRadioStation}
-            onStop={handleStop}
-            onOpenAddModal={() => setIsAddStationModalOpen(true)}
-            onDeleteCustomStation={handleDeleteCustomStation}
-          />
-        )}
-      </main>
-
-      {/* Pływający dolny dok odtwarzacza (Mini-Player) — widoczny w innych zakładkach ORAZ po przewinięciu Odtwarzacza */}
-      {(activeTab !== 'player' || isPlayerScrolledDown) && (status.state === 'Playing' || status.state === 'Paused' || currentPlayingTrack || status.current_track || filePath) && (
-        <div
-          style={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: '76px',
-            background: 'rgba(15, 12, 28, 0.96)',
-            borderTop: '1px solid var(--border-accent)',
-            boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.65)',
-            zIndex: 900,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 24px',
-            gap: '16px',
-            animation: 'fadeIn 0.2s ease',
-          }}
-        >
-          {/* Lewa strona: Mini okładka, Tytuł, Wykonawca i format — kliknięcie przełącza do pełnego Odtwarzacza lub przewija do góry */}
-          <div
-            onClick={() => {
-              if (activeTab === 'player') {
-                mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-              } else {
-                setActiveTab('player');
-              }
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              minWidth: '220px',
-              maxWidth: '30%',
-              cursor: 'pointer',
-            }}
-            title={activeTab === 'player' ? (language === 'pl' ? 'Przewiń do góry do pełnego odtwarzacza' : 'Scroll to top') : loc.bottomDock.openFullPlayer}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '10px',
-                overflow: 'hidden',
-                flexShrink: 0,
-                background: currentCover
-                  ? `url("${currentCover}") center/cover no-repeat`
-                  : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-            >
-              {!currentCover && (
-                <Disc
-                  size={24}
-                  color="#fff"
-                  style={{
-                    animation: status.state === 'Playing' ? 'spin 4s linear infinite' : 'none',
-                  }}
-                />
-              )}
-            </div>
-            <div style={{ minWidth: 0, overflow: 'hidden' }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.88rem',
-                  fontWeight: 700,
-                  color: '#fff',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {effectiveDisplayTitle}
-              </p>
-              <p
-                style={{
-                  margin: '2px 0 0 0',
-                  fontSize: '0.76rem',
-                  color: 'var(--text-secondary)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {effectiveDisplayArtist}
-                {currentPlayingTrack?.format && (
-                  <span
-                    style={{
-                      marginLeft: '6px',
-                      fontSize: '0.68rem',
-                      padding: '1px 5px',
-                      borderRadius: '4px',
-                      background: 'rgba(6, 182, 212, 0.15)',
-                      color: 'var(--accent-cyan)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {currentPlayingTrack.format}
-                  </span>
-                )}
-                {(currentPlayingTrack?.path || filePath || status.current_track?.uri) && (
-                  <button
-                    onClick={(e) =>
-                      handleOpenContainingFolder(
-                        currentPlayingTrack?.path || filePath || status.current_track?.uri || '',
-                        e
-                      )
-                    }
-                    title={loc.queue.openContainingFolder}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '2px 4px',
-                      marginLeft: '6px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      verticalAlign: 'middle',
-                    }}
-                  >
-                    <FolderOpen size={13} />
-                  </button>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Środek: Sterowanie odtwarzaniem i pasek pozycji */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '6px',
-              flex: 1,
-              maxWidth: '560px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {/* Przycisk Shuffle (Odtwarzanie losowe) */}
-              <button
-                onClick={handleToggleShuffle}
-                style={{
-                  background: queue.shuffle ? 'rgba(6, 182, 212, 0.22)' : 'transparent',
-                  border: queue.shuffle ? '1px solid var(--accent-cyan)' : '1px solid transparent',
-                  color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.18s ease',
-                  boxShadow: queue.shuffle ? '0 0 10px rgba(6, 182, 212, 0.4)' : 'none',
-                }}
-                title={queue.shuffle ? (loc.player?.shuffleOn || 'Odtwarzanie losowe: Włączone') : (loc.player?.shuffleOff || 'Odtwarzanie losowe: Wyłączone')}
-              >
-                <Shuffle size={16} />
-              </button>
-
-              <button
-                onClick={handlePrevious}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title={t.bottomDock.prevTooltip}
-              >
-                <SkipBack size={18} />
-              </button>
-              <button
-                onClick={handlePlayPause}
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  border: 'none',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 0 16px rgba(255, 77, 148, 0.45)',
-                }}
-                title={status.state === 'Playing' ? t.bottomDock.pauseTooltip : t.bottomDock.playTooltip}
-              >
-                {status.state === 'Playing' ? <Pause size={18} fill="#fff" /> : <Play size={18} fill="#fff" style={{ marginLeft: '2px' }} />}
-              </button>
-              <button
-                onClick={handleNext}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title={t.bottomDock.nextTooltip}
-              >
-                <SkipForward size={18} />
-              </button>
-
-              {/* Przycisk Loop (Zapętlanie utworu / kolejki) */}
-              <button
-                onClick={handleCycleLoopMode}
-                style={{
-                  background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.22)' : 'transparent',
-                  border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                  color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  transition: 'all 0.18s ease',
-                  boxShadow: queue.loop_mode !== 'None' ? '0 0 10px rgba(255, 77, 148, 0.4)' : 'none',
-                }}
-                title={
-                  queue.loop_mode === 'Track'
-                    ? (loc.player?.loopTrack || 'Pętla: Bieżący utwór')
-                    : queue.loop_mode === 'Queue'
-                    ? (loc.player?.loopQueue || 'Pętla: Cała kolejka')
-                    : (loc.player?.loopOff || 'Pętla: Wyłączona')
-                }
-              >
-                {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
-              </button>
-
-              {/* Przycisk Stop After Current Track (foobar2000 classic) */}
-              <button
-                onClick={handleToggleStopAfterCurrent}
-                style={{
-                  background: status.stop_after_current ? 'rgba(234, 179, 8, 0.22)' : 'transparent',
-                  border: status.stop_after_current ? '1px solid #eab308' : '1px solid transparent',
-                  color: status.stop_after_current ? '#eab308' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  transition: 'all 0.18s ease',
-                  boxShadow: status.stop_after_current ? '0 0 10px rgba(234, 179, 8, 0.4)' : 'none',
-                }}
-                title={
-                  status.stop_after_current
-                    ? 'Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)'
-                    : 'Zatrzymaj po bieżącym utworze: Wyłączone (Stop After Current Track)'
-                }
-              >
-                <Square size={13} style={{ fill: status.stop_after_current ? '#eab308' : 'none' }} />
-              </button>
-            </div>
-
-            {/* Suwak pozycji */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '36px', textAlign: 'right' }}>
-                {formatTime(status.position_ms)}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={status.duration_ms || 100}
-                value={status.position_ms}
-                onChange={(e) => handleSeek(Number(e.target.value))}
-                style={{
-                  flex: 1,
-                  height: '4px',
-                  accentColor: 'var(--accent-pink)',
-                  cursor: 'pointer',
-                  background: `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-                }}
-              />
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '36px' }}>
-                {formatTime(status.duration_ms || 0)}
-              </span>
-            </div>
-          </div>
-
-          {/* Prawa strona: Wskaźniki DSP, Głośność i Maksymalizacja */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '240px', justifyContent: 'flex-end' }}>
-            {/* Przełącznik i wskaźnik silnika DSP */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div
-                style={{
-                  position: 'relative',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: '16px',
-                  background:
-                    status.engine === 'Bypass'
-                      ? 'rgba(16, 185, 129, 0.14)'
-                      : status.engine === 'RubberBand'
-                      ? 'rgba(236, 72, 153, 0.16)'
-                      : 'rgba(6, 182, 212, 0.16)',
-                  border:
-                    status.engine === 'Bypass'
-                      ? '1px solid rgba(16, 185, 129, 0.45)'
-                      : status.engine === 'RubberBand'
-                      ? '1px solid rgba(236, 72, 153, 0.45)'
-                      : '1px solid rgba(6, 182, 212, 0.45)',
-                  boxShadow:
-                    status.engine === 'Bypass'
-                      ? '0 0 10px rgba(16, 185, 129, 0.22)'
-                      : status.engine === 'RubberBand'
-                      ? '0 0 10px rgba(236, 72, 153, 0.28)'
-                      : '0 0 10px rgba(6, 182, 212, 0.28)',
-                  transition: 'all 0.18s ease',
-                }}
-              >
-                {/* 1 kliknięcie natychmiast przełącza na kolejny silnik: Bypass -> Rubber Band -> SoundTouch */}
-                <button
-                  onClick={handleCycleDspEngine}
-                  style={{
-                    padding: '4px 7px 4px 10px',
-                    background: 'transparent',
-                    border: 'none',
-                    color:
-                      status.engine === 'Bypass'
-                        ? 'var(--accent-green)'
-                        : status.engine === 'RubberBand'
-                        ? 'var(--accent-pink)'
-                        : 'var(--accent-cyan)',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                  title={
-                    language === 'pl'
-                      ? `Silnik DSP: ${status.engine === 'Bypass' ? 'Direct Bypass (Czysty dźwięk)' : status.engine === 'RubberBand' ? 'Rubber Band (Hi-Fi R3)' : 'SoundTouch'}. Kliknij, aby natychmiast przełączyć.`
-                      : `DSP Engine: ${status.engine}. Click to cycle immediately.`
-                  }
-                >
-                  <Zap size={13} fill={status.engine !== 'Bypass' ? 'currentColor' : 'none'} />
-                  <span>{status.engine === 'RubberBand' ? 'Rubber Band' : status.engine}</span>
-                </button>
-
-                {/* Strzałka otwierająca listę wyboru silnika */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsDspQuickMenuOpen(!isDspQuickMenuOpen);
-                  }}
-                  style={{
-                    padding: '4px 6px 4px 2px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-                    color:
-                      status.engine === 'Bypass'
-                        ? 'var(--accent-green)'
-                        : status.engine === 'RubberBand'
-                        ? 'var(--accent-pink)'
-                        : 'var(--accent-cyan)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={language === 'pl' ? 'Wybierz konkretny silnik DSP z listy' : 'Select specific DSP engine'}
-                >
-                  <ChevronUp
-                    size={12}
-                    style={{
-                      transform: isDspQuickMenuOpen ? 'rotate(180deg)' : 'none',
-                      transition: 'transform 0.18s ease',
-                    }}
-                  />
-                </button>
-
-                {/* Popover z bezpośrednim wyborem silnika */}
-                {isDspQuickMenuOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 'calc(100% + 8px)',
-                      right: 0,
-                      background: 'rgba(20, 20, 32, 0.96)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '12px',
-                      padding: '6px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 0, 0, 0.4)',
-                      zIndex: 1000,
-                      minWidth: '205px',
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 600 }}>
-                      {language === 'pl' ? 'Wybierz silnik DSP:' : 'Select DSP Engine:'}
-                    </div>
-                    {[
-                      {
-                        id: 'Bypass',
-                        name: 'Direct Bypass',
-                        desc: language === 'pl' ? 'Czysty dźwięk' : 'Clean audio',
-                        color: 'var(--accent-green)',
-                      },
-                      {
-                        id: 'RubberBand',
-                        name: 'Rubber Band',
-                        desc: 'Hi-Fi R3',
-                        color: 'var(--accent-pink)',
-                      },
-                      {
-                        id: 'SoundTouch',
-                        name: 'SoundTouch',
-                        desc: language === 'pl' ? 'Szybki silnik' : 'Fast engine',
-                        color: 'var(--accent-cyan)',
-                      },
-                    ].map((eng) => (
-                      <button
-                        key={eng.id}
-                        onClick={() => {
-                          handleEngineChange(eng.id as any);
-                          setIsDspQuickMenuOpen(false);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '7px 10px',
-                          borderRadius: '8px',
-                          background: status.engine === eng.id ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                          border: status.engine === eng.id ? `1px solid ${eng.color}` : '1px solid transparent',
-                          color: status.engine === eng.id ? eng.color : 'var(--text-secondary)',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: status.engine === eng.id ? 700 : 500,
-                          textAlign: 'left',
-                          gap: '8px',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Zap size={12} color={eng.color} fill={eng.id !== 'Bypass' ? eng.color : 'none'} />
-                          {eng.name}
-                        </span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{eng.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Wskaźniki modyfikacji pitch/tempo jeśli są niezerowe */}
-              {status.pitch_semitones !== 0 && (
-                <span
-                  style={{
-                    fontSize: '0.70rem',
-                    padding: '2px 7px',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 77, 148, 0.18)',
-                    color: 'var(--accent-pink)',
-                    fontWeight: 600,
-                  }}
-                  title={t.bottomDock.pitchTooltip}
-                >
-                  {status.pitch_semitones > 0 ? `+${status.pitch_semitones}` : status.pitch_semitones} st
-                </span>
-              )}
-              {status.tempo_ratio !== 1.0 && (
-                <span
-                  style={{
-                    fontSize: '0.70rem',
-                    padding: '2px 7px',
-                    borderRadius: '6px',
-                    background: 'rgba(6, 182, 212, 0.18)',
-                    color: 'var(--accent-cyan)',
-                    fontWeight: 600,
-                  }}
-                  title={t.bottomDock.tempoTooltip}
-                >
-                  {status.tempo_ratio.toFixed(2)}x
-                </span>
-              )}
-            </div>
-
-            {/* Suwak głośności */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                onClick={handleToggleMute}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
-                title={status.volume === 0 ? t.bottomDock.mutedTooltip : t.bottomDock.volumeTooltip}
-              >
-                {status.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={status.volume}
-                onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
-                style={{
-                  width: '95px',
-                  height: '4px',
-                  cursor: 'pointer',
-                  background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-                }}
-              />
-            </div>
-
-            {/* Przycisk przejścia do pełnego ekranu Odtwarzacza lub przewinięcia do góry */}
-            <button
-              onClick={() => {
-                if (activeTab === 'player') {
-                  mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  setActiveTab('player');
-                }
-              }}
-              className="glass-card"
-              style={{
-                padding: '6px 8px',
-                borderRadius: '8px',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.75rem',
-              }}
-              title={activeTab === 'player' ? (language === 'pl' ? 'Przewiń do góry do odtwarzacza' : 'Scroll to top') : t.bottomDock.openFullPlayer}
-            >
-              {activeTab === 'player' ? <ChevronUp size={15} /> : <Maximize2 size={14} />}
-            </button>
-
-            {/* Przycisk przejścia do mini-player */}
-            <button
-              onClick={toggleMiniPlayer}
-              className="glass-card"
-              style={{
-                padding: '6px 8px',
-                borderRadius: '8px',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.75rem',
-              }}
-              title={t.bottomDock.maximizeTooltip}
-            >
-              <Minimize2 size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Szuflada kolejki odtwarzania (Drawer) */}
-      {isQueueOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: '420px',
-            maxWidth: '90vw',
-            background: 'rgba(15, 12, 28, 0.98)',
-            borderLeft: '1px solid var(--border-accent)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
-          }}
-        >
-          {/* Nagłówek szuflady */}
-          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ListMusic size={22} color="var(--accent-pink)" />
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{loc.queue.title}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {queue.items.length} {loc.library.tracks} • {queue.loop_mode !== 'None' ? `${loc.shortcuts.loop}: ${queue.loop_mode}` : loc.player.loopOff}
-                </span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {queue.items.length > 0 && (
-                <button
-                  onClick={handleClearQueue}
-                  title={loc.queue.clear}
-                  className="glass-card"
-                  style={{ padding: '6px 10px', fontSize: '0.75rem', color: '#ff6b81', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <Trash2 size={14} /> {loc.queue.clear}
-                </button>
-              )}
-              <button
-                onClick={() => setIsQueueOpen(false)}
-                title={loc.common.close}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          {/* Lista pozycji w kolejce */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {queue.items.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                <Music size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-                <p style={{ fontSize: '0.9rem', margin: 0 }}>{loc.queue.empty}</p>
-                <p style={{ fontSize: '0.8rem', marginTop: '6px', opacity: 0.7 }}>
-                  {loc.queue.emptyHint}
-                </p>
-              </div>
-            ) : (
-              queue.items.map((item, idx) => {
-                const isCurrent = idx === queue.current_index;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => handlePlayQueueIndex(idx, item)}
-                    className="glass-card"
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      cursor: 'pointer',
-                      background: isCurrent ? 'rgba(255, 77, 148, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                      border: isCurrent ? '1px solid var(--accent-pink)' : '1px solid rgba(255, 255, 255, 0.06)',
-                      boxShadow: isCurrent ? '0 0 16px rgba(255, 77, 148, 0.25)' : 'none',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div style={{ width: '24px', textAlign: 'center', color: isCurrent ? 'var(--accent-pink)' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: isCurrent ? 700 : 400 }}>
-                      {isCurrent && status.state === 'Playing' ? (
-                        <Zap size={16} color="var(--accent-pink)" />
-                      ) : (
-                        idx + 1
-                      )}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: isCurrent ? '#fff' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.title}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: isCurrent ? 'var(--accent-cyan)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.artist} {item.album ? `• ${item.album}` : ''}
-                      </p>
-                    </div>
-
-                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                      {formatTime(item.duration_ms)}
-                    </span>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <button
-                        disabled={idx === 0}
-                        onClick={(e) => handleMoveQueueItem(idx, idx - 1, e)}
-                        title={loc.queue.moveUp}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: idx === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
-                          cursor: idx === 0 ? 'default' : 'pointer',
-                          padding: '4px',
-                        }}
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-                      <button
-                        disabled={idx === queue.items.length - 1}
-                        onClick={(e) => handleMoveQueueItem(idx, idx + 1, e)}
-                        title={loc.queue.moveDown}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: idx === queue.items.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
-                          cursor: idx === queue.items.length - 1 ? 'default' : 'pointer',
-                          padding: '4px',
-                        }}
-                      >
-                        <ChevronDown size={16} />
-                      </button>
-                      <button
-                        onClick={(e) => handleRemoveFromQueue(item.id, e)}
-                        title={loc.queue.remove}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          padding: '4px',
-                        }}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-
-            {/* OKNO MODALNE USTAWIEŃ I PERSONALIZACJI */}
-      {isSettingsOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.72)',
-            backdropFilter: 'blur(16px)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px',
-          }}
-          onClick={() => setIsSettingsOpen(false)}
-        >
-          <div
-            className="glass-panel"
-            style={{
-              width: '100%',
-              maxWidth: '940px',
-              maxHeight: '88vh',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: '20px',
-              border: '1px solid var(--border-accent)',
-              overflow: 'hidden',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
-              background: 'var(--bg-deep)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Nagłówek okna ustawień */}
-            <div
-              style={{
-                padding: '16px 24px',
-                borderBottom: '1px solid var(--border-subtle)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: 'rgba(0, 0, 0, 0.35)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '10px',
-                    background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)',
-                  }}
-                >
-                  <Settings size={18} color="#fff" />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#fff' }}>{loc.settings.title}</h2>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: 0 }}>
-                    {loc.settings.subtitle}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="glass-card"
-                style={{ padding: '6px 10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                title={loc.settings.close}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Pasek zakładek ustawień */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '8px',
-                padding: '10px 24px',
-                background: 'rgba(0, 0, 0, 0.2)',
-                borderBottom: '1px solid var(--border-subtle)',
-                overflowX: 'auto',
-              }}
-            >
-              <button
-                onClick={() => setSettingsTab('themes')}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: settingsTab === 'themes' ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <Palette size={15} />
-                {loc.settings.themes}
-              </button>
-              <button
-                onClick={() => setSettingsTab('devices')}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: settingsTab === 'devices' ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <Radio size={15} />
-                {loc.settings.audioDevices}
-              </button>
-              <button
-                onClick={() => setSettingsTab('transcode')}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: settingsTab === 'transcode' ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <FileAudio size={15} />
-                {loc.settings.exportOpus}
-              </button>
-              <button
-                onClick={() => setSettingsTab('about')}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: settingsTab === 'about' ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <Info size={15} />
-                {loc.settings.about}
-              </button>
-              <button
-                onClick={() => setSettingsTab('changelog')}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: settingsTab === 'changelog' ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <History size={15} />
-                {loc.settings.changelog}
-              </button>
-              <button
-                onClick={() => setSettingsTab('backup')}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: settingsTab === 'backup' ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <Save size={15} />
-                {loc.settings.backupTitle}
-              </button>
-            </div>
-
-            {/* Treść wybranej pod-zakładki ustawień */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-              {settingsTab === 'themes' && renderThemesSection()}
-              {settingsTab === 'devices' && renderDevicesSection()}
-              {settingsTab === 'transcode' && renderTranscodeSection()}
-              {settingsTab === 'about' && renderAboutSection()}
-              {settingsTab === 'changelog' && renderChangelogSection()}
-              {settingsTab === 'backup' && renderBackupSection()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal dodawania utworu do playlisty */}
-      {showPlaylistModal && trackToAddToPlaylist && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.75)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1100,
-          }}
-        >
-          <div
-            className="glass-panel"
-            style={{
-              padding: '28px',
-              width: '450px',
-              maxWidth: '90vw',
-              borderRadius: '16px',
-              border: '1px solid var(--border-accent)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FolderPlus size={18} color="var(--accent-purple)" /> {loc.playlists.title}
-              </h3>
-              <button
-                onClick={() => { setShowPlaylistModal(false); setTrackToAddToPlaylist(null); }}
-                title={loc.common.close}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              {loc.playlists.title}: <strong style={{ color: 'var(--accent-pink)' }}>{trackToAddToPlaylist.title}</strong>
-            </p>
-
-            {playlists.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                {loc.playlists.empty}. {loc.playlists.emptyHint}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
-                {playlists.map((pl) => (
-                  <button
-                    key={pl.id}
-                    onClick={() => handleAddTrackToPlaylist(pl.id, trackToAddToPlaylist.id)}
-                    className="glass-card"
-                    style={{
-                      padding: '12px 16px',
-                      textAlign: 'left',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>{pl.name}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{pl.track_count} {loc.library.tracks}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Modal Skrótów Klawiszowych */}
-      <KeyboardShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-        currentLang={language}
-      />
-
-      {/* Online Cover Art Picker Modal */}
-      {coverPickerState && (
-        <CoverArtPickerModal
-          isOpen={coverPickerState.isOpen}
-          onClose={() => setCoverPickerState(null)}
-          albumId={coverPickerState.albumId}
-          initialAlbum={coverPickerState.title}
-          initialArtist={coverPickerState.artist}
-          trackId={currentPlayingTrack?.id || null}
-          currentLang={language}
-          onCoverApplied={async (coverDataUri) => {
-            setTrackDirectCover(coverDataUri);
-            setAlbums((prev) =>
-              prev.map((a) =>
-                a.id === coverPickerState.albumId ? { ...a, cover_path: coverDataUri } : a
-              )
-            );
-            showMessage(loc.notifications.mbCoverMatched.replace('{0}', coverPickerState.title));
-            await loadLibrary();
-          }}
-        />
-      )}
-      </div>
-
-      {/* Tryb immersyjny Kiosk / Pełny ekran Now Playing (F11) */}
-      {isBigScreen && (
-        <BigScreenView
-          title={effectiveDisplayTitle}
-          artist={effectiveDisplayArtist}
-          album={currentAlbum?.title || status.current_track?.album || null}
-          format={currentPlayingTrack?.format || 'FLAC'}
-          coverUrl={currentCover}
-          trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
-          isPlaying={status.state === 'Playing'}
-          positionMs={status.position_ms}
-          durationMs={status.duration_ms}
-          volume={status.volume}
-          pitchSemitones={status.pitch_semitones}
-          tempoRatio={status.tempo_ratio}
-          spectrum={status.spectrum}
-          currentLang={language}
-          onPlayPause={handlePlayPause}
-          onPrev={handlePrevious}
-          onNext={handleNext}
-          onSeek={handleSeek}
-          onVolumeChange={handleVolumeChange}
-          onClose={() => setIsBigScreen(false)}
-          onFetchCover={handleFetchCurrentTrackCover}
-          onUploadCover={() => handleUploadCustomCoverDirect(currentAlbum)}
-        />
-      )}
-
-      {/* Pływający widżet tekstu na pulpicie (Desktop Lyrics Overlay) */}
-      <DesktopLyricsOverlay
-        isOpen={showDesktopLyrics}
-        onClose={() => {
-          setShowDesktopLyrics(false);
-          try {
-            localStorage.setItem('auralune_desktop_lyrics_open', 'false');
-          } catch {}
-        }}
-        trackTitle={effectiveDisplayTitle}
-        trackArtist={effectiveDisplayArtist}
-        trackAlbum={currentAlbum?.title || status.current_track?.album || null}
-        trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
-        coverUrl={currentCover}
-        durationMs={status.duration_ms}
-        positionMs={status.position_ms}
-        isPlaying={status.state === 'Playing'}
-        currentLang={language}
-        onPlayPause={handlePlayPause}
-        onPrev={handlePrevious}
-        onNext={handleNext}
-        onSeek={handleSeek}
-      />
-
-      {/* Modal Wyłącznika Czasowego (Sleep Timer z łagodnym Fade-Out) */}
-      <SleepTimerModal
-        isOpen={isSleepTimerOpen}
-        onClose={() => setIsSleepTimerOpen(false)}
-        currentLang={language}
-        remainingSec={sleepTimerRemainingSec}
-        targetMode={sleepTimerTargetMode}
-        fadeOut={sleepTimerFadeOut}
-        onSetTimer={handleSetSleepTimer}
-        onCancelTimer={handleCancelSleepTimer}
-      />
-
-      {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
-      <SoundscapeModal
-        isOpen={isSoundscapeOpen}
-        onClose={() => setIsSoundscapeOpen(false)}
-        currentLang={language}
-      />
-
-      {/* Modal Miksowania Harmonicznego & DJ Crossfade */}
-      <HarmonicSuggesterModal
-        isOpen={isHarmonicSuggesterOpen}
-        onClose={() => setIsHarmonicSuggesterOpen(false)}
-        currentTrack={
-          currentPlayingTrack
-            ? {
-                id: currentPlayingTrack.id,
-                uri: currentPlayingTrack.path,
-                title: currentPlayingTrack.title,
-                artist: currentPlayingTrack.artist,
-                album: currentPlayingTrack.album_id
-                  ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title || null
-                  : null,
-                duration_ms: currentPlayingTrack.duration_ms,
-                bpm: currentPlayingTrack.bpm,
-                initial_key: currentPlayingTrack.initial_key,
-              }
-            : null
-        }
-        libraryTracks={tracks.map((t) => ({
-          id: t.id,
-          uri: t.path,
-          title: t.title,
-          artist: t.artist,
-          album: t.album_id ? albums.find((a) => a.id === t.album_id)?.title || null : null,
-          duration_ms: t.duration_ms,
-          bpm: t.bpm,
-          initial_key: t.initial_key,
-        }))}
-        onPlayTrack={(ht) => {
-          const fullTrack = tracks.find((t) => t.id === ht.id);
-          if (fullTrack) {
-            handlePlayLibraryTrack(fullTrack);
-            setIsHarmonicSuggesterOpen(false);
-          }
-        }}
-        onEnqueueTrack={(ht, playNext) => {
-          const fullTrack = tracks.find((t) => t.id === ht.id);
-          if (fullTrack) {
-            if (playNext) {
-              handleAddTrackNextToQueue(fullTrack);
-            } else {
-              handleAddTrackToQueue(fullTrack);
-            }
-          }
-        }}
-        onSyncTempo={(targetBpm) => {
-          const curBpm = currentPlayingTrack?.bpm;
-          if (curBpm && curBpm > 0) {
-            const ratio = Math.min(3.0, Math.max(0.25, Math.round((targetBpm / curBpm) * 100) / 100));
-            handleTempoChange(ratio);
-            showMessage(`Dopasowano tempo DSP: ${ratio}x (${curBpm.toFixed(1)} → ${targetBpm.toFixed(1)} BPM)`);
-          } else {
-            showMessage(`Bieżący utwór nie posiada wykrytego BPM do synchronizacji`, true);
-          }
-        }}
-        crossfadeDurationMs={crossfadeDuration}
-        onSetCrossfadeDuration={handleCrossfadeDurationChange}
-        currentLang={language}
-      />
-
-      {/* Modal Bazy Profili Słuchawkowych AutoEQ */}
-      <AutoEqModal
-        isOpen={isAutoEqOpen}
-        onClose={() => setIsAutoEqOpen(false)}
-        currentBands={status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        onApplyProfile={async (bands, preampDb, profileName) => {
-          try {
-            await invoke('set_equalizer_bands', { bands });
-            await invoke('set_equalizer_enabled', { enabled: true });
-            setStatus((prev) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
-            showMessage(
-              `Zastosowano profil słuchawek AutoEQ: ${profileName}${
-                preampDb !== 0 ? ` (Preamp: ${preampDb.toFixed(1)} dB)` : ''
-              }`
-            );
-            setIsAutoEqOpen(false);
-          } catch (e: any) {
-            showMessage(`${t.common.errorPrefix} ${e}`, true);
-          }
-        }}
-        onResetFlat={handleResetEq}
-        currentLang={language}
-      />
-
-      {/* Modal Wielopasmowego Korektora Parametrycznego PEQ Studio */}
-      <ParametricEqModal
-        isOpen={isParametricEqOpen}
-        onClose={() => setIsParametricEqOpen(false)}
-        currentLang={language}
-      />
-
-      {/* Modal Studia Dynamiki & Nasycenia Analogowego (Kompresor, Lampa, Taśma, Limiter) */}
-      <DynamicsStudioModal
-        isOpen={isDynamicsStudioOpen}
-        onClose={() => setIsDynamicsStudioOpen(false)}
-        currentLang={language}
-      />
-
-      {/* Modal Szczegółowych Statystyk Utworu */}
-      {statsModalTrack && (
-        <TrackStatsModal
-          track={statsModalTrack}
-          currentLang={language}
-          onClose={() => setStatsModalTrack(null)}
-          onResetPlays={handleResetTrackPlays}
-        />
-      )}
-
-      {/* Modal Precyzyjnej Edycji Pętli A-B (co do milisekundy) */}
-      <LoopEditorModal
-        isOpen={isLoopEditorOpen}
-        onClose={() => setIsLoopEditorOpen(false)}
-        loopPointA={loopPointA}
-        loopPointB={loopPointB}
-        currentPositionMs={status.position_ms}
-        durationMs={status.duration_ms}
-        onApplyLoop={(a, b) => {
-          setLoopPointA(a);
-          setLoopPointB(b);
-          if (a !== null && b !== null) {
-            showMessage(`Ustawiono pętlę A-B: ${formatTimeMs(a)} → ${formatTimeMs(b)} (${b - a} ms)`);
-          } else {
-            showMessage(loc.shortcuts.loopClear || 'Wyczyszczono pętlę A-B');
-          }
-        }}
-        onSeek={handleSeek}
-        onExportLoop={handleExportLoopFromModal}
-        onSaveAsTrackBookmarks={handleSaveLoopAsBookmarks}
-        loc={loc}
-      />
-
-      {/* Kreator pierwszego uruchomienia i wprowadzenie (Onboarding & Disclaimer) */}
-      <OnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
-        currentLang={language}
-        onLanguageChange={setLanguage}
-        recapOptIn={recapOptIn}
-        onRecapOptInChange={(opt) => {
-          setRecapOptIn(opt);
-          try {
-            localStorage.setItem('auralune_recap_opt_in', String(opt));
-          } catch {}
-        }}
-        instantVolume={instantVolume}
-        onInstantVolumeChange={(inst) => {
-          setInstantVolume(inst);
-          try {
-            localStorage.setItem('auralune_instant_volume', String(inst));
-          } catch {}
-        }}
-        volumeOsdPosition={volumeOsdPosition}
-        onVolumeOsdPositionChange={(pos) => {
-          setVolumeOsdPosition(pos as VolumeOsdPosition);
-          try {
-            localStorage.setItem('auralune_volume_osd_position', pos);
-          } catch {}
-        }}
-      />
-
-      {/* Menu / Modal Tonacji i Tempa (Key & BPM A/B DSP) */}
-      <KeyBpmModal
-        isOpen={isKeyBpmModalOpen}
-        onClose={() => setIsKeyBpmModalOpen(false)}
-        currentTrackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
-        currentTrackId={activeTrackId || status.current_track?.track_id || undefined}
-        currentTrackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
-        pitchSemitones={status.pitch_semitones ?? 0}
-        tempoRatio={status.tempo_ratio ?? 1}
-        rateRatio={status.rate_ratio ?? 1}
-        onPitchChange={handlePitchChange}
-        onTempoChange={handleTempoChange}
-        currentLang={language}
-      />
-
-      {/* Podsumowanie Tygodnia, Miesiąca i Roku (Auralune Recap / Wrapped) */}
-      <AuraluneRecapModal
-        isOpen={isRecapModalOpen}
-        onClose={() => setIsRecapModalOpen(false)}
-        currentLang={language}
-        onPlayTrackId={(id) => {
-          const tr = tracks.find((t) => t.id === id);
-          if (tr) handlePlayLibraryTrack(tr);
-        }}
-      />
-
-      {/* Modal Edytora Tagów (foobar2000 style Properties) */}
-      {tagEditorTrack && (
-        <TagEditorModal
-          trackId={tagEditorTrack.id}
-          filePath={tagEditorTrack.path}
-          format={tagEditorTrack.format}
-          bitDepth={tagEditorTrack.bit_depth}
-          sampleRate={tagEditorTrack.sample_rate}
-          channels={tagEditorTrack.channels}
-          fileSize={tagEditorTrack.file_size}
-          currentLang={language}
-          onClose={() => setTagEditorTrack(null)}
-          onSaveSuccess={() => {
-            loadLibrary();
-            showMessage(language === 'pl' ? 'Tagi pliku zostały zaktualizowane pomyślnie!' : 'Tags updated successfully!');
-          }}
-        />
-      )}
-
-      {/* Modal Palety Komend (Ctrl+K omnibar) */}
-      {isCommandPaletteOpen && (
-        <CommandPaletteModal
-          tracks={tracks}
-          albums={albums}
-          isPlaying={status.state === 'Playing'}
-          currentLang={language}
-          stopAfterCurrent={status.stop_after_current ?? false}
-          onClose={() => setIsCommandPaletteOpen(false)}
-          onPlayTrack={(t) => handlePlayLibraryTrack(t)}
-          onAddToQueue={(t) => handleAddTrackToQueue(t)}
-          onTogglePlay={handlePlayPause}
-          onNext={handleNext}
-          onPrevious={handlePrevious}
-          onToggleShuffle={handleToggleShuffle}
-          onToggleStopAfterCurrent={handleToggleStopAfterCurrent}
-          onOpenUrlImportModal={() => setIsUrlImportModalOpen(true)}
-          onSetAmbience={(m) => {
-            setAmbienceMode(m);
-            localStorage.setItem('auralune_ambience_mode', m);
-          }}
-          onSetDspEngine={(eng) => handleEngineChange(eng)}
-          onResetDsp={handleResetDsp}
-          onOpenBigScreen={() => setIsBigScreen(true)}
-          onOpenReplayGainScanner={() => {
-            setActiveTab('devices');
-          }}
-          onOpenSoundscape={() => setIsSoundscapeOpen(true)}
-          onOpenHarmonicSuggester={() => setIsHarmonicSuggesterOpen(true)}
-          onOpenAutoEq={() => setIsAutoEqOpen(true)}
-          onOpenParametricEq={() => setIsParametricEqOpen(true)}
-          onOpenDynamicsStudio={() => setIsDynamicsStudioOpen(true)}
-          onSelectTab={(tab) => setActiveTab(tab as any)}
-        />
-      )}
-
-      {/* Modal Wbudowanego Importera Audio z URL (yt-dlp) */}
-      <UrlAudioImportModal
-        isOpen={isUrlImportModalOpen}
-        currentLang={language}
-        onClose={() => setIsUrlImportModalOpen(false)}
-        onPlayTrack={(t) => handlePlayLibraryTrack(t)}
-        onAddToQueue={(t) => handleAddTrackToQueue(t)}
-        onLibraryUpdated={async () => {
-          try {
-            const updatedTracks = await invoke<TrackRecord[]>('get_library_tracks');
-            const updatedAlbums = await invoke<AlbumRecord[]>('get_library_albums');
-            setTracks(updatedTracks);
-            setAlbums(updatedAlbums);
-          } catch {}
-        }}
-      />
-
-      {/* Modal Arkusza CUE (.cue sheet) */}
-      {isCueModalOpen && (
-        <CueSheetModal
-          currentLang={language}
-          onClose={() => setIsCueModalOpen(false)}
-          onPlayCueTrack={(audioFile, cueTrack) => {
-            let targetPath = audioFile;
-            const matching = tracks.find((t) => t.path.endsWith(audioFile) || t.path.includes(audioFile));
-            if (matching) {
-              targetPath = matching.path;
-            }
-            handleLoadFile(targetPath).then(async () => {
-              await invoke('play');
-              handleSeek(cueTrack.start_offset_ms);
-            });
-            showMessage(`Odtwarzanie CUE: ${cueTrack.title} (${cueTrack.number})`);
-          }}
-          onAddCueTracksToQueue={async (audioFile, cueTracks) => {
-            let targetPath = audioFile;
-            const matching = tracks.find((t) => t.path.endsWith(audioFile) || t.path.includes(audioFile));
-            if (matching) {
-              targetPath = matching.path;
-            }
-            const matchingAlb = matching?.album_id ? albums.find((a) => a.id === matching.album_id) : null;
-            for (const ct of cueTracks) {
-              const item: QueueItem = {
-                id: `cue-${ct.number}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                track_id: matching?.id ?? null,
-                uri: targetPath,
-                title: ct.title,
-                artist: ct.performer || matching?.artist || 'Unknown',
-                album: matchingAlb?.title || null,
-                duration_ms: ct.duration_ms || 180000,
-              };
-              await invoke('add_to_queue', { item });
-            }
-            await refreshQueue();
-            showMessage(`Dodano ${cueTracks.length} utworów z CUE do kolejki`);
-          }}
-        />
-      )}
-
-      {/* MODAL 10: LEGAL DOWNLOAD HUB (ETAP 7) */}
-      <DownloadHubModal
-        isOpen={showDownloadHub}
-        onClose={() => setShowDownloadHub(false)}
-        onRefreshLibrary={loadLibrary}
-        onPlayPath={(path) => {
-          handleLoadFile(path).then(async () => {
-            await invoke('play');
-          });
-        }}
-      />
-
-      {/* Modal Wielopunktowych Zakładek (Cue Points) */}
-      {isBookmarksModalOpen && activeTrackId && (
-        <TrackBookmarksModal
-          trackId={activeTrackId}
-          trackTitle={status.current_track?.title || filePath || 'Utwór'}
-          currentPositionMs={status.position_ms}
-          durationMs={status.duration_ms}
-          onSeek={(posMs) => handleSeek(posMs)}
-          onClose={() => setIsBookmarksModalOpen(false)}
-          onBookmarksUpdated={refreshTrackBookmarks}
-          onExportRange={(startMs, endMs) => handleExportLoopFromModal(startMs, endMs)}
-          onSetAsLoop={(startMs, endMs) => {
-            if (startMs !== null) setLoopPointA(startMs);
-            if (endMs !== null) setLoopPointB(endMs);
-            if (startMs !== null && endMs !== null) {
-              showMessage(`Ustawiono pętlę A-B ze znaczników: ${formatTimeMs(startMs)} → ${formatTimeMs(endMs)}`);
-            }
-          }}
-        />
-      )}
-
-      {/* Modal Wyszukiwarki Duplikatów (Duplicate Finder) */}
-      {isDuplicateFinderOpen && (
-        <DuplicateFinderModal
-          onClose={() => setIsDuplicateFinderOpen(false)}
-          onPlayTrack={(path) => {
-            handleLoadFile(path).then(async () => {
-              await invoke('play');
-            });
-          }}
-          onLibraryChanged={loadLibrary}
-        />
-      )}
-
-      {/* Modal Masowego Renamera Plików (foobar2000 File Ops) */}
-      {isFileRenamerOpen && (
-        <FileRenamerModal
-          tracks={filteredTracks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            artist: t.artist,
-            path: t.path,
-          }))}
-          onClose={() => setIsFileRenamerOpen(false)}
-          onRenamedSuccess={() => {
-            loadLibrary();
-            showMessage('Pomyślnie zaktualizowano nazwy plików w bibliotece!');
-          }}
-        />
-      )}
-
-      {/* Modal Zapisywania Kolejki jako Playlisty */}
-      <SaveQueueModal
-        isOpen={isSaveQueueModalOpen}
-        currentLang={language}
-        queueLength={queue.items.length}
-        onClose={() => setIsSaveQueueModalOpen(false)}
-        onSave={handleConfirmSaveQueueAsPlaylist}
-      />
-
-      {/* Modal Dodawania Własnej Stacji Radiowej */}
-      <AddRadioStationModal
-        isOpen={isAddStationModalOpen}
-        currentLang={language}
-        onClose={() => setIsAddStationModalOpen(false)}
-        onSave={handleSaveCustomStation}
-      />
-    </div>
-  );
-}
+                     
+... [truncated for diff preview]

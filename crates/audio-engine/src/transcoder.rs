@@ -48,6 +48,28 @@ impl Transcoder {
         dsp_settings: Option<&DspExportSettings>,
         time_range: Option<&TimeRange>,
     ) -> Result<(), AudioEngineError> {
+        Self::transcode_with_dsp_and_progress(
+            input_path,
+            output_path,
+            format,
+            dsp_settings,
+            time_range,
+            None::<fn(f64, u64, u64)>,
+        )
+    }
+
+    /// Wersja z raportowaniem postępu transkodowania w czasie rzeczywistym (wywołanie callbacku co ~150 ms).
+    pub fn transcode_with_dsp_and_progress<F>(
+        input_path: impl AsRef<Path>,
+        output_path: impl AsRef<Path>,
+        format: ExportFormat,
+        dsp_settings: Option<&DspExportSettings>,
+        time_range: Option<&TimeRange>,
+        progress_cb: Option<F>,
+    ) -> Result<(), AudioEngineError>
+    where
+        F: Fn(f64, u64, u64) + Send + 'static,
+    {
         let input_raw = input_path.as_ref();
         let input_buf;
         let input = if let Some(path_str) = input_raw.to_str() {
@@ -370,37 +392,90 @@ impl Transcoder {
         })?;
 
         let mut got_eos = false;
-        let timeout = gst::ClockTime::from_seconds(180);
-        while let Some(msg) = bus.timed_pop_filtered(
-            timeout,
-            &[
-                gst::MessageType::Eos,
-                gst::MessageType::Error,
-                gst::MessageType::Warning,
-            ],
-        ) {
-            use gst::MessageView;
-            match msg.view() {
-                MessageView::Eos(..) => {
-                    debug!("Transkodowanie ukończone pomyślnie (EOS)");
-                    got_eos = true;
-                    break;
+        let start_time = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(180);
+        let mut last_progress_report = std::time::Instant::now();
+
+        while start_time.elapsed() < timeout {
+            if let Some(msg) = bus.timed_pop_filtered(
+                gst::ClockTime::from_mseconds(150),
+                &[
+                    gst::MessageType::Eos,
+                    gst::MessageType::Error,
+                    gst::MessageType::Warning,
+                ],
+            ) {
+                use gst::MessageView;
+                match msg.view() {
+                    MessageView::Eos(..) => {
+                        debug!("Transkodowanie ukończone pomyślnie (EOS)");
+                        got_eos = true;
+                        break;
+                    }
+                    MessageView::Error(err) => {
+                        let err_msg =
+                            format!("Błąd transkodowania: {} ({:?})", err.error(), err.debug());
+                        error!("{}", err_msg);
+                        let _ = pipeline.set_state(gst::State::Null);
+                        return Err(AudioEngineError::ElementLink(err_msg));
+                    }
+                    MessageView::Warning(warn) => {
+                        warn!(
+                            "Ostrzeżenie transkodera: {} ({:?})",
+                            warn.error(),
+                            warn.debug()
+                        );
+                    }
+                    _ => {}
                 }
-                MessageView::Error(err) => {
-                    let err_msg =
-                        format!("Błąd transkodowania: {} ({:?})", err.error(), err.debug());
-                    error!("{}", err_msg);
-                    let _ = pipeline.set_state(gst::State::Null);
-                    return Err(AudioEngineError::ElementLink(err_msg));
+            }
+
+            if let Some(ref cb) = progress_cb {
+                if last_progress_report.elapsed() >= std::time::Duration::from_millis(150) {
+                    last_progress_report = std::time::Instant::now();
+                    let mut q_pos = gst::query::Position::new(gst::Format::Time);
+                    let mut q_dur = gst::query::Duration::new(gst::Format::Time);
+
+                    let pos_ms = if pipeline.query(&mut q_pos) {
+                        match q_pos.result() {
+                            gst::GenericFormattedValue::Time(Some(t)) => Some(t.mseconds()),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    let dur_ms = if pipeline.query(&mut q_dur) {
+                        match q_dur.result() {
+                            gst::GenericFormattedValue::Time(Some(t)) => Some(t.mseconds()),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    if let Some(p) = pos_ms {
+                        let (effective_p, effective_d) = match time_range {
+                            Some(r) => {
+                                let start = r.start_ms;
+                                let dur = match r.end_ms {
+                                    Some(end) => end.saturating_sub(start),
+                                    None => dur_ms.unwrap_or(0).saturating_sub(start),
+                                };
+                                (p.saturating_sub(start), dur)
+                            }
+                            None => (p, dur_ms.unwrap_or(0)),
+                        };
+
+                        let percent = if effective_d > 0 {
+                            (effective_p as f64 / effective_d as f64 * 100.0).clamp(0.0, 99.0)
+                        } else {
+                            0.0
+                        };
+
+                        cb(percent, effective_p, effective_d);
+                    }
                 }
-                MessageView::Warning(warn) => {
-                    warn!(
-                        "Ostrzeżenie transkodera: {} ({:?})",
-                        warn.error(),
-                        warn.debug()
-                    );
-                }
-                _ => {}
             }
         }
 
@@ -410,6 +485,10 @@ impl Transcoder {
                 "Upłynął limit czasu transkodowania (timeout 180s) lub potok nie wygenerował EOS"
                     .into(),
             ));
+        }
+
+        if let Some(ref cb) = progress_cb {
+            cb(100.0, 0, 0);
         }
 
         pipeline.set_state(gst::State::Null)?;

@@ -15,7 +15,7 @@ use gst_base::prelude::BaseTransformExt;
 use gstreamer as gst;
 use gstreamer_base as gst_base;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
@@ -92,6 +92,8 @@ pub struct AudioEngine {
     queue: Arc<Mutex<PlaybackQueue>>,
     replaygain_mode: Arc<AtomicU8>,
     stop_after_current: Arc<AtomicBool>,
+    fade_generation: Arc<AtomicU64>,
+    is_fading_in: Arc<AtomicBool>,
 }
 
 impl AudioEngine {
@@ -246,6 +248,17 @@ impl AudioEngine {
 
                     if !config.enabled || config.width <= 0.0 {
                         return gst::PadProbeReturn::Ok;
+                    }
+
+                    // Bezpieczna weryfikacja: Stereo Widener przetwarza wyłącznie 2-kanałowy strumień stereo
+                    if let Some(caps) = _pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if let Ok(channels) = s.get::<i32>("channels") {
+                                if channels != 2 {
+                                    return gst::PadProbeReturn::Ok;
+                                }
+                            }
+                        }
                     }
 
                     let buffer_mut = buffer.make_mut();
@@ -584,11 +597,15 @@ impl AudioEngine {
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
         let stop_after_current = Arc::new(AtomicBool::new(false));
+        let fade_generation = Arc::new(AtomicU64::new(0));
+        let is_fading_in = Arc::new(AtomicBool::new(false));
         Ok(Self {
             inner,
             queue,
             replaygain_mode,
             stop_after_current,
+            fade_generation,
+            is_fading_in,
         })
     }
 
@@ -951,6 +968,8 @@ impl AudioEngine {
 
     /// Ustawia głośność (zakres 0.0 do 1.0+).
     pub fn set_volume(&self, volume: f64) -> Result<(), AudioEngineError> {
+        self.fade_generation.fetch_add(1, Ordering::SeqCst);
+        self.is_fading_in.store(false, Ordering::SeqCst);
         let mut inner = self.inner.lock().unwrap();
         let clamped = volume.clamp(0.0, 2.0);
         inner.user_volume = clamped;
@@ -1323,11 +1342,36 @@ impl AudioEngine {
                                 inner.state = PlaybackState::Stopped;
                             }
                             // Automatyczne przejście do następnego utworu w kolejce
-                            if let Ok(Some(next_track)) = self.play_next() {
-                                info!(
-                                    "Kolejka: automatyczne przejście po EOS do utworu: {}",
-                                    next_track.title
-                                );
+                            let next_item = {
+                                let mut q = self.queue.lock().unwrap();
+                                q.next().cloned()
+                            };
+                            match next_item {
+                                Some(item) => {
+                                    if let Err(e) = self.load_uri(&item.uri) {
+                                        error!("Błąd ładowania następnego utworu po EOS: {}", e);
+                                    } else {
+                                        let (crossfade_ms, user_vol) = {
+                                            let inner = self.inner.lock().unwrap();
+                                            (inner.crossfade_duration_ms, inner.user_volume)
+                                        };
+                                        if crossfade_ms > 0 && user_vol > 0.001 {
+                                            let fade_in_ms = crossfade_ms / 2;
+                                            let _ = self.play_with_fade_duration(
+                                                Duration::from_millis(fade_in_ms),
+                                            );
+                                        } else {
+                                            let _ = self.play();
+                                        }
+                                        info!(
+                                            "Kolejka: automatyczne płynne przejście po EOS do utworu: {}",
+                                            item.title
+                                        );
+                                    }
+                                }
+                                None => {
+                                    let _ = self.stop();
+                                }
                             }
                         }
                         events.push(PlayerEvent::Eos);
@@ -1457,6 +1501,46 @@ impl AudioEngine {
                 }
             }
         }
+
+        // Sprawdź czy utwór zbliża się do końca (pre-EOS equal-power fade-out dla płynnego przejścia)
+        if !self.is_fading_in.load(Ordering::Relaxed) {
+            let is_track_loop = {
+                let q = self.queue.lock().unwrap();
+                q.loop_mode == LoopMode::Track
+            };
+
+            if !is_track_loop {
+                let (is_playing, crossfade_ms, user_vol, volume) = {
+                    let inner = self.inner.lock().unwrap();
+                    (
+                        inner.state == PlaybackState::Playing,
+                        inner.crossfade_duration_ms,
+                        inner.user_volume,
+                        inner.volume.clone(),
+                    )
+                };
+
+                if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
+                    let fade_out_ms = crossfade_ms / 2;
+                    if let (Some(pos), Some(dur)) = (self.position(), self.duration()) {
+                        if dur > pos {
+                            let remaining_ms = (dur - pos).as_millis() as u64;
+                            if remaining_ms <= fade_out_ms {
+                                let t = remaining_ms as f64 / fade_out_ms as f64;
+                                let gain = (t * std::f64::consts::FRAC_PI_2).sin();
+                                volume.set_property("volume", user_vol * gain);
+                            } else {
+                                let cur_vol: f64 = volume.property("volume");
+                                if (cur_vol - user_vol).abs() > 0.01 {
+                                    volume.set_property("volume", user_vol);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         events
     }
 
@@ -1722,6 +1806,17 @@ impl AudioEngine {
         items: Vec<QueueItem>,
         start_index: Option<usize>,
     ) -> Result<Option<QueueItem>, AudioEngineError> {
+        let (crossfade_ms, user_vol, is_playing, volume) = {
+            let inner = self.inner.lock().unwrap();
+            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
+            (
+                inner.crossfade_duration_ms,
+                inner.user_volume,
+                is_playing,
+                inner.volume.clone(),
+            )
+        };
+
         let active_item = {
             let mut q = self.queue.lock().unwrap();
             q.set_items(items, start_index);
@@ -1729,8 +1824,24 @@ impl AudioEngine {
         };
 
         if let Some(item) = &active_item {
+            if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
+                let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+                let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+                Self::fade_out_equal_power(
+                    &volume,
+                    user_vol,
+                    Duration::from_millis(fade_out_ms),
+                    &self.fade_generation,
+                    gen,
+                );
+            }
             self.load_uri(&item.uri)?;
-            self.play()?;
+            if crossfade_ms > 0 && user_vol > 0.001 {
+                let fade_in_ms = crossfade_ms / 2;
+                self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
+            } else {
+                self.play()?;
+            }
         }
         Ok(active_item)
     }
@@ -1779,9 +1890,11 @@ impl AudioEngine {
 
     /// Odtwarza utwór ze wskazanego indeksu w kolejce.
     pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
-        let item = {
+        let (item, crossfade_ms, user_vol, is_playing, volume) = {
             let mut q = self.queue.lock().unwrap();
-            if index < q.items.len() {
+            let inner = self.inner.lock().unwrap();
+            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
+            let item = if index < q.items.len() {
                 q.current_index = Some(index);
                 if q.shuffle && !q.shuffle_order.is_empty() {
                     if let Some(pos) = q.shuffle_order.iter().position(|&x| x == index) {
@@ -1791,12 +1904,35 @@ impl AudioEngine {
                 q.current_item().cloned()
             } else {
                 None
-            }
+            };
+            (
+                item,
+                inner.crossfade_duration_ms,
+                inner.user_volume,
+                is_playing,
+                inner.volume.clone(),
+            )
         };
 
         if let Some(item) = &item {
+            if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
+                let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+                let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+                Self::fade_out_equal_power(
+                    &volume,
+                    user_vol,
+                    Duration::from_millis(fade_out_ms),
+                    &self.fade_generation,
+                    gen,
+                );
+            }
             self.load_uri(&item.uri)?;
-            self.play()?;
+            if crossfade_ms > 0 && user_vol > 0.001 {
+                let fade_in_ms = crossfade_ms / 2;
+                self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
+            } else {
+                self.play()?;
+            }
         }
         Ok(item)
     }
@@ -1816,15 +1952,15 @@ impl AudioEngine {
         };
 
         if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-            let half_fade = Duration::from_millis(crossfade_ms.min(3000) / 2);
-            let steps = 6;
-            let step_time = half_fade / steps as u32;
-            for i in (0..=steps).rev() {
-                let t = (i as f64) / (steps as f64);
-                let gain = (t * std::f64::consts::FRAC_PI_2).sin();
-                volume.set_property("volume", user_vol * gain);
-                std::thread::sleep(step_time);
-            }
+            let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+            let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+            Self::fade_out_equal_power(
+                &volume,
+                user_vol,
+                Duration::from_millis(fade_out_ms),
+                &self.fade_generation,
+                gen,
+            );
         }
 
         let next_item = {
@@ -1836,9 +1972,8 @@ impl AudioEngine {
             Some(item) => {
                 self.load_uri(&item.uri)?;
                 if crossfade_ms > 0 && user_vol > 0.001 {
-                    self.play_with_fade_duration(Duration::from_millis(
-                        crossfade_ms.min(3000) / 2,
-                    ))?;
+                    let fade_in_ms = crossfade_ms / 2;
+                    self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
                 } else {
                     self.play()?;
                 }
@@ -1873,15 +2008,15 @@ impl AudioEngine {
         };
 
         if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-            let half_fade = Duration::from_millis(crossfade_ms.min(3000) / 2);
-            let steps = 6;
-            let step_time = half_fade / steps as u32;
-            for i in (0..=steps).rev() {
-                let t = (i as f64) / (steps as f64);
-                let gain = (t * std::f64::consts::FRAC_PI_2).sin();
-                volume.set_property("volume", user_vol * gain);
-                std::thread::sleep(step_time);
-            }
+            let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+            let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+            Self::fade_out_equal_power(
+                &volume,
+                user_vol,
+                Duration::from_millis(fade_out_ms),
+                &self.fade_generation,
+                gen,
+            );
         }
 
         let prev_item = {
@@ -1893,9 +2028,8 @@ impl AudioEngine {
             Some(item) => {
                 self.load_uri(&item.uri)?;
                 if crossfade_ms > 0 && user_vol > 0.001 {
-                    self.play_with_fade_duration(Duration::from_millis(
-                        crossfade_ms.min(3000) / 2,
-                    ))?;
+                    let fade_in_ms = crossfade_ms / 2;
+                    self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
                 } else {
                     self.play()?;
                 }
@@ -2079,8 +2213,78 @@ impl AudioEngine {
         self.inner.lock().unwrap().silence_trimming_config
     }
 
+    /// Wykonuje płynne wyciszenie (fade-out) głośności z krzywą equal-power (cosinusową).
+    fn fade_out_equal_power(
+        volume: &gst::Element,
+        start_vol: f64,
+        duration: Duration,
+        fade_gen: &Arc<AtomicU64>,
+        current_gen: u64,
+    ) {
+        if start_vol <= 0.001 || duration.is_zero() {
+            volume.set_property("volume", 0.0f64);
+            return;
+        }
+        let total_ms = duration.as_millis() as u64;
+        let step_ms = 20u64;
+        let steps = (total_ms / step_ms).clamp(8, 200) as usize;
+        let step_time = Duration::from_millis(total_ms / steps as u64);
+
+        for i in 1..=steps {
+            if fade_gen.load(Ordering::Relaxed) != current_gen {
+                return;
+            }
+            let t = (i as f64) / (steps as f64);
+            // Krzywa equal-power cosinusowa: od 1.0 (start) do 0.0 (koniec)
+            let gain = (t * std::f64::consts::FRAC_PI_2).cos();
+            volume.set_property("volume", start_vol * gain);
+            std::thread::sleep(step_time);
+        }
+        if fade_gen.load(Ordering::Relaxed) == current_gen {
+            volume.set_property("volume", 0.0f64);
+        }
+    }
+
+    /// Wykonuje płynne wejście (fade-in) głośności z krzywą equal-power (sinusową).
+    fn fade_in_equal_power(
+        volume: gst::Element,
+        target_vol: f64,
+        duration: Duration,
+        fade_gen: Arc<AtomicU64>,
+        is_fading_in: Arc<AtomicBool>,
+        current_gen: u64,
+    ) {
+        is_fading_in.store(true, Ordering::SeqCst);
+        if target_vol <= 0.001 || duration.is_zero() {
+            volume.set_property("volume", target_vol);
+            is_fading_in.store(false, Ordering::SeqCst);
+            return;
+        }
+        let total_ms = duration.as_millis() as u64;
+        let step_ms = 20u64;
+        let steps = (total_ms / step_ms).clamp(8, 200) as usize;
+        let step_time = Duration::from_millis(total_ms / steps as u64);
+
+        for i in 1..=steps {
+            if fade_gen.load(Ordering::Relaxed) != current_gen {
+                is_fading_in.store(false, Ordering::SeqCst);
+                return;
+            }
+            let t = (i as f64) / (steps as f64);
+            // Krzywa equal-power sinusowa: od 0.0 (start) do 1.0 (koniec)
+            let gain = (t * std::f64::consts::FRAC_PI_2).sin();
+            volume.set_property("volume", target_vol * gain);
+            std::thread::sleep(step_time);
+        }
+        if fade_gen.load(Ordering::Relaxed) == current_gen {
+            volume.set_property("volume", target_vol);
+        }
+        is_fading_in.store(false, Ordering::SeqCst);
+    }
+
     /// Wznawia odtwarzanie z płynnym wejściem głośności o zadanym czasie trwania wg krzywej equal-power.
     pub fn play_with_fade_duration(&self, duration: Duration) -> Result<(), AudioEngineError> {
+        let current_gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
         let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock().unwrap();
             inner.volume.set_property("volume", 0.0f64);
@@ -2100,14 +2304,21 @@ impl AudioEngine {
             return Ok(());
         }
 
-        let steps = 6;
-        let step_time = duration / steps as u32;
-        for i in 1..=steps {
-            let t = (i as f64) / (steps as f64);
-            let gain = (t * std::f64::consts::FRAC_PI_2).sin();
-            volume.set_property("volume", target_vol * gain);
-            std::thread::sleep(step_time);
-        }
+        // Poczekaj na preroll potoku (do 150ms), aby bufory audio dotarły do wyjścia przed startem krzywej fade-in
+        let _ = pipeline.state(gst::ClockTime::from_mseconds(150));
+
+        let fade_gen = Arc::clone(&self.fade_generation);
+        let is_fading_in = Arc::clone(&self.is_fading_in);
+        std::thread::spawn(move || {
+            Self::fade_in_equal_power(
+                volume,
+                target_vol,
+                duration,
+                fade_gen,
+                is_fading_in,
+                current_gen,
+            );
+        });
 
         Ok(())
     }

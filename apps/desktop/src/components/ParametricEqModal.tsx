@@ -40,7 +40,9 @@ const GAIN_GRID_LINES = [12, 6, 0, -6, -12, -18, -24];
 export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
   isOpen,
   onClose,
+  currentLang = 'pl',
 }) => {
+  const isPl = currentLang === 'pl';
 
   const [state, setState] = useState<ParametricEqStateDto>({
     enabled: false,
@@ -349,7 +351,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
           setSelectedBandId(normParsed.bands[0].id);
         }
       } else {
-        setImportError('Nie znaleziono pasm w podanym tekście.');
+        setImportError(isPl ? 'Nie znaleziono pasm w podanym tekście.' : 'No filter bands found in provided text.');
       }
     } catch (e: any) {
       setImportError(String(e));
@@ -461,7 +463,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                     }`,
                   }}
                 >
-                  {state.enabled ? 'AKTYWNY' : 'BYPASS'}
+                  {state.enabled ? (isPl ? 'AKTYWNY' : 'ACTIVE') : 'BYPASS'}
                 </span>
               </div>
               <p
@@ -471,7 +473,9 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                   color: 'var(--text-secondary)',
                 }}
               >
-                Wielopasmowe filtry biquad (Peak, Low Shelf, High Shelf) z obsługą formatu EqualizerAPO
+                {isPl
+                  ? 'Wielopasmowe filtry biquad (Peak, Low Shelf, High Shelf) z obsługą formatu EqualizerAPO'
+                  : 'Multi-band biquad filters (Peak, Low Shelf, High Shelf) with EqualizerAPO support'}
               </p>
             </div>
           </div>
@@ -500,13 +504,13 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
               }}
             >
               <Power size={14} />
-              {state.enabled ? 'Włączony' : 'Bypass'}
+              {state.enabled ? (isPl ? 'Włączony' : 'Enabled') : 'Bypass'}
             </button>
 
             {/* Reset Flat */}
             <button
               onClick={handleResetFlat}
-              title="Resetuj wszystkie pasma do 0.0 dB"
+              title={isPl ? 'Resetuj wszystkie pasma do 0.0 dB' : 'Reset all bands to 0.0 dB'}
               style={{
                 padding: '8px 12px',
                 borderRadius: '10px',
@@ -598,7 +602,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <option value="">Własny profil (Custom)</option>
+              <option value="">{isPl ? 'Własny profil (Custom)' : 'Custom Profile'}</option>
               {presets.map((p) => (
                 <option key={p.name} value={p.name} style={{ background: '#181e30' }}>
                   {p.name}
@@ -639,9 +643,11 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
             {maxEffectiveBoost > 0.01 ? (
               <button
                 onClick={handleApplySafePreamp}
-                title={`Maksymalne wzmocnienie wynosi +${maxEffectiveBoost.toFixed(
-                  1
-                )} dB. Kliknij, aby ustawić bezpieczny Preamp na ${safePreampDb.toFixed(1)} dB`}
+                title={
+                  isPl
+                    ? `Maksymalne wzmocnienie wynosi +${maxEffectiveBoost.toFixed(1)} dB. Kliknij, aby ustawić bezpieczny Preamp na ${safePreampDb.toFixed(1)} dB`
+                    : `Maximum boost is +${maxEffectiveBoost.toFixed(1)} dB. Click to apply safe preamp of ${safePreampDb.toFixed(1)} dB`
+                }
                 style={{
                   padding: '5px 10px',
                   borderRadius: '8px',
@@ -657,7 +663,9 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                 }}
               >
                 <AlertTriangle size={13} />
-                Ryzyko clippingu (+{maxEffectiveBoost.toFixed(1)} dB) &rarr; Safe Preamp
+                {isPl
+                  ? `Ryzyko clippingu (+${maxEffectiveBoost.toFixed(1)} dB) → Safe Preamp`
+                  : `Clipping risk (+${maxEffectiveBoost.toFixed(1)} dB) → Safe Preamp`}
               </button>
             ) : (
               <span
@@ -673,7 +681,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                   gap: '4px',
                 }}
               >
-                <ShieldCheck size={12} /> Brak przesterowania (Headroom OK)
+                <ShieldCheck size={12} /> {isPl ? 'Brak przesterowania (Headroom OK)' : 'No clipping (Headroom OK)'}
               </span>
             )}
           </div>
@@ -715,12 +723,16 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
             {state.enabled ? (
               <>
                 <Check size={12} color="#34d399" />
-                PEQ Aktywny — korekcja audio włączona w czasie rzeczywistym
+                {isPl
+                  ? 'PEQ Aktywny — korekcja audio włączona w czasie rzeczywistym'
+                  : 'PEQ Active — real-time audio equalization enabled'}
               </>
             ) : (
               <>
                 <AlertTriangle size={12} color="#f87171" />
-                PEQ w trybie Bypass (wyłączony) — kliknij Włącz lub przesuń pasmo
+                {isPl
+                  ? 'PEQ w trybie Bypass (wyłączony) — kliknij Włącz lub przesuń pasmo'
+                  : 'PEQ in Bypass mode (off) — click Enable or adjust a band'}
               </>
             )}
           </div>
@@ -896,10 +908,12 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                Pasma filtrów ({state.bands.length})
+                {isPl ? `Pasma filtrów (${state.bands.length})` : `Filter Bands (${state.bands.length})`}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Kliknij węzeł na wykresie lub wybierz wiersz, aby edytować
+                {isPl
+                  ? 'Kliknij węzeł na wykresie lub wybierz wiersz, aby edytować'
+                  : 'Click a node on the graph or select a row to edit'}
               </span>
             </div>
 
@@ -920,7 +934,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
               }}
             >
               <Plus size={13} />
-              Dodaj pasmo
+              {isPl ? 'Dodaj pasmo' : 'Add Band'}
             </button>
           </div>
 
@@ -1005,13 +1019,13 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                     }}
                   >
                     <option value="peak" style={{ background: '#181e30' }}>
-                      Peak (Dzwon)
+                      {isPl ? 'Peak (Dzwon)' : 'Peak (Bell)'}
                     </option>
                     <option value="low-shelf" style={{ background: '#181e30' }}>
-                      Low Shelf (Półka niska)
+                      {isPl ? 'Low Shelf (Półka niska)' : 'Low Shelf'}
                     </option>
                     <option value="high-shelf" style={{ background: '#181e30' }}>
-                      High Shelf (Półka wysoka)
+                      {isPl ? 'High Shelf (Półka wysoka)' : 'High Shelf'}
                     </option>
                   </select>
 
@@ -1114,7 +1128,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                   {/* Usuń */}
                   <button
                     onClick={(e) => handleDeleteBand(band.id, e)}
-                    title="Usuń pasmo"
+                    title={isPl ? 'Usuń pasmo' : 'Delete band'}
                     style={{
                       marginLeft: 'auto',
                       background: 'transparent',
@@ -1168,7 +1182,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Upload size={18} color="#60a5fa" />
                 <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
-                  Import / Eksport EqualizerAPO & AutoEQ
+                  {isPl ? 'Import / Eksport EqualizerAPO & AutoEQ' : 'Import / Export EqualizerAPO & AutoEQ'}
                 </h3>
               </div>
               <button
@@ -1185,7 +1199,9 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
             </div>
 
             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Wklej konfigurację EqualizerAPO / AutoEQ / Peace lub skopiuj aktualne ustawienia:
+              {isPl
+                ? 'Wklej konfigurację EqualizerAPO / AutoEQ / Peace lub skopiuj aktualne ustawienia:'
+                : 'Paste EqualizerAPO / AutoEQ / Peace config or copy current settings:'}
             </p>
 
             <textarea
@@ -1241,7 +1257,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                 }}
               >
                 {copiedExport ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                {copiedExport ? 'Skopiowano!' : 'Kopiuj konfigurację'}
+                {copiedExport ? (isPl ? 'Skopiowano!' : 'Copied!') : (isPl ? 'Kopiuj konfigurację' : 'Copy Config')}
               </button>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -1257,7 +1273,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  Anuluj
+                  {isPl ? 'Anuluj' : 'Cancel'}
                 </button>
                 <button
                   onClick={handleImportSubmit}
@@ -1272,7 +1288,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  Zastosuj wklejony profil
+                  {isPl ? 'Zastosuj wklejony profil' : 'Apply Pasted Profile'}
                 </button>
               </div>
             </div>

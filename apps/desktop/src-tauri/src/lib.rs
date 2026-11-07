@@ -1520,6 +1520,7 @@ async fn set_app_setting(
 
 #[tauri::command]
 async fn transcode_file(
+    app_handle: tauri::AppHandle,
     input_path: String,
     output_path: String,
     format: ExportFormat,
@@ -1530,13 +1531,24 @@ async fn transcode_file(
         "Tauri command: transcode_file('{}' -> '{}')",
         input_path, output_path
     );
+    let app = app_handle.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        Transcoder::transcode_with_dsp(
+        Transcoder::transcode_with_dsp_and_progress(
             &input_path,
             &output_path,
             format,
             dsp_settings.as_ref(),
             time_range.as_ref(),
+            Some(move |percent: f64, pos_ms: u64, dur_ms: u64| {
+                let _ = app.emit(
+                    "transcode_progress",
+                    serde_json::json!({
+                        "percent": percent,
+                        "position_ms": pos_ms,
+                        "duration_ms": dur_ms,
+                    }),
+                );
+            }),
         )
     })
     .await

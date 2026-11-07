@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } from 'lucide-react';
+import type { Language } from '../i18n';
 
 export function parseTimeToMs(input: string): number | null {
   if (!input) return null;
@@ -73,6 +74,7 @@ export interface LoopEditorModalProps {
   onExportLoop?: (a: number | null, b: number | null) => void;
   onSaveAsTrackBookmarks?: (a: number | null, b: number | null) => void;
   loc: any;
+  currentLang?: Language;
 }
 
 export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
@@ -87,7 +89,9 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   onExportLoop,
   onSaveAsTrackBookmarks,
   loc,
+  currentLang,
 }) => {
+  const isPl = currentLang ? currentLang === 'pl' : (loc?.settings?.generalTitle === 'Ogólne');
   const [inputA, setInputA] = useState('');
   const [inputB, setInputB] = useState('');
 
@@ -197,10 +201,10 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                {loc.player.editLoopTitle || 'Edycja pętli A-B'}
+                {loc.player.editLoopTitle || (isPl ? 'Edycja pętli A-B' : 'Edit A-B Loop Range')}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {loc.player.editLoopDesc || 'Wpisz precyzyjne punkty pętli co do milisekundy (np. 860ms, 860 lub 0:00.860)'}
+                {loc.player.editLoopDesc || (isPl ? 'Wpisz precyzyjne punkty pętli co do milisekundy (np. 860ms, 860 lub 0:00.860)' : 'Enter loop boundaries down to the millisecond (e.g. 860ms or 0:00.860)')}
               </p>
             </div>
           </div>
@@ -233,7 +237,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
             fontSize: '0.8rem',
           }}
         >
-          <span style={{ color: 'var(--text-muted)' }}>{loc.player.useCurrentPos || 'Bieżąca pozycja'}:</span>
+          <span style={{ color: 'var(--text-muted)' }}>{loc.player.useCurrentPos || (isPl ? 'Bieżąca pozycja' : 'Current position')}:</span>
           <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent-cyan)' }}>
             {formatTimeMs(currentPositionMs)} ({currentPositionMs} ms)
           </span>
@@ -253,7 +257,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-cyan)' }}>
-              {loc.player.loopPointA || 'Punkt A (początek)'}
+              {loc.player.loopPointA || (isPl ? 'Punkt A (początek)' : 'Point A (start)')}
             </span>
             <div style={{ display: 'flex', gap: '6px' }}>
               <button
@@ -364,7 +368,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-pink)' }}>
-              {loc.player.loopPointB || 'Punkt B (koniec)'}
+              {loc.player.loopPointB || (isPl ? 'Punkt B (koniec)' : 'Point B (end)')}
             </span>
             <div style={{ display: 'flex', gap: '6px' }}>
               <button
@@ -475,7 +479,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: 'var(--text-muted)' }}>{loc.player.loopDuration || 'Długość pętli'}:</span>
+            <span style={{ color: 'var(--text-muted)' }}>{loc.player.loopDuration || (isPl ? 'Długość pętli' : 'Loop duration')}:</span>
             <span style={{ fontWeight: 800, fontFamily: 'monospace', color: loopDuration ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
               {loopDuration !== null ? `${loopDuration} ms (${(loopDuration / 1000).toFixed(3)} s)` : '--'}
             </span>
@@ -484,14 +488,14 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
           {!isOrderValid && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f43f5e', fontSize: '0.78rem' }}>
               <AlertCircle size={14} />
-              <span>{loc.player.loopBMustBeGreaterThanA || 'Punkt B musi być większy niż punkt A'}</span>
+              <span>{loc.player.loopBMustBeGreaterThanA || (isPl ? 'Punkt B musi być większy niż punkt A' : 'Point B must be greater than Point A')}</span>
             </div>
           )}
 
           {(!isAValid || !isBValid) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f43f5e', fontSize: '0.78rem' }}>
               <AlertCircle size={14} />
-              <span>{loc.player.invalidTimeFormat || 'Nieprawidłowy format czasu (np. 860ms, 860, 0:00.860 lub 1:23.450)'}</span>
+              <span>{loc.player.invalidTimeFormat || (isPl ? 'Nieprawidłowy format czasu (np. 860ms, 860, 0:00.860 lub 1:23.450)' : 'Invalid time format (e.g. 860ms or 1:23.450)')}</span>
             </div>
           )}
         </div>
@@ -515,7 +519,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
               gap: '6px',
             }}
           >
-            <RotateCcw size={14} /> {loc.player.clearLoop || 'Wyczyść pętlę'}
+            <RotateCcw size={14} /> {loc.player.clearLoop || (isPl ? 'Wyczyść pętlę' : 'Clear loop')}
           </button>
 
           {onExportLoop && (
@@ -543,9 +547,9 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
                 gap: '6px',
                 opacity: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 0.5 : 1,
               }}
-              title="Eksportuj wybrany fragment A-B do pliku (Render / Transcode)"
+              title={isPl ? "Eksportuj wybrany fragment A-B do pliku (Render / Transcode)" : "Export selected A-B range to file (Render / Transcode)"}
             >
-              <Scissors size={14} /> Eksportuj fragment A-B
+              <Scissors size={14} /> {isPl ? "Eksportuj fragment A-B" : "Export A-B Range"}
             </button>
           )}
 
@@ -573,9 +577,9 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
                 gap: '6px',
                 opacity: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 0.5 : 1,
               }}
-              title="Zapisz te punkty A i B na stałe w bazie danych dla tego utworu"
+              title={isPl ? "Zapisz te punkty A i B na stałe w bazie danych dla tego utworu" : "Save points A and B permanently in database for this track"}
             >
-              <Bookmark size={14} /> Zapisz jako znaczniki utworu
+              <Bookmark size={14} /> {isPl ? "Zapisz jako znaczniki utworu" : "Save as Track Bookmarks"}
             </button>
           )}
 
@@ -594,7 +598,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              Anuluj
+              {isPl ? "Anuluj" : "Cancel"}
             </button>
             <button
               type="button"
@@ -616,7 +620,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
                 boxShadow: '0 4px 15px rgba(6, 182, 212, 0.35)',
               }}
             >
-              <Check size={14} /> {loc.player.applyAndClose || 'Zastosuj pętlę'}
+              <Check size={14} /> {loc.player.applyAndClose || (isPl ? 'Zastosuj pętlę' : 'Apply loop')}
             </button>
           </div>
         </div>

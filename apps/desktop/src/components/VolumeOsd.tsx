@@ -6,14 +6,19 @@ export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-ce
 interface VolumeOsdProps {
   volume: number; // 0.0 - 1.0 (or up to 2.0)
   position: VolumeOsdPosition;
+  unit?: 'percent' | 'db';
 }
 
-export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position }) => {
+export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = 'percent' }) => {
   const [visible, setVisible] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
   const isFirstMount = useRef(true);
 
   const percentage = Math.round(volume * 100);
+  const isDb = unit === 'db';
+  const displayValue = isDb
+    ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
+    : `${percentage}%`;
 
   useEffect(() => {
     // Nie wyświetlaj przy inicjalizacji
@@ -123,17 +128,31 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position }) => {
         ) : (
           <Volume2 size={26} color="var(--accent-pink, #f43f5e)" />
         )}
-        <span
-          style={{
-            fontSize: '1.4rem',
-            fontWeight: 800,
-            fontFamily: 'var(--font-mono, monospace)',
-            color: '#fff',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {percentage}%
-        </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+          <span
+            style={{
+              fontSize: '1.4rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: '#fff',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {displayValue}
+          </span>
+          {isDb && (
+            <span
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                fontFamily: 'var(--font-mono, monospace)',
+                color: 'var(--text-muted, #94a3b8)',
+              }}
+            >
+              ({percentage}%)
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Wskaźnik paska głośności */}

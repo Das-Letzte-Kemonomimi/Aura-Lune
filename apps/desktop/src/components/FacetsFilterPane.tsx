@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Layers, Search, X } from 'lucide-react';
+import type { Language } from '../i18n';
 
 export interface FacetTrack {
   id: number;
@@ -28,6 +29,7 @@ interface FacetsFilterPaneProps {
   onSelectArtist: (artist: string | null) => void;
   onSelectAlbumId: (albumId: number | null) => void;
   onResetAll: () => void;
+  currentLang?: Language;
 }
 
 export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
@@ -40,7 +42,9 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
   onSelectArtist,
   onSelectAlbumId,
   onResetAll,
+  currentLang = 'pl',
 }) => {
+  const isPl = currentLang === 'pl';
   const [formatSearch, setFormatSearch] = useState('');
   const [artistSearch, setArtistSearch] = useState('');
   const [albumSearch, setAlbumSearch] = useState('');
@@ -72,13 +76,13 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
   const artistCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of tracksInFormat) {
-      const a = t.artist.trim() || 'Nieznany wykonawca';
+      const a = t.artist.trim() || (isPl ? 'Nieznany wykonawca' : 'Unknown Artist');
       map.set(a, (map.get(a) || 0) + 1);
     }
     return Array.from(map.entries())
       .map(([artist, count]) => ({ artist, count }))
       .sort((a, b) => a.artist.localeCompare(b.artist));
-  }, [tracksInFormat]);
+  }, [tracksInFormat, isPl]);
 
   const filteredArtists = useMemo(() => {
     if (!artistSearch.trim()) return artistCounts;
@@ -145,7 +149,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Layers size={16} style={{ color: 'var(--accent-pink, #ec4899)' }} />
           <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#fff' }}>
-            Filtry fasetowe (foobar2000 Facets)
+            {isPl ? 'Filtry fasetowe (foobar2000 Facets)' : 'Facets Filters (foobar2000 Facets)'}
           </span>
           {hasActiveFilter && (
             <span
@@ -158,7 +162,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              Aktywny filtr: {tracksInArtist.length} utworów
+              {isPl ? `Aktywny filtr: ${tracksInArtist.length} utworów` : `Active filter: ${tracksInArtist.length} tracks`}
             </span>
           )}
         </div>
@@ -180,7 +184,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
             }}
           >
             <X size={12} />
-            Wyczyść filtry
+            {isPl ? 'Wyczyść filtry' : 'Clear filters'}
           </button>
         )}
       </div>
@@ -224,7 +228,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
               <Search size={12} style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Szukaj..."
+                placeholder={isPl ? 'Szukaj...' : 'Search...'}
                 value={formatSearch}
                 onChange={(e) => setFormatSearch(e.target.value)}
                 style={{
@@ -254,7 +258,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
                 fontWeight: selectedFormat === null ? 700 : 400,
               }}
             >
-              <span>(Wszystkie)</span>
+              <span>{isPl ? '(Wszystkie)' : '(All)'}</span>
               <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{tracks.length}</span>
             </div>
             {filteredFormats.map((f) => (
@@ -302,7 +306,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
             }}
           >
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              WYKONAWCA ({artistCounts.length})
+              {isPl ? 'WYKONAWCA' : 'ARTIST'} ({artistCounts.length})
             </span>
           </div>
           <div style={{ padding: '4px 6px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
@@ -310,7 +314,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
               <Search size={12} style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Szukaj wykonawcy..."
+                placeholder={isPl ? 'Szukaj wykonawcy...' : 'Search artist...'}
                 value={artistSearch}
                 onChange={(e) => setArtistSearch(e.target.value)}
                 style={{
@@ -340,7 +344,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
                 fontWeight: selectedArtist === null ? 700 : 400,
               }}
             >
-              <span>(Wszyscy)</span>
+              <span>{isPl ? '(Wszyscy)' : '(All)'}</span>
               <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{tracksInFormat.length}</span>
             </div>
             {filteredArtists.map((a) => (
@@ -398,7 +402,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
               <Search size={12} style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Szukaj albumu..."
+                placeholder={isPl ? 'Szukaj albumu...' : 'Search album...'}
                 value={albumSearch}
                 onChange={(e) => setAlbumSearch(e.target.value)}
                 style={{
@@ -428,7 +432,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
                 fontWeight: selectedAlbumId === null ? 700 : 400,
               }}
             >
-              <span>(Wszystkie)</span>
+              <span>{isPl ? '(Wszystkie)' : '(All)'}</span>
               <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{tracksInArtist.length}</span>
             </div>
             {filteredAlbums.map((alb) => (

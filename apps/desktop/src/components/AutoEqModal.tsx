@@ -43,7 +43,9 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
   onClose,
   onApplyProfile,
   onResetFlat,
+  currentLang = 'pl',
 }) => {
+  const isPl = currentLang === 'pl';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('Wszystkie');
@@ -150,10 +152,12 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                Baza profili słuchawkowych AutoEQ
+                {isPl ? 'Baza profili słuchawkowych AutoEQ' : 'AutoEQ Headphone Profiles'}
               </h2>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)' }}>
-                Kompensacja akustyczna krzywej Harmana dla ponad 160 modeli słuchawek i IEM-ów
+                {isPl
+                  ? 'Kompensacja akustyczna krzywej Harmana dla ponad 160 modeli słuchawek i IEM-ów'
+                  : 'Harman target acoustic compensation for 160+ headphone and IEM models'}
               </p>
             </div>
           </div>
@@ -202,7 +206,11 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
             <Search size={16} color="var(--text-muted, #9ca3af)" />
             <input
               type="text"
-              placeholder="Wpisz model (np. Chu II, HD 600, DT 770, XM4, Sundara)..."
+              placeholder={
+                isPl
+                  ? 'Wpisz model (np. Chu II, HD 600, DT 770, XM4, Sundara)...'
+                  : 'Search model (e.g. Chu II, HD 600, DT 770, XM4, Sundara)...'
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -241,7 +249,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                {type}
+                {type === 'Wszystkie' ? (isPl ? 'Wszystkie' : 'All') : type}
               </button>
             ))}
           </div>
@@ -249,7 +257,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
           <button
             onClick={() => {
               onResetFlat();
-              setAppliedProfileName('Płaski (Flat)');
+              setAppliedProfileName(isPl ? 'Płaski (Flat)' : 'Flat');
             }}
             style={{
               padding: '6px 12px',
@@ -295,7 +303,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {brand}
+              {brand === 'Wszystkie' ? (isPl ? 'Wszystkie' : 'All') : brand}
             </button>
           ))}
         </div>
@@ -322,7 +330,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
           >
             {filteredProfiles.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af' }}>
-                Brak modeli odpowiadających kryteriom.
+                {isPl ? 'Brak modeli odpowiadających kryteriom.' : 'No models match your search criteria.'}
               </div>
             ) : (
               filteredProfiles.map((profile) => {
@@ -375,7 +383,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                             gap: '2px',
                           }}
                         >
-                          <Check size={12} /> Aktywny
+                          <Check size={12} /> {isPl ? 'Aktywny' : 'Active'}
                         </span>
                       )}
                       <ChevronRight size={16} color={isSelected ? '#ec4899' : '#6b7280'} />
@@ -417,7 +425,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                     {activeProfile.name}
                   </h3>
                   <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>
-                    Docelowa krzywa: <strong>{activeProfile.target}</strong>
+                    {isPl ? 'Docelowa krzywa:' : 'Target Curve:'} <strong>{activeProfile.target}</strong>
                   </div>
                 </div>
               </div>
@@ -451,8 +459,8 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                     justifyContent: 'space-between',
                   }}
                 >
-                  <span>Wzmocnienie pasm (Krzywa korekcji dB)</span>
-                  <span>Zakres: -6 dB .. +8 dB</span>
+                  <span>{isPl ? 'Wzmocnienie pasm (Krzywa korekcji dB)' : 'Band Gain (EQ Curve dB)'}</span>
+                  <span>{isPl ? 'Zakres: -6 dB .. +8 dB' : 'Range: -6 dB .. +8 dB'}</span>
                 </div>
 
                 <div
@@ -568,10 +576,12 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                   <ShieldCheck size={16} color="#10b981" />
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      Kompensacja Preamp ({activeProfile.preampDb.toFixed(1)} dB)
+                      {isPl ? 'Kompensacja Preamp' : 'Preamp Compensation'} ({activeProfile.preampDb.toFixed(1)} dB)
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                      Zapobiega cyfrowemu przesterowaniu (clipping) przy podbiciu basu
+                      {isPl
+                        ? 'Zapobiega cyfrowemu przesterowaniu (clipping) przy podbiciu basu'
+                        : 'Prevents digital clipping when boosting frequencies'}
                     </div>
                   </div>
                 </div>
@@ -607,7 +617,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                   transition: 'opacity 0.15s ease',
                 }}
               >
-                <Sparkles size={16} /> Zastosuj profil {activeProfile.name}
+                <Sparkles size={16} /> {isPl ? `Zastosuj profil ${activeProfile.name}` : `Apply ${activeProfile.name} Profile`}
               </button>
             </div>
           </div>

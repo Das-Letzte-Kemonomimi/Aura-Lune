@@ -18,11 +18,78 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.8.3',
+    codename: 'Resonance & Harmonic Flow',
+    date: '2026-11-07',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Wybór jednostki głośności (% vs studyjne dB): wprowadzono profesjonalną skalę logarytmiczną decybeli (-∞ dB do 0.0 dB) w Ustawieniach, OSD oraz z 1-klikowym przełącznikiem na plakietce głośności.',
+        en: 'Volume display unit selection (% vs studio dB): added logarithmic decibel scale (-∞ dB to 0.0 dB) in Settings, on-screen OSD, and via 1-click toggle on volume badges.',
+        de: 'Auswahl der Lautstärkeeinheit (% vs. Studio-dB): Logarithmische Dezibelskala (-∞ dB bis 0,0 dB) in den Einstellungen, im OSD und per 1-Klick-Umschalter an Lautstärke-Badges hinzugefügt.',
+        fi: 'Äänenvoimakkuuden yksikön valinta (% vs studio-dB): lisätty logaritminen desibeliasteikko (-∞ dB – 0.0 dB) asetuksiin, näyttöön (OSD) ja yhdellä napsautuksella vaihdettavaan arvoon.',
+        la: 'Electio unitatis voluminis (% vs decibelia dB): scala logarithmica decibeliorum (-∞ dB ad 0.0 dB) addita in Optionibus, OSD et per unum ictum mutabilis.',
+      },
+      {
+        pl: 'Asynchroniczny eksport w tle z pływającym wskaźnikiem HUD: potok transkodera raportuje postęp w czasie rzeczywistym bez zamrażania UI, z dedykowanym widżetem i stoperem.',
+        en: 'Asynchronous background audio export with floating HUD: transcode pipeline reports real-time progress without freezing the UI, complete with dedicated floating badge and timer.',
+        de: 'Asynchroner Hintergrund-Audioexport mit schwebendem HUD: Der Transkodierungs-Pipeline meldet den Fortschritt in Echtzeit ohne Einfrieren der Benutzeroberfläche.',
+        fi: 'Asynkroninen taustavienti kelluvalla HUD-ilmaisimella: muuntoputki raportoi reaaliaikaisen edistymisen jäädyttämättä käyttöliittymää, varustettuna kelluvalla ilmaisimella ja ajastimella.',
+        la: 'Exportatio asynchrona in curriculo cum signo HUD fluitante: canalis transcodificandi profectum in tempore reali nuntiat sine congelatione usoris faciei.',
+      },
+      {
+        pl: 'GitHub Actions CI/CD Pipeline: automatyczna weryfikacja cargo fmt, clippy, testów jednostkowych i kompilacji frontendu przy każdym pull requeście i pushu na gałąź main.',
+        en: 'GitHub Actions CI/CD Pipeline: automated verification of cargo fmt, clippy, unit tests, and frontend build on every pull request and push to main.',
+        de: 'GitHub Actions CI/CD Pipeline: Automatische Überprüfung von cargo fmt, clippy, Unit-Tests und Frontend-Build bei jedem Pull-Request und Push auf main.',
+        fi: 'GitHub Actions CI/CD -automaatioputki: koodin muotoilun (cargo fmt), linterin (clippy), yksikkötestien ja käyttöliittymän kääntämisen automaattinen tarkistus.',
+        la: 'GitHub Actions CI/CD canalis: automatica probatio cargo fmt, clippy, probationum unitariarum et aedificationis antecessoris in omni missione ad ramum main.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Harmonic Queue Assistant & DJ Beat-Matched Crossfade: naprawiono synchronizację podświetlenia przycisków taktów (1/2/4 takty), dodano przeliczone czasy w sekundach, wybór utworu bazowego i automatyczną detekcję klucza/BPM w tle.',
+        en: 'Harmonic Queue Assistant & DJ Beat-Matched Crossfade: fixed bar button highlight synchronization (1/2/4 bars), added exact calculated seconds, base track selector, and auto key/BPM background detection.',
+        de: 'Harmonischer DJ-Assistent & Beat-Matched Crossfade: Hervorhebung der Taktschaltflächen (1/2/4 Takte) synchronisiert, Sekundenanzeige ergänzt, Referenztitel-Auswahl und Hintergrund-BPM/Tonart-Erkennung implementiert.',
+        fi: 'Harmoninen DJ-avustaja ja Beat-Matched Crossfade: korjattu tahtipainikkeiden korostuksen synkronointi (1/2/4 tahtia), lisätty lasketut sekunnit, peruskappaleen valitsin ja automaattinen sävellajin/BPM:n tunnistus.',
+        la: 'Adiutor Harmonicus & DJ Beat-Matched Crossfade: synchronizatio illuminationis pugaellarum emendata, tempora in secundis addita, electio carminis basalis et agnitio toni/BPM in curriculo.',
+      },
+      {
+        pl: 'Płynny Equal-Power Crossfade (0.0s – 8.0s): usunięto sztywne ograniczenie 3 sekund, wprowadzono 20-milisekundową mikrokosmetykę krzywej sinusoidalnej (50 Hz), asynchroniczny preroll i wyeliminowano pauzy ciszy pre-EOS.',
+        en: 'Smooth Equal-Power Crossfade (0.0s – 8.0s): eliminated 3-second hard clamp, introduced 50 Hz (20ms) sinusoidal micro-stepping, async preroll, and removed pre-EOS silence gaps.',
+        de: 'Nahtloses Equal-Power Crossfade (0,0s – 8,0s): 3-Sekunden-Limit aufgehoben, 50 Hz (20ms) Sinus-Mikroschritte eingeführt, asynchroner Preroll und pre-EOS-Stillepausen beseitigt.',
+        fi: 'Tasainen Equal-Power Crossfade (0.0s – 8.0s): poistettu 3 sekunnin raja, otettu käyttöön 50 Hz (20ms) sinimuotoiset mikroaskeleet, asynkroninen esilataus ja poistettu katkokset ennen kappaleen loppua.',
+        la: 'Transitus aequalis potestatis (Equal-Power Crossfade 0.0s – 8.0s): terminus 3 secundorum deletus, gradus sinusoidales 20ms (50 Hz) inducti, prae-oneratio asynchrona et hiatus silentii sublati.',
+      },
+      {
+        pl: 'Skróty klawiszowe głośności (↑ / ↓): usunięto przechwytywanie strzałek przez suwak głośności po kliknięciu myszą (krok 1% zamiast 5%) poprzez automatyczny blur i ujednolicenie globalnych słuchaczy.',
+        en: 'Keyboard volume shortcuts (↑ / ↓): resolved DOM slider capturing arrow keys at 1% increments after mouse click via automatic input blur and unified global listeners.',
+        de: 'Tastatur-Lautstärkekürzel (↑ / ↓): Fokuserfassung durch Schieberegler nach Mausklick (1%-Schritte) durch automatisches Blur und vereinheitlichte globale Listener behoben.',
+        fi: 'Äänenvoimakkuuden pikanäppäimet (↑ / ↓): korjattu liukusäätimen nuolinäppäinten kaappaus (1% askellus) hiirellä napsauttamisen jälkeen automaattisella kohdistuksen poistolla.',
+        la: 'Compendia claviaturae voluminis (↑ / ↓): interceptio sagittarum per indicem post ictum muris (1% loco 5%) correcta per amotionem automaticae attentionis.',
+      },
+      {
+        pl: 'Natywny Stereo Widener bez rwania dźwięku: zastąpiono wadliwy element GStreamera stereo autorską 32-bitową sondą F32LE w matrycy Mid-Side z kompensacją energii i ochroną mono.',
+        en: 'Native click-free Stereo Widener: replaced buggy GStreamer stereo element with proprietary 32-bit F32LE Mid-Side matrix probe with energy compensation and mono guard.',
+        de: 'Nativer, ruckelfreier Stereo-Verbreiterer (Stereo Widener): Fehlerhaftes GStreamer-stereo-Element durch eigene 32-Bit F32LE Mid-Side-Matrix-Sonde ersetzt.',
+        fi: 'Natiivi häiriötön stereokuvan laajennin (Stereo Widener): korvattu viallinen GStreamerin stereo-elementti omalla 32-bittisellä F32LE Mid-Side -matriisilla.',
+        la: 'Dilatator Stereo nativus sine scissura soni: elementum vitiosum GStreamer stereo substitutum est specula propria 32-bit F32LE Mid-Side cum compensatione energiae.',
+      },
+      {
+        pl: 'Lokalizacja i układ interfejsu: przetłumaczono pozostałe etykiety w trybie języka angielskiego, zabezpieczono zawijanie tekstu w zakładkach Ustawień oraz dodano obsługę przecinków dziesiętnych w polach czasu.',
+        en: 'Localization & layout refinements: translated remaining Polish strings in English mode, prevented button text-wrapping on settings tabs, and supported decimal commas in time crops.',
+        de: 'Lokalisierung & Layout-Verfeinerungen: Verbleibende polnische Texte im englischen Modus übersetzt, Textumbruch bei Einstellungs-Tabs verhindert und Dezimalkommas in Zeitfeldern unterstützt.',
+        fi: 'Kansainvälistäminen ja ulkoasun parannukset: käännetty loput puolankieliset tekstit englanniksi, estetty välilehtien tekstin rivitys ja tuettu desimaalipilkkuja aikakentissä.',
+        la: 'Emendationes linguae et dispositionis: sententiae relictae in linguam anglicam translatae, complicatio verborum in tabulis Optionum prohibita et commata decimalia comprobata.',
+      },
+    ],
+  },
+  {
     version: '0.8.2',
     codename: 'Pure Flow & Transcode Stability',
     date: '2026-11-01',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {

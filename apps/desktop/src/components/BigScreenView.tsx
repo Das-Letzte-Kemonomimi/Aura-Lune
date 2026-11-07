@@ -37,11 +37,13 @@ interface BigScreenViewProps {
   tempoRatio: number;
   spectrum?: number[];
   currentLang?: Language;
+  volumeUnit?: 'percent' | 'db';
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
   onSeek: (positionMs: number) => void;
   onVolumeChange: (volume: number) => void;
+  onToggleVolumeUnit?: () => void;
   onClose: () => void;
   onFetchCover?: () => void;
   onUploadCover?: () => void;
@@ -62,11 +64,13 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   tempoRatio,
   spectrum,
   currentLang = 'en',
+  volumeUnit = 'percent',
   onPlayPause,
   onPrev,
   onNext,
   onSeek,
   onVolumeChange,
+  onToggleVolumeUnit,
   onClose,
   onFetchCover,
   onUploadCover,
@@ -1124,12 +1128,41 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
               step={0.01}
               value={volume}
               onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+              onPointerUp={(e) => e.currentTarget.blur()}
+              onMouseUp={(e) => e.currentTarget.blur()}
+              onKeyDown={(e) => {
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                  e.currentTarget.blur();
+                }
+              }}
               style={{
                 width: '80px',
                 cursor: 'pointer',
                 background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
               }}
             />
+            <button
+              type="button"
+              onClick={onToggleVolumeUnit}
+              title={volumeUnit === 'db' ? 'Volume in dB (Click to toggle %)' : 'Volume in % (Click to toggle dB)'}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '6px',
+                padding: '2px 6px',
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'var(--accent-pink)',
+                cursor: onToggleVolumeUnit ? 'pointer' : 'default',
+                minWidth: '46px',
+                textAlign: 'center',
+              }}
+            >
+              {volumeUnit === 'db'
+                ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
+                : `${Math.round(volume * 100)}%`}
+            </button>
           </div>
         </div>
       </div>

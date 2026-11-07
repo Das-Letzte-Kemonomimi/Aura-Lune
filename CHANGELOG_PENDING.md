@@ -13,19 +13,13 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- **GitHub Actions CI/CD Pipeline (`CI/CD Pipeline / Tests & Quality Checks`)**: Skonfigurowano automatyczny potok weryfikacji jakości kodu przy każdym Pull Requeście oraz pushu na gałęzie `main` i `dev`. Potok automatycznie sprawdza formatowanie Rust (`cargo fmt`), reguły lintera (`cargo clippy`), uruchamia testy (`cargo test`) oraz kompiluje frontend z walidacją typów TypeScript (`npm run build`).
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.8.3)*
 
 ### 🛠️ Poprawiono (Fixed)
-- **Natywne poszerzanie bazy stereo (Stereo Widener / Stereo Stage) i eliminacja rwania dźwięku**: Zastąpiono wadliwy element GStreamera `stereo` (`gststereo.c` z pakietu `gst-plugins-good` posiadający wieloletni błąd pętli przetwarzający zaledwie 1/4 każdego bufora i porzucający 3/4 próbek, a ponadto wymuszający stratną konwersję do formatu S16LE) w pełni natywną sondą bufora `F32LE` bazującą na macierzy Mid-Side ($M/S$). Nowa implementacja działa bezalokacyjnie w 32-bitowym float bezpośrednio przed buforem `queue_sink`, oferuje płynne rozszerzanie bazy stereo z automatyczną kompensacją energii i ochroną przed cyfrowym przesterowaniem oraz całkowicie eliminuje trzaski, rwanie i skoki głośności na granicach buforów.
-- **Kompatybilność testów urządzeń audio z bezgłowym CI**: W teście integracyjnym `test_device_manager_discovers_cards_and_codecs` dodano bezpieczną obsługę środowisk wirtualnych bez fizycznych kart audio (np. kontenery i GitHub Actions runners), zapobiegając fałszywym panicom na asercji liczby wykrytych kart.
-- **Kolejność budowania w GitHub Actions CI/CD**: Naprawiono błąd paniki makra Tauri `tauri::generate_context!()` (`The frontendDist configuration is set to "../dist" but this path doesn't exist`) poprzez przestawienie kroków w potoku — kompilacja frontendu (`npm ci && npm run build`) jest teraz wykonywana przed sprawdzaniem lintera Rust (`cargo clippy`) oraz uruchamianiem testów (`cargo test`). Dodano także demona `pulseaudio` dla bezbłędnego uruchamiania testów dźwiękowych w bezgłowym środowisku CI.
-- **Synchronizacja i nazewnictwo punktów pętli A-B przy eksporcie**: Usunięto błąd, w którym po ustawieniu nowych punktów pętli w odtwarzaczu formularz eksportu zachowywał stare wartości z poprzedniego eksportu. Dodano automatyczną synchronizację aktywnej pętli i nazwy pliku wyjściowego (`_loop_start-end`) przy wejściu do transkodowania oraz po zmianie punktów.
-- **Obsługa przecinków i formatów czasu w polach eksportu**: Rozszerzono `parseTimeToMs` o obsługę przecinków dziesiętnych (np. `0:22,449`) oraz prefiksów `A:` i `B:`.
-- **Walidacja zakresu eksportu**: Poprawiono odblokowywanie przycisku eksportu w razie nieprawidłowej kolejności punktów (zapobieganie zawieszeniu w stanie ładowania).
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.8.3)*
 
 ### 🔄 Zmieniono (Changed)
-- Zapewniono automatyczne czyszczenie i odświeżanie sufiksów `_loop_...` w ścieżce docelowej transkodowania przy przełączaniu formatów oraz punktów cięcia.
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.8.3)*
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
-- Dodano test integracyjny `test_transcode_different_ranges_with_rubberband_slowed` weryfikujący precyzję cięcia kolejnych fragmentów A-B w potoku GStreamera z RubberBandem.
-- Wyeliminowano potencjalny race-condition w `DiscordRpcController::set_enabled` i `set_client_id` poprzez natychmiastową synchronizację statusu w `RwLock`.
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.8.3)*

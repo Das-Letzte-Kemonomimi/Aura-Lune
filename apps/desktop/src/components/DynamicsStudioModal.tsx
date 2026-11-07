@@ -740,9 +740,9 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
             {/* Wybór trybu saturacji */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               {[
-                { id: 'TubeWarmth' as SaturatorMode, label: isPl ? 'Lampa (Trioda)' : 'Tube Warmth', desc: 'Ciepłe parzyste harmoniczne' },
-                { id: 'TapeSaturation' as SaturatorMode, label: isPl ? 'Taśma Magnetofonowa' : 'Tape Deck', desc: 'Gęsty bas, łagodna góra' },
-                { id: 'Overdrive' as SaturatorMode, label: isPl ? 'Overdrive Harmoniczny' : 'Overdrive', desc: 'Mocniejsze nasycenie lo-fi' },
+                { id: 'TubeWarmth' as SaturatorMode, label: isPl ? 'Lampa (Trioda)' : 'Tube Warmth', desc: isPl ? 'Ciepłe parzyste harmoniczne' : 'Warm even-order harmonics' },
+                { id: 'TapeSaturation' as SaturatorMode, label: isPl ? 'Taśma Magnetofonowa' : 'Tape Deck', desc: isPl ? 'Gęsty bas, łagodna góra' : 'Dense low-end, gentle roll-off' },
+                { id: 'Overdrive' as SaturatorMode, label: isPl ? 'Overdrive Harmoniczny' : 'Overdrive', desc: isPl ? 'Mocniejsze nasycenie lo-fi' : 'Grittier lo-fi harmonic drive' },
               ].map((m) => {
                 const isCurrent = state.saturator.mode === m.id && state.saturator.enabled;
                 return (

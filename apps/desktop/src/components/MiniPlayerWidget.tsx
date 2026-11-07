@@ -22,11 +22,13 @@ interface MiniPlayerWidgetProps {
   pitchSemitones: number;
   tempoRatio: number;
   currentLang?: Language;
+  volumeUnit?: 'percent' | 'db';
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
   onSeek: (positionMs: number) => void;
   onVolumeChange: (volume: number) => void;
+  onToggleVolumeUnit?: () => void;
   onRestore: () => void;
 }
 
@@ -41,11 +43,13 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   pitchSemitones,
   tempoRatio,
   currentLang = 'en',
+  volumeUnit = 'percent',
   onPlayPause,
   onPrev,
   onNext,
   onSeek,
   onVolumeChange,
+  onToggleVolumeUnit,
   onRestore,
 }) => {
   const t = getTranslations(currentLang);
@@ -256,6 +260,13 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
             step={0.01}
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            onPointerUp={(e) => e.currentTarget.blur()}
+            onMouseUp={(e) => e.currentTarget.blur()}
+            onKeyDown={(e) => {
+              if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.currentTarget.blur();
+              }
+            }}
             style={{
               width: '50px',
               height: '3px',
@@ -263,6 +274,25 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
               background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
             }}
           />
+          <button
+            type="button"
+            onClick={onToggleVolumeUnit}
+            title={volumeUnit === 'db' ? 'dB (Toggle %)' : '% (Toggle dB)'}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '0 2px',
+              fontSize: '0.66rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              color: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'var(--accent-pink)',
+              cursor: onToggleVolumeUnit ? 'pointer' : 'default',
+            }}
+          >
+            {volumeUnit === 'db'
+              ? (volume <= 0.0001 ? '-∞' : `${(20 * Math.log10(volume)).toFixed(0)}dB`)
+              : `${Math.round(volume * 100)}%`}
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

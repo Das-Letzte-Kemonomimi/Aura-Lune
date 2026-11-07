@@ -344,6 +344,10 @@ export interface Translations {
     appearance: string;
     audioDevices: string;
     audioSubtitle: string;
+    volumeUnitTitle: string;
+    volumeUnitDesc: string;
+    volumeUnitPercent: string;
+    volumeUnitDb: string;
     exportOpus: string;
     about: string;
     author: string;
@@ -1137,6 +1141,10 @@ export const translations: Record<Language, Translations> = {
       appearance: 'Appearance & Themes',
       audioDevices: 'Audio & Devices',
       audioSubtitle: 'PipeWire buffer sizes, hardware cards, and codec selection',
+      volumeUnitTitle: 'Volume Display Unit',
+      volumeUnitDesc: 'Display volume as percentage (0% - 100%) or studio decibels (-∞ dB to 0.0 dB)',
+      volumeUnitPercent: 'Percentage (%)',
+      volumeUnitDb: 'Decibels (dB)',
       exportOpus: 'Export & Opus',
       about: 'About Auralune',
       author: 'Author',
@@ -1929,6 +1937,10 @@ export const translations: Record<Language, Translations> = {
       appearance: 'Wygląd i motywy',
       audioDevices: 'Audio & Urządzenia',
       audioSubtitle: 'Rozmiar bufora PipeWire, karty sprzętowe i kodeki Bluetooth',
+      volumeUnitTitle: 'Format wyświetlania poziomu głośności',
+      volumeUnitDesc: 'Wybierz wyświetlanie głośności w procentach (0% – 100%) lub w decybelach studyjnych (-∞ dB do 0.0 dB)',
+      volumeUnitPercent: 'Procenty (%)',
+      volumeUnitDb: 'Decybele (dB)',
       exportOpus: 'Eksport & Opus',
       about: 'O programie',
       author: 'Autorka',
@@ -2721,6 +2733,10 @@ export const translations: Record<Language, Translations> = {
       appearance: 'Erscheinungsbild & Themes',
       audioDevices: 'Audio & Geräte',
       audioSubtitle: 'PipeWire-Puffergrößen, Soundkarten und Bluetooth-Codecs',
+      volumeUnitTitle: 'Lautstärke-Anzeigeformat',
+      volumeUnitDesc: 'Lautstärke in Prozent (0% – 100%) oder Studio-Dezibel (-∞ dB bis 0.0 dB) anzeigen',
+      volumeUnitPercent: 'Prozent (%)',
+      volumeUnitDb: 'Dezibel (dB)',
       exportOpus: 'Export & Opus',
       about: 'Über Auralune',
       author: 'Autorin',
@@ -3513,6 +3529,10 @@ export const translations: Record<Language, Translations> = {
       appearance: 'Ulkoasu ja teemat',
       audioDevices: 'Ääni & Laitteet',
       audioSubtitle: 'PipeWiren puskurikoot, laitekortit ja Bluetooth-koodekit',
+      volumeUnitTitle: 'Äänenvoimakkuuden näyttöyksikkö',
+      volumeUnitDesc: 'Näytä äänenvoimakkuus prosentteina (0% – 100%) tai studiodesibeleinä (-∞ dB – 0.0 dB)',
+      volumeUnitPercent: 'Prosentit (%)',
+      volumeUnitDb: 'Desibelit (dB)',
       exportOpus: 'Vienti & Opus',
       about: 'Tietoja ohjelmasta',
       author: 'Tekijä',
@@ -4305,6 +4325,10 @@ export const translations: Record<Language, Translations> = {
       appearance: 'Aspectus et themata',
       audioDevices: 'Audio & Instrumenta',
       audioSubtitle: 'Magnitudo buffer PipeWire, tabulae et codeces Bluetooth',
+      volumeUnitTitle: 'Formatum exhibitionis voluminis',
+      volumeUnitDesc: 'Monstra volumen per centesimas (0% - 100%) an per decibel (-∞ dB ad 0.0 dB)',
+      volumeUnitPercent: 'Centesimae (%)',
+      volumeUnitDb: 'Decibel (dB)',
       exportOpus: 'Exportatio & Opus',
       about: 'De Auralune',
       author: 'Auctrix',
