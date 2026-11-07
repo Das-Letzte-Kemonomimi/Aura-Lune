@@ -55,16 +55,8 @@ jobs:
             librubberband-dev \
             libsoundtouch-dev \
             pkg-config \
-            build-essential
-
-      - name: Check Rust formatting (cargo fmt)
-        run: cargo fmt --check
-
-      - name: Lint Rust codebase (cargo clippy)
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run all Rust tests (cargo test)
-        run: cargo test --all-targets
+            build-essential \
+            pulseaudio
 
       - name: Install frontend dependencies
         run: |
@@ -75,3 +67,14 @@ jobs:
         run: |
           cd apps/desktop
           npm run build
+
+      - name: Check Rust formatting (cargo fmt)
+        run: cargo fmt --check
+
+      - name: Lint Rust codebase (cargo clippy)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run all Rust tests (cargo test)
+        run: |
+          pulseaudio -D --exit-idle-time=-1 || true
+          cargo test --all-targets
