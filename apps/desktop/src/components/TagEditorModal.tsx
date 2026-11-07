@@ -88,7 +88,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         setComment(meta.comment || '');
       } catch (err: any) {
         if (!isMounted) return;
-        setError(typeof err === 'string' ? err : err?.message || 'Błąd odczytu tagów pliku');
+        setError(typeof err === 'string' ? err : err?.message || (currentLang === 'pl' ? 'Błąd odczytu tagów pliku' : 'Failed to read file tags'));
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -141,7 +141,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         onClose();
       }, 700);
     } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || 'Błąd zapisu tagów pliku');
+      setError(typeof err === 'string' ? err : err?.message || (currentLang === 'pl' ? 'Błąd zapisu tagów pliku' : 'Failed to save file tags'));
     } finally {
       setSaving(false);
     }
@@ -560,7 +560,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                     rows={2}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder="Opis, źródło lub uwagi..."
+                    placeholder={currentLang === 'pl' ? 'Opis, źródło lub uwagi...' : 'Description, source or notes...'}
                     style={{
                       width: '100%',
                       padding: '10px 12px',

@@ -718,3 +718,65 @@ fn test_stop_after_current_track_eos_stops_cleanly() {
         "Flaga stop_after_current powinna zostać automatycznie zresetowana po zatrzymaniu"
     );
 }
+
+#[test]
+fn test_equal_power_crossfade_duration_and_transition() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("AudioEngine init");
+
+    // Domyślny czas crossfade
+    assert_eq!(engine.crossfade_duration_ms(), 1500);
+
+    // Ustawienie pełnego 8.00s (8000ms) crossfade jak na zrzucie ekranu użytkownika
+    engine.set_crossfade_duration_ms(8000);
+    assert_eq!(engine.crossfade_duration_ms(), 8000);
+
+    // Sprawdzenie clampowania
+    engine.set_crossfade_duration_ms(15000);
+    assert_eq!(engine.crossfade_duration_ms(), 8000);
+
+    engine.set_crossfade_duration_ms(400);
+
+    let item1 = domain::queue::QueueItem {
+        id: "q-xfade-1".to_string(),
+        track_id: Some(101),
+        uri: format!("file://{}", fixture_path.canonicalize().unwrap().display()),
+        title: "Track 1".to_string(),
+        artist: "Crossfade Test".to_string(),
+        album: None,
+        duration_ms: 1000,
+    };
+    let item2 = domain::queue::QueueItem {
+        id: "q-xfade-2".to_string(),
+        track_id: Some(102),
+        uri: format!("file://{}", fixture_path.canonicalize().unwrap().display()),
+        title: "Track 2".to_string(),
+        artist: "Crossfade Test".to_string(),
+        album: None,
+        duration_ms: 1000,
+    };
+
+    let active = engine
+        .set_queue(vec![item1, item2], Some(0))
+        .expect("set_queue");
+    assert!(active.is_some());
+    assert_eq!(engine.state(), domain::PlaybackState::Playing);
+
+    sleep(Duration::from_millis(50));
+
+    // Przejście play_next z aktywnym crossfade (płynny fade-out i wejście fade-in w tle)
+    let next = engine.play_next().expect("play_next z crossfade");
+    assert!(next.is_some());
+    assert_eq!(next.unwrap().title, "Track 2");
+    assert_eq!(engine.state(), domain::PlaybackState::Playing);
+
+    sleep(Duration::from_millis(100));
+
+    engine.stop().expect("stop");
+}

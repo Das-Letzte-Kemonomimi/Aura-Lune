@@ -61,7 +61,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
         setAudioTargetOverride(sheet.file_path);
       }
     } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || 'Błąd parsowania arkusza CUE');
+      setError(typeof err === 'string' ? err : err?.message || (currentLang === 'pl' ? 'Błąd parsowania arkusza CUE' : 'Failed to parse CUE sheet'));
     }
   };
 
@@ -239,7 +239,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                   {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} • {parsedSheet.tracks.length} {currentLang === 'pl' ? 'utworów' : 'tracks'}
                 </p>
                 <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#94a3b8' }}>
-                  <span>Plik audio: </span>
+                  <span>{currentLang === 'pl' ? 'Plik audio: ' : 'Audio file: '}</span>
                   <input
                     type="text"
                     value={audioTargetOverride}
