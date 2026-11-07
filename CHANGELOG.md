@@ -9,6 +9,19 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.9.2] — „Kitsune Memory & Persistent Flow” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Pełne zapamiętywanie stanu sesji odtwarzania przy ponownym uruchomieniu (Session Persistence)**:
+  - Automatyczne utrwalanie i odtwarzanie po ponownym uruchomieniu aplikacji: ostatnio odtwarzanego utworu, precyzyjnej pozycji czasowej w milisekundach (`position_ms`), głośności (wartości liniowej oraz decybeli studyjnych dB), parametrów DSP oraz trybu widoku (`cover` / `turntable` / `vu`).
+  - Natychmiastowe przywracanie głośności w silniku audio PipeWire / GStreamer od razu przy starcie backendu Rust bez niepożądanych skoków poziomu dźwięku.
+  - Dedykowany, stylowy przełącznik w oknie *Ustawienia -> Audio & Urządzenia* umożliwiający pełną kontrolę i włączenie/wyłączenie zapamiętywania sesji odtwarzania z podglądem stanu.
+  - Hybrydowy mechanizm zapisu stanu: natychmiastowy w `localStorage` (dla zerowej latencji UI) oraz asynchroniczny z debounce 1.5s w bazie SQLite (`app_settings`), uzupełniony o natychmiastowy zapis w obsłudze zdarzenia `beforeunload`.
+  - Kompletne wsparcie językowe we wszystkich 5 językach (PL, EN, DE, FI, LA).
+
+---
+
 ## [0.9.1] — „Kitsune Kinetic Groove” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 

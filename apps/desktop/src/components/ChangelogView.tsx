@@ -18,11 +18,42 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.9.2',
+    codename: 'Kitsune Memory & Persistent Flow',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Pełne zapamiętywanie stanu sesji odtwarzania przy ponownym uruchomieniu (Session Persistence): automatyczne utrwalanie i odtwarzanie ostatnio odtwarzanego utworu, precyzyjnej pozycji czasowej w milisekundach, poziomu głośności (wartości liniowej oraz decybeli studyjnych dB), parametrów DSP oraz trybu widoku po ponownym uruchomieniu aplikacji.',
+        en: 'Full Playback Session Persistence across restarts: automatically remembers and restores the last played track, exact millisecond playback position, volume level (linear and studio decibels dB), DSP parameters, and active view mode upon application restart.',
+        de: 'Vollständige Wiederherstellung der Wiedergabesitzung beim Neustart: Merkt sich automatisch den zuletzt gespielten Titel, die genaue Millisekunden-Position, die Lautstärke (linear und Studio-dB), DSP-Parameter und den aktiven Ansichtsmodus.',
+        fi: 'Täydellinen toistoistunnon muistaminen uudelleenkäynnistyksen yli: muistaa ja palauttaa automaattisesti viimeksi soitetun kappaleen, tarkan millisekuntikohdan, äänenvoimakkuuden (lineaarinen ja studio-dB), DSP-parametrit ja aktiivisen näyttötilan.',
+        la: 'Plena memoria sessionis auditionis cum denuo incipit: automatice meminit et restaurat ultimum cantum, locum accuratum in millisecondis, volumen (lineare et studio-dB), parametros DSP et modum aspectus.',
+      },
+      {
+        pl: 'Dedykowany przełącznik w Ustawieniach: stylowy guzik w oknie Ustawienia -> Audio & Urządzenia umożliwiający pełną kontrolę nad włączaniem i wyłączaniem zapamiętywania sesji z podglądem stanu.',
+        en: 'Dedicated Settings toggle: clean toggle button in Settings -> Audio & Devices providing complete control to enable or disable session restoration with instant status indication.',
+        de: 'Eigener Schalter in den Einstellungen: Schaltfläche in Einstellungen -> Audio & Geräte zur vollständigen Steuerung der Sitzungswiederherstellung.',
+        fi: 'Erillinen kytkin Asetuksissa: tyylikäs painike Asetukset -> Ääni & Laitteet -näkymässä toistoistunnon muistamisen kytkemiseen päälle tai pois.',
+        la: 'Elector proprius in Configurationibus: globulus in Configurationes -> Audio & Instrumenta ad memoriam sessionis libere vertendam.',
+      },
+      {
+        pl: 'Hybrydowy mechanizm utrwalania stanu bez skoków głośności: natychmiastowe ładowanie głośności w silniku PipeWire/GStreamer od startu backendu Rust, buforowany zapis do bazy SQLite oraz obsługa zdarzenia beforeunload.',
+        en: 'Hybrid state persistence without volume spikes: instant volume initialization in PipeWire/GStreamer engine from backend start, debounced SQLite persistence, and beforeunload handling.',
+        de: 'Hybride Zustandsspeicherung ohne Lautstärkesprünge: Sofortige Lautstärkeinitialisierung im PipeWire/GStreamer-Backend, gepufferte SQLite-Speicherung und beforeunload-Verarbeitung.',
+        fi: 'Hybridi tilantallennus ilman äänenvoimakkuuspiikkejä: välitön äänenvoimakkuuden alustus PipeWire/GStreamer-moottorissa Rust-käynnistyksestä, puskuroitu SQLite-tallennus ja beforeunload-käsittely.',
+        la: 'Mechanismus hybridus status servandi sine saltibus voluminis: initium statim in PipeWire/GStreamer machina, seriatio SQLite et tractatio beforeunload.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.9.1',
     codename: 'Kitsune Kinetic Groove',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Fizyka obrotu płyty winylowej zsynchronizowana z DSP i BPM: płyta wiruje z realistyczną bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania oraz tempem utworu. Płynny rozruch, wyhamowywanie na pauzie bez szarpnięć i odczyt RPM na żywo.',
