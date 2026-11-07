@@ -178,6 +178,54 @@ impl Default for LimiterConfig {
     }
 }
 
+/// Konfiguracja poszerzania bazy stereo (Stereo Widener / Stereo Stage)
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct StereoWidenerConfig {
+    pub enabled: bool,
+    /// Poziom poszerzenia od 0.0 (0% - brak zmian) do 1.0 (100% - maksymalna przestrzeń sceny)
+    pub width: f32,
+}
+
+impl Default for StereoWidenerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            width: 0.15,
+        }
+    }
+}
+
+impl StereoWidenerConfig {
+    pub fn new(enabled: bool, width: f32) -> Self {
+        Self {
+            enabled,
+            width: width.clamp(0.0, 1.0),
+        }
+    }
+
+    /// Przetwarza ramkę stereo (lewy i prawy kanał) w macierzy Mid-Side (M/S).
+    #[inline(always)]
+    pub fn process_frame(&self, left: f32, right: f32) -> (f32, f32) {
+        if !self.enabled || self.width <= 0.0 {
+            return (left, right);
+        }
+
+        let mid = (left + right) * 0.5;
+        let side = (left - right) * 0.5;
+
+        // Skalowanie Side: od 1.0 (brak zmian) do 2.2 (+120% szerokości bazy stereo)
+        let side_gain = 1.0 + self.width * 1.2;
+        // Kompensacja głośności (gain trim) zapobiegająca cyfrowemu przesterowaniu przy szerokiej bazie
+        let gain_trim = 1.0 / (1.0 + self.width * 0.2);
+
+        let new_side = side * side_gain;
+        let out_l = (mid + new_side) * gain_trim;
+        let out_r = (mid - new_side) * gain_trim;
+
+        (out_l, out_r)
+    }
+}
+
 /// Zbiorczy stan Studia Dynamiki (Compressor + Saturator + Limiter)
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct DynamicsState {
@@ -405,5 +453,30 @@ mod tests {
         assert!(presets.iter().any(|p| p.id == "vintage-tube"));
         assert!(presets.iter().any(|p| p.id == "analog-tape"));
         assert!(presets.iter().any(|p| p.id == "bypass"));
+    }
+
+    #[test]
+    fn test_stereo_widener_processing() {
+        let widener = StereoWidenerConfig {
+            enabled: true,
+            width: 0.5,
+        };
+
+        // Sygnał mono (L == R) nie powinien ulec zmianie proporcji kanałów
+        let (mono_l, mono_r) = widener.process_frame(0.4, 0.4);
+        assert!((mono_l - mono_r).abs() < 1e-6);
+
+        // Sygnał z różnicą stereo (L != R) powinien mieć zwiększoną separację
+        let orig_diff = (0.6f32 - 0.2f32).abs();
+        let (out_l, out_r) = widener.process_frame(0.6, 0.2);
+        let out_diff = (out_l - out_r).abs();
+        assert!(out_diff > orig_diff * 0.9);
+
+        // Przy wyłączonym widenerze sygnał przechodzi 1:1
+        let disabled = StereoWidenerConfig {
+            enabled: false,
+            width: 0.5,
+        };
+        assert_eq!(disabled.process_frame(0.7, -0.3), (0.7, -0.3));
     }
 }

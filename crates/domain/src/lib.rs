@@ -19,6 +19,7 @@ pub use crossfeed::{CrossfeedConfig, CrossfeedPreset};
 pub use cue::{CueSheet, CueTrack};
 pub use dynamics::{
     CompressorConfig, DynamicsPreset, DynamicsState, LimiterConfig, SaturatorConfig, SaturatorMode,
+    StereoWidenerConfig,
 };
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
 pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
