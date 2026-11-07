@@ -15,7 +15,8 @@ export type VisualizerMode =
   | 'oscilloscope'
   | 'wave'
   | 'circular'
-  | 'mirrored';
+  | 'mirrored'
+  | 'lissajous';
 
 export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   spectrum = [],
@@ -384,6 +385,44 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
             }
           }
         }
+      } else if (mode === 'lissajous') {
+        // Stereo Vectorscope / Lissajous XY phase scope
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = Math.min(width, height) * 0.44;
+
+        // Siatka celownicza oscyloskopu
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.moveTo(centerX - radius, centerY);
+        ctx.lineTo(centerX + radius, centerY);
+        ctx.moveTo(centerX, centerY - radius);
+        ctx.lineTo(centerX, centerY + radius);
+        ctx.stroke();
+
+        if (isPlaying) {
+          rotationRef.current += 0.035;
+          const points = 120;
+          ctx.beginPath();
+          ctx.strokeStyle = '#06b6d4';
+          ctx.shadowColor = '#06b6d4';
+          ctx.shadowBlur = 8;
+          ctx.lineWidth = 2;
+
+          for (let p = 0; p <= points; p++) {
+            const t = (p / points) * Math.PI * 2;
+            const b1 = smoothedRef.current[p % bandCount] || 0.1;
+            const b2 = smoothedRef.current[(p + 3) % bandCount] || 0.1;
+            const x = centerX + Math.sin(t * 2 + rotationRef.current) * (radius * (0.25 + b1 * 0.75));
+            const y = centerY + Math.cos(t * 3) * (radius * (0.25 + b2 * 0.75));
+            if (p === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -405,6 +444,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       'wave',
       'circular',
       'mirrored',
+      'lissajous',
     ];
     const next = modes[(modes.indexOf(mode) + 1) % modes.length];
     setMode(next);

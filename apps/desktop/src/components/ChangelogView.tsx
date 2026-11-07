@@ -18,11 +18,56 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.9.0',
+    codename: 'Kitsune Infinity & Analog Warmth',
+    date: '2026-11-07',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Bauer Headphone Crossfeed (bs2b) w DSP Studio: dedykowana karta z presetami Default, Chu Moy, Jan Meier i suwakami Custom dostępna bezpośrednio w zakładce DSP.',
+        en: 'Bauer Headphone Crossfeed (bs2b) in DSP Studio: dedicated card with Default, Chu Moy, Jan Meier presets and Custom sliders directly inside the DSP tab.',
+        de: 'Bauer Kopfhörer-Crossfeed (bs2b) im DSP Studio: Eigene Karte mit Presets (Default, Chu Moy, Jan Meier) und Schiebereglern direkt im DSP-Reiter.',
+        fi: 'Bauer-kuulokeristisyöttö (bs2b) DSP Studiossa: oma kortti esiasetuksilla (Default, Chu Moy, Jan Meier) ja liukusäätimillä suoraan DSP-välilehdellä.',
+        la: 'Transmissio aurium Bauer (bs2b) in DSP Studio: tabula dedicata cum modis et elapsoribus directe in DSP indice.',
+      },
+      {
+        pl: 'Analogowy wskaźnik stereo VU-Meter (VuMeterWidget): dwuigłowy wskaźnik wychyłowy L/R z balistyką analogową, skalą dB, Peak LED oraz 3 motywami podświetlenia (Amber Glow, Sakura Pink, Cyber Neon).',
+        en: 'Analog Stereo VU-Meter (VuMeterWidget): dual ballistic needles L/R with vintage dB scale, Peak LEDs, and 3 backlight themes (Amber Glow, Sakura Pink, Cyber Neon).',
+        de: 'Analoger Stereo-VU-Meter (VuMeterWidget): Doppelzeiger-Instrument L/R mit Ballistik, dB-Skala, Peak-LED und 3 Hintergrundbeleuchtungs-Themen.',
+        fi: 'Analoginen stereo-VU-mittari (VuMeterWidget): kaksi neulaa (V/O) analogisella ballistiikalla, dB-asteikolla, Peak-LEDillä ja 3 taustavaloteemalla.',
+        la: 'Index analogicus stereo VU-Meter: binae acus L/R cum physica ballistica, scala dB, Peak LED et tribus coloribus illuminationis.',
+      },
+      {
+        pl: 'Interaktywny gramofon winylowy Hi-Fi (VinylTurntable): wirująca płyta z odbiciami rowków, okładką w centrum, animowanym ramieniem opadającym na płytę i przełącznikiem 33⅓ / 45 RPM.',
+        en: 'Interactive Hi-Fi Vinyl Turntable (VinylTurntable): spinning grooved record with optical reflections, center artwork spindle, moving tonearm, and 33⅓ / 45 RPM switch.',
+        de: 'Interaktiver Hi-Fi-Plattenspieler (VinylTurntable): Drehende Vinyl-Schallplatte mit Rillenreflexionen, Cover-Etikett, animiertem Tonarm und 33⅓ / 45 RPM-Umschalter.',
+        fi: 'Interaktiivinen Hi-Fi-vinyylisoitin (VinylTurntable): pyörivä vinyylilevy valoheijastuksilla, kansitaiteella, liikkuvalla äänivarrella ja 33⅓ / 45 RPM -kytkimellä.',
+        la: 'Grammophonum vinyleum interactivum (VinylTurntable): discus gyrans cum reflexione sulcorum, imagine operculi, brachio mobili et electore 33⅓ / 45 RPM.',
+      },
+      {
+        pl: 'Inteligentny Auto-DJ / Infinity Queue: automatyczne dobieranie harmonicznie zgodnych utworów z biblioteki (Camelot Wheel & BPM) pod koniec kolejki, gwarantujące nieprzerwane odtwarzanie.',
+        en: 'Smart Auto-DJ / Infinity Queue: automatic Camelot Wheel & BPM harmonic match from library when queue is ending, ensuring endless continuous playback.',
+        de: 'Smart Auto-DJ / Infinity Queue: Automatisches Anhängen harmonisch kompatibler Titel (Camelot-Rad & BPM) am Ende der Warteschlange.',
+        fi: 'Älykäs Auto-DJ / Infinity Queue: harmonisesti yhteensopivien kappaleiden (Camelot Wheel & BPM) automaattinen lisäys jonon loppuun loputtomaan toistoon.',
+        la: 'Auto-DJ / Infinity Queue callidus: electio harmonica cantuum ex bibliotheca (Camelot & BPM) ad finem ordinis pro perpetuo cantu.',
+      },
+      {
+        pl: 'Linux Ricing IPC (/tmp/auralune.json) oraz kanał sterowania FIFO/Socket (/tmp/auralune_ctl, /tmp/auralune.sock): natywna integracja z Waybarem, Hyprlandem, Sway, Polybarem i skryptami WM.',
+        en: 'Linux Ricing IPC (/tmp/auralune.json) and Control FIFO/Socket (/tmp/auralune_ctl, /tmp/auralune.sock): native integration with Waybar, Hyprland, Sway, Polybar, and WM binds.',
+        de: 'Linux Ricing IPC (/tmp/auralune.json) und Steuerungs-FIFO/Socket: Native Integration mit Waybar, Hyprland, Sway, Polybar und WM-Shortcuts.',
+        fi: 'Linux Ricing IPC (/tmp/auralune.json) ja ohjaus-FIFO/Socket: natiivi integraatio Waybarin, Hyprlandin, Swayn, Polybarin ja WM-pikanäppäinten kanssa.',
+        la: 'Linux Ricing IPC (/tmp/auralune.json) et canalis FIFO/Socket: integratio nativa cum Waybar, Hyprland, Sway et clavibus fenestrarum curatoris.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.8.3',
     codename: 'Resonance & Harmonic Flow',
     date: '2026-11-07',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Wybór jednostki głośności (% vs studyjne dB): wprowadzono profesjonalną skalę logarytmiczną decybeli (-∞ dB do 0.0 dB) w Ustawieniach, OSD oraz z 1-klikowym przełącznikiem na plakietce głośności.',
