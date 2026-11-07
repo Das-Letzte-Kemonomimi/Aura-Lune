@@ -89,4 +89,11 @@ else
     echo "⚠️ Ostrzeżenie: Plik $APPIMAGE_PATH nie został znaleziony. Pomiń upload AppImage."
 fi
 
+# 9. Aktualizacja opisu repozytoriów na GitHubie (sekcja About)
+ORIGIN_REPO="Das-Letzte-Kemonomimi/Auralune"
+NEW_DESC="v${CURRENT_VERSION} | Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP)"
+gh repo edit "$ORIGIN_REPO" --description "$NEW_DESC" &>/dev/null || true
+gh repo edit "$PUBLIC_REPO" --description "$NEW_DESC" &>/dev/null || true
+echo "📝 Zaktualizowano opis repozytoriów (About) na: $NEW_DESC"
+
 echo "🎉 Synchronizacja z $PUBLIC_REPO zakończona sukcesem!"
