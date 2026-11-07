@@ -6,6 +6,8 @@ interface VinylTurntableProps {
   isPlaying: boolean;
   tempo?: number; // mnożnik tempa DSP (np. 0.35x - 3.00x)
   rate?: number;  // mnożnik szybkości odtwarzania (np. 1.0x)
+  engine?: string; // aktualny silnik DSP: 'Bypass' | 'RubberBand' | 'SoundTouch'
+  isDspActive?: boolean; // czy DSP aktywnie przetwarza (nie jest w Direct Bypass)
   bpm?: number | null;
   trackTitle?: string;
   artistName?: string;
@@ -20,6 +22,8 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   isPlaying,
   tempo = 1.0,
   rate = 1.0,
+  engine = 'Bypass',
+  isDspActive,
   bpm,
   trackTitle = 'Nieznany utwór',
   artistName = 'Auralune Player',
@@ -30,8 +34,16 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 }) => {
   const [rpm, setRpm] = useState<33 | 45>(33);
 
+  // Weryfikacja czy DSP aktywnie moduluje strumień audio, czy działa Direct Bypass:
+  // W trybie Direct Bypass dźwięk płynie bit-perfect z prędkością 1.0x, więc płyta obraca się z nominalną prędkością!
+  const dspActive = isDspActive !== undefined
+    ? isDspActive
+    : (engine !== 'Bypass' && Boolean(engine));
+
   // Efektywny mnożnik prędkości obrotu płyty zsynchronizowany z DSP (Tempo + Rate)
-  const effectiveSpeed = Math.max(0.1, Math.min(4.0, (tempo || 1.0) * (rate || 1.0)));
+  const effectiveSpeed = dspActive
+    ? Math.max(0.1, Math.min(4.0, (tempo || 1.0) * (rate || 1.0)))
+    : 1.0;
 
   // Obliczenie aktualnej fizycznej prędkości obrotowej (RPM)
   const currentRpm = (rpm * effectiveSpeed).toFixed(1);
@@ -355,9 +367,11 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
           />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.66rem' }}>
             {isPlaying
-              ? `${displayRpm} RPM • ${effectiveSpeed !== 1.0 ? `${effectiveSpeed.toFixed(2)}x DSP` : 'DIRECT DRIVE'}${
-                  bpm ? ` (${Math.round(bpm * effectiveSpeed)} BPM)` : ''
-                }`
+              ? `${displayRpm} RPM • ${
+                  dspActive && effectiveSpeed !== 1.0
+                    ? `${effectiveSpeed.toFixed(2)}x ${engine || 'DSP'}`
+                    : (dspActive ? 'DIRECT DRIVE' : 'BYPASS (1.0x)')
+                }${bpm ? ` (${Math.round(bpm * effectiveSpeed)} BPM)` : ''}`
               : 'STANDBY'}
           </span>
         </div>

@@ -18,11 +18,35 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.9.3',
+    codename: 'Kitsune Pure Bypass & Groove Sync',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Synchronizacja obrotu płyty winylowej ze stanem silnika DSP (Direct Bypass vs Aktywne DSP): gramofon uwzględnia teraz rzeczywisty tryb pracy procesora audio. W trybie Direct Bypass płyta wiruje z nominalną, naturalną prędkością 1.0x (33⅓ lub 45 RPM), a mnożniki tempa/szybkości wpływają na prędkość obrotową wyłącznie wtedy, gdy wybrany jest aktywny silnik DSP (RubberBand lub SoundTouch).',
+        en: 'Vinyl Turntable rotation synced with DSP Engine State (Direct Bypass vs Active DSP): turntable now respects the actual audio processor mode. In Direct Bypass, the record spins at pure nominal 1.0x speed (33⅓ or 45 RPM); DSP tempo/rate scaling only alters rotation when an active DSP engine (RubberBand or SoundTouch) is engaged.',
+        de: 'Synchronisation der Plattenspielerdrehung mit dem DSP-Engine-Status (Direct Bypass vs. Aktiver DSP): Die Schallplatte dreht sich im Direct Bypass mit nominaler 1.0x-Geschwindigkeit; DSP-Tempo-Skalierung greift nur bei aktivem DSP.',
+        fi: 'Vinyylilevyn pyörimisen synkronointi DSP-moottorin tilan kanssa (Direct Bypass vs Aktiivinen DSP): vinyylilevy pyörii Direct Bypass -tilassa puhtaalla 1.0x nimellisnopeudella; DSP-skaalaus vaikuttaa vain aktiivisella DSP-moottorilla.',
+        la: 'Synchronizatio gyrandi disci vinylei cum statu machinae DSP (Direct Bypass vs DSP activum): discus in modo Direct Bypass velocitate 1.0x gyratur; tempo solum afficit cum DSP est activum.',
+      },
+      {
+        pl: 'Ulepszona plakietka stanu gramofonu: czytelny wskaźnik informujący o trybie pracy „BYPASS (1.0x)” lub precyzyjnym mnożniku aktywnego silnika (np. „1.25x RubberBand”) oraz odczyt ramienia z informacją o silniku Direct Bypass.',
+        en: 'Enhanced turntable status readout: clear badge indicating „BYPASS (1.0x)” or exact active engine multiplier (e.g. „1.25x RubberBand”) and contextual tonearm indicator.',
+        de: 'Erweiterte Plattenspieler-Statusanzeige: Klares Label für „BYPASS (1.0x)” oder genaue Engine-Multiplikatoren sowie kontextuelle Tonarm-Anzeige.',
+        fi: 'Parannettu vinyylisoittimen tilanäyttö: selkeä ilmaisin tilalle „BYPASS (1.0x)” tai aktiivisen moottorin kertoimelle sekä äänivarren tila.',
+        la: 'Index emendatus status grammophoni: titulus clarus pro „BYPASS (1.0x)” vel multiplicatore DSP et indicio brachii.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.9.2',
     codename: 'Kitsune Memory & Persistent Flow',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Pełne zapamiętywanie stanu sesji odtwarzania przy ponownym uruchomieniu (Session Persistence): automatyczne utrwalanie i odtwarzanie ostatnio odtwarzanego utworu, precyzyjnej pozycji czasowej w milisekundach, poziomu głośności (wartości liniowej oraz decybeli studyjnych dB), parametrów DSP oraz trybu widoku po ponownym uruchomieniu aplikacji.',

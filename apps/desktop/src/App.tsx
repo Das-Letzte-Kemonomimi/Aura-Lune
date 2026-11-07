@@ -1052,7 +1052,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.9.2'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.9.3'
   );
 
 
@@ -10470,6 +10470,8 @@ const renderDevicesSection = () => (
                     isPlaying={status.state === 'Playing'}
                     tempo={status.tempo_ratio ?? 1.0}
                     rate={status.rate_ratio ?? 1.0}
+                    engine={status.engine}
+                    isDspActive={status.engine !== 'Bypass'}
                     bpm={
                       currentPlayingTrack?.bpm ||
                       tracks.find(
@@ -10660,7 +10662,13 @@ const renderDevicesSection = () => (
                     >
                       <Disc3 size={11} color="var(--accent-pink)" />
                       {status.state === 'Playing'
-                        ? (language === 'pl' ? '33⅓ RPM • Ramię opuszczone' : '33⅓ RPM • Tonearm Engaged')
+                        ? (language === 'pl'
+                            ? (status.engine === 'Bypass'
+                                ? '33⅓ RPM • Ramię opuszczone (Bypass)'
+                                : `33⅓ RPM • Ramię opuszczone (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
+                            : (status.engine === 'Bypass'
+                                ? '33⅓ RPM • Tonearm Engaged (Bypass)'
+                                : `33⅓ RPM • Tonearm Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
                         : (language === 'pl' ? 'Pauza • Ramię zaparkowane' : 'Paused • Tonearm Parked')}
                     </div>
                   </div>

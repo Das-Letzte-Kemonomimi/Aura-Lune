@@ -9,6 +9,16 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.9.3] — „Kitsune Pure Bypass & Groove Sync” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Synchronizacja obrotu płyty winylowej ze stanem silnika DSP (`VinylTurntable`)**:
+  - Gramofon uwzględnia teraz rzeczywisty tryb pracy procesora audio. W trybie `Direct Bypass` płyta wiruje z nominalną, 100% naturalną prędkością 1.0x (33⅓ lub 45 RPM), a mnożniki suwaka tempa/szybkości wpływają na prędkość obrotową wyłącznie wtedy, gdy wybrany jest aktywny silnik DSP (`RubberBand` lub `SoundTouch`).
+  - Ulepszona plakietka stanu gramofonu: czytelny wskaźnik informujący o trybie pracy `BYPASS (1.0x)` lub precyzyjnym mnożniku aktywnego silnika (np. `1.25x RubberBand`) oraz odczyt ramienia gramofonowego z informacją o silniku Direct Bypass.
+
+---
+
 ## [0.9.2] — „Kitsune Memory & Persistent Flow” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
