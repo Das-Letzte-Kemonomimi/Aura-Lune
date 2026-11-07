@@ -48,23 +48,24 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     let animId: number;
 
     const render = () => {
-      if (canvas.clientWidth && canvas.width !== canvas.clientWidth) {
-        canvas.width = canvas.clientWidth;
-      }
-      if (canvas.clientHeight && canvas.height !== canvas.clientHeight) {
-        canvas.height = canvas.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      const clientW = canvas.clientWidth || 240;
+      const clientH = canvas.clientHeight || 130;
+
+      if (canvas.width !== clientW * dpr || canvas.height !== clientH * dpr) {
+        canvas.width = clientW * dpr;
+        canvas.height = clientH * dpr;
       }
 
-      const width = canvas.width || 480;
-      const height = canvas.height || 180;
-      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, clientW, clientH);
 
-      // Oblicz surowe poziomy L i R na podstawie pasm spektrogramu
+      // Oblicz surowe poziomy L i R na podstawie spektrogramu
       let rawLeft = 0;
       let rawRight = 0;
 
       if (isPlaying && spectrum.length > 0) {
-        // Pasma basowe i średnie dają główne ugięcie wskaźnika VU
         const half = Math.floor(spectrum.length / 2);
         for (let i = 0; i < half; i++) rawLeft += spectrum[i] || 0;
         for (let i = half; i < spectrum.length; i++) rawRight += spectrum[i] || 0;
@@ -114,8 +115,8 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
           needle: '#b91c1c',
           needleCap: '#7f1d1d',
           glow: 'rgba(245, 158, 11, 0.45)',
-          redZone: '#ef4444',
-          accent: '#f59e0b',
+          redZone: '#dc2626',
+          accent: '#d97706',
         },
         sakura: {
           bgGradStart: '#2b091f',
@@ -128,7 +129,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
           needleCap: '#881337',
           glow: 'rgba(244, 63, 94, 0.45)',
           redZone: '#e11d48',
-          accent: '#ec4899',
+          accent: '#db2777',
         },
         cyber: {
           bgGradStart: '#04222a',
@@ -141,18 +142,20 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
           needleCap: '#0369a1',
           glow: 'rgba(6, 182, 212, 0.45)',
           redZone: '#ef4444',
-          accent: '#06b6d4',
+          accent: '#0891b2',
         },
       }[theme];
 
-      const meterWidth = (width - 24) / 2;
-      const meterHeight = height - 16;
+      const gap = 6;
+      const pad = 4;
+      const meterWidth = (clientW - pad * 2 - gap) / 2;
+      const meterHeight = clientH - pad * 2;
 
       // Rysuj kanał L i kanał R
       drawMeter(
         ctx,
-        8,
-        8,
+        pad,
+        pad,
         meterWidth,
         meterHeight,
         'LEFT (CH 1)',
@@ -163,8 +166,8 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
 
       drawMeter(
         ctx,
-        8 + meterWidth + 8,
-        8,
+        pad + meterWidth + gap,
+        pad,
         meterWidth,
         meterHeight,
         'RIGHT (CH 2)',
@@ -173,6 +176,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
         themeColors
       );
 
+      ctx.restore();
       animId = requestAnimationFrame(render);
     };
 
@@ -200,70 +204,118 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     // Zaokrąglona ramka wskaźnika (Vintage Bezel)
     ctx.fillStyle = colors.bgGradStart;
     ctx.beginPath();
-    ctx.roundRect(0, 0, w, h, 12);
+    ctx.roundRect(0, 0, w, h, 8);
     ctx.fill();
 
     // Wewnętrzna tarcza (Faceplate)
-    const margin = 5;
+    const margin = 3.5;
     const faceW = w - margin * 2;
     const faceH = h - margin * 2;
-    const faceGrad = ctx.createLinearGradient(0, 0, 0, faceH);
+
+    const faceGrad = ctx.createLinearGradient(0, margin, 0, margin + faceH);
     faceGrad.addColorStop(0, colors.faceBg);
     faceGrad.addColorStop(1, colors.faceGrad);
 
     ctx.fillStyle = faceGrad;
     ctx.beginPath();
-    ctx.roundRect(margin, margin, faceW, faceH, 8);
+    ctx.roundRect(margin, margin, faceW, faceH, 6);
     ctx.fill();
 
-    // Subtelny cień tarczy
+    // Subtelne obramowanie tarczy
     ctx.strokeStyle = colors.bezel;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    // Punkt obrotu wskazówki na dole tarczy
+    // Bezpieczny obszar przycinania (Clip - rysowanie nigdy nie przekracza ramki)
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(margin, margin, faceW, faceH, 6);
+    ctx.clip();
+
+    // Cień głębokości szybki (wypukłe szkło)
+    const glassShadow = ctx.createLinearGradient(0, margin, 0, margin + 12);
+    glassShadow.addColorStop(0, 'rgba(0, 0, 0, 0.16)');
+    glassShadow.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = glassShadow;
+    ctx.fillRect(margin, margin, faceW, 12);
+
+    // Etykieta kanału (np. LEFT (CH 1))
+    ctx.font = '800 7.5px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = colors.textDark;
+    ctx.textAlign = 'left';
+    ctx.fillText(label, margin + 6, margin + 11);
+
+    // Dioda Peak LED w prawym górnym rogu
+    const ledX = margin + faceW - 9;
+    const ledY = margin + 9;
+    const isPeakActive = peak >= 0.84;
+
+    ctx.beginPath();
+    ctx.arc(ledX, ledY, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = isPeakActive ? '#ef4444' : 'rgba(239, 68, 68, 0.25)';
+    ctx.fill();
+    if (isPeakActive) {
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Geometria łuku skali VU
     const pivotX = margin + faceW / 2;
-    const pivotY = margin + faceH * 0.95;
-    const radius = faceH * 0.78;
+    const pivotY = margin + faceH * 0.94;
 
-    // Łuk skali dB (od -45 stopni do +45 stopni)
-    const startAngle = -Math.PI * 0.75;
-    const endAngle = -Math.PI * 0.25;
+    // Kąty wychylenia: od -125° do -55° (70° zakres, standard IEC VU)
+    const startAngle = -Math.PI * 0.694; // -125°
+    const endAngle = -Math.PI * 0.306;   // -55°
+    const totalSweep = endAngle - startAngle;
 
-    // Główny łuk czarny
+    // Obliczenie promienia, aby łuk i kreski w 100% mieściły się w tarczy
+    const maxR_horizontal = (faceW / 2 - 8) / 0.58; // cos(-125°) = -0.5735
+    const maxR_vertical = pivotY - (margin + 18);
+    const radius = Math.max(20, Math.min(maxR_horizontal, maxR_vertical));
+
+    // Strefa czerwona od 0 dB (około 80% zakresu)
+    const redZoneThreshold = 0.80;
+    const redZoneAngle = startAngle + totalSweep * redZoneThreshold;
+
+    // Główny łuk ciemny (-20 do 0 VU)
     ctx.beginPath();
-    ctx.arc(pivotX, pivotY, radius, startAngle, startAngle + (endAngle - startAngle) * 0.75);
+    ctx.arc(pivotX, pivotY, radius, startAngle, redZoneAngle);
     ctx.strokeStyle = colors.textDark;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 1.6;
     ctx.stroke();
 
-    // Czerwony segment przesteru (+0dB do +3dB)
+    // Czerwony segment przesteru (0 do +3 VU)
     ctx.beginPath();
-    ctx.arc(pivotX, pivotY, radius, startAngle + (endAngle - startAngle) * 0.75, endAngle);
+    ctx.arc(pivotX, pivotY, radius, redZoneAngle, endAngle);
     ctx.strokeStyle = colors.redZone;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 2.4;
     ctx.stroke();
 
     // Kreski skali dB i etykiety
     const marks = [
-      { norm: 0.0, label: '-20' },
-      { norm: 0.25, label: '-10' },
-      { norm: 0.45, label: '-7' },
+      { norm: 0.00, label: '-20' },
+      { norm: 0.26, label: '-10' },
+      { norm: 0.44, label: '-7' },
       { norm: 0.60, label: '-5' },
-      { norm: 0.75, label: '0' },
-      { norm: 0.88, label: '+1' },
-      { norm: 1.0, label: '+3' },
+      { norm: 0.72, label: '-3' },
+      { norm: 0.80, label: '0' },
+      { norm: 0.90, label: '+1' },
+      { norm: 1.00, label: '+3' },
     ];
 
-    ctx.font = '700 8px monospace';
+    ctx.font = '700 6.8px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
 
     marks.forEach((m) => {
-      const angle = startAngle + (endAngle - startAngle) * m.norm;
-      const isRed = m.norm >= 0.75;
+      const angle = startAngle + totalSweep * m.norm;
+      const isRed = m.norm >= redZoneThreshold;
 
-      const innerR = radius - 5;
-      const outerR = radius + 3;
+      const innerR = radius - 3.2;
+      const outerR = radius + 2.4;
 
       const x1 = pivotX + Math.cos(angle) * innerR;
       const y1 = pivotY + Math.sin(angle) * innerR;
@@ -274,122 +326,124 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.strokeStyle = isRed ? colors.redZone : colors.textDark;
-      ctx.lineWidth = isRed ? 2 : 1.5;
+      ctx.lineWidth = isRed ? 1.6 : 1.1;
       ctx.stroke();
 
-      const textR = radius - 13;
+      const textR = radius - 8.5;
       const tx = pivotX + Math.cos(angle) * textR;
       const ty = pivotY + Math.sin(angle) * textR;
       ctx.fillStyle = isRed ? colors.redZone : colors.textDark;
-      ctx.fillText(m.label, tx, ty + 3);
+      ctx.fillText(m.label, tx, ty + 2.2);
     });
 
-    // Etykieta kanału
-    ctx.font = '800 9px sans-serif';
+    // Subtelna etykieta "VU" pod łukiem
+    ctx.font = '800 7px system-ui, sans-serif';
     ctx.fillStyle = colors.textDark;
-    ctx.fillText(label, pivotX, margin + 20);
+    ctx.textAlign = 'center';
+    ctx.fillText('VU', pivotX, pivotY - radius * 0.52);
 
-    // Dioda Peak LED w prawym górnym rogu tarczy
-    const ledX = margin + faceW - 14;
-    const ledY = margin + 14;
-    const isPeakActive = peak >= 0.82;
+    // Cyfrowy odczyt dB w eleganckim badge LCD (między łukiem a pivotem, nie nachodzi na wskazówkę!)
+    const clampedLevel = Math.max(0.0, Math.min(1.05, level));
+    const dbValue = clampedLevel <= 0.01 ? '-∞ dB' : `${((clampedLevel - redZoneThreshold) * 15).toFixed(1)} dB`;
 
+    const badgeW = 34;
+    const badgeH = 10.5;
+    const badgeX = pivotX - badgeW / 2;
+    const badgeY = pivotY - radius * 0.28;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
     ctx.beginPath();
-    ctx.arc(ledX, ledY, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = isPeakActive ? '#ef4444' : 'rgba(239, 68, 68, 0.25)';
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
     ctx.fill();
-    if (isPeakActive) {
-      ctx.shadowColor = '#ef4444';
-      ctx.shadowBlur = 8;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    ctx.font = '700 6.5px monospace';
+    ctx.fillStyle = isPeakActive ? '#ef4444' : colors.accent;
+    ctx.fillText(dbValue, pivotX, badgeY + 7.5);
 
     // Wskazówka (Needle)
-    const clampedLevel = Math.max(0.0, Math.min(1.05, level));
-    const needleAngle = startAngle + (endAngle - startAngle) * clampedLevel;
+    const needleAngle = startAngle + totalSweep * clampedLevel;
+    const needleTipR = radius + 1.2;
 
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(pivotX, pivotY);
-    const needleTipX = pivotX + Math.cos(needleAngle) * (radius + 2);
-    const needleTipY = pivotY + Math.sin(needleAngle) * (radius + 2);
+    const needleTipX = pivotX + Math.cos(needleAngle) * needleTipR;
+    const needleTipY = pivotY + Math.sin(needleAngle) * needleTipR;
     ctx.lineTo(needleTipX, needleTipY);
     ctx.strokeStyle = colors.needle;
-    ctx.lineWidth = 1.8;
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 3;
+    ctx.lineWidth = 1.3;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 2;
     ctx.stroke();
     ctx.restore();
 
-    // Czapka obrotu wskazówki (Needle Pivot Cap)
+    // Czapka obrotu wskazówki (Needle Pivot Cap) na dole
     ctx.beginPath();
-    ctx.arc(pivotX, pivotY, 6, 0, Math.PI * 2);
+    ctx.arc(pivotX, pivotY, 4, 0, Math.PI * 2);
     ctx.fillStyle = colors.needleCap;
     ctx.fill();
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 0.8;
     ctx.stroke();
 
-    // Cyfrowy odczyt dB w dolnym rogu
-    const dbValue = clampedLevel <= 0.01 ? '-∞ dB' : `${((clampedLevel - 0.75) * 12).toFixed(1)} dB`;
-    ctx.font = '700 8.5px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = colors.textDark;
-    ctx.fillText(dbValue, pivotX, faceH - 2);
-
-    ctx.restore();
+    ctx.restore(); // koniec clip
+    ctx.restore(); // koniec translate
   };
 
   return (
     <div
       className={`glass-card ${className || ''}`}
       style={{
-        padding: '12px 14px',
-        borderRadius: '16px',
-        background: 'rgba(15, 12, 28, 0.75)',
+        padding: '8px 10px',
+        borderRadius: '14px',
+        background: 'rgba(15, 12, 28, 0.78)',
         border: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
+        gap: '6px',
+        boxSizing: 'border-box',
         ...style,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Gauge size={15} color="var(--accent-pink)" />
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>
-            ANALOG STEREO VU-METER
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+          <Gauge size={13} color="var(--accent-pink)" />
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#fff', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+            VU-METER
           </span>
           <span
             style={{
-              fontSize: '0.68rem',
+              fontSize: '0.62rem',
               color: 'var(--text-muted)',
               fontFamily: 'var(--font-mono)',
-              marginLeft: '4px',
+              whiteSpace: 'nowrap',
             }}
           >
-            BALANCED BALISTIC L/R
+            L/R
           </span>
         </div>
 
-        {/* Selektor motywu podświetlenia wskaźnika */}
-        <div style={{ display: 'flex', gap: '4px' }}>
+        {/* Selektor motywu podświetlenia wskaźnika (kompaktowe pigułki) */}
+        <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
           {[
-            { id: 'amber', label: 'Amber 70s', color: '#f59e0b' },
-            { id: 'sakura', label: 'Sakura Glow', color: '#ec4899' },
-            { id: 'cyber', label: 'Cyber Neon', color: '#06b6d4' },
+            { id: 'amber', label: 'Amber', color: '#f59e0b' },
+            { id: 'sakura', label: 'Sakura', color: '#ec4899' },
+            { id: 'cyber', label: 'Cyan', color: '#06b6d4' },
           ].map((th) => (
             <button
               key={th.id}
               onClick={() => handleSelectTheme(th.id as any)}
+              title={th.id === 'amber' ? 'Amber 70s' : th.id === 'sakura' ? 'Sakura Glow' : 'Cyber Neon'}
               style={{
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontSize: '0.68rem',
-                fontWeight: 600,
+                padding: '2px 6px',
+                borderRadius: '5px',
+                fontSize: '0.62rem',
+                fontWeight: 700,
                 background: theme === th.id ? `${th.color}33` : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${theme === th.id ? th.color : 'var(--border-subtle)'}`,
+                border: `1px solid ${theme === th.id ? th.color : 'rgba(255, 255, 255, 0.1)'}`,
                 color: theme === th.id ? th.color : 'var(--text-muted)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
@@ -405,8 +459,9 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
         ref={canvasRef}
         style={{
           width: '100%',
-          height: '140px',
-          borderRadius: '10px',
+          flex: 1,
+          minHeight: 0,
+          borderRadius: '8px',
           display: 'block',
         }}
       />
