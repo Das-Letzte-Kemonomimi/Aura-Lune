@@ -38,7 +38,7 @@ NAJWAŻNIEJSZA ZASADA ARCHITEKTONICZNA
 Ścieżka audio czasu rzeczywistego jest całkowicie oddzielona od webview, bazy danych, sieci i ciężkich operacji. Frontend wysyła wyłącznie polecenia sterujące oraz odbiera rzadkie snapshoty stanu. Callback audio nie może wykonywać alokacji, I/O, zapytań SQL, żądań HTTP, logowania blokującego ani oczekiwać na mutex trzymany przez inne wątki.
 
 TRYB PRACY
-1. Najpierw przeczytaj `AGENTS.md`, `README.md`, `docs/architecture.md`, manifesty, istniejące testy i aktualne drzewo repozytorium.
+1. Najpierw przeczytaj `AGENTS.md`, `README.md`, `docs/architecture.md`, `docs/FEATURE_MATRIX.md`, manifesty, istniejące testy i aktualne drzewo repozytorium. Zawsze sprawdzaj `docs/FEATURE_MATRIX.md`, aby dokładnie znać stan zaimplementowanych funkcji i nie dublować istniejącego kodu.
 2. Zidentyfikuj cel, kryteria akceptacji, ryzyka i aktywuj tylko skille potrzebne w danym zadaniu.
 3. Jeżeli decyzja wpływa na API, schemat bazy, pipeline audio, licencję lub format motywu, zaproponuj krótki ADR przed implementacją.
 4. Rozbij pracę na najmniejszy pionowy fragment dający się uruchomić i sprawdzić.
@@ -143,7 +143,7 @@ Build ma być powtarzalny. Dokumentujesz zależności runtime i build-time. Dla 
 - Kanał AUR (`auralune-bin`): repozytorium `ssh://aur@aur.archlinux.org/auralune-bin.git` przyjmujące WYŁĄCZNIE 2 pliki tekstowe: `PKGBUILD` i `.SRCINFO` (żadnych binariów ani instrukcji agenta), synchronizowane skryptem `./packaging/archlinux/publish-to-aur.sh`.
 
 [SKILL: DOCUMENTATION]
-Aktualizujesz README, changelog, ADR, schemat architektury i instrukcję uruchomienia wraz z kodem. Wszystkie bieżące zmiany robocze rejestrujesz na bieżąco w pliku `CHANGELOG_PENDING.md`. Podczas wydawania nowej wersji przenosisz zebrane punkty z `CHANGELOG_PENDING.md` do `CHANGELOG.md` oraz komponentu `apps/desktop/src/components/ChangelogView.tsx`, resetując sekcje w `CHANGELOG_PENDING.md` na kolejny cykl. Komendy mają być kompletne i gotowe do wklejenia. Dokumentacja rozróżnia wymagania systemowe, instalację deweloperską, build, testy, debug audio i packaging.
+Aktualizujesz README, changelog, ADR, schemat architektury, macierz funkcji w `docs/FEATURE_MATRIX.md` i instrukcję uruchomienia wraz z kodem. Zawsze sprawdzasz `docs/FEATURE_MATRIX.md` przed proponowaniem nowych funkcji (nigdy nie sugerujesz rzeczy już wdrożonych) i aktualizujesz macierz po każdej dodanej funkcji. Wszystkie bieżące zmiany robocze rejestrujesz na bieżąco w pliku `CHANGELOG_PENDING.md`. Podczas wydawania nowej wersji przenosisz zebrane punkty z `CHANGELOG_PENDING.md` do `CHANGELOG.md` oraz komponentu `apps/desktop/src/components/ChangelogView.tsx`, resetując sekcje w `CHANGELOG_PENDING.md` na kolejny cykl. Komendy mają być kompletne i gotowe do wklejenia. Dokumentacja rozróżnia wymagania systemowe, instalację deweloperską, build, testy, debug audio i packaging.
 
 KONTRAKT PROCESORA DSP
 Warstwa domenowa ma korzystać z jednego kontraktu o znaczeniu zbliżonym do:
