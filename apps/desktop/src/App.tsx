@@ -79,9 +79,14 @@ import {
   Tv,
   LayoutGrid,
   List,
+  Infinity as InfinityIcon,
+  Gauge,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
+import { VuMeterWidget } from './components/VuMeterWidget';
+import { VinylTurntable } from './components/VinylTurntable';
+import { evaluateHarmonicMatch } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { LyricsView } from './components/LyricsView';
 import { DesktopLyricsOverlay } from './components/DesktopLyricsOverlay';
@@ -707,6 +712,50 @@ export default function App() {
   const dspSaveTimeoutRef = useRef<any>(null);
 
   const [cards, setCards] = useState<AudioCard[]>([]);
+
+  // Stan trybu wizualnego w sekcji Now Playing: okładka, winyl hi-fi lub analogowy miernik VU
+  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<'cover' | 'turntable' | 'vumeter'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_nowplaying_visual_mode');
+      if (saved === 'cover' || saved === 'turntable' || saved === 'vumeter') return saved;
+    } catch (_) {}
+    return 'cover';
+  });
+
+  const handleSelectNowPlayingVisualMode = (mode: 'cover' | 'turntable' | 'vumeter') => {
+    setNowPlayingVisualMode(mode);
+    try {
+      localStorage.setItem('auralune_nowplaying_visual_mode', mode);
+    } catch (_) {}
+  };
+
+  // Stan inteligentnego Auto-DJ / Infinity Queue
+  const [infinityQueue, setInfinityQueue] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('auralune_infinity_queue') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+  const autoDjBusyRef = useRef<boolean>(false);
+  const lastAutoDjTrackIdRef = useRef<number | null>(null);
+
+  const handleToggleInfinityQueue = () => {
+    const next = !infinityQueue;
+    setInfinityQueue(next);
+    try {
+      localStorage.setItem('auralune_infinity_queue', next ? 'true' : 'false');
+    } catch (_) {}
+    showMessage(
+      next
+        ? (language === 'pl'
+            ? 'Infinity Queue (Auto-DJ): WŁĄCZONE — harmoniczne utwory będą dokładać się bez końca!'
+            : 'Infinity Queue (Auto-DJ): ACTIVE — harmonic Camelot matches will be queued continuously!')
+        : (language === 'pl'
+            ? 'Infinity Queue (Auto-DJ): Wyłączone'
+            : 'Infinity Queue (Auto-DJ): Disabled')
+    );
+  };
   const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'radio' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
   const [isSaveQueueModalOpen, setIsSaveQueueModalOpen] = useState(false);
 
@@ -968,7 +1017,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.8.3'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.9.0'
   );
 
 
@@ -2650,6 +2699,102 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timer);
   }, [isTranscoding]);
+
+  // Smart Auto-DJ / Infinity Queue: automatyczne dobieranie kolejnych utworów harmonicznych Camelot
+  useEffect(() => {
+    if (!infinityQueue) return;
+    if (status.state !== 'Playing') return;
+    if (autoDjBusyRef.current) return;
+    if (!tracks || tracks.length === 0) return;
+
+    const remainingItems = queue.items.length - (queue.current_index ?? 0);
+    if (remainingItems <= 1) {
+      const activeIdx = queue.current_index ?? 0;
+      const currentQItem = queue.items[activeIdx];
+      const currentTrack = currentPlayingTrack || (currentQItem ? tracks.find((t) => t.id === currentQItem.track_id) : null);
+      if (!currentTrack) return;
+      if (lastAutoDjTrackIdRef.current === currentTrack.id) return;
+
+      autoDjBusyRef.current = true;
+      lastAutoDjTrackIdRef.current = currentTrack.id;
+
+      // Wybierz utwory, które nie są jeszcze w bieżącej kolejce
+      const queuedIds = new Set(queue.items.map((i) => i.track_id).filter(Boolean));
+      queuedIds.add(currentTrack.id);
+
+      const candidates = tracks.filter((t) => !queuedIds.has(t.id));
+      const pool = candidates.length > 0 ? candidates : tracks.filter((t) => t.id !== currentTrack.id);
+
+      if (pool.length === 0) {
+        autoDjBusyRef.current = false;
+        return;
+      }
+
+      let bestTrack = pool[0];
+      let bestScore = -1;
+      let bestBadge = '';
+
+      if (currentTrack.initial_key) {
+        for (const cand of pool) {
+          if (cand.initial_key) {
+            const match = evaluateHarmonicMatch(
+              currentTrack.initial_key,
+              currentTrack.bpm,
+              cand.initial_key,
+              cand.bpm
+            );
+            if (match.score > bestScore) {
+              bestScore = match.score;
+              bestTrack = cand;
+              bestBadge = `${match.badgeLabel} (${match.score}%)`;
+            }
+          }
+        }
+      }
+
+      // Fallback jeśli nie ma dopasowań harmonicznych
+      if (bestScore < 60) {
+        const randIdx = Math.floor(Math.random() * pool.length);
+        bestTrack = pool[randIdx];
+        bestBadge = 'Smart Shuffle';
+      }
+
+      const payload = {
+        id: `infinity-${bestTrack.id}-${Date.now()}`,
+        track_id: bestTrack.id,
+        uri: bestTrack.path,
+        title: bestTrack.title,
+        artist: bestTrack.artist,
+        album: bestTrack.album_id ? (albums.find((a) => a.id === bestTrack.album_id)?.title || null) : null,
+        duration_ms: bestTrack.duration_ms,
+      };
+
+      invoke('add_to_queue', { item: payload })
+        .then(async () => {
+          await refreshQueue();
+          showMessage(
+            language === 'pl'
+              ? `Infinity Queue (Auto-DJ): Dobrano „${bestTrack.title}” • ${bestBadge}`
+              : `Infinity Queue (Auto-DJ): Queued "${bestTrack.title}" • ${bestBadge}`
+          );
+        })
+        .catch((err) => {
+          console.error('Auto-DJ add_to_queue error:', err);
+        })
+        .finally(() => {
+          setTimeout(() => {
+            autoDjBusyRef.current = false;
+          }, 3500);
+        });
+    }
+  }, [
+    infinityQueue,
+    status.state,
+    queue.items.length,
+    queue.current_index,
+    currentPlayingTrack?.id,
+    tracks,
+  ]);
 
   const showMessage = (msg: string, isError = false) => {
     // Wyświetlaj komunikat tylko przy rzeczywistych błędach (brak natrętnych powiadomień na górze przy każdej akcji)
@@ -7847,7 +7992,7 @@ const renderDevicesSection = () => (
             <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem' }}>狐 Kitsune</span>
           </h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
-            {loc.settings.version} {appVersion} „Resonance & Harmonic Flow” • {loc.settings.author}: Das Letzte Kemonomimi
+            {loc.settings.version} {appVersion} „Kitsune Infinity & Analog Warmth” • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
           <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics & real-time pitch/tempo modulation.
@@ -10010,83 +10155,165 @@ const renderDevicesSection = () => (
             </div>
 
             {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: '28px', alignItems: 'center' }}>
-              {/* Kolumna lewa: Okładka / Winyl */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div
-                  style={{
-                    width: '220px',
-                    height: '220px',
-                    borderRadius: '20px',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    background: currentCover
-                      ? `url("${currentCover}") center/cover no-repeat`
-                      : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
-                    boxShadow: status.state === 'Playing'
-                      ? '0 0 28px rgba(244, 63, 94, 0.45), 0 0 50px rgba(168, 85, 247, 0.3)'
-                      : 'var(--shadow-card)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'box-shadow 0.3s ease',
-                    willChange: 'transform',
-                    transform: 'translateZ(0)',
-                  }}
-                >
-                  {!currentCover && (
-                    <div
-                      style={{
-                        width: '188px',
-                        height: '188px',
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, #0b0f19 35%, #182032 50%, #0f172a 75%, #050811 100%)',
-                        border: '2px solid rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5)',
-                        animation: status.state === 'Playing' ? 'spin 12s linear infinite' : 'none',
-                      }}
-                    >
-                      {/* Centrum winylu z logo Kitsune */}
+            <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '28px', alignItems: 'center' }}>
+              {/* Kolumna lewa: Okładka / Winyl / VU-Meter */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Wskaźnik VU */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', background: 'rgba(0, 0, 0, 0.35)', padding: '3px', borderRadius: '8px', width: '100%', maxWidth: '240px' }}>
+                  <button
+                    onClick={() => handleSelectNowPlayingVisualMode('cover')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: nowPlayingVisualMode === 'cover' ? 'var(--accent-pink)' : 'transparent',
+                      color: nowPlayingVisualMode === 'cover' ? '#fff' : 'var(--text-muted)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Disc size={13} /> {language === 'pl' ? 'Okładka' : 'Cover'}
+                  </button>
+                  <button
+                    onClick={() => handleSelectNowPlayingVisualMode('turntable')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: nowPlayingVisualMode === 'turntable' ? 'var(--accent-pink)' : 'transparent',
+                      color: nowPlayingVisualMode === 'turntable' ? '#fff' : 'var(--text-muted)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Disc3 size={13} /> {language === 'pl' ? 'Winyl' : 'Vinyl'}
+                  </button>
+                  <button
+                    onClick={() => handleSelectNowPlayingVisualMode('vumeter')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: nowPlayingVisualMode === 'vumeter' ? 'var(--accent-pink)' : 'transparent',
+                      color: nowPlayingVisualMode === 'vumeter' ? '#fff' : 'var(--text-muted)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Gauge size={13} /> VU
+                  </button>
+                </div>
+
+                {nowPlayingVisualMode === 'turntable' ? (
+                  <VinylTurntable
+                    coverUrl={currentCover}
+                    isPlaying={status.state === 'Playing'}
+                    trackTitle={status.current_track?.title || currentPlayingTrack?.title}
+                    artistName={status.current_track?.artist || currentPlayingTrack?.artist}
+                    onTogglePlayPause={handlePlayPause}
+                    size={230}
+                  />
+                ) : nowPlayingVisualMode === 'vumeter' ? (
+                  <VuMeterWidget
+                    spectrum={status.spectrum}
+                    volume={status.volume}
+                    isPlaying={status.state === 'Playing'}
+                    style={{ width: '240px' }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '220px',
+                      height: '220px',
+                      borderRadius: '20px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: currentCover
+                        ? `url("${currentCover}") center/cover no-repeat`
+                        : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
+                      boxShadow: status.state === 'Playing'
+                        ? '0 0 28px rgba(244, 63, 94, 0.45), 0 0 50px rgba(168, 85, 247, 0.3)'
+                        : 'var(--shadow-card)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'box-shadow 0.3s ease',
+                      willChange: 'transform',
+                      transform: 'translateZ(0)',
+                    }}
+                  >
+                    {!currentCover && (
                       <div
                         style={{
-                          width: '64px',
-                          height: '64px',
+                          width: '188px',
+                          height: '188px',
                           borderRadius: '50%',
-                          background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                          background: 'radial-gradient(circle, #0b0f19 35%, #182032 50%, #0f172a 75%, #050811 100%)',
+                          border: '2px solid rgba(255, 255, 255, 0.08)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          border: '3px solid rgba(0,0,0,0.6)',
-                          boxShadow: '0 0 10px rgba(244, 63, 94, 0.5)',
+                          boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5)',
+                          animation: status.state === 'Playing' ? 'spin 12s linear infinite' : 'none',
                         }}
                       >
-                        <Disc size={28} color="#fff" />
+                        {/* Centrum winylu z logo Kitsune */}
+                        <div
+                          style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '3px solid rgba(0,0,0,0.6)',
+                            boxShadow: '0 0 10px rgba(244, 63, 94, 0.5)',
+                          }}
+                        >
+                          <Disc size={28} color="#fff" />
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Badge formatu na okładce */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      right: '10px',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      background: 'rgba(0, 0, 0, 0.88)',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      color: 'var(--accent-cyan)',
-                      border: '1px solid rgba(6, 182, 212, 0.35)',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {status.current_track?.duration_ms ? 'HI-RES AUDIO' : 'PIPEWIRE'}
+                    {/* Badge formatu na okładce */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        right: '10px',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(0, 0, 0, 0.88)',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        color: 'var(--accent-cyan)',
+                        border: '1px solid rgba(6, 182, 212, 0.35)',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {status.current_track?.duration_ms ? 'HI-RES AUDIO' : 'PIPEWIRE'}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Przyciski okładki: Dopasuj online oraz Wgraj własną z dysku */}
                 <div style={{ marginTop: '10px', display: 'flex', gap: '8px', width: '100%', maxWidth: '240px' }}>
@@ -11329,6 +11556,29 @@ const renderDevicesSection = () => (
                 >
                   <Shuffle size={14} />
                   <span>{queue.shuffle ? loc.queue.shuffleOn : loc.queue.shuffleOff}</span>
+                </button>
+
+                {/* Infinity Queue / Auto-DJ Button */}
+                <button
+                  onClick={handleToggleInfinityQueue}
+                  title={loc.queue.autoDjHint}
+                  className="glass-card"
+                  style={{
+                    padding: '6px 11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: infinityQueue ? 'var(--accent-pink)' : 'var(--text-muted)',
+                    border: infinityQueue ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                    background: infinityQueue ? 'rgba(236, 72, 153, 0.2)' : 'transparent',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <InfinityIcon size={14} />
+                  <span>Auto-DJ {infinityQueue ? 'ON' : 'OFF'}</span>
                 </button>
 
                 {/* Stop After Current Badge Button (foobar2000 classic) */}
@@ -15924,6 +16174,117 @@ const renderDevicesSection = () => (
                   </span>
                 </div>
               </div>
+
+              {/* KARTA 4: BAUER HEADPHONE CROSSFEED (BS2B) */}
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(168, 85, 247, 0.05)',
+                  border: '1px solid rgba(168, 85, 247, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Headphones size={18} color="var(--accent-purple, #c084fc)" />
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
+                        {loc.settings.crossfeedTitle}
+                      </h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {loc.settings.crossfeedDesc}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleSetCrossfeed(!crossfeedEnabled, crossfeedPreset)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: crossfeedEnabled ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                      border: `1px solid ${crossfeedEnabled ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
+                      color: crossfeedEnabled ? 'var(--accent-purple)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {crossfeedEnabled ? '● CROSSFEED ON' : '○ BYPASS'}
+                  </button>
+                </div>
+
+                <div style={{ opacity: crossfeedEnabled ? 1 : 0.5, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {([
+                      { id: 'Default', label: 'Default (700Hz/4.5dB)' },
+                      { id: 'ChuMoy', label: 'Chu Moy (700Hz/6dB)' },
+                      { id: 'JanMeier', label: 'Jan Meier (650Hz/9dB)' },
+                      { id: 'Custom', label: loc.settings.crossfeedPresetCustom },
+                    ] as const).map((p) => {
+                      const isActive = crossfeedPreset === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          disabled={!crossfeedEnabled}
+                          onClick={() => handleSetCrossfeed(crossfeedEnabled, p.id)}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            background: isActive ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+                            border: `1px solid ${isActive ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
+                            color: isActive ? 'var(--accent-purple)' : 'var(--text-muted)',
+                            cursor: crossfeedEnabled ? 'pointer' : 'not-allowed',
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {crossfeedPreset === 'Custom' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '2px' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>{loc.settings.crossfeedFcut}:</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{crossfeedFcut} Hz</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="300"
+                          max="2000"
+                          step="25"
+                          disabled={!crossfeedEnabled}
+                          value={crossfeedFcut}
+                          onChange={(e) => handleSetCrossfeed(crossfeedEnabled, 'Custom', parseInt(e.target.value, 10), crossfeedFeed)}
+                          style={{ width: '100%', cursor: crossfeedEnabled ? 'pointer' : 'not-allowed' }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '2px' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>{loc.settings.crossfeedFeed}:</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{(crossfeedFeed / 10).toFixed(1)} dB</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="150"
+                          step="5"
+                          disabled={!crossfeedEnabled}
+                          value={crossfeedFeed}
+                          onChange={(e) => handleSetCrossfeed(crossfeedEnabled, 'Custom', crossfeedFcut, parseInt(e.target.value, 10))}
+                          style={{ width: '100%', cursor: crossfeedEnabled ? 'pointer' : 'not-allowed' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* SEKCJA 3: 10-PASMOWY KOREKTOR GRAFICZNY (EQUALIZER) */}
@@ -17132,6 +17493,29 @@ const renderDevicesSection = () => (
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={handleToggleInfinityQueue}
+                title={loc.queue.autoDjHint}
+                className="glass-card"
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: infinityQueue ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${infinityQueue ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
+                  color: infinityQueue ? 'var(--accent-pink)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  borderRadius: '8px',
+                }}
+              >
+                <InfinityIcon size={14} />
+                <span>Auto-DJ</span>
+              </button>
+
               {queue.items.length > 0 && (
                 <button
                   onClick={handleClearQueue}

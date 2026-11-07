@@ -18,6 +18,7 @@ import {
   Image,
 } from 'lucide-react';
 import { SpectrumVisualizer } from './SpectrumVisualizer';
+import { VuMeterWidget } from './VuMeterWidget';
 import { LyricsView } from './LyricsView';
 import { WaveformCanvas } from './WaveformCanvas';
 import { type Language, getTranslations } from '../i18n';
@@ -78,6 +79,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   const t = getTranslations(currentLang);
   const [showHud, setShowHud] = useState(true);
   const [showLyrics, setShowLyrics] = useState(true);
+  const [bottomVisualMode, setBottomVisualMode] = useState<'spectrum' | 'vumeter'>('spectrum');
   const [visualMode, setVisualMode] = useState<'cover' | 'vinyl' | 'cassette'>(() => {
     try {
       const saved = localStorage.getItem('auralune_bigscreen_visual_mode');
@@ -975,13 +977,57 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
           pointerEvents: showHud ? 'auto' : 'none',
         }}
       >
-        {/* Neonowy wizualizator widma */}
-        <div style={{ height: '72px', width: '100%' }}>
-          <SpectrumVisualizer
-            spectrum={spectrum}
-            isPlaying={isPlaying}
-            style={{ height: '72px' }}
-          />
+        {/* Neonowy wizualizator widma lub analogowy VU-Meter */}
+        <div style={{ position: 'relative', width: '100%' }}>
+          <div style={{ position: 'absolute', top: '-28px', right: '0', display: 'flex', gap: '6px', zIndex: 10 }}>
+            <button
+              onClick={() => setBottomVisualMode('spectrum')}
+              style={{
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                background: bottomVisualMode === 'spectrum' ? 'var(--accent-pink)' : 'rgba(0,0,0,0.5)',
+                border: '1px solid var(--border-subtle)',
+                color: bottomVisualMode === 'spectrum' ? '#fff' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              Spectrum
+            </button>
+            <button
+              onClick={() => setBottomVisualMode('vumeter')}
+              style={{
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                background: bottomVisualMode === 'vumeter' ? 'var(--accent-pink)' : 'rgba(0,0,0,0.5)',
+                border: '1px solid var(--border-subtle)',
+                color: bottomVisualMode === 'vumeter' ? '#fff' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              VU-Meter
+            </button>
+          </div>
+
+          {bottomVisualMode === 'vumeter' ? (
+            <VuMeterWidget
+              spectrum={spectrum}
+              volume={volume}
+              isPlaying={isPlaying}
+              style={{ height: '90px', padding: '6px 12px' }}
+            />
+          ) : (
+            <div style={{ height: '72px', width: '100%' }}>
+              <SpectrumVisualizer
+                spectrum={spectrum}
+                isPlaying={isPlaying}
+                style={{ height: '72px' }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Seeker z wizualizacją fali (Waveform) i wskaźnikiem DSP */}

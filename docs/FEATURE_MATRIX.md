@@ -50,6 +50,9 @@
 - [x] **DJ Beat-Matched Crossfade**:
   - Przyciski taktów: `1 Takt (4 b)`, `2 Takty (8 b)`, `4 Takty (16 b)` z dynamicznie wyliczanym czasem w sekundach na podstawie aktualnego BPM.
   - **DJ Mix Now**: Automatyczne zestrojenie tempa DSP do utworu docelowego (w zakresie ±25%), wstawienie utworu na początek kolejki (`add_next_to_queue`) i płynne przejście crossfade.
+- [x] **Smart Auto-DJ / Infinity Queue**:
+  - Ciągłe inteligentne odtwarzanie bez martwej ciszy: gdy w kolejce pozostaje $\le 1$ utwór, Auto-DJ przeszukuje lokalną bibliotekę i automatycznie dobiera najbardziej zgodny utwór pod kątem harmonicznym (Camelot Wheel) oraz tempa BPM.
+  - Dedykowany przełącznik z ikoną nieskończoności w szufladzie kolejki, doku i panelu odtwarzacza.
 
 ---
 
@@ -73,6 +76,8 @@
 - [x] **Efekt Pogłosu Przestrzennego (GStreamer Freeverb)**:
   - Regulacja Room Size, Damping, Stereo Width, Wet Level.
 - [x] **Crossfeed (Bauer Binaural / BS2B)**:
+  - Dedykowana karta w głównym oknie DSP Studio (`activeTab === 'dsp'`) z przełącznikiem Bypass/On.
+  - Presety: *Default (30°, 3m — 700 Hz / 4.5 dB)*, *Chu Moy (700 Hz / 6.0 dB)*, *Jan Meier Corda (650 Hz / 9.0 dB)* oraz suwaki Custom.
   - Wdrożona obsługa backendowa (`get_crossfeed_config` / `set_crossfeed_config`) redukująca zmęczenie odsłuchem na słuchawkach.
 - [x] **Zgodność z ReplayGain 2.0**:
   - Tryby: Track Gain, Album Gain, Off (natywny passthrough bez overheadu).
@@ -147,6 +152,13 @@
   - Dodawanie własnych strumieni internetowych Shoutcast/Icecast z metadanymi i ikoną.
 - [x] **Tryb Kinowy / Pełnoekranowy Kiosk (`BigScreenView` - F11)**:
   - Czysty, immersyjny widok na pełny ekran z powiększoną grafiką, waveformem, neonowymi wskaźnikami i zegarem.
+  - Możliwość przełączenia dolnego widżetu pomiędzy analizatorem widma FFT a analogowym wskaźnikiem VU-Meter.
+- [x] **Analogowy wskaźnik stereo VU-Meter (`VuMeterWidget`)**:
+  - Dwuigłowy wskaźnik wychyłowy L/R z fizyką balistyki analogowej (szybki atak, płynne opadanie), skalą dB (-20 do +3 dB), diodą przesteru Peak LED oraz 3 motywami podświetlenia (Amber Glow 70s, Sakura Pink, Cyber Neon).
+- [x] **Interaktywny gramofon winylowy Hi-Fi (`VinylTurntable`)**:
+  - Wirująca płyta winylowa z refleksami rowków, centralną etykietą z okładką albumu bieżącego utworu, ruchomym ramieniem (tonearm opadający przy Play i parkujący przy Pause) oraz przełącznikiem 33⅓ / 45 RPM.
+- [x] **Oscyloskop wektorowy fazy Lissajous**:
+  - Nowy tryb Lissajous / Stereo Vectorscope XY w `SpectrumVisualizer`, wizualizujący korelację fazową stereo w czasie rzeczywistym.
 - [x] **Kompaktowy Mini-Player (`MiniPlayerWidget`)**:
   - Pływające okno Picture-in-Picture do pracy w rogu ekranu z podstawowym sterowaniem.
 - [x] **Auralune Recap / Podsumowanie Odsłuchów (`AuraluneRecapModal`)**:
@@ -178,6 +190,10 @@
 - [x] **MPRIS v2 (D-Bus)**:
   - Pełna integracja z KDE Plasma, GNOME, Waybar, Polybar, klawiszami multimedialnymi laptopa i słuchawek.
   - Obsługa metadanych (tytuł, artysta, okładka, czas), Play, Pause, Next, Prev, Seek, Volume, Shuffle, LoopStatus.
+- [x] **Linux Ricing IPC Waybar Status (`/tmp/auralune.json`)**:
+  - Atomowy eksport stanu odtwarzacza w standardzie modułów custom Waybara (`text`, `alt`, `tooltip`, `class`, `percentage`, `volume`, `art_url`, `position_ms`, `duration_ms`). Umożliwia natychmiastowe zintegrowanie odtwarzacza z Waybarem, Polybarem, Hyprlandem i skryptami środowiska bez odpytywania D-Bus.
+- [x] **Kanały sterowania FIFO & Unix Socket (`/tmp/auralune_ctl`, `/tmp/auralune.sock`)**:
+  - Natywne, błyskawiczne sterowanie odtwarzaczem (polecenia: `play`, `pause`, `toggle`, `next`, `prev`, `stop`, `vol_up`, `vol_down`, `mute`, `seek`) z poziomu skrótów Hyprland `bind`, Sway, i3, sxhkd lub skryptów powłoki.
 - [x] **Discord Rich Presence (RPC)**:
   - Wyświetlanie aktualnie odtwarzanego utworu, okładki, upływającego czasu oraz własnego Client ID.
 - [x] **Powiadomienia Ekranowe OSD Głośności (`VolumeOsd`)**:
@@ -221,3 +237,4 @@
 - `crates/desktop-integration`: Serwer MPRIS v2 na D-Bus, Discord RPC IPC socket, integracja z pulpitem.
 - `apps/desktop/src-tauri`: Ponad 100 typowanych komend Tauri v2 łączących frontend React z backendem Rust.
 - `apps/desktop`: Frontend React 19 + TypeScript + Vite ze ścisłą typizacją i zoptymalizowanymi widokami.
+

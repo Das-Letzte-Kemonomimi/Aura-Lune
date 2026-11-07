@@ -9,6 +9,21 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.9.0] — „Kitsune Infinity & Analog Warmth” - 2026-11-07
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Bauer Headphone Crossfeed (bs2b) w DSP Studio**: Wprowadzono dedykowaną kartę filtra binauralnego Bauer bs2b bezpośrednio w głównej zakładce DSP Studio (`activeTab === 'dsp'`), obok Bass Boost, Stereo Widener i True-Peak Limiter. Karta zawiera przełącznik Bypass/On, 4 presety (Default: 700 Hz / 4.5 dB, Chu Moy: 700 Hz / 6.0 dB, Jan Meier Corda: 650 Hz / 9.0 dB, Custom) oraz płynne suwaki częstotliwości odcięcia i poziomu sprzężenia.
+- **Wskaźnik analogowy stereo VU-Meter (`VuMeterWidget`)**: W pełni animowany, realistyczny dwuigłowy wskaźnik VU (kanały L i R) z fizyką balistyki analogowej (szybki atak, płynne opadanie), skalą dB (-20 do +3 dB), diodą przesteru Peak LED oraz 3 stylami podświetlenia (Amber Glow 70s, Sakura Pink, Cyber Neon).
+- **Interaktywny gramofon winylowy Hi-Fi (`VinylTurntable`)**: Wirtualny odtwarzacz płyt winylowych z rowkami i obracającymi się refleksami światła, centralną etykietą z okładką albumu bieżącego utworu, mechanicznym ramieniem (tonearm opadający na płytę przy Play i parkujący przy Pause) oraz przełącznikiem prędkości obrotowej 33⅓ RPM / 45 RPM.
+- **Wektorowy oscyloskop fazowy Lissajous (`SpectrumVisualizer`)**: Dodano tryb Lissajous / Stereo Vectorscope XY do wizualizera spektrum, wizualizujący korelację fazową stereo w czasie rzeczywistym.
+- **Przełącznik widoków w głównym odtwarzaczu i BigScreen**: 3-pozycyjny przełącznik (Okładka • Winyl • Wskaźnik VU) w sekcji Now Playing oraz widok VU-Meter w trybie pełnoekranowym Kiosk/BigScreen.
+- **Inteligentny Auto-DJ / Infinity Queue**: Ciągłe odtwarzanie bez martwej ciszy — gdy w kolejce pozostaje 1 lub 0 utworów, Auto-DJ automatycznie przeszukuje lokalną bibliotekę i dobiera najbardziej kompatybilny utwór na podstawie koła Camelota (harmonic mixing) oraz tempa BPM. Przełącznik z ikoną nieskończoności dodano w szufladzie kolejki, doku i panelu odtwarzacza.
+- **Linux Ricing IPC & Waybar/Hyprland JSON Status (`/tmp/auralune.json`)**: Atomowy eksport stanu odtwarzacza w standardzie modułów custom Waybara (`text`, `alt`, `tooltip`, `class`, `percentage`, `volume`, `art_url`, `position_ms`, `duration_ms`). Umożliwia natychmiastowe zintegrowanie odtwarzacza z Waybarem, Polybarem, Hyprlandem i skryptami środowiska.
+- **Global Hotkeys & Control IPC (`/tmp/auralune_ctl` & `/tmp/auralune.sock`)**: Kolejka FIFO `/tmp/auralune_ctl` oraz gniazdo Unix Domain Socket `/tmp/auralune.sock` umożliwiające bezpośrednie sterowanie (polecenia: `play`, `pause`, `toggle`, `next`, `prev`, `stop`, `vol_up`, `vol_down`, `mute`, `seek`) ze skrótów klawiaturowych Wayland/X11 (Hyprland `bind`, Sway, i3, sxhkd, Rofi).
+
+---
+
 ## [0.8.3] — „Resonance & Harmonic Flow” - 2026-11-07
 **Autorka**: Das Letzte Kemonomimi
 

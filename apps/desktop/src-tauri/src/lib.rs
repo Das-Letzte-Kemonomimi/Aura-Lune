@@ -55,6 +55,8 @@ pub struct AppState {
     pub latest_live_stream_tag: Arc<Mutex<Option<String>>>,
     pub discord_cover_cache: Arc<std::sync::RwLock<std::collections::HashMap<String, String>>>,
     pub last_reported_pos_ms: Arc<std::sync::atomic::AtomicU64>,
+    pub control_ipc: Option<Arc<desktop_integration::ControlIpcServer>>,
+    pub last_waybar_write: Arc<Mutex<std::time::Instant>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1121,6 +1123,91 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
 
     let dsp = state.engine.dsp_params();
     let capabilities = state.engine.dsp_capabilities();
+
+    // Eksport statusu do /tmp/auralune.json dla Waybara / Hyprlanda (z ograniczeniem do co 500ms)
+    let should_update_waybar = if let Ok(mut last_t) = state.last_waybar_write.lock() {
+        if last_t.elapsed() >= Duration::from_millis(500) {
+            *last_t = std::time::Instant::now();
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if should_update_waybar {
+        let (title, artist, album) = if let Some(ref item) = current_track {
+            (
+                item.title.clone(),
+                if item.artist.is_empty() {
+                    "Unknown Artist".to_string()
+                } else {
+                    item.artist.clone()
+                },
+                item.album.clone().unwrap_or_default(),
+            )
+        } else {
+            (
+                "No Track".to_string(),
+                "Auralune".to_string(),
+                String::new(),
+            )
+        };
+
+        let current_state = state.engine.state();
+        let state_str = match current_state {
+            PlaybackState::Playing => "Playing",
+            PlaybackState::Paused => "Paused",
+            PlaybackState::Stopped => "Stopped",
+        };
+        let class_str = match current_state {
+            PlaybackState::Playing => "playing",
+            PlaybackState::Paused => "paused",
+            PlaybackState::Stopped => "stopped",
+        };
+
+        let percentage = if let Some(d) = dur_ms {
+            if d > 0 {
+                ((pos_ms as f64 / d as f64) * 100.0).clamp(0.0, 100.0) as u8
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        let vol_pct = (state.engine.volume() * 100.0).clamp(0.0, 100.0) as u8;
+
+        let text = if current_state == PlaybackState::Stopped || title == "No Track" {
+            "Auralune: Stopped".to_string()
+        } else {
+            format!("{} - {}", artist, title)
+        };
+
+        let tooltip = format!(
+            "{}\n{}\n{}\nStatus: {} | Vol: {}%",
+            title, artist, album, state_str, vol_pct
+        );
+
+        let waybar = desktop_integration::WaybarStatus {
+            text,
+            alt: class_str.to_string(),
+            tooltip,
+            class: class_str.to_string(),
+            percentage,
+            volume: vol_pct,
+            art_url: None,
+            title,
+            artist,
+            album,
+            state: state_str.to_string(),
+            position_ms: pos_ms,
+            duration_ms: dur_ms.unwrap_or(0),
+        };
+
+        let _ = desktop_integration::write_waybar_status(&waybar);
+    }
 
     let spectrum = state
         .latest_spectrum
@@ -5037,6 +5124,12 @@ pub fn run() {
                 ));
 
 
+                let control_ipc = {
+                    let server = Arc::new(desktop_integration::ControlIpcServer::new(engine.clone()));
+                    server.start(&rt);
+                    Some(server)
+                };
+
                 let rt_for_cli = rt.clone();
                 let app_state = AppState {
                     engine,
@@ -5054,6 +5147,8 @@ pub fn run() {
                     latest_live_stream_tag: Arc::new(Mutex::new(None)),
                     discord_cover_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
                     last_reported_pos_ms: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                    control_ipc,
+                    last_waybar_write: Arc::new(Mutex::new(std::time::Instant::now())),
                 };
 
                 let state_for_cli = app_state.clone();
@@ -5116,6 +5211,7 @@ pub fn run() {
                                     let _ = state.engine.play_previous();
                                 }
                                 "tray_quit" => {
+                                    desktop_integration::cleanup_waybar_status();
                                     app.exit(0);
                                 }
                                 _ => {}

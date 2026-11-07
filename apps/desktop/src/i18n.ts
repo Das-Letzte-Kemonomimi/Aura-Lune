@@ -136,6 +136,8 @@ export interface Translations {
     loopNone: string;
     loopTrack: string;
     loopQueue: string;
+    autoDjInfinity: string;
+    autoDjHint: string;
     shuffleOn: string;
     shuffleOff: string;
     itemSingle: string;
@@ -933,6 +935,8 @@ export const translations: Record<Language, Translations> = {
       loopNone: 'No repeat',
       loopTrack: 'Track',
       loopQueue: 'Queue',
+      autoDjInfinity: 'Infinity Queue (Auto-DJ)',
+      autoDjHint: 'Continuously enqueue harmonic Camelot matches from library when queue ends',
       shuffleOn: 'Shuffle',
       shuffleOff: 'In order',
       itemSingle: 'track',
@@ -1729,6 +1733,8 @@ export const translations: Record<Language, Translations> = {
       loopNone: 'Bez pętli',
       loopTrack: 'Utwór',
       loopQueue: 'Kolejka',
+      autoDjInfinity: 'Infinity Queue (Auto-DJ)',
+      autoDjHint: 'Płynnie dokłada harmonicznie pasujące utwory z biblioteki pod koniec kolejki',
       shuffleOn: 'Losowo',
       shuffleOff: 'Po kolei',
       itemSingle: 'utwór',
@@ -2525,6 +2531,8 @@ export const translations: Record<Language, Translations> = {
       loopNone: 'Keine Wiederholung',
       loopTrack: 'Titel',
       loopQueue: 'Warteschlange',
+      autoDjInfinity: 'Infinity Queue (Auto-DJ)',
+      autoDjHint: 'Hängt automatisch harmonisch passende Titel aus der Bibliothek an',
       shuffleOn: 'Zufall',
       shuffleOff: 'Reihe nach',
       itemSingle: 'Titel',
@@ -3321,6 +3329,8 @@ export const translations: Record<Language, Translations> = {
       loopNone: 'Ei toistoa',
       loopTrack: 'Kappale',
       loopQueue: 'Jono',
+      autoDjInfinity: 'Infinity Queue (Auto-DJ)',
+      autoDjHint: 'Lisää automaattisesti harmonisesti yhteensopivia kappaleita jonon loppuun',
       shuffleOn: 'Sekoitus',
       shuffleOff: 'Järjestyksessä',
       itemSingle: 'kappale',
@@ -4117,6 +4127,8 @@ export const translations: Record<Language, Translations> = {
       loopNone: 'Nulla repetitio',
       loopTrack: 'Cantus',
       loopQueue: 'Ordo',
+      autoDjInfinity: 'Infinity Queue (Auto-DJ)',
+      autoDjHint: 'Continuo novos cantus harmonicos ad ordinem addit',
       shuffleOn: 'Fortuitum',
       shuffleOff: 'Secundum ordinem',
       itemSingle: 'cantus',
