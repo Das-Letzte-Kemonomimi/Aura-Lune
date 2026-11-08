@@ -7,7 +7,7 @@
   <p><strong>Natywny, wysoce konfigurowalny odtwarzacz muzyki dla Linuksa łączący wygodę Powerampa, elastyczność foobar2000, wymienny silnik DSP w czasie rzeczywistym i estetykę anime.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.0.2"><img src="https://img.shields.io/badge/wersja-1.0.2_„Seamless_Playback_&_Session_Resume”-f43f5e.svg?style=for-the-badge" alt="Wersja" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.0.3"><img src="https://img.shields.io/badge/wersja-1.0.3_„Precyzja_Winylu_i_Balans_VU”-f43f5e.svg?style=for-the-badge" alt="Wersja" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/licencja-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="Licencja" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platforma-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platforma" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>
