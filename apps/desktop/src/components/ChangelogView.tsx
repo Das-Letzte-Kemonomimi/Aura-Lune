@@ -18,11 +18,35 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.2',
+    codename: 'Seamless Playback & Session Resume',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Rozwiązano błąd GStreamera („Operacja GStreamera nie powiodła się”) przy naciśnięciu Play po restarcie aplikacji na przywróconej sesji — pełne przygotowanie potoku (load_uri) w stanie gotowości oraz bezpieczne pozycjonowanie seek bez błędów.',
+        en: 'Resolved GStreamer error ("Operacja GStreamera nie powiodła się: Failed to seek") when clicking Play on a restored session track after restarting the app — full pipeline standby preparation (load_uri) and safe seek positioning.',
+        de: 'GStreamer-Fehler beim Klicken auf Play nach dem Neustart der App bei wiederhergestellter Sitzung behoben — vollständige Standby-Vorbereitung (load_uri) und sichere Seek-Positionierung.',
+        fi: 'Korjattu GStreamer-virhe käynnistettäessä toisto uudelleenkäynnistyksen jälkeen palautetulla raidalla — täydellinen valmiustilan alustus ja turvallinen siirtymän kohdistus.',
+        la: 'Error GStreamer solutus cum cantus post restitutionem incipitur — plena preparatio tubi audio in otio et securus cursus positionis.',
+      },
+      {
+        pl: 'Eliminacja zawieszonego paska postępu (0:00 / --:--) i braku dźwięku — komendy odtwarzania weryfikują gotowość aktywnego pliku i natychmiast synchronizują stan audio.',
+        en: 'Eliminated frozen progress bar (0:00 / --:--) and audio silence — playback commands verify active media presence and immediately synchronize the audio engine state.',
+        de: 'Eingefrorene Fortschrittsanzeige (0:00 / --:--) und Tonausfall behoben — Wiedergabebefehle verifizieren die Medienpräsenz und synchronisieren den Audiostatus.',
+        fi: 'Korjattu jumiutunut edistymispalkki (0:00 / --:--) ja äänettömyys — toistokomennot tarkistavat aktiivisen median ja synkronoivat äänitilan välittömästi.',
+        la: 'Index cursus haerens (0:00 / --:--) et silentium remotum — mandata canendi praesentiam medii confirmant et statum audio statim ordinant.',
+      },
+    ],
+  },
+  {
     version: '1.0.1',
     codename: 'Kitsune Precision & Stereo Balance',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {
