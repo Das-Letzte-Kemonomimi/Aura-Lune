@@ -139,9 +139,9 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 
   // Kąt ramienia gramofonu:
   // Spoczynek (park): 0deg (bezpiecznie wewnątrz plinty gramofonu, w uchwycie ramienia)
-  // Odtwarzanie 33⅓ (standardowy 12" LP): ok. -21 stopni (skierowane w lewo na rowki płyty)
-  // Odtwarzanie 45 RPM (format singla 7"): ok. -27 stopni (głębiej na płycie)
-  const tonearmAngle = isPlaying ? (rpm === 45 ? '-27deg' : '-21deg') : '0deg';
+  // Odtwarzanie 33⅓ (standardowy 12" LP): ok. +20 stopni (ramię wychyla się w lewo na rowki płyty)
+  // Odtwarzanie 45 RPM (format singla 7"): ok. +25 stopni (głębiej na rowki płyty)
+  const tonearmAngle = isPlaying ? (rpm === 45 ? '25deg' : '20deg') : '0deg';
 
   return (
     <div
@@ -343,7 +343,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               background: '#e11d48',
               boxShadow: isPlaying ? '0 0 6px rgba(225, 29, 72, 0.8)' : 'none',
               border: '1px solid #9f1239',
-              transform: 'rotate(15deg)',
+              transform: 'rotate(-12deg)',
             }}
           />
         </div>

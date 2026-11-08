@@ -3541,7 +3541,9 @@ export default function App() {
         });
         const tapeBands = [2.5, 2.0, 1.0, 0, 0, 0, -1.0, -2.0, -3.0, -4.0];
         await invoke('set_equalizer_params', { enabled: true, bands: tapeBands });
-        await invoke('set_crossfeed_config', { enabled: true, preset: 'Default', fcut_hz: 700, feed_tenth_db: 45 });
+        await invoke('set_crossfeed_config', {
+          config: { enabled: true, preset: 'Default', fcut_hz: 700, feed_tenth_db: 45 },
+        });
         vinylSimulator.setEnabled(true);
         vinylSimulator.setMode('tape');
         vinylSimulator.setIntensity(0.32);
@@ -3565,7 +3567,9 @@ export default function App() {
         await invoke('set_equalizer_params', { enabled: false, bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
         await invoke('set_stereo_widener', { active: false, amount: 0.0 });
         await invoke('set_limiter_enabled', { enabled: false });
-        await invoke('set_crossfeed_config', { enabled: false, preset: 'Default', fcut_hz: 700, feed_tenth_db: 45 });
+        await invoke('set_crossfeed_config', {
+          config: { enabled: false, preset: 'Default', fcut_hz: 700, feed_tenth_db: 45 },
+        });
         vinylSimulator.setEnabled(false);
         setStatus((prev) => ({
           ...prev,

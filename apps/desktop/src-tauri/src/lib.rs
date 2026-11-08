@@ -548,6 +548,45 @@ fn set_rate_ratio(
 }
 
 #[tauri::command]
+fn set_dsp_params(
+    engine: Option<String>,
+    pitch_semitones: Option<f64>,
+    tempo_ratio: Option<f64>,
+    rate_ratio: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<PlaybackStatusDto, String> {
+    let current = state.engine.dsp_params();
+    let target_engine = if let Some(ref eng_str) = engine {
+        match eng_str.as_str() {
+            "RubberBand" => DspEngine::RubberBand,
+            "SoundTouch" => DspEngine::SoundTouch,
+            _ => DspEngine::Bypass,
+        }
+    } else {
+        current.engine
+    };
+
+    let target_pitch = pitch_semitones.unwrap_or(current.pitch_semitones);
+    let target_tempo = tempo_ratio.unwrap_or(current.tempo_ratio);
+    let target_rate = rate_ratio.unwrap_or(current.rate_ratio);
+
+    state
+        .engine
+        .set_dsp_engine(target_engine)
+        .map_err(|e| e.to_string())?;
+
+    let params = DspParams::new(target_engine, target_pitch, target_tempo, target_rate)
+        .map_err(|e| e.to_string())?;
+
+    state
+        .engine
+        .set_dsp_params(params)
+        .map_err(|e| e.to_string())?;
+
+    Ok(get_status(state))
+}
+
+#[tauri::command]
 fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, String> {
     let current = state.engine.dsp_params();
     let reset_params = DspParams::new(current.engine, 0.0, 1.0, 1.0).map_err(|e| e.to_string())?;
@@ -1309,6 +1348,27 @@ fn set_equalizer_bands(bands: [f64; 10], state: State<'_, AppState>) -> Result<(
 fn set_equalizer_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
     info!("Tauri command: set_equalizer_enabled({})", enabled);
     state.engine.set_equalizer_enabled(enabled);
+    Ok(())
+}
+
+#[tauri::command]
+fn set_equalizer_params(
+    enabled: bool,
+    bands: Option<Vec<f64>>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: set_equalizer_params(enabled: {}, bands: {:?})",
+        enabled, bands
+    );
+    state.engine.set_equalizer_enabled(enabled);
+    if let Some(b) = bands {
+        if b.len() == 10 {
+            let mut arr = [0.0; 10];
+            arr.copy_from_slice(&b);
+            let _ = state.engine.set_equalizer_bands(&arr);
+        }
+    }
     Ok(())
 }
 
@@ -5547,6 +5607,7 @@ pub fn run() {
             set_tempo_ratio,
             set_rate,
             set_rate_ratio,
+            set_dsp_params,
             reset_dsp,
             set_dsp_engine,
             get_dsp_capabilities,
@@ -5558,6 +5619,7 @@ pub fn run() {
             set_equalizer_band,
             set_equalizer_bands,
             set_equalizer_enabled,
+            set_equalizer_params,
             get_equalizer_presets,
             get_parametric_eq_state,
             set_parametric_eq_state,
