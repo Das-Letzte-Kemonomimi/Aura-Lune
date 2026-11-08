@@ -2352,6 +2352,7 @@ export default function App() {
         try {
           const session = JSON.parse(savedLocal);
           if (session) {
+            // 1. Głośność, jednostka i tryb wizualny
             if (typeof session.volume === 'number') {
               const vol = Math.max(0, Math.min(1.0, session.volume));
               setStatus((prev) => ({ ...prev, volume: vol }));
@@ -2363,10 +2364,66 @@ export default function App() {
             if (session.nowplaying_visual_mode) {
               setNowPlayingVisualMode(session.nowplaying_visual_mode);
             }
-            if (session.position_ms && session.position_ms > 1000) {
-              setTimeout(() => {
-                invoke('seek', { positionMs: session.position_ms }).catch(() => {});
-              }, 450);
+
+            // 2. Przywrócenie parametrów DSP i korektora graficznego
+            if (session.engine && session.engine !== 'Bypass') {
+              invoke('set_dsp_params', {
+                engine: session.engine,
+                pitchSemitones: session.pitch_semitones ?? 0.0,
+                tempoRatio: session.tempo_ratio ?? 1.0,
+                rateRatio: session.rate_ratio ?? 1.0,
+              }).catch(() => {});
+            }
+            if (session.equalizer_enabled && session.equalizer_bands) {
+              invoke('set_equalizer_params', {
+                enabled: true,
+                bands: session.equalizer_bands,
+              }).catch(() => {});
+            }
+
+            // 3. Przywrócenie ostatnio granego utworu do UI i silnika audio
+            const trackUri = session.uri || '';
+            const trackId = session.track_id ?? null;
+
+            if (trackId) {
+              setActiveTrackId(trackId);
+            }
+            if (trackUri) {
+              setFilePath(trackUri);
+            }
+
+            if (trackUri || trackId) {
+              setStatus((prev) => ({
+                ...prev,
+                position_ms: session.position_ms || 0,
+                duration_ms: session.duration_ms || prev.duration_ms,
+                engine: session.engine || prev.engine,
+                pitch_semitones: session.pitch_semitones ?? prev.pitch_semitones,
+                tempo_ratio: session.tempo_ratio ?? prev.tempo_ratio,
+                rate_ratio: session.rate_ratio ?? prev.rate_ratio,
+                current_track: {
+                  id: trackId ? `restored-track-${trackId}` : `restored-uri-${Date.now()}`,
+                  uri: trackUri,
+                  track_id: trackId,
+                  title: session.title || '',
+                  artist: session.artist || '',
+                  album: session.album || null,
+                  duration_ms: session.duration_ms || 0,
+                },
+              }));
+
+              // Załaduj utwór w backendzie w stanie gotowości (Standby / Paused)
+              if (trackUri) {
+                invoke('load_file', { path: trackUri })
+                  .then(() => {
+                    if (session.position_ms && session.position_ms > 1000) {
+                      setTimeout(() => {
+                        invoke('seek', { positionMs: session.position_ms }).catch(() => {});
+                      }, 350);
+                    }
+                  })
+                  .catch((e) => console.warn('Błąd załadowania pliku sesji:', e));
+              }
             }
           }
         } catch {}
@@ -2379,20 +2436,21 @@ export default function App() {
   useEffect(() => {
     if (!restoreSessionOnStartup) return;
 
-    const currentUri = status.current_track?.uri || filePath;
+    const currentTrack = currentPlayingTrack;
+    const currentUri = status.current_track?.uri || filePath || currentTrack?.path || '';
     const currentPos = status.position_ms;
     const currentVol = status.volume ?? 1.0;
 
     const sessionPayload = {
       volume: currentVol,
       volume_unit: volumeUnit,
-      track_id: status.current_track?.track_id || activeTrackId,
+      track_id: status.current_track?.track_id || activeTrackId || currentTrack?.id || null,
       uri: currentUri,
-      title: status.current_track?.title || null,
-      artist: status.current_track?.artist || null,
-      album: status.current_track?.album || null,
+      title: status.current_track?.title || currentTrack?.title || null,
+      artist: status.current_track?.artist || currentTrack?.artist || null,
+      album: status.current_track?.album || currentAlbum?.title || null,
       position_ms: currentPos,
-      duration_ms: status.duration_ms,
+      duration_ms: status.duration_ms || currentTrack?.duration_ms || null,
       pitch_semitones: status.pitch_semitones,
       tempo_ratio: status.tempo_ratio,
       rate_ratio: status.rate_ratio,
@@ -2440,17 +2498,18 @@ export default function App() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (!restoreSessionOnStartup) return;
-      const currentUri = status.current_track?.uri || filePath;
+      const currentTrack = currentPlayingTrack;
+      const currentUri = status.current_track?.uri || filePath || currentTrack?.path || '';
       const sessionPayload = {
         volume: status.volume ?? 1.0,
         volume_unit: volumeUnit,
-        track_id: status.current_track?.track_id || activeTrackId,
+        track_id: status.current_track?.track_id || activeTrackId || currentTrack?.id || null,
         uri: currentUri,
-        title: status.current_track?.title || null,
-        artist: status.current_track?.artist || null,
-        album: status.current_track?.album || null,
+        title: status.current_track?.title || currentTrack?.title || null,
+        artist: status.current_track?.artist || currentTrack?.artist || null,
+        album: status.current_track?.album || currentAlbum?.title || null,
         position_ms: status.position_ms,
-        duration_ms: status.duration_ms,
+        duration_ms: status.duration_ms || currentTrack?.duration_ms || null,
         pitch_semitones: status.pitch_semitones,
         tempo_ratio: status.tempo_ratio,
         rate_ratio: status.rate_ratio,
@@ -13648,6 +13707,7 @@ const renderDevicesSection = () => (
                           )}
                           {sortedTracks.slice(trackStartIndex, trackEndIndex).map((t, localIdx) => {
                             const idx = trackStartIndex + localIdx;
+                            const isCurrent = (activeTrackId != null && activeTrackId === t.id) || (currentPlayingTrack != null && currentPlayingTrack.id === t.id);
                             return (
                               <tr
                                 key={t.id}
@@ -13655,7 +13715,7 @@ const renderDevicesSection = () => (
                                 className="library-track-row glass-card"
                                 style={{
                                   cursor: 'pointer',
-                                  background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                                  background: isCurrent ? 'rgba(168, 85, 247, 0.22)' : 'transparent',
                                   borderBottom: '1px solid rgba(255,255,255,0.03)',
                                   height: '48px',
                                   maxHeight: '48px',
@@ -13663,13 +13723,17 @@ const renderDevicesSection = () => (
                                 }}
                               >
                                 <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                                  {activeTrackId === t.id && status.state === 'Playing' ? (
-                                    <Zap size={14} color="var(--accent-pink)" />
+                                  {isCurrent ? (
+                                    status.state === 'Playing' ? (
+                                      <Zap size={14} color="var(--accent-pink)" />
+                                    ) : (
+                                      <Play size={13} color="var(--accent-pink)" fill="var(--accent-pink)" />
+                                    )
                                   ) : (
                                     t.track_no || idx + 1
                                   )}
                                 </td>
-                                <td className="library-track-cell" style={{ padding: '0 10px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff' }}>
+                                <td className="library-track-cell" style={{ padding: '0 10px', fontWeight: 600, color: isCurrent ? 'var(--accent-pink)' : '#fff' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
                                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
@@ -14187,27 +14251,33 @@ const renderDevicesSection = () => (
                                   </td>
                                 </tr>
                               ) : (
-                                albumTracks.map((t, idx) => (
-                                  <tr
-                                    key={t.id}
-                                    onClick={() => handlePlayLibraryTrack(t, albumTracks)}
-                                    className="glass-card"
-                                    style={{
-                                      cursor: 'pointer',
-                                      background: activeTrackId === t.id ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                                      borderBottom: '1px solid rgba(255,255,255,0.03)',
-                                      height: '48px',
-                                      transition: 'background 0.15s ease',
-                                    }}
-                                  >
-                                    <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                      {activeTrackId === t.id && status.state === 'Playing' ? (
-                                        <Zap size={14} color="var(--accent-pink)" />
-                                      ) : (
-                                        t.track_no ? (t.disc_no && t.disc_no > 1 ? `${t.disc_no}.${t.track_no}` : t.track_no) : idx + 1
-                                      )}
-                                    </td>
-                                    <td style={{ padding: '12px', fontWeight: 600, color: activeTrackId === t.id ? 'var(--accent-pink)' : '#fff', maxWidth: '340px' }}>
+                                albumTracks.map((t, idx) => {
+                                  const isCurrent = (activeTrackId != null && activeTrackId === t.id) || (currentPlayingTrack != null && currentPlayingTrack.id === t.id);
+                                  return (
+                                    <tr
+                                      key={t.id}
+                                      onClick={() => handlePlayLibraryTrack(t, albumTracks)}
+                                      className="glass-card"
+                                      style={{
+                                        cursor: 'pointer',
+                                        background: isCurrent ? 'rgba(168, 85, 247, 0.22)' : 'transparent',
+                                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                        height: '48px',
+                                        transition: 'background 0.15s ease',
+                                      }}
+                                    >
+                                      <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                        {isCurrent ? (
+                                          status.state === 'Playing' ? (
+                                            <Zap size={14} color="var(--accent-pink)" />
+                                          ) : (
+                                            <Play size={13} color="var(--accent-pink)" fill="var(--accent-pink)" />
+                                          )
+                                        ) : (
+                                          t.track_no ? (t.disc_no && t.disc_no > 1 ? `${t.disc_no}.${t.track_no}` : t.track_no) : idx + 1
+                                        )}
+                                      </td>
+                                      <td style={{ padding: '12px', fontWeight: 600, color: isCurrent ? 'var(--accent-pink)' : '#fff', maxWidth: '340px' }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
@@ -14276,7 +14346,8 @@ const renderDevicesSection = () => (
                                       </div>
                                     </td>
                                   </tr>
-                                ))
+                                );
+                              })
                               )}
                             </tbody>
                           </table>
