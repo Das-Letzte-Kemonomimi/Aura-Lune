@@ -41,7 +41,8 @@ struct PipelineInner {
     pipeline: gst::Pipeline,
     uri_decoder: Option<gst::Element>,
     current_uri: Option<String>,
-    audioconvert_in: gst::Element,
+    queue_in: gst::Element,
+    _audioconvert_in: gst::Element,
     dsp: crate::dsp_node::AuraluneDsp,
     freeverb: Option<gst::Element>,
     equalizer: gst::Element,
@@ -109,6 +110,15 @@ impl AudioEngine {
         let _ = crate::dsp_node::register_dsp_element();
 
         let pipeline = gst::Pipeline::with_name("auralune-audio-pipeline");
+
+        // Bufor wejściowy audio (decoupler dekodowania od DSP)
+        let queue_in = gst::ElementFactory::make("queue")
+            .name("queue_in")
+            .property("max-size-time", 500_000_000u64)
+            .property("max-size-buffers", 0u32)
+            .property("max-size-bytes", 0u32)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
         let audioconvert_in = gst::ElementFactory::make("audioconvert")
             .name("audioconvert_in")
@@ -295,36 +305,49 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("spectrum"))?;
 
-        let audioconvert_out = gst::ElementFactory::make("audioconvert")
-            .name("audioconvert_out")
-            .build()
-            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
-
         let volume = gst::ElementFactory::make("volume")
             .name("volume")
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki przed sinkiem: 600ms — zapewnia całkowitą odporność
-        // na zacięcia (stuttering/xruny) i I/O jitter przy odtwarzaniu z dysków zewnętrznych (USB)
-        // oraz przy dekodowaniu gęstych plików FLAC i intensywnym DSP.
+        // Bufor kolejki wyjściowej audio: domyślnie 600ms (z min-threshold 50ms na start).
+        // Zapewnia całkowitą odporność na zacięcia (stuttering/xruny) i I/O jitter
+        // przy odtwarzaniu z dysków zewnętrznych (USB) oraz przy intensywnym DSP.
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
             .property("max-size-time", 600_000_000u64)
+            .property("min-threshold-time", 50_000_000u64)
             .property("max-size-buffers", 0u32)
             .property("max-size-bytes", 0u32)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
-        // Preferencja: pipewiresink z processing-deadline 100ms (domyślnie slave-method=none),
-        // co eliminuje underruny w sesji PipeWire i sztuczne resamplingi zegara GStreamera.
+        let audioresample_sink = gst::ElementFactory::make("audioresample")
+            .name("audioresample_sink")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
+
+        let pw_stream_props = gst::Structure::builder("pipewire-stream-properties")
+            .field("media.type", "Audio")
+            .field("media.category", "Playback")
+            .field("media.role", "Music")
+            .field("node.name", "Auralune")
+            .field("node.description", "Auralune Music Player")
+            .field("application.name", "Auralune")
+            .field("node.latency", "1024/48000")
+            .build();
+
+        // Preferencja: pipewiresink z processing-deadline 20ms, slave-method=resample i właściwościami strumienia audio,
+        // co eliminuje underruny w sesji PipeWire i dynamicznie dopasowuje zegar do sprzętu audio (DAC).
         let sink = match gst::ElementFactory::make("pipewiresink")
             .name("sink")
-            .property("processing-deadline", 100_000_000u64)
+            .property("processing-deadline", 20_000_000u64)
+            .property("stream-properties", &pw_stream_props)
             .build()
         {
             Ok(pw_sink) => {
-                info!("Zainicjalizowano wyjście PipeWire (100ms deadline, slave-method: none)");
+                pw_sink.set_property_from_str("slave-method", "resample");
+                info!("Zainicjalizowano wyjście PipeWire (20ms deadline, slave-method: resample, role: Music)");
                 pw_sink
             }
             Err(_) => {
@@ -355,8 +378,9 @@ impl AudioEngine {
             }
         };
 
-        // Dodanie statycznych elementów do potoku
+        // Dodanie statycznych elementów do potoku wejściowego i DSP
         pipeline.add_many([
+            &queue_in,
             &audioconvert_in,
             &audioresample,
             &capsfilter_dsp,
@@ -433,11 +457,6 @@ impl AudioEngine {
             }
         };
 
-        let audioconvert_cutter = gst::ElementFactory::make("audioconvert")
-            .name("audioconvert_cutter")
-            .build()
-            .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
-
         pipeline.add_many([
             &equalizer,
             &peq_preamp,
@@ -446,26 +465,24 @@ impl AudioEngine {
             &compressor_makeup,
             &saturator,
             &stereo_widener,
-            &queue_sink,
-            &audioconvert_out,
             &rgvolume,
             &rglimiter,
-            &volume,
             &spectrum,
+            &volume,
+            &queue_sink,
             &audioconvert_sink,
+            &audioresample_sink,
             &sink,
         ])?;
 
         if let Some(ref bs) = bs2b {
             pipeline.add(bs)?;
         }
-        if let Some(ref ct) = cutter {
-            pipeline.add_many([ct, &audioconvert_cutter])?;
-        }
 
         // Połączenie elementów przetwarzania audio:
-        // audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
+        // queue_in -> audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
         gst::Element::link_many([
+            &queue_in,
             &audioconvert_in,
             &audioresample,
             &capsfilter_dsp,
@@ -511,38 +528,34 @@ impl AudioEngine {
             AudioEngineError::ElementLink("Błąd linkowania saturator ze stereo_widener".into())
         })?;
 
-        // stereo_widener -> (bs2b) -> queue_sink
+        // stereo_widener -> (bs2b) -> rgvolume
         if let Some(ref bs) = bs2b {
             stereo_widener.link(bs).map_err(|_| {
                 AudioEngineError::ElementLink("Błąd linkowania stereo_widener z bs2b".into())
             })?;
-            bs.link(&queue_sink).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania bs2b z queue_sink".into())
+            bs.link(&rgvolume).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania bs2b z rgvolume".into())
             })?;
         } else {
-            stereo_widener.link(&queue_sink).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania stereo_widener z queue_sink".into())
+            stereo_widener.link(&rgvolume).map_err(|_| {
+                AudioEngineError::ElementLink("Błąd linkowania stereo_widener z rgvolume".into())
             })?;
         }
 
-        // queue_sink -> audioconvert_out -> (cutter -> audioconvert_cutter) -> rgvolume -> rglimiter -> spectrum -> volume -> audioconvert_sink -> sink
-        let mut out_chain: Vec<&gst::Element> = Vec::new();
-        out_chain.push(&queue_sink);
-        out_chain.push(&audioconvert_out);
-        if let Some(ref ct) = cutter {
-            out_chain.push(ct);
-            out_chain.push(&audioconvert_cutter);
-        }
-        out_chain.push(&rgvolume);
-        out_chain.push(&rglimiter);
-        out_chain.push(&spectrum);
-        out_chain.push(&volume);
-        out_chain.push(&audioconvert_sink);
-        out_chain.push(&sink);
-
-        gst::Element::link_many(&out_chain).map_err(|_| {
+        // rgvolume -> rglimiter -> spectrum -> volume -> queue_sink -> audioconvert_sink -> audioresample_sink -> sink
+        gst::Element::link_many([
+            &rgvolume,
+            &rglimiter,
+            &spectrum,
+            &volume,
+            &queue_sink,
+            &audioconvert_sink,
+            &audioresample_sink,
+            &sink,
+        ])
+        .map_err(|_| {
             AudioEngineError::ElementLink(
-                "Nie udało się połączyć wyjściowego łańcucha audio ze stereo, cutter, ReplayGain i zlewem".into(),
+                "Nie udało się połączyć wyjściowego łańcucha audio ze spectrum, volume, kolejką i zlewem".into(),
             )
         })?;
 
@@ -550,7 +563,8 @@ impl AudioEngine {
             pipeline,
             uri_decoder: None,
             current_uri: None,
-            audioconvert_in,
+            queue_in,
+            _audioconvert_in: audioconvert_in,
             dsp,
             freeverb,
             equalizer,
@@ -648,14 +662,14 @@ impl AudioEngine {
         // Reset procesorów DSP i kolejki próbek, aby uniknąć trzasków i zacinania
         inner.dsp.reset();
 
-        // Upewnienie się, że pad wejściowy audioconvert_in jest czysty i odłączony od poprzedniego strumienia
-        let convert_sink_pad = inner
-            .audioconvert_in
+        // Upewnienie się, że pad wejściowy queue_in jest czysty i odłączony od poprzedniego strumienia
+        let queue_sink_pad = inner
+            .queue_in
             .static_pad("sink")
-            .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
-        if convert_sink_pad.is_linked() {
-            if let Some(peer) = convert_sink_pad.peer() {
-                let _ = peer.unlink(&convert_sink_pad);
+            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
+        if queue_sink_pad.is_linked() {
+            if let Some(peer) = queue_sink_pad.peer() {
+                let _ = peer.unlink(&queue_sink_pad);
             }
         }
 
@@ -672,22 +686,25 @@ impl AudioEngine {
 
         inner.pipeline.add(&uri_decoder)?;
 
-        let convert_pad_clone = convert_sink_pad.clone();
+        let queue_pad_clone = queue_sink_pad.clone();
         uri_decoder.connect_pad_added(move |_bin, src_pad| {
             let caps = src_pad
                 .current_caps()
                 .unwrap_or_else(|| src_pad.query_caps(None));
             if let Some(structure) = caps.structure(0) {
                 if structure.name().starts_with("audio/") {
-                    if convert_pad_clone.is_linked() {
-                        if let Some(peer) = convert_pad_clone.peer() {
-                            let _ = peer.unlink(&convert_pad_clone);
+                    if queue_pad_clone.is_linked() {
+                        if let Some(peer) = queue_pad_clone.peer() {
+                            let _ = peer.unlink(&queue_pad_clone);
                         }
                     }
-                    if let Err(err) = src_pad.link(&convert_pad_clone) {
-                        error!("Błąd linkowania strumienia audio decodebin: {:?}", err);
+                    if let Err(err) = src_pad.link(&queue_pad_clone) {
+                        error!(
+                            "Błąd linkowania strumienia audio decodebin do queue_in: {:?}",
+                            err
+                        );
                     } else {
-                        debug!("Pomyślnie podłączono dekodowany strumień audio");
+                        debug!("Pomyślnie podłączono dekodowany strumień audio do queue_in");
                     }
                 }
             }
@@ -1194,14 +1211,19 @@ impl AudioEngine {
         inner.audio_buffer_ms = clamped;
         let time_ns = clamped * 1_000_000u64;
         inner.queue_sink.set_property("max-size-time", time_ns);
+        let min_thresh = (clamped / 12).clamp(20, 100) * 1_000_000u64;
+        inner
+            .queue_sink
+            .set_property("min-threshold-time", min_thresh);
         if inner.sink.find_property("processing-deadline").is_some() {
-            let deadline_ns = (clamped / 4).clamp(20, 250) * 1_000_000u64;
+            let deadline_ns = (clamped / 25).clamp(10, 25) * 1_000_000u64;
             inner.sink.set_property("processing-deadline", deadline_ns);
         }
         info!(
-            "Zaktualizowano bufor wyjściowy audio na {} ms (processing-deadline: {} ms)",
+            "Zaktualizowano bufor wyjściowy audio na {} ms (min-threshold: {} ms, processing-deadline: {} ms)",
             clamped,
-            (clamped / 4).clamp(20, 250)
+            (clamped / 12).clamp(20, 100),
+            (clamped / 25).clamp(10, 25)
         );
         Ok(())
     }
