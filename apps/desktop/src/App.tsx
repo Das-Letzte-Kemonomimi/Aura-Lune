@@ -88,6 +88,7 @@ import { SpectrumVisualizer } from './components/SpectrumVisualizer';
 import { VuMeterWidget } from './components/VuMeterWidget';
 import { VinylTurntable } from './components/VinylTurntable';
 import { TapeDeckWidget } from './components/TapeDeckWidget';
+import { AudioPathInspectorModal } from './components/AudioPathInspectorModal';
 import { evaluateHarmonicMatch } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { LyricsView } from './components/LyricsView';
@@ -942,6 +943,7 @@ export default function App() {
 
   // Stan Wyłącznika Czasowego (Sleep Timer)
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
+  const [isAudioPathModalOpen, setIsAudioPathModalOpen] = useState(false);
   const [sleepTimerRemainingSec, setSleepTimerRemainingSec] = useState<number | null>(null);
   const [sleepTimerTargetMode, setSleepTimerTargetMode] = useState<'time' | 'end_of_track' | null>(null);
   const [sleepTimerFadeOut, setSleepTimerFadeOut] = useState(true);
@@ -4634,6 +4636,20 @@ export default function App() {
     const curIdx = engines.indexOf(status.engine as any);
     const nextEngine = engines[(curIdx + 1) % engines.length];
     await handleEngineChange(nextEngine);
+  };
+
+  const handleResetBitPerfect = async () => {
+    try {
+      await handleResetDsp();
+      await handleEngineChange('Bypass');
+      if (status.equalizer_enabled) {
+        await invoke('set_equalizer_enabled', { enabled: false });
+        setStatus((prev) => ({ ...prev, equalizer_enabled: false }));
+      }
+      showMessage(language === 'pl' ? 'Przywrócono czysty strumień Bit-Perfect Direct Bypass' : 'Reset to Bit-Perfect Direct Bypass');
+    } catch (err: any) {
+      console.error('Failed to reset bit-perfect:', err);
+    }
   };
 
   useEffect(() => {
@@ -10221,22 +10237,34 @@ const renderDevicesSection = () => (
               {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
+                <button
+                  type="button"
+                  onClick={() => setIsAudioPathModalOpen(true)}
+                  title={language === 'pl' ? 'Kliknij, aby otworzyć Audio Path & Bit-Perfect Stream Inspector' : 'Click to inspect Bit-Perfect Audio Signal Path'}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
                     padding: '4px 12px',
                     borderRadius: '20px',
-                    background: 'rgba(6, 182, 212, 0.12)',
-                    border: '1px solid rgba(6, 182, 212, 0.3)',
-                    color: 'var(--accent-cyan)',
+                    background: status.engine === 'Bypass' && !status.equalizer_enabled
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : 'rgba(6, 182, 212, 0.15)',
+                    border: status.engine === 'Bypass' && !status.equalizer_enabled
+                      ? '1px solid rgba(16, 185, 129, 0.45)'
+                      : '1px solid rgba(6, 182, 212, 0.45)',
+                    color: status.engine === 'Bypass' && !status.equalizer_enabled
+                      ? '#34d399'
+                      : 'var(--accent-cyan)',
                     fontSize: '0.75rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                   }}
                 >
-                  <Radio size={13} /> PipeWire Hi-Fi • {status.engine}
-                </span>
+                  <Radio size={13} /> PipeWire {status.engine === 'Bypass' && !status.equalizer_enabled ? 'Bit-Perfect' : 'Hi-Fi'} • {status.engine}
+                </button>
 
                 {status.equalizer_enabled && (
                   <span
@@ -18407,6 +18435,16 @@ const renderDevicesSection = () => (
         fadeOut={sleepTimerFadeOut}
         onSetTimer={handleSetSleepTimer}
         onCancelTimer={handleCancelSleepTimer}
+      />
+
+      {/* Modal Inspektora Toru Audio & Bit-Perfect (Audio Path Inspector) */}
+      <AudioPathInspectorModal
+        isOpen={isAudioPathModalOpen}
+        onClose={() => setIsAudioPathModalOpen(false)}
+        status={status}
+        currentTrack={currentPlayingTrack}
+        currentLang={language}
+        onResetBitPerfect={handleResetBitPerfect}
       />
 
       {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
