@@ -39,6 +39,20 @@ const RELEASES: ChangelogRelease[] = [
         fi: 'Korjattu jumiutunut edistymispalkki (0:00 / --:--) ja äänettömyys — toistokomennot tarkistavat aktiivisen median ja synkronoivat äänitilan välittömästi.',
         la: 'Index cursus haerens (0:00 / --:--) et silentium remotum — mandata canendi praesentiam medii confirmant et statum audio statim ordinant.',
       },
+      {
+        pl: 'Korekta geometrii ramienia gramofonowego (VinylTurntable): odwrócono zwrot kąta wychylenia igły (na rowki winylu w lewo zamiast uciekania poza obrys na prawo) oraz ustawiono optymalny kąt wkładki.',
+        en: 'Vinyl tonearm geometry correction (VinylTurntable): corrected swing direction towards inner record grooves and aligned cartridge angle.',
+        de: 'Korrektur der Tonarmgeometrie (VinylTurntable): Schwenkrichtung auf die Plattenrillen korrigiert und Tonabnehmerwinkel angepasst.',
+        fi: 'Levysoittimen äänivarren geometrian korjaus (VinylTurntable): korjattu liikesuunta levyn urille ja kohdistettu äänirasia.',
+        la: 'Emendatio brachii phonographici (VinylTurntable): directio versus sulcos disci directa et angulus capsulae aptatus.',
+      },
+      {
+        pl: 'Optymalizacja balansu stereo VU-Meter (VuMeterWidget): usunięto rozdzielanie pasm FFT na kanały L/R, przywracając pełnopasmową analizę psychoakustyczną dla obu igieł.',
+        en: 'VU-Meter stereo balance optimization (VuMeterWidget): removed artificial FFT band splitting, restoring full-bandwidth psychoacoustic analysis for both needles.',
+        de: 'VU-Meter Stereobalance-Optimierung (VuMeterWidget): künstliche FFT-Bandaufteilung entfernt, Vollband-Psychoakustikanalyse für beide Nadeln wiederhergestellt.',
+        fi: 'VU-mittarin stereotasapainon optimointi (VuMeterWidget): poistettu keinotekoinen taajuuskaistojen jako ja palautettu koko kaistan analyysi.',
+        la: 'Optimizatio aequilibrii stereophonici VU (VuMeterWidget): divisio fascium FFT remota et plena analysis psychoacustica restituta.',
+      },
     ],
   },
   {
