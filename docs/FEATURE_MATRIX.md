@@ -162,6 +162,8 @@
   - Dwuigłowy wskaźnik wychyłowy L/R z fizyką balistyki analogowej (szybki atak, płynne opadanie), precyzyjną geometrią skali IEC VU (-20 do +3 dB), zabezpieczeniem clip bez wychodzenia skali poza obudowę, cyfrowym badge LCD dB, diodą przesteru Peak LED oraz 3 motywami podświetlenia (Amber, Sakura, Cyan).
 - [x] **Interaktywny gramofon winylowy Hi-Fi (`VinylTurntable`)**:
   - Wirująca płyta winylowa z fizyką i bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania oraz tempem utworu (BPM), z płynnym rozruchem i wyhamowywaniem na pauzie, ruchomym ramieniem mechanicznym oraz wskaźnikiem RPM na żywo.
+- [x] **Symulator Brzmienia Winylowego & Taśmy (Lo-Fi Vinyl & Tape Noise FX)**:
+  - Zintegrowany z gramofonem generator szumu analogowego (`vinylSimulator.ts`): szum mikrorowków, rotacyjny sweep 33⅓ / 45 RPM, trzaski kurzu (dust crackle) i pomruk igły (stylus rumble) oraz ciepły szum taśmy chromowej (Tape Hiss) z regulacją intensywności (0-100%) i auto-sync z odtwarzaniem.
 - [x] **Oscyloskop wektorowy fazy Lissajous**:
   - Nowy tryb Lissajous / Stereo Vectorscope XY w `SpectrumVisualizer`, wizualizujący korelację fazową stereo w czasie rzeczywistym.
 - [x] **Kompaktowy Mini-Player (`MiniPlayerWidget`)**:
