@@ -163,11 +163,11 @@
 - [x] **Analogowy wskaźnik stereo VU-Meter (`VuMeterWidget`)**:
   - Dwuigłowy wskaźnik wychyłowy L/R z fizyką balistyki analogowej (szybki atak, płynne opadanie), precyzyjną geometrią skali IEC VU (-20 do +3 dB), zabezpieczeniem clip bez wychodzenia skali poza obudowę, cyfrowym badge LCD dB, diodą przesteru Peak LED oraz 3 motywami podświetlenia (Amber, Sakura, Cyan).
 - [x] **Interaktywny gramofon winylowy Hi-Fi (`VinylTurntable`)**:
-  - Wirująca płyta winylowa z fizyką i bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania oraz tempem utworu (BPM), z płynnym rozruchem i wyhamowywaniem na pauzie, ruchomym ramieniem mechanicznym oraz wskaźnikiem RPM na żywo.
+  - Wirująca płyta winylowa z fizyką i bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), statusem bypass, szybkością odtwarzania oraz tempem utworu (BPM), z płynnym rozruchem i wyhamowywaniem na pauzie, ruchomym ramieniem mechanicznym (dynamiczny kąt dla 33⅓ vs 45 RPM), wskaźnikiem RPM na żywo oraz popoverem Lo-Fi FX dopasowanym do karty.
 - [x] **Symulator Brzmienia Winylowego & Taśmy (Lo-Fi Vinyl & Tape Noise FX)**:
-  - Zintegrowany z gramofonem generator szumu analogowego (`vinylSimulator.ts`): szum mikrorowków, rotacyjny sweep 33⅓ / 45 RPM, trzaski kurzu (dust crackle) i pomruk igły (stylus rumble) oraz ciepły szum taśmy chromowej (Tape Hiss) z regulacją intensywności (0-100%) i auto-sync z odtwarzaniem.
+  - Zintegrowany z gramofonem i magnetofonem generator szumu analogowego (`vinylSimulator.ts`): szum mikrorowków, rotacyjny sweep 33⅓ / 45 RPM, trzaski kurzu (dust crackle) i pomruk igły (stylus rumble) oraz ciepły szum taśmy chromowej (Tape Hiss) z regulacją intensywności (0-100%) i auto-sync z odtwarzaniem.
 - [x] **Retro Magnetofon Szpulowy / Kaseta (`TapeDeckWidget`)**:
-  - Nowy 4. tryb wizualny w sekcji Now Playing: animowane szpule aluminiowe NAB ze zmiennym promieniem nawoju taśmy w miarę postępu utworu ($\omega = v/r$), mechanicznym licznikiem obrotów, przełącznikiem prędkości 7½ / 3¾ IPS, selektorem typu taśmy (FE-I / CR-II / METAL) oraz etykietą tytułu i wykonawcy.
+  - 4. tryb wizualny w sekcji Now Playing: animowane szpule NAB ze zmiennym promieniem nawoju taśmy w miarę postępu utworu ($\omega = v/r$), dynamiczną fizyką i prędkością 7½ vs 3¾ IPS, unikalnymi motywami wizualnymi dla typów taśmy (FE-I ferro-brąz/aluminium, CR-II chrom/tytan, METAL gunmetal/złoto champagne), mechanicznym licznikiem obrotów i wbudowanym panelem Lo-Fi FX.
 - [x] **Oscyloskop wektorowy fazy Lissajous**:
   - Nowy tryb Lissajous / Stereo Vectorscope XY w `SpectrumVisualizer`, wizualizujący korelację fazową stereo w czasie rzeczywistym.
 - [x] **Kompaktowy Mini-Player (`MiniPlayerWidget`)**:
