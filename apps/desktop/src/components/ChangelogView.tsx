@@ -18,11 +18,42 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.5',
+    codename: 'Audible Queue & Seamless Transitions',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Przywracanie głośności po kliknięciu utworu w kolejce (Audible Queue Playback): usunięto problem wyciszenia dźwięku (volume = 0.0) po play_index oraz set_queue — mikro-fade-in 32ms przywraca głośność do poziomu nominalnego.',
+        en: 'Audible queue playback volume restoration: fixed muted audio (volume = 0.0) after play_index and set_queue — smooth 32ms micro-fade-in safely restores volume to nominal level.',
+        de: 'Wiederherstellung der Lautstärke bei Titelauswahl in der Warteschlange: Behebt Stummschaltung (Volume = 0.0) nach play_index und set_queue.',
+        fi: 'Äänenvoimakkuuden palautus jonosta valittaessa: korjattu mykistynyt ääni (volume = 0.0) play_index- ja set_queue-kutsujen jälkeen.',
+        la: 'Restitutio soni in serie: solutum silentium (volume = 0.0) post electionem cantus, sono ad gradum solitum 32ms revocato.',
+      },
+      {
+        pl: 'Gwarancja nominalnej głośności w komendzie play(): bezwzględne przywracanie właściwości volume elementu GStreamera do user_volume, uniemożliwiające odtwarzanie w ciszy.',
+        en: 'Nominal volume guarantee in play() command: strict restoration of GStreamer volume element to user_volume, preventing any silent playback state.',
+        de: 'Garantierte Nennlautstärke im play()-Befehl: Strikte Wiederherstellung des GStreamer-Volume-Elements auf user_volume.',
+        fi: 'Nimellisen äänenvoimakkuuden takuu play()-komennossa: GStreamer-äänenvoimakkuuden palautus user_volume-arvoon.',
+        la: 'Tuta soni altitudo in mandato play(): restitutio elementi GStreamer ad valorem usoris ad silentium vitandum.',
+      },
+      {
+        pl: 'Błyskawiczny restart bieżącego utworu (seek do zera) zamiast niszczenia potoku przy ponownym kliknięciu aktywnego utworu oraz optymistyczne przełączenie stanu odtwarzania w UI.',
+        en: 'Instant seek-to-zero restart for currently active track without rebuilding pipeline on re-click, plus optimistic UI playback state switch.',
+        de: 'Sofortiger Neustart des aktuellen Titels (Seek auf Null) ohne Pipeline-Neuaufbau bei erneutem Klick sowie optimistischer UI-Statuswechsel.',
+        fi: 'Aktiivisen kappaleen välitön uudelleenkäynnistys (kelaus alkuun) ilman toistoputken purkamista sekä optimistinen käyttöliittymätilan päivitys.',
+        la: 'Celeris reditus ad initium cantus activi sine deletione canalis et prompta status renovatio in conspectu.',
+      },
+    ],
+  },
+  {
     version: '1.0.4',
     codename: 'Flawless Stream & Zero-Freeze Queue',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {

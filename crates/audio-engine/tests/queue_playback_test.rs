@@ -95,11 +95,16 @@ fn test_audio_engine_queue_integration() {
     assert_eq!(removed.unwrap().title, "Sine Interlude");
     assert_eq!(engine.queue().items.len(), 2);
 
-    // 8. Bezpośredni skok do indeksu w kolejce (play_index) — natychmiastowe przełączenie bez zamrażania
+    // 8. Bezpośredni skok do indeksu w kolejce (play_index) — natychmiastowe przełączenie ze słyszalnym dźwiękiem (głośność przywrócona)
     let indexed = engine.play_index(1).expect("play_index");
     assert!(indexed.is_some());
     assert_eq!(indexed.unwrap().title, "Sine Opus");
     assert_eq!(engine.state(), domain::PlaybackState::Playing);
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(
+        (engine.volume() - 1.0).abs() < 0.001,
+        "Głośność po play_index musi wynosić 1.0 (nie 0.0)"
+    );
 
     engine.stop().expect("stop");
 }

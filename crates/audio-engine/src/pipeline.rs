@@ -727,17 +727,26 @@ impl AudioEngine {
             self.load_uri(&uri)?;
         }
 
-        let pipeline = {
+        let (pipeline, volume, user_vol) = {
             let mut inner = self.inner.lock().unwrap();
             if inner.current_uri.is_none() {
                 debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play");
                 return Ok(());
             }
             inner.state = PlaybackState::Playing;
-            inner.pipeline.clone()
+            inner.volume.set_property("volume", inner.user_volume);
+            (
+                inner.pipeline.clone(),
+                inner.volume.clone(),
+                inner.user_volume,
+            )
         };
         pipeline.set_state(gst::State::Playing)?;
-        debug!("Stan potoku zmieniony na Playing");
+        volume.set_property("volume", user_vol);
+        debug!(
+            "Stan potoku zmieniony na Playing (głośność: {:.2})",
+            user_vol
+        );
         Ok(())
     }
 
@@ -788,6 +797,7 @@ impl AudioEngine {
             volume.set_property("volume", target_vol * factor);
             std::thread::sleep(Duration::from_millis(8));
         }
+        volume.set_property("volume", target_vol);
 
         debug!("Stan potoku zmieniony na Playing z mikro-fade-in");
         Ok(())
@@ -1898,13 +1908,13 @@ impl AudioEngine {
                 Self::fade_out_equal_power(
                     &volume,
                     user_vol,
-                    Duration::from_millis(25),
+                    Duration::from_millis(20),
                     &self.fade_generation,
                     gen,
                 );
             }
             self.load_uri(&item.uri)?;
-            self.play()?;
+            self.play_with_fade(true)?;
         }
         Ok(active_item)
     }
@@ -1959,10 +1969,11 @@ impl AudioEngine {
 
     /// Odtwarza utwór ze wskazanego indeksu w kolejce.
     pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (item, user_vol, is_playing, volume) = {
+        let (item, user_vol, is_playing, volume, is_same_track) = {
             let mut q = self.queue.lock().unwrap();
             let inner = self.inner.lock().unwrap();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
+            let current_uri = inner.current_uri.clone();
             let item = if index < q.items.len() {
                 q.current_index = Some(index);
                 if q.shuffle && !q.shuffle_order.is_empty() {
@@ -1974,24 +1985,44 @@ impl AudioEngine {
             } else {
                 None
             };
-            (item, inner.user_volume, is_playing, inner.volume.clone())
+            let is_same = match (&item, &current_uri) {
+                (Some(it), Some(cur)) => &it.uri == cur,
+                _ => false,
+            };
+            (
+                item,
+                inner.user_volume,
+                is_playing,
+                inner.volume.clone(),
+                is_same,
+            )
         };
 
         if let Some(item) = &item {
-            if is_playing && user_vol > 0.001 {
-                // Szybki anti-pop ramp (25 ms) przy bezpośrednim kliknięciu utworu w kolejce:
-                // eliminuje trzaski DAC bez wprowadzania opóźnień ani zamrażania UI (zero-freeze).
-                let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
-                Self::fade_out_equal_power(
-                    &volume,
-                    user_vol,
-                    Duration::from_millis(25),
-                    &self.fade_generation,
-                    gen,
-                );
+            if is_same_track {
+                if is_playing {
+                    // Ten sam utwór i już gra — przewijamy do początku i upewniamy się, że głośność jest nominalna
+                    self.seek(Duration::ZERO)?;
+                    volume.set_property("volume", user_vol);
+                } else {
+                    self.play_with_fade(true)?;
+                }
+            } else {
+                if is_playing && user_vol > 0.001 {
+                    // Szybki anti-pop ramp (20 ms) przy bezpośrednim kliknięciu utworu w kolejce:
+                    // eliminuje trzaski DAC bez wprowadzania opóźnień ani zamrażania UI (zero-freeze).
+                    let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+                    Self::fade_out_equal_power(
+                        &volume,
+                        user_vol,
+                        Duration::from_millis(20),
+                        &self.fade_generation,
+                        gen,
+                    );
+                }
+                self.load_uri(&item.uri)?;
+                self.play_with_fade(true)?;
             }
-            self.load_uri(&item.uri)?;
-            self.play()?;
         }
         Ok(item)
     }
@@ -2034,7 +2065,7 @@ impl AudioEngine {
                     let fade_in_ms = crossfade_ms / 2;
                     self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
                 } else {
-                    self.play()?;
+                    self.play_with_fade(true)?;
                 }
                 Ok(Some(item))
             }
@@ -2090,7 +2121,7 @@ impl AudioEngine {
                     let fade_in_ms = crossfade_ms / 2;
                     self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
                 } else {
-                    self.play()?;
+                    self.play_with_fade(true)?;
                 }
                 Ok(Some(item))
             }
