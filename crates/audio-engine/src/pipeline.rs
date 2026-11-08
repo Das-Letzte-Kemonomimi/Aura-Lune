@@ -305,25 +305,26 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki przed sinkiem: 80ms maks — zapewnia natychmiastową, słyszalną reakcję
-        // na przesunięcie suwaków DSP (tempo, pitch, playback rate) bez wyczuwalnego opóźnienia i bez xrunów.
+        // Bufor kolejki przed sinkiem: 600ms — zapewnia całkowitą odporność
+        // na zacięcia (stuttering/xruny) i I/O jitter przy odtwarzaniu z dysków zewnętrznych (USB)
+        // oraz przy dekodowaniu gęstych plików FLAC i intensywnym DSP.
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
-            .property("max-size-time", 80_000_000u64)
+            .property("max-size-time", 600_000_000u64)
             .property("max-size-buffers", 0u32)
             .property("max-size-bytes", 0u32)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
-        // Preferencja: pipewiresink z marginesem 40ms (domyślnie slave-method=none),
-        // co eliminuje sztuczne resamplingi zegara GStreamera wywołujące efekt "pływania" dźwięku.
+        // Preferencja: pipewiresink z processing-deadline 100ms (domyślnie slave-method=none),
+        // co eliminuje underruny w sesji PipeWire i sztuczne resamplingi zegara GStreamera.
         let sink = match gst::ElementFactory::make("pipewiresink")
             .name("sink")
-            .property("processing-deadline", 40_000_000u64)
+            .property("processing-deadline", 100_000_000u64)
             .build()
         {
             Ok(pw_sink) => {
-                info!("Zainicjalizowano wyjście PipeWire (40ms deadline, slave-method: none)");
+                info!("Zainicjalizowano wyjście PipeWire (100ms deadline, slave-method: none)");
                 pw_sink
             }
             Err(_) => {
@@ -568,7 +569,7 @@ impl AudioEngine {
             volume,
             queue_sink: queue_sink.clone(),
             sink,
-            audio_buffer_ms: 80,
+            audio_buffer_ms: 600,
             dsp_block_size: 2048,
             state: PlaybackState::Stopped,
             dsp_params: DspParams::default(),
@@ -1176,22 +1177,26 @@ impl AudioEngine {
     }
 
     /// Ustawia rozmiar bufora wyjściowego audio w milisekundach (długość kolejki przed zlewem).
-    /// Domyślnie: 80 ms (dostępne wartości: 20 ms - 2000 ms).
+    /// Domyślnie: 600 ms (dostępne wartości: 50 ms - 4000 ms).
     pub fn set_audio_buffer_duration_ms(&self, buffer_ms: u64) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
-        let clamped = buffer_ms.clamp(20, 2000);
+        let clamped = buffer_ms.clamp(50, 4000);
         inner.audio_buffer_ms = clamped;
         let time_ns = clamped * 1_000_000u64;
         inner.queue_sink.set_property("max-size-time", time_ns);
         if inner.sink.find_property("processing-deadline").is_some() {
-            let deadline_ns = (clamped / 2).clamp(10, 500) * 1_000_000u64;
+            let deadline_ns = (clamped / 4).clamp(20, 250) * 1_000_000u64;
             inner.sink.set_property("processing-deadline", deadline_ns);
         }
-        info!("Zaktualizowano bufor wyjściowy audio na {} ms", clamped);
+        info!(
+            "Zaktualizowano bufor wyjściowy audio na {} ms (processing-deadline: {} ms)",
+            clamped,
+            (clamped / 4).clamp(20, 250)
+        );
         Ok(())
     }
 
-    /// Pobiera aktualny rozmiar bufora wyjściowego audio w milisekundach (domyślnie 80 ms).
+    /// Pobiera aktualny rozmiar bufora wyjściowego audio w milisekundach (domyślnie 600 ms).
     pub fn audio_buffer_duration_ms(&self) -> u64 {
         let inner = self.inner.lock().unwrap();
         inner.audio_buffer_ms
@@ -1870,7 +1875,7 @@ impl AudioEngine {
         items: Vec<QueueItem>,
         start_index: Option<usize>,
     ) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (crossfade_ms, user_vol, is_playing, volume) = {
+        let (_crossfade_ms, user_vol, is_playing, volume) = {
             let inner = self.inner.lock().unwrap();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
             (
@@ -1888,24 +1893,18 @@ impl AudioEngine {
         };
 
         if let Some(item) = &active_item {
-            if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-                let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+            if is_playing && user_vol > 0.001 {
                 let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
                 Self::fade_out_equal_power(
                     &volume,
                     user_vol,
-                    Duration::from_millis(fade_out_ms),
+                    Duration::from_millis(25),
                     &self.fade_generation,
                     gen,
                 );
             }
             self.load_uri(&item.uri)?;
-            if crossfade_ms > 0 && user_vol > 0.001 {
-                let fade_in_ms = crossfade_ms / 2;
-                self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
-            } else {
-                self.play()?;
-            }
+            self.play()?;
         }
         Ok(active_item)
     }
@@ -1960,7 +1959,7 @@ impl AudioEngine {
 
     /// Odtwarza utwór ze wskazanego indeksu w kolejce.
     pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (item, crossfade_ms, user_vol, is_playing, volume) = {
+        let (item, user_vol, is_playing, volume) = {
             let mut q = self.queue.lock().unwrap();
             let inner = self.inner.lock().unwrap();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
@@ -1975,34 +1974,24 @@ impl AudioEngine {
             } else {
                 None
             };
-            (
-                item,
-                inner.crossfade_duration_ms,
-                inner.user_volume,
-                is_playing,
-                inner.volume.clone(),
-            )
+            (item, inner.user_volume, is_playing, inner.volume.clone())
         };
 
         if let Some(item) = &item {
-            if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-                let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+            if is_playing && user_vol > 0.001 {
+                // Szybki anti-pop ramp (25 ms) przy bezpośrednim kliknięciu utworu w kolejce:
+                // eliminuje trzaski DAC bez wprowadzania opóźnień ani zamrażania UI (zero-freeze).
                 let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
                 Self::fade_out_equal_power(
                     &volume,
                     user_vol,
-                    Duration::from_millis(fade_out_ms),
+                    Duration::from_millis(25),
                     &self.fade_generation,
                     gen,
                 );
             }
             self.load_uri(&item.uri)?;
-            if crossfade_ms > 0 && user_vol > 0.001 {
-                let fade_in_ms = crossfade_ms / 2;
-                self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
-            } else {
-                self.play()?;
-            }
+            self.play()?;
         }
         Ok(item)
     }
@@ -2022,7 +2011,7 @@ impl AudioEngine {
         };
 
         if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-            let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+            let fade_out_ms = (crossfade_ms / 8).clamp(30, 150);
             let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
             Self::fade_out_equal_power(
                 &volume,
@@ -2078,7 +2067,7 @@ impl AudioEngine {
         };
 
         if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-            let fade_out_ms = (crossfade_ms / 3).clamp(300, 2000);
+            let fade_out_ms = (crossfade_ms / 8).clamp(30, 150);
             let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
             Self::fade_out_equal_power(
                 &volume,
@@ -2296,9 +2285,9 @@ impl AudioEngine {
             return;
         }
         let total_ms = duration.as_millis() as u64;
-        let step_ms = 20u64;
-        let steps = (total_ms / step_ms).clamp(8, 200) as usize;
-        let step_time = Duration::from_millis(total_ms / steps as u64);
+        let step_ms = 8u64;
+        let steps = (total_ms / step_ms).clamp(4, 50) as usize;
+        let step_time = Duration::from_millis((total_ms / steps as u64).max(1));
 
         for i in 1..=steps {
             if fade_gen.load(Ordering::Relaxed) != current_gen {
@@ -2331,9 +2320,9 @@ impl AudioEngine {
             return;
         }
         let total_ms = duration.as_millis() as u64;
-        let step_ms = 20u64;
-        let steps = (total_ms / step_ms).clamp(8, 200) as usize;
-        let step_time = Duration::from_millis(total_ms / steps as u64);
+        let step_ms = 10u64;
+        let steps = (total_ms / step_ms).clamp(6, 100) as usize;
+        let step_time = Duration::from_millis((total_ms / steps as u64).max(1));
 
         for i in 1..=steps {
             if fade_gen.load(Ordering::Relaxed) != current_gen {
@@ -2378,12 +2367,13 @@ impl AudioEngine {
             return Ok(());
         }
 
-        // Poczekaj na preroll potoku (do 150ms), aby bufory audio dotarły do wyjścia przed startem krzywej fade-in
-        let _ = pipeline.state(gst::ClockTime::from_mseconds(150));
-
         let fade_gen = Arc::clone(&self.fade_generation);
         let is_fading_in = Arc::clone(&self.is_fading_in);
+        let pipeline_wait = pipeline.clone();
         std::thread::spawn(move || {
+            // Poczekaj na preroll potoku (do 150ms) w tle, aby bufory audio dotarły do wyjścia
+            // przed startem krzywej fade-in, bez blokowania wątku wywołującego (IPC/UI)
+            let _ = pipeline_wait.state(gst::ClockTime::from_mseconds(150));
             Self::fade_in_equal_power(
                 volume,
                 target_vol,
