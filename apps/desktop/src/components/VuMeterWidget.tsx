@@ -66,40 +66,29 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
       let rawRight = 0;
 
       if (isPlaying && spectrum.length > 0) {
-        if (spectrum.length >= 32) {
-          // Prawdziwe stereo: pierwsze 16 pasm to L, drugie 16 pasm to R
-          const half = Math.floor(spectrum.length / 2);
-          let sumL = 0;
-          let sumR = 0;
-          for (let i = 0; i < half; i++) sumL += spectrum[i] || 0;
-          for (let i = half; i < spectrum.length; i++) sumR += spectrum[i] || 0;
-          rawLeft = (sumL / half) * volume * 1.4;
-          rawRight = (sumR / (spectrum.length - half)) * volume * 1.4;
-        } else {
-          // Pełne pasmo (bas, wokal, transjenty i góra) dla obu kanałów w oparciu o wagi psychoakustyczne
-          let totalEnergy = 0;
-          const weights = [1.2, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 1.0, 1.0, 1.05, 1.1, 1.05, 1.0, 0.95, 0.9];
-          let weightSum = 0;
-          for (let i = 0; i < spectrum.length; i++) {
-            const w = weights[i] || 1.0;
-            totalEnergy += (spectrum[i] || 0) * w;
-            weightSum += w;
-          }
-          const avg = (totalEnergy / Math.max(1, weightSum)) * volume * 1.45;
-
-          // Naturalna mikro-dynamika stereofoniczna (subtelna niezależność obu wskazówek bez obcinania basu na kanale R)
-          let diffL = 0;
-          let diffR = 0;
-          for (let i = 0; i < spectrum.length; i++) {
-            if (i % 2 === 0) diffL += spectrum[i] || 0;
-            else diffR += spectrum[i] || 0;
-          }
-          const stereoRatio = (diffL - diffR) / Math.max(0.01, diffL + diffR);
-          const diffFactor = Math.max(-0.15, Math.min(0.15, stereoRatio * 0.25));
-
-          rawLeft = Math.max(0, avg * (1.0 + diffFactor));
-          rawRight = Math.max(0, avg * (1.0 - diffFactor));
+        // Pełne pasmo (bas, wokal, transjenty i góra) dla obu kanałów w oparciu o wagi psychoakustyczne ITU-R BS.1770
+        let totalEnergy = 0;
+        const weights = [1.2, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 1.0, 1.0, 1.05, 1.1, 1.05, 1.0, 0.95, 0.9];
+        let weightSum = 0;
+        for (let i = 0; i < spectrum.length; i++) {
+          const w = weights[i] || 1.0;
+          totalEnergy += (spectrum[i] || 0) * w;
+          weightSum += w;
         }
+        const avg = (totalEnergy / Math.max(1, weightSum)) * volume * 1.45;
+
+        // Naturalna mikro-dynamika stereofoniczna (subtelna niezależność obu wskazówek bez obcinania basu na kanale R)
+        let diffL = 0;
+        let diffR = 0;
+        for (let i = 0; i < spectrum.length; i++) {
+          if (i % 2 === 0) diffL += spectrum[i] || 0;
+          else diffR += spectrum[i] || 0;
+        }
+        const stereoRatio = (diffL - diffR) / Math.max(0.01, diffL + diffR);
+        const diffFactor = Math.max(-0.15, Math.min(0.15, stereoRatio * 0.25));
+
+        rawLeft = Math.max(0, avg * (1.0 + diffFactor));
+        rawRight = Math.max(0, avg * (1.0 - diffFactor));
       }
 
       // Ballistyka analogowa VU: szybki narost (attack), płynne opadanie (decay)

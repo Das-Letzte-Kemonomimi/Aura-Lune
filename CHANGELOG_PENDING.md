@@ -16,7 +16,8 @@
 - *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*
+- **Kąt ramienia gramofonu (VinylTurntable)**: Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`-22deg` dla 33⅓ RPM, `-27deg` dla 45 RPM) oraz kąt wkładki igły (`+15deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
+- **Równowaga stereo i ballistyka VU-Metera (VuMeterWidget)**: Usunięto podział pasm częstotliwościowych FFT, który sztucznie traktował wysokie tony jako prawy kanał, powodując zaniżanie wskazań prawej igły do -11.8 dB. Wprowadzono pełnopasmową analizę psychoakustyczną z mikro-dynamiką stereo dla obu kanałów.
 
 ### 🔄 Zmieniono (Changed)
 - *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*
