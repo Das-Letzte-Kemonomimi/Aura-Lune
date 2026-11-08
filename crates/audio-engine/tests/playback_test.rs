@@ -515,8 +515,8 @@ fn test_loop_mode_track_preserves_current_uri_and_replays() {
     }
     let dur = duration.expect("Czas trwania pliku powinien być dostępny");
 
-    // Przewinięcie 80ms przed koniec utworu, aby wywołać EOS
-    let target = dur.saturating_sub(Duration::from_millis(80));
+    // Przewinięcie 300ms przed koniec utworu, aby wywołać EOS
+    let target = dur.saturating_sub(Duration::from_millis(300));
     engine.seek(target).expect("seek near end");
 
     // Poczekaj na dotarcie do EOS i obsłużenie pętli w poll_events()
@@ -581,8 +581,8 @@ fn test_loop_mode_queue_single_track_eos_replays() {
     }
     let dur = duration.expect("Czas trwania pliku powinien być dostępny");
 
-    // Przewinięcie 80ms przed koniec utworu
-    let target = dur.saturating_sub(Duration::from_millis(80));
+    // Przewinięcie 300ms przed koniec utworu
+    let target = dur.saturating_sub(Duration::from_millis(300));
     engine.seek(target).expect("seek near end");
 
     // Poczekaj na dotarcie do EOS
@@ -695,8 +695,8 @@ fn test_stop_after_current_track_eos_stops_cleanly() {
     }
     let dur = duration.expect("Czas trwania pliku powinien być dostępny");
 
-    // Seek tuż przed koniec utworu (80 ms przed końcem)
-    let target = dur.saturating_sub(Duration::from_millis(80));
+    // Seek tuż przed koniec utworu (300 ms przed końcem)
+    let target = dur.saturating_sub(Duration::from_millis(300));
     engine.seek(target).expect("seek near end");
 
     // Poczekaj na EOS

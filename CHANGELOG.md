@@ -9,6 +9,30 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [0.9.4] — „Kitsune Vintage Tape & Audio Path” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Akustyczny Fingerprinting i Autotagowanie (Chromaprint / AcoustID)**:
+  - Pełna integracja backendowa w module `crates/metadata/src/acoustid.rs` z narzędziem `fpcalc` i serwisem AcoustID REST API (`meta=recordings releases tracks`).
+  - Rozpoznawanie nieotagowanych utworów audio bezpośrednio na podstawie sygnatury fali dźwiękowej (audio fingerprinting) z dokładnością co do centa.
+  - Przycisk `✨ Wykryj z fali audio (AcoustID)` w oknie `TagEditorModal`, automatyczne uzupełnianie pól metadanych oraz interaktywny wybór wydań (Studio, Live, Compilation) z procentem zgodności dopasowania.
+- **Symulator Brzmienia Winylowego & Taśmy (Lo-Fi Vinyl & Tape Noise FX)**:
+  - Autorski silnik syntezy szumu analogowego w czasie rzeczywistym (`apps/desktop/src/utils/vinylSimulator.ts`).
+  - Proceduralna synteza szumu mikrorowków płyty winylowej z obrotowym filtrem modulacyjnym LFO zsynchronizowanym z 33⅓ RPM i 45 RPM, losowymi trzaskami kurzu (dust crackle) i mechanicznym pomrukiem igły (stylus rumble 35 Hz).
+  - Alternatywny tryb ciepłego szumu taśmy magnetofonowej (Type II Chrome Tape Hiss).
+  - Przycisk i mini-popover `LO-FI / VINYL FX` na gramofonie `VinylTurntable` z suwakiem poziomu (0–100%), auto-sync z odtwarzaniem i zapamiętywaniem w `localStorage`.
+- **Retro Magnetofon Szpulowy / Kaseta Studyjna (`TapeDeckWidget`)**:
+  - Dedykowany 4. tryb wizualny w sekcji Now Playing obok Okładki, Winylu i VU-Metera.
+  - Wierne odwzorowanie studyjnego decka szpulowego NAB z animowanymi szpulami ze stopu aluminium, przemieszczaniem się nawoju taśmy z lewej na prawą szpulę zależnym od pozycji w utworze ($\omega = v/r$), obracającą się rolką dociskową pinch-roller oraz głowicą.
+  - Mechaniczny 4-cyfrowy licznik obrotów taśmy, przełącznik prędkości `7½ IPS` / `3¾ IPS`, selektor typu taśmy (`FE-I`, `CR-II`, `METAL`) oraz tabliczka tytułu i wykonawcy.
+- **Audiophile Audio Path & Bit-Perfect Stream Inspector (`AudioPathInspectorModal`)**:
+  - Interaktywny inspektor pełnego toru audio w stylu Powerampa otwierany kliknięciem plakietki PipeWire na ekranie Now Playing.
+  - Wizualizacja 4 etapów toru audio: Źródło (format, próbkowanie, bity, kanały), Dekoder GStreamer (bufor F32LE), Silnik DSP i Efekty (Bypass / RubberBand / SoundTouch, EQ, Limiter, ReplayGain) oraz Wyjście sprzętowe PipeWire Sink (zegar DAC, latencja, xruny).
+  - Wskaźnik stanu `🟢 BIT-PERFECT DIRECT` vs `🟣 PROCESSED (DSP / EQ)` oraz 1-klikowy przycisk przywrócenia bezpośredniego bezstratnego passthrough.
+
+---
+
 ## [0.9.3] — „Kitsune Pure Bypass & Groove Sync” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
