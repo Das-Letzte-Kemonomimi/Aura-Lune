@@ -87,7 +87,7 @@ import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
 import { VuMeterWidget } from './components/VuMeterWidget';
 import { VinylTurntable } from './components/VinylTurntable';
-import { TapeDeckWidget } from './components/TapeDeckWidget';
+import { TapeDeckWidget, type TapeType } from './components/TapeDeckWidget';
 import { AudioPathInspectorModal } from './components/AudioPathInspectorModal';
 import { evaluateHarmonicMatch } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
@@ -729,6 +729,52 @@ export default function App() {
     setNowPlayingVisualMode(mode);
     try {
       localStorage.setItem('auralune_nowplaying_visual_mode', mode);
+    } catch (_) {}
+  };
+
+  // Stan parametrów wizualnych: RPM winylu, prędkość taśmy, typ taśmy
+  const [vinylRpm, setVinylRpm] = useState<33 | 45>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_vinyl_rpm');
+      if (saved === '33' || saved === '45') return Number(saved) as 33 | 45;
+    } catch (_) {}
+    return 33;
+  });
+
+  const handleSelectVinylRpm = (rpm: 33 | 45) => {
+    setVinylRpm(rpm);
+    try {
+      localStorage.setItem('auralune_vinyl_rpm', String(rpm));
+    } catch (_) {}
+  };
+
+  const [tapeSpeed, setTapeSpeed] = useState<'7.5' | '3.75'>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_tape_speed');
+      if (saved === '7.5' || saved === '3.75') return saved;
+    } catch (_) {}
+    return '7.5';
+  });
+
+  const handleSelectTapeSpeed = (speed: '7.5' | '3.75') => {
+    setTapeSpeed(speed);
+    try {
+      localStorage.setItem('auralune_tape_speed', speed);
+    } catch (_) {}
+  };
+
+  const [tapeType, setTapeType] = useState<TapeType>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_tape_type');
+      if (saved === 'TYPE_I' || saved === 'TYPE_II' || saved === 'METAL') return saved;
+    } catch (_) {}
+    return 'TYPE_II';
+  });
+
+  const handleSelectTapeType = (type: TapeType) => {
+    setTapeType(type);
+    try {
+      localStorage.setItem('auralune_tape_type', type);
     } catch (_) {}
   };
 
@@ -10410,15 +10456,15 @@ const renderDevicesSection = () => (
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: nowPlayingVisualMode === 'vumeter' ? '280px 1fr' : '240px 1fr',
+                gridTemplateColumns: nowPlayingVisualMode === 'cover' ? '240px 1fr' : '275px 1fr',
                 gap: '26px',
                 alignItems: 'center',
                 transition: 'grid-template-columns 0.2s ease',
               }}
             >
-              {/* Kolumna lewa: Okładka / Winyl / VU-Meter */}
+              {/* Kolumna lewa: Okładka / Winyl / Tape / VU-Meter */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Wskaźnik VU */}
+                {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Taśma • Wskaźnik VU */}
                 <div
                   style={{
                     display: 'flex',
@@ -10428,7 +10474,7 @@ const renderDevicesSection = () => (
                     padding: '3px',
                     borderRadius: '8px',
                     width: '100%',
-                    maxWidth: nowPlayingVisualMode === 'vumeter' ? '280px' : '240px',
+                    maxWidth: nowPlayingVisualMode === 'cover' ? '240px' : '275px',
                     transition: 'max-width 0.2s ease',
                   }}
                 >
@@ -10534,7 +10580,9 @@ const renderDevicesSection = () => (
                     trackTitle={status.current_track?.title || currentPlayingTrack?.title}
                     artistName={status.current_track?.artist || currentPlayingTrack?.artist}
                     onTogglePlayPause={handlePlayPause}
-                    size={230}
+                    rpm={vinylRpm}
+                    onRpmChange={handleSelectVinylRpm}
+                    size={265}
                   />
                 ) : nowPlayingVisualMode === 'tape' ? (
                   <TapeDeckWidget
@@ -10547,7 +10595,11 @@ const renderDevicesSection = () => (
                     isDspActive={status.engine !== 'Bypass'}
                     trackTitle={status.current_track?.title || currentPlayingTrack?.title}
                     artistName={status.current_track?.artist || currentPlayingTrack?.artist}
-                    size={230}
+                    tapeType={tapeType}
+                    onTapeTypeChange={handleSelectTapeType}
+                    tapeSpeed={tapeSpeed}
+                    onTapeSpeedChange={handleSelectTapeSpeed}
+                    size={265}
                   />
                 ) : nowPlayingVisualMode === 'vumeter' ? (
                   <VuMeterWidget
@@ -10727,12 +10779,12 @@ const renderDevicesSection = () => (
                       {status.state === 'Playing'
                         ? (language === 'pl'
                             ? (status.engine === 'Bypass'
-                                ? '33⅓ RPM • Ramię opuszczone (Bypass)'
-                                : `33⅓ RPM • Ramię opuszczone (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
+                                ? `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię opuszczone (Bypass)`
+                                : `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię opuszczone (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
                             : (status.engine === 'Bypass'
-                                ? '33⅓ RPM • Tonearm Engaged (Bypass)'
-                                : `33⅓ RPM • Tonearm Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
-                        : (language === 'pl' ? 'Pauza • Ramię zaparkowane' : 'Paused • Tonearm Parked')}
+                                ? `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Engaged (Bypass)`
+                                : `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
+                        : (language === 'pl' ? `Pauza • ${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię zaparkowane` : `Paused • ${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Parked`)}
                     </div>
                   </div>
                 ) : nowPlayingVisualMode === 'tape' ? (
@@ -10755,12 +10807,12 @@ const renderDevicesSection = () => (
                       {status.state === 'Playing'
                         ? (language === 'pl'
                             ? (status.engine === 'Bypass'
-                                ? '7½ IPS • Rolka zaciśnięta (Bypass)'
-                                : `7½ IPS • Rolka zaciśnięta (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
+                                ? `${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Rolka zaciśnięta (Bypass)`
+                                : `${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Rolka zaciśnięta (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
                             : (status.engine === 'Bypass'
-                                ? '7½ IPS • Pinch Roller Engaged (Bypass)'
-                                : `7½ IPS • Pinch Roller Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
-                        : (language === 'pl' ? 'Pauza • Transport zatrzymany' : 'Paused • Transport Stopped')}
+                                ? `${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Pinch Roller Engaged (Bypass)`
+                                : `${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Pinch Roller Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
+                        : (language === 'pl' ? `Pauza • ${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Transport zatrzymany` : `Paused • ${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Transport Stopped`)}
                     </div>
                   </div>
                 ) : (

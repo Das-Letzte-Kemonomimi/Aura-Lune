@@ -13,6 +13,8 @@ interface VinylTurntableProps {
   trackTitle?: string;
   artistName?: string;
   onTogglePlayPause?: () => void;
+  rpm?: 33 | 45;
+  onRpmChange?: (rpm: 33 | 45) => void;
   style?: React.CSSProperties;
   className?: string;
   size?: number;
@@ -29,11 +31,19 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   trackTitle = 'Nieznany utwór',
   artistName = 'Auralune Player',
   onTogglePlayPause,
+  rpm: controlledRpm,
+  onRpmChange,
   style,
   className,
-  size = 280,
+  size = 265,
 }) => {
-  const [rpm, setRpm] = useState<33 | 45>(33);
+  const [localRpm, setLocalRpm] = useState<33 | 45>(33);
+  const rpm = controlledRpm !== undefined ? controlledRpm : localRpm;
+  const setRpm = (newRpm: 33 | 45) => {
+    setLocalRpm(newRpm);
+    onRpmChange?.(newRpm);
+  };
+
   const [simConfig, setSimConfig] = useState<VinylSimConfig>(() => vinylSimulator.getConfig());
   const [showFxPopover, setShowFxPopover] = useState(false);
 
@@ -72,9 +82,9 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   const [displayRpm, setDisplayRpm] = useState<string>(currentRpm);
 
   // Docelowa prędkość w stopniach na sekundę:
-  // 33 1/3 RPM = 33.333 * 360 / 60 = 200 deg/s
-  // 45 RPM = 45 * 360 / 60 = 270 deg/s
-  const baseDegPerSec = rpm === 33 ? 200 : 270;
+  // 33⅓ RPM = ok. 190 deg/s
+  // 45 RPM = ok. 285 deg/s (zauważalnie, 50% szybszy obrót fizyczny)
+  const baseDegPerSec = rpm === 33 ? 190 : 285;
   const targetDegPerSec = isPlaying ? baseDegPerSec * effectiveSpeed : 0;
 
   useEffect(() => {
@@ -118,8 +128,9 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 
   // Kąt ramienia gramofonu:
   // Spoczynek (park): -28 stopni
-  // Odtwarzanie (na płycie): ok. 18-24 stopni
-  const tonearmAngle = isPlaying ? '20deg' : '-28deg';
+  // Odtwarzanie 33⅓ (standardowy 12" LP): ok. 19 stopni
+  // Odtwarzanie 45 RPM (format singla 7" - igła głębiej na płycie): ok. 24 stopnie
+  const tonearmAngle = isPlaying ? (rpm === 45 ? '24deg' : '19deg') : '-28deg';
 
   return (
     <div
@@ -128,7 +139,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: '24px',
-        padding: '16px',
+        padding: '14px',
         background: 'linear-gradient(145deg, #181528, #0d0a17)',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         boxShadow: isPlaying
@@ -139,7 +150,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
+        overflow: 'visible',
         userSelect: 'none',
         boxSizing: 'border-box',
         ...style,
@@ -315,32 +326,33 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
       <div
         style={{
           position: 'absolute',
-          bottom: '10px',
-          left: '16px',
-          right: '16px',
+          bottom: '8px',
+          left: '10px',
+          right: '10px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           fontSize: '0.7rem',
           fontWeight: 700,
+          zIndex: 20,
         }}
       >
         {/* Przełącznik 33 / 45 RPM & Lo-Fi Analog FX */}
-        <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.4)', padding: '2px', borderRadius: '6px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '3px', background: 'rgba(0,0,0,0.5)', padding: '2px', borderRadius: '6px', alignItems: 'center' }}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setRpm(33);
             }}
-            title="Prędkość nominalna 33⅓ RPM"
+            title="Prędkość nominalna 33⅓ RPM (Standardowy 12″ LP)"
             style={{
-              padding: '2px 7px',
+              padding: '2px 6px',
               borderRadius: '4px',
               border: 'none',
               background: rpm === 33 ? 'var(--accent-pink)' : 'transparent',
               color: rpm === 33 ? '#fff' : 'var(--text-muted)',
               cursor: 'pointer',
-              fontSize: '0.68rem',
+              fontSize: '0.66rem',
               fontWeight: 700,
               transition: 'all 0.15s ease',
             }}
@@ -352,15 +364,15 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               e.stopPropagation();
               setRpm(45);
             }}
-            title="Prędkość nominalna 45 RPM"
+            title="Prędkość nominalna 45 RPM (Singiel 7″, szybszy obrót fizyczny)"
             style={{
-              padding: '2px 7px',
+              padding: '2px 6px',
               borderRadius: '4px',
               border: 'none',
               background: rpm === 45 ? 'var(--accent-pink)' : 'transparent',
               color: rpm === 45 ? '#fff' : 'var(--text-muted)',
               cursor: 'pointer',
-              fontSize: '0.68rem',
+              fontSize: '0.66rem',
               fontWeight: 700,
               transition: 'all 0.15s ease',
             }}
@@ -368,192 +380,192 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
             45
           </button>
 
-          {/* Przycisk i menu Lo-Fi Analog FX */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowFxPopover((prev) => !prev);
-              }}
-              title="Symulator analogowego szumu winylu i taśmy (Lo-Fi Analog FX)"
-              style={{
-                padding: '2px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                background: simConfig.enabled
-                  ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(236, 72, 153, 0.9))'
-                  : 'rgba(255, 255, 255, 0.08)',
-                color: simConfig.enabled ? '#fff' : 'var(--text-muted)',
-                cursor: 'pointer',
-                fontSize: '0.66rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'all 0.15s ease',
-                boxShadow: simConfig.enabled ? '0 0 10px rgba(236, 72, 153, 0.4)' : 'none',
-              }}
-            >
-              <Sparkles size={11} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
-              <span>{simConfig.enabled ? `${simConfig.mode === 'vinyl' ? 'VINYL' : 'TAPE'} ${Math.round(simConfig.intensity * 100)}%` : 'LO-FI'}</span>
-            </button>
-
-            {/* Popover z regulacją parametrów Lo-Fi */}
-            {showFxPopover && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: 'absolute',
-                  bottom: '32px',
-                  left: '0',
-                  width: '210px',
-                  background: 'rgba(20, 16, 32, 0.96)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(168, 85, 247, 0.35)',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.6), 0 0 15px rgba(168, 85, 247, 0.25)',
-                  zIndex: 50,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                  color: '#f8fafc',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f3e8ff' }}>
-                    Analog Lo-Fi FX
-                  </span>
-                  <button
-                    onClick={() => setShowFxPopover(false)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                      padding: '2px',
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-
-                {/* Przełącznik Włącz / Wyłącz */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem' }}>
-                  <span style={{ color: '#cbd5e1' }}>Efekt analogowy:</span>
-                  <button
-                    onClick={() => vinylSimulator.setEnabled(!simConfig.enabled)}
-                    style={{
-                      padding: '2px 10px',
-                      borderRadius: '12px',
-                      border: 'none',
-                      background: simConfig.enabled ? 'var(--accent-pink)' : 'rgba(255,255,255,0.12)',
-                      color: '#fff',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {simConfig.enabled ? 'WŁ' : 'WYŁ'}
-                  </button>
-                </div>
-
-                {/* Wybór stylu: Winyl vs Taśma */}
-                <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '2px', borderRadius: '6px' }}>
-                  <button
-                    onClick={() => vinylSimulator.setMode('vinyl')}
-                    style={{
-                      flex: 1,
-                      padding: '3px 0',
-                      borderRadius: '4px',
-                      border: 'none',
-                      background: simConfig.mode === 'vinyl' ? 'var(--accent-purple)' : 'transparent',
-                      color: simConfig.mode === 'vinyl' ? '#fff' : '#94a3b8',
-                      fontSize: '0.66rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    💿 Winyl
-                  </button>
-                  <button
-                    onClick={() => vinylSimulator.setMode('tape')}
-                    style={{
-                      flex: 1,
-                      padding: '3px 0',
-                      borderRadius: '4px',
-                      border: 'none',
-                      background: simConfig.mode === 'tape' ? 'var(--accent-purple)' : 'transparent',
-                      color: simConfig.mode === 'tape' ? '#fff' : '#94a3b8',
-                      fontSize: '0.66rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    📼 Taśma
-                  </button>
-                </div>
-
-                {/* Suwak intensywności szumu */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#cbd5e1', marginBottom: '4px' }}>
-                    <span>Poziom szumu i trzasków:</span>
-                    <strong style={{ color: 'var(--accent-pink)' }}>{Math.round(simConfig.intensity * 100)}%</strong>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={simConfig.intensity}
-                    onChange={(e) => vinylSimulator.setIntensity(parseFloat(e.target.value))}
-                    style={{
-                      width: '100%',
-                      accentColor: 'var(--accent-pink)',
-                      cursor: 'pointer',
-                      height: '4px',
-                    }}
-                  />
-                </div>
-
-                {/* Auto-sync z odtwarzaniem */}
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.68rem', color: '#cbd5e1', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={simConfig.autoSync}
-                    onChange={(e) => vinylSimulator.setAutoSync(e.target.checked)}
-                    style={{ accentColor: 'var(--accent-purple)' }}
-                  />
-                  <span>Tylko podczas odtwarzania</span>
-                </label>
-              </div>
-            )}
-          </div>
+          {/* Przycisk Lo-Fi Analog FX */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowFxPopover((prev) => !prev);
+            }}
+            title="Symulator analogowego szumu winylu i taśmy (Lo-Fi Analog FX)"
+            style={{
+              padding: '2px 7px',
+              borderRadius: '4px',
+              border: 'none',
+              background: simConfig.enabled
+                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(236, 72, 153, 0.9))'
+                : 'rgba(255, 255, 255, 0.08)',
+              color: simConfig.enabled ? '#fff' : 'var(--text-muted)',
+              cursor: 'pointer',
+              fontSize: '0.64rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              transition: 'all 0.15s ease',
+              boxShadow: simConfig.enabled ? '0 0 10px rgba(236, 72, 153, 0.4)' : 'none',
+            }}
+          >
+            <Sparkles size={10} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
+            <span>{simConfig.enabled ? `${simConfig.mode === 'vinyl' ? 'VINYL' : 'TAPE'} ${Math.round(simConfig.intensity * 100)}%` : 'LO-FI'}</span>
+          </button>
         </div>
 
         {/* Dynamiczny wskaźnik prędkości Direct Drive z uwzględnieniem DSP */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', minWidth: 0 }}>
           <span
             style={{
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              background: isPlaying ? '#22c55e' : '#ef4444',
-              boxShadow: isPlaying ? '0 0 6px #22c55e' : 'none',
+              background: isPlaying ? (rpm === 45 ? '#ec4899' : '#22c55e') : '#ef4444',
+              boxShadow: isPlaying ? `0 0 6px ${rpm === 45 ? '#ec4899' : '#22c55e'}` : 'none',
               transition: 'background 0.3s ease',
+              flexShrink: 0,
             }}
           />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.66rem' }}>
+          <span
+            title={bpm ? `Tempo utworu: ${bpm} BPM (wypadkowo: ${Math.round(bpm * effectiveSpeed)} BPM)` : undefined}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', whiteSpace: 'nowrap' }}
+          >
             {isPlaying
-              ? `${displayRpm} RPM • ${
-                  dspActive && effectiveSpeed !== 1.0
-                    ? `${effectiveSpeed.toFixed(2)}x ${engine || 'DSP'}`
-                    : (dspActive ? 'DIRECT DRIVE' : 'BYPASS (1.0x)')
-                }${bpm ? ` (${Math.round(bpm * effectiveSpeed)} BPM)` : ''}`
-              : 'STANDBY'}
+              ? `${displayRpm} RPM`
+              : (rpm === 33 ? '33⅓ RPM' : '45 RPM')}
           </span>
         </div>
       </div>
+
+      {/* Popover z regulacją parametrów Lo-Fi — zakotwiczony bezpośrednio do karty gramofonu, NIGDY nie wychodzi poza krawędzie */}
+      {showFxPopover && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            bottom: '36px',
+            left: '10px',
+            right: '10px',
+            width: 'auto',
+            background: 'rgba(18, 14, 28, 0.98)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(168, 85, 247, 0.45)',
+            borderRadius: '12px',
+            padding: '10px 12px',
+            boxShadow: '0 16px 36px rgba(0,0,0,0.85), 0 0 20px rgba(168, 85, 247, 0.25)',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            color: '#f8fafc',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f3e8ff' }}>
+              Analog Lo-Fi FX
+            </span>
+            <button
+              onClick={() => setShowFxPopover(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '2px',
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          {/* Przełącznik Włącz / Wyłącz */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.70rem' }}>
+            <span style={{ color: '#cbd5e1' }}>Efekt analogowy:</span>
+            <button
+              onClick={() => vinylSimulator.setEnabled(!simConfig.enabled)}
+              style={{
+                padding: '2px 10px',
+                borderRadius: '10px',
+                border: 'none',
+                background: simConfig.enabled ? 'var(--accent-pink)' : 'rgba(255,255,255,0.12)',
+                color: '#fff',
+                fontSize: '0.66rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {simConfig.enabled ? 'WŁ' : 'WYŁ'}
+            </button>
+          </div>
+
+          {/* Wybór stylu: Winyl vs Taśma */}
+          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.35)', padding: '2px', borderRadius: '6px' }}>
+            <button
+              onClick={() => vinylSimulator.setMode('vinyl')}
+              style={{
+                flex: 1,
+                padding: '3px 0',
+                borderRadius: '4px',
+                border: 'none',
+                background: simConfig.mode === 'vinyl' ? 'var(--accent-purple)' : 'transparent',
+                color: simConfig.mode === 'vinyl' ? '#fff' : '#94a3b8',
+                fontSize: '0.66rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              💿 Winyl
+            </button>
+            <button
+              onClick={() => vinylSimulator.setMode('tape')}
+              style={{
+                flex: 1,
+                padding: '3px 0',
+                borderRadius: '4px',
+                border: 'none',
+                background: simConfig.mode === 'tape' ? 'var(--accent-purple)' : 'transparent',
+                color: simConfig.mode === 'tape' ? '#fff' : '#94a3b8',
+                fontSize: '0.66rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              📼 Taśma
+            </button>
+          </div>
+
+          {/* Suwak intensywności szumu */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#cbd5e1', marginBottom: '3px' }}>
+              <span>Poziom szumu:</span>
+              <strong style={{ color: 'var(--accent-pink)' }}>{Math.round(simConfig.intensity * 100)}%</strong>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={simConfig.intensity}
+              onChange={(e) => vinylSimulator.setIntensity(parseFloat(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: 'var(--accent-pink)',
+                cursor: 'pointer',
+                height: '4px',
+              }}
+            />
+          </div>
+
+          {/* Auto-sync z odtwarzaniem */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.66rem', color: '#cbd5e1', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={simConfig.autoSync}
+              onChange={(e) => vinylSimulator.setAutoSync(e.target.checked)}
+              style={{ accentColor: 'var(--accent-purple)' }}
+            />
+            <span>Tylko podczas odtwarzania</span>
+          </label>
+        </div>
+      )}
     </div>
   );
 };
