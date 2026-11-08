@@ -9,6 +9,23 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.1] — „Kitsune Precision & Stereo Balance” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Poprawiono (Fixed)
+- **Balans stereofoniczny i fizyka wskaźnika VU (`VuMeterWidget`)**:
+  - Wyeliminowano sztuczny podział pasm częstotliwościowych (gdzie bas trafiał na lewy kanał, a wyższe tony na prawy, powodując zaniżanie prawego wskaźnika) — wprowadzono pełnopasmową psychoakustyczną analizę energii ITU-R BS.1770 dla obu kanałów z naturalną mikro-dynamiką stereofoniczną.
+  - Zsynchronizowano cyfrowy odczyt decybeli na tarczy LCD z fizyczną podziałką wskaźnika (norm 0.00 = -20 dB, norm 0.80 = 0 dB, norm 1.00 = +3 dB) — wyeliminowano rozbieżność, w której wskazówka na -20 dB pokazywała na wyświetlaczu -11.8 dB.
+- **Kąt wychylenia ramienia gramofonowego (`VinylTurntable`)**:
+  - Skorygowano znak i zwrot kąta obrotu ramienia: wierzchołek ramienia wychyla się teraz poprawnie w lewo (`+20deg` / `+25deg`), opadając igłą dokładnie na rowki wirującej płyty LP, a w stanie pauzy spoczywa pionowo w uchwycie (`0deg`).
+  - Dopasowano kąt główki z igłą (headshell) na `-12deg`, aby biegła idealnie stycznie do rowków winylu.
+- **Wdrożenie komend `set_dsp_params` i `set_equalizer_params` w backendzie Tauri**:
+  - Usunięto błąd `Error: Command set_dsp_params not found` uniemożliwiający aktywację Profili Sygnaturowych Auralune 1.0.
+  - Zapewniono atomową zmianę parametrów silnika DSP (silnik, pitch, tempo, rate) oraz korektora graficznego EQ.
+  - Poprawiono strukturę payloadu przesyłanego do `set_crossfeed_config`.
+
+---
+
 ## [1.0.0] — „Kitsune Golden Master” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
