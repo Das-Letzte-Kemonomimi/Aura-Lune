@@ -26,6 +26,9 @@
 - **Persystencja parametrów analogowych**: zapamiętywanie wybranego RPM winylu (33/45), typu taśmy (FE-I/CR-II/METAL) oraz prędkości taśmy (7.5/3.75 IPS) w `localStorage`.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Kompletne przywracanie ostatnio odtwarzanego utworu po restarcie**:
+  - Naprawiono błąd, przez który przywracanie sesji nie ładowało utworu do UI ani silnika audio — teraz ostatnio odtwarzany utwór jest natychmiast załadowany w stanie gotowości (Standby), z zachowaną pozycją seek, tytułem, wykonawcą, okładką albumu oraz parametrami DSP i korektora.
+  - Ostatnio grany utwór jest natychmiast oznaczony jako aktywny w tabeli biblioteki oraz widoku albumów (różowe podświetlenie, ikona odtwarzania `Play` w trybie czuwania oraz `Zap` podczas grania).
 - **Eliminacja ucinania i ciasnoty opcji Lo-Fi FX**: całkowicie usunięto problem ucinania prawej krawędzi opcji — kliknięcie `LO-FI` na gramofonie lub magnetofonie otwiera teraz przestronny, wycentrowany modal dialogowy Pop-up.
 - **Dopasowanie szerokości widoku Now Playing**: rozszerzono kolumnę widgetów z 240px do 275px (rozmiar widgetów 265px) w trybach Vinyl, Tape i VU, zapewniając swobodne rozmieszczenie elementów sterujących bez ścisku.
 - **Reaktywność opcji wizualnych gramofonu**: kliknięcie 33⅓ vs 45 RPM natychmiast zmienia prędkość obrotową (190 vs 285 deg/s), kąt prowadzenia ramienia gramofonowego (tonearm) oraz dynamicznie aktualizuje dolny badge statusu w `App.tsx`.
