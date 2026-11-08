@@ -127,6 +127,10 @@
 - [x] **Zaawansowany Edytor Tagów (`TagEditorModal`)**:
   - Edycja tagów w stylu foobar2000 Properties: Tytuł, Wykonawca, Album, Album Artist, Rok, Gatunek, Ścieżka/Dysk, Komentarz.
   - Pobieranie i uzupełnianie metadanych bezpośrednio z bazy **MusicBrainz**.
+- [x] **Akustyczny Fingerprinting i Autotagowanie (Chromaprint / AcoustID)**:
+  - Generowanie fingerprintu audio Chromaprint (`fpcalc`) bezpośrednio z fali dźwiękowej.
+  - Automatyczna identyfikacja nieotagowanych utworów przez API **AcoustID** i powiązanie z nagraniami i wydaniami MusicBrainz.
+  - Wybór wariantów wydań (Studio, Live, Compilation) z procentem pewności dopasowania w oknie `TagEditorModal`.
 - [x] **Wyszukiwarka i Pielęgnacja Okładek (`CoverArtPickerModal`)**:
   - Przeszukiwanie bazy **Cover Art Archive** po MBID lub nazwie.
   - Wybór kandydatów okładek, podgląd w wysokiej rozdzielczości, zapis do cache lub folderu albumu.

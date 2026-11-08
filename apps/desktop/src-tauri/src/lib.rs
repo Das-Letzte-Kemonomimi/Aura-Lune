@@ -25,8 +25,8 @@ use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use library::LibraryScanner;
 use metadata::{
-    CoverArtArchiveClient, CoverCandidateDto, LastFmClient, LastFmSession, ListenBrainzClient,
-    MusicBrainzClient, ReleaseCandidateDto,
+    AcoustidClient, CoverArtArchiveClient, CoverCandidateDto, LastFmClient, LastFmSession,
+    ListenBrainzClient, MusicBrainzClient, ReleaseCandidateDto, TrackFingerprintMatchDto,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -2295,6 +2295,30 @@ async fn update_track_metadata(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+async fn is_fpcalc_available() -> Result<bool, String> {
+    Ok(AcoustidClient::is_fpcalc_available().await)
+}
+
+#[tauri::command]
+async fn identify_track_fingerprint(
+    path: String,
+    client_key: Option<String>,
+) -> Result<Vec<TrackFingerprintMatchDto>, String> {
+    let client = AcoustidClient::new(client_key);
+    let path_buf = std::path::PathBuf::from(&path);
+    let (duration, fingerprint) = AcoustidClient::generate_fingerprint(&path_buf)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let matches = client
+        .lookup(duration, &fingerprint)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(matches)
 }
 
 #[tauri::command]
@@ -5451,6 +5475,8 @@ pub fn run() {
             set_track_rating,
             get_track_metadata,
             update_track_metadata,
+            is_fpcalc_available,
+            identify_track_fingerprint,
             parse_cue_sheet_content,
             list_smart_playlist_tracks,
             show_desktop_notification,

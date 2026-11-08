@@ -15,9 +15,11 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
+pub mod acoustid;
 pub mod lastfm;
 pub mod listenbrainz;
 pub mod lyrics;
+pub use acoustid::*;
 pub use lastfm::*;
 pub use listenbrainz::*;
 pub use lyrics::*;
@@ -34,6 +36,8 @@ pub enum MetadataError {
     CoverNotFound(String),
     #[error("Błąd zapytania MusicBrainz: {0}")]
     Query(String),
+    #[error("Błąd AcoustID / Chromaprint: {0}")]
+    AcoustId(String),
 }
 
 /// Reprezentacja kandydata wydania z MusicBrainz.

@@ -13,7 +13,7 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.3)*
+- **Akustyczny Fingerprinting i Autotagowanie (Chromaprint / AcoustID)**: Pełna integracja z narzędziem `fpcalc` oraz serwisem AcoustID REST API (`crates/metadata/src/acoustid.rs`). Umożliwia 1-klikowe rozpoznawanie nieznanych utworów audio po samej fali dźwiękowej, automatyczne uzupełnianie tagów i wybór wydań w oknie `TagEditorModal`.
 
 ### 🛠️ Poprawiono (Fixed)
 - *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.3)*

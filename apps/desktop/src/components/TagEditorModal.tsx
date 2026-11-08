@@ -7,6 +7,7 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import type { Language } from '../i18n';
 
@@ -22,6 +23,21 @@ export interface TrackMetadataFullDto {
   disc_no: number | null;
   disc_total: number | null;
   comment: string | null;
+}
+
+export interface TrackFingerprintMatchDto {
+  acoustid: string;
+  recording_mbid: string | null;
+  release_mbid: string | null;
+  title: string;
+  artist: string;
+  album: string | null;
+  album_artist: string | null;
+  year: number | null;
+  track_no: number | null;
+  track_total: number | null;
+  disc_no: number | null;
+  score: number;
 }
 
 interface TagEditorModalProps {
@@ -66,6 +82,67 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   const [discNo, setDiscNo] = useState<string>('');
   const [discTotal, setDiscTotal] = useState<string>('');
   const [comment, setComment] = useState('');
+
+  // AcoustID state
+  const [identifying, setIdentifying] = useState(false);
+  const [fingerprintMatches, setFingerprintMatches] = useState<TrackFingerprintMatchDto[]>([]);
+  const [selectedMatchIndex, setSelectedMatchIndex] = useState<number | null>(null);
+  const [identifyMessage, setIdentifyMessage] = useState<string | null>(null);
+
+  const applyCandidate = (c: TrackFingerprintMatchDto) => {
+    setTitle(c.title);
+    setArtist(c.artist);
+    if (c.album) setAlbum(c.album);
+    if (c.album_artist) setAlbumArtist(c.album_artist);
+    if (c.year != null) setYear(c.year.toString());
+    if (c.track_no != null) setTrackNo(c.track_no.toString());
+    if (c.track_total != null) setTrackTotal(c.track_total.toString());
+    if (c.disc_no != null) setDiscNo(c.disc_no.toString());
+  };
+
+  const handleIdentifyFingerprint = async () => {
+    try {
+      setIdentifying(true);
+      setError(null);
+      setIdentifyMessage(null);
+      setFingerprintMatches([]);
+      setSelectedMatchIndex(null);
+
+      const matches = await invoke<TrackFingerprintMatchDto[]>('identify_track_fingerprint', {
+        path: filePath,
+      });
+
+      if (!matches || matches.length === 0) {
+        setIdentifyMessage(
+          currentLang === 'pl'
+            ? 'Nie znaleziono dopasowania w bazie AcoustID / MusicBrainz.'
+            : 'No matches found in AcoustID / MusicBrainz.'
+        );
+        return;
+      }
+
+      setFingerprintMatches(matches);
+      setSelectedMatchIndex(0);
+      applyCandidate(matches[0]);
+
+      setIdentifyMessage(
+        currentLang === 'pl'
+          ? `Zidentyfikowano: ${matches[0].artist} – ${matches[0].title} (${matches[0].score}% zgodności)`
+          : `Identified: ${matches[0].artist} – ${matches[0].title} (${matches[0].score}% match)`
+      );
+    } catch (err: any) {
+      setError(
+        typeof err === 'string'
+          ? err
+          : err?.message ||
+              (currentLang === 'pl'
+                ? 'Błąd identyfikacji AcoustID (upewnij się, że masz pakiet chromaprint / fpcalc).'
+                : 'AcoustID identification error (check if fpcalc / chromaprint is installed).')
+      );
+    } finally {
+      setIdentifying(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -251,48 +328,191 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
 
         {/* Content */}
         <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
-          {/* File Audio Specs Banner */}
+          {/* File Audio Specs Banner & AcoustID Trigger */}
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 16px',
               background: 'rgba(0, 0, 0, 0.3)',
-              borderRadius: '10px',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              marginBottom: '20px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              marginBottom: '18px',
               display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '16px',
-              fontSize: '0.78rem',
-              color: '#cbd5e1',
+              gap: '12px',
             }}
           >
-            <div>
-              <span style={{ color: '#64748b' }}>Format: </span>
-              <strong>{format?.toUpperCase() || 'AUDIO'}</strong>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '14px',
+                fontSize: '0.78rem',
+                color: '#cbd5e1',
+              }}
+            >
+              <div>
+                <span style={{ color: '#64748b' }}>Format: </span>
+                <strong>{format?.toUpperCase() || 'AUDIO'}</strong>
+              </div>
+              {bitDepth && (
+                <div>
+                  <span style={{ color: '#64748b' }}>Bit depth: </span>
+                  <strong>{bitDepth}-bit</strong>
+                </div>
+              )}
+              {sampleRate && (
+                <div>
+                  <span style={{ color: '#64748b' }}>Sample rate: </span>
+                  <strong>{(sampleRate / 1000).toFixed(1)} kHz</strong>
+                </div>
+              )}
+              {channels && (
+                <div>
+                  <span style={{ color: '#64748b' }}>Channels: </span>
+                  <strong>{channels === 2 ? 'Stereo (2ch)' : `${channels} ch`}</strong>
+                </div>
+              )}
+              <div>
+                <span style={{ color: '#64748b' }}>File size: </span>
+                <strong>{formatFileSize(fileSize)}</strong>
+              </div>
             </div>
-            {bitDepth && (
-              <div>
-                <span style={{ color: '#64748b' }}>Bit depth: </span>
-                <strong>{bitDepth}-bit</strong>
-              </div>
-            )}
-            {sampleRate && (
-              <div>
-                <span style={{ color: '#64748b' }}>Sample rate: </span>
-                <strong>{(sampleRate / 1000).toFixed(1)} kHz</strong>
-              </div>
-            )}
-            {channels && (
-              <div>
-                <span style={{ color: '#64748b' }}>Channels: </span>
-                <strong>{channels === 2 ? 'Stereo (2ch)' : `${channels} ch`}</strong>
-              </div>
-            )}
-            <div>
-              <span style={{ color: '#64748b' }}>File size: </span>
-              <strong>{formatFileSize(fileSize)}</strong>
-            </div>
+
+            <button
+              type="button"
+              onClick={handleIdentifyFingerprint}
+              disabled={loading || saving || identifying}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(236, 72, 153, 0.25))',
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                color: '#f8fafc',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: loading || saving || identifying ? 'default' : 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 10px rgba(168, 85, 247, 0.2)',
+              }}
+              title={
+                currentLang === 'pl'
+                  ? 'Generuje akustyczny odcisk palca Chromaprint i pobiera metadane z AcoustID / MusicBrainz'
+                  : 'Generates Chromaprint audio fingerprint and fetches metadata from AcoustID / MusicBrainz'
+              }
+            >
+              {identifying ? (
+                <>
+                  <Loader2 size={15} style={{ animation: 'spin 1s linear infinite', color: '#c084fc' }} />
+                  <span>{currentLang === 'pl' ? 'Identyfikacja audio...' : 'Identifying audio...'}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={15} style={{ color: '#e879f9' }} />
+                  <span>{currentLang === 'pl' ? 'Wykryj z fali audio (AcoustID)' : 'Identify via Audio (AcoustID)'}</span>
+                </>
+              )}
+            </button>
           </div>
+
+          {identifyMessage && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                borderRadius: '8px',
+                color: '#6ee7b7',
+                fontSize: '0.84rem',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Sparkles size={16} />
+              <span>{identifyMessage}</span>
+            </div>
+          )}
+
+          {fingerprintMatches.length > 1 && (
+            <div
+              style={{
+                marginBottom: '18px',
+                padding: '12px 14px',
+                background: 'rgba(168, 85, 247, 0.08)',
+                borderRadius: '10px',
+                border: '1px solid rgba(168, 85, 247, 0.25)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  color: '#d8b4fe',
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <TagIcon size={14} />
+                <span>
+                  {currentLang === 'pl'
+                    ? `Wybierz wariant wydania (${fingerprintMatches.length} znalezionych kandydatów):`
+                    : `Select release candidate (${fingerprintMatches.length} matches found):`}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                {fingerprintMatches.map((m, idx) => (
+                  <button
+                    key={`${m.release_mbid || idx}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMatchIndex(idx);
+                      applyCandidate(m);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: selectedMatchIndex === idx ? 'rgba(168, 85, 247, 0.28)' : 'rgba(0, 0, 0, 0.35)',
+                      border: selectedMatchIndex === idx ? '1px solid var(--accent-purple, #a855f7)' : '1px solid rgba(255, 255, 255, 0.08)',
+                      color: '#f8fafc',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: '0.82rem',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '10px' }}>
+                      <strong>{m.title}</strong> — {m.artist} • <span style={{ color: '#cbd5e1' }}>{m.album || 'Single/Release'}</span> {m.year ? `(${m.year})` : ''}
+                    </div>
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: m.score >= 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                        color: m.score >= 80 ? '#34d399' : '#facc15',
+                        border: m.score >= 80 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+                      }}
+                    >
+                      {m.score}% match
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div
