@@ -66,12 +66,40 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
       let rawRight = 0;
 
       if (isPlaying && spectrum.length > 0) {
-        const half = Math.floor(spectrum.length / 2);
-        for (let i = 0; i < half; i++) rawLeft += spectrum[i] || 0;
-        for (let i = half; i < spectrum.length; i++) rawRight += spectrum[i] || 0;
+        if (spectrum.length >= 32) {
+          // Prawdziwe stereo: pierwsze 16 pasm to L, drugie 16 pasm to R
+          const half = Math.floor(spectrum.length / 2);
+          let sumL = 0;
+          let sumR = 0;
+          for (let i = 0; i < half; i++) sumL += spectrum[i] || 0;
+          for (let i = half; i < spectrum.length; i++) sumR += spectrum[i] || 0;
+          rawLeft = (sumL / half) * volume * 1.4;
+          rawRight = (sumR / (spectrum.length - half)) * volume * 1.4;
+        } else {
+          // Pełne pasmo (bas, wokal, transjenty i góra) dla obu kanałów w oparciu o wagi psychoakustyczne
+          let totalEnergy = 0;
+          const weights = [1.2, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 1.0, 1.0, 1.05, 1.1, 1.05, 1.0, 0.95, 0.9];
+          let weightSum = 0;
+          for (let i = 0; i < spectrum.length; i++) {
+            const w = weights[i] || 1.0;
+            totalEnergy += (spectrum[i] || 0) * w;
+            weightSum += w;
+          }
+          const avg = (totalEnergy / Math.max(1, weightSum)) * volume * 1.45;
 
-        rawLeft = (rawLeft / Math.max(1, half)) * volume * 1.5;
-        rawRight = (rawRight / Math.max(1, spectrum.length - half)) * volume * 1.5;
+          // Naturalna mikro-dynamika stereofoniczna (subtelna niezależność obu wskazówek bez obcinania basu na kanale R)
+          let diffL = 0;
+          let diffR = 0;
+          for (let i = 0; i < spectrum.length; i++) {
+            if (i % 2 === 0) diffL += spectrum[i] || 0;
+            else diffR += spectrum[i] || 0;
+          }
+          const stereoRatio = (diffL - diffR) / Math.max(0.01, diffL + diffR);
+          const diffFactor = Math.max(-0.15, Math.min(0.15, stereoRatio * 0.25));
+
+          rawLeft = Math.max(0, avg * (1.0 + diffFactor));
+          rawRight = Math.max(0, avg * (1.0 - diffFactor));
+        }
       }
 
       // Ballistyka analogowa VU: szybki narost (attack), płynne opadanie (decay)
@@ -342,9 +370,35 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText('VU', pivotX, pivotY - radius * 0.52);
 
-    // Cyfrowy odczyt dB w eleganckim badge LCD (między łukiem a pivotem, nie nachodzi na wskazówkę!)
+    // Cyfrowy odczyt dB w eleganckim badge LCD (interpolacja decybeli dokładnie odpowiadająca podziałce tarczy VU)
     const clampedLevel = Math.max(0.0, Math.min(1.05, level));
-    const dbValue = clampedLevel <= 0.01 ? '-∞ dB' : `${((clampedLevel - redZoneThreshold) * 15).toFixed(1)} dB`;
+    const calcDb = (norm: number): string => {
+      if (norm <= 0.01) return '-∞ dB';
+      const pts = [
+        { n: 0.00, db: -20.0 },
+        { n: 0.26, db: -10.0 },
+        { n: 0.44, db: -7.0 },
+        { n: 0.60, db: -5.0 },
+        { n: 0.72, db: -3.0 },
+        { n: 0.80, db: 0.0 },
+        { n: 0.90, db: 1.0 },
+        { n: 1.00, db: 3.0 },
+        { n: 1.05, db: 3.8 },
+      ];
+      if (norm <= pts[0].n) return `${pts[0].db.toFixed(1)} dB`;
+      if (norm >= pts[pts.length - 1].n) return `+${pts[pts.length - 1].db.toFixed(1)} dB`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        if (norm >= p1.n && norm <= p2.n) {
+          const t = (norm - p1.n) / (p2.n - p1.n);
+          const val = p1.db + t * (p2.db - p1.db);
+          return val > 0 ? `+${val.toFixed(1)} dB` : `${val.toFixed(1)} dB`;
+        }
+      }
+      return '0.0 dB';
+    };
+    const dbValue = calcDb(clampedLevel);
 
     const badgeW = 34;
     const badgeH = 10.5;

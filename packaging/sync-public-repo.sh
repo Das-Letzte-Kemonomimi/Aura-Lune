@@ -66,27 +66,38 @@ echo "🔙 Powrót do gałęzi $CURRENT_BRANCH."
 
 # 8. Utworzenie lub aktualizacja wydania na GitHubie (GitHub Release) z AppImage
 APPIMAGE_PATH="target/release/bundle/appimage/Auralune_${CURRENT_VERSION}_amd64.AppImage"
-if [[ -f "$APPIMAGE_PATH" ]]; then
-    echo "📦 Sprawdzanie wydania $TAG_NAME na $PUBLIC_REPO..."
-    if gh release view "$TAG_NAME" --repo "$PUBLIC_REPO" &>/dev/null; then
-        echo "🔄 Wydanie $TAG_NAME już istnieje na $PUBLIC_REPO, przesyłanie AppImage..."
+if [[ ! -f "$APPIMAGE_PATH" ]]; then
+    echo "📦 Budowanie paczki AppImage za pomocą Tauri 2..."
+    (cd apps/desktop && npx tauri build --bundles appimage) || true
+fi
+
+echo "📦 Sprawdzanie wydania $TAG_NAME na $PUBLIC_REPO..."
+if gh release view "$TAG_NAME" --repo "$PUBLIC_REPO" &>/dev/null; then
+    echo "🔄 Wydanie $TAG_NAME już istnieje na $PUBLIC_REPO."
+    if [[ -f "$APPIMAGE_PATH" ]]; then
+        echo "Przesyłanie $APPIMAGE_PATH..."
         gh release upload "$TAG_NAME" "$APPIMAGE_PATH" --repo "$PUBLIC_REPO" --clobber
-    else
-        echo "✨ Tworzenie nowego wydania $TAG_NAME na $PUBLIC_REPO..."
+    fi
+else
+    echo "✨ Tworzenie nowego wydania $TAG_NAME na $PUBLIC_REPO..."
+    if [[ -f "$APPIMAGE_PATH" ]]; then
         gh release create "$TAG_NAME" "$APPIMAGE_PATH" \
             --repo "$PUBLIC_REPO" \
             --title "Auralune $CURRENT_VERSION — $RELEASE_TITLE" \
             --notes "$RELEASE_NOTES"
+    else
+        gh release create "$TAG_NAME" \
+            --repo "$PUBLIC_REPO" \
+            --title "Auralune $CURRENT_VERSION — $RELEASE_TITLE" \
+            --notes "$RELEASE_NOTES"
     fi
-    echo "✅ Wydanie $TAG_NAME w $PUBLIC_REPO jest gotowe i zawiera AppImage!"
+fi
+echo "✅ Wydanie $TAG_NAME w $PUBLIC_REPO jest gotowe na GitHubie!"
 
-    BAZZITE_APPIMAGE="target/dist/Auralune_${CURRENT_VERSION}_bazzite_amd64.AppImage"
-    if [[ -f "$BAZZITE_APPIMAGE" ]]; then
-        echo "🎮 Wykryto dedykowany AppImage dla Bazzite: $BAZZITE_APPIMAGE, przesyłanie..."
-        gh release upload "$TAG_NAME" "$BAZZITE_APPIMAGE" --repo "$PUBLIC_REPO" --clobber
-    fi
-else
-    echo "⚠️ Ostrzeżenie: Plik $APPIMAGE_PATH nie został znaleziony. Pomiń upload AppImage."
+BAZZITE_APPIMAGE="target/dist/Auralune_${CURRENT_VERSION}_bazzite_amd64.AppImage"
+if [[ -f "$BAZZITE_APPIMAGE" ]]; then
+    echo "🎮 Wykryto dedykowany AppImage dla Bazzite: $BAZZITE_APPIMAGE, przesyłanie..."
+    gh release upload "$TAG_NAME" "$BAZZITE_APPIMAGE" --repo "$PUBLIC_REPO" --clobber
 fi
 
 # 9. Aktualizacja opisu repozytoriów na GitHubie (sekcja About)

@@ -18,11 +18,42 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.1',
+    codename: 'Kitsune Precision & Stereo Balance',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Balans stereofoniczny i fizyka wskaźnika VU (VuMeterWidget): pełnopasmowa psychoakustyczna analiza energii ITU-R BS.1770 dla obu kanałów oraz zsynchronizowanie cyfrowego odczytu decybeli na tarczy LCD z fizyczną podziałką.',
+        en: 'VU-Meter Stereo Balance & Ballistics (VuMeterWidget): full-bandwidth ITU-R BS.1770 psychoacoustic energy analysis for both channels and synchronization of the digital dB LCD readout with the dial markings.',
+        de: 'VU-Meter Stereobalance & Ballistik (VuMeterWidget): Vollbandbreiten ITU-R BS.1770 psychoakustische Energieanalyse für beide Kanäle und Synchronisation der digitalen dB-Anzeige mit der Skalenteilung.',
+        fi: 'VU-mittarin stereotasapaino ja ballistiikka (VuMeterWidget): Koko kaistanleveyden psykoakustinen ITU-R BS.1770 -energia-analyysi molemmille kanaville sekä digitaalisen dB-lukeman synkronointi asteikon kanssa.',
+        la: 'Aequilibrium stereophonicum et physica indicis VU (VuMeterWidget): analysis energiae ITU-R BS.1770 in ambobus canalibus et synchronizatio lectionis dB cum scala.',
+      },
+      {
+        pl: 'Kąt wychylenia ramienia gramofonowego (VinylTurntable): wierzchołek ramienia opada teraz precyzyjnie w lewo na rowki wirującej płyty winylowej, a w stanie pauzy spoczywa w uchwycie.',
+        en: 'Vinyl Turntable Tonearm Angle (VinylTurntable): tonearm needle now swings accurately to the left onto the spinning vinyl grooves, resting in its arm cradle when paused.',
+        de: 'Plattenspieler-Tonarmwinkel (VinylTurntable): Die Nadel schwenkt nun präzise nach links auf die Rillen der Schallplatte und ruht bei Pause in der Halterung.',
+        fi: 'Levysoittimen äänivarren kulma (VinylTurntable): Äänivarsi kääntyy nyt tarkasti vasemmalle pyörivän vinyylilevyn uriin ja lepää telineessään taukotilassa.',
+        la: 'Angulus brachii phonographici (VinylTurntable): acus accurate ad sinistram super sulcos disci devolvitur et in statione requiescit.',
+      },
+      {
+        pl: 'Wdrożenie komend set_dsp_params i set_equalizer_params w backendzie Tauri: eliminacja błędu Error: Command set_dsp_params not found przy aktywacji Profili Sygnaturowych Auralune 1.0.',
+        en: 'Implementation of set_dsp_params and set_equalizer_params Tauri commands: resolved Error: Command set_dsp_params not found when triggering 1.0 Signature Mastering Profiles.',
+        de: 'Implementierung der Tauri-Befehle set_dsp_params und set_equalizer_params: Behebung des Fehlers bei der Aktivierung der Signature-Mastering-Profile.',
+        fi: 'Tauri-komentojen set_dsp_params ja set_equalizer_params toteutus: korjattu komennon puuttumisvirhe 1.0-masterointiprofiileja käytettäessä.',
+        la: 'Implementatio mandatorum set_dsp_params et set_equalizer_params: solutio erroris in formis sonoris 1.0 excitandis.',
+      },
+    ],
+  },
+  {
     version: '1.0.0',
     codename: 'Kitsune Golden Master',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Narzędzie Diagnostyczne Linux Audio & System Health Check (AudioHealthCheckModal): kompleksowy audyt PipeWire, GStreamera, silników DSP Rubber Band v3 i SoundTouch, dekoderów oraz spójności bazy SQLite z opcją kopiowania raportu.',
