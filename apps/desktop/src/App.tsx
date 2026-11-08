@@ -4027,6 +4027,7 @@ export default function App() {
       }
       // Natychmiastowa aktualizacja optymistyczna (zero-freeze)
       setQueue((prev) => ({ ...prev, current_index: targetIndex }));
+      setStatus((prev) => ({ ...prev, state: 'Playing' }));
       const item = await invoke<QueueItem | null>('play_queue_index', {
         index: targetIndex,
         expectedId: queueItem?.id ?? null,

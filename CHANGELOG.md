@@ -9,6 +9,19 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.5] — „Audible Queue & Seamless Transitions” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Poprawiono (Fixed)
+- **Przywracanie głośności i natychmiastowe odtwarzanie po kliknięciu w kolejce (Audible Queue Playback)**:
+  - Usunięto błąd wyciszenia dźwięku (`volume = 0.0`) po bezpośrednim kliknięciu utworu w kolejce odtwarzania (`play_index`) oraz przy ustawianiu nowej kolejki (`set_queue`) — `play_with_fade(true)` płynnie podnosi poziom głośności w 32 ms do nominalnego poziomu `user_volume`.
+  - W komendzie `play()` wprowadzono bezwzględne przywracanie właściwości `volume` elementu GStreamera do wartości `user_volume`, eliminując ryzyko odtwarzania w ciszy po wyciszeniu anti-pop.
+  - Zoptymalizowano ponowne kliknięcie aktualnie odtwarzanego utworu w kolejce (`is_same_track`) — szybki skok na początek utworu (`seek(0)`) bez zbędnego przeładowywania i niszczenia potoku GStreamera.
+  - Zapewniono automatyczne i płynne podnoszenie głośności przy zmianie utworów `play_next` oraz `play_previous` przy wyłączonym manualnym crossfade (`crossfade_ms == 0`).
+  - Wprowadzono optymistyczną aktualizację `status.state = 'Playing'` w interfejsie użytkownika React natychmiast po kliknięciu elementu kolejki.
+
+---
+
 ## [1.0.4] — „Flawless Stream & Zero-Freeze Queue” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
