@@ -704,6 +704,23 @@ impl AudioEngine {
 
     /// Rozpoczyna lub wznawia odtwarzanie.
     pub fn play(&self) -> Result<(), AudioEngineError> {
+        let uri_to_load = {
+            let inner = self.inner.lock().unwrap();
+            if inner.current_uri.is_none() {
+                self.queue
+                    .lock()
+                    .unwrap()
+                    .current_item()
+                    .map(|it| it.uri.clone())
+            } else {
+                None
+            }
+        };
+
+        if let Some(uri) = uri_to_load {
+            self.load_uri(&uri)?;
+        }
+
         let pipeline = {
             let mut inner = self.inner.lock().unwrap();
             inner.state = PlaybackState::Playing;
@@ -718,6 +735,23 @@ impl AudioEngine {
     pub fn play_with_fade(&self, fade: bool) -> Result<(), AudioEngineError> {
         if !fade {
             return self.play();
+        }
+
+        let uri_to_load = {
+            let inner = self.inner.lock().unwrap();
+            if inner.current_uri.is_none() {
+                self.queue
+                    .lock()
+                    .unwrap()
+                    .current_item()
+                    .map(|it| it.uri.clone())
+            } else {
+                None
+            }
+        };
+
+        if let Some(uri) = uri_to_load {
+            self.load_uri(&uri)?;
         }
 
         let (pipeline, volume, target_vol) = {
@@ -1844,6 +1878,12 @@ impl AudioEngine {
             }
         }
         Ok(active_item)
+    }
+
+    /// Przywraca elementy i indeks kolejki bez natychmiastowego ładowania i odtwarzania przez GStreamer (bezpieczny start aplikacji).
+    pub fn restore_queue(&self, items: Vec<QueueItem>, current_index: Option<usize>) {
+        let mut q = self.queue.lock().unwrap();
+        q.set_items(items, current_index);
     }
 
     /// Ustawia lub dodaje bieżący aktywny utwór do kolejki.

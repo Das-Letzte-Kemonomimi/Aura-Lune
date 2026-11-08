@@ -31,6 +31,7 @@ tracing-subscriber.workspace = true
 thiserror.workspace = true
 lofty.workspace = true
 base64 = { workspace = true }
+gstreamer = { workspace = true }
 glib = { workspace = true }
 walkdir = { workspace = true }
 url = "2"

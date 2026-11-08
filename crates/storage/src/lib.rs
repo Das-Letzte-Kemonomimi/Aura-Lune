@@ -610,6 +610,22 @@ impl Database {
         Ok(res)
     }
 
+    /// Zwraca łączną liczbę utworów w bibliotece.
+    pub async fn count_tracks(&self) -> Result<i64, StorageError> {
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tracks;")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(count.0)
+    }
+
+    /// Zwraca łączną liczbę albumów w bibliotece.
+    pub async fn count_albums(&self) -> Result<i64, StorageError> {
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM albums;")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(count.0)
+    }
+
     /// Pobiera album na podstawie jego ID.
     pub async fn get_album_by_id(&self, id: i64) -> Result<Option<AlbumRecord>, StorageError> {
         let res = sqlx::query_as::<_, AlbumRecord>("SELECT * FROM albums WHERE id = ?1 LIMIT 1;")

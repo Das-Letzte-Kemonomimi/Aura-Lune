@@ -56,6 +56,8 @@ interface CommandPaletteModalProps {
   onOpenAutoEq?: () => void;
   onOpenParametricEq?: () => void;
   onOpenDynamicsStudio?: () => void;
+  onShuffleAll?: () => void;
+  onOpenHealthCheck?: () => void;
   onSelectTab: (tab: string) => void;
 }
 
@@ -83,6 +85,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenAutoEq,
   onOpenParametricEq,
   onOpenDynamicsStudio,
+  onShuffleAll,
+  onOpenHealthCheck,
   onSelectTab,
 }) => {
   const [query, setQuery] = useState('');
@@ -144,6 +148,34 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Shuffle size={18} />,
         onExecute: () => {
           onToggleShuffle();
+          onClose();
+        },
+      },
+      {
+        id: 'action-shuffle-all',
+        type: 'action',
+        title: isPl ? '🔀 Wymieszaj całą bibliotekę (Shuffle All)' : '🔀 Shuffle All Tracks',
+        subtitle: isPl ? 'Wylosuj wszystkie utwory do kolejki i natychmiast rozpocznij odtwarzanie' : 'Randomize entire library into queue and play',
+        icon: <Shuffle size={18} color="var(--accent-pink)" />,
+        badge: '1.0',
+        onExecute: () => {
+          if (onShuffleAll) {
+            onShuffleAll();
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'action-health-check',
+        type: 'action',
+        title: isPl ? '🩺 Test środowiska audio (Linux Audio Health Check)' : '🩺 Linux Audio Health Check',
+        subtitle: isPl ? 'Audyt PipeWire, silników DSP Rubber Band/SoundTouch, kodeków i bazy SQLite' : 'Audit PipeWire, DSP engines, codecs and SQLite',
+        icon: <Activity size={18} color="#4ade80" />,
+        badge: 'v1.0',
+        onExecute: () => {
+          if (onOpenHealthCheck) {
+            onOpenHealthCheck();
+          }
           onClose();
         },
       },
