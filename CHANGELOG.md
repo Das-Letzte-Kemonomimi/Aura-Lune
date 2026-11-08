@@ -22,6 +22,10 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
     - Metoda `load_uri()` bezpiecznie obsługuje `sync_state_with_parent()` bez przerywania procedury ładowania, a także prawidłowo dekoduje URI ze znakami specjalnymi i spacjami (`glib::filename_from_uri`).
   - W interfejsie frontendowym (`App.tsx`):
     - `handlePlayPause` przed wywołaniem komendy `play` sprawdza gotowość aktywnego utworu ze wznowionej sesji, gwarantując natychmiastowy i bezbłędny start odtwarzania.
+- **Geometria ramienia gramofonowego (`VinylTurntable`)**:
+  - Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`-22deg` dla 33⅓ RPM, `-27deg` dla 45 RPM) oraz kąt wkładki igły (`+15deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
+- **Równowaga stereo i ballistyka VU-Metera (`VuMeterWidget`)**:
+  - Usunięto podział pasm częstotliwościowych FFT, który sztucznie traktował wysokie tony jako prawy kanał, powodując zaniżanie wskazań prawej igły do -11.8 dB. Wprowadzono pełnopasmową analizę psychoakustyczną z mikro-dynamiką stereo dla obu kanałów.
 
 ---
 
