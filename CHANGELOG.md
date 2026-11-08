@@ -9,6 +9,22 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.6] — „PipeWire Pro-Audio Stream & Pure Float Pipeline” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Poprawiono (Fixed)
+- **Kompletna eliminacja rwania dźwięku i xrunów w PipeWire (Anti-Tear Real-Time Audio Architecture)**:
+  - Przeniesiono `queue_sink` (bufor bezpieczeństwa 600 ms) na koniec łańcucha efektów audio — za analizatorem widma FFT (`spectrum`), korektorem graficznym, kompresorem, saturatorem i suwakiem głośności (`volume`). Wszelkie ciężkie obliczenia DSP i wizualizacji odbywają się w wątku roboczym, a wątek wyjściowy pobiera gotowe próbki bez ryzyka opóźnień.
+  - Skonfigurowano element `pipewiresink` z dedykowanymi właściwościami strumienia audio (`media.type=Audio`, `media.category=Playback`, `media.role=Music`, `node.latency=1024/48000`), co zapewnia serwerowi PipeWire optymalny bufor odtwarzania muzyki i eliminuje wymuszanie zbyt ciasnego quantum 256.
+  - Włączono dynamiczną kompensację dryfu zegara sprzętowego (`slave-method=resample`) w `pipewiresink`, eliminując rozbieżności częstotliwości i okresowe zacięcia dźwięku na zewnętrznych przetwornikach DAC (np. Focusrite Scarlett Solo).
+  - Skorygowano `processing-deadline` zlewu PipeWire do optymalnych 20 ms, usuwając błędy xrun przy rozruchu potoku.
+  - Dodano dedykowany element `audioresample_sink` przed zlewem wyjściowym dla krystalicznie czystego resamplingu częstotliwości (44.1 kHz -> 48.0 kHz).
+  - Wprowadzono wstępne napełnianie bufora (`min-threshold-time: 50ms`) w `queue_sink`, gwarantujące beztrzaskowy start i gładkie przełączanie utworów.
+  - Usunięto element `cutter` z aktywnej ścieżki wyjściowej — powrót do w 100% natywnego, 32-bitowego toru audio (`F32LE`) i usunięcie ucinania cichych partii instrumentalnych w muzyce.
+  - Dodano bufor wejściowy `queue_in` (500 ms) po dekoderze, chroniący przed zacięciami I/O przy odtwarzaniu z wolniejszych pamięci USB i dysków zewnętrznych.
+
+---
+
 ## [1.0.5] — „Audible Queue & Seamless Transitions” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 

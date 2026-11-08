@@ -18,11 +18,56 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.6',
+    codename: 'PipeWire Pro-Audio Stream & Pure Float Pipeline',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Kompletna eliminacja rwania dźwięku (Audio Stuttering & Tearing Fix): przeniesienie bufora queue_sink (600ms) za analizator widma FFT i suwak głośności, izolując zlew wyjściowy od obciążenia obliczeniowego.',
+        en: 'Complete audio stuttering and tearing elimination: moved queue_sink buffer (600ms) after spectrum FFT and volume control, insulating output sink from processing load.',
+        de: 'Vollständige Behebung von Audio-Rucklern: Verlagerung des queue_sink-Puffers (600ms) hinter das Spektrums-FFT und die Lautstärkeregelung.',
+        fi: 'Äänen pätkimisen ja repeilyn täydellinen poisto: queue_sink-puskuri (600ms) siirretty spektrianalysaattorin ja äänenvoimakkuussäätimen jälkeen.',
+        la: 'Perfecta interrupti soni eliminatio: receptaculum queue_sink (600ms) post spectrum et altitudinem soni dispositum ad omnem lacunam vitandam.',
+      },
+      {
+        pl: 'Dedykowana konfiguracja PipeWire dla audiofilów (media.role=Music, node.latency=1024/48000): eliminacja wymuszania ciasnego trybu DAW (quantum 256 / 5.33ms) na Focusrite Scarlett Solo i zewnętrznych DAC.',
+        en: 'Dedicated PipeWire audiophile configuration (media.role=Music, node.latency=1024/48000): prevents tight DAW quantum (256 samples / 5.33ms) starvation on Focusrite Scarlett Solo and external USB DACs.',
+        de: 'Spezielle PipeWire-Audiophil-Konfiguration (media.role=Music): Verhindert zu geringe DAW-Latenzen auf Focusrite Scarlett Solo und externen USB-DACs.',
+        fi: 'Erillinen PipeWire-musiikkikonfiguraatio (media.role=Music): estää liian tiukan DAW-kvantin aiheuttaman pätkimisen Focusrite Scarlett Solo -laitteissa.',
+        la: 'Propria dispositio PipeWire pro musica (media.role=Music): vitat angustias quanti 256 in USB DAC.',
+      },
+      {
+        pl: 'Dynamiczne dopasowanie zegara (slave-method=resample): eliminacja dryfu częstotliwości próbkowania i okresowych zacięć buforów na przetwornikach audio.',
+        en: 'Dynamic clock matching (slave-method=resample): eliminates crystal drift and periodic buffer drops between GStreamer and external hardware DACs.',
+        de: 'Dynamische Taktangleichung (slave-method=resample): Behebt Taktdrift zwischen GStreamer und externen Hardware-DACs.',
+        fi: 'Dynaaminen kellotuksen sovitus (slave-method=resample): poistaa GStreamerin ja ulkoisen DAC:n välisen kellopoikkeaman.',
+        la: 'Accommodatio horologii dynamica (slave-method=resample): eliminat discrepantiam temporis inter GStreamer et DAC externum.',
+      },
+      {
+        pl: 'Usunięcie elementu cutter z głównego toru audio: przywrócenie czystego 32-bitowego toru F32LE bez sztucznego obniżania głębi do 16-bit i ucinania cichych partii muzycznych.',
+        en: 'Removed cutter element from output audio chain: restored pure 32-bit float (F32LE) path without artificial 16-bit downsampling or cutting quiet acoustic sections.',
+        de: 'Entfernung des Cutter-Elements: Wiederherstellung des reinen 32-Bit-Float-Signalpfads (F32LE) ohne 16-Bit-Verringerung.',
+        fi: 'Cutter-elementin poisto toistoketjusta: palautettu puhdas 32-bittinen liukulukupolku (F32LE) ilman 16-bittistä kvantisointia.',
+        la: 'Remotio elementi cutter ex audio: restitutus purus 32-bit cursus (F32LE) sine ulla imminutione ad 16-bit.',
+      },
+      {
+        pl: 'Buforowanie wejściowe queue_in (500ms) i wstępne napełnianie queue_sink (50ms): całkowite uodpornienie na opóźnienia odczytu z dysków USB i gładki start odtwarzania.',
+        en: 'Input decoupling queue_in (500ms) and initial queue_sink threshold (50ms): total resilience against USB disk jitter and click-free playback startup.',
+        de: 'Eingangspuffer queue_in (500ms) und Vorfüllung (50ms): Volle Immunität gegen USB-I/O-Verzögerungen und sauberer Start.',
+        fi: 'Sisääntulopuskuri queue_in (500ms) ja käynnistyskynnys (50ms): täydellinen suoja USB-levyjen viiveitä vastaan ja napsahdukseton toiston aloitus.',
+        la: 'Receptacula queue_in (500ms) et queue_sink (50ms): tutissima protectio adversus moras USB et sonus limpidissimus.',
+      },
+    ],
+  },
+  {
     version: '1.0.5',
     codename: 'Audible Queue & Seamless Transitions',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {
