@@ -26,6 +26,8 @@
 - **Persystencja parametrów analogowych**: zapamiętywanie wybranego RPM winylu (33/45), typu taśmy (FE-I/CR-II/METAL) oraz prędkości taśmy (7.5/3.75 IPS) w `localStorage`.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Eliminacja zakleszczenia (deadlock) podczas startu aplikacji**:
+  - Wyeliminowano konflikt blokad między wątkiem głównym GTK, potokiem GStreamer i PipeWire — przywracanie sesji i rejestracja aktywnego elementu kolejki (`QueueItem`) oraz metadanych MPRIS odbywa się teraz w sposób atomowy i bezkolizyjny w backendzie, bez wywoływania równoczesnego `load_file` z frontendu.
 - **Kąt parkowania ramienia gramofonowego (`VinylTurntable`)**:
   - Skorygowano pozycję spoczynkową ramienia na `0deg` (zamiast `-28deg`, które wypychało igłę poza obrys gramofonu) — ramię w stanie pauzy spoczywa teraz pionowo wewnątrz karty na dedykowanej podpórce (arm rest cradle).
   - Przywrócono bezpieczne przycinanie `overflow: hidden` na plincie gramofonu i magnetofonu, eliminując jakiekolwiek wystawanie elementów poza zaokrąglone krawędzie karty.
