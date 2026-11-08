@@ -19,6 +19,8 @@
 - [x] **Gapless Playback**: Bezprzerwowe odtwarzanie kolejnych utworów przy wsparciu dekodera.
 - [x] **Smart Silence Trimming**: Automatyczne wykrywanie i przycinanie ciszy na początku i końcu utworu (`get_silence_trimming_config` / `set_silence_trimming_config`).
 - [x] **Pełne zapamiętywanie sesji odtwarzania (Session Persistence)**: Opcjonalne przywracanie ostatniego utworu, dokładnej pozycji czasowej, poziomu głośności (liniowego oraz dB), parametrów DSP oraz trybu widoku po ponownym uruchomieniu z dedykowanym przyciskiem w Ustawieniach.
+- [x] **Audiophile Audio Path & Bit-Perfect Stream Inspector (`AudioPathInspectorModal`)**:
+  - Interaktywny inspektor toru audio w stylu Powerampa po kliknięciu plakietki jakości PipeWire: wizualizacja pełnego łańcucha sygnałowego (`Source -> GStreamer Decoder -> DSP Modulator -> Audio Effects -> PipeWire Sink & DAC`), wskaźnik `BIT-PERFECT DIRECT` vs `PROCESSED`, parametry formatu, częstotliwości próbkowania, głębi bitowej, latencji oraz 1-klikowy reset do czystego bit-perfect passthrough.
 
 ---
 
