@@ -71,5 +71,9 @@ fn test_audio_engine_spectrum_emission() {
         spectrum_received,
         "Powinien zostać odebrany co najmniej jeden komunikat PlayerEvent::Spectrum"
     );
-    assert_eq!(magnitudes.len(), 16, "Spektrum powinno zawierać 16 pasm");
+    assert!(
+        magnitudes.len() == 16 || magnitudes.len() == 32,
+        "Spektrum powinno zawierać 16 (mono) lub 32 (stereo 16L+16R) pasma, otrzymano: {}",
+        magnitudes.len()
+    );
 }

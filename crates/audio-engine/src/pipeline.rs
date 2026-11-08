@@ -1524,6 +1524,7 @@ impl AudioEngine {
                         if let Some(structure) = elem_msg.structure() {
                             if structure.name() == "spectrum" {
                                 if let Ok(val) = structure.value("magnitude") {
+                                    let mut channel_mags: Vec<Vec<f32>> = Vec::new();
                                     let mut raw_db = Vec::new();
 
                                     let extract_floats = |v: &glib::SendValue| -> Option<f32> {
@@ -1538,21 +1539,12 @@ impl AudioEngine {
                                                 raw_db.push(db);
                                             } else if let Ok(sub_list) = item.get::<gst::ListRef>()
                                             {
-                                                // Obsługa kanałów stereo/wielokanałowych
                                                 let sub_mags: Vec<f32> = sub_list
                                                     .as_slice()
                                                     .iter()
                                                     .filter_map(extract_floats)
                                                     .collect();
-                                                if raw_db.is_empty() {
-                                                    raw_db = sub_mags;
-                                                } else {
-                                                    for (idx, &s) in sub_mags.iter().enumerate() {
-                                                        if idx < raw_db.len() {
-                                                            raw_db[idx] = raw_db[idx].max(s);
-                                                        }
-                                                    }
-                                                }
+                                                channel_mags.push(sub_mags);
                                             }
                                         }
                                     } else if let Ok(arr) = val.get::<gst::ArrayRef>() {
@@ -1563,20 +1555,53 @@ impl AudioEngine {
                                             .collect();
                                     }
 
-                                    if !raw_db.is_empty() {
-                                        // Normalizacja decybeli (-75 dBFS..0 dBFS -> 0.0..1.0)
-                                        let normalized: Vec<f32> = raw_db
+                                    if channel_mags.len() >= 2 {
+                                        // Prawdziwa stereofonia: emitujemy 32 pasma (16 kanał lewy + 16 kanał prawy)
+                                        let left_raw = &channel_mags[0];
+                                        let right_raw = &channel_mags[1];
+                                        let left_norm: Vec<f32> = left_raw
                                             .iter()
                                             .map(|&db| ((db + 75.0) / 75.0).clamp(0.0, 1.0))
                                             .collect();
-
-                                        let display_bands = if normalized.len() >= 64 {
-                                            log_pool_to_16_bands(&normalized)
+                                        let right_norm: Vec<f32> = right_raw
+                                            .iter()
+                                            .map(|&db| ((db + 75.0) / 75.0).clamp(0.0, 1.0))
+                                            .collect();
+                                        let left_bands = if left_norm.len() >= 64 {
+                                            log_pool_to_16_bands(&left_norm)
                                         } else {
-                                            normalized
+                                            left_norm
                                         };
+                                        let right_bands = if right_norm.len() >= 64 {
+                                            log_pool_to_16_bands(&right_norm)
+                                        } else {
+                                            right_norm
+                                        };
+                                        let mut stereo_spectrum = left_bands;
+                                        stereo_spectrum.extend(right_bands);
+                                        events.push(PlayerEvent::Spectrum(stereo_spectrum));
+                                    } else {
+                                        let mono_src = if !channel_mags.is_empty() {
+                                            &channel_mags[0]
+                                        } else {
+                                            &raw_db
+                                        };
+                                        if !mono_src.is_empty() {
+                                            // Normalizacja decybeli (-75 dBFS..0 dBFS -> 0.0..1.0)
+                                            let normalized: Vec<f32> = mono_src
+                                                .iter()
+                                                .map(|&db| ((db + 75.0) / 75.0).clamp(0.0, 1.0))
+                                                .collect();
 
-                                        events.push(PlayerEvent::Spectrum(display_bands));
+                                            let display_bands = if normalized.len() >= 64 {
+                                                log_pool_to_16_bands(&normalized)
+                                            } else {
+                                                normalized
+                                            };
+                                            let mut stereo_spectrum = display_bands.clone();
+                                            stereo_spectrum.extend(display_bands);
+                                            events.push(PlayerEvent::Spectrum(stereo_spectrum));
+                                        }
                                     }
                                 }
                             }

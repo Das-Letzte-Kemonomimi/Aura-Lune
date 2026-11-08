@@ -4018,12 +4018,20 @@ export default function App() {
     }
   };
 
+  const isPlayingQueueIndexRef = useRef(false);
+
   const handlePlayQueueIndex = async (index: number, queueItem?: QueueItem) => {
+    if (isPlayingQueueIndexRef.current) return;
+    isPlayingQueueIndexRef.current = true;
     try {
       let targetIndex = index;
       if (queueItem && queue.items[targetIndex]?.id !== queueItem.id) {
         const found = queue.items.findIndex((it) => it.id === queueItem.id);
         if (found >= 0) targetIndex = found;
+      }
+      // Jeśli ten utwór już aktywnie gra, nie przeładowuj całego potoku
+      if (targetIndex === queue.current_index && status.state === 'Playing') {
+        return;
       }
       // Natychmiastowa aktualizacja optymistyczna (zero-freeze)
       setQueue((prev) => ({ ...prev, current_index: targetIndex }));
@@ -4040,6 +4048,8 @@ export default function App() {
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
+    } finally {
+      isPlayingQueueIndexRef.current = false;
     }
   };
 
@@ -12749,7 +12759,6 @@ const renderDevicesSection = () => (
                       onDragStart={(e) => handleQueueDragStart(idx, e)}
                       onDragOver={(e) => handleQueueDragOver(idx, e)}
                       onDrop={(e) => handleQueueDrop(idx, e)}
-                      onClick={() => handlePlayQueueIndex(idx, item)}
                       onDoubleClick={() => handlePlayQueueIndex(idx, item)}
                       className="glass-card"
                       style={{

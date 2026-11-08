@@ -71,9 +71,16 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       const height = canvas.height || 88;
       ctx.clearRect(0, 0, width, height);
 
-      // Weź 16 pasm z backendu lub minimalny stan w spoczynku
+      // Weź 16 pasm z backendu (lub sumę stereo L+R dla 32 pasm) lub minimalny stan w spoczynku
       const currentSpectrum = spectrumRef.current;
-      const bands = currentSpectrum && currentSpectrum.length > 0 ? currentSpectrum : Array(16).fill(0.0);
+      let bands: number[];
+      if (currentSpectrum && currentSpectrum.length >= 32) {
+        bands = Array.from({ length: 16 }, (_, i) => (currentSpectrum[i] + currentSpectrum[i + 16]) * 0.5);
+      } else if (currentSpectrum && currentSpectrum.length > 0) {
+        bands = currentSpectrum;
+      } else {
+        bands = Array(16).fill(0.0);
+      }
       const bandCount = bands.length;
 
       // Inicjalizacja tablic wygładzania i szczytów
