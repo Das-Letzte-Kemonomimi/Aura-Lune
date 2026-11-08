@@ -2411,19 +2411,6 @@ export default function App() {
                   duration_ms: session.duration_ms || 0,
                 },
               }));
-
-              // Załaduj utwór w backendzie w stanie gotowości (Standby / Paused)
-              if (trackUri) {
-                invoke('load_file', { path: trackUri })
-                  .then(() => {
-                    if (session.position_ms && session.position_ms > 1000) {
-                      setTimeout(() => {
-                        invoke('seek', { positionMs: session.position_ms }).catch(() => {});
-                      }, 350);
-                    }
-                  })
-                  .catch((e) => console.warn('Błąd załadowania pliku sesji:', e));
-              }
             }
           }
         } catch {}
