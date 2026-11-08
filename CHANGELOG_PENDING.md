@@ -26,6 +26,9 @@
 - **Persystencja parametrów analogowych**: zapamiętywanie wybranego RPM winylu (33/45), typu taśmy (FE-I/CR-II/METAL) oraz prędkości taśmy (7.5/3.75 IPS) w `localStorage`.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Kąt parkowania ramienia gramofonowego (`VinylTurntable`)**:
+  - Skorygowano pozycję spoczynkową ramienia na `0deg` (zamiast `-28deg`, które wypychało igłę poza obrys gramofonu) — ramię w stanie pauzy spoczywa teraz pionowo wewnątrz karty na dedykowanej podpórce (arm rest cradle).
+  - Przywrócono bezpieczne przycinanie `overflow: hidden` na plincie gramofonu i magnetofonu, eliminując jakiekolwiek wystawanie elementów poza zaokrąglone krawędzie karty.
 - **Kompletne przywracanie ostatnio odtwarzanego utworu po restarcie**:
   - Naprawiono błąd, przez który przywracanie sesji nie ładowało utworu do UI ani silnika audio — teraz ostatnio odtwarzany utwór jest natychmiast załadowany w stanie gotowości (Standby), z zachowaną pozycją seek, tytułem, wykonawcą, okładką albumu oraz parametrami DSP i korektora.
   - Ostatnio grany utwór jest natychmiast oznaczony jako aktywny w tabeli biblioteki oraz widoku albumów (różowe podświetlenie, ikona odtwarzania `Play` w trybie czuwania oraz `Zap` podczas grania).
