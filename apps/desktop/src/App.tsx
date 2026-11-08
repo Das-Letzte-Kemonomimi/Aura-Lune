@@ -81,11 +81,13 @@ import {
   List,
   Infinity as InfinityIcon,
   Gauge,
+  CassetteTape,
 } from 'lucide-react';
 import { ChangelogView } from './components/ChangelogView';
 import { SpectrumVisualizer } from './components/SpectrumVisualizer';
 import { VuMeterWidget } from './components/VuMeterWidget';
 import { VinylTurntable } from './components/VinylTurntable';
+import { TapeDeckWidget } from './components/TapeDeckWidget';
 import { evaluateHarmonicMatch } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { LyricsView } from './components/LyricsView';
@@ -713,16 +715,16 @@ export default function App() {
 
   const [cards, setCards] = useState<AudioCard[]>([]);
 
-  // Stan trybu wizualnego w sekcji Now Playing: okładka, winyl hi-fi lub analogowy miernik VU
-  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<'cover' | 'turntable' | 'vumeter'>(() => {
+  // Stan trybu wizualnego w sekcji Now Playing: okładka, winyl hi-fi, szpulowiec/kaseta lub analogowy miernik VU
+  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<'cover' | 'turntable' | 'tape' | 'vumeter'>(() => {
     try {
       const saved = localStorage.getItem('auralune_nowplaying_visual_mode');
-      if (saved === 'cover' || saved === 'turntable' || saved === 'vumeter') return saved;
+      if (saved === 'cover' || saved === 'turntable' || saved === 'tape' || saved === 'vumeter') return saved;
     } catch (_) {}
     return 'cover';
   });
 
-  const handleSelectNowPlayingVisualMode = (mode: 'cover' | 'turntable' | 'vumeter') => {
+  const handleSelectNowPlayingVisualMode = (mode: 'cover' | 'turntable' | 'tape' | 'vumeter') => {
     setNowPlayingVisualMode(mode);
     try {
       localStorage.setItem('auralune_nowplaying_visual_mode', mode);
@@ -10443,6 +10445,26 @@ const renderDevicesSection = () => (
                     <Disc3 size={13} /> {language === 'pl' ? 'Winyl' : 'Vinyl'}
                   </button>
                   <button
+                    onClick={() => handleSelectNowPlayingVisualMode('tape')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: nowPlayingVisualMode === 'tape' ? 'var(--accent-pink)' : 'transparent',
+                      color: nowPlayingVisualMode === 'tape' ? '#fff' : 'var(--text-muted)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <CassetteTape size={13} /> {language === 'pl' ? 'Taśma' : 'Tape'}
+                  </button>
+                  <button
                     onClick={() => handleSelectNowPlayingVisualMode('vumeter')}
                     style={{
                       flex: 1,
@@ -10484,6 +10506,19 @@ const renderDevicesSection = () => (
                     trackTitle={status.current_track?.title || currentPlayingTrack?.title}
                     artistName={status.current_track?.artist || currentPlayingTrack?.artist}
                     onTogglePlayPause={handlePlayPause}
+                    size={230}
+                  />
+                ) : nowPlayingVisualMode === 'tape' ? (
+                  <TapeDeckWidget
+                    isPlaying={status.state === 'Playing'}
+                    positionMs={status.position_ms ?? 0}
+                    durationMs={status.current_track?.duration_ms ?? 180000}
+                    tempo={status.tempo_ratio ?? 1.0}
+                    rate={status.rate_ratio ?? 1.0}
+                    engine={status.engine}
+                    isDspActive={status.engine !== 'Bypass'}
+                    trackTitle={status.current_track?.title || currentPlayingTrack?.title}
+                    artistName={status.current_track?.artist || currentPlayingTrack?.artist}
                     size={230}
                   />
                 ) : nowPlayingVisualMode === 'vumeter' ? (
@@ -10670,6 +10705,34 @@ const renderDevicesSection = () => (
                                 ? '33⅓ RPM • Tonearm Engaged (Bypass)'
                                 : `33⅓ RPM • Tonearm Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
                         : (language === 'pl' ? 'Pauza • Ramię zaparkowane' : 'Paused • Tonearm Parked')}
+                    </div>
+                  </div>
+                ) : nowPlayingVisualMode === 'tape' ? (
+                  <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <div
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-muted)',
+                        fontSize: '0.68rem',
+                        fontFamily: 'var(--font-mono)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <CassetteTape size={11} color="var(--accent-pink)" />
+                      {status.state === 'Playing'
+                        ? (language === 'pl'
+                            ? (status.engine === 'Bypass'
+                                ? '7½ IPS • Rolka zaciśnięta (Bypass)'
+                                : `7½ IPS • Rolka zaciśnięta (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
+                            : (status.engine === 'Bypass'
+                                ? '7½ IPS • Pinch Roller Engaged (Bypass)'
+                                : `7½ IPS • Pinch Roller Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
+                        : (language === 'pl' ? 'Pauza • Transport zatrzymany' : 'Paused • Transport Stopped')}
                     </div>
                   </div>
                 ) : (

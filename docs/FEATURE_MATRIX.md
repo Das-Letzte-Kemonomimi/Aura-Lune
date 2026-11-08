@@ -164,6 +164,8 @@
   - Wirująca płyta winylowa z fizyką i bezwładnością silnika Direct-Drive zsynchronizowaną na żywo z suwakiem DSP Tempo (0.25x – 3.00x), szybkością odtwarzania oraz tempem utworu (BPM), z płynnym rozruchem i wyhamowywaniem na pauzie, ruchomym ramieniem mechanicznym oraz wskaźnikiem RPM na żywo.
 - [x] **Symulator Brzmienia Winylowego & Taśmy (Lo-Fi Vinyl & Tape Noise FX)**:
   - Zintegrowany z gramofonem generator szumu analogowego (`vinylSimulator.ts`): szum mikrorowków, rotacyjny sweep 33⅓ / 45 RPM, trzaski kurzu (dust crackle) i pomruk igły (stylus rumble) oraz ciepły szum taśmy chromowej (Tape Hiss) z regulacją intensywności (0-100%) i auto-sync z odtwarzaniem.
+- [x] **Retro Magnetofon Szpulowy / Kaseta (`TapeDeckWidget`)**:
+  - Nowy 4. tryb wizualny w sekcji Now Playing: animowane szpule aluminiowe NAB ze zmiennym promieniem nawoju taśmy w miarę postępu utworu ($\omega = v/r$), mechanicznym licznikiem obrotów, przełącznikiem prędkości 7½ / 3¾ IPS, selektorem typu taśmy (FE-I / CR-II / METAL) oraz etykietą tytułu i wykonawcy.
 - [x] **Oscyloskop wektorowy fazy Lissajous**:
   - Nowy tryb Lissajous / Stereo Vectorscope XY w `SpectrumVisualizer`, wizualizujący korelację fazową stereo w czasie rzeczywistym.
 - [x] **Kompaktowy Mini-Player (`MiniPlayerWidget`)**:
