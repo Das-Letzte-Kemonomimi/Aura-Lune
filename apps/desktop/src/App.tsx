@@ -3909,6 +3909,14 @@ export default function App() {
       if (status.state === 'Playing') {
         await invoke('pause');
       } else {
+        const currentUri = status.current_track?.uri || filePath;
+        if (currentUri && (!status.current_track?.duration_ms || status.duration_ms === 0)) {
+          try {
+            await invoke('load_file', { path: currentUri });
+          } catch (loadErr) {
+            console.warn('load_file pre-check warning:', loadErr);
+          }
+        }
         await invoke('play');
       }
     } catch (e: any) {

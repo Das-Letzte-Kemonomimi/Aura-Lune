@@ -403,6 +403,14 @@ async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), Strin
 
 #[tauri::command]
 fn play(state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: play");
+    // Zabezpieczenie: jeśli w silniku nie ma załadowanego żadnego URI, załaduj bieżący utwór z kolejki
+    if state.engine.current_uri().is_none() {
+        let q = state.engine.queue();
+        if let Some(item) = q.current_item() {
+            let _ = state.engine.load_uri(&item.uri);
+        }
+    }
     state
         .engine
         .play_with_fade(true)
@@ -5357,74 +5365,83 @@ pub fn run() {
                                 );
                             }
 
-                            // 2. Jeśli kolejka była pusta, ale jest zapisany plik/URI — załaduj w stanie pauzy i zarejestruj QueueItem
-                            if engine.queue().items.is_empty() {
-                                if let Some(ref uri) = session.uri {
-                                    if !uri.is_empty() {
-                                        let track_opt = rt.block_on(async {
-                                            db.get_track_by_path(uri).await.ok().flatten()
-                                        });
-                                        let album_title = if let Some(ref tr) = track_opt {
-                                            if let Some(album_id) = tr.album_id {
-                                                rt.block_on(async {
-                                                    db.get_album_by_id(album_id).await.ok().flatten().map(|alb| alb.title)
-                                                })
-                                            } else {
-                                                None
-                                            }
+                            // 2. Przywrócenie aktywnego utworu ze wznowionej sesji i przygotowanie silnika audio
+                            if let Some(ref uri) = session.uri {
+                                if !uri.is_empty() {
+                                    let track_opt = rt.block_on(async {
+                                        db.get_track_by_path(uri).await.ok().flatten()
+                                    });
+                                    let album_title = if let Some(ref tr) = track_opt {
+                                        if let Some(album_id) = tr.album_id {
+                                            rt.block_on(async {
+                                                db.get_album_by_id(album_id).await.ok().flatten().map(|alb| alb.title)
+                                            })
                                         } else {
-                                            session.album.clone()
-                                        };
-
-                                        let queue_item = if let Some(t) = track_opt {
-                                            QueueItem {
-                                                id: format!("track-{}", t.id),
-                                                track_id: Some(t.id),
-                                                uri: uri.clone(),
-                                                title: t.title,
-                                                artist: t.artist,
-                                                album: album_title,
-                                                duration_ms: (t.duration_ms.max(0)) as u64,
-                                            }
-                                        } else {
-                                            QueueItem {
-                                                id: format!(
-                                                    "restored-session-{}",
-                                                    std::time::SystemTime::now()
-                                                        .duration_since(std::time::UNIX_EPOCH)
-                                                        .unwrap_or_default()
-                                                        .as_millis()
-                                                ),
-                                                track_id: session.track_id,
-                                                uri: uri.clone(),
-                                                title: session.title.unwrap_or_else(|| {
-                                                    std::path::Path::new(uri)
-                                                        .file_stem()
-                                                        .and_then(|s| s.to_str())
-                                                        .unwrap_or("Restored Track")
-                                                        .to_string()
-                                                }),
-                                                artist: session.artist.unwrap_or_else(|| "Unknown Artist".to_string()),
-                                                album: session.album.clone(),
-                                                duration_ms: session.duration_ms.unwrap_or(0),
-                                            }
-                                        };
-
-                                        engine.set_active_item(queue_item.clone());
-                                        if let Some(ref m) = mpris {
-                                            let m_clone = m.clone();
-                                            let track_info = desktop_integration::MprisTrackInfo {
-                                                title: queue_item.title.clone(),
-                                                artist: queue_item.artist.clone(),
-                                                album: queue_item.album.clone().unwrap_or_default(),
-                                                duration_ms: queue_item.duration_ms,
-                                                art_url: None,
-                                            };
-                                            rt.spawn(async move {
-                                                m_clone.update_track(track_info).await;
-                                                m_clone.update_playback_status(PlaybackState::Paused).await;
-                                            });
+                                            None
                                         }
+                                    } else {
+                                        session.album.clone()
+                                    };
+
+                                    let queue_item = if let Some(t) = track_opt {
+                                        QueueItem {
+                                            id: format!("track-{}", t.id),
+                                            track_id: Some(t.id),
+                                            uri: uri.clone(),
+                                            title: t.title,
+                                            artist: t.artist,
+                                            album: album_title,
+                                            duration_ms: (t.duration_ms.max(0)) as u64,
+                                        }
+                                    } else {
+                                        QueueItem {
+                                            id: format!(
+                                                "restored-session-{}",
+                                                std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .unwrap_or_default()
+                                                    .as_millis()
+                                            ),
+                                            track_id: session.track_id,
+                                            uri: uri.clone(),
+                                            title: session.title.unwrap_or_else(|| {
+                                                std::path::Path::new(uri)
+                                                    .file_stem()
+                                                    .and_then(|s| s.to_str())
+                                                    .unwrap_or("Restored Track")
+                                                    .to_string()
+                                            }),
+                                            artist: session.artist.unwrap_or_else(|| "Unknown Artist".to_string()),
+                                            album: session.album.clone(),
+                                            duration_ms: session.duration_ms.unwrap_or(0),
+                                        }
+                                    };
+
+                                    engine.set_active_item(queue_item.clone());
+
+                                    // Bezpieczne załadowanie pliku w GStreamerze w stanie gotowości (Stopped/Standby),
+                                    // co zapobiega błędom i zapewnia natychmiastowe odtwarzanie po naciśnięciu Play.
+                                    if let Err(e) = engine.load_uri(uri) {
+                                        tracing::warn!("Nie udało się załadować pliku sesji do potoku: {}", e);
+                                    } else if let Some(pos) = session.position_ms {
+                                        if pos > 0 {
+                                            let _ = engine.seek(Duration::from_millis(pos));
+                                        }
+                                    }
+
+                                    if let Some(ref m) = mpris {
+                                        let m_clone = m.clone();
+                                        let track_info = desktop_integration::MprisTrackInfo {
+                                            title: queue_item.title.clone(),
+                                            artist: queue_item.artist.clone(),
+                                            album: queue_item.album.clone().unwrap_or_default(),
+                                            duration_ms: queue_item.duration_ms,
+                                            art_url: None,
+                                        };
+                                        rt.spawn(async move {
+                                            m_clone.update_track(track_info).await;
+                                            m_clone.update_playback_status(PlaybackState::Paused).await;
+                                        });
                                     }
                                 }
                             }

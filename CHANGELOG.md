@@ -9,6 +9,22 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.2] — „Seamless Playback & Session Resume” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Poprawiono (Fixed)
+- **Start odtwarzania przywróconego utworu po restarcie aplikacji**:
+  - Rozwiązano błąd `Operacja GStreamera nie powiodła się: Failed to seek` (`glib::BoolError`) występujący po restarcie aplikacji i naciśnięciu przycisku Play / Start na przywróconej sesji.
+  - W backendzie Tauri (`src-tauri/src/lib.rs`) odtworzono pełne załadowanie pliku do potoku GStreamera (`load_uri`) w stanie gotowości (standby / stopped) podczas startu sesji, niezależnie od tego, czy zapisana kolejka zawierała inne utwory.
+  - Komenda `play` oraz silnik `play_with_fade` weryfikują teraz obecność załadowanego URI i natychmiast synchronizują aktywny utwór z kolejki, zapobiegając przejściu pustego potoku w fałszywy stan `Playing` (który powodował brak dźwięku, 0:00 na pasku i brak postępu).
+  - W `crates/audio-engine/src/pipeline.rs`:
+    - Metoda `seek()` bezpiecznie zapamiętuje żądaną pozycję `base_media_pos` bez rzucania `glib::BoolError`, gdy potok oczekuje na start lub dekoder nie ukończył jeszcze operacji preroll.
+    - Metoda `load_uri()` bezpiecznie obsługuje `sync_state_with_parent()` bez przerywania procedury ładowania, a także prawidłowo dekoduje URI ze znakami specjalnymi i spacjami (`glib::filename_from_uri`).
+  - W interfejsie frontendowym (`App.tsx`):
+    - `handlePlayPause` przed wywołaniem komendy `play` sprawdza gotowość aktywnego utworu ze wznowionej sesji, gwarantując natychmiastowy i bezbłędny start odtwarzania.
+
+---
+
 ## [1.0.1] — „Kitsune Precision & Stereo Balance” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 

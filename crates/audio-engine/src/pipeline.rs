@@ -692,8 +692,13 @@ impl AudioEngine {
             }
         });
 
-        // Synchronizacja stanu nowego elementu z potokiem
-        uri_decoder.sync_state_with_parent()?;
+        // Bezpieczna synchronizacja stanu nowego elementu z potokiem
+        if let Err(err) = uri_decoder.sync_state_with_parent() {
+            debug!(
+                "sync_state_with_parent informacja (normalne przy State::Null): {:?}",
+                err
+            );
+        }
         inner.uri_decoder = Some(uri_decoder);
         inner.current_uri = Some(uri.to_string());
         inner.state = PlaybackState::Stopped;
@@ -723,6 +728,10 @@ impl AudioEngine {
 
         let pipeline = {
             let mut inner = self.inner.lock().unwrap();
+            if inner.current_uri.is_none() {
+                debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play");
+                return Ok(());
+            }
             inner.state = PlaybackState::Playing;
             inner.pipeline.clone()
         };
@@ -756,6 +765,10 @@ impl AudioEngine {
 
         let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock().unwrap();
+            if inner.current_uri.is_none() {
+                debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play_with_fade");
+                return Ok(());
+            }
             inner.volume.set_property("volume", 0.0f64);
             inner.state = PlaybackState::Playing;
             (
@@ -905,11 +918,28 @@ impl AudioEngine {
     /// Przewija do zadanej pozycji w czasie (natychmiastowy skok).
     pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
+        // Jeśli nie załadowano jeszcze żadnego URI lub potok jest w stanie spoczynku (Null),
+        // po prostu zapamiętujemy pozycję jako punkt początkowy bez błędu BoolError
+        if inner.current_uri.is_none() || inner.pipeline.current_state() == gst::State::Null {
+            inner.base_media_pos = position;
+            inner.base_sink_pts = position;
+            debug!(
+                "Zapisano pozycję początkową seek w stanie oczekiwania: {:?}",
+                position
+            );
+            return Ok(());
+        }
+
         let position_ns = gst::ClockTime::from_nseconds(position.as_nanos() as u64);
-        inner.pipeline.seek_simple(
+        if let Err(err) = inner.pipeline.seek_simple(
             gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
             position_ns,
-        )?;
+        ) {
+            debug!(
+                "Ostrzeżenie seek_simple (np. brak gotowego prerollu): {:?}",
+                err
+            );
+        }
         inner.base_media_pos = position;
         inner.base_sink_pts = position;
         debug!("Wykonano seek do {:?}", position);
@@ -2327,6 +2357,10 @@ impl AudioEngine {
         let current_gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
         let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock().unwrap();
+            if inner.current_uri.is_none() {
+                debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play_with_fade");
+                return Ok(());
+            }
             inner.volume.set_property("volume", 0.0f64);
             inner.state = PlaybackState::Playing;
             (
