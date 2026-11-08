@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Disc, Sparkles, X } from 'lucide-react';
+import { Disc, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../utils/vinylSimulator';
+import { AnalogLoFiModal } from './AnalogLoFiModal';
 
 interface VinylTurntableProps {
   coverUrl?: string | null;
@@ -15,6 +16,7 @@ interface VinylTurntableProps {
   onTogglePlayPause?: () => void;
   rpm?: 33 | 45;
   onRpmChange?: (rpm: 33 | 45) => void;
+  onOpenLoFi?: () => void;
   style?: React.CSSProperties;
   className?: string;
   size?: number;
@@ -33,6 +35,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   onTogglePlayPause,
   rpm: controlledRpm,
   onRpmChange,
+  onOpenLoFi,
   style,
   className,
   size = 265,
@@ -45,7 +48,15 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   };
 
   const [simConfig, setSimConfig] = useState<VinylSimConfig>(() => vinylSimulator.getConfig());
-  const [showFxPopover, setShowFxPopover] = useState(false);
+  const [internalLoFiModalOpen, setInternalLoFiModalOpen] = useState(false);
+
+  const handleOpenLoFi = () => {
+    if (onOpenLoFi) {
+      onOpenLoFi();
+    } else {
+      setInternalLoFiModalOpen(true);
+    }
+  };
 
   useEffect(() => {
     const unsub = vinylSimulator.subscribe(setSimConfig);
@@ -380,13 +391,13 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
             45
           </button>
 
-          {/* Przycisk Lo-Fi Analog FX */}
+          {/* Przycisk Lo-Fi Analog FX — otwiera pełne okno dialogowe Popup */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setShowFxPopover((prev) => !prev);
+              handleOpenLoFi();
             }}
-            title="Symulator analogowego szumu winylu i taśmy (Lo-Fi Analog FX)"
+            title="Otwórz studio analogowego szumu winylu i taśmy (Lo-Fi Analog FX Popup)"
             style={{
               padding: '2px 7px',
               borderRadius: '4px',
@@ -434,137 +445,13 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         </div>
       </div>
 
-      {/* Popover z regulacją parametrów Lo-Fi — zakotwiczony bezpośrednio do karty gramofonu, NIGDY nie wychodzi poza krawędzie */}
-      {showFxPopover && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            bottom: '36px',
-            left: '10px',
-            right: '10px',
-            width: 'auto',
-            background: 'rgba(18, 14, 28, 0.98)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(168, 85, 247, 0.45)',
-            borderRadius: '12px',
-            padding: '10px 12px',
-            boxShadow: '0 16px 36px rgba(0,0,0,0.85), 0 0 20px rgba(168, 85, 247, 0.25)',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            color: '#f8fafc',
-            boxSizing: 'border-box',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f3e8ff' }}>
-              Analog Lo-Fi FX
-            </span>
-            <button
-              onClick={() => setShowFxPopover(false)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                padding: '2px',
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          {/* Przełącznik Włącz / Wyłącz */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.70rem' }}>
-            <span style={{ color: '#cbd5e1' }}>Efekt analogowy:</span>
-            <button
-              onClick={() => vinylSimulator.setEnabled(!simConfig.enabled)}
-              style={{
-                padding: '2px 10px',
-                borderRadius: '10px',
-                border: 'none',
-                background: simConfig.enabled ? 'var(--accent-pink)' : 'rgba(255,255,255,0.12)',
-                color: '#fff',
-                fontSize: '0.66rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {simConfig.enabled ? 'WŁ' : 'WYŁ'}
-            </button>
-          </div>
-
-          {/* Wybór stylu: Winyl vs Taśma */}
-          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.35)', padding: '2px', borderRadius: '6px' }}>
-            <button
-              onClick={() => vinylSimulator.setMode('vinyl')}
-              style={{
-                flex: 1,
-                padding: '3px 0',
-                borderRadius: '4px',
-                border: 'none',
-                background: simConfig.mode === 'vinyl' ? 'var(--accent-purple)' : 'transparent',
-                color: simConfig.mode === 'vinyl' ? '#fff' : '#94a3b8',
-                fontSize: '0.66rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              💿 Winyl
-            </button>
-            <button
-              onClick={() => vinylSimulator.setMode('tape')}
-              style={{
-                flex: 1,
-                padding: '3px 0',
-                borderRadius: '4px',
-                border: 'none',
-                background: simConfig.mode === 'tape' ? 'var(--accent-purple)' : 'transparent',
-                color: simConfig.mode === 'tape' ? '#fff' : '#94a3b8',
-                fontSize: '0.66rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              📼 Taśma
-            </button>
-          </div>
-
-          {/* Suwak intensywności szumu */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#cbd5e1', marginBottom: '3px' }}>
-              <span>Poziom szumu:</span>
-              <strong style={{ color: 'var(--accent-pink)' }}>{Math.round(simConfig.intensity * 100)}%</strong>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={simConfig.intensity}
-              onChange={(e) => vinylSimulator.setIntensity(parseFloat(e.target.value))}
-              style={{
-                width: '100%',
-                accentColor: 'var(--accent-pink)',
-                cursor: 'pointer',
-                height: '4px',
-              }}
-            />
-          </div>
-
-          {/* Auto-sync z odtwarzaniem */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.66rem', color: '#cbd5e1', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={simConfig.autoSync}
-              onChange={(e) => vinylSimulator.setAutoSync(e.target.checked)}
-              style={{ accentColor: 'var(--accent-purple)' }}
-            />
-            <span>Tylko podczas odtwarzania</span>
-          </label>
-        </div>
+      {/* Samodzielny modal Pop-up (jeśli brak nadrzędnego handlera) */}
+      {internalLoFiModalOpen && (
+        <AnalogLoFiModal
+          isOpen={internalLoFiModalOpen}
+          onClose={() => setInternalLoFiModalOpen(false)}
+          isPlaying={isPlaying}
+        />
       )}
     </div>
   );

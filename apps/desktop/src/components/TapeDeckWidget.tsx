@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CassetteTape, Sparkles, X } from 'lucide-react';
+import { CassetteTape, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../utils/vinylSimulator';
+import { AnalogLoFiModal } from './AnalogLoFiModal';
 
 export type TapeType = 'TYPE_I' | 'TYPE_II' | 'METAL';
 
@@ -18,6 +19,7 @@ interface TapeDeckWidgetProps {
   onTapeTypeChange?: (type: TapeType) => void;
   tapeSpeed?: '7.5' | '3.75';
   onTapeSpeedChange?: (speed: '7.5' | '3.75') => void;
+  onOpenLoFi?: () => void;
   style?: React.CSSProperties;
   className?: string;
   size?: number;
@@ -37,6 +39,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   onTapeTypeChange,
   tapeSpeed: controlledTapeSpeed,
   onTapeSpeedChange,
+  onOpenLoFi,
   style,
   className,
   size = 265,
@@ -57,7 +60,15 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   };
 
   const [simConfig, setSimConfig] = useState<VinylSimConfig>(() => vinylSimulator.getConfig());
-  const [showFxPopover, setShowFxPopover] = useState(false);
+  const [internalLoFiModalOpen, setInternalLoFiModalOpen] = useState(false);
+
+  const handleOpenLoFi = () => {
+    if (onOpenLoFi) {
+      onOpenLoFi();
+    } else {
+      setInternalLoFiModalOpen(true);
+    }
+  };
 
   useEffect(() => {
     const unsub = vinylSimulator.subscribe(setSimConfig);
@@ -414,11 +425,14 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             3¾ IPS
           </button>
 
-          {/* Przycisk Lo-Fi Tape FX */}
+          {/* Przycisk Lo-Fi Tape FX — otwiera pełne okno dialogowe Popup */}
           <button
             type="button"
-            onClick={() => setShowFxPopover((prev) => !prev)}
-            title="Symulator analogowego szumu taśmy (Tape Hiss & Saturation)"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenLoFi();
+            }}
+            title="Otwórz studio analogowego szumu taśmy (Tape Lo-Fi Studio Popup)"
             style={{
               padding: '2px 6px',
               borderRadius: '3px',
@@ -517,104 +531,13 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         </div>
       </div>
 
-      {/* Popover z regulacją parametrów Lo-Fi — zakotwiczony bezpośrednio do karty, NIGDY nie wychodzi poza krawędzie */}
-      {showFxPopover && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            bottom: '36px',
-            left: '10px',
-            right: '10px',
-            width: 'auto',
-            background: 'rgba(18, 14, 28, 0.98)',
-            backdropFilter: 'blur(16px)',
-            border: `1px solid ${currentTheme.accentColor}88`,
-            borderRadius: '12px',
-            padding: '10px 12px',
-            boxShadow: `0 16px 36px rgba(0,0,0,0.85), 0 0 20px ${currentTheme.accentGlow}`,
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            color: '#f8fafc',
-            boxSizing: 'border-box',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: currentTheme.accentColor }}>
-              Tape Deck Lo-Fi FX
-            </span>
-            <button
-              onClick={() => setShowFxPopover(false)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                padding: '2px',
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          {/* Przełącznik Włącz / Wyłącz */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.70rem' }}>
-            <span style={{ color: '#cbd5e1' }}>Szum taśmy magnetycznej:</span>
-            <button
-              onClick={() => {
-                vinylSimulator.setMode('tape');
-                vinylSimulator.setEnabled(!simConfig.enabled);
-              }}
-              style={{
-                padding: '2px 10px',
-                borderRadius: '10px',
-                border: 'none',
-                background: simConfig.enabled ? currentTheme.accentColor : 'rgba(255,255,255,0.12)',
-                color: simConfig.enabled ? '#000' : '#fff',
-                fontSize: '0.66rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {simConfig.enabled ? 'WŁ' : 'WYŁ'}
-            </button>
-          </div>
-
-          {/* Suwak intensywności szumu taśmy */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#cbd5e1', marginBottom: '3px' }}>
-              <span>Poziom szumu (Tape Hiss):</span>
-              <strong style={{ color: currentTheme.accentColor }}>{Math.round(simConfig.intensity * 100)}%</strong>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={simConfig.intensity}
-              onChange={(e) => vinylSimulator.setIntensity(parseFloat(e.target.value))}
-              style={{
-                width: '100%',
-                accentColor: currentTheme.accentColor,
-                cursor: 'pointer',
-                height: '4px',
-              }}
-            />
-          </div>
-
-          {/* Auto-sync z odtwarzaniem */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.66rem', color: '#cbd5e1', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={simConfig.autoSync}
-              onChange={(e) => vinylSimulator.setAutoSync(e.target.checked)}
-              style={{ accentColor: currentTheme.accentColor }}
-            />
-            <span>Tylko podczas odtwarzania</span>
-          </label>
-        </div>
+      {/* Samodzielny modal Pop-up (jeśli brak nadrzędnego handlera) */}
+      {internalLoFiModalOpen && (
+        <AnalogLoFiModal
+          isOpen={internalLoFiModalOpen}
+          onClose={() => setInternalLoFiModalOpen(false)}
+          isPlaying={isPlaying}
+        />
       )}
     </div>
   );

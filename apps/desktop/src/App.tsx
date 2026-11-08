@@ -88,6 +88,7 @@ import { SpectrumVisualizer } from './components/SpectrumVisualizer';
 import { VuMeterWidget } from './components/VuMeterWidget';
 import { VinylTurntable } from './components/VinylTurntable';
 import { TapeDeckWidget, type TapeType } from './components/TapeDeckWidget';
+import { AnalogLoFiModal } from './components/AnalogLoFiModal';
 import { AudioPathInspectorModal } from './components/AudioPathInspectorModal';
 import { evaluateHarmonicMatch } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
@@ -990,6 +991,7 @@ export default function App() {
   // Stan Wyłącznika Czasowego (Sleep Timer)
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const [isAudioPathModalOpen, setIsAudioPathModalOpen] = useState(false);
+  const [isLoFiModalOpen, setIsLoFiModalOpen] = useState(false);
   const [sleepTimerRemainingSec, setSleepTimerRemainingSec] = useState<number | null>(null);
   const [sleepTimerTargetMode, setSleepTimerTargetMode] = useState<'time' | 'end_of_track' | null>(null);
   const [sleepTimerFadeOut, setSleepTimerFadeOut] = useState(true);
@@ -10582,6 +10584,7 @@ const renderDevicesSection = () => (
                     onTogglePlayPause={handlePlayPause}
                     rpm={vinylRpm}
                     onRpmChange={handleSelectVinylRpm}
+                    onOpenLoFi={() => setIsLoFiModalOpen(true)}
                     size={265}
                   />
                 ) : nowPlayingVisualMode === 'tape' ? (
@@ -10599,6 +10602,7 @@ const renderDevicesSection = () => (
                     onTapeTypeChange={handleSelectTapeType}
                     tapeSpeed={tapeSpeed}
                     onTapeSpeedChange={handleSelectTapeSpeed}
+                    onOpenLoFi={() => setIsLoFiModalOpen(true)}
                     size={265}
                   />
                 ) : nowPlayingVisualMode === 'vumeter' ? (
@@ -18497,6 +18501,13 @@ const renderDevicesSection = () => (
         currentTrack={currentPlayingTrack}
         currentLang={language}
         onResetBitPerfect={handleResetBitPerfect}
+      />
+
+      {/* Modal Studio Analogowego Lo-Fi FX (Winyl & Taśma) */}
+      <AnalogLoFiModal
+        isOpen={isLoFiModalOpen}
+        onClose={() => setIsLoFiModalOpen(false)}
+        isPlaying={status.state === 'Playing'}
       />
 
       {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
