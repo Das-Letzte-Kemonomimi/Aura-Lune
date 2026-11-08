@@ -138,10 +138,10 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   }, [isPlaying, targetDegPerSec]);
 
   // Kąt ramienia gramofonu:
-  // Spoczynek (park): -28 stopni
-  // Odtwarzanie 33⅓ (standardowy 12" LP): ok. 19 stopni
-  // Odtwarzanie 45 RPM (format singla 7" - igła głębiej na płycie): ok. 24 stopnie
-  const tonearmAngle = isPlaying ? (rpm === 45 ? '24deg' : '19deg') : '-28deg';
+  // Spoczynek (park): 0deg (bezpiecznie wewnątrz plinty gramofonu, w uchwycie ramienia)
+  // Odtwarzanie 33⅓ (standardowy 12" LP): ok. 20 stopni (na rowkach płyty)
+  // Odtwarzanie 45 RPM (format singla 7"): ok. 25 stopni (głębiej na płycie)
+  const tonearmAngle = isPlaying ? (rpm === 45 ? '25deg' : '20deg') : '0deg';
 
   return (
     <div
@@ -161,7 +161,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'visible',
+        overflow: 'hidden',
         userSelect: 'none',
         boxSizing: 'border-box',
         ...style,
@@ -274,10 +274,10 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         <div
           style={{
             position: 'absolute',
-            top: '8px',
-            right: '8px',
-            width: '28px',
-            height: '28px',
+            top: '10px',
+            right: '10px',
+            width: '26px',
+            height: '26px',
             borderRadius: '50%',
             background: 'radial-gradient(circle, #71717a 20%, #27272a 70%, #09090b 100%)',
             border: '2px solid #3f3f46',
@@ -285,18 +285,34 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
           }}
         />
 
+        {/* Uchwyt spoczynkowy ramienia (Tonearm Rest / Arm Cradle) */}
+        <div
+          title="Uchwyt spoczynkowy ramienia gramofonowego"
+          style={{
+            position: 'absolute',
+            top: `${size - 130}px`,
+            right: '20px',
+            width: '8px',
+            height: '14px',
+            borderRadius: '2px',
+            background: '#27272a',
+            border: '1px solid #52525b',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+          }}
+        />
+
         {/* Ruchome ramię z przeciwwagą i główką igły */}
         <div
           style={{
             position: 'absolute',
-            top: '20px',
-            right: '20px',
+            top: '23px',
+            right: '23px',
             width: '4px',
-            height: `${size - 100}px`,
+            height: `${size - 110}px`,
             transformOrigin: 'top center',
             transform: `rotate(${tonearmAngle})`,
             transition: 'transform 0.85s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            background: 'linear-gradient(to right, #d4d4d8, #a1a1aa, #71717a)',
+            background: 'linear-gradient(to right, #e4e4e7, #a1a1aa, #71717a)',
             boxShadow: '2px 4px 8px rgba(0,0,0,0.5)',
             borderRadius: '2px',
           }}
