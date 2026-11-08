@@ -333,8 +333,12 @@ impl AuraluneDspImpl {
         // co zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
         while !state.fifo.is_empty() {
             let available_samples = state.fifo.len();
-            let drain_samples = available_samples.min(state.block_size * channels);
-            let out_frames = drain_samples / channels;
+            let drain_frames = (available_samples / channels).min(state.block_size);
+            if drain_frames == 0 {
+                break;
+            }
+            let drain_samples = drain_frames * channels;
+            let out_frames = drain_frames;
             let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
 
             let buffer_pts = buffer.pts().map(|p| p.nseconds());
@@ -429,8 +433,12 @@ impl AuraluneDspImpl {
                     let sample_rate = fmt.sample_rate as u64;
 
                     while !state.fifo.is_empty() {
-                        let drain_samples = state.fifo.len().min(4096 * channels);
-                        let out_frames = drain_samples / channels;
+                        let drain_frames = (state.fifo.len() / channels).min(4096);
+                        if drain_frames == 0 {
+                            break;
+                        }
+                        let drain_samples = drain_frames * channels;
+                        let out_frames = drain_frames;
                         let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
                         let byte_len = drain_samples * std::mem::size_of::<f32>();
 

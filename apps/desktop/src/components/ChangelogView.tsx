@@ -18,11 +18,42 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.4',
+    codename: 'Flawless Stream & Zero-Freeze Queue',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Eliminacja rwania i przycinania dźwięku (Audio Stuttering & Underrun Elimination): zwiększono domyślny bufor GStreamera do 600 ms oraz processing-deadline PipeWire do 100 ms, gwarantując płynny odsłuch z dysków USB i gęstych plików FLAC/DSP.',
+        en: 'Audio stuttering & underrun elimination: increased default GStreamer buffer to 600 ms and PipeWire processing deadline to 100 ms for stutter-free USB disk and FLAC/DSP playback.',
+        de: 'Beseitigung von Audiostottern und Aussetzern: GStreamer-Puffer auf 600 ms und PipeWire-Frist auf 100 ms für unterbrechungsfreie Wiedergabe erhöht.',
+        fi: 'Äänen pätkimisen ja alijuoksujen poisto: kasvatettu oletuspuskuri 600 ms:iin ja PipeWire-määräaika 100 ms:iin vakaan toiston varmistamiseksi.',
+        la: 'Solutio soni lacerati et defectuum: auctum receptaculum ad 600 ms et PipeWire terminus ad 100 ms pro sono continuo.',
+      },
+      {
+        pl: 'Błyskawiczne przełączanie i eliminacja zamrażania UI w kolejce (Zero-Freeze Playback Queue): wprowadzono aktualizację optymistyczną w React, 25ms ramp anti-pop oraz przeniesiono preroll potoku do wątku tła.',
+        en: 'Zero-freeze playback queue track switching: introduced optimistic React UI update, swift 25ms anti-pop DAC ramp, and moved pipeline preroll wait to background thread.',
+        de: 'Verzögerungsfreier Titelwechsel in der Warteschlange: Optimistisches UI-Update, 25ms Anti-Pop-Ramp und preroll im Hintergrund-Thread.',
+        fi: 'Viiveetön kappaleenvaihto jonossa: lisätty optimistinen käyttöliittymäpäivitys, 25 ms häiriönpoistoramppi ja taustasäikeen esivalmistelu.',
+        la: 'Mutatio celeris sine mora in serie: addita renovatio visualis celerrima, 25ms gradus sine fragore et praeparatio in filo postico.',
+      },
+      {
+        pl: 'Automatyczna migracja przestarzałego bufora 80 ms z bazy danych do stabilnych 600 ms, chroniąca istniejące instalacje przed odziedziczeniem zbyt małego bufora.',
+        en: 'Automatic migration of legacy 80 ms buffer from SQLite database to safe 600 ms, preventing inherited audio drops on upgraded installations.',
+        de: 'Automatische Migration des veralteten 80-ms-Puffers auf stabile 600 ms in der SQLite-Datenbank.',
+        fi: 'Vanhan 80 ms puskuriasetuksen automaattinen päivitys 600 ms:iin tietokannassa.',
+        la: 'Migratio automatica veteris 80 ms receptaculi ad 600 ms in indice datorum.',
+      },
+    ],
+  },
+  {
     version: '1.0.3',
     codename: 'Vinyl Alignment & VU Precision',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {

@@ -9,15 +9,20 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
-## [1.0.3] — „Vinyl Alignment & VU Precision” - 2026-11-08
+## [1.0.4] — „Flawless Stream & Zero-Freeze Queue” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
 ### Poprawiono (Fixed)
-- **Geometria ramienia gramofonowego (`VinylTurntable` & `BigScreenView`)**:
-  - Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`+19deg` dla 33⅓ RPM, `+24deg` dla 45 RPM) oraz kąt wkładki igły (`-12deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
-  - Wyeliminowano „złamane ramię” w odtwarzaczu pełnoekranowym (`BigScreenView`): zastąpiono rozłączne elementy HTML spójnym, jednolitym wektorem SVG J-shape, gwarantując ciągłość rurki od osi obrotu aż po wkładkę gramofonową.
-- **Równowaga stereo i ballistyka VU-Metera (`VuMeterWidget`)**:
-  - Usunięto podział pasm częstotliwościowych FFT, który sztucznie traktował wysokie tony jako prawy kanał, powodując zaniżanie wskazań prawej igły do -11.8 dB. Wprowadzono pełnopasmową analizę psychoakustyczną z mikro-dynamiką stereo dla obu kanałów.
+- **Eliminacja rwania i przycinania dźwięku (Audio Stuttering & Underrun Elimination)**:
+  - Zwiększono domyślny rozmiar bufora wyjściowej kolejki GStreamera (`queue_sink`) z 80 ms do **600 ms** (z zakresem konfiguracji suwakiem do 4000 ms).
+  - Skonfigurowano `processing-deadline` dla `pipewiresink` na **100 ms**, gwarantując całkowitą odporność na I/O jitter dysków zewnętrznych (USB), stabilne dekodowanie plików FLAC i bezbłędną pracę silników DSP (RubberBand, SoundTouch, PEQ, Reverb).
+  - Wprowadzono automatyczną migrację przestarzałych ustawień z bazy danych (`audio_buffer_ms < 250` -> 600 ms), zapobiegając zacięciom u użytkowników z poprzednich wersji.
+  - Zapewniono drenowanie wyłącznie pełnych ramek wielokanałowych w elemencie `AuraluneDsp`, eliminując jakiekolwiek rozbieżności fazowe stereo.
+- **Błyskawiczne przełączanie i eliminacja zamrażania UI w kolejce (Zero-Freeze Playback Queue)**:
+  - Wprowadzono optymistyczną aktualizację `setQueue` w React — kliknięty utwór podświetla się natychmiastowo z zerowym wyczuwalnym opóźnieniem.
+  - Zastąpiono synchroniczny, blokujący wątek IPC ramp wyciszania (300–2000 ms) błyskawicznym rampem anti-pop (25 ms) przy bezpośrednim wyborze utworu z kolejki (`play_index`).
+  - Przeniesiono oczekiwanie na preroll potoku (`pipeline.state(150ms)`) do wątku tła w `play_with_fade_duration`, uwalniając wątek IPC Tauri od wszelkich przestojów.
+  - Skrócono ramp wyciszania przy manualnym przejściu `play_next` / `play_previous` do zwinnych 30–150 ms.
 
 ---
 

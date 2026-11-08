@@ -5310,13 +5310,16 @@ pub fn run() {
                     tracing::info!("Uruchomiono silnik DSP w trybie domyślnym: {:?}", target_engine);
                 }
 
-                // Wczytanie zapisanego rozmiaru bufora wyjściowego audio (domyślnie: 80 ms)
+                // Wczytanie zapisanego rozmiaru bufora wyjściowego audio (domyślnie: 600 ms)
                 let saved_audio_buffer = rt.block_on(async {
                     db.get_app_setting("audio_buffer_ms").await.unwrap_or(None)
                 });
                 if let Some(buf_str) = saved_audio_buffer {
                     if let Ok(ms) = buf_str.parse::<u64>() {
-                        let _ = engine.set_audio_buffer_duration_ms(ms);
+                        // Jeśli użytkownik posiadał stare ustawienie < 250 ms (np. dawne 80 ms),
+                        // automatycznie migrujemy do stabilnego bufora 600 ms, eliminując rwanie dźwięku.
+                        let safe_ms = if ms < 250 { 600 } else { ms };
+                        let _ = engine.set_audio_buffer_duration_ms(safe_ms);
                     }
                 }
 

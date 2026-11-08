@@ -710,7 +710,7 @@ export default function App() {
   // Stan zapamiętywania ustawień DSP po uruchomieniu aplikacji
   const [dspAutoStartup, setDspAutoStartup] = useState<boolean>(false);
   const [dspDefaultEngine, setDspDefaultEngine] = useState<'Bypass' | 'RubberBand' | 'SoundTouch'>('Bypass');
-  const [audioBufferMs, setAudioBufferMs] = useState<number>(80);
+  const [audioBufferMs, setAudioBufferMs] = useState<number>(600);
   const [dspBlockSize, setDspBlockSize] = useState<number>(2048);
   const [isDspQuickMenuOpen, setIsDspQuickMenuOpen] = useState<boolean>(false);
   const dspAutoStartupRef = useRef<boolean>(false);
@@ -4025,6 +4025,8 @@ export default function App() {
         const found = queue.items.findIndex((it) => it.id === queueItem.id);
         if (found >= 0) targetIndex = found;
       }
+      // Natychmiastowa aktualizacja optymistyczna (zero-freeze)
+      setQueue((prev) => ({ ...prev, current_index: targetIndex }));
       const item = await invoke<QueueItem | null>('play_queue_index', {
         index: targetIndex,
         expectedId: queueItem?.id ?? null,
@@ -4743,14 +4745,14 @@ export default function App() {
   };
 
   const handleSetAudioBuffer = async (val: number) => {
-    const clamped = Math.max(20, Math.min(2000, Math.round(val)));
+    const clamped = Math.max(50, Math.min(4000, Math.round(val)));
     setAudioBufferMs(clamped);
     try {
       await invoke('set_audio_buffer_duration_ms', { bufferMs: clamped });
       showMessage(
         language === 'pl'
-          ? `Ustawiono bufor audio: ${clamped} ms ${clamped === 80 ? '(domyślny)' : ''}`
-          : `Audio buffer set to: ${clamped} ms ${clamped === 80 ? '(default)' : ''}`
+          ? `Ustawiono bufor audio: ${clamped} ms ${clamped === 600 ? '(domyślny)' : ''}`
+          : `Audio buffer set to: ${clamped} ms ${clamped === 600 ? '(default)' : ''}`
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -5976,7 +5978,7 @@ const renderDevicesSection = () => (
                   <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Layers size={17} color="var(--accent-cyan)" />
                     {language === 'pl' ? 'Bufor wyjściowy audio (PipeWire / ALSA)' : 'Audio Output Buffer (PipeWire / ALSA)'}
-                    {audioBufferMs === 80 && (
+                    {audioBufferMs === 600 && (
                       <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
                         {language === 'pl' ? 'Domyślny' : 'Default'}
                       </span>
@@ -5984,32 +5986,32 @@ const renderDevicesSection = () => (
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
                     {language === 'pl'
-                      ? 'Długość bufora kolejki przed wyjściem audio. Niższe wartości (30-60 ms) dają szybszą reakcję na pauzę i seek; wyższe (100-250 ms) zapobiegają trzaskom (underrun) pod obciążeniem.'
-                      : 'Queue buffer length before audio sink. Lower values (30-60 ms) reduce seek/pause latency; higher values (100-250 ms) prevent underruns on heavy CPU load.'}
+                      ? 'Długość bufora kolejki przed wyjściem audio. Domyślne 600 ms zapewnia całkowicie płynne odtwarzanie bez zacięć z dysków USB i gęstych plików FLAC. Niższe wartości zmniejszają opóźnienie suwaków.'
+                      : 'Queue buffer length before audio sink. Default 600 ms guarantees stutter-free playback even from USB drives and high-resolution FLAC files.'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.05rem', fontWeight: 700, color: audioBufferMs === 80 ? 'var(--accent-green)' : 'var(--accent-pink)' }}>
+                  <span style={{ fontSize: '1.05rem', fontWeight: 700, color: audioBufferMs === 600 ? 'var(--accent-green)' : 'var(--accent-pink)' }}>
                     {audioBufferMs} ms
                   </span>
                   <button
-                    onClick={() => handleSetAudioBuffer(80)}
-                    disabled={audioBufferMs === 80}
+                    onClick={() => handleSetAudioBuffer(600)}
+                    disabled={audioBufferMs === 600}
                     className="glass-card"
                     style={{
                       padding: '6px 10px',
                       fontSize: '0.75rem',
                       fontWeight: 600,
-                      opacity: audioBufferMs === 80 ? 0.4 : 1,
-                      cursor: audioBufferMs === 80 ? 'default' : 'pointer',
+                      opacity: audioBufferMs === 600 ? 0.4 : 1,
+                      cursor: audioBufferMs === 600 ? 'default' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
                       color: 'var(--accent-green)',
                     }}
-                    title={language === 'pl' ? 'Przywróć domyślny bufor (80 ms)' : 'Reset to default buffer (80 ms)'}
+                    title={language === 'pl' ? 'Przywróć domyślny bufor (600 ms)' : 'Reset to default buffer (600 ms)'}
                   >
-                    <RotateCcw size={12} /> {language === 'pl' ? 'Domyślny (80 ms)' : 'Default (80 ms)'}
+                    <RotateCcw size={12} /> {language === 'pl' ? 'Domyślny (600 ms)' : 'Default (600 ms)'}
                   </button>
                 </div>
               </div>
@@ -6018,9 +6020,9 @@ const renderDevicesSection = () => (
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '8px' }}>
                 <input
                   type="range"
-                  min={20}
-                  max={500}
-                  step={5}
+                  min={50}
+                  max={2000}
+                  step={25}
                   value={audioBufferMs}
                   onChange={(e) => handleSetAudioBuffer(Number(e.target.value))}
                   style={{ flex: 1, accentColor: 'var(--accent-pink)', cursor: 'pointer' }}
@@ -6028,8 +6030,8 @@ const renderDevicesSection = () => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <input
                     type="number"
-                    min={20}
-                    max={2000}
+                    min={50}
+                    max={4000}
                     value={audioBufferMs}
                     onChange={(e) => handleSetAudioBuffer(Number(e.target.value))}
                     style={{
@@ -6050,12 +6052,11 @@ const renderDevicesSection = () => (
               {/* Szybkie presety bufora audio */}
               <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
                 {[
-                  { label: '30 ms (Ultra-low)', value: 30 },
-                  { label: language === 'pl' ? '50 ms (Szybki)' : '50 ms (Fast)', value: 50 },
-                  { label: language === 'pl' ? '80 ms (Domyślny)' : '80 ms (Default)', value: 80, isDefault: true },
-                  { label: language === 'pl' ? '150 ms (Stabilny)' : '150 ms (Stable)', value: 150 },
-                  { label: language === 'pl' ? '250 ms (Bezpieczny)' : '250 ms (Safe)', value: 250 },
-                  { label: language === 'pl' ? '500 ms (Duży bufor)' : '500 ms (Large buffer)', value: 500 },
+                  { label: '80 ms (Ultra-low)', value: 80 },
+                  { label: language === 'pl' ? '250 ms (Niska latencja)' : '250 ms (Low latency)', value: 250 },
+                  { label: language === 'pl' ? '600 ms (Domyślny / Hi-Fi)' : '600 ms (Default / Hi-Fi)', value: 600, isDefault: true },
+                  { label: language === 'pl' ? '1000 ms (Stabilny)' : '1000 ms (Stable)', value: 1000 },
+                  { label: language === 'pl' ? '2000 ms (Maksymalny bufor)' : '2000 ms (Max buffer)', value: 2000 },
                 ].map((preset) => {
                   const isActive = audioBufferMs === preset.value;
                   return (

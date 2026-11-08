@@ -617,8 +617,8 @@ fn test_loop_mode_queue_single_track_eos_replays() {
 fn test_buffer_configuration_and_defaults() {
     let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
 
-    // Weryfikacja wartości domyślnych
-    assert_eq!(engine.audio_buffer_duration_ms(), 80);
+    // Weryfikacja wartości domyślnych (domyślny bufor 600 ms dla absolutnej odporności na underrun)
+    assert_eq!(engine.audio_buffer_duration_ms(), 600);
     assert_eq!(engine.dsp_block_size(), 2048);
 
     // Zmiana bufora wyjściowego audio
@@ -629,9 +629,9 @@ fn test_buffer_configuration_and_defaults() {
 
     // Przywrócenie domyślnego bufora audio
     engine
-        .set_audio_buffer_duration_ms(80)
-        .expect("Przywrócenie bufora audio na 80 ms");
-    assert_eq!(engine.audio_buffer_duration_ms(), 80);
+        .set_audio_buffer_duration_ms(600)
+        .expect("Przywrócenie bufora audio na 600 ms");
+    assert_eq!(engine.audio_buffer_duration_ms(), 600);
 
     // Zmiana rozmiaru bloku bufora DSP
     engine
