@@ -18,11 +18,77 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.0',
+    codename: 'Kitsune Golden Master',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Narzędzie Diagnostyczne Linux Audio & System Health Check (AudioHealthCheckModal): kompleksowy audyt PipeWire, GStreamera, silników DSP Rubber Band v3 i SoundTouch, dekoderów oraz spójności bazy SQLite z opcją kopiowania raportu.',
+        en: 'Linux Audio & System Health Check (AudioHealthCheckModal): comprehensive real-time audit of PipeWire, GStreamer, Rubber Band v3 & SoundTouch DSP engines, audio decoders, and SQLite integrity with 1-click clipboard report export.',
+        de: 'Linux Audio & System Health Check (AudioHealthCheckModal): Umfassende Echtzeit-Prüfung von PipeWire, GStreamer, Rubber Band v3 & SoundTouch DSP, Decodern und SQLite-Integrität mit 1-Klick-Berichtsexport.',
+        fi: 'Linux Audio & System Health Check (AudioHealthCheckModal): Reaaliaikainen PipeWiren, GStreamerin, Rubber Band v3 ja SoundTouch DSP:n, dekooderien ja SQLite-tietokannan diagnostiikkatyökalu leikepöytäraportilla.',
+        la: 'Instrumentum diagnosticae soni Linux (AudioHealthCheckModal): examinatio PipeWire, GStreamer, Rubber Band, SoundTouch et SQLite cum relatione ad tabulam.',
+      },
+      {
+        pl: 'Fabryczne Profile Sygnaturowe Auralune 1.0 (Mastering Sound Profiles): 1-klikowe zestrojenie toru audio: Anime Vocal Air (czysty wokal, ochrona formantów), Midnight Lo-Fi Tape (szum taśmy, crossfeed), Bit-Perfect Direct (czysty passthrough), Nightcore Club Anthem (+2 st, 1.25x), Ambient Slowed (0.84x, -1.5 st).',
+        en: 'Auralune 1.0 Signature Mastering Sound Profiles: 1-click audio chain tuning: Anime Vocal Air (formant-protected crisp vocals, wide M/S), Midnight Lo-Fi Tape (tape hiss, warm crossfeed), Bit-Perfect Direct (pure bypass), Nightcore (+2 st, 1.25x), Ambient Slowed (0.84x, -1.5 st).',
+        de: 'Auralune 1.0 Signature Mastering-Profile: 1-Klick Klangabstimmung: Anime Vocal Air (Stimmformantschutz, weite Bühne), Midnight Lo-Fi Tape (Bandhiss, Crossfeed), Bit-Perfect Direct (reiner Passthrough), Nightcore (+2 st, 1.25x), Ambient Slowed (0.84x, -1.5 st).',
+        fi: 'Auralune 1.0 Signature Masterointiprofiilit: 1-klikkauksen ääniprofiilit: Anime Vocal Air (lauluäänen formanttisuoja, laaja stereo), Midnight Lo-Fi Tape (nauhakohina, lämmin crossfeed), Bit-Perfect Direct (puhdas ohitus), Nightcore (+2 st, 1.25x), Ambient Slowed (0.84x, -1.5 st).',
+        la: 'Formae sonorae authenticae Auralune 1.0: adaptatio sono uno ictu: Anime Vocal Air (vox clara cum formatorum defensione), Midnight Lo-Fi Tape (fasciae sonus, crossfeed), Bit-Perfect Direct (transmissio directa), Nightcore, Ambient Slowed.',
+      },
+      {
+        pl: 'Przycisk „Shuffle All” (Wymieszaj wszystko): natychmiastowe losowanie całej biblioteki, widoku przefiltrowanego lub albumu algorytmem Fisher-Yates z natychmiastowym rozpoczęciem odtwarzania w bibliotece, albumach i Palecie Komend (Ctrl+K).',
+        en: 'Shuffle All Button: instant Fisher-Yates randomization and playback launch of entire library, filtered tracks, or selected album in library header, album view, and Command Palette (Ctrl+K).',
+        de: 'Shuffle All Button: Sofortige Fisher-Yates-Mischung und Wiedergabe der gesamten Bibliothek, gefilterten Titeln oder Alben in der Bibliotheksleiste, Albenansicht und Befehlspalette (Strg+K).',
+        fi: 'Shuffle All -painike: välitön Fisher-Yates-satunnaistoisto koko kirjastolle, suodatetuille kappaleille tai valitulle albumille kirjastossa, albumikatselussa ja komentopaletissa (Ctrl+K).',
+        la: 'Bulla Shuffle All: carmina omnia, filtrata vel unius disci statim miscere et canere in bibliotheca et indice mandatorum (Ctrl+K).',
+      },
+      {
+        pl: 'Dedykowany modal Pop-up Studio Lo-Fi FX (AnalogLoFiModal): przestronne okno dialogowe z tłem backdrop blur zastępujące ciasny popover na gramofonie i magnetofonie, suwak intensywności (0-100%) z presetami, wybór Winyl vs Taśma i auto-sync na pauzie.',
+        en: 'Dedicated Pop-up Modal Lo-Fi FX Studio (AnalogLoFiModal): spacious dialog modal with backdrop blur replacing cramped popover, 0-100% intensity slider with presets, Vinyl vs Tape switcher, and auto-sync on pause.',
+        de: 'Dediziertes Pop-up Modal Lo-Fi FX Studio (AnalogLoFiModal): Großzügiges Dialogfenster mit Backdrop-Blur statt engem Popover, Intensitätsregler 0-100% mit Presets, Vinyl vs Tape Umschalter und Auto-Sync bei Pause.',
+        fi: 'Erillinen Pop-up Lo-Fi FX Studio (AnalogLoFiModal): tilava taustasumennusikkuna ahtaan popoverin tilalle, 0-100% voimakkuussäädin esiasetuksilla, Vinyyli vs Nauha -valitsin ja automaattinen taukovaimennus.',
+        la: 'Dialogus Pop-up Lo-Fi FX Studio (AnalogLoFiModal): fenestra ampla cum fumo posteriori loco angusti popoveri, index gradus 0-100%, electio vinyli vel fasciae et silentium in pausa.',
+      },
+      {
+        pl: 'Wizualne zróżnicowanie nośników taśmy (TapeDeckWidget): dedykowane motywy szpul NAB i taśmy dla typów FE-I (Ferro), CR-II (Chrome) i METAL (złoto champagne) oraz dynamiczna fizyka obrotów 7½ vs 3¾ IPS.',
+        en: 'Physical Tape Type Variations (TapeDeckWidget): tailored NAB aluminum reels and tape styling for FE-I (Ferro), CR-II (Chrome), and METAL (champagne gold) with 7½ vs 3¾ IPS rotation speed simulation.',
+        de: 'Visuelle Kassetten-/Band-Typen (TapeDeckWidget): Spezifische NAB-Spulen und Bandoptik für FE-I (Ferro), CR-II (Chrome) und METAL (Champagner-Gold) mit 7½ vs 3¾ IPS Geschwindigkeitsphysik.',
+        fi: 'Fyysiset nauhatyypit (TapeDeckWidget): yksilölliset NAB-alumiinikelat ja nauhateemat FE-I (Ferro), CR-II (Chrome) ja METAL (samppanjakulta) tyypeille 7½ vs 3¾ IPS -nopeusfysiikalla.',
+        la: 'Species fasciae magneticae (TapeDeckWidget): themata propria rotularum NAB pro FE-I, CR-II et METAL cum velocitate 7½ vs 3¾ IPS.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Eliminacja zakleszczenia (deadlock) potoku audio podczas startu: usunięto konflikt blokad między wątkiem głównym GTK, potokiem GStreamer i PipeWire — przywracanie sesji i metadanych MPRIS odbywa się w sposób atomowy w backendzie.',
+        en: 'Eliminated startup audio pipeline deadlock: resolved mutex contention between GTK main loop, GStreamer, and PipeWire during session restoration.',
+        de: 'Audio-Pipeline-Deadlock beim Start behoben: Mutex-Konflikte zwischen GTK-Hauptschleife, GStreamer und PipeWire bei Sitzungswiederherstellung beseitigt.',
+        fi: 'Korjattu käynnistyksen ääniputken lukkiutuminen (deadlock): poistettu säiekilpailu GTK:n, GStreamerin ja PipeWiren väliltä istunnon palautuksessa.',
+        la: 'Resolutio conflictus filorum in initio: obstructio inter GTK, GStreamer et PipeWire in restituenda sessione sublata est.',
+      },
+      {
+        pl: 'Kąt parkowania ramienia gramofonowego (VinylTurntable): ramię w stanie pauzy spoczywa bezpiecznie wewnątrz plinty pod kątem 0deg na podpórce arm cradle, z zabezpieczeniem overflow: hidden.',
+        en: 'Turntable tonearm parking angle: tonearm now parks vertically at 0deg on the arm rest cradle safely inside the card with overflow: hidden clipping.',
+        de: 'Tonarm-Parkposition beim Plattenspieler: Der Tonarm ruht im Pausenzustand bei 0° sicher auf der Stütze innerhalb des Rahmens (overflow: hidden).',
+        fi: 'Levysoittimen äänivarren lepoasento: äänivarsi pysähtyy nyt turvallisesti 0 asteen kulmassa telineelle kortin sisäpuolelle (overflow: hidden).',
+        la: 'Angulus brachii phonographici: brachium in pausa directe ad 0 gradus in cardine intra tabulam quiescit.',
+      },
+      {
+        pl: 'Kompletne przywracanie ostatnio granego utworu po restarcie: odtwarzacz natychmiast ładuje utwór w stanie gotowości (Standby), z zachowaną pozycją seek, tytułem, wykonawcą i podświetleniem w bibliotece.',
+        en: 'Complete last-played track restoration across restarts: tracks are loaded in Standby ready to play, preserving seek position, artwork, metadata, and library table highlighting.',
+        de: 'Vollständige Wiederherstellung des zuletzt gespielten Titels: Titel werden im Standby-Modus geladen, Position, Cover, Metadaten und Tabellenmarkierung bleiben erhalten.',
+        fi: 'Viimeksi soitetun kappaleen täydellinen palautus: kappale ladataan Standby-tilaan säilyttäen soittoasennon, kansitaiteen, metatiedot ja korostuksen kirjastossa.',
+        la: 'Restitutio carminis ultimi: carmen in statu parato (Standby) servatur cum loco temporis, imagine et notatione in tabula.',
+      },
+    ],
+  },
+  {
     version: '0.9.4',
     codename: 'Kitsune Vintage Tape & Audio Path',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
     added: [
       {
         pl: 'Akustyczny Fingerprinting i Autotagowanie (Chromaprint / AcoustID): rozpoznawanie utworów bez tagów bezpośrednio z fali dźwiękowej za pomocą narzędzia fpcalc oraz API AcoustID / MusicBrainz z poziomu Edytora Tagów (przycisk „Wykryj z fali audio”) wraz z wyborem wariantów wydań.',

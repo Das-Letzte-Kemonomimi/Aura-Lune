@@ -1,4 +1,4 @@
-# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v0.9.4)
+# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.0.0)
 
 > **OBOWIĄZKOWA INSTRUKCJA DLA KAŻDEGO AGENTA I PROGRAMISTY:**
 > 1. **ZAWSZE przed proponowaniem nowych funkcji, planowaniem roadmapy lub refaktoryzacją PRZECZYTAJ TEN PLIK**, aby nigdy nie sugerować i nie dublować funkcji, które są już wdrożone w kodzie.
@@ -21,6 +21,8 @@
 - [x] **Pełne zapamiętywanie sesji odtwarzania (Session Persistence)**: Opcjonalne przywracanie ostatniego utworu, dokładnej pozycji czasowej, poziomu głośności (liniowego oraz dB), parametrów DSP oraz trybu widoku po ponownym uruchomieniu z dedykowanym przyciskiem w Ustawieniach.
 - [x] **Audiophile Audio Path & Bit-Perfect Stream Inspector (`AudioPathInspectorModal`)**:
   - Interaktywny inspektor toru audio w stylu Powerampa po kliknięciu plakietki jakości PipeWire: wizualizacja pełnego łańcucha sygnałowego (`Source -> GStreamer Decoder -> DSP Modulator -> Audio Effects -> PipeWire Sink & DAC`), wskaźnik `BIT-PERFECT DIRECT` vs `PROCESSED`, parametry formatu, częstotliwości próbkowania, głębi bitowej, latencji oraz 1-klikowy reset do czystego bit-perfect passthrough.
+- [x] **Linux Audio & System Health Check (`AudioHealthCheckModal`)**:
+  - Kompleksowa diagnostyka całego stosu audio Linuksa w wersji 1.0 (serwer PipeWire i wersja rdzenia, wersja GStreamera, dostępność kodeków FLAC/MP3/Vorbis/Opus/AAC/WAV, status procesorów RubberBand & SoundTouch, stan bazy SQLite, integracja MPRIS/Waybar/FIFO) z funkcją 1-klikowego kopiowania raportu do schowka.
 
 ---
 

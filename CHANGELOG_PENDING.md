@@ -13,33 +13,13 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- **Dedykowany modal Pop-up Studio Lo-Fi FX (`AnalogLoFiModal`)**:
-  - Zastąpiono mały, ciasny dymek wbudowany w kartę gramofonu i magnetofonu pełnowymiarowym oknem pop-up z rozmyciem tła (backdrop blur).
-  - Przejrzysty panel wyboru nośnika: 💿 **Płyta Winylowa** (szum mikrorowków, rotacyjny sweep 33⅓/45 RPM, trzaski kurzu i dudnienie igły) vs 📼 **Taśma Magnetyczna** (szum chromowy Tape Hiss, kompresja i nasycenie).
-  - Wygodny suwak intensywności (0-100%) z szybkimi presetami (*Subtelny 12%*, *Vintage Hi-Fi 25%*, *Lo-Fi Chill 50%*, *Głęboki Retro 80%*).
-  - Opcja automatycznej synchronizacji (wyciszanie szumu na pauzie) oraz przycisk natychmiastowego testu odsłuchowego szumu tła.
-- **Kompleksowe zróżnicowanie wizualne nośników w TapeDeckWidget**:
-  - `FE-I` (Ferro): rdzawo-brązowa taśma, klasyczne szpule z tłoczonego aluminium, bursztynowe akcenty LED.
-  - `CR-II` (Chrome): głęboko grafitowa/antracytowa taśma, nowoczesne tytanowe szpule, cyjanowe akcenty LED.
-  - `METAL`: metaliczna taśma gunmetal, luksusowe szpule NAB ze szczotkowanego złota champagne, złote akcenty LED.
-- **Dynamiczna symulacja prędkości taśmy (7½ vs 3¾ IPS)**: dwukrotne przyspieszenie obrotów szpul, rolki dociskowej (pinch roller) oraz mechanicznego licznika taśmy.
-- **Persystencja parametrów analogowych**: zapamiętywanie wybranego RPM winylu (33/45), typu taśmy (FE-I/CR-II/METAL) oraz prędkości taśmy (7.5/3.75 IPS) w `localStorage`.
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*
 
 ### 🛠️ Poprawiono (Fixed)
-- **Eliminacja zakleszczenia (deadlock) podczas startu aplikacji**:
-  - Wyeliminowano konflikt blokad między wątkiem głównym GTK, potokiem GStreamer i PipeWire — przywracanie sesji i rejestracja aktywnego elementu kolejki (`QueueItem`) oraz metadanych MPRIS odbywa się teraz w sposób atomowy i bezkolizyjny w backendzie, bez wywoływania równoczesnego `load_file` z frontendu.
-- **Kąt parkowania ramienia gramofonowego (`VinylTurntable`)**:
-  - Skorygowano pozycję spoczynkową ramienia na `0deg` (zamiast `-28deg`, które wypychało igłę poza obrys gramofonu) — ramię w stanie pauzy spoczywa teraz pionowo wewnątrz karty na dedykowanej podpórce (arm rest cradle).
-  - Przywrócono bezpieczne przycinanie `overflow: hidden` na plincie gramofonu i magnetofonu, eliminując jakiekolwiek wystawanie elementów poza zaokrąglone krawędzie karty.
-- **Kompletne przywracanie ostatnio odtwarzanego utworu po restarcie**:
-  - Naprawiono błąd, przez który przywracanie sesji nie ładowało utworu do UI ani silnika audio — teraz ostatnio odtwarzany utwór jest natychmiast załadowany w stanie gotowości (Standby), z zachowaną pozycją seek, tytułem, wykonawcą, okładką albumu oraz parametrami DSP i korektora.
-  - Ostatnio grany utwór jest natychmiast oznaczony jako aktywny w tabeli biblioteki oraz widoku albumów (różowe podświetlenie, ikona odtwarzania `Play` w trybie czuwania oraz `Zap` podczas grania).
-- **Eliminacja ucinania i ciasnoty opcji Lo-Fi FX**: całkowicie usunięto problem ucinania prawej krawędzi opcji — kliknięcie `LO-FI` na gramofonie lub magnetofonie otwiera teraz przestronny, wycentrowany modal dialogowy Pop-up.
-- **Dopasowanie szerokości widoku Now Playing**: rozszerzono kolumnę widgetów z 240px do 275px (rozmiar widgetów 265px) w trybach Vinyl, Tape i VU, zapewniając swobodne rozmieszczenie elementów sterujących bez ścisku.
-- **Reaktywność opcji wizualnych gramofonu**: kliknięcie 33⅓ vs 45 RPM natychmiast zmienia prędkość obrotową (190 vs 285 deg/s), kąt prowadzenia ramienia gramofonowego (tonearm) oraz dynamicznie aktualizuje dolny badge statusu w `App.tsx`.
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*
 
 ### 🔄 Zmieniono (Changed)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.4)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.4)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v1.0.0)*

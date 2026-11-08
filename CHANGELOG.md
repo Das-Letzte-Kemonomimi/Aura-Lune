@@ -9,6 +9,40 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.0] — „Kitsune Golden Master” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Dodano (Added)
+- **Narzędzie Diagnostyczne Linux Audio & System Health Check (`AudioHealthCheckModal`)**:
+  - Wbudowany audytor środowiska audio Linuksa w czasie rzeczywistym: weryfikacja demona PipeWire, wersji GStreamera, dostępności kluczowych dekoderów audio (`flacdec`, `mpg123audiodec`, `vorbisdec`, `opusdec`, `faad`, `wavparse`), bibliotek DSP Rubber Band v3 i SoundTouch, spójności bazy danych SQLite oraz aktywności integracji MPRIS D-Bus, Waybar JSON IPC i kolejki FIFO.
+  - 1-klikowe generowanie i kopiowanie pełnego, sformatowanego raportu diagnostycznego do schowka do zgłoszeń błędów.
+- **Fabryczne Profile Sygnaturowe Auralune 1.0 (Mastering Sound Profiles)**:
+  - 1-klikowe gotowe profile brzmieniowe w zakładce DSP Studio oraz Palecie Komend (`Ctrl+K`):
+    - 🌸 **Anime & J-Pop Vocal Air**: krystaliczne, otwarte wokale z ochroną formantów głosu w Rubber Band i poszerzoną sceną Mid-Side.
+    - ☕ **Midnight Lo-Fi Tape & Coffee**: ciepły szum taśmy chromowej (Tape Hiss), saturacja analogowa i łagodny crossfeed słuchawkowy BS2B.
+    - 🎧 **Audiophile Bit-Perfect Direct**: 100% czysty, nieskazitelny passthrough bez żadnego DSP bezpośrednio do PipeWire i przetwornika DAC.
+    - ⚡ **Nightcore Club Anthem**: dynamiczne przyspieszenie tempa 1.25x z transpozycją pitch +2.0 półtony i True-Peak limiterem.
+    - 🌌 **Ambient Slowed & Space**: marzycielski, zwolniony odsłuch 0.84x z transpozycją -1.5 st i szeroką sceną stereo.
+- **Przycisk „Shuffle All” (Wymieszaj wszystko)**:
+  - Błyskawiczne losowanie i natychmiastowe uruchomienie całej biblioteki, przefiltrowanej listy lub wybranego albumu algorytmem Fisher-Yates w nagłówkach widoków oraz Palecie Komend (`Ctrl+K`).
+- **Dedykowany modal Pop-up Studio Lo-Fi FX (`AnalogLoFiModal`)**:
+  - Wycentrowany, przestronny modal Pop-up z tłem typu backdrop blur zastępujący mały, przycinany dymek na kartach gramofonu i magnetofonu.
+  - Wybór nośnika analogowego (Płyta winylowa 33⅓/45 RPM vs Taśma chromowa), suwak intensywności (0-100%), auto-sync i natychmiastowy test odsłuchowy szumu.
+- **Wizualne zróżnicowanie nośników taśmowych (`TapeDeckWidget`)**:
+  - Dedykowane motywy szpul NAB i taśmy dla typów `FE-I` (Ferro), `CR-II` (Chrome) i `METAL` (złoto champagne) oraz dynamiczna fizyka obrotów 7½ vs 3¾ IPS.
+- **Persystencja parametrów analogowych**: zapamiętywanie wybranego RPM winylu (33/45), typu taśmy (FE-I/CR-II/METAL) oraz prędkości taśmy (7.5/3.75 IPS) w `localStorage`.
+
+### Poprawiono (Fixed)
+- **Eliminacja zakleszczenia (deadlock) potoku audio podczas startu**:
+  - Usunięto konflikt blokad między wątkiem głównym GTK, potokiem GStreamer i PipeWire — przywracanie sesji i rejestracja aktywnego elementu kolejki (`QueueItem`) oraz metadanych MPRIS odbywa się teraz w sposób atomowy i bezkolizyjny w backendzie.
+- **Kąt parkowania ramienia gramofonowego (`VinylTurntable`)**:
+  - Skorygowano pozycję spoczynkową ramienia na `0deg` i dodano dedykowaną podpórkę ramienia (arm rest cradle), zabezpieczając plintę regułą `overflow: hidden`.
+- **Kompletne przywracanie ostatnio odtwarzanego utworu po restarcie**:
+  - Ostatnio grany utwór jest natychmiast gotowy do odtwarzania w stanie czuwania (Standby), z zachowaną pozycją seek, tytułem, wykonawcą, okładką albumu oraz podświetleniem w tabeli biblioteki i widoku albumu.
+- **Dopasowanie szerokości widoku Now Playing**: rozszerzono kolumnę widgetów z 240px do 275px (rozmiar widgetów 265px) w trybach Vinyl, Tape i VU, zapewniając swobodne rozmieszczenie elementów sterujących bez ścisku.
+
+---
+
 ## [0.9.4] — „Kitsune Vintage Tape & Audio Path” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 

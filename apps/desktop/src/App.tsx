@@ -90,6 +90,7 @@ import { VinylTurntable } from './components/VinylTurntable';
 import { TapeDeckWidget, type TapeType } from './components/TapeDeckWidget';
 import { AnalogLoFiModal } from './components/AnalogLoFiModal';
 import { AudioPathInspectorModal } from './components/AudioPathInspectorModal';
+import { AudioHealthCheckModal } from './components/AudioHealthCheckModal';
 import { evaluateHarmonicMatch } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { LyricsView } from './components/LyricsView';
@@ -122,6 +123,7 @@ import { AddRadioStationModal } from './components/AddRadioStationModal';
 import { UrlAudioImportModal } from './components/UrlAudioImportModal';
 import { SoundscapeModal } from './components/SoundscapeModal';
 import { soundscapeEngine } from './utils/soundscapeAudio';
+import { vinylSimulator } from './utils/vinylSimulator';
 import { HarmonicSuggesterModal } from './components/HarmonicSuggesterModal';
 import { AutoEqModal } from './components/AutoEqModal';
 import { ParametricEqModal } from './components/ParametricEqModal';
@@ -992,6 +994,7 @@ export default function App() {
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const [isAudioPathModalOpen, setIsAudioPathModalOpen] = useState(false);
   const [isLoFiModalOpen, setIsLoFiModalOpen] = useState(false);
+  const [isHealthCheckModalOpen, setIsHealthCheckModalOpen] = useState(false);
   const [sleepTimerRemainingSec, setSleepTimerRemainingSec] = useState<number | null>(null);
   const [sleepTimerTargetMode, setSleepTimerTargetMode] = useState<'time' | 'end_of_track' | null>(null);
   const [sleepTimerFadeOut, setSleepTimerFadeOut] = useState(true);
@@ -3464,6 +3467,165 @@ export default function App() {
     }
   };
 
+  // 1.0: Wymieszanie i natychmiastowe odtworzenie całej biblioteki lub kontekstu utworów
+  const handleShuffleAll = async (sourceTracks?: TrackRecord[]) => {
+    const pool = (sourceTracks && sourceTracks.length > 0)
+      ? sourceTracks
+      : (filteredTracks.length > 0 ? filteredTracks : tracks);
+
+    if (pool.length === 0) {
+      showMessage((loc.common as any)?.noResults || 'Brak utworów do odtworzenia', true);
+      return;
+    }
+
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    const queueItems: QueueItem[] = shuffled.map((t) => ({
+      id: `track-${t.id}`,
+      track_id: t.id,
+      uri: t.path,
+      title: t.title,
+      artist: t.artist,
+      album: albums.find((a) => a.id === t.album_id)?.title || null,
+      duration_ms: (t.duration_ms || 0) > 0 ? t.duration_ms! : 0,
+    }));
+
+    try {
+      await invoke('set_queue', { items: queueItems, startIndex: 0 });
+      await invoke('set_shuffle', { enabled: true });
+      await invoke('play');
+      await refreshQueue();
+      setActiveTrackId(shuffled[0].id);
+      setFilePath(shuffled[0].path);
+      showMessage(`🔀 Wymieszano i uruchomiono ${shuffled.length} utworów!`);
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
+  // 1.0: 1-klikowe profile sygnaturowe Auralune (Mastering Sound Profiles)
+  const handleApplySignatureProfile = async (profileId: string) => {
+    try {
+      if (profileId === 'vocal_air') {
+        await invoke('set_dsp_params', {
+          engine: 'RubberBand',
+          pitchSemitones: 0.0,
+          tempoRatio: 1.0,
+          rateRatio: 1.0,
+        });
+        const vocalBands = [0, 0, -1, 0, 0, 1.5, 2.5, 2.0, 1.5, 0];
+        await invoke('set_equalizer_params', { enabled: true, bands: vocalBands });
+        await invoke('set_stereo_widener', { active: true, amount: 0.35 });
+        await invoke('set_limiter_enabled', { enabled: true });
+        vinylSimulator.setEnabled(false);
+        setStatus((prev) => ({
+          ...prev,
+          engine: 'RubberBand',
+          pitch_semitones: 0.0,
+          tempo_ratio: 1.0,
+          rate_ratio: 1.0,
+          equalizer_enabled: true,
+          equalizer_bands: vocalBands,
+        }));
+        showMessage('🌸 Zastosowano profil: Anime Vocal Air (Czysty wokal, poszerzona scena)');
+      } else if (profileId === 'lofi_tape') {
+        await invoke('set_dsp_params', {
+          engine: 'SoundTouch',
+          pitchSemitones: -0.5,
+          tempoRatio: 0.94,
+          rateRatio: 0.94,
+        });
+        const tapeBands = [2.5, 2.0, 1.0, 0, 0, 0, -1.0, -2.0, -3.0, -4.0];
+        await invoke('set_equalizer_params', { enabled: true, bands: tapeBands });
+        await invoke('set_crossfeed_config', { enabled: true, preset: 'Default', fcut_hz: 700, feed_tenth_db: 45 });
+        vinylSimulator.setEnabled(true);
+        vinylSimulator.setMode('tape');
+        vinylSimulator.setIntensity(0.32);
+        setStatus((prev) => ({
+          ...prev,
+          engine: 'SoundTouch',
+          pitch_semitones: -0.5,
+          tempo_ratio: 0.94,
+          rate_ratio: 0.94,
+          equalizer_enabled: true,
+          equalizer_bands: tapeBands,
+        }));
+        showMessage('☕ Zastosowano profil: Midnight Lo-Fi Tape (Szum taśmy, ciepło analogu, crossfeed)');
+      } else if (profileId === 'bit_perfect') {
+        await invoke('set_dsp_params', {
+          engine: 'Bypass',
+          pitchSemitones: 0.0,
+          tempoRatio: 1.0,
+          rateRatio: 1.0,
+        });
+        await invoke('set_equalizer_params', { enabled: false, bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
+        await invoke('set_stereo_widener', { active: false, amount: 0.0 });
+        await invoke('set_limiter_enabled', { enabled: false });
+        await invoke('set_crossfeed_config', { enabled: false, preset: 'Default', fcut_hz: 700, feed_tenth_db: 45 });
+        vinylSimulator.setEnabled(false);
+        setStatus((prev) => ({
+          ...prev,
+          engine: 'Bypass',
+          pitch_semitones: 0.0,
+          tempo_ratio: 1.0,
+          rate_ratio: 1.0,
+          equalizer_enabled: false,
+          equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        }));
+        showMessage('🎧 Zastosowano profil: Audiophile Bit-Perfect (Passthrough bez DSP)');
+      } else if (profileId === 'nightcore') {
+        await invoke('set_dsp_params', {
+          engine: 'RubberBand',
+          pitchSemitones: 2.0,
+          tempoRatio: 1.25,
+          rateRatio: 1.25,
+        });
+        const clubBands = [3.0, 2.5, 0, 0, 1.0, 1.5, 2.0, 3.0, 3.5, 2.0];
+        await invoke('set_equalizer_params', { enabled: true, bands: clubBands });
+        await invoke('set_limiter_enabled', { enabled: true });
+        await invoke('set_stereo_widener', { active: true, amount: 0.40 });
+        vinylSimulator.setEnabled(false);
+        setStatus((prev) => ({
+          ...prev,
+          engine: 'RubberBand',
+          pitch_semitones: 2.0,
+          tempo_ratio: 1.25,
+          rate_ratio: 1.25,
+          equalizer_enabled: true,
+          equalizer_bands: clubBands,
+        }));
+        showMessage('⚡ Zastosowano profil: Nightcore Club Anthem (+2 st, 1.25x, Limiter)');
+      } else if (profileId === 'slowed') {
+        await invoke('set_dsp_params', {
+          engine: 'RubberBand',
+          pitchSemitones: -1.5,
+          tempoRatio: 0.84,
+          rateRatio: 0.84,
+        });
+        const ambientBands = [2.5, 2.0, 1.0, 0, 0, 0, -1.0, -1.5, -2.0, -2.5];
+        await invoke('set_equalizer_params', { enabled: true, bands: ambientBands });
+        await invoke('set_stereo_widener', { active: true, amount: 0.55 });
+        vinylSimulator.setEnabled(false);
+        setStatus((prev) => ({
+          ...prev,
+          engine: 'RubberBand',
+          pitch_semitones: -1.5,
+          tempo_ratio: 0.84,
+          rate_ratio: 0.84,
+          equalizer_enabled: true,
+          equalizer_bands: ambientBands,
+        }));
+        showMessage('🌌 Zastosowano profil: Ambient Slowed & Space (0.84x, -1.5 st, Wide M/S)');
+      }
+    } catch (e: any) {
+      showMessage(`${t.common.errorPrefix} ${e}`, true);
+    }
+  };
+
   // Zapis zakładki dla aktywnego utworu
   const handleSaveBookmark = async () => {
     if (!activeTrackId) {
@@ -5542,13 +5704,34 @@ const renderDevicesSection = () => (
               <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Radio size={20} color="var(--accent-green)" /> {loc.settings.audioDevices}
               </h2>
-              <button
-                onClick={refreshDevices}
-                className="glass-card"
-                style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
-              >
-                <RefreshCw size={14} /> {loc.library.refresh}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => setIsHealthCheckModalOpen(true)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: 'rgba(34, 197, 94, 0.2)',
+                    border: '1px solid rgba(34, 197, 94, 0.4)',
+                    color: '#4ade80',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Activity size={14} />
+                  Test Toru Audio (Health Check)
+                </button>
+                <button
+                  onClick={refreshDevices}
+                  className="glass-card"
+                  style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
+                >
+                  <RefreshCw size={14} /> {loc.library.refresh}
+                </button>
+              </div>
             </div>
 
             {/* Opcja płynnego wyciszenia paska postępu (Seek Fade) */}
@@ -8324,17 +8507,37 @@ const renderDevicesSection = () => (
           <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>Auralune</span>
             <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem' }}>狐 Kitsune</span>
+            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))', color: '#fff', fontWeight: 800 }}>v1.0.0 Golden Master</span>
           </h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
-            {loc.settings.version} {appVersion} „Kitsune Infinity & Analog Warmth” • {loc.settings.author}: Das Letzte Kemonomimi
+            {loc.settings.version} 1.0.0 „Kitsune Golden Master” • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
           <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics & real-time pitch/tempo modulation.
           </p>
-          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', fontWeight: 600 }}>
-              SemVer: Major (1.0) • Minor (0.X) • Patch (0.1.X)
+              Oficjalne Wydanie Stabilne 1.0.0
             </span>
+            <button
+              onClick={() => setIsHealthCheckModalOpen(true)}
+              style={{
+                fontSize: '0.75rem',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                background: 'rgba(34, 197, 94, 0.2)',
+                border: '1px solid rgba(34, 197, 94, 0.4)',
+                color: '#4ade80',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              <Activity size={13} />
+              Test Środowiska Audio (Health Check)
+            </button>
             <button
               onClick={() => setSettingsTab('changelog')}
               style={{
@@ -12858,6 +13061,28 @@ const renderDevicesSection = () => (
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <button
+                  onClick={() => handleShuffleAll()}
+                  style={{
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+                    border: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 12px rgba(236, 72, 153, 0.4)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Wymieszaj i odtwórz wszystkie utwory z bieżącego widoku (Shuffle All)"
+                >
+                  <Shuffle size={15} /> {(loc.library as any)?.shuffleAll || 'Wymieszaj wszystko'}
+                </button>
+
+                <button
                   onClick={() => setShowDownloadHub(true)}
                   className="glass-card"
                   style={{
@@ -14146,6 +14371,26 @@ const renderDevicesSection = () => (
                                 }}
                               >
                                 <Play size={16} fill="#fff" /> {loc.player.play} od początku
+                              </button>
+                              <button
+                                onClick={() => handleShuffleAll(albumTracks)}
+                                disabled={albumTracks.length === 0}
+                                style={{
+                                  padding: '9px 16px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(236, 72, 153, 0.2)',
+                                  color: '#fff',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 700,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '7px',
+                                  cursor: albumTracks.length === 0 ? 'default' : 'pointer',
+                                  border: '1px solid rgba(236, 72, 153, 0.45)',
+                                }}
+                                title="Wymieszaj i odtwórz ten album"
+                              >
+                                <Shuffle size={15} color="var(--accent-pink)" /> Wymieszaj album
                               </button>
                               <button
                                 onClick={async () => {
@@ -16463,6 +16708,114 @@ const renderDevicesSection = () => (
                 </button>
               </div>
 
+              {/* Profile Sygnaturowe 1.0 */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-pink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} /> Profile Sygnaturowe Auralune 1.0 (Mastering Profiles)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                  <button
+                    onClick={() => handleApplySignatureProfile('vocal_air')}
+                    className="glass-card"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.15))',
+                      border: '1px solid rgba(244, 63, 94, 0.4)',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🌸 Anime Vocal Air</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Czysty wokal, ochrona formantów</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApplySignatureProfile('lofi_tape')}
+                    className="glass-card"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(235, 116, 34, 0.2), rgba(168, 85, 247, 0.15))',
+                      border: '1px solid rgba(235, 116, 34, 0.4)',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>☕ Midnight Lo-Fi Tape</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Szum taśmy, crossfeed, ciepło</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApplySignatureProfile('bit_perfect')}
+                    className="glass-card"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(6, 182, 212, 0.15))',
+                      border: '1px solid rgba(34, 197, 94, 0.4)',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🎧 Bit-Perfect Direct</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>100% czysty passthrough bez DSP</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApplySignatureProfile('nightcore')}
+                    className="glass-card"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>⚡ Nightcore Club Anthem</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Tempo 1.25x, Pitch +2 st, Limiter</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApplySignatureProfile('slowed')}
+                    className="glass-card"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(168, 85, 247, 0.15))',
+                      border: '1px solid rgba(6, 182, 212, 0.4)',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🌌 Ambient Slowed & Space</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Tempo 0.84x, Pitch -1.5 st, Wide</span>
+                  </button>
+                </div>
+              </div>
+
               {presets.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {presets.map((p) => (
@@ -18568,6 +18921,12 @@ const renderDevicesSection = () => (
         isPlaying={status.state === 'Playing'}
       />
 
+      {/* Modal Testu Środowiska Audio (Health Check 1.0) */}
+      <AudioHealthCheckModal
+        isOpen={isHealthCheckModalOpen}
+        onClose={() => setIsHealthCheckModalOpen(false)}
+      />
+
       {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
       <SoundscapeModal
         isOpen={isSoundscapeOpen}
@@ -18856,6 +19215,8 @@ const renderDevicesSection = () => (
           onOpenAutoEq={() => setIsAutoEqOpen(true)}
           onOpenParametricEq={() => setIsParametricEqOpen(true)}
           onOpenDynamicsStudio={() => setIsDynamicsStudioOpen(true)}
+          onShuffleAll={() => handleShuffleAll()}
+          onOpenHealthCheck={() => setIsHealthCheckModalOpen(true)}
           onSelectTab={(tab) => setActiveTab(tab as any)}
         />
       )}
