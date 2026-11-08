@@ -185,15 +185,18 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
       if (!isPlaying && Math.abs(leftSpeedRef.current) < 0.1) leftSpeedRef.current = 0;
       if (!isPlaying && Math.abs(rightSpeedRef.current) < 0.1) rightSpeedRef.current = 0;
 
+      // Zgodnie z mechaniką magnetofonu szpulowego: taśma biegnie dołem z lewej do prawej,
+      // więc obie szpule obracają się w lewo (przeciwnie do ruchu wskazówek zegara),
+      // a dolna krawędź szpuli przesuwa się zgodnie z ruchem taśmy w prawo.
       if (leftSpeedRef.current > 0.01) {
-        leftAngleRef.current = (leftAngleRef.current + leftSpeedRef.current * dt) % 360;
+        leftAngleRef.current = (leftAngleRef.current - leftSpeedRef.current * dt + 360) % 360;
         if (leftSpoolRef.current) {
           leftSpoolRef.current.setAttribute('transform', `rotate(${leftAngleRef.current.toFixed(2)} 65 75)`);
         }
       }
 
       if (rightSpeedRef.current > 0.01) {
-        rightAngleRef.current = (rightAngleRef.current + rightSpeedRef.current * dt) % 360;
+        rightAngleRef.current = (rightAngleRef.current - rightSpeedRef.current * dt + 360) % 360;
         if (rightSpoolRef.current) {
           rightSpoolRef.current.setAttribute('transform', `rotate(${rightAngleRef.current.toFixed(2)} 175 75)`);
         }
