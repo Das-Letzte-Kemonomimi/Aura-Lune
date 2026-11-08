@@ -18,11 +18,49 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '0.9.4',
+    codename: 'Kitsune Vintage Tape & Audio Path',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Akustyczny Fingerprinting i Autotagowanie (Chromaprint / AcoustID): rozpoznawanie utworów bez tagów bezpośrednio z fali dźwiękowej za pomocą narzędzia fpcalc oraz API AcoustID / MusicBrainz z poziomu Edytora Tagów (przycisk „Wykryj z fali audio”) wraz z wyborem wariantów wydań.',
+        en: 'Acoustic Fingerprinting & Autotagging (Chromaprint / AcoustID): identify untagged audio files directly from acoustic waveform using fpcalc and AcoustID / MusicBrainz REST API inside Tag Editor with candidate release picker.',
+        de: 'Akustischer Fingerabdruck & Autotagging (Chromaprint / AcoustID): Identifizierung ungetaggter Dateien direkt aus der Wellenform über fpcalc und AcoustID / MusicBrainz mit Versionsauswahl.',
+        fi: 'Akustinen sormenjälkitunnistus ja automaattinen tägäys (Chromaprint / AcoustID): tunnista tägäämättömät äänitiedostot suoraan ääniaallosta fpcalc-työkalulla ja AcoustID / MusicBrainz -rajapinnalla.',
+        la: 'Impressio acustica et notatio automatica (Chromaprint / AcoustID): carmina sine titulis directe ex forma undae agnoscere per fpcalc et AcoustID / MusicBrainz.',
+      },
+      {
+        pl: 'Symulator Brzmienia Winylowego & Taśmy (Lo-Fi Vinyl & Tape Noise FX): proceduralny generator szumu mikrorowków winyla, obrotowego sweepu 33⅓/45 RPM, trzasków kurzu i pomruku igły oraz szumu taśmy chromowej zintegrowany z gramofonem VinylTurntable z auto-sync na pauzie.',
+        en: 'Lo-Fi Vinyl & Tape Noise FX Simulator: procedural synthesizer of vinyl micro-groove hiss, 33⅓/45 RPM cyclic rotation sweep, dust crackle, stylus rumble, and chrome tape hiss integrated into VinylTurntable with auto-sync on pause.',
+        de: 'Lo-Fi Vinyl- & Tonband-Rauschsimulator: prozedurale Synthese von Rillenrauschen, 33⅓/45 U/min Rotations-Sweep, Staubknistern, Nadelbrummen und Chromband-Rauschen mit Auto-Sync bei Pause.',
+        fi: 'Lo-Fi Vinyyli- ja nauhakohinasimulaattori: vinyylin urakohinan, 33⅓/45 RPM pyörimissweepin, pölyn rapinan, neulan jyrinän ja krominauhan kohinan reaaliaikainen synteesi automaattisella taukovaimennuksella.',
+        la: 'Simulator soni vinylei et fasciae magneticae: synthesis procedens soni rimarum, motus rotantis 33⅓/45 RPM, crepitus pulveris et stridoris acus cum silentio in pausa.',
+      },
+      {
+        pl: 'Retro Magnetofon Szpulowy / Kaseta Studyjna (TapeDeckWidget): 4. tryb wizualny w sekcji Now Playing z obracającymi się szpulami aluminiowymi NAB, fizycznym przemieszczaniem nawoju taśmy zależnym od pozycji w utworze, mechanicznym licznikiem obrotów i przełącznikiem prędkości 7½ / 3¾ IPS.',
+        en: 'Retro Reel-to-Reel Tape Deck (TapeDeckWidget): 4th visual mode in Now Playing featuring rotating aluminum NAB reels with physical tape spool transfer physics, mechanical 4-digit counter, and 7½ / 3¾ IPS tape speed toggle.',
+        de: 'Retro Spulentonbandgerät (TapeDeckWidget): 4. visueller Modus in Now Playing mit rotierenden NAB-Aluspulen, physikalischem Bandübertrag, mechanischem Zählwerk und 7½ / 3¾ IPS Umschalter.',
+        fi: 'Retro Kelanauhuri / Kasetti (TapeDeckWidget): 4. visuaalinen tila Now Playing -näkymässä pyörivillä alumiinisilla NAB-keloilla, fyysisellä nauhansiirrolla, mekaanisella laskurilla ja 7½ / 3¾ IPS nopeuskytkimellä.',
+        la: 'Magnetophonum retrogradum (TapeDeckWidget): quartus modus visualis in Now Playing cum rotantibus rotulis metallicis NAB, translatione fasciae magneticae et indice mechanico.',
+      },
+      {
+        pl: 'Audiophile Audio Path & Bit-Perfect Stream Inspector (AudioPathInspectorModal): interaktywny inspektor pełnego łańcucha sygnałowego audio w stylu Powerampa po kliknięciu plakietki PipeWire, wizualizacja 4 etapów toru, wskaźnik BIT-PERFECT DIRECT oraz 1-klikowy reset do czystego passthrough.',
+        en: 'Audiophile Audio Path & Bit-Perfect Stream Inspector (AudioPathInspectorModal): Poweramp-style interactive signal path inspector opened by clicking PipeWire badge, 4-stage pipeline visualization, BIT-PERFECT DIRECT status, and 1-click passthrough reset.',
+        de: 'Audiophiler Audio Path & Bit-Perfect Stream Inspector (AudioPathInspectorModal): Interaktiver Signalpfad-Inspektor im Poweramp-Stil, 4-Stufen-Visualisierung, BIT-PERFECT DIRECT Status und 1-Klick Passthrough-Reset.',
+        fi: 'Hifitasoinen Audio Path & Bit-Perfect Stream Inspector (AudioPathInspectorModal): Poweramp-tyylinen signaalipolun tarkastaja PipeWire-painikkeesta, 4-vaiheinen visualisointi, BIT-PERFECT DIRECT -tila ja 1-klikkauksen nollaus.',
+        la: 'Inspector tramitis acustici Bit-Perfect (AudioPathInspectorModal): inspector canalis soni modo Poweramp per bullam PipeWire, demonstratio quattuor graduum et status BIT-PERFECT DIRECT.',
+      },
+    ],
+    fixed: [],
+  },
+  {
     version: '0.9.3',
     codename: 'Kitsune Pure Bypass & Groove Sync',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Synchronizacja obrotu płyty winylowej ze stanem silnika DSP (Direct Bypass vs Aktywne DSP): gramofon uwzględnia teraz rzeczywisty tryb pracy procesora audio. W trybie Direct Bypass płyta wiruje z nominalną, naturalną prędkością 1.0x (33⅓ lub 45 RPM), a mnożniki tempa/szybkości wpływają na prędkość obrotową wyłącznie wtedy, gdy wybrany jest aktywny silnik DSP (RubberBand lub SoundTouch).',

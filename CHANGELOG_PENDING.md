@@ -13,16 +13,13 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- **Akustyczny Fingerprinting i Autotagowanie (Chromaprint / AcoustID)**: Pełna integracja z narzędziem `fpcalc` oraz serwisem AcoustID REST API (`crates/metadata/src/acoustid.rs`). Umożliwia 1-klikowe rozpoznawanie nieznanych utworów audio po samej fali dźwiękowej, automatyczne uzupełnianie tagów i wybór wydań w oknie `TagEditorModal`.
-- **Symulator Brzmienia Winylowego & Taśmy (Lo-Fi Vinyl & Tape Noise FX)**: Autorski silnik syntezy szumu analogowego (`apps/desktop/src/utils/vinylSimulator.ts`) zintegrowany bezpośrednio z widokiem gramofonu `VinylTurntable`. Zawiera realistyczne trzaski kurzu (dust crackle), szum rowka winylowego z modulacją obrotową 33⅓/45 RPM, basowe dudnienie igły (stylus rumble) oraz szum taśmy chromowej (Tape Hiss) z regulacją poziomu (0-100%) i automatycznym wyciszaniem na pauzie.
-- **Retro Magnetofon Szpulowy / Kaseta (`TapeDeckWidget`)**: Dedykowany 4. tryb wizualny w głównym odtwarzaczu Now Playing obok Okładki, Winylu i VU-Metera. Wierne odwzorowanie studyjnego magnetofonu szpulowego z obracającymi się szpulami aluminiowymi NAB, fizycznym przemieszczaniem nawoju taśmy z lewej na prawą szpulę zależnym od pozycji w utworze, mechanicznym 4-cyfrowym licznikiem obrotów i przełącznikiem 7½ / 3¾ IPS.
-- **Audiophile Audio Path & Bit-Perfect Stream Inspector (`AudioPathInspectorModal`)**: Podgląd pełnego łańcucha sygnałowego audio w stylu Powerampa dostępny po kliknięciu plakietki wyjścia PipeWire na ekranie Now Playing. Wizualizuje 4 etapy toru (`Źródło -> GStreamer -> DSP/Korekcja -> PipeWire Sink`), raportuje stan Bit-Perfect Direct vs Processed, formaty bitowe, próbkowanie, latencję i udostępnia 1-klikowy przycisk przywrócenia bezpośredniego bezstratnego passthrough.
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.4)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.3)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.4)*
 
 ### 🔄 Zmieniono (Changed)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.3)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.4)*
 
 ### ⚡ Wydajność i Architektura (Performance & Internal)
-- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.3)*
+- *(Brak oczekujących zmian — sekcja zresetowana po wydaniu v0.9.4)*

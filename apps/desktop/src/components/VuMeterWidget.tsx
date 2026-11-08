@@ -349,7 +349,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     const badgeW = 34;
     const badgeH = 10.5;
     const badgeX = pivotX - badgeW / 2;
-    const badgeY = pivotY - radius * 0.28;
+    const badgeY = pivotY - radius * 0.38;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
     ctx.beginPath();
