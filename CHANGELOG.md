@@ -13,8 +13,9 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 **Autorka**: Das Letzte Kemonomimi
 
 ### Poprawiono (Fixed)
-- **Geometria ramienia gramofonowego (`VinylTurntable`)**:
-  - Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`-22deg` dla 33⅓ RPM, `-27deg` dla 45 RPM) oraz kąt wkładki igły (`+15deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
+- **Geometria ramienia gramofonowego (`VinylTurntable` & `BigScreenView`)**:
+  - Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`+19deg` dla 33⅓ RPM, `+24deg` dla 45 RPM) oraz kąt wkładki igły (`-12deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
+  - Wyeliminowano „złamane ramię” w odtwarzaczu pełnoekranowym (`BigScreenView`): zastąpiono rozłączne elementy HTML spójnym, jednolitym wektorem SVG J-shape, gwarantując ciągłość rurki od osi obrotu aż po wkładkę gramofonową.
 - **Równowaga stereo i ballistyka VU-Metera (`VuMeterWidget`)**:
   - Usunięto podział pasm częstotliwościowych FFT, który sztucznie traktował wysokie tony jako prawy kanał, powodując zaniżanie wskazań prawej igły do -11.8 dB. Wprowadzono pełnopasmową analizę psychoakustyczną z mikro-dynamiką stereo dla obu kanałów.
 
@@ -24,8 +25,9 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 **Autorka**: Das Letzte Kemonomimi
 
 ### Poprawiono (Fixed)
-- **Geometria ramienia gramofonowego (`VinylTurntable`)**:
-  - Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`-22deg` dla 33⅓ RPM, `-27deg` dla 45 RPM) oraz kąt wkładki igły (`+15deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
+- **Geometria ramienia gramofonowego (`VinylTurntable` & `BigScreenView`)**:
+  - Poprawiono kierunek wychylenia ramienia przy odtwarzaniu (`+19deg` dla 33⅓ RPM, `+24deg` dla 45 RPM) oraz kąt wkładki igły (`-12deg`), dzięki czemu igła stabilnie spoczywa na rowkach płyty winylowej zamiast wychodzić poza obrys gramofonu na prawo.
+  - Wyeliminowano „złamane ramię” w odtwarzaczu pełnoekranowym (`BigScreenView`): zastąpiono rozłączne elementy HTML spójnym, jednolitym wektorem SVG J-shape, gwarantując ciągłość rurki od osi obrotu aż po wkładkę gramofonową.
 - **Równowaga stereo i ballistyka VU-Metera (`VuMeterWidget`)**:
   - Usunięto podział pasm częstotliwościowych FFT, który sztucznie traktował wysokie tony jako prawy kanał, powodując zaniżanie wskazań prawej igły do -11.8 dB. Wprowadzono pełnopasmową analizę psychoakustyczną z mikro-dynamiką stereo dla obu kanałów.
 

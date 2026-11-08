@@ -33,6 +33,13 @@ const RELEASES: ChangelogRelease[] = [
         la: 'Emendatio brachii phonographici (VinylTurntable): directio versus sulcos disci directa et angulus capsulae aptatus.',
       },
       {
+        pl: 'Ciągła konstrukcja ramienia winylowego w odtwarzaczu pełnoekranowym (BigScreenView): zastąpiono rozłączne elementy jednolitym wektorem SVG J-shape, eliminując efekt złamanego/oderwanego ramienia od osi obrotu.',
+        en: 'Seamless vinyl tonearm in fullscreen player (BigScreenView): replaced disjoint elements with a continuous J-shape SVG vector path, eliminating detached/broken arm segments.',
+        de: 'Nahtloser Tonarm im Vollbild-Player (BigScreenView): getrennte Elemente durch einen durchgehenden J-förmigen SVG-Pfad ersetzt, wodurch gebrochene Segmente vermieden werden.',
+        fi: 'Yhtenäinen äänivarsi kokoruututilassa (BigScreenView): korvattu erilliset osat yhtenäisellä J-muotoisella SVG-vektorilla, poistaen katkenneen varren vaikutelma.',
+        la: 'Brachium continuum in scaena plena (BigScreenView): elementa separata in unam formam vectoriam SVG J-formam conversa, fractione sublata.',
+      },
+      {
         pl: 'Optymalizacja balansu stereo VU-Meter (VuMeterWidget): usunięto sztuczne rozdzielanie pasm FFT na kanały L/R, przywracając pełnopasmową analizę psychoakustyczną ITU-R BS.1770 dla obu igieł.',
         en: 'VU-Meter stereo balance optimization (VuMeterWidget): removed artificial FFT band splitting, restoring full-bandwidth ITU-R BS.1770 psychoacoustic analysis for both needles.',
         de: 'VU-Meter Stereobalance-Optimierung (VuMeterWidget): künstliche FFT-Bandaufteilung entfernt, Vollband-Psychoakustikanalyse nach ITU-R BS.1770 für beide Nadeln wiederhergestellt.',

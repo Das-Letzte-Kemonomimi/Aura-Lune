@@ -528,72 +528,65 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
                   filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.75))',
                 }}
               >
-                {/* Podstawa ramienia (Pivot Base) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '10px',
-                    right: '20px',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: 'radial-gradient(circle, #94a3b8 0%, #334155 70%, #0f172a 100%)',
-                    border: '2px solid rgba(255,255,255,0.4)',
-                  }}
-                />
-                {/* Przeciwwaga (Counterweight) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '2px',
-                    right: '28px',
-                    width: '16px',
-                    height: '18px',
-                    borderRadius: '3px',
-                    background: 'linear-gradient(90deg, #475569, #94a3b8, #334155)',
-                  }}
-                />
-                {/* Rurka ramienia */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '25px',
-                    right: '34px',
-                    width: '5px',
-                    height: '150px',
-                    background: 'linear-gradient(to right, #cbd5e1, #ffffff, #64748b)',
-                    borderRadius: '3px',
-                    transformOrigin: 'top center',
-                    transform: 'rotate(-12deg)',
-                  }}
-                />
-                {/* Zagięcie przed wkładką */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '165px',
-                    right: '58px',
-                    width: '5px',
-                    height: '30px',
-                    background: 'linear-gradient(to right, #cbd5e1, #ffffff, #64748b)',
-                    borderRadius: '3px',
-                    transform: 'rotate(18deg)',
-                  }}
-                />
-                {/* Wkładka gramofonowa (Cartridge) z neonowym akcentem */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '188px',
-                    right: '54px',
-                    width: '16px',
-                    height: '24px',
-                    borderRadius: '2px 2px 4px 4px',
-                    background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    boxShadow: '0 0 8px rgba(14, 165, 233, 0.6)',
-                  }}
-                />
+                {/* Jednolita, ciągła konstrukcja ramienia gramofonowego SVG (eliminacja efektu złamania/rozłączenia) */}
+                <svg
+                  width="130"
+                  height="240"
+                  viewBox="0 0 130 240"
+                  style={{ width: '100%', height: '100%', overflow: 'visible' }}
+                >
+                  <defs>
+                    <linearGradient id="metalArmTube" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#e2e8f0" />
+                      <stop offset="50%" stopColor="#ffffff" />
+                      <stop offset="100%" stopColor="#64748b" />
+                    </linearGradient>
+                    <radialGradient id="pivotBaseGrad" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#cbd5e1" />
+                      <stop offset="60%" stopColor="#475569" />
+                      <stop offset="100%" stopColor="#0f172a" />
+                    </radialGradient>
+                    <linearGradient id="cartridgeGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#38bdf8" />
+                      <stop offset="100%" stopColor="#0284c7" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Przeciwwaga (Counterweight) na górze osi */}
+                  <rect x="86" y="2" width="18" height="18" rx="3" fill="#334155" stroke="#94a3b8" strokeWidth="1.5" />
+                  <rect x="93" y="1" width="4" height="20" rx="1" fill="#cbd5e1" />
+
+                  {/* Podstawa osi obrotu (Pivot Base & Gimbal Ring) */}
+                  <circle cx="95" cy="25" r="16" fill="url(#pivotBaseGrad)" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
+                  <circle cx="95" cy="25" r="6" fill="#1e293b" stroke="#cbd5e1" strokeWidth="1.5" />
+
+                  {/* Ciągła, metalowa rurka ramienia J-shape (spójna ścieżka od osi aż po wkładkę) */}
+                  <path
+                    d="M 95 25 L 95 160 Q 95 180 82 195 L 75 208"
+                    fill="none"
+                    stroke="url(#metalArmTube)"
+                    strokeWidth="4.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Wkładka gramofonowa (Cartridge) z igłą i neonowym podświetleniem */}
+                  <g transform="translate(75, 208) rotate(22)">
+                    <rect
+                      x="-8"
+                      y="0"
+                      width="16"
+                      height="22"
+                      rx="3"
+                      fill="url(#cartridgeGrad)"
+                      stroke="rgba(255,255,255,0.4)"
+                      strokeWidth="1"
+                    />
+                    {/* Igła / Stylus cantilever */}
+                    <line x1="0" y1="20" x2="0" y2="25" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="0" cy="25" r="1.5" fill="#ffffff" />
+                  </g>
+                </svg>
               </div>
             </div>
           )}
