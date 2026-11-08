@@ -7,7 +7,7 @@
   <p><strong>A native, deeply customizable Linux music player marrying the ergonomics of Poweramp, the flexibility of foobar2000, swappable real-time DSP engines, and an anime glassmorphism aesthetic.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.0.6"><img src="https://img.shields.io/badge/version-1.0.6_“PipeWire_Pro--Audio_Stream”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.0.7"><img src="https://img.shields.io/badge/version-1.0.7_“Zero--Stutter_Ring--Buffer”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="License" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platform-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platform" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>

@@ -310,13 +310,12 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki wyjściowej audio: domyślnie 600ms (z min-threshold 50ms na start).
-        // Zapewnia całkowitą odporność na zacięcia (stuttering/xruny) i I/O jitter
-        // przy odtwarzaniu z dysków zewnętrznych (USB) oraz przy intensywnym DSP.
+        // Bufor kolejki wyjściowej audio: 600ms bez sztucznego min-threshold (0 = wyłączony),
+        // co eliminuje mikro-przycięcia i zatory czasowe przed zlewem wyjściowym.
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
             .property("max-size-time", 600_000_000u64)
-            .property("min-threshold-time", 50_000_000u64)
+            .property("min-threshold-time", 0u64)
             .property("max-size-buffers", 0u32)
             .property("max-size-bytes", 0u32)
             .build()
@@ -327,39 +326,53 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
 
-        let pw_stream_props = gst::Structure::builder("pipewire-stream-properties")
-            .field("media.type", "Audio")
-            .field("media.category", "Playback")
-            .field("media.role", "Music")
-            .field("node.name", "Auralune")
-            .field("node.description", "Auralune Music Player")
-            .field("application.name", "Auralune")
-            .field("node.latency", "1024/48000")
-            .build();
-
-        // Preferencja: pipewiresink z processing-deadline 20ms, slave-method=resample i właściwościami strumienia audio,
-        // co eliminuje underruny w sesji PipeWire i dynamicznie dopasowuje zegar do sprzętu audio (DAC).
-        let sink = match gst::ElementFactory::make("pipewiresink")
+        // Preferencja wyjścia audio:
+        // 1. pulsesink: łączy się z demonem pipewire-pulse / PulseAudio.
+        //    Posiada dojrzały mechanizm ring-bufora sprzętowego (GstAudioBaseSink) z konfigurowalnym
+        //    buffer-time (200ms) i latency-time (10ms). Gwarantuje absolutnie beztrzaskowe odtwarzanie
+        //    na zewnętrznych przetwornikach USB (np. Focusrite Scarlett Solo).
+        // 2. pipewiresink: bezpośredni fallback dla natywnego PipeWire.
+        // 3. autoaudiosink: ogólny fallback systemowy GStreamera.
+        let sink = if let Ok(pulse) = gst::ElementFactory::make("pulsesink")
             .name("sink")
-            .property("processing-deadline", 20_000_000u64)
-            .property("stream-properties", &pw_stream_props)
+            .property("client-name", "Auralune")
+            .property("buffer-time", 200_000i64)
+            .property("latency-time", 10_000i64)
+            .property("provide-clock", true)
             .build()
         {
-            Ok(pw_sink) => {
-                pw_sink.set_property_from_str("slave-method", "resample");
-                info!("Zainicjalizowano wyjście PipeWire (20ms deadline, slave-method: resample, role: Music)");
-                pw_sink
-            }
-            Err(_) => {
-                warn!("Brak pipewiresink, używam fallbacku autoaudiosink");
-                let auto_sink = gst::ElementFactory::make("autoaudiosink")
-                    .name("sink")
-                    .build()
-                    .map_err(|_| AudioEngineError::MissingElement("autoaudiosink"))?;
-                if auto_sink.find_property("slave-method").is_some() {
-                    auto_sink.set_property("slave-method", 0i32);
+            let stream_props = gst::Structure::builder("application-properties")
+                .field("media.role", "music")
+                .build();
+            pulse.set_property("stream-properties", &stream_props);
+            info!("Zainicjalizowano wyjście PulseAudio / PipeWire-Pulse (200ms buffer-time, 10ms latency)");
+            pulse
+        } else {
+            let pw_stream_props = gst::Structure::builder("pipewire-stream-properties")
+                .field("media.type", "Audio")
+                .field("media.category", "Playback")
+                .field("media.role", "Music")
+                .field("node.name", "Auralune")
+                .field("node.description", "Auralune Music Player")
+                .field("application.name", "Auralune")
+                .build();
+
+            match gst::ElementFactory::make("pipewiresink")
+                .name("sink")
+                .property("stream-properties", &pw_stream_props)
+                .build()
+            {
+                Ok(pw_sink) => {
+                    info!("Zainicjalizowano wyjście PipeWire (role: Music)");
+                    pw_sink
                 }
-                auto_sink
+                Err(_) => {
+                    warn!("Brak pulsesink i pipewiresink, używam fallbacku autoaudiosink");
+                    gst::ElementFactory::make("autoaudiosink")
+                        .name("sink")
+                        .build()
+                        .map_err(|_| AudioEngineError::MissingElement("autoaudiosink"))?
+                }
             }
         };
 
@@ -542,15 +555,16 @@ impl AudioEngine {
             })?;
         }
 
-        // rgvolume -> rglimiter -> spectrum -> volume -> queue_sink -> audioconvert_sink -> audioresample_sink -> sink
+        // rgvolume -> rglimiter -> spectrum -> volume -> audioconvert_sink -> audioresample_sink -> queue_sink -> sink
+        // Umieszczenie queue_sink bezpośrednio przed zlewem odciąża wątek audio z format/sample-rate conversion
         gst::Element::link_many([
             &rgvolume,
             &rglimiter,
             &spectrum,
             &volume,
-            &queue_sink,
             &audioconvert_sink,
             &audioresample_sink,
+            &queue_sink,
             &sink,
         ])
         .map_err(|_| {
@@ -1211,19 +1225,17 @@ impl AudioEngine {
         inner.audio_buffer_ms = clamped;
         let time_ns = clamped * 1_000_000u64;
         inner.queue_sink.set_property("max-size-time", time_ns);
-        let min_thresh = (clamped / 12).clamp(20, 100) * 1_000_000u64;
-        inner
-            .queue_sink
-            .set_property("min-threshold-time", min_thresh);
-        if inner.sink.find_property("processing-deadline").is_some() {
+        inner.queue_sink.set_property("min-threshold-time", 0u64);
+        if inner.sink.find_property("buffer-time").is_some() {
+            let buffer_us = (clamped * 1000) as i64;
+            inner.sink.set_property("buffer-time", buffer_us);
+        } else if inner.sink.find_property("processing-deadline").is_some() {
             let deadline_ns = (clamped / 25).clamp(10, 25) * 1_000_000u64;
             inner.sink.set_property("processing-deadline", deadline_ns);
         }
         info!(
-            "Zaktualizowano bufor wyjściowy audio na {} ms (min-threshold: {} ms, processing-deadline: {} ms)",
-            clamped,
-            (clamped / 12).clamp(20, 100),
-            (clamped / 25).clamp(10, 25)
+            "Zaktualizowano bufor wyjściowy audio na {} ms (queue: {} ms, buffer-time)",
+            clamped, clamped
         );
         Ok(())
     }

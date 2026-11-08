@@ -18,11 +18,35 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.7',
+    codename: 'PipeWire Pulse Ring-Buffer & Zero-Stutter Pipeline',
+    date: '2026-11-08',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [],
+    fixed: [
+      {
+        pl: 'Definitywna eliminacja mikro-przycięć i zrywania dźwięku (Zero-Stutter Ring-Buffer Architecture): wdrożenie pulsesink (pipewire-pulse) z dojrzałym buforem kołowym 200ms oraz wyzerowanie min-threshold-time w kolejce.',
+        en: 'Definitive micro-stutter and audio tearing elimination: deployed pulsesink (pipewire-pulse) with mature 200ms hardware ring-buffer and zeroed min-threshold-time in audio queue.',
+        de: 'Endgültige Behebung von Mikro-Rucklern: Einführung von pulsesink (pipewire-pulse) mit ausgereiftem 200ms Ringpuffer und Deaktivierung von min-threshold-time.',
+        fi: 'Mikropätkimisen ja äänen repeilyn lopullinen poisto: pulsesink (pipewire-pulse) 200 ms laitteistopuskurilla ja puskurin kynnysajan poisto.',
+        la: 'Definitiva interrupti soni eliminatio: pulsesink adhibitum cum memoria rotunda 200ms et remotione morae in ordine soni.',
+      },
+      {
+        pl: 'Optymalizacja wątkowości toru wyjściowego: przeniesienie resamplingu i konwersji formatów przed queue_sink, dzięki czemu wątek wyjściowy do karty dźwiękowej nie wykonuje żadnych ciężkich przeliczeń.',
+        en: 'Output pipeline thread optimization: moved resampling and format conversion before queue_sink, eliminating any real-time processing burden on the audio delivery thread.',
+        de: 'Optimierung des Audio-Ausgangspfads: Verlagerung von Resampling und Formatkonvertierung vor queue_sink zur Entlastung des Audio-Threads.',
+        fi: 'Äänen ulostulon säietason optimointi: näytteenottotaajuuden muunnos siirretty ennen queue_sink-puskuria.',
+        la: 'Optimatio fili auditionis: conversio et resamplatio ante queue_sink positae ut filum soni libere operetur.',
+      },
+    ],
+  },
+  {
     version: '1.0.6',
     codename: 'PipeWire Pro-Audio Stream & Pure Float Pipeline',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {

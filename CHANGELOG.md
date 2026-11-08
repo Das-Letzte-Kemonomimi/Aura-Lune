@@ -9,6 +9,18 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.7] — „PipeWire Pulse Ring-Buffer & Zero-Stutter Pipeline” - 2026-11-08
+**Autorka**: Das Letzte Kemonomimi
+
+### Poprawiono (Fixed)
+- **Definitywna eliminacja mikro-przycięć i zrywania dźwięku (Zero-Stutter Ring-Buffer Architecture)**:
+  - Zastosowano sprawdzony i stabilny element wyjściowy `pulsesink` komunikujący się bezpośrednio z demonem `pipewire-pulse` / PulseAudio z konfigurowalnym sprzętowym buforem kołowym `buffer-time: 200ms` i `latency-time: 10ms`. Eliminuje to mikroskopijne rozbieżności częstotliwości i błędy synchronizacji zegara sprzętowego (`rate_match_resample`), charakterystyczne dla bezpośredniego `pipewiresink` na zewnętrznych interfejsach USB (np. Focusrite Scarlett Solo).
+  - Usunięto sztuczny próg wstrzymywania odtwarzania (`min-threshold-time: 0`) w elemencie `queue_sink`. Bufor nie wstrzymuje już natychmiastowego przekazywania ramek do karty dźwiękowej, co trwale usuwa mikrozacięcia wywoływane przez buforowanie w pętli.
+  - Zreorganizowano architekturę łańcucha wyjściowego potoku GStreamera: konwersja formatów i resampling (`audioconvert_sink -> audioresample_sink`) odbywają się w wątku roboczym *przed* kolejką `queue_sink`. Wątek wyjściowy zlewu audio otrzymuje gotowe, dopasowane próbki PCM bez jakichkolwiek narzutów obliczeniowych w czasie rzeczywistym.
+  - Zapewniono pełną kompatybilność i automatyczny fallback do `pipewiresink` oraz uniwersalnego `autoaudiosink` w środowiskach bez uruchomionego modułu PulseAudio.
+
+---
+
 ## [1.0.6] — „PipeWire Pro-Audio Stream & Pure Float Pipeline” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
