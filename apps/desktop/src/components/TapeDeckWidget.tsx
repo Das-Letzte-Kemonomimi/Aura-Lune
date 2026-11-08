@@ -232,7 +232,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         justifyContent: 'space-between',
         boxShadow: `0 12px 35px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 15px ${currentTheme.accentGlow}`,
         position: 'relative',
-        overflow: 'visible',
+        overflow: 'hidden',
         userSelect: 'none',
         boxSizing: 'border-box',
         ...style,
