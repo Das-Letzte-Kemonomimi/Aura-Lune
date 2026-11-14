@@ -302,7 +302,20 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc' }}>
                           {pack.name}
                         </span>
-                        {pack.id === 'pack_dsp_cascade' && (
+                        {pack.id === 'pack_dsp_cascade' ? (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              background: 'rgba(168, 85, 247, 0.2)',
+                              color: '#c084fc',
+                              fontWeight: 700,
+                            }}
+                          >
+                            ⚡ HPSS & Panning (Wbudowany STFT)
+                          </span>
+                        ) : pack.is_installed ? (
                           <span
                             style={{
                               fontSize: '0.7rem',
@@ -313,7 +326,20 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
                               fontWeight: 700,
                             }}
                           >
-                            Zawsze gotowy (DSP)
+                            ✨ Sieć AI Gotowa
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              color: '#fbbf24',
+                              fontWeight: 600,
+                            }}
+                          >
+                            📦 Pobierz model w Menedżerze
                           </span>
                         )}
                       </div>

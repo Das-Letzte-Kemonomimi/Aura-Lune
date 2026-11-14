@@ -270,6 +270,149 @@ pub fn decode_snippet_for_analysis(
     Ok(collected)
 }
 
+/// Dekoduje utwór do pełnego pasma stereo (44100 Hz, F32LE, 2 kanały L i R)
+/// na potrzeby zaawansowanej separacji stemów (HPSS / AI Neural).
+pub fn decode_stereo_for_stems(
+    uri_or_path: &str,
+    max_duration_sec: f64,
+) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
+    let _ = gst::init();
+    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
+        uri_or_path.to_string()
+    } else if uri_or_path.starts_with("file://") {
+        let stripped = uri_or_path.trim_start_matches("file://");
+        glib::filename_to_uri(Path::new(stripped), None)
+            .map(|u| u.to_string())
+            .unwrap_or_else(|_| uri_or_path.to_string())
+    } else {
+        let path = Path::new(uri_or_path);
+        if !path.exists() {
+            return Err(format!("Plik nie istnieje: {}", uri_or_path));
+        }
+        let canonical = path
+            .canonicalize()
+            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
+        glib::filename_to_uri(&canonical, None)
+            .map(|u| u.to_string())
+            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
+    };
+
+    let pipeline = gst::Pipeline::new();
+
+    let uridecodebin = gst::ElementFactory::make("uridecodebin")
+        .property("uri", &uri)
+        .build()
+        .map_err(|e| format!("Brak uridecodebin: {}", e))?;
+
+    let audioconvert = gst::ElementFactory::make("audioconvert")
+        .build()
+        .map_err(|e| format!("Brak audioconvert: {}", e))?;
+
+    let audioresample = gst::ElementFactory::make("audioresample")
+        .build()
+        .map_err(|e| format!("Brak audioresample: {}", e))?;
+
+    let caps = gst_audio::AudioCapsBuilder::new()
+        .format(gst_audio::AudioFormat::F32le)
+        .rate(44100)
+        .channels(2)
+        .build();
+
+    let capsfilter = gst::ElementFactory::make("capsfilter")
+        .property("caps", &caps)
+        .build()
+        .map_err(|e| format!("Brak capsfilter: {}", e))?;
+
+    let appsink = gst_app::AppSink::builder()
+        .caps(&caps)
+        .property("sync", false)
+        .max_buffers(5000)
+        .drop(false)
+        .build();
+
+    pipeline
+        .add_many([
+            &uridecodebin,
+            &audioconvert,
+            &audioresample,
+            &capsfilter,
+            appsink.upcast_ref(),
+        ])
+        .map_err(|e| format!("Błąd dodawania do potoku: {}", e))?;
+
+    gst::Element::link_many([
+        &audioconvert,
+        &audioresample,
+        &capsfilter,
+        appsink.upcast_ref(),
+    ])
+    .map_err(|e| format!("Błąd linkowania elementów: {}", e))?;
+
+    let convert_sink_pad = audioconvert
+        .static_pad("sink")
+        .ok_or_else(|| "Brak sink pad w audioconvert".to_string())?;
+
+    uridecodebin.connect_pad_added(move |_bin, src_pad| {
+        if convert_sink_pad.is_linked() {
+            return;
+        }
+        let caps = src_pad
+            .current_caps()
+            .unwrap_or_else(|| src_pad.query_caps(None));
+        if let Some(structure) = caps.structure(0) {
+            if structure.name().starts_with("audio/") {
+                let _ = src_pad.link(&convert_sink_pad);
+            }
+        }
+    });
+
+    pipeline
+        .set_state(gst::State::Playing)
+        .map_err(|e| format!("Błąd uruchomienia dekodera stereo: {}", e))?;
+
+    let sample_rate = 44100u32;
+    let target_frames = (max_duration_sec * sample_rate as f64).round() as usize;
+    let mut left: Vec<f32> = Vec::with_capacity(target_frames);
+    let mut right: Vec<f32> = Vec::with_capacity(target_frames);
+
+    let start_time = std::time::Instant::now();
+    let max_wait = std::time::Duration::from_secs(30);
+
+    while left.len() < target_frames && start_time.elapsed() < max_wait {
+        if appsink.is_eos() {
+            break;
+        }
+        if let Ok(sample) = appsink.pull_sample() {
+            if let Some(buffer) = sample.buffer() {
+                if let Ok(map) = buffer.map_readable() {
+                    let num_floats = map.len() / std::mem::size_of::<f32>();
+                    let slice = unsafe {
+                        std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats)
+                    };
+                    let num_pairs = slice.len() / 2;
+                    for p in 0..num_pairs {
+                        left.push(slice[2 * p]);
+                        right.push(slice[2 * p + 1]);
+                        if left.len() >= target_frames {
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    let _ = pipeline.set_state(gst::State::Null);
+
+    if left.is_empty() {
+        return Err("Nie udało się zdekodować próbek stereo".to_string());
+    }
+
+    Ok((left, right, sample_rate))
+}
+
 /// Wykrywa BPM na podstawie autokorelacji obwiedni onsetów energii w sygnale audio.
 pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
     if samples.len() < 2048 {

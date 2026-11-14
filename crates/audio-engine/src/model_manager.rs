@@ -248,8 +248,8 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         },
         domain::ModelPackInfo {
             id: "pack_dsp_cascade".to_string(),
-            name: "Auralune Native Cascaded DSP Engine".to_string(),
-            description: "Wbudowany, natychmiastowy silnik filtracji wielopasmowej Linkwitz-Riley biquad. Zerowe pobieranie danych, doskonałość rekonstrukcji 100%."
+            name: "Auralune Native HPSS & Stereo Azimuth Engine".to_string(),
+            description: "Zaawansowany silnik STFT Harmonic-Percussive Source Separation z dekompozycją panoramy stereo (Center/Side). Izoluje transjenty stopy i werbla w pełnym paśmie oraz harmoniczne wokalu bez pudełkowatego filtra EQ. 100% rekonstrukcji pierwotnego miksu."
                 .to_string(),
             category: "Wbudowany DSP".to_string(),
             unlocked_stems: vec![

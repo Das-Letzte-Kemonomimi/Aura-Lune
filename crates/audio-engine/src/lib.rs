@@ -2,6 +2,7 @@ pub mod analysis;
 pub mod device;
 pub mod dsp_node;
 pub mod error;
+pub mod hpss;
 pub mod metadata_editor;
 pub mod model_manager;
 pub mod pipeline;
@@ -10,12 +11,12 @@ pub mod transcoder;
 
 pub use analysis::{
     analyze_track_chords_and_grid, analyze_track_key_bpm, analyze_track_replaygain,
-    analyze_track_transcription, detect_chords_from_samples, detect_notes_from_samples,
-    export_chords_to_chordpro, export_chords_to_json, export_chords_to_text,
-    export_transcription_to_json, export_transcription_to_midi, extract_beat_grid,
-    extract_chroma_frame, generate_chord_templates, midi_pitch_to_name, transpose_chord,
-    viterbi_smooth_chords, write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult,
-    TrackKeyBpm,
+    analyze_track_transcription, decode_snippet_for_analysis, decode_stereo_for_stems,
+    detect_chords_from_samples, detect_notes_from_samples, export_chords_to_chordpro,
+    export_chords_to_json, export_chords_to_text, export_transcription_to_json,
+    export_transcription_to_midi, extract_beat_grid, extract_chroma_frame,
+    generate_chord_templates, midi_pitch_to_name, transpose_chord, viterbi_smooth_chords,
+    write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult, TrackKeyBpm,
 };
 pub use device::DeviceManager;
 pub use error::AudioEngineError;
@@ -26,5 +27,5 @@ pub use model_manager::{
     list_available_model_packs, list_available_models, remove_model_file, verify_file_sha256,
 };
 pub use pipeline::{AudioEngine, PlayerEvent};
-pub use stem_separator::StemSeparator;
+pub use stem_separator::{write_wav_file, write_wav_file_stereo, StemSeparator};
 pub use transcoder::Transcoder;

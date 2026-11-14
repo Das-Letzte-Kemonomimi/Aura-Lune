@@ -8,8 +8,11 @@ import {
   Sparkles,
   Zap,
   ShieldCheck,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import type { AiModelInfo, AnalysisCapabilities } from '../types/analysis';
 
 interface ModelManagerModalProps {
@@ -23,6 +26,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
 }) => {
   const [capabilities, setCapabilities] = useState<AnalysisCapabilities | null>(null);
   const [models, setModels] = useState<AiModelInfo[]>([]);
+  const [downloading, setDownloading] = useState<{ [id: string]: number }>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +57,54 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const setupListener = async () => {
+      unlisten = await listen<{
+        model_id: string;
+        downloaded_bytes: number;
+        total_bytes: number | null;
+        progress: number;
+        status: string;
+      }>('auralune://model-download-progress', (event) => {
+        const { model_id, progress, status } = event.payload;
+        setDownloading((prev) => ({
+          ...prev,
+          [model_id]: progress,
+        }));
+        if (progress >= 1.0 || status === 'ready') {
+          setModels((prev) =>
+            prev.map((m) => (m.id === model_id ? { ...m, is_installed: true } : m))
+          );
+          setDownloading((prev) => {
+            const next = { ...prev };
+            delete next[model_id];
+            return next;
+          });
+        }
+      });
+    };
+    setupListener();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   if (!isOpen) return null;
+
+  const handleDownload = async (id: string) => {
+    try {
+      setDownloading((prev) => ({ ...prev, [id]: 0.01 }));
+      await invoke('download_ai_model', { modelId: id });
+    } catch (err: any) {
+      alert(`Błąd pobierania modelu: ${err}`);
+      setDownloading((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm(`Czy na pewno usunąć model ${id} z dysku?`)) return;
@@ -182,10 +233,20 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Usuń</span>
                     </button>
+                  ) : downloading[model.id] !== undefined ? (
+                    <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                      <span>{Math.round((downloading[model.id] || 0) * 100)}%</span>
+                    </div>
                   ) : (
-                    <span className="text-[11px] text-slate-400 italic">
-                      Pobierany automatycznie przy 1. użyciu
-                    </span>
+                    <button
+                      onClick={() => handleDownload(model.id)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium shadow-md shadow-purple-900/30 transition hover:scale-105 active:scale-95"
+                      title="Pobierz wagi modelu AI na dysk"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Pobierz ({(model.file_size / 1024 / 1024).toFixed(0)} MB)</span>
+                    </button>
                   )}
                 </div>
               </div>

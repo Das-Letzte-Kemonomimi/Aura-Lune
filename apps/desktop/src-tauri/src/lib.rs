@@ -30,7 +30,7 @@ use domain::{
     ImportM3uResult, M3uEntry, M3uPlaylist, ModelPackInfo, PlaybackState, Playlist, StemChannel,
     StemProject, StemProjectMix, StemProjectStatus, Theme, TrackBookmark,
 };
-use downloads::{DownloadJob, DownloadManager};
+use downloads::{DownloadJob, DownloadManager, DownloadProvider};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gstreamer as gst;
 use library::LibraryScanner;
@@ -5129,6 +5129,82 @@ async fn delete_ai_model(model_id: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+#[derive(Clone, serde::Serialize)]
+struct ModelDownloadProgressPayload {
+    model_id: String,
+    downloaded_bytes: u64,
+    total_bytes: Option<u64>,
+    progress: f32,
+    status: String,
+}
+
+#[tauri::command]
+async fn download_ai_model(model_id: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    let catalog = audio_engine::get_default_model_catalog();
+    let model = catalog
+        .into_iter()
+        .find(|m| m.id == model_id)
+        .ok_or_else(|| format!("Nieznany model AI: {}", model_id))?;
+
+    let url = model
+        .download_url
+        .ok_or_else(|| "Model nie posiada zdefiniowanego adresu URL do pobrania".to_string())?;
+
+    let dest_path = std::path::PathBuf::from(&model.file_path);
+    if let Some(parent) = dest_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let app_handle_clone = app_handle.clone();
+    let m_id_clone = model_id.clone();
+    let cancel_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let provider = downloads::HttpDownloadProvider::new();
+    let _ = provider
+        .download(
+            &url,
+            &dest_path,
+            None,
+            cancel_flag,
+            Some(Box::new(move |downloaded, total| {
+                let progress = if let Some(tot) = total {
+                    if tot > 0 {
+                        (downloaded as f32 / tot as f32).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                };
+                let _ = app_handle_clone.emit(
+                    "auralune://model-download-progress",
+                    ModelDownloadProgressPayload {
+                        model_id: m_id_clone.clone(),
+                        downloaded_bytes: downloaded,
+                        total_bytes: total,
+                        progress,
+                        status: "downloading".to_string(),
+                    },
+                );
+            })),
+        )
+        .await
+        .map_err(|e| format!("Błąd pobierania modelu: {}", e))?;
+
+    let _ = app_handle.emit(
+        "auralune://model-download-progress",
+        ModelDownloadProgressPayload {
+            model_id: model_id.clone(),
+            downloaded_bytes: model.file_size,
+            total_bytes: Some(model.file_size),
+            progress: 1.0,
+            status: "ready".to_string(),
+        },
+    );
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn detect_track_chords(
     path: String,
@@ -6814,6 +6890,7 @@ pub fn run() {
             get_analysis_capabilities,
             list_ai_models,
             delete_ai_model,
+            download_ai_model,
             detect_track_chords,
             get_cached_chords,
             save_chord_overrides,

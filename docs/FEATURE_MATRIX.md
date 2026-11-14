@@ -280,7 +280,7 @@
   - Eksport transkrypcji do czystego pliku Standard MIDI File (SMF Type 0/1, `.mid`) z zachowaniem mapy tempa BPM oraz do pliku JSON.
 - [x] **Separacja Ścieżek i Mikser Stemów (Stem Separation & Stem Mixer)**:
   - 4-ścieżkowy podział utworu na wokal (*Vocals*), perkusję (*Drums*), bas (*Bass*) oraz tło instrumentalne (*Other*).
-  - Podwójny silnik separacji: błyskawiczny algorytm DSP Linkwitz-Riley biquad o matematycznej doskonałości rekonstrukcji ($\sum \text{stemy} = \text{oryginał}$) oraz opcjonalny model sztucznej inteligencji HTDemucs v4 (ONNX).
+  - Podwójny silnik separacji: zaawansowany natywny algorytm STFT Harmonic-Percussive Source Separation (HPSS) i dekompozycji panoramy stereo (Center/Side) w pełnym stereo 44.1 kHz o matematycznej doskonałości rekonstrukcji ($\sum \text{stemy} = \text{oryginał}$), oraz opcjonalny model sztucznej inteligencji HTDemucs v4 (ONNX / Demucs CLI) z 1-klikowym pobieraniem w Menedżerze Modeli.
   - Pamięć podręczna stemów na dysku pod `~/.cache/auralune/stems/` indeksowana hashem pliku i wersją analizatora (zabezpieczenie przed ponownym przetwarzaniem).
   - Próbkowo dokładny mikser stemów (Stem Mixer) oparty o natywny GStreamer `audiomixer` podłączony pod procesory DSP (Rubber Band / SoundTouch, EQ, Limiter).
   - Tryb Solo, Mute, płynne suwaki głośności każdego stemu, 1-klikowe tryby Karaoke (wyciszenie wokalu) i Minus-One (wyciszenie wybranego instrumentu).
