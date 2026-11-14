@@ -85,7 +85,7 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             sha256: "b4a8e9e1c2d3f4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456".to_string(),
             license: "MIT".to_string(),
             download_url: Some(
-                "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.0.8/htdemucs_v4.onnx".to_string(),
+                "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.1.0/htdemucs_v4.onnx".to_string(),
             ),
             is_installed: false,
             description: "Studyjnej jakości rozbicie utworu na 4 stem-y: wokal, perkusja, bas i instrumenty towarzyszące."
@@ -100,7 +100,7 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             sha256: "c1d2e3f4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456789a".to_string(),
             license: "Apache-2.0".to_string(),
             download_url: Some(
-                "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.0.8/basic_pitch.onnx".to_string(),
+                "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.1.0/basic_pitch.onnx".to_string(),
             ),
             is_installed: false,
             description: "Wielogłosowa polifoniczna transkrypcja instrumentów i melodii wprost do nut i plików MIDI."

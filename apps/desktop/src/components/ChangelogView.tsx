@@ -18,11 +18,57 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.1.0',
+    codename: 'Harmonic Intelligence & Stem Synthesis',
+    date: '2026-11-14',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Studio Analizy Muzycznej (Music Analysis Studio): chronologiczna detekcja akordów na siatce taktowej (Beat Grid), interaktywna oś czasu zsynchronizowana z odtwarzaniem, dynamiczna transpozycja z Pitch Shiftem i eksport do ChordPro/TXT/JSON.',
+        en: 'Music Analysis Studio: chronological chord progression on beat grid, real-time playback-synchronized timeline, live transposition with Pitch Shift, and ChordPro/TXT/JSON export.',
+        de: 'Musikanalyse-Studio: Chronologische Akkorderkennung auf dem Beat-Raster, wiedergabesynchronisierte Zeitleiste, Live-Transposition mit Pitch-Shift und Export nach ChordPro/TXT/JSON.',
+        fi: 'Musiikkianalyysistudio: kronologinen sointutunnistus tahtiruudukossa, toiston kanssa synkronoitu aikajana, dynaaminen transponointi Pitch Shiftillä ja ChordPro/TXT/JSON-vienti.',
+        la: 'Studium Musicae Analyticae: progressio chordarum chronologica, tabula temporalis cum cantu concordans, transpositio dynamica et exportatio in ChordPro/TXT/JSON.',
+      },
+      {
+        pl: 'Polifoniczna transkrypcja nut i widok Piano-Roll: interaktywny wirtualny fortepian HTML5 Canvas z podświetlaniem aktywnych nut i eksportem do formatu Standard MIDI File (.mid).',
+        en: 'Polyphonic note transcription and Piano-Roll view: interactive HTML5 canvas piano-roll with active note lighting and Standard MIDI File (.mid) export.',
+        de: 'Polyphone Notentranskription und Piano-Roll-Ansicht: Interaktives HTML5-Canvas-Piano-Roll mit Noten-Hervorhebung und MIDI-Export (.mid).',
+        fi: 'Polyfoninen nuottitunnistus ja Piano-Roll-näkymä: interaktiivinen HTML5 Canvas -pianorulla aktiivisten nuottien korostuksella ja Standard MIDI (.mid) -viennillä.',
+        la: 'Transcriptio notarum polyphonica et Piano-Roll: claviatura visualis HTML5 Canvas cum notis lucentibus et exportatione in MIDI (.mid).',
+      },
+      {
+        pl: 'Separacja stemów i Mikser Ścieżek (Stem Mixer): 4-ścieżkowy podział (Vocals, Drums, Bass, Other), natywny mikser GStreamer audiomixer zintegrowany z łańcuchem DSP (Rubber Band / SoundTouch, EQ, Limiter) oraz tryby Solo, Mute, Karaoke i Minus-One.',
+        en: 'Stem separation and Stem Mixer: 4-track isolation (Vocals, Drums, Bass, Other), native GStreamer audiomixer integrated into core DSP chain, and Solo/Mute/Karaoke/Minus-One modes.',
+        de: 'Stem-Trennung und Stem-Mixer: 4-Spur-Trennung (Gesang, Schlagzeug, Bass, Sonstiges), nativer GStreamer-Audiomixer mit DSP-Integration und Solo/Mute/Karaoke/Minus-One-Modi.',
+        fi: 'Stem-erottelu ja Stem-mikseri: 4-raitainen erottelu (laulu, rummut, basso, muu), natiivi GStreamer-audiomikseri DSP-ketjussa sekä Solo-, Mute-, Karaoke- ja Minus-One-tilat.',
+        la: 'Separatio stemmatum et Mixtor Stem: divisio in 4 partes (Voces, Tympana, Bassus, Alia) cum GStreamer audiomixer et modis Solo, Mute, Karaoke et Minus-One.',
+      },
+      {
+        pl: 'Menedżer Modeli AI (Model Manager): lokalne zarządzanie wagami ONNX (HTDemucs v4, Basic Pitch), weryfikacja SHA-256, autodetekcja GPU (CUDA, ROCm, Vulkan) i zero telemetrii.',
+        en: 'AI Model Manager: local ONNX model management (HTDemucs v4, Basic Pitch), SHA-256 verification, GPU auto-detection (CUDA, ROCm, Vulkan), and zero telemetry.',
+        de: 'KI-Modell-Manager: Lokale ONNX-Modellverwaltung (HTDemucs v4, Basic Pitch), SHA-256-Verifikation, GPU-Autodetektion und null Telemetrie.',
+        fi: 'Tekoälymallien hallinta: paikallinen ONNX-mallien hallinta (HTDemucs v4, Basic Pitch), SHA-256-tarkistus, GPU-tunnistus ja nolla telemetriaa.',
+        la: 'Curator Modulorum AI: administratio localis modulorum ONNX, verificatio SHA-256, detectio GPU et nulla telemetria.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Perfekcyjna rekonstrukcja matematyczna stemów w silniku DSP: suma wygenerowanych stemów (bass + vocals + drums + other) daje dokładnie oryginalny sygnał bez przesunięć fazowych.',
+        en: 'Mathematical stem reconstruction in DSP engine: sum of all generated stems (bass + vocals + drums + other) equals the original audio without phase issues.',
+        de: 'Mathematische Rekonstruktion von Stems in der DSP: Die Summe aller Stems entspricht exakt dem Originalsignal ohne Phasenverschiebungen.',
+        fi: 'Matemaattinen stem-rekonstruktio DSP-moottorissa: kaikkien tuotettujen stemmien summa vastaa tarkasti alkuperäistä signaalia.',
+        la: 'Reconstructio mathematica stemmatum in DSP: summa partium accurate originalem aequat sine phase erroribus.',
+      },
+    ],
+  },
+  {
     version: '1.0.8',
     codename: 'Harmonic Resonance & Ultra-Wide Canvas',
     date: '2026-11-14',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Skalowanie interfejsu (UI Scale 100%-130%) oraz obsługa szerokich monitorów (Ultra Wide Layout) z dynamiczną szerokością kontenerów, szybkim przełącznikiem w nagłówku i skrótami Ctrl +/-, Ctrl 0.',

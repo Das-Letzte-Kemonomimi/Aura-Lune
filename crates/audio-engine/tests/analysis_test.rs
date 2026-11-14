@@ -285,7 +285,7 @@ fn test_export_chords_formats() {
                 bar: 2,
             },
         ],
-        analyzer_version: "1.0.8-classic".to_string(),
+        analyzer_version: "1.1.0-classic".to_string(),
     };
 
     let chordpro = export_chords_to_chordpro(&data, "Test Song", "Test Artist");

@@ -7,7 +7,7 @@
   <p><strong>Natywny, wysoce konfigurowalny odtwarzacz muzyki dla Linuksa łączący wygodę Powerampa, elastyczność foobar2000, wymienny silnik DSP w czasie rzeczywistym i estetykę anime.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.0.8"><img src="https://img.shields.io/badge/wersja-1.0.8_„Harmonic_Resonance_&_Ultra--Wide_Canvas”-f43f5e.svg?style=for-the-badge" alt="Wersja" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.1.0"><img src="https://img.shields.io/badge/wersja-1.1.0_„Harmonic_Intelligence_&_Stem_Synthesis”-f43f5e.svg?style=for-the-badge" alt="Wersja" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/licencja-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="Licencja" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platforma-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platforma" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>
@@ -56,6 +56,12 @@ Aplikacja łączy zaawansowany potok audio w języku **Rust** z responsywnym fro
 - **Detekcja Key & BPM**: akustyczna analiza tonacji (koło Camelot / Major & Minor) oraz tempa utworów.
 - **Interaktywny Waveform Canvas**: generowanie i wizualizacja przebiegu falowego utworu z możliwością precyzyjnego przewijania.
 - **Zsynchronizowane teksty piosenek (LRC)**: wbudowana przeglądarka z autoscrollem i wyróżnianiem bieżącego wersu.
+
+### 🎼 Studio Analizy Muzycznej
+- **Progresja Akordów & Siatka Rytmiczna**: chronologiczna detekcja akordów na osi czasu zsynchronizowana z beat gridem; dynamiczna transpozycja przy Pitch Shifcie; eksport do ChordPro, tekstu i JSON; ręczna edycja akordów.
+- **Polifoniczna Transkrypcja Nut & Piano-Roll**: interaktywny widok piano-roll w technologii HTML5 Canvas; podświetlanie aktywnych nut w czasie rzeczywistym; eksport do pliku Standard MIDI (.mid) z mapą tempa.
+- **Separacja Ścieżek & Mikser Stemów**: podział na 4 stemy (Vocals, Drums, Bass, Other) z błyskawicznym silnikiem DSP Linkwitz-Riley lub modelem głębokiego uczenia (HTDemucs v4); próbkowo zgodny mikser GStreamer `audiomixer` podłączony pod główny tor DSP z suwakami, Solo i Mute.
+- **Menedżer Modeli AI (Model Manager)**: w pełni kontrolowany przez użytkownika menedżer modeli w Ustawieniach z weryfikacją sum kontrolnych SHA-256 i autodetekcją GPU (NVIDIA CUDA, AMD ROCm/Vulkan) bez telemetrii.
 
 ### ⏱️ Narzędzia Odtwarzacza
 - **Pętla A-B**: powtarzanie dowolnego fragmentu utworu z dokładnością do milisekund.

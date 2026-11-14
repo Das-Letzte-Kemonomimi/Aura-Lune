@@ -7,7 +7,7 @@
   <p><strong>A native, deeply customizable Linux music player marrying the ergonomics of Poweramp, the flexibility of foobar2000, swappable real-time DSP engines, and an anime glassmorphism aesthetic.</strong></p>
 
   <p>
-    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.0.8"><img src="https://img.shields.io/badge/version-1.0.8_“Harmonic_Resonance_&_Ultra--Wide_Canvas”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
+    <a href="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/v1.1.0"><img src="https://img.shields.io/badge/version-1.1.0_“Harmonic_Intelligence_&_Stem_Synthesis”-f43f5e.svg?style=for-the-badge" alt="Version" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-a855f7.svg?style=for-the-badge" alt="License" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platform-Linux_%7C_Wayland_%7C_X11-06b6d4.svg?style=for-the-badge" alt="Platform" /></a>
     <a href="#"><img src="https://img.shields.io/badge/backend-Rust_%7C_Tauri_2-fb923c.svg?style=for-the-badge" alt="Rust Tauri 2" /></a>
@@ -56,6 +56,12 @@ The application combines a high-performance **Rust** pipeline with a responsive 
 - **Key & BPM Detection**: Acoustic harmonic analysis (Camelot Wheel / Major & Minor) and tempo estimation.
 - **Interactive Waveform Canvas**: High-resolution waveform generation with clickable precision scrubbing.
 - **Synchronized LRC Lyrics**: Integrated lyrics viewer with auto-scroll and active line highlighting.
+
+### 🎼 Music Analysis Studio
+- **Chord Progression & Beat Grid**: Chronological chord detection synchronized to the beat grid; dynamic transposition with Pitch Shift; ChordPro, text, and JSON export; manual chord editing.
+- **Polyphonic Note Transcription & Piano-Roll**: Interactive HTML5 canvas piano-roll display; real-time note highlighting; Standard MIDI File (.mid) export with detected tempo map.
+- **Stem Separation & Stem Mixer**: 4-stem isolation (Vocals, Drums, Bass, Other) via instant mathematical Linkwitz-Riley DSP or deep learning (HTDemucs v4); sample-accurate GStreamer `audiomixer` feeding the core DSP chain with individual solo/mute and faders.
+- **Model Manager**: Offline-first, zero-telemetry AI model manager in Settings with SHA-256 integrity verification and GPU auto-detection (NVIDIA CUDA, AMD ROCm/Vulkan).
 
 ### ⏱️ Player Tools
 - **A-B Looper**: Seamlessly loop any track segment with millisecond precision.

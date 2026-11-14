@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
-VERSION="1.0.8"
+VERSION="1.1.0"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" ]]; then
     DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
     if [[ -n "$DETECTED_VER" ]]; then

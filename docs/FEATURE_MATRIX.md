@@ -1,4 +1,4 @@
-# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.0.8)
+# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.1.0)
 
 > **OBOWIĄZKOWA INSTRUKCJA DLA KAŻDEGO AGENTA I PROGRAMISTY:**
 > 1. **ZAWSZE przed proponowaniem nowych funkcji, planowaniem roadmapy lub refaktoryzacją PRZECZYTAJ TEN PLIK**, aby nigdy nie sugerować i nie dublować funkcji, które są już wdrożone w kodzie.
@@ -260,4 +260,33 @@
 - `crates/desktop-integration`: Serwer MPRIS v2 na D-Bus, Discord RPC IPC socket, integracja z pulpitem.
 - `apps/desktop/src-tauri`: Ponad 100 typowanych komend Tauri v2 łączących frontend React z backendem Rust.
 - `apps/desktop`: Frontend React 19 + TypeScript + Vite ze ścisłą typizacją i zoptymalizowanymi widokami.
+
+---
+
+## 13. 🎼 Studio Analizy Muzycznej (Music Analysis Studio)
+- [x] **Detekcja Akordów & Siatka Rytmiczna (Chord Progression & Beat Grid)**:
+  - Automatyczne wyznaczanie siatki taktowej i rytmicznej (Beat Grid) skorelowanej z tempem BPM i downbeatami.
+  - Wykrywanie chromagramu filtrami Goertzel oraz klasyfikacja 109 szablonów harmonicznych (durowe, molowe, 7, maj7, min7, sus4, sus2, dim, aug, brak akordu).
+  - Wygładzanie sekwencji w czasie algorytmem Viterbi (HMM) z faworyzacją tonacji diatonicznej z wykrytego klucza utworu.
+  - Interaktywny pasek akordów (Chord Timeline) zsynchronizowany w czasie rzeczywistym z odtwarzaniem utworu.
+  - Plakietka aktualnie brzmiącego akordu w trybie pełnoekranowym Big Screen Mode.
+  - Dynamiczna transpozycja wyświetlanych akordów przy aktywnym Pitch Shifcie (z przełącznikiem oryginał / transpozycja).
+  - 1-klikowe zapętlanie taktu lub sekcji w pętli A-B oraz skok seek do wybranego akordu.
+  - Ręczna korekta akordów (edycja nazwy, podział, łączenie) z trwałym zapisem w bazie SQLite.
+  - Eksport progresji akordów do formatów ChordPro (`.cho`), tekstu z kreskami taktowymi (`.txt`) oraz JSON.
+- [x] **Polifoniczna Transkrypcja Nut (Note Detection & Piano-Roll Canvas)**:
+  - Ekstrakcja nut z audio (początek onset, czas trwania duration, numer nuty MIDI, odstrojenie w centach, dynamika velocity).
+  - Skalowalny widok Piano-Roll wykonany na wirtualnym canvasie HTML5 z podświetlaniem aktualnie brzmiących nut i podziałką sekundową.
+  - Eksport transkrypcji do czystego pliku Standard MIDI File (SMF Type 0/1, `.mid`) z zachowaniem mapy tempa BPM oraz do pliku JSON.
+- [x] **Separacja Ścieżek i Mikser Stemów (Stem Separation & Stem Mixer)**:
+  - 4-ścieżkowy podział utworu na wokal (*Vocals*), perkusję (*Drums*), bas (*Bass*) oraz tło instrumentalne (*Other*).
+  - Podwójny silnik separacji: błyskawiczny algorytm DSP Linkwitz-Riley biquad o matematycznej doskonałości rekonstrukcji ($\sum \text{stemy} = \text{oryginał}$) oraz opcjonalny model sztucznej inteligencji HTDemucs v4 (ONNX).
+  - Pamięć podręczna stemów na dysku pod `~/.cache/auralune/stems/` indeksowana hashem pliku i wersją analizatora (zabezpieczenie przed ponownym przetwarzaniem).
+  - Próbkowo dokładny mikser stemów (Stem Mixer) oparty o natywny GStreamer `audiomixer` podłączony pod procesory DSP (Rubber Band / SoundTouch, EQ, Limiter).
+  - Tryb Solo, Mute, płynne suwaki głośności każdego stemu, 1-klikowe tryby Karaoke (wyciszenie wokalu) i Minus-One (wyciszenie wybranego instrumentu).
+- [x] **Menedżer Modeli Sztucznej Inteligencji (Model Manager)**:
+  - Pełna kontrola nad wagami modeli AI bez zbędnej telemetrii: pobieranie wyłącznie na jawne żądanie użytkownika.
+  - Weryfikacja integralności pobranych modeli sumami kontrolnymi SHA-256.
+  - Automatyczne wykrywanie obecności procesorów graficznych (NVIDIA CUDA, AMD ROCm, Vulkan) oraz gotowość do pracy w trybie CPU.
+  - Możliwość ręcznego importu modeli w trybie całkowicie offline do katalogu `$XDG_DATA_HOME/auralune/models/`.
 

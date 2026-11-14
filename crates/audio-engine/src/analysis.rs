@@ -1430,7 +1430,7 @@ pub fn analyze_track_chords_and_grid(
         camelot,
         beat_grid,
         chords,
-        analyzer_version: "1.0.8-classic".to_string(),
+        analyzer_version: "1.1.0-classic".to_string(),
     })
 }
 
@@ -1769,6 +1769,6 @@ pub fn analyze_track_transcription(
         file_hash,
         notes,
         bpm,
-        analyzer_version: "1.0.8-salience".to_string(),
+        analyzer_version: "1.1.0-salience".to_string(),
     })
 }

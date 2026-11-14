@@ -9,6 +9,43 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.1.0] — „Harmonic Intelligence & Stem Synthesis” - 2026-11-14
+**Autorka**: Das Letzte Kemonomimi
+
+### ✨ Dodano (Added)
+- **Studio Analizy Muzycznej (Music Analysis Studio)**:
+  - Dedykowane studio analizy harmonicznej i dźwiękowej dostępne w nagłówku aplikacji oraz w oknie Ustawień.
+  - **Detekcja progresji akordów i siatki rytmicznej (Beat Grid)**:
+    - Analiza rytmiczna z wyznaczaniem beatów i downbeatów powiązanych z tempem BPM utworu.
+    - Ekstrakcja chromagramu za pomocą banku filtrów Goertzel (C2–B5) oraz dopasowanie do 109 szablonów harmonicznych (durowe, molowe, 7, maj7, min7, sus4, sus2, dim, aug).
+    - Temporalna optymalizacja algorytmem Viterbi (HMM) z faworyzacją tonacji diatonicznej z wykrytego klucza utworu.
+    - Interaktywny pasek osi czasu (Chord Timeline) zsynchronizowany z odtwarzaniem w czasie rzeczywistym.
+    - Wizualizacja aktualnego akordu w trybie pełnoekranowym (Big Screen Mode).
+    - Dynamiczna transpozycja wyświetlanych akordów w locie podczas modyfikacji suwaka Pitch Shift (z opcją podglądu oryginalnej tonacji).
+    - 1-klikowe zapętlanie taktu lub sekcji utworu w pętli A-B oraz nawigacja seek do wybranego akordu.
+    - Ręczna korekta akordów (edycja, podział, łączenie) z trwałym zapisem w bazie SQLite.
+    - Eksport akordów do formatów ChordPro (`.cho`), tekstu z kreskami taktowymi (`.txt`) oraz JSON.
+  - **Polifoniczna transkrypcja nut i widok Piano-Roll (HTML5 Canvas)**:
+    - Precyzyjna detekcja wysokości nut (MIDI pitch), czasu trwania (onset i duration w ms), odstrojenia w centach (±50¢) oraz dynamiki velocity.
+    - Skalowalna wirtualna klawiatura fortepianowa HTML5 Canvas z podziałką sekundową i podświetlaniem aktualnie brzmiących nut w czasie rzeczywistym.
+    - Eksport transkrypcji do czystego pliku Standard MIDI File (SMF Type 0/1, `.mid`) z mapą tempa utworu oraz do pliku JSON.
+  - **Separacja ścieżek (Stem Separation) i Mikser Stemów (Stem Mixer)**:
+    - 4-ścieżkowy podział utworu na składowe: wokal (*Vocals*), perkusja (*Drums*), bas (*Bass*) oraz tło (*Other*).
+    - Podwójny silnik separacji: natychmiastowa rekonstrukcyjna separacja DSP Linkwitz-Riley (działająca w ułamku sekundy bez pobierania modeli) oraz wsparcie dla studyjnych modeli sztucznej inteligencji HTDemucs v4 (ONNX).
+    - Pamięć podręczna stemów na dysku (`~/.cache/auralune/stems/`) z indeksowaniem sumą SHA-256 pliku i wersją analizatora.
+    - Natywny mikser GStreamer `audiomixer` zintegrowany bezpośrednio z głównym torem DSP (Rubber Band / SoundTouch, EQ, Limiter) gwarantujący idealną, próbkową zgodność i brak przesunięć fazowych.
+    - Suwaki głośności każdego stemu (-60 dB do +6 dB), przyciski Solo / Mute oraz 1-klikowe tryby Karaoke (wyciszenie wokalu) i Minus-One (wyciszenie wybranego instrumentu).
+  - **Menedżer Modeli Sztucznej Inteligencji (Model Manager)**:
+    - Przejrzysty panel weryfikacji i instalacji modeli ONNX (HTDemucs v4, Spotify Basic Pitch) z informacją o licencjach, rozmiarze i sumie kontrolnej SHA-256.
+    - Weryfikacja integralności pobranych modeli bez niejawnej telemetrii (pobieranie wyłącznie na jawne żądanie użytkownika).
+    - Autodetekcja akceleracji sprzętowej GPU na Linuksie (NVIDIA CUDA, AMD ROCm/Vulkan) z płynnym fallbackiem na CPU.
+    - Możliwość w pełni offline'owego importu modeli do katalogu `$XDG_DATA_HOME/auralune/models/`.
+
+### 🛠️ Poprawiono (Fixed)
+- **Matematyczna bezstratność rekonstrukcji stemów w silniku DSP**: Zapewniono idealną tożsamość $\text{Original} = \text{Bass} + \text{Vocals} + \text{Drums} + \text{Other}$ w klasycznym algorytmie DSP, eliminując jakiekolwiek anomalie fazowe czy artefakty filtracji grzebieniowej przy zsumowanym odtwarzaniu.
+
+---
+
 ## [1.0.8] — „Harmonic Resonance & Ultra-Wide Canvas” - 2026-11-14
 **Autorka**: Das Letzte Kemonomimi
 

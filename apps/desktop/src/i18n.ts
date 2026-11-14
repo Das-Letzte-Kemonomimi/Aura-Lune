@@ -19,6 +19,7 @@ export interface Translations {
     miniPlayer: string;
     queue: string;
     radio: string;
+    musicAnalysis: string;
   };
   player: {
     track: string;
@@ -822,6 +823,7 @@ export const translations: Record<Language, Translations> = {
       miniPlayer: 'Mini Player',
       queue: 'Queue',
       radio: 'Anime Radio',
+      musicAnalysis: 'Music Analysis Studio',
     },
     player: {
       track: 'Track',
@@ -1624,6 +1626,7 @@ export const translations: Record<Language, Translations> = {
       miniPlayer: 'Mini-Player',
       queue: 'Kolejka',
       radio: 'Radio Anime',
+      musicAnalysis: 'Studio Analizy Muzycznej',
     },
     player: {
       track: 'Utwór',
@@ -2426,6 +2429,7 @@ export const translations: Record<Language, Translations> = {
       miniPlayer: 'Mini-Player',
       queue: 'Warteschlange',
       radio: 'Anime-Radio',
+      musicAnalysis: 'Musikanalyse-Studio',
     },
     player: {
       track: 'Titel',
@@ -3228,6 +3232,7 @@ export const translations: Record<Language, Translations> = {
       miniPlayer: 'Mini-soitin',
       queue: 'Jono',
       radio: 'Anime-radio',
+      musicAnalysis: 'Musiikkianalyysistudio',
     },
     player: {
       track: 'Kappale',
@@ -4030,6 +4035,7 @@ export const translations: Record<Language, Translations> = {
       miniPlayer: 'Parvus Lusor',
       queue: 'Ordo',
       radio: 'Radio Anime',
+      musicAnalysis: 'Studium Musicae Analyticae',
     },
     player: {
       track: 'Cantus',
