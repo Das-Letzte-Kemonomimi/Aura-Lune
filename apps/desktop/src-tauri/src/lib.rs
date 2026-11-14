@@ -5,8 +5,15 @@
 //! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem, odpytywania stanu i indeksowania.
 
 use audio_engine::{
-    analyze_track_replaygain, write_replaygain_tags_to_file, AudioEngine, DeviceManager,
-    PlayerEvent, ReplayGainAnalysisResult, TrackKeyBpm, Transcoder,
+    analyze_track_chords_and_grid, analyze_track_replaygain, analyze_track_transcription,
+    export_chords_to_chordpro, export_chords_to_json, export_chords_to_text,
+    export_transcription_to_midi, get_analysis_capabilities as engine_get_analysis_capabilities,
+    list_available_models, remove_model_file, write_replaygain_tags_to_file, AudioEngine,
+    DeviceManager, PlayerEvent, ReplayGainAnalysisResult, StemSeparator, TrackKeyBpm, Transcoder,
+};
+use domain::analysis::{
+    AiModelInfo, AnalysisCapabilities, ChordSegment, StemMixerState, StemSeparationData,
+    TrackChordsData, TrackTranscriptionData,
 };
 use domain::crossfeed::CrossfeedConfig;
 use domain::device::{AudioCard, BluetoothCodec};
@@ -5099,6 +5106,354 @@ async fn save_track_key_bpm(
     Ok(())
 }
 
+#[tauri::command]
+async fn get_analysis_capabilities() -> Result<AnalysisCapabilities, String> {
+    Ok(engine_get_analysis_capabilities())
+}
+
+#[tauri::command]
+async fn list_ai_models() -> Result<Vec<AiModelInfo>, String> {
+    Ok(list_available_models())
+}
+
+#[tauri::command]
+async fn delete_ai_model(model_id: String) -> Result<(), String> {
+    remove_model_file(&model_id)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn detect_track_chords(
+    path: String,
+    track_id: Option<i64>,
+    force_recompute: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<TrackChordsData, String> {
+    let recompute = force_recompute.unwrap_or(false);
+
+    if !recompute {
+        if let Some(id) = track_id {
+            if let Ok(Some((beat_json, chords_json, overrides_json))) =
+                state.db.get_track_chords(id).await
+            {
+                if let (Ok(beat_grid), Ok(mut chords)) = (
+                    serde_json::from_str::<Vec<domain::analysis::BeatPoint>>(&beat_json),
+                    serde_json::from_str::<Vec<ChordSegment>>(&chords_json),
+                ) {
+                    if let Some(ref overrides) = overrides_json {
+                        if let Ok(override_list) =
+                            serde_json::from_str::<Vec<ChordSegment>>(overrides)
+                        {
+                            for ov in override_list {
+                                for ch in chords.iter_mut() {
+                                    if ch.start_ms == ov.start_ms {
+                                        ch.chord = ov.chord.clone();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return Ok(TrackChordsData {
+                        track_id: id,
+                        file_hash: "cached".to_string(),
+                        bpm: 120.0,
+                        key: "Detected".to_string(),
+                        camelot: "".to_string(),
+                        beat_grid,
+                        chords,
+                        analyzer_version: "1.0.8-classic".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    let path_clone = path.clone();
+    let id_val = track_id.unwrap_or(0);
+    let analysis_res =
+        tokio::task::spawn_blocking(move || analyze_track_chords_and_grid(&path_clone, id_val))
+            .await
+            .map_err(|e| format!("Błąd wątku analizy: {}", e))?
+            .map_err(|e| format!("Błąd analizy akordów: {}", e))?;
+
+    if let Some(id) = track_id {
+        let db = state.db.clone();
+        let hash = analysis_res.file_hash.clone();
+        let ver = analysis_res.analyzer_version.clone();
+        let beat_json = serde_json::to_string(&analysis_res.beat_grid).unwrap_or_default();
+        let chords_json = serde_json::to_string(&analysis_res.chords).unwrap_or_default();
+        let _ = db
+            .save_track_chords(id, &hash, &ver, &beat_json, &chords_json)
+            .await;
+    }
+
+    Ok(analysis_res)
+}
+
+#[tauri::command]
+async fn get_cached_chords(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<TrackChordsData>, String> {
+    match state.db.get_track_chords(track_id).await {
+        Ok(Some((beat_json, chords_json, overrides_json))) => {
+            if let (Ok(beat_grid), Ok(mut chords)) = (
+                serde_json::from_str::<Vec<domain::analysis::BeatPoint>>(&beat_json),
+                serde_json::from_str::<Vec<ChordSegment>>(&chords_json),
+            ) {
+                if let Some(ref overrides) = overrides_json {
+                    if let Ok(override_list) = serde_json::from_str::<Vec<ChordSegment>>(overrides)
+                    {
+                        for ov in override_list {
+                            for ch in chords.iter_mut() {
+                                if ch.start_ms == ov.start_ms {
+                                    ch.chord = ov.chord.clone();
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(Some(TrackChordsData {
+                    track_id,
+                    file_hash: "cached".to_string(),
+                    bpm: 120.0,
+                    key: "Detected".to_string(),
+                    camelot: "".to_string(),
+                    beat_grid,
+                    chords,
+                    analyzer_version: "1.0.8-classic".to_string(),
+                }))
+            } else {
+                Ok(None)
+            }
+        }
+        Ok(None) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+async fn save_chord_overrides(
+    track_id: i64,
+    overrides_json: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .save_chord_overrides(track_id, &overrides_json)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn export_chords_file(
+    track_id: i64,
+    format: String,
+    title: String,
+    artist: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let chords_data = get_cached_chords(track_id, state)
+        .await?
+        .ok_or_else(|| "Brak przeanalizowanych akordów dla tego utworu".to_string())?;
+
+    match format.to_lowercase().as_str() {
+        "chordpro" | "cho" => Ok(export_chords_to_chordpro(&chords_data, &title, &artist)),
+        "json" => export_chords_to_json(&chords_data).map_err(|e| e.to_string()),
+        _ => Ok(export_chords_to_text(&chords_data)),
+    }
+}
+
+#[tauri::command]
+async fn detect_track_transcription(
+    path: String,
+    track_id: Option<i64>,
+    force_recompute: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<TrackTranscriptionData, String> {
+    let recompute = force_recompute.unwrap_or(false);
+
+    if !recompute {
+        if let Some(id) = track_id {
+            if let Ok(Some(notes_json)) = state.db.get_track_transcription(id).await {
+                if let Ok(notes) =
+                    serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&notes_json)
+                {
+                    return Ok(TrackTranscriptionData {
+                        track_id: id,
+                        file_hash: "cached".to_string(),
+                        notes,
+                        bpm: 120.0,
+                        analyzer_version: "1.0.8-salience".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    let path_clone = path.clone();
+    let id_val = track_id.unwrap_or(0);
+    let analysis_res =
+        tokio::task::spawn_blocking(move || analyze_track_transcription(&path_clone, id_val))
+            .await
+            .map_err(|e| format!("Błąd wątku analizy: {}", e))?
+            .map_err(|e| format!("Błąd transkrypcji nutowej: {}", e))?;
+
+    if let Some(id) = track_id {
+        let db = state.db.clone();
+        let hash = analysis_res.file_hash.clone();
+        let ver = analysis_res.analyzer_version.clone();
+        if let Ok(json) = serde_json::to_string(&analysis_res.notes) {
+            let _ = db.save_track_transcription(id, &hash, &ver, &json).await;
+        }
+    }
+
+    Ok(analysis_res)
+}
+
+#[tauri::command]
+async fn get_cached_transcription(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<TrackTranscriptionData>, String> {
+    match state.db.get_track_transcription(track_id).await {
+        Ok(Some(notes_json)) => {
+            if let Ok(notes) =
+                serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&notes_json)
+            {
+                Ok(Some(TrackTranscriptionData {
+                    track_id,
+                    file_hash: "cached".to_string(),
+                    notes,
+                    bpm: 120.0,
+                    analyzer_version: "1.0.8-salience".to_string(),
+                }))
+            } else {
+                Ok(None)
+            }
+        }
+        Ok(None) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+async fn export_transcription_midi(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<u8>, String> {
+    let notes_opt = match state.db.get_track_transcription(track_id).await {
+        Ok(Some(json)) => serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&json).ok(),
+        _ => None,
+    };
+
+    let notes =
+        notes_opt.ok_or_else(|| "Brak zapisanej transkrypcji dla tego utworu".to_string())?;
+    Ok(export_transcription_to_midi(&notes, 120.0))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StemProgressPayload {
+    pub track_id: i64,
+    pub progress: f32,
+    pub message: String,
+}
+
+#[tauri::command]
+async fn start_stem_separation(
+    path: String,
+    track_id: i64,
+    model_id: Option<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<StemSeparationData, String> {
+    let m_id = model_id.unwrap_or_else(|| "htdemucs_v4".to_string());
+    let path_clone = path.clone();
+    let m_id_clone = m_id.clone();
+    let app_handle_clone = app_handle.clone();
+
+    let separation = tokio::task::spawn_blocking(move || {
+        StemSeparator::separate_track(
+            &path_clone,
+            track_id,
+            &m_id_clone,
+            Some(Box::new(move |progress, message| {
+                let _ = app_handle_clone.emit(
+                    "auralune://stem-progress",
+                    StemProgressPayload {
+                        track_id,
+                        progress,
+                        message: message.to_string(),
+                    },
+                );
+            })),
+        )
+    })
+    .await
+    .map_err(|e| format!("Błąd wątku separacji: {}", e))?
+    .map_err(|e| format!("Błąd separacji stemów: {}", e))?;
+
+    // Zapisz w SQLite
+    let _ = state.db.save_stem_tracks(&separation).await;
+
+    Ok(separation)
+}
+
+#[tauri::command]
+async fn get_track_stems(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<StemSeparationData>, String> {
+    state
+        .db
+        .get_stem_tracks(track_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn load_track_stems(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<StemMixerState, String> {
+    let stems = state
+        .db
+        .get_stem_tracks(track_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| {
+            "Brak rozdzielonych stemów dla tego utworu. Rozpocznij separację najpierw.".to_string()
+        })?;
+
+    let mixer_state = StemMixerState {
+        enabled: true,
+        ..state.engine.get_stem_mixer_state()
+    };
+
+    state
+        .engine
+        .load_stems(&stems, mixer_state.clone())
+        .map_err(|e| e.to_string())?;
+    Ok(mixer_state)
+}
+
+#[tauri::command]
+async fn set_stem_mixer_state(
+    state_payload: StemMixerState,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .engine
+        .set_stem_mixer_state(state_payload)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_stem_mixer_state(state: State<'_, AppState>) -> Result<StemMixerState, String> {
+    Ok(state.engine.get_stem_mixer_state())
+}
+
 fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
     let clean_style = if style == "classic" {
         "classic"
@@ -5976,6 +6331,21 @@ pub fn run() {
             get_audio_buffer_duration_ms,
             set_dsp_block_size,
             get_dsp_block_size,
+            get_analysis_capabilities,
+            list_ai_models,
+            delete_ai_model,
+            detect_track_chords,
+            get_cached_chords,
+            save_chord_overrides,
+            export_chords_file,
+            detect_track_transcription,
+            get_cached_transcription,
+            export_transcription_midi,
+            start_stem_separation,
+            get_track_stems,
+            load_track_stems,
+            set_stem_mixer_state,
+            get_stem_mixer_state,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
