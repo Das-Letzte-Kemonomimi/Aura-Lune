@@ -21,8 +21,9 @@ pub use device::DeviceManager;
 pub use error::AudioEngineError;
 pub use metadata_editor::{read_track_metadata, write_track_metadata, TrackMetadataFullDto};
 pub use model_manager::{
-    calculate_file_sha256, get_analysis_capabilities, get_default_model_catalog, get_models_dir,
-    get_stems_cache_dir, list_available_models, remove_model_file, verify_file_sha256,
+    calculate_file_sha256, get_analysis_capabilities, get_default_model_catalog,
+    get_model_packs_catalog, get_models_dir, get_stem_projects_cache_dir, get_stems_cache_dir,
+    list_available_model_packs, list_available_models, remove_model_file, verify_file_sha256,
 };
 pub use pipeline::{AudioEngine, PlayerEvent};
 pub use stem_separator::StemSeparator;

@@ -498,3 +498,144 @@ fn test_stem_mixer_pipeline_playback() {
         .expect("Załadowanie standardowego URI");
     assert_eq!(engine.state(), PlaybackState::Stopped);
 }
+
+#[test]
+fn test_stem_project_cascaded_separation_and_reconstruction() {
+    use audio_engine::StemSeparator;
+    use domain::StemQualityTier;
+    use std::path::Path;
+
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let requested_packs = vec![
+        "pack_drum_pieces".to_string(),
+        "pack_vocal_harmonies".to_string(),
+        "pack_extended_6stem".to_string(),
+        "pack_orchestral".to_string(),
+    ];
+
+    let channels = StemSeparator::separate_stem_project(
+        &fixture_path,
+        777,
+        "hash_fixture_sine",
+        &requested_packs,
+        None,
+    )
+    .expect("Kaskadowa separacja powiodła się");
+
+    // Powinno powstać co najmniej 14 szczegółowych stemów
+    assert!(channels.len() >= 14, "Oczekiwano co najmniej 14 kanałów, otrzymano {}", channels.len());
+
+    // Sprawdzenie domyślnych wartości faderów (75% głośności per specyfikacja użytkownika)
+    for ch in &channels {
+        assert_eq!(ch.volume, 0.75, "Domyślna głośność kanału {} powinna wynosić 75% (0.75)", ch.id);
+        assert_eq!(ch.pan, 0.0);
+        assert!(!ch.mute);
+        assert!(!ch.solo);
+        assert!(Path::new(&ch.file_path).exists(), "Plik stemu {} nie istnieje", ch.file_path);
+    }
+
+    // Weryfikacja obecności kluczowych kanałów
+    assert!(channels.iter().any(|c| c.id == "lead_vocal"));
+    assert!(channels.iter().any(|c| c.id == "backing_vocals"));
+    assert!(channels.iter().any(|c| c.id == "kick"));
+    assert!(channels.iter().any(|c| c.id == "snare"));
+    assert!(channels.iter().any(|c| c.id == "hihat"));
+    assert!(channels.iter().any(|c| c.id == "cymbals"));
+    assert!(channels.iter().any(|c| c.id == "toms"));
+    assert!(channels.iter().any(|c| c.id == "percussion"));
+    assert!(channels.iter().any(|c| c.id == "bass"));
+    assert!(channels.iter().any(|c| c.id == "acoustic_guitar"));
+    assert!(channels.iter().any(|c| c.id == "lead_guitar"));
+    assert!(channels.iter().any(|c| c.id == "rhythm_guitar"));
+    assert!(channels.iter().any(|c| c.id == "piano"));
+    assert!(channels.iter().any(|c| c.id == "synth"));
+    assert!(channels.iter().any(|c| c.id == "strings"));
+    assert!(channels.iter().any(|c| c.id == "brass"));
+    assert!(channels.iter().any(|c| c.id == "woodwinds"));
+    assert!(channels.iter().any(|c| c.id == "other"));
+
+    // Jakość
+    let lead_voc = channels.iter().find(|c| c.id == "lead_vocal").unwrap();
+    assert_eq!(lead_voc.quality_tier, StemQualityTier::HighQuality);
+}
+
+#[test]
+fn test_stem_project_multitrack_pipeline_playback() {
+    use audio_engine::{AudioEngine, StemSeparator};
+    use domain::PlaybackState;
+    use std::path::Path;
+    use std::thread;
+    use std::time::Duration;
+
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let requested_packs = vec!["pack_drum_pieces".to_string(), "pack_vocal_harmonies".to_string()];
+    let channels = StemSeparator::separate_stem_project(
+        &fixture_path,
+        888,
+        "hash_fixture_playback",
+        &requested_packs,
+        None,
+    )
+    .expect("Separacja dla playbacku");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+
+    // 1. Ładowanie multitracku projektu stemów
+    engine
+        .load_stem_project_channels(888, &channels, 1.0)
+        .expect("Załadowanie multitracku stemów do potoku");
+
+    // 2. Modyfikacja miksu (np. Solo na lead_vocal, Mute na kick)
+    let mut modified_channels = channels.clone();
+    for ch in &mut modified_channels {
+        if ch.id == "lead_vocal" {
+            ch.solo = true;
+            ch.volume = 0.85;
+        }
+        if ch.id == "kick" {
+            ch.mute = true;
+        }
+    }
+
+    engine
+        .apply_stem_project_mix(&modified_channels, 0.95)
+        .expect("Aplikacja miksu w czasie rzeczywistym");
+
+    // 3. Playback
+    engine.play().expect("Odtwarzanie multitracku");
+    thread::sleep(Duration::from_millis(80));
+
+    // 4. Pauza
+    engine.pause().expect("Pauza multitracku");
+    assert_eq!(engine.state(), PlaybackState::Paused);
+}
+
+#[test]
+fn test_model_packs_catalog_integrity() {
+    use audio_engine::{get_model_packs_catalog, list_available_model_packs};
+
+    let packs = get_model_packs_catalog();
+    assert_eq!(packs.len(), 6);
+
+    let dsp_pack = packs.iter().find(|p| p.id == "pack_dsp_cascade").unwrap();
+    assert!(dsp_pack.is_installed);
+    assert_eq!(dsp_pack.total_size_bytes, 0);
+    assert!(dsp_pack.unlocked_stems.len() >= 15);
+
+    let list = list_available_model_packs();
+    assert_eq!(list.len(), 6);
+    let dsp_available = list.iter().find(|p| p.id == "pack_dsp_cascade").unwrap();
+    assert!(dsp_available.is_installed);
+}
