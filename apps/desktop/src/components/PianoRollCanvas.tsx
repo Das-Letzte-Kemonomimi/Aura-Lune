@@ -10,7 +10,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import type { TrackTranscriptionData } from '../types/analysis';
 
-interface PianoRollCanvasProps {
+export interface PianoRollCanvasProps {
   trackId?: number;
   trackPath?: string;
   trackTitle?: string;
@@ -250,80 +250,183 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
 
     const playheadX = pianoWidth + (currentTimeMs / 1000) * pixelsPerSec;
     const scrollX = Math.max(0, playheadX - canvas.width / 2);
-    const clickedSec = (x - pianoWidth + scrollX) / pixelsPerSec;
-    onSeek(Math.max(0, Math.floor(clickedSec * 1000)));
+    const timeSec = (x - pianoWidth + scrollX) / pixelsPerSec;
+    onSeek(Math.max(0, Math.min(durationMs, Math.round(timeSec * 1000))));
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900/95 backdrop-blur-xl border border-slate-700/60 rounded-2xl shadow-2xl p-5 text-slate-100 select-none">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-700/60 pb-4 mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
-            <Piano className="w-6 h-6" />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', width: '100%' }}>
+      {/* Header pod-widoku */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 18px',
+          background: 'rgba(255, 255, 255, 0.04)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '10px',
+              background: 'rgba(192, 132, 252, 0.2)',
+              border: '1px solid rgba(192, 132, 252, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#c084fc',
+            }}
+          >
+            <Piano size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Piano-Roll (Polifoniczna Transkrypcja)
-            </h2>
-            <p className="text-xs text-slate-400">
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
+              Piano-Roll & Transkrypcja Polifoniczna
+            </span>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
               {data ? `Wykryto ${data.notes.length} nut • Tempo: ${data.bpm.toFixed(1)} BPM` : 'Analiza nutowa...'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Zoom controls */}
-          <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '2px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
             <button
               onClick={() => setPixelsPerSec((p) => Math.max(30, p - 20))}
-              className="p-1 text-slate-400 hover:text-white transition"
+              style={{
+                padding: '4px',
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                display: 'flex',
+              }}
               title="Oddal czas"
             >
-              <ZoomOut className="w-4 h-4" />
+              <ZoomOut size={14} />
             </button>
-            <span className="text-[10px] font-mono px-2 text-slate-300">
+            <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', padding: '0 6px', color: '#cbd5e1' }}>
               {pixelsPerSec}px/s
             </span>
             <button
               onClick={() => setPixelsPerSec((p) => Math.min(200, p + 20))}
-              className="p-1 text-slate-400 hover:text-white transition"
+              style={{
+                padding: '4px',
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                display: 'flex',
+              }}
               title="Przybliż czas"
             >
-              <ZoomIn className="w-4 h-4" />
+              <ZoomIn size={14} />
             </button>
           </div>
 
           <button
             onClick={handleExportMidi}
             disabled={!data || !data.notes.length}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/30 text-xs font-medium transition disabled:opacity-50"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '10px',
+              background: 'rgba(236, 72, 153, 0.2)',
+              border: '1px solid rgba(236, 72, 153, 0.4)',
+              color: '#f472b6',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              cursor: data && data.notes.length ? 'pointer' : 'not-allowed',
+              opacity: data && data.notes.length ? 1 : 0.5,
+            }}
             title="Eksportuj do standardowego pliku MIDI (.mid)"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download size={14} />
             <span>Pobierz MIDI (.mid)</span>
           </button>
 
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#94a3b8',
+                cursor: 'pointer',
+              }}
             >
-              <X className="w-5 h-5" />
+              <X size={16} />
             </button>
           )}
         </div>
       </div>
 
       {/* Canvas container */}
-      <div className="flex-1 relative overflow-hidden rounded-xl border border-slate-700/60 bg-slate-950">
+      <div
+        style={{
+          flex: 1,
+          minHeight: '320px',
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: '#090a12',
+          display: 'flex',
+        }}
+      >
         {loading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 z-10 bg-slate-950/80 backdrop-blur-sm">
-            <Sparkles className="w-8 h-8 text-purple-400 animate-spin" />
-            <p className="text-sm text-slate-300">Analiza spektralna salience i transkrypcja nut...</p>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              background: 'rgba(9, 10, 18, 0.85)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 10,
+            }}
+          >
+            <Sparkles size={28} color="#c084fc" style={{ animation: 'spin 1.5s linear infinite' }} />
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1' }}>
+              Analiza spektralna salience i transkrypcja nut...
+            </p>
           </div>
         ) : error ? (
-          <div className="p-4 m-4 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-sm">
+          <div
+            style={{
+              margin: '20px',
+              padding: '14px 18px',
+              borderRadius: '12px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#fca5a5',
+              fontSize: '0.85rem',
+            }}
+          >
             {error}
           </div>
         ) : (
@@ -332,11 +435,15 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
             width={900}
             height={NUM_KEYS * keyHeight}
             onClick={handleCanvasClick}
-            className="w-full h-full cursor-crosshair"
+            style={{
+              width: '100%',
+              height: '100%',
+              cursor: 'crosshair',
+              display: 'block',
+            }}
           />
         )}
       </div>
     </div>
   );
 };
-

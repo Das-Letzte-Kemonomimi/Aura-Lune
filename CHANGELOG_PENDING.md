@@ -20,6 +20,8 @@
 - **Dedykowany przycisk powrotu ze stemów w odtwarzaczu**: Nowy chip statusowy i przycisk w głównym odtwarzaczu (`Miks stemów • [Wróć do utworu]`) umożliwiający natychmiastowy powrót do oryginalnego utworu bez zatrzymywania muzyki.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Pływające okno modalne Studia Analizy Muzycznej (Music Analysis Studio)**: Wyeliminowano błąd renderowania nieostylowanych, nachodzących na siebie elementów HTML (`Music Analysis Studio`, `Mikser Stemów`, `Projekty Stemów`) bezpośrednio w treści strony. Przebudowano wszystkie widoki modułu analizy (`MusicAnalysisModal`, `StemMixerModal`, `ChordTimelineView`, `PianoRollCanvas`, `ModelManagerModal`) z klas Tailwind na spójne, natywne style inline z tokenami anime glassmorphism (`position: fixed`, `zIndex: 10000`, rozmycie tła, wycentrowany kontener o wymiarach 1200x88vh, estetyczne zakładki nawigacyjne).
+- **Tryb osadzony (embedded) dla miksera stemów i modeli AI**: Wprowadzono właściwość `embedded` eliminującą powielone nagłówki i przyciski zamknięcia wewnątrz zakładek Studia Analizy.
 - **Zachowanie oryginalnego utworu w kolejce**: Usunięto błąd podmiany metadanych utworu na pusty byt przy ładowaniu multitracku stemów — oryginalny plik, tytuł, wykonawca, okładka i album pozostają w pełni nienaruszone.
 - **Usunięcie manualnego przycisku ładowania do potoku**: Zastąpiono niewygodny przycisk „Załaduj do potoku audio” w pełni automatycznym, natychmiastowym ładowaniem na żywo (IRL).
 

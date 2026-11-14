@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import {
   Cpu,
-  HardDrive,
   Trash2,
   CheckCircle2,
   X,
   Sparkles,
   Zap,
-  ShieldCheck,
   Download,
-  Loader2,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { AiModelInfo, AnalysisCapabilities } from '../types/analysis';
 
-interface ModelManagerModalProps {
+export interface ModelManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  embedded?: boolean;
 }
 
 export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   isOpen,
   onClose,
+  embedded = false,
 }) => {
   const [capabilities, setCapabilities] = useState<AnalysisCapabilities | null>(null);
   const [models, setModels] = useState<AiModelInfo[]>([]);
@@ -107,31 +106,323 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm(`Czy na pewno usunąć model ${id} z dysku?`)) return;
+    if (!confirm('Czy na pewno chcesz usunąć wagi tego modelu z dysku?')) return;
     try {
       await invoke('delete_ai_model', { modelId: id });
       setModels((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_installed: false } : m))
       );
-    } catch (err) {
+    } catch (err: any) {
       alert(`Błąd usuwania modelu: ${err}`);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="bg-slate-900/95 border border-slate-700/60 rounded-2xl p-6 max-w-2xl w-full flex flex-col shadow-2xl text-slate-100">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-700/60 pb-4 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
-              <Cpu className="w-6 h-6" />
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      {error && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: '12px',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#fca5a5',
+            fontSize: '0.82rem',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Akceleracja sprzętowa Banner */}
+      {capabilities && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderRadius: '16px',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: capabilities.hardware_acceleration
+                  ? 'rgba(16, 185, 129, 0.2)'
+                  : 'rgba(245, 158, 11, 0.2)',
+                border: capabilities.hardware_acceleration
+                  ? '1px solid rgba(16, 185, 129, 0.4)'
+                  : '1px solid rgba(245, 158, 11, 0.4)',
+                color: capabilities.hardware_acceleration ? '#34d399' : '#fbbf24',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Zap size={18} />
             </div>
             <div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Urządzenie wykonawcze:</span>
+                <span style={{ color: '#ec4899', fontFamily: 'var(--font-mono)' }}>
+                  {capabilities.accelerator_device}
+                </span>
+              </div>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+                {capabilities.hardware_acceleration
+                  ? 'Wykryto akcelerację sprzętową GPU (Vulkan/ROCm/CUDA).'
+                  : 'Przetwarzanie na procesorze (AVX2/AVX-512) bez ryzyka xrunów audio.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lista modeli */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h3
+          style={{
+            margin: '4px 0 0 0',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            color: '#94a3b8',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Dostępne i zainstalowane modele
+        </h3>
+
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
+            <Sparkles size={24} color="#c084fc" style={{ animation: 'spin 1.5s linear infinite' }} />
+          </div>
+        ) : (
+          models.map((model) => {
+            const isDown = downloading[model.id] !== undefined;
+            const progress = downloading[model.id] || 0;
+            return (
+              <div
+                key={model.id}
+                style={{
+                  padding: '16px',
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '520px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                      {model.name}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: 'rgba(168, 85, 247, 0.15)',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        color: '#c084fc',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {model.task_type}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                    {model.description}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.72rem', color: '#64748b' }}>
+                    <span>Rozmiar: {(model.file_size / (1024 * 1024)).toFixed(0)} MB</span>
+                    <span>Format: ONNX</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {model.is_installed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '10px',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          color: '#34d399',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <CheckCircle2 size={14} />
+                        Zainstalowany
+                      </span>
+                      <button
+                        onClick={() => handleDelete(model.id)}
+                        style={{
+                          padding: '7px 10px',
+                          borderRadius: '8px',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#f87171',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                        title="Usuń wagi modelu z dysku"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ) : isDown ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '140px' }}>
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '6px',
+                          borderRadius: '3px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.round(progress * 100)}%`,
+                            background: 'linear-gradient(90deg, #ec4899, #8b5cf6)',
+                            transition: 'width 0.2s ease',
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+                        Pobieranie {Math.round(progress * 100)}%
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleDownload(model.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 16px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                        border: 'none',
+                        color: '#ffffff',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(236, 72, 153, 0.3)',
+                      }}
+                    >
+                      <Download size={14} />
+                      <span>Pobierz ({(model.file_size / (1024 * 1024)).toFixed(0)} MB)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        background: 'rgba(5, 5, 12, 0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '720px',
+          background: 'linear-gradient(145deg, rgba(18, 20, 36, 0.98), rgba(10, 12, 24, 0.99))',
+          borderRadius: '24px',
+          border: '1px solid rgba(168, 85, 247, 0.35)',
+          boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9), 0 0 35px rgba(168, 85, 247, 0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '24px',
+          overflow: 'hidden',
+          color: '#f8fafc',
+          animation: 'fadeInScale 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            paddingBottom: '16px',
+            marginBottom: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                background: 'rgba(168, 85, 247, 0.2)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#c084fc',
+              }}
+            >
+              <Cpu size={20} />
+            </div>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.15rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(90deg, #c084fc, #ec4899)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
                 Menedżer Modeli AI & Akceleracji
               </h2>
-              <p className="text-xs text-slate-400">
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
                 Lokalne modele uczenia maszynowego (Music Analysis & Stems)
               </p>
             </div>
@@ -139,131 +430,25 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
           >
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
-        {error && (
-          <div className="p-3 mb-4 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs">
-            {error}
-          </div>
-        )}
-
-        {/* Akceleracja sprzętowa Banner */}
-        {capabilities && (
-          <div className="flex items-center justify-between p-3.5 mb-4 rounded-xl bg-slate-800/60 border border-slate-700">
-            <div className="flex items-center space-x-3">
-              <div
-                className={`p-2 rounded-lg ${
-                  capabilities.hardware_acceleration
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                }`}
-              >
-                <Zap className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-200 flex items-center space-x-2">
-                  <span>Urządzenie wykonawcze:</span>
-                  <span className="font-mono text-pink-400">
-                    {capabilities.accelerator_device}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  {capabilities.hardware_acceleration
-                    ? 'Wykryto akcelerację sprzętową GPU (Vulkan/ROCm/CUDA).'
-                    : 'Przetwarzanie na procesorze (AVX2/AVX-512) bez ryzyka xrunów audio.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Lista modeli */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Dostępne i zainstalowane modele
-          </h3>
-
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Sparkles className="w-6 h-6 text-purple-400 animate-spin" />
-            </div>
-          ) : (
-            models.map((model) => (
-              <div
-                key={model.id}
-                className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-600 transition"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-sm text-slate-100">
-                      {model.name}
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-700 text-slate-300">
-                      {model.license}
-                    </span>
-                    {model.is_installed ? (
-                      <span className="flex items-center space-x-1 text-[10px] text-green-400 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Zainstalowany</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center space-x-1 text-[10px] text-slate-400 font-medium">
-                        <HardDrive className="w-3.5 h-3.5" />
-                        <span>{(model.file_size / 1024 / 1024).toFixed(0)} MB</span>
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-400">{model.description}</p>
-                  <p className="text-[10px] text-slate-500 font-mono truncate max-w-md">
-                    SHA-256: {model.sha256}
-                  </p>
-                </div>
-
-                <div className="flex items-center space-x-2 shrink-0">
-                  {model.is_installed ? (
-                    <button
-                      onClick={() => handleDelete(model.id)}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-medium transition"
-                      title="Usuń plik modelu z dysku"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Usuń</span>
-                    </button>
-                  ) : downloading[model.id] !== undefined ? (
-                    <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-                      <span>{Math.round((downloading[model.id] || 0) * 100)}%</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleDownload(model.id)}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium shadow-md shadow-purple-900/30 transition hover:scale-105 active:scale-95"
-                      title="Pobierz wagi modelu AI na dysk"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Pobierz ({(model.file_size / 1024 / 1024).toFixed(0)} MB)</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Footer info */}
-        <div className="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
-          <div className="flex items-center space-x-1.5">
-            <ShieldCheck className="w-4 h-4 text-green-400" />
-            <span>Prywatność 100% lokalna: Żadne dane audio nie opuszczają urządzenia.</span>
-          </div>
-          <span>Katalog: ~/.local/share/auralune/models/</span>
-        </div>
+        {content}
       </div>
     </div>
   );
 };
-

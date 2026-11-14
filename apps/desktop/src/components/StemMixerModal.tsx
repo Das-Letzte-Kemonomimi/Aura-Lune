@@ -14,12 +14,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { StemSeparationData, StemMixerState } from '../types/analysis';
 
-interface StemMixerModalProps {
+export interface StemMixerModalProps {
   isOpen: boolean;
   onClose: () => void;
   trackId?: number;
   trackPath?: string;
   trackTitle?: string;
+  embedded?: boolean;
 }
 
 interface StemProgressPayload {
@@ -34,6 +35,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
   trackId,
   trackPath,
   trackTitle = 'Utwór',
+  embedded = false,
 }) => {
   const [stems, setStems] = useState<StemSeparationData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -108,7 +110,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     setLoading(true);
     setError(null);
     setProgressVal(0.05);
-    setProgressMsg('Inicjalizacja separacji...');
+    setProgressMsg('Inicjalizacja separacji STFT HPSS...');
 
     try {
       const res = await invoke<StemSeparationData>('start_stem_separation', {
@@ -163,322 +165,492 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     updateMixer({ ...mixerState, karaoke_mode: !mixerState.karaoke_mode });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="bg-slate-900/95 border border-slate-700/60 rounded-2xl p-6 max-w-2xl w-full flex flex-col shadow-2xl text-slate-100">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-700/60 pb-4 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-              <Layers className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                Mikser Stemów (Separacja Ścieżek)
-              </h2>
-              <p className="text-xs text-slate-400">{trackTitle}</p>
-            </div>
-          </div>
+  const stemList: Array<{
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+    volume: number;
+    mute: boolean;
+    setVolume: (val: number) => void;
+    toggleMute: () => void;
+  }> = [
+    {
+      id: 'vocals',
+      label: 'Wokal (Vocals)',
+      icon: <Mic size={16} />,
+      color: '#ec4899',
+      volume: mixerState.vocals_volume,
+      mute: mixerState.vocals_mute || mixerState.karaoke_mode,
+      setVolume: (v) => updateMixer({ ...mixerState, vocals_volume: v }),
+      toggleMute: () => updateMixer({ ...mixerState, vocals_mute: !mixerState.vocals_mute }),
+    },
+    {
+      id: 'drums',
+      label: 'Perkusja (Drums)',
+      icon: <Disc size={16} />,
+      color: '#f59e0b',
+      volume: mixerState.drums_volume,
+      mute: mixerState.drums_mute,
+      setVolume: (v) => updateMixer({ ...mixerState, drums_volume: v }),
+      toggleMute: () => updateMixer({ ...mixerState, drums_mute: !mixerState.drums_mute }),
+    },
+    {
+      id: 'bass',
+      label: 'Bas (Bass)',
+      icon: <Radio size={16} />,
+      color: '#06b6d4',
+      volume: mixerState.bass_volume,
+      mute: mixerState.bass_mute,
+      setVolume: (v) => updateMixer({ ...mixerState, bass_volume: v }),
+      toggleMute: () => updateMixer({ ...mixerState, bass_mute: !mixerState.bass_mute }),
+    },
+    {
+      id: 'other',
+      label: 'Pozostałe (Other)',
+      icon: <Sliders size={16} />,
+      color: '#a855f7',
+      volume: mixerState.other_volume,
+      mute: mixerState.other_mute,
+      setVolume: (v) => updateMixer({ ...mixerState, other_volume: v }),
+      toggleMute: () => updateMixer({ ...mixerState, other_mute: !mixerState.other_mute }),
+    },
+  ];
 
-          <div className="flex items-center space-x-2">
-            {mixerState.enabled && (
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/30">
-                AKTYWNY W TORZE AUDIO
-              </span>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      {/* Pasek stanu i szybkich akcji */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 18px',
+          background: 'rgba(255, 255, 255, 0.04)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.35)',
+              color: '#38bdf8',
+              fontWeight: 700,
+            }}
+          >
+            ⚡ Spektralna Separacja STFT HPSS & Azimuth
+          </span>
+          {mixerState.enabled && (
+            <span
+              style={{
+                fontSize: '0.75rem',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                background: 'rgba(16, 185, 129, 0.2)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                color: '#34d399',
+                fontWeight: 700,
+              }}
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              ● AKTYWNY W TORZE AUDIO
+            </span>
+          )}
         </div>
 
-        {error && (
-          <div className="p-3 mb-4 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs">
-            {error}
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={toggleKaraoke}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '10px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.18s ease',
+              border: mixerState.karaoke_mode
+                ? '1px solid #ec4899'
+                : '1px solid rgba(255, 255, 255, 0.15)',
+              background: mixerState.karaoke_mode ? '#ec4899' : 'rgba(255, 255, 255, 0.05)',
+              color: '#ffffff',
+              boxShadow: mixerState.karaoke_mode ? '0 0 15px rgba(236, 72, 153, 0.4)' : 'none',
+            }}
+          >
+            <Mic size={14} />
+            <span>Tryb Karaoke (Wycisz wokal)</span>
+          </button>
 
-        {/* Jeśli stemy nie są jeszcze rozdzielone */}
-        {!stems ? (
-          <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
-            <div className="p-4 rounded-full bg-slate-800/80 border border-slate-700">
-              <Sliders className="w-10 h-10 text-cyan-400" />
-            </div>
-            <div className="max-w-md">
-              <h3 className="text-base font-bold text-slate-200 mb-1">
-                Rozdziel utwór na niezależne instrumenty
-              </h3>
-              <p className="text-xs text-slate-400">
-                Wydobądź wokal, perkusję, bas oraz pozostałe instrumenty. Możesz wyciszać dowolne ścieżki (np. Karaoke) lub słuchać ich w trybie solo z pełną obsługą zmiany tempa i tonacji.
+          {!mixerState.enabled ? (
+            <button
+              onClick={handleLoadStemsToPlayer}
+              disabled={!stems}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '10px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: stems ? 'pointer' : 'not-allowed',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                background: 'rgba(16, 185, 129, 0.2)',
+                color: '#6ee7b7',
+                opacity: stems ? 1 : 0.5,
+              }}
+            >
+              <Play size={14} />
+              <span>Włącz stemy w odtwarzaczu</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleRestoreOriginalTrack}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '10px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: '1px solid rgba(6, 182, 212, 0.4)',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(168, 85, 247, 0.25))',
+                color: '#67e8f9',
+                boxShadow: '0 0 14px rgba(6, 182, 212, 0.3)',
+              }}
+              title="Przywróć natychmiastowe odtwarzanie oryginalnego pliku audio"
+            >
+              <RotateCcw size={14} />
+              <span>Wróć do oryginalnego utworu</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: '12px',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#fca5a5',
+            fontSize: '0.82rem',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Jeśli stemy nie są jeszcze rozdzielone */}
+      {!stems ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '48px 24px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            textAlign: 'center',
+            gap: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(236, 72, 153, 0.2))',
+              border: '1px solid rgba(6, 182, 212, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38bdf8',
+            }}
+          >
+            <Sliders size={32} />
+          </div>
+
+          <div style={{ maxWidth: '480px' }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc' }}>
+              Rozdziel utwór na niezależne instrumenty
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5 }}>
+              Wydobądź wokal, perkusję, bas oraz instrumenty harmoniczne z zachowaniem pełnego pasma stereo 44.1 kHz.
+              Możesz wyciszać wokal (Karaoke), badać pojedyncze instrumenty w trybie solo oraz płynnie zmieniać proporcje głośności.
+            </p>
+          </div>
+
+          {loading ? (
+            <div style={{ width: '100%', maxWidth: '360px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div
+                style={{
+                  width: '100%',
+                  height: '8px',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.round(progressVal * 100)}%`,
+                    background: 'linear-gradient(90deg, #06b6d4, #ec4899)',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: '#cbd5e1', fontFamily: 'var(--font-mono)' }}>
+                {progressMsg} ({(progressVal * 100).toFixed(0)}%)
               </p>
             </div>
+          ) : (
+            <button
+              onClick={handleStartSeparation}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #06b6d4, #ec4899)',
+                border: 'none',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                boxShadow: '0 6px 20px rgba(6, 182, 212, 0.35)',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              <Sparkles size={18} />
+              <span>Rozpocznij separację ścieżek (STFT HPSS)</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        /* Siatka 4 stemów */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+          {stemList.map((stem) => {
+            const isSolo = mixerState.solo_stem === stem.id;
+            return (
+              <div
+                key={stem.id}
+                style={{
+                  padding: '16px',
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: isSolo
+                    ? '1px solid #f59e0b'
+                    : stem.mute
+                    ? '1px solid rgba(239, 68, 68, 0.3)'
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {/* Tytuł i przyciski Solo/Mute */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: stem.color, display: 'flex', alignItems: 'center' }}>
+                      {stem.icon}
+                    </span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>
+                      {stem.label}
+                    </span>
+                  </div>
 
-            {loading ? (
-              <div className="w-full max-w-sm space-y-2">
-                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                  <div
-                    className="bg-gradient-to-r from-cyan-500 to-pink-500 h-2 transition-all duration-300"
-                    style={{ width: `${Math.round(progressVal * 100)}%` }}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      onClick={() => toggleSolo(stem.id)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        border: isSolo ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.12)',
+                        background: isSolo ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                        color: isSolo ? '#0f172a' : '#94a3b8',
+                      }}
+                    >
+                      SOLO
+                    </button>
+                    <button
+                      onClick={stem.toggleMute}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        border: stem.mute
+                          ? '1px solid rgba(239, 68, 68, 0.5)'
+                          : '1px solid rgba(255, 255, 255, 0.12)',
+                        background: stem.mute ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        color: stem.mute ? '#fca5a5' : '#94a3b8',
+                      }}
+                    >
+                      MUTE
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-300 font-mono">
-                  {progressMsg} ({(progressVal * 100).toFixed(0)}%)
-                </p>
-              </div>
-            ) : (
-              <button
-                onClick={handleStartSeparation}
-                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600 text-white font-semibold text-sm shadow-lg shadow-cyan-500/20 transition"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Rozpocznij separację ścieżek</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Pasek szybkiego karaoke i ładowania */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/50 border border-slate-700">
-              <button
-                onClick={toggleKaraoke}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
-                  mixerState.karaoke_mode
-                    ? 'bg-pink-500 text-white border-pink-400 shadow-md shadow-pink-500/30'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
-                }`}
-              >
-                <Mic className="w-3.5 h-3.5" />
-                <span>Tryb Karaoke (Wycisz wokal)</span>
-              </button>
 
-              {!mixerState.enabled ? (
-                <button
-                  onClick={handleLoadStemsToPlayer}
-                  className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/40 text-xs font-medium transition"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  <span>Włącz stemy w odtwarzaczu</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleRestoreOriginalTrack}
-                  className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold transition"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Wróć do oryginalnego utworu</span>
-                </button>
-              )}
+                {/* Suwak głośności i wartość procentowa */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.05"
+                    value={stem.volume}
+                    onChange={(e) => stem.setVolume(parseFloat(e.target.value))}
+                    style={{
+                      flex: 1,
+                      accentColor: stem.color,
+                      height: '6px',
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: '42px',
+                      textAlign: 'right',
+                      fontSize: '0.78rem',
+                      fontFamily: 'var(--font-mono)',
+                      color: stem.mute ? '#64748b' : '#f8fafc',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {Math.round(stem.volume * 100)}%
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        background: 'rgba(5, 5, 12, 0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '720px',
+          background: 'linear-gradient(145deg, rgba(18, 20, 36, 0.98), rgba(10, 12, 24, 0.99))',
+          borderRadius: '24px',
+          border: '1px solid rgba(6, 182, 212, 0.35)',
+          boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '24px',
+          overflow: 'hidden',
+          color: '#f8fafc',
+          animation: 'fadeInScale 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            paddingBottom: '16px',
+            marginBottom: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                background: 'rgba(6, 182, 212, 0.2)',
+                border: '1px solid rgba(6, 182, 212, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#38bdf8',
+              }}
+            >
+              <Layers size={20} />
             </div>
-
-            {/* Suwaki 4 stemów */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Vocals */}
-              <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Mic className="w-4 h-4 text-pink-400" />
-                    <span className="text-xs font-bold text-slate-200">Wokal (Vocals)</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => toggleSolo('vocals')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.solo_stem === 'vocals'
-                          ? 'bg-amber-500 text-slate-950 border-amber-400'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      SOLO
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateMixer({ ...mixerState, vocals_mute: !mixerState.vocals_mute })
-                      }
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.vocals_mute || mixerState.karaoke_mode
-                          ? 'bg-red-500/30 text-red-300 border-red-500/50'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      MUTE
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.05"
-                    value={mixerState.vocals_volume}
-                    onChange={(e) =>
-                      updateMixer({ ...mixerState, vocals_volume: parseFloat(e.target.value) })
-                    }
-                    className="flex-1 accent-pink-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                  />
-                  <span className="text-xs font-mono text-slate-400 w-10 text-right">
-                    {Math.round(mixerState.vocals_volume * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Drums */}
-              <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Disc className="w-4 h-4 text-yellow-400" />
-                    <span className="text-xs font-bold text-slate-200">Perkusja (Drums)</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => toggleSolo('drums')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.solo_stem === 'drums'
-                          ? 'bg-amber-500 text-slate-950 border-amber-400'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      SOLO
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateMixer({ ...mixerState, drums_mute: !mixerState.drums_mute })
-                      }
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.drums_mute
-                          ? 'bg-red-500/30 text-red-300 border-red-500/50'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      MUTE
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.05"
-                    value={mixerState.drums_volume}
-                    onChange={(e) =>
-                      updateMixer({ ...mixerState, drums_volume: parseFloat(e.target.value) })
-                    }
-                    className="flex-1 accent-yellow-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                  />
-                  <span className="text-xs font-mono text-slate-400 w-10 text-right">
-                    {Math.round(mixerState.drums_volume * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Bass */}
-              <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Radio className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-bold text-slate-200">Bas (Bass)</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => toggleSolo('bass')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.solo_stem === 'bass'
-                          ? 'bg-amber-500 text-slate-950 border-amber-400'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      SOLO
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateMixer({ ...mixerState, bass_mute: !mixerState.bass_mute })
-                      }
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.bass_mute
-                          ? 'bg-red-500/30 text-red-300 border-red-500/50'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      MUTE
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.05"
-                    value={mixerState.bass_volume}
-                    onChange={(e) =>
-                      updateMixer({ ...mixerState, bass_volume: parseFloat(e.target.value) })
-                    }
-                    className="flex-1 accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                  />
-                  <span className="text-xs font-mono text-slate-400 w-10 text-right">
-                    {Math.round(mixerState.bass_volume * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Other */}
-              <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Sliders className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs font-bold text-slate-200">Pozostałe (Other)</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => toggleSolo('other')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.solo_stem === 'other'
-                          ? 'bg-amber-500 text-slate-950 border-amber-400'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      SOLO
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateMixer({ ...mixerState, other_mute: !mixerState.other_mute })
-                      }
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                        mixerState.other_mute
-                          ? 'bg-red-500/30 text-red-300 border-red-500/50'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      MUTE
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.05"
-                    value={mixerState.other_volume}
-                    onChange={(e) =>
-                      updateMixer({ ...mixerState, other_volume: parseFloat(e.target.value) })
-                    }
-                    className="flex-1 accent-purple-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                  />
-                  <span className="text-xs font-mono text-slate-400 w-10 text-right">
-                    {Math.round(mixerState.other_volume * 100)}%
-                  </span>
-                </div>
-              </div>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.15rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(90deg, #06b6d4, #ec4899)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Mikser Stemów (Separacja Ścieżek)
+              </h2>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>{trackTitle}</p>
             </div>
           </div>
-        )}
+
+          <button
+            onClick={onClose}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {content}
       </div>
     </div>
   );
 };
-
