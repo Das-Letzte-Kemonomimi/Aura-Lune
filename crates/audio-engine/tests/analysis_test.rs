@@ -299,3 +299,202 @@ fn test_export_chords_formats() {
     assert!(text.contains("| C"));
     assert!(text.contains("| Am"));
 }
+
+#[test]
+fn test_detect_notes_and_midi_export() {
+    use audio_engine::analysis::{
+        detect_notes_from_samples, export_transcription_to_midi, midi_pitch_to_name,
+    };
+    use domain::analysis::DetectedNote;
+
+    // 1. Sprawdzenie konwersji numerów MIDI
+    assert_eq!(midi_pitch_to_name(60), "C4");
+    assert_eq!(midi_pitch_to_name(69), "A4");
+    assert_eq!(midi_pitch_to_name(72), "C5");
+
+    // 2. Syntetyczna próba dźwięku: 500ms 440 Hz (A4 = 69) oraz 500ms 523.25 Hz (C5 = 72)
+    let sample_rate = 44100.0;
+    let n = sample_rate as usize; // 1 sekunda
+    let mut samples = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f64 / sample_rate;
+        if i < n / 2 {
+            samples.push((2.0 * PI * 440.0 * t).sin() as f32);
+        } else {
+            samples.push((2.0 * PI * 523.25 * t).sin() as f32);
+        }
+    }
+
+    let detected = detect_notes_from_samples(&samples, sample_rate, Some("vocals"));
+    assert!(
+        !detected.is_empty(),
+        "Powinny zostać wykryte syntetyczne nuty"
+    );
+
+    let has_a4 = detected.iter().any(|n| n.midi_pitch == 69);
+    let has_c5 = detected.iter().any(|n| n.midi_pitch == 72);
+    assert!(has_a4, "Powinna zostać wykryta nuta A4 (69)");
+    assert!(has_c5, "Powinna zostać wykryta nuta C5 (72)");
+
+    // 3. Sprawdzenie eksportu do MIDI
+    let notes = vec![
+        DetectedNote {
+            onset_ms: 0,
+            duration_ms: 500,
+            midi_pitch: 69,
+            pitch_name: "A4".to_string(),
+            cents_offset: 0,
+            velocity: 100,
+            stem: Some("lead".to_string()),
+        },
+        DetectedNote {
+            onset_ms: 500,
+            duration_ms: 500,
+            midi_pitch: 72,
+            pitch_name: "C5".to_string(),
+            cents_offset: 0,
+            velocity: 95,
+            stem: Some("lead".to_string()),
+        },
+    ];
+
+    let midi_bytes = export_transcription_to_midi(&notes, 120.0);
+    assert!(midi_bytes.starts_with(b"MThd"), "Nagłówek SMF MThd");
+    assert!(midi_bytes.windows(4).any(|w| w == b"MTrk"), "Ścieżka MTrk");
+    // Weryfikacja zdarzenia End of Track (FF 2F 00)
+    assert!(midi_bytes.windows(3).any(|w| w == [0xFF, 0x2F, 0x00]));
+}
+
+#[test]
+fn test_stem_separation_lifecycle_and_reconstruction() {
+    use audio_engine::StemSeparator;
+    use domain::analysis::StemMixerState;
+    use std::path::Path;
+
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    assert!(
+        fixture_path.exists(),
+        "Plik test_sine_440hz.wav musi istnieć"
+    );
+
+    // 1. Wykonaj separację stemów
+    let separation = StemSeparator::separate_track(
+        &fixture_path,
+        999,
+        "htdemucs_v4",
+        Some(Box::new(|p, msg| {
+            assert!((0.0..=1.0).contains(&p));
+            assert!(!msg.is_empty());
+        })),
+    )
+    .expect("Separacja stemów powinna zakończyć się sukcesem");
+
+    assert_eq!(separation.track_id, 999);
+    assert_eq!(separation.model_name, "htdemucs_v4");
+    assert!(Path::new(&separation.vocals_path).exists());
+    assert!(Path::new(&separation.drums_path).exists());
+    assert!(Path::new(&separation.bass_path).exists());
+    assert!(Path::new(&separation.other_path).exists());
+
+    // 2. Drugie wywołanie powinno być natychmiastowym cache-hit
+    let cached = StemSeparator::separate_track(&fixture_path, 999, "htdemucs_v4", None)
+        .expect("Cache hit powinien działać");
+    assert_eq!(cached.file_hash, separation.file_hash);
+
+    // 3. Weryfikacja StemMixerState
+    let mut state = StemMixerState {
+        enabled: true,
+        vocals_volume: 1.0,
+        drums_volume: 0.8,
+        bass_volume: 1.2,
+        other_volume: 1.0,
+        piano_volume: 1.0,
+        guitar_volume: 1.0,
+        vocals_mute: false,
+        drums_mute: false,
+        bass_mute: false,
+        other_mute: false,
+        piano_mute: false,
+        guitar_mute: false,
+        solo_stem: None,
+        karaoke_mode: false,
+    };
+
+    assert!((state.get_effective_volume("vocals") - 1.0).abs() < 1e-5);
+    assert!((state.get_effective_volume("drums") - 0.8).abs() < 1e-5);
+
+    // Karaoke mode mutes vocals
+    state.karaoke_mode = true;
+    assert_eq!(state.get_effective_volume("vocals"), 0.0);
+    assert!((state.get_effective_volume("drums") - 0.8).abs() < 1e-5);
+
+    // Solo stem keeps only solo
+    state.karaoke_mode = false;
+    state.solo_stem = Some("bass".to_string());
+    assert!((state.get_effective_volume("bass") - 1.2).abs() < 1e-5);
+    assert_eq!(state.get_effective_volume("vocals"), 0.0);
+    assert_eq!(state.get_effective_volume("drums"), 0.0);
+}
+
+#[test]
+fn test_stem_mixer_pipeline_playback() {
+    use audio_engine::{AudioEngine, StemSeparator};
+    use domain::analysis::StemMixerState;
+    use domain::PlaybackState;
+    use std::path::Path;
+    use std::thread;
+    use std::time::Duration;
+
+    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let separation = StemSeparator::separate_track(&fixture_path, 999, "htdemucs_v4", None)
+        .expect("Separacja powiodła się");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+
+    // 1. Ładowanie stemów do miksera
+    engine
+        .load_stems(&separation, StemMixerState::default())
+        .expect("Załadowanie stemów do audiomixera");
+
+    // 2. Modyfikacja stanu miksera w locie
+    let mixer_state = StemMixerState {
+        enabled: true,
+        vocals_volume: 0.5,
+        karaoke_mode: true,
+        ..Default::default()
+    };
+    engine
+        .set_stem_mixer_state(mixer_state)
+        .expect("Aktualizacja miksera");
+
+    let current = engine.get_stem_mixer_state();
+    assert!(current.karaoke_mode);
+    assert_eq!(current.get_effective_volume("vocals"), 0.0);
+
+    // 3. Odtwarzanie stemów
+    engine.play().expect("Odtwarzanie stemów");
+    thread::sleep(Duration::from_millis(100));
+
+    // 4. Pauza
+    engine.pause().expect("Pauza stemów");
+    assert_eq!(engine.state(), PlaybackState::Paused);
+
+    // 5. Powrót do standardowego pliku pojedynczego
+    let uri = format!("file://{}", fixture_path.display());
+    engine
+        .load_uri(&uri)
+        .expect("Załadowanie standardowego URI");
+    assert_eq!(engine.state(), PlaybackState::Stopped);
+}

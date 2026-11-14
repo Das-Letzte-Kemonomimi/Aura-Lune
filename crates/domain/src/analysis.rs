@@ -146,6 +146,68 @@ pub struct StemMixerState {
     pub karaoke_mode: bool,        // szybkie wyciszenie wokalu (vocals_mute = true)
 }
 
+impl StemMixerState {
+    /// Oblicza efektywne wzmocnienie (liniowe 0.0 .. 2.0) dla danego stemu z uwzględnieniem
+    /// wyciszenia (mute), trybu solo oraz szybkiego trybu Karaoke.
+    pub fn get_effective_volume(&self, stem: &str) -> f64 {
+        if !self.enabled {
+            return 1.0;
+        }
+
+        if let Some(ref solo) = self.solo_stem {
+            if solo != stem {
+                return 0.0;
+            }
+        }
+
+        match stem {
+            "vocals" => {
+                if self.karaoke_mode || self.vocals_mute {
+                    0.0
+                } else {
+                    self.vocals_volume as f64
+                }
+            }
+            "drums" => {
+                if self.drums_mute {
+                    0.0
+                } else {
+                    self.drums_volume as f64
+                }
+            }
+            "bass" => {
+                if self.bass_mute {
+                    0.0
+                } else {
+                    self.bass_volume as f64
+                }
+            }
+            "other" => {
+                if self.other_mute {
+                    0.0
+                } else {
+                    self.other_volume as f64
+                }
+            }
+            "piano" => {
+                if self.piano_mute {
+                    0.0
+                } else {
+                    self.piano_volume as f64
+                }
+            }
+            "guitar" => {
+                if self.guitar_mute {
+                    0.0
+                } else {
+                    self.guitar_volume as f64
+                }
+            }
+            _ => 1.0,
+        }
+    }
+}
+
 impl Default for StemMixerState {
     fn default() -> Self {
         Self {

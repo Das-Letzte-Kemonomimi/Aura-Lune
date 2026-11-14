@@ -1,6 +1,7 @@
 //! Główny potok odtwarzacza GStreamer z dynamicznym procesorem DSP.
 
 use crate::error::AudioEngineError;
+use domain::analysis::{StemMixerState, StemSeparationData};
 use domain::crossfeed::CrossfeedConfig;
 use domain::dynamics::{DynamicsState, SaturatorConfig};
 use domain::equalizer::EqualizerState;
@@ -85,6 +86,14 @@ struct PipelineInner {
     _stereo_widener: gst::Element,
     stereo_widener_config: Arc<RwLock<domain::dynamics::StereoWidenerConfig>>,
     crossfade_duration_ms: u64,
+    stem_mixer_elements: Option<StemMixerHandles>,
+    stem_mixer_state: StemMixerState,
+}
+
+struct StemMixerHandles {
+    audiomixer: gst::Element,
+    stem_volumes: std::collections::HashMap<String, gst::Element>,
+    stem_elements: Vec<gst::Element>,
 }
 
 impl PipelineInner {
@@ -640,6 +649,8 @@ impl AudioEngine {
             _stereo_widener: stereo_widener,
             stereo_widener_config,
             crossfade_duration_ms: 1500,
+            stem_mixer_elements: None,
+            stem_mixer_state: StemMixerState::default(),
         }));
 
         let replaygain_mode = Arc::new(AtomicU8::new(ReplayGainMode::Off as u8));
@@ -712,6 +723,14 @@ impl AudioEngine {
             let _ = old_decoder.set_state(gst::State::Null);
             let _ = inner.pipeline.remove(&old_decoder);
         }
+        if let Some(old_stems) = inner.stem_mixer_elements.take() {
+            let _ = old_stems.audiomixer.set_state(gst::State::Null);
+            for el in &old_stems.stem_elements {
+                let _ = el.set_state(gst::State::Null);
+                let _ = inner.pipeline.remove(el);
+            }
+            let _ = inner.pipeline.remove(&old_stems.audiomixer);
+        }
 
         let uri_decoder = gst::ElementFactory::make("uridecodebin")
             .property("uri", &uri)
@@ -757,6 +776,164 @@ impl AudioEngine {
 
         info!("Załadowano URI: {}", uri);
         Ok(())
+    }
+
+    /// Ładuje zestaw rozdzielonych stemów utworu do potoku z synchronicznym mikserem wielościeżkowym (audiomixer).
+    ///
+    /// Każdy stem (vocals, drums, bass, other) ma własny element regulacji głośności `volume`,
+    /// co pozwala na płynne, bezszelestne regulowanie balansu, solo oraz natychmiastowe wyciszenie wokalu (tryb Karaoke).
+    pub fn load_stems(
+        &self,
+        stems: &StemSeparationData,
+        initial_state: StemMixerState,
+    ) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+
+        let _ = inner.pipeline.set_state(gst::State::Null);
+        inner.base_media_pos = Duration::ZERO;
+        inner.base_sink_pts = Duration::ZERO;
+        inner.dsp.reset();
+
+        let queue_sink_pad = inner
+            .queue_in
+            .static_pad("sink")
+            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
+        if queue_sink_pad.is_linked() {
+            if let Some(peer) = queue_sink_pad.peer() {
+                let _ = peer.unlink(&queue_sink_pad);
+            }
+        }
+
+        if let Some(old_decoder) = inner.uri_decoder.take() {
+            let _ = old_decoder.set_state(gst::State::Null);
+            let _ = inner.pipeline.remove(&old_decoder);
+        }
+        if let Some(old_stems) = inner.stem_mixer_elements.take() {
+            let _ = old_stems.audiomixer.set_state(gst::State::Null);
+            for el in &old_stems.stem_elements {
+                let _ = el.set_state(gst::State::Null);
+                let _ = inner.pipeline.remove(el);
+            }
+            let _ = inner.pipeline.remove(&old_stems.audiomixer);
+        }
+
+        let audiomixer = gst::ElementFactory::make("audiomixer")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audiomixer"))?;
+        inner.pipeline.add(&audiomixer)?;
+
+        let mixer_src_pad = audiomixer
+            .static_pad("src")
+            .ok_or_else(|| AudioEngineError::MissingElement("audiomixer.src"))?;
+        mixer_src_pad.link(&queue_sink_pad)?;
+
+        let stem_list = [
+            ("vocals", &stems.vocals_path),
+            ("drums", &stems.drums_path),
+            ("bass", &stems.bass_path),
+            ("other", &stems.other_path),
+        ];
+
+        let mut stem_volumes = std::collections::HashMap::new();
+        let mut stem_elements = Vec::new();
+
+        for (name, path_str) in stem_list {
+            let uri = if path_str.starts_with("file://") {
+                path_str.to_string()
+            } else {
+                format!("file://{}", path_str)
+            };
+
+            let decoder = gst::ElementFactory::make("uridecodebin")
+                .property("uri", &uri)
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("uridecodebin"))?;
+            let audioconvert = gst::ElementFactory::make("audioconvert")
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
+            let audioresample = gst::ElementFactory::make("audioresample")
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
+            let volume = gst::ElementFactory::make("volume")
+                .property("volume", initial_state.get_effective_volume(name))
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement("volume"))?;
+
+            inner
+                .pipeline
+                .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
+
+            gst::Element::link_many([&audioconvert, &audioresample, &volume])
+                .map_err(|_| AudioEngineError::ElementLink("Błąd łączenia gałęzi stemu".into()))?;
+
+            let mixer_sink_pad = audiomixer
+                .request_pad_simple("sink_%u")
+                .ok_or_else(|| AudioEngineError::MissingElement("audiomixer.sink_%u"))?;
+            let volume_src_pad = volume
+                .static_pad("src")
+                .ok_or_else(|| AudioEngineError::MissingElement("volume.src"))?;
+            volume_src_pad.link(&mixer_sink_pad)?;
+
+            let conv_sink_pad = audioconvert
+                .static_pad("sink")
+                .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
+            let conv_pad_clone = conv_sink_pad.clone();
+            decoder.connect_pad_added(move |_bin, src_pad| {
+                let caps = src_pad
+                    .current_caps()
+                    .unwrap_or_else(|| src_pad.query_caps(None));
+                if let Some(structure) = caps.structure(0) {
+                    if structure.name().starts_with("audio/") && !conv_pad_clone.is_linked() {
+                        let _ = src_pad.link(&conv_pad_clone);
+                    }
+                }
+            });
+
+            let _ = decoder.sync_state_with_parent();
+            let _ = audioconvert.sync_state_with_parent();
+            let _ = audioresample.sync_state_with_parent();
+            let _ = volume.sync_state_with_parent();
+
+            stem_volumes.insert(name.to_string(), volume.clone());
+            stem_elements.push(decoder);
+            stem_elements.push(audioconvert);
+            stem_elements.push(audioresample);
+            stem_elements.push(volume);
+        }
+
+        let _ = audiomixer.sync_state_with_parent();
+
+        inner.stem_mixer_elements = Some(StemMixerHandles {
+            audiomixer,
+            stem_volumes,
+            stem_elements,
+        });
+        inner.stem_mixer_state = initial_state;
+        inner.current_uri = Some(format!("stems://{}", stems.track_id));
+        inner.state = PlaybackState::Stopped;
+
+        info!("Załadowano stemy dla utworu {}", stems.track_id);
+        Ok(())
+    }
+
+    /// Aktualizuje wzmocnienie i wyciszenie poszczególnych ścieżek w mikserze stemów w czasie rzeczywistym.
+    pub fn set_stem_mixer_state(&self, state: StemMixerState) -> Result<(), AudioEngineError> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.stem_mixer_state = state.clone();
+
+        if let Some(ref handles) = inner.stem_mixer_elements {
+            for (name, vol_el) in &handles.stem_volumes {
+                let eff_vol = state.get_effective_volume(name);
+                vol_el.set_property("volume", eff_vol);
+            }
+        }
+        Ok(())
+    }
+
+    /// Pobiera bieżący stan miksera stemów.
+    pub fn get_stem_mixer_state(&self) -> StemMixerState {
+        let inner = self.inner.lock().unwrap();
+        inner.stem_mixer_state.clone()
     }
 
     /// Rozpoczyna lub wznawia odtwarzanie.
