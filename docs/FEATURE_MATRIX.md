@@ -284,6 +284,13 @@
   - Pamięć podręczna stemów na dysku pod `~/.cache/auralune/stems/` indeksowana hashem pliku i wersją analizatora (zabezpieczenie przed ponownym przetwarzaniem).
   - Próbkowo dokładny mikser stemów (Stem Mixer) oparty o natywny GStreamer `audiomixer` podłączony pod procesory DSP (Rubber Band / SoundTouch, EQ, Limiter).
   - Tryb Solo, Mute, płynne suwaki głośności każdego stemu, 1-klikowe tryby Karaoke (wyciszenie wokalu) i Minus-One (wyciszenie wybranego instrumentu).
+- [x] **Moises-Style Stem Projects Studio (Kaskadowe Projekty i Wielokanałowy Mikser)**:
+  - Niezależne encje projektów wielościeżkowych (`StemProject`) powiązane z biblioteką wyłącznie hashem zawartości (zero modyfikacji ani duplikacji plików audio).
+  - Hierarchiczna, kaskadowa taksonomia stemów (Wokale: główny, chórki; Perkusja: stopa, werbel, tomy, hi-hat, talerze; Bas: elektryczny/syntezatorowy; Gitary: akustyczna, elektryczna rytmiczna/prowadząca; Klawisze: pianino, pady; Orkiestra: smyczki, dęte).
+  - Matematyczna gwarancja rekonstrukcji $\sum \text{sub-stemy} = \text{stem nadrzędny}$ oraz $\sum \text{liście} = \text{oryginał} \pm 10^{-6}$ (zachowanie składnika resztkowego).
+  - Studyjny mikser kanałowy z faderami 0–100% (domyślnie 75% = 0 dB unity gain, 0% = cisza, 100% = +6 dB boost; logarytmiczno-kwadratowa krzywa czułości z dwuklikiem resetu).
+  - Presety miksu (Karaoke, Acapella, Drums Only, Rhythm Section, Instrumental, Practice Guitar), zapisywanie i przełączanie nazwanych miksów w bazie SQLite.
+  - Eksport zmiksowanego utworu do FLAC/WAV oraz kompletny eksport projektu jako spakowane archiwum `.zip`.
 - [x] **Menedżer Modeli Sztucznej Inteligencji (Model Manager)**:
   - Pełna kontrola nad wagami modeli AI bez zbędnej telemetrii: pobieranie wyłącznie na jawne żądanie użytkownika.
   - Weryfikacja integralności pobranych modeli sumami kontrolnymi SHA-256.

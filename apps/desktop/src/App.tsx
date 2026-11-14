@@ -110,6 +110,9 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { VolumeOsd, type VolumeOsdPosition } from './components/VolumeOsd';
 import { KeyBpmModal } from './components/KeyBpmModal';
 import { MusicAnalysisModal } from './components/MusicAnalysisModal';
+import { CreateStemProjectModal } from './components/CreateStemProjectModal';
+import { StemProjectStudioModal } from './components/StemProjectStudioModal';
+import { StemProjectsLibraryView } from './components/StemProjectsLibraryView';
 import { AuraluneRecapModal } from './components/AuraluneRecapModal';
 import { TagEditorModal } from './components/TagEditorModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
@@ -826,7 +829,7 @@ export default function App() {
           : 'Infinity Queue (Auto-DJ): Disabled')
     );
   };
-  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'radio' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'stem-projects' | 'radio' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
   const [isSaveQueueModalOpen, setIsSaveQueueModalOpen] = useState(false);
 
   // Radio state
@@ -997,7 +1000,11 @@ export default function App() {
   const [isRecapModalOpen, setIsRecapModalOpen] = useState<boolean>(false);
   const [isKeyBpmModalOpen, setIsKeyBpmModalOpen] = useState<boolean>(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState<boolean>(false);
-  const [analysisInitialTab, setAnalysisInitialTab] = useState<'chords' | 'pianoroll' | 'stems' | 'models'>('chords');
+  const [analysisInitialTab, setAnalysisInitialTab] = useState<'chords' | 'pianoroll' | 'stems' | 'projects' | 'models'>('chords');
+  const [activeStemProjectId, setActiveStemProjectId] = useState<number | null>(null);
+  const [isStemStudioOpen, setIsStemStudioOpen] = useState<boolean>(false);
+  const [isCreateStemProjectOpen, setIsCreateStemProjectOpen] = useState<boolean>(false);
+  const [createStemProjectTrack, setCreateStemProjectTrack] = useState<TrackRecord | null>(null);
   const [volumeOsdPosition, setVolumeOsdPosition] = useState<VolumeOsdPosition>(() => {
     try {
       return (localStorage.getItem('auralune_volume_osd_position') as VolumeOsdPosition) || 'bottom-center';
@@ -10658,6 +10665,24 @@ export default function App() {
               <span className="header-nav-label">{loc.nav.playlists} ({playlists.length})</span>
             </button>
             <button
+              onClick={() => setActiveTab('stem-projects')}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                background: activeTab === 'stem-projects' ? 'var(--accent-purple)' : 'transparent',
+                color: '#fff',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              title={language === 'pl' ? 'Projekty Stemów (Moises Studio)' : 'Stem Projects (Moises Studio)'}
+            >
+              <Sliders size={14} />
+              <span className="header-nav-label">Stem Projects</span>
+            </button>
+            <button
               onClick={() => setActiveTab('radio')}
               style={{
                 padding: '7px 12px',
@@ -14635,6 +14660,17 @@ export default function App() {
                                         <Activity size={15} />
                                       </button>
                                       <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCreateStemProjectTrack(t);
+                                          setIsCreateStemProjectOpen(true);
+                                        }}
+                                        title={language === 'pl' ? 'Utwórz projekt stemów (Moises Studio)' : 'Create Stem Project (Moises Studio)'}
+                                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink, #f43f5e)', cursor: 'pointer', padding: '4px' }}
+                                      >
+                                        <Sliders size={15} />
+                                      </button>
+                                      <button
                                         onClick={(e) => handleAddTrackNextToQueue(t, e)}
                                         title={loc.library.playNext}
                                         style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', cursor: 'pointer', padding: '4px' }}
@@ -15094,6 +15130,17 @@ export default function App() {
                                               style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
                                             >
                                               <TagIcon size={15} />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setCreateStemProjectTrack(t);
+                                                setIsCreateStemProjectOpen(true);
+                                              }}
+                                              title={language === 'pl' ? 'Utwórz projekt stemów (Moises Studio)' : 'Create Stem Project (Moises Studio)'}
+                                              style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink, #f43f5e)', cursor: 'pointer', padding: '4px' }}
+                                            >
+                                              <Sliders size={15} />
                                             </button>
                                             <button
                                               onClick={(e) => handleOpenContainingFolder(t.path, e)}
@@ -18351,6 +18398,22 @@ export default function App() {
             </div>
           )}
 
+          {/* ZAKŁADKA: STEM PROJECTS (MOISES-STYLE STUDIO) */}
+          {activeTab === 'stem-projects' && (
+            <div style={{ padding: '24px 16px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
+              <StemProjectsLibraryView
+                onOpenProject={(pid) => {
+                  setActiveStemProjectId(pid);
+                  setIsStemStudioOpen(true);
+                }}
+                onOpenCreateProject={() => {
+                  setCreateStemProjectTrack(currentPlayingTrack || null);
+                  setIsCreateStemProjectOpen(true);
+                }}
+              />
+            </div>
+          )}
+
           {/* Zakładka: Anime Web Radio */}
           {activeTab === 'radio' && (
             <RadioView
@@ -19464,6 +19527,10 @@ export default function App() {
           onClose={() => setIsBigScreen(false)}
           onFetchCover={handleFetchCurrentTrackCover}
           onUploadCover={() => handleUploadCustomCoverDirect(currentAlbum)}
+          onCreateStemProject={() => {
+            setCreateStemProjectTrack(currentPlayingTrack || null);
+            setIsCreateStemProjectOpen(true);
+          }}
         />
       )}
 
@@ -19780,6 +19847,41 @@ export default function App() {
           setLoopPointB(end);
         }}
         initialTab={analysisInitialTab}
+        onOpenStemProject={(pid) => {
+          setIsAnalysisModalOpen(false);
+          setActiveStemProjectId(pid);
+          setIsStemStudioOpen(true);
+        }}
+        onOpenCreateProject={() => {
+          setIsAnalysisModalOpen(false);
+          setCreateStemProjectTrack(currentPlayingTrack || null);
+          setIsCreateStemProjectOpen(true);
+        }}
+      />
+
+      {/* Moises-Style Stem Project Studio Modal */}
+      {isStemStudioOpen && activeStemProjectId && (
+        <StemProjectStudioModal
+          isOpen={isStemStudioOpen}
+          onClose={() => setIsStemStudioOpen(false)}
+          projectId={activeStemProjectId}
+          currentTimeMs={status.position_ms}
+          durationMs={status.duration_ms ?? undefined}
+          isPlaying={status.state === 'Playing'}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+        />
+      )}
+
+      {/* Tworzenie nowego projektu stemów */}
+      <CreateStemProjectModal
+        isOpen={isCreateStemProjectOpen}
+        onClose={() => setIsCreateStemProjectOpen(false)}
+        track={createStemProjectTrack}
+        onProjectCreated={(newProjectId) => {
+          setActiveStemProjectId(newProjectId);
+          setIsStemStudioOpen(true);
+        }}
       />
 
       {/* Podsumowanie Tygodnia, Miesiąca i Roku (Auralune Recap / Wrapped) */}

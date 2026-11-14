@@ -61,6 +61,7 @@ Aplikacja łączy zaawansowany potok audio w języku **Rust** z responsywnym fro
 - **Progresja Akordów & Siatka Rytmiczna**: chronologiczna detekcja akordów na osi czasu zsynchronizowana z beat gridem; dynamiczna transpozycja przy Pitch Shifcie; eksport do ChordPro, tekstu i JSON; ręczna edycja akordów.
 - **Polifoniczna Transkrypcja Nut & Piano-Roll**: interaktywny widok piano-roll w technologii HTML5 Canvas; podświetlanie aktywnych nut w czasie rzeczywistym; eksport do pliku Standard MIDI (.mid) z mapą tempa.
 - **Separacja Ścieżek & Mikser Stemów**: podział na 4 stemy (Vocals, Drums, Bass, Other) z błyskawicznym silnikiem DSP Linkwitz-Riley lub modelem głębokiego uczenia (HTDemucs v4); próbkowo zgodny mikser GStreamer `audiomixer` podłączony pod główny tor DSP z suwakami, Solo i Mute.
+- **Moises-Style Stem Projects Studio**: tworzenie zaawansowanych projektów stemów (wokal główny/chórki, składowe perkusji, gitary akustyczne/elektryczne, fortepian/pady, smyczki/dęte) z zachowaniem składnika resztkowego i gwarancją idealnej rekonstrukcji ($\sum \text{stemy} = \text{oryginał} \pm 10^{-6}$); studyjny mikser z suwakami 0–100% (75% domyślnie = 0 dB unity gain, +6 dB headroom boost), natychmiastowe presety, zapisywane miksy w SQLite, zgrywanie do FLAC/WAV oraz eksport do archiwum ZIP.
 - **Menedżer Modeli AI (Model Manager)**: w pełni kontrolowany przez użytkownika menedżer modeli w Ustawieniach z weryfikacją sum kontrolnych SHA-256 i autodetekcją GPU (NVIDIA CUDA, AMD ROCm/Vulkan) bez telemetrii.
 
 ### ⏱️ Narzędzia Odtwarzacza

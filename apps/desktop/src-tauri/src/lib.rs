@@ -5502,7 +5502,10 @@ async fn create_stem_project(
             .map(|a| a.title)
             .unwrap_or_else(|| "Unknown Album".to_string())
     } else {
-        track.album_artist.clone().unwrap_or_else(|| "Unknown Album".to_string())
+        track
+            .album_artist
+            .clone()
+            .unwrap_or_else(|| "Unknown Album".to_string())
     };
 
     let project_title = title.unwrap_or_else(|| format!("{} (Stem Project)", track.title));
@@ -5581,7 +5584,9 @@ async fn create_stem_project(
 
         match sep_res {
             Ok(Ok(channels)) => {
-                let _ = db_clone.save_stem_project_channels(project_id, &channels).await;
+                let _ = db_clone
+                    .save_stem_project_channels(project_id, &channels)
+                    .await;
 
                 let mut total_size = 0u64;
                 for ch in &channels {
@@ -5639,7 +5644,11 @@ async fn create_stem_project(
 
 #[tauri::command]
 async fn list_stem_projects(state: State<'_, AppState>) -> Result<Vec<StemProject>, String> {
-    state.db.list_stem_projects().await.map_err(|e| e.to_string())
+    state
+        .db
+        .list_stem_projects()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -5647,15 +5656,20 @@ async fn get_stem_project(
     project_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<StemProject>, String> {
-    state.db.get_stem_project(project_id).await.map_err(|e| e.to_string())
+    state
+        .db
+        .get_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn delete_stem_project(
-    project_id: i64,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    state.db.delete_stem_project(project_id).await.map_err(|e| e.to_string())?;
+async fn delete_stem_project(project_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    state
+        .db
+        .delete_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     // Czyszczenie pamięci podręcznej stemów na dysku
     let cache_dir = get_stem_projects_cache_dir().join(project_id.to_string());
@@ -5683,7 +5697,11 @@ async fn save_stem_project_mix(
     mix: StemProjectMix,
     state: State<'_, AppState>,
 ) -> Result<i64, String> {
-    state.db.save_stem_project_mix(&mix).await.map_err(|e| e.to_string())
+    state
+        .db
+        .save_stem_project_mix(&mix)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -5699,10 +5717,7 @@ async fn get_stem_project_mixes(
 }
 
 #[tauri::command]
-async fn delete_stem_project_mix(
-    mix_id: i64,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn delete_stem_project_mix(mix_id: i64, state: State<'_, AppState>) -> Result<(), String> {
     state
         .db
         .delete_stem_project_mix(mix_id)
@@ -5766,7 +5781,10 @@ async fn export_stem_project_mix(
         }
 
         // Proste zsumowanie plików kanałów
-        info!("Eksportowanie miksu projektu {} do {}", project_id, export_path);
+        info!(
+            "Eksportowanie miksu projektu {} do {}",
+            project_id, export_path
+        );
         // Gdy mamy kanały, skopiuj pierwszy lub połącz
         if let Some(first) = project.channels.first() {
             let _ = std::fs::copy(&first.file_path, export_target);

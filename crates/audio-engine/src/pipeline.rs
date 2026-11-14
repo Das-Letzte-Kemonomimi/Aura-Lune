@@ -1018,7 +1018,9 @@ impl AudioEngine {
                 .build()
                 .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-            inner.pipeline.add_many([&decoder, &audioconvert, &audioresample, &volume])?;
+            inner
+                .pipeline
+                .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
             audioconvert.link(&audioresample)?;
             audioresample.link(&volume)?;
 
@@ -1068,7 +1070,11 @@ impl AudioEngine {
         inner.current_uri = Some(format!("stemproject://{}", project_id));
         inner.state = PlaybackState::Stopped;
 
-        info!("Załadowano projekt stemów {} (liczba kanałów: {})", project_id, channels.len());
+        info!(
+            "Załadowano projekt stemów {} (liczba kanałów: {})",
+            project_id,
+            channels.len()
+        );
         Ok(())
     }
 

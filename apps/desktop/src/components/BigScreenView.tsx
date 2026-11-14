@@ -17,6 +17,7 @@ import {
   Disc3,
   Image,
   Music,
+  Layers,
 } from 'lucide-react';
 import { SpectrumVisualizer } from './SpectrumVisualizer';
 import { VuMeterWidget } from './VuMeterWidget';
@@ -41,6 +42,7 @@ interface BigScreenViewProps {
   currentLang?: Language;
   volumeUnit?: 'percent' | 'db';
   currentChord?: string;
+  onCreateStemProject?: () => void;
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -69,6 +71,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   currentLang = 'en',
   volumeUnit = 'percent',
   currentChord,
+  onCreateStemProject,
   onPlayPause,
   onPrev,
   onNext,
@@ -255,6 +258,29 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onCreateStemProject && (
+            <button
+              onClick={onCreateStemProject}
+              style={{
+                background: 'rgba(236, 72, 153, 0.2)',
+                border: '1px solid var(--accent-pink)',
+                borderRadius: '10px',
+                color: 'var(--accent-pink)',
+                padding: '8px 14px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+              }}
+              title={currentLang === 'pl' ? 'Utwórz projekt stemów (Moises Studio)' : 'Create Stem Project'}
+            >
+              <Layers size={16} />
+              {currentLang === 'pl' ? 'Projekt Stemów' : 'Stem Project'}
+            </button>
+          )}
+
           <button
             onClick={() => setShowLyrics(!showLyrics)}
             style={{

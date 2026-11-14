@@ -154,27 +154,27 @@ pub fn slider_to_db(slider: f32) -> f32 {
 pub fn default_stem_color(stem_id: &str) -> &'static str {
     match stem_id {
         // Wokale
-        "lead_vocal" | "vocals" => "#f43f5e",   // Rose Pink
+        "lead_vocal" | "vocals" => "#f43f5e",    // Rose Pink
         "backing_vocals" | "choir" => "#fb7185", // Soft Rose
         // Perkusja
-        "drums" => "#f59e0b",     // Amber
-        "kick" => "#ea580c",      // Deep Orange
-        "snare" => "#fbbf24",     // Warm Yellow
-        "hihat" => "#fef08a",     // Bright Light Yellow
-        "toms" => "#d97706",      // Ochre
-        "cymbals" => "#fcd34d",   // Gold
+        "drums" => "#f59e0b",      // Amber
+        "kick" => "#ea580c",       // Deep Orange
+        "snare" => "#fbbf24",      // Warm Yellow
+        "hihat" => "#fef08a",      // Bright Light Yellow
+        "toms" => "#d97706",       // Ochre
+        "cymbals" => "#fcd34d",    // Gold
         "percussion" => "#fb923c", // Orange
         // Bas
         "bass" => "#0ea5e9", // Vivid Cyan
         // Gitary
-        "guitar" | "guitars" => "#10b981",    // Emerald Green
-        "lead_guitar" => "#34d399",          // Light Emerald
-        "rhythm_guitar" => "#059669",        // Deep Green
-        "acoustic_guitar" => "#84cc16",      // Lime Green
+        "guitar" | "guitars" => "#10b981", // Emerald Green
+        "lead_guitar" => "#34d399",        // Light Emerald
+        "rhythm_guitar" => "#059669",      // Deep Green
+        "acoustic_guitar" => "#84cc16",    // Lime Green
         // Klawisze i Syntezatory
-        "piano" => "#8b5cf6",         // Purple
+        "piano" => "#8b5cf6",          // Purple
         "electric_piano" => "#a855f7", // Violet
-        "synth" => "#d946ef",         // Fuchsia / Neon Pink
+        "synth" => "#d946ef",          // Fuchsia / Neon Pink
         // Sekcja orkiestrowa
         "strings" => "#06b6d4",   // Cyan
         "brass" => "#eab308",     // Brass Gold
@@ -231,7 +231,7 @@ pub fn default_stem_label(stem_id: &str, lang_is_pl: bool) -> &'static str {
         }
         "hihat" => {
             if lang_is_pl {
-                "Hi-Hat"
+                "Talerz Hi-Hat"
             } else {
                 "Hi-Hat"
             }
@@ -357,7 +357,11 @@ mod tests {
         for i in 0..=100 {
             let slider = i as f32 / 100.0;
             let gain = slider_to_linear_gain(slider);
-            assert!(gain >= prev_gain, "Monotonicity violated at slider {}", slider);
+            assert!(
+                gain >= prev_gain,
+                "Monotonicity violated at slider {}",
+                slider
+            );
             prev_gain = gain;
 
             let recovered_slider = linear_gain_to_slider(gain);

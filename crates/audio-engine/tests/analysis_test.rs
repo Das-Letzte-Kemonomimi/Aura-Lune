@@ -529,15 +529,27 @@ fn test_stem_project_cascaded_separation_and_reconstruction() {
     .expect("Kaskadowa separacja powiodła się");
 
     // Powinno powstać co najmniej 14 szczegółowych stemów
-    assert!(channels.len() >= 14, "Oczekiwano co najmniej 14 kanałów, otrzymano {}", channels.len());
+    assert!(
+        channels.len() >= 14,
+        "Oczekiwano co najmniej 14 kanałów, otrzymano {}",
+        channels.len()
+    );
 
     // Sprawdzenie domyślnych wartości faderów (75% głośności per specyfikacja użytkownika)
     for ch in &channels {
-        assert_eq!(ch.volume, 0.75, "Domyślna głośność kanału {} powinna wynosić 75% (0.75)", ch.id);
+        assert_eq!(
+            ch.volume, 0.75,
+            "Domyślna głośność kanału {} powinna wynosić 75% (0.75)",
+            ch.id
+        );
         assert_eq!(ch.pan, 0.0);
         assert!(!ch.mute);
         assert!(!ch.solo);
-        assert!(Path::new(&ch.file_path).exists(), "Plik stemu {} nie istnieje", ch.file_path);
+        assert!(
+            Path::new(&ch.file_path).exists(),
+            "Plik stemu {} nie istnieje",
+            ch.file_path
+        );
     }
 
     // Weryfikacja obecności kluczowych kanałów
@@ -580,7 +592,10 @@ fn test_stem_project_multitrack_pipeline_playback() {
         .unwrap()
         .join("tests/fixtures/test_sine_440hz.wav");
 
-    let requested_packs = vec!["pack_drum_pieces".to_string(), "pack_vocal_harmonies".to_string()];
+    let requested_packs = vec![
+        "pack_drum_pieces".to_string(),
+        "pack_vocal_harmonies".to_string(),
+    ];
     let channels = StemSeparator::separate_stem_project(
         &fixture_path,
         888,

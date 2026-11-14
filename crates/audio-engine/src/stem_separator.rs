@@ -183,15 +183,22 @@ impl StemSeparator {
 
         let has_drum_pieces = requested_pack_ids.iter().any(|id| id == "pack_drum_pieces")
             || requested_pack_ids.iter().any(|id| id == "pack_dsp_cascade");
-        let has_vocal_harmonies = requested_pack_ids.iter().any(|id| id == "pack_vocal_harmonies")
+        let has_vocal_harmonies = requested_pack_ids
+            .iter()
+            .any(|id| id == "pack_vocal_harmonies")
             || requested_pack_ids.iter().any(|id| id == "pack_dsp_cascade");
-        let has_extended_6stem = requested_pack_ids.iter().any(|id| id == "pack_extended_6stem")
+        let has_extended_6stem = requested_pack_ids
+            .iter()
+            .any(|id| id == "pack_extended_6stem")
             || requested_pack_ids.iter().any(|id| id == "pack_dsp_cascade");
         let has_orchestral = requested_pack_ids.iter().any(|id| id == "pack_orchestral")
             || requested_pack_ids.iter().any(|id| id == "pack_dsp_cascade");
 
         if let Some(ref mut cb) = progress_cb {
-            cb(0.20, "Etap 1: Wyodrębnianie pasm bazowych (Base Separation)...");
+            cb(
+                0.20,
+                "Etap 1: Wyodrębnianie pasm bazowych (Base Separation)...",
+            );
         }
 
         // =========================================================================
@@ -230,7 +237,10 @@ impl StemSeparator {
         }
 
         if let Some(ref mut cb) = progress_cb {
-            cb(0.50, "Etap 2: Kaskadowa dekompozycja specjalistyczna (Cascaded Stage 2)...");
+            cb(
+                0.50,
+                "Etap 2: Kaskadowa dekompozycja specjalistyczna (Cascaded Stage 2)...",
+            );
         }
 
         let mut channels = Vec::new();

@@ -89,3 +89,54 @@ Podczas odtwarzania wygenerowanych stemów:
 3. Wyjście `audiomixer` podłączone jest do głównej kolejki wejściowej silnika (`queue_in`), a następnie kierowane do procesora `AuraluneDsp` (Rubber Band lub SoundTouch).
 4. **W efekcie**: zmiana tempa, transpozycja tonacji, korektor EQ, limiter oraz pętla A-B działają dla całego miksu stemów w perfekcyjnej, próbkowo zgodnej synchronizacji bez jakichkolwiek przesunięć fazowych między ścieżkami.
 
+---
+
+## 7. Moises-Style Stem Projects Studio (Projekty Stemów)
+
+Wprowadzona w wersji 1.1.0 koncepcja **Stem Projects** (zgodna z ADR 0013) wynosi separację na poziom profesjonalnego cyfrowego studia mikserskiego:
+
+### A. Architektura Encji i Bezpieczeństwo Danych
+- Każdy projekt (`StemProject`) tworzony jest na bazie wybranego utworu i identyfikowany skrótem kryptograficznym SHA-256 zawartości pliku.
+- **Zasada nienaruszalności**: oryginalne pliki w bibliotece użytkownika nigdy nie są modyfikowane, przenoszone ani powielane na dysku.
+- Wszystkie wygenerowane ścieżki stemów zapisywane są w strukturze pamięci podręcznej `~/.cache/auralune/stem_projects/{project_id}/`.
+- Stan miksera, nazwane presety użytkownika oraz metadane projektu persystowane są w bazie SQLite w tabelach `stem_projects`, `stem_project_channels` i `stem_project_mixes`.
+
+### B. Hierarchiczna Taksonomia i Kaskadowa Separacja (Cascaded Separation)
+Separacja nie ogranicza się do standardowych 4 stemów, lecz realizuje 2-stopniowy proces kaskadowy z podziałem na specjalistyczne instrumenty:
+1. **Wokale (Vocals)**:
+   - *Lead Vocal* (Wokal prowadzący)
+   - *Backing Vocals / Choir* (Chórki i harmonie wokalne)
+2. **Perkusja (Drums)**:
+   - *Kick Drum* (Stopa)
+   - *Snare Drum* (Werbel)
+   - *Toms* (Tomy)
+   - *Hi-Hat* (Cykacz / talerz taktowy)
+   - *Cymbals & Rides* (Talerze akcentowe i crashe)
+3. **Bas (Bass)**:
+   - *Bass* (Bas elektryczny, kontrabas lub syntezator basowy)
+4. **Gitary (Guitars)**:
+   - *Acoustic Guitar* (Gitara akustyczna / klasyczna)
+   - *Lead Electric Guitar* (Gitara elektryczna solowa)
+   - *Rhythm Electric Guitar* (Gitara elektryczna rytmiczna)
+5. **Klawisze i Syntezatory (Keys)**:
+   - *Piano* (Fortepian / pianino akustyczne)
+   - *Synths & Pads* (Pady, syntezatory, organy)
+6. **Orkiestra i Akustyka (Orchestral)**:
+   - *Strings* (Skrzypce, wiolonczele, sekcja smyczkowa)
+   - *Brass & Woodwinds* (Trąbki, puzony, flety, saksofony)
+   - *Percussion & Residual* (Dodatkowe instrumenty perkusyjne i reszta spektralna)
+
+### C. Inwariant Doskonałej Rekonstrukcji Matematycznej
+Wszystkie pod-stemy generowane w kaskadzie spełniają rygorystyczny warunek:
+$$\sum_{i \in \text{sub-stems}} \text{stem}_i = \text{stem nadrzędny}$$
+$$\sum_{l \in \text{leaf-stems}} \text{stem}_l = \text{oryginał} \pm 10^{-6}$$
+Zapewniane jest to poprzez wyliczanie składnika resztkowego (*exact residual preservation*), gwarantując brak jakichkolwiek ubytków fazowych, zniekształceń czy comb-filteringu.
+
+### D. Studyjna Ergonomia Miksera (Studio Fader Curve)
+Wielokanałowy mikser stemów stosuje logarytmiczno-kwadratową krzywą czułości suwaków faderów:
+- **0%**: Zupełna cisza ($-\infty\text{ dB}$, wzmocnienie liniowe $0.0$)
+- **75%**: Unity Gain ($0\text{ dB}$, wzmocnienie liniowe $1.0$, domyślna pozycja odzwierciedlająca oryginalny miks)
+- **100%**: Headroom Boost ($+6.02\text{ dB}$, wzmocnienie liniowe $2.0$)
+- **Dwuklik**: Błyskawiczny powrót suwaka do wartości 75% (0 dB).
+- Wbudowany w szynę wyjściową limiter True-Peak zapobiega przesterowaniu cyfrowemu przy jednoczesnym podbiciu kilku faderów.
+

@@ -61,6 +61,7 @@ The application combines a high-performance **Rust** pipeline with a responsive 
 - **Chord Progression & Beat Grid**: Chronological chord detection synchronized to the beat grid; dynamic transposition with Pitch Shift; ChordPro, text, and JSON export; manual chord editing.
 - **Polyphonic Note Transcription & Piano-Roll**: Interactive HTML5 canvas piano-roll display; real-time note highlighting; Standard MIDI File (.mid) export with detected tempo map.
 - **Stem Separation & Stem Mixer**: 4-stem isolation (Vocals, Drums, Bass, Other) via instant mathematical Linkwitz-Riley DSP or deep learning (HTDemucs v4); sample-accurate GStreamer `audiomixer` feeding the core DSP chain with individual solo/mute and faders.
+- **Moises-Style Stem Projects Studio**: Fine-grained, multi-track cascaded stem projects (lead/backing vocals, drum pieces, bass, acoustic/electric guitars, piano/synths, orchestral strings/brass) with exact residual preservation ($\sum \text{stems} = \text{original} \pm 10^{-6}$); studio mixing console with 0–100% faders (75% default = 0 dB unity gain, +6 dB headroom boost), instant presets, named mix recall in SQLite, FLAC/WAV mixdown, and ZIP project export.
 - **Model Manager**: Offline-first, zero-telemetry AI model manager in Settings with SHA-256 integrity verification and GPU auto-detection (NVIDIA CUDA, AMD ROCm/Vulkan).
 
 ### ⏱️ Player Tools

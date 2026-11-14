@@ -2019,7 +2019,10 @@ impl Database {
     // =========================================================================
 
     /// Tworzy nowy projekt stemów i zwraca jego ID.
-    pub async fn create_stem_project(&self, project: &domain::StemProject) -> Result<i64, StorageError> {
+    pub async fn create_stem_project(
+        &self,
+        project: &domain::StemProject,
+    ) -> Result<i64, StorageError> {
         let status_str = match project.status {
             domain::StemProjectStatus::Queued => "queued",
             domain::StemProjectStatus::Separating => "separating",
@@ -2056,14 +2059,18 @@ impl Database {
         let project_id: i64 = row.get(0);
 
         if !project.channels.is_empty() {
-            self.save_stem_project_channels(project_id, &project.channels).await?;
+            self.save_stem_project_channels(project_id, &project.channels)
+                .await?;
         }
 
         Ok(project_id)
     }
 
     /// Pobiera projekt stemów wraz z przypisanymi kanałami.
-    pub async fn get_stem_project(&self, project_id: i64) -> Result<Option<domain::StemProject>, StorageError> {
+    pub async fn get_stem_project(
+        &self,
+        project_id: i64,
+    ) -> Result<Option<domain::StemProject>, StorageError> {
         let row_opt = sqlx::query(
             r#"
             SELECT id, track_id, track_hash, title, artist, album, cover_uri,
@@ -2192,7 +2199,11 @@ impl Database {
     }
 
     /// Zmienia tytuł projektu stemów.
-    pub async fn rename_stem_project(&self, project_id: i64, title: &str) -> Result<(), StorageError> {
+    pub async fn rename_stem_project(
+        &self,
+        project_id: i64,
+        title: &str,
+    ) -> Result<(), StorageError> {
         sqlx::query(
             r#"
             UPDATE stem_projects
@@ -2272,7 +2283,10 @@ impl Database {
     }
 
     /// Pobiera kanały dla danego projektu stemów.
-    pub async fn get_stem_project_channels(&self, project_id: i64) -> Result<Vec<domain::StemChannel>, StorageError> {
+    pub async fn get_stem_project_channels(
+        &self,
+        project_id: i64,
+    ) -> Result<Vec<domain::StemChannel>, StorageError> {
         let rows = sqlx::query(
             r#"
             SELECT stem_id, name, parent_stem, file_path, color_hex,
@@ -2314,8 +2328,12 @@ impl Database {
     }
 
     /// Zapisuje miks parametrów dla projektu stemów.
-    pub async fn save_stem_project_mix(&self, mix: &domain::StemProjectMix) -> Result<i64, StorageError> {
-        let channels_json = serde_json::to_string(&mix.channels).unwrap_or_else(|_| "{}".to_string());
+    pub async fn save_stem_project_mix(
+        &self,
+        mix: &domain::StemProjectMix,
+    ) -> Result<i64, StorageError> {
+        let channels_json =
+            serde_json::to_string(&mix.channels).unwrap_or_else(|_| "{}".to_string());
 
         let row = sqlx::query(
             r#"
@@ -2339,7 +2357,10 @@ impl Database {
     }
 
     /// Pobiera zapisane miksy dla danego projektu stemów.
-    pub async fn get_stem_project_mixes(&self, project_id: i64) -> Result<Vec<domain::StemProjectMix>, StorageError> {
+    pub async fn get_stem_project_mixes(
+        &self,
+        project_id: i64,
+    ) -> Result<Vec<domain::StemProjectMix>, StorageError> {
         let rows = sqlx::query(
             r#"
             SELECT id, project_id, name, is_default, channels_json, master_volume, updated_at
@@ -2381,7 +2402,11 @@ impl Database {
     }
 
     /// Ustawia nazwę aktywnego miksu dla projektu stemów.
-    pub async fn set_active_stem_project_mix(&self, project_id: i64, mix_name: &str) -> Result<(), StorageError> {
+    pub async fn set_active_stem_project_mix(
+        &self,
+        project_id: i64,
+        mix_name: &str,
+    ) -> Result<(), StorageError> {
         sqlx::query(
             r#"
             UPDATE stem_projects
@@ -2870,7 +2895,9 @@ mod tests {
         assert_eq!(mixes[0].name, "Acapella Boost");
         assert_eq!(mixes[0].channels.get("lead_vocal").unwrap().volume, 0.85);
 
-        db.rename_stem_project(proj_id, "Sparkle (Acoustic Mix)").await.unwrap();
+        db.rename_stem_project(proj_id, "Sparkle (Acoustic Mix)")
+            .await
+            .unwrap();
         let renamed = db.get_stem_project(proj_id).await.unwrap().unwrap();
         assert_eq!(renamed.title, "Sparkle (Acoustic Mix)");
 
@@ -2879,7 +2906,10 @@ mod tests {
 
         db.delete_stem_project(proj_id).await.unwrap();
         assert!(db.get_stem_project(proj_id).await.unwrap().is_none());
-        assert_eq!(db.get_stem_project_channels(proj_id).await.unwrap().len(), 0);
+        assert_eq!(
+            db.get_stem_project_channels(proj_id).await.unwrap().len(),
+            0
+        );
         assert_eq!(db.get_stem_project_mixes(proj_id).await.unwrap().len(), 0);
     }
 }

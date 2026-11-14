@@ -6,11 +6,13 @@ import {
   Cpu,
   X,
   BarChart2,
+  Sliders,
 } from 'lucide-react';
 import { ChordTimelineView } from './ChordTimelineView';
 import { PianoRollCanvas } from './PianoRollCanvas';
 import { StemMixerModal } from './StemMixerModal';
 import { ModelManagerModal } from './ModelManagerModal';
+import { StemProjectsLibraryView } from './StemProjectsLibraryView';
 
 export interface MusicAnalysisModalProps {
   isOpen: boolean;
@@ -24,7 +26,9 @@ export interface MusicAnalysisModalProps {
   pitchSemitones?: number;
   onSeek: (positionMs: number) => void;
   onSetLoop?: (startMs: number, endMs: number) => void;
-  initialTab?: 'chords' | 'pianoroll' | 'stems' | 'models';
+  initialTab?: 'chords' | 'pianoroll' | 'stems' | 'projects' | 'models';
+  onOpenStemProject?: (projectId: number) => void;
+  onOpenCreateProject?: () => void;
 }
 
 export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
@@ -40,8 +44,10 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   onSeek,
   onSetLoop,
   initialTab = 'chords',
+  onOpenStemProject,
+  onOpenCreateProject,
 }) => {
-  const [activeTab, setActiveTab] = useState<'chords' | 'pianoroll' | 'stems' | 'models'>(
+  const [activeTab, setActiveTab] = useState<'chords' | 'pianoroll' | 'stems' | 'projects' | 'models'>(
     initialTab
   );
 
@@ -66,7 +72,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
             </div>
           </div>
 
-          {/* Przełącznik 4 zakładek */}
+          {/* Przełącznik zakładek */}
           <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-slate-900 border border-slate-700/70">
             <button
               onClick={() => setActiveTab('chords')}
@@ -102,6 +108,18 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Stemy & Karaoke</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('projects')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'projects'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Projekty Stemów</span>
             </button>
 
             <button
@@ -160,6 +178,21 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
               trackPath={trackPath}
               trackTitle={trackTitle}
             />
+          )}
+
+          {activeTab === 'projects' && (
+            <div className="h-full overflow-y-auto">
+              <StemProjectsLibraryView
+                onOpenProject={(pid) => {
+                  onClose();
+                  onOpenStemProject?.(pid);
+                }}
+                onOpenCreateProject={() => {
+                  onClose();
+                  onOpenCreateProject?.();
+                }}
+              />
+            </div>
           )}
 
           {activeTab === 'models' && (

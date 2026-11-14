@@ -98,3 +98,107 @@ export interface AnalysisCapabilities {
   installed_models: AiModelInfo[];
 }
 
+export type StemQualityTier = 'high_quality' | 'experimental' | 'dsp_fallback' | 'unavailable';
+export type StemProjectStatus = 'queued' | 'separating' | 'ready' | 'failed';
+
+export interface StemChannel {
+  id: string;
+  name: string;
+  parent_stem?: string;
+  file_path: string;
+  color_hex: string;
+  quality_tier: StemQualityTier;
+  volume: number; // 0.0 .. 1.0 (domyślnie 0.75 = 0 dB)
+  pan: number;    // -1.0 .. +1.0
+  mute: boolean;
+  solo: boolean;
+}
+
+export interface ChannelMixSetting {
+  volume: number;
+  pan: number;
+  mute: boolean;
+  solo: boolean;
+}
+
+export interface StemProjectMix {
+  id?: number;
+  project_id: number;
+  name: string;
+  is_default: boolean;
+  channels: Record<string, ChannelMixSetting>;
+  master_volume: number;
+  updated_at: string;
+}
+
+export interface StemProject {
+  id: number;
+  track_id: number;
+  track_hash: string;
+  title: string;
+  artist: string;
+  album: string;
+  cover_uri?: string;
+  status: StemProjectStatus;
+  progress: number;
+  model_name: string;
+  disk_size_bytes: number;
+  channels: StemChannel[];
+  active_mix_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModelPackInfo {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  unlocked_stems: string[];
+  model_files: string[];
+  total_size_bytes: number;
+  license: string;
+  source_url: string;
+  sha256: string;
+  is_installed: boolean;
+  gpu_recommended: boolean;
+  speed_estimate_sec_per_min: number;
+}
+
+export function sliderToLinearGain(slider: number): number {
+  const v = Math.max(0.0, Math.min(1.0, slider));
+  if (v <= 0.0001) return 0.0;
+  if (v <= 0.75) {
+    const norm = v / 0.75;
+    return Math.pow(norm, 2.0);
+  } else {
+    const boostNorm = (v - 0.75) / 0.25;
+    return 1.0 + boostNorm * (2.0 - 1.0);
+  }
+}
+
+export function linearGainToSlider(gain: number): number {
+  const g = Math.max(0.0, gain);
+  if (g <= 0.0001) return 0.0;
+  if (g <= 1.0) {
+    return Math.sqrt(g) * 0.75;
+  } else {
+    const boostNorm = Math.min(1.0, (g - 1.0) / (2.0 - 1.0));
+    return 0.75 + boostNorm * 0.25;
+  }
+}
+
+export function sliderToDb(slider: number): number {
+  const gain = sliderToLinearGain(slider);
+  if (gain <= 0.00001) return -100.0;
+  return 20.0 * Math.log10(gain);
+}
+
+export interface StemProjectProgressPayload {
+  project_id: number;
+  progress: number;
+  message: string;
+  status: StemProjectStatus;
+}
+
+
