@@ -12,6 +12,7 @@ pub mod queue;
 pub mod renamer;
 pub mod replaygain;
 pub mod silence;
+pub mod stem_project;
 pub mod theme;
 pub mod transcode;
 
@@ -41,6 +42,11 @@ pub use renamer::{
 };
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
 pub use silence::SilenceTrimmingConfig;
+pub use stem_project::{
+    default_stem_color, default_stem_label, linear_gain_to_slider, slider_to_db,
+    slider_to_linear_gain, ChannelMixSetting, ModelPackInfo, StemChannel, StemProject,
+    StemProjectMix, StemProjectStatus, StemQualityTier,
+};
 pub use theme::{default_themes, Theme, ThemeTokens};
 pub use transcode::{DspExportSettings, ExportFormat, TimeRange};
 
