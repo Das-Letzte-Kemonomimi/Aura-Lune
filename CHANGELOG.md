@@ -9,6 +9,19 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.1.3] — „Graphic Equalizer Precision & Glassmorphism Dropdown” - 2026-11-15
+**Autorka**: Das Letzte Kemonomimi
+
+### ✨ Dodano (Added)
+- **Dedykowane rozwijane menu presetów korektora EQ**: Zastąpiono podatny na błędy natywny element HTML `<select>` w Linuksie (WebKitGTK) nowoczesnym komponentem rozwijanym w stylu anime glassmorphism z aktywnymi znacznikami wyboru, obsługą zamykania kliknięciem poza obszar i klawiszem Escape.
+
+### 🛠️ Poprawiono (Fixed)
+- **Aplikowanie presetów korektora graficznego (Flat, Bass Boost, Dance, Rock, Pop itp.)**: Naprawiono mapowanie nazw presetów i natychmiastowe przesyłanie wzmocnień pasm do potoku GStreamera oraz synchronizację 10 suwaków w czasie rzeczywistym.
+- **Odpytywanie statusu odtwarzacza (`fetchStatus`)**: Zaktualizowano pętlę sprawdzania statusu odtwarzacza, aby zmiany stanu korektora (`equalizer_enabled` oraz `equalizer_bands`) natychmiast aktualizowały interfejs użytkownika nawet w stanie spoczynku lub pauzy.
+- **Propagacja błędów w komendzie Tauri**: Zapewniono pełną propagację rezultatów wywołania `set_equalizer_bands` w komendzie `set_equalizer_params` na backendzie Rust.
+
+---
+
 ## [1.1.2] — „Verified Weights & Model Engine” - 2026-11-14
 **Autorka**: Das Letzte Kemonomimi
 

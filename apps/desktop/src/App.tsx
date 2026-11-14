@@ -1251,7 +1251,7 @@ export default function App() {
 
   // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.1.2'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.1.3'
   );
 
 

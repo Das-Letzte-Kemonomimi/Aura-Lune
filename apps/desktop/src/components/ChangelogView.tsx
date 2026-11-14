@@ -18,11 +18,43 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.1.3',
+    codename: 'Graphic Equalizer Precision & Glassmorphism Dropdown',
+    date: '2026-11-15',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Nowe, w pełni dedykowane rozwijane menu presetów 10-pasmowego korektora graficznego w stylu anime glassmorphism ze wskaźnikami wyboru, eliminujące błędy natywnego elementu HTML <select> w WebKitGTK.',
+        en: 'New dedicated anime glassmorphism dropdown menu for 10-band graphic equalizer presets with active checkmarks, eliminating native WebKitGTK <select> event bugs on Linux.',
+        de: 'Neues Anime-Glassmorphism-Dropdown-Menü für 10-Band-Equalizer-Voreinstellungen.',
+        fi: 'Uusi anime glassmorphism -pudotusvalikko 10-kaistaiselle taajuuskorjaimelle.',
+        la: 'Novum menu dropdown pro aequatore decem fasciarum cum stilo anime glassmorphism.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Naprawiono aplikowanie presetów korektora graficznego (Flat, Bass Boost, Dance, Rock, Pop itp.) oraz synchronizację suwaków w czasie rzeczywistym.',
+        en: 'Fixed applying graphic equalizer presets (Flat, Bass Boost, Dance, Rock, Pop, etc.) and real-time slider synchronization.',
+        de: 'Anwendung von Equalizer-Voreinstellungen und Echtzeit-Schiebereglersynchronisation behoben.',
+        fi: 'Korjattu taajuuskorjaimen esiasetusten soveltaminen ja liukusäätimien reaaliaikainen synkronointi.',
+        la: 'Applicatio praedefinitionum aequatoris et synchronizatio indicum in tempore vero correcta.',
+      },
+      {
+        pl: 'Poprawiono odpytywanie statusu odtwarzacza, aby nie blokowało aktualizacji suwaków korektora w spoczynku i podczas pauzy.',
+        en: 'Updated player status polling to avoid blocking equalizer slider updates during pause and idle states.',
+        de: 'Statusabfrage aktualisiert, um Schieberegler-Aktualisierungen im Ruhezustand nicht zu blockieren.',
+        fi: 'Päivitetty soittimen tilakysely estämään liukusäätimien jumiutuminen.',
+        la: 'Interrogatio status emendata ne indices aequatoris in quiete impediat.',
+      },
+    ],
+  },
+  {
     version: '1.1.2',
     codename: 'Verified Weights & Model Engine',
     date: '2026-11-14',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Oficjalny katalog modeli AI ze zweryfikowanymi linkami: HTDemucs v4, HTDemucs 6s, UVR MDX-Net Karaoke oraz Spotify Basic Pitch pobierane bezpośrednio z publicznych mirrorów Hugging Face.',
