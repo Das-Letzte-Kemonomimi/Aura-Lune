@@ -44,6 +44,15 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
       ],
     },
     {
+      category: currentLang === 'pl' ? 'Widok i Skala UI' : 'View & UI Scale',
+      items: [
+        { key: 'Ctrl + / -', desc: currentLang === 'pl' ? 'Powiększ / pomniejsz interfejs' : 'Zoom in / zoom out UI' },
+        { key: 'Ctrl + 0', desc: currentLang === 'pl' ? 'Resetuj skalę interfejsu (100%)' : 'Reset UI scale (100%)' },
+        { key: 'Ctrl + K', desc: currentLang === 'pl' ? 'Paleta komend / Spotlight' : 'Command palette / Spotlight' },
+        { key: '1 - 4', desc: currentLang === 'pl' ? 'Szybki skok do widoków' : 'Quick view switch' },
+      ],
+    },
+    {
       category: t.shortcuts.catLoop,
       items: [
         { key: 'A', desc: t.shortcuts.loopA },

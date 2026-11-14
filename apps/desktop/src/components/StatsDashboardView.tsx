@@ -164,7 +164,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
   const medalEmojis = ['🥇', '🥈', '🥉', '4.', '5.'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', maxWidth: 'min(1600px, 98vw)', margin: '0 auto' }}>
       {/* Baner Tytułowy */}
       <div
         className="glass-panel"

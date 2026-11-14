@@ -67,6 +67,7 @@ struct PipelineInner {
     dsp_params: DspParams,
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
+    eq_preamp_db: f64,
     parametric_eq_state: ParametricEqState,
     dynamics_state: DynamicsState,
     replaygain_config: ReplayGainConfig,
@@ -84,6 +85,24 @@ struct PipelineInner {
     _stereo_widener: gst::Element,
     stereo_widener_config: Arc<RwLock<domain::dynamics::StereoWidenerConfig>>,
     crossfade_duration_ms: u64,
+}
+
+impl PipelineInner {
+    fn update_preamp_volume(&self) {
+        let eq_p = if self.equalizer_state.enabled {
+            self.eq_preamp_db
+        } else {
+            0.0
+        };
+        let peq_p = if self.parametric_eq_state.enabled {
+            self.parametric_eq_state.preamp_db
+        } else {
+            0.0
+        };
+        let total_db = (eq_p + peq_p).clamp(-24.0, 12.0);
+        let linear = 10.0f64.powf(total_db / 20.0);
+        self.peq_preamp.set_property("volume", linear);
+    }
 }
 
 /// Bezpieczny wielowątkowo kontroler potoku audio.
@@ -603,6 +622,7 @@ impl AudioEngine {
             dsp_params: DspParams::default(),
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
+            eq_preamp_db: 0.0,
             parametric_eq_state: ParametricEqState::default(),
             dynamics_state: domain::dynamics::DynamicsState::default(),
             replaygain_config: ReplayGainConfig::default(),
@@ -1710,34 +1730,50 @@ impl AudioEngine {
             };
             inner.equalizer.set_property(&format!("band{}", i), val);
         }
+        inner.update_preamp_volume();
     }
 
     /// Ustawia wzmocnienie pojedynczego pasma korektora graficznego (w dB: -24.0 do +12.0).
+    /// Automatycznie aktywuje korektor, zapewniając natychmiastową reakcję dźwięku na ruch suwaka.
     pub fn set_equalizer_band(&self, band: usize, gain_db: f64) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
+        inner.equalizer_state.enabled = true;
         if inner.equalizer_state.set_band(band, gain_db) {
-            let clamped = inner.equalizer_state.bands[band];
-            if inner.equalizer_state.enabled {
-                inner
-                    .equalizer
-                    .set_property(&format!("band{}", band), clamped);
+            for i in 0..10 {
+                let val = inner.equalizer_state.bands[i];
+                inner.equalizer.set_property(&format!("band{}", i), val);
             }
         }
+        inner.update_preamp_volume();
         Ok(())
     }
 
     /// Ustawia wzmocnienia wszystkich 10 pasm korektora graficznego jednocześnie.
+    /// Automatycznie aktywuje korektor, aplikując wszystkie pasma bezpośrednio do potoku GStreamera.
     pub fn set_equalizer_bands(&self, bands: &[f64; 10]) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
+        inner.equalizer_state.enabled = true;
         for (i, &gain) in bands.iter().enumerate() {
             inner.equalizer_state.set_band(i, gain);
-            if inner.equalizer_state.enabled {
-                inner
-                    .equalizer
-                    .set_property(&format!("band{}", i), inner.equalizer_state.bands[i]);
-            }
+            inner
+                .equalizer
+                .set_property(&format!("band{}", i), inner.equalizer_state.bands[i]);
         }
+        inner.update_preamp_volume();
         Ok(())
+    }
+
+    /// Ustawia wzmocnienie przedwzmacniacza (preamp) dla korektora graficznego w dB.
+    pub fn set_equalizer_preamp(&self, preamp_db: f64) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.eq_preamp_db = preamp_db.clamp(-24.0, 12.0);
+        inner.update_preamp_volume();
+    }
+
+    /// Zwraca aktualne wzmocnienie przedwzmacniacza korektora graficznego w dB.
+    pub fn get_equalizer_preamp(&self) -> f64 {
+        let inner = self.inner.lock().unwrap();
+        inner.eq_preamp_db
     }
 
     // ==========================================
@@ -1766,18 +1802,8 @@ impl AudioEngine {
 
         let enabled = state.enabled;
 
-        // 1. Preamp: linear = 10^(preamp_db / 20.0)
-        let linear_preamp = if enabled {
-            10.0f64.powf(
-                state
-                    .preamp_db
-                    .clamp(domain::MIN_PREAMP_DB, domain::MAX_PREAMP_DB)
-                    / 20.0,
-            )
-        } else {
-            1.0
-        };
-        inner.peq_preamp.set_property("volume", linear_preamp);
+        // 1. Zsynchronizowany Preamp (EQ + PEQ)
+        inner.update_preamp_volume();
 
         // 2. Pasma korektora parametrycznego
         let num_bands = (state.bands.len().max(1) as u32).min(64);

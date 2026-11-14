@@ -26,6 +26,7 @@ interface KeyBpmModalProps {
   rateRatio: number;
   onPitchChange: (semitones: number) => void;
   onTempoChange: (tempo: number) => void;
+  onTrackKeyBpmUpdated?: (trackId: number, bpm: number, keyName: string) => void;
   currentLang: Language;
 }
 
@@ -68,6 +69,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   rateRatio,
   onPitchChange,
   onTempoChange,
+  onTrackKeyBpmUpdated,
   currentLang,
 }) => {
   const loc = getTranslations(currentLang);
@@ -111,6 +113,11 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         setIsMinor(res.is_minor);
         setBaseBpm(res.bpm);
         setDetectionSource(res.source as any);
+
+        const targetId = trackId ?? currentTrackId;
+        if (targetId) {
+          onTrackKeyBpmUpdated?.(targetId, res.bpm, res.camelot || res.key_name);
+        }
 
         const cacheKey = currentTrackId
           ? `auralune_track_key_bpm_${currentTrackId}`
@@ -191,6 +198,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
     if (currentTrackId) {
       try {
         const keyName = `${CHROMATIC_SCALE[baseKeyIndex]} ${isMinor ? 'm' : 'Maj'}`;
+        onTrackKeyBpmUpdated?.(currentTrackId, baseBpm, keyName);
         await invoke('save_track_key_bpm', {
           trackId: currentTrackId,
           bpm: baseBpm,

@@ -221,6 +221,14 @@ button:hover:not(:disabled),
   transform: translateY(-1px);
 }
 
+/* Opcjonalne wyłączenie podświetlenia przycisków w opcjach */
+body.disable-button-glow button:hover:not(:disabled),
+body.disable-button-glow [role="button"]:hover:not([aria-disabled="true"]) {
+  filter: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 button:active:not(:disabled),
 [role="button"]:active:not([aria-disabled="true"]) {
   transform: translateY(0px) scale(0.97);
@@ -302,7 +310,7 @@ button:disabled,
 .header-brand-subtitle {
   display: block;
 }
-@media (max-width: 1450px) {
+@media (max-width: 1680px) {
   .header-brand-subtitle {
     display: none !important;
   }
@@ -311,7 +319,7 @@ button:disabled,
 .header-action-text {
   display: inline;
 }
-@media (max-width: 1450px) {
+@media (max-width: 1680px) {
   .header-action-text {
     display: none !important;
   }
@@ -320,7 +328,7 @@ button:disabled,
 .header-nav-label {
   display: inline;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1350px) {
   .header-nav-label {
     display: none !important;
   }

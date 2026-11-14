@@ -10,12 +10,17 @@ fn test_audio_engine_equalizer_and_spectrum() {
     assert_eq!(default_bands, [0.0; 10]);
     assert!(!engine.is_equalizer_enabled());
 
-    // Test ustawiania pojedynczego pasma
+    // Test ustawiania pojedynczego pasma (automatycznie aktywuje korektor)
     engine.set_equalizer_band(0, 6.0).expect("Błąd set band 0");
     engine.set_equalizer_band(5, -4.5).expect("Błąd set band 5");
     let current_bands = engine.get_equalizer_bands();
     assert_eq!(current_bands[0], 6.0);
     assert_eq!(current_bands[5], -4.5);
+    assert!(engine.is_equalizer_enabled());
+
+    // Test przedwzmacniacza (preamp)
+    engine.set_equalizer_preamp(-3.5);
+    assert_eq!(engine.get_equalizer_preamp(), -3.5);
 
     // Test aplikowania presetu
     let presets = EqualizerPreset::default_presets();
@@ -24,6 +29,7 @@ fn test_audio_engine_equalizer_and_spectrum() {
         .set_equalizer_bands(&bass_preset.bands)
         .expect("Błąd set preset");
     assert_eq!(engine.get_equalizer_bands(), bass_preset.bands);
+    assert!(engine.is_equalizer_enabled());
 
     // Test wyłączenia (bypassing EQ)
     engine.set_equalizer_enabled(false);

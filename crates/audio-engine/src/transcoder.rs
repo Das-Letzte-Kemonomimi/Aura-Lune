@@ -295,11 +295,19 @@ impl Transcoder {
             .name("transcoder_audioresample_enc")
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
+        let queue_enc = gst::ElementFactory::make("queue")
+            .name("transcoder_queue_enc")
+            .property("max-size-buffers", 0u32)
+            .property("max-size-bytes", 0u32)
+            .property("max-size-time", 3_000_000_000u64)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("queue"))?;
 
-        pipeline.add_many([&audioconvert_enc, &audioresample_enc])?;
+        pipeline.add_many([&audioconvert_enc, &audioresample_enc, &queue_enc])?;
         source_for_encoder.link(&audioconvert_enc)?;
         audioconvert_enc.link(&audioresample_enc)?;
-        let final_source = audioresample_enc;
+        audioresample_enc.link(&queue_enc)?;
+        let final_source = queue_enc;
 
         // W zależności od formatu docelowego dodajemy odpowiedni encoder i opcjonalny muxer
         match format {

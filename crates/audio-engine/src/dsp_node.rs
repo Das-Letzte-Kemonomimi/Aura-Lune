@@ -54,6 +54,7 @@ struct DspNodeState {
     fifo: std::collections::VecDeque<f32>,
     out_buffer: Vec<f32>,
     current_pts: Option<u64>,
+    current_offset: u64,
     block_size: usize,
 }
 
@@ -67,6 +68,7 @@ impl DspNodeState {
             fifo: std::collections::VecDeque::with_capacity(32768),
             out_buffer: Vec::with_capacity(16384),
             current_pts: None,
+            current_offset: 0,
             block_size: 2048,
         }
     }
@@ -166,6 +168,7 @@ impl DspNodeState {
         let _ = self.soundtouch.reset();
         self.fifo.clear();
         self.current_pts = None;
+        self.current_offset = 0;
     }
 }
 
@@ -338,12 +341,21 @@ impl AuraluneDspImpl {
                 break;
             }
             let drain_samples = drain_frames * channels;
-            let out_frames = drain_frames;
-            let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
+            let out_frames = drain_frames as u64;
+
+            let cur_offset = state.current_offset;
+            let next_offset = cur_offset + out_frames;
+            state.current_offset = next_offset;
 
             let buffer_pts = buffer.pts().map(|p| p.nseconds());
-            let current_pts = state.current_pts.or(buffer_pts).unwrap_or(0);
-            state.current_pts = Some(current_pts + out_duration_ns);
+            let base_pts = state.current_pts.or(buffer_pts).unwrap_or(0);
+            if state.current_pts.is_none() {
+                state.current_pts = Some(base_pts);
+            }
+
+            let frame_pts_ns = base_pts + (cur_offset * 1_000_000_000) / sample_rate;
+            let next_pts_ns = base_pts + (next_offset * 1_000_000_000) / sample_rate;
+            let out_duration_ns = next_pts_ns.saturating_sub(frame_pts_ns);
 
             let byte_len = drain_samples * std::mem::size_of::<f32>();
             if let Ok(mut gst_out_buffer) = gst::Buffer::with_size(byte_len) {
@@ -360,8 +372,10 @@ impl AuraluneDspImpl {
                     }
                 }
 
-                out_buf_mut.set_pts(gst::ClockTime::from_nseconds(current_pts));
+                out_buf_mut.set_pts(gst::ClockTime::from_nseconds(frame_pts_ns));
                 out_buf_mut.set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
+                out_buf_mut.set_offset(cur_offset);
+                out_buf_mut.set_offset_end(next_offset);
                 buffers_to_push.push(gst_out_buffer);
             } else {
                 break;
@@ -409,6 +423,7 @@ impl AuraluneDspImpl {
                         _ => 0,
                     };
                     state.current_pts = Some(position);
+                    state.current_offset = 0;
                 }
                 srcpad.push_event(event)
             }
@@ -438,8 +453,16 @@ impl AuraluneDspImpl {
                             break;
                         }
                         let drain_samples = drain_frames * channels;
-                        let out_frames = drain_frames;
-                        let out_duration_ns = (out_frames as u64 * 1_000_000_000) / sample_rate;
+                        let out_frames = drain_frames as u64;
+
+                        let cur_offset = state.current_offset;
+                        let next_offset = cur_offset + out_frames;
+                        state.current_offset = next_offset;
+
+                        let base_pts = state.current_pts.unwrap_or(0);
+                        let frame_pts_ns = base_pts + (cur_offset * 1_000_000_000) / sample_rate;
+                        let next_pts_ns = base_pts + (next_offset * 1_000_000_000) / sample_rate;
+                        let out_duration_ns = next_pts_ns.saturating_sub(frame_pts_ns);
                         let byte_len = drain_samples * std::mem::size_of::<f32>();
 
                         if let Ok(mut gst_out_buffer) = gst::Buffer::with_size(byte_len) {
@@ -457,12 +480,11 @@ impl AuraluneDspImpl {
                                     }
                                 }
                             }
-                            if let Some(pts) = state.current_pts {
-                                out_buf_mut.set_pts(gst::ClockTime::from_nseconds(pts));
-                                state.current_pts = Some(pts + out_duration_ns);
-                            }
+                            out_buf_mut.set_pts(gst::ClockTime::from_nseconds(frame_pts_ns));
                             out_buf_mut
                                 .set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
+                            out_buf_mut.set_offset(cur_offset);
+                            out_buf_mut.set_offset_end(next_offset);
                             let _ = srcpad.push(gst_out_buffer);
                         } else {
                             break;

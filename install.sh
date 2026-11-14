@@ -6,7 +6,14 @@
 
 set -euo pipefail
 
-VERSION="0.8.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
+VERSION="1.0.8"
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" ]]; then
+    DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
+    if [[ -n "$DETECTED_VER" ]]; then
+        VERSION="$DETECTED_VER"
+    fi
+fi
 REPO="Das-Letzte-Kemonomimi/Aura-Lune"
 GITHUB_API="https://api.github.com/repos/${REPO}/releases"
 
@@ -117,6 +124,10 @@ else
     LATEST_JSON=$(curl -sSf "${GITHUB_API}/latest" 2>/dev/null || echo "")
     if [[ -n "$LATEST_JSON" ]]; then
         TAG_NAME=$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4 || echo "v${VERSION}")
+        DETECTED_TAG_VER="${TAG_NAME#v}"
+        if [[ -n "$DETECTED_TAG_VER" ]]; then
+            VERSION="$DETECTED_TAG_VER"
+        fi
         echo -e "${CYAN}✨ Wykryto wydanie: ${TAG_NAME}${RESET}"
 
         if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then

@@ -1381,6 +1381,33 @@ fn set_equalizer_params(
 }
 
 #[tauri::command]
+fn set_equalizer_preamp(preamp_db: f64, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_equalizer_preamp({} dB)", preamp_db);
+    state.engine.set_equalizer_preamp(preamp_db);
+    Ok(())
+}
+
+#[tauri::command]
+fn apply_auto_eq_profile(
+    profile_name: String,
+    bands: [f64; 10],
+    preamp_db: f64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    info!(
+        "Tauri command: apply_auto_eq_profile('{}', preamp: {} dB, bands: {:?})",
+        profile_name, preamp_db, bands
+    );
+    state
+        .engine
+        .set_equalizer_bands(&bands)
+        .map_err(|e| e.to_string())?;
+    state.engine.set_equalizer_preamp(preamp_db);
+    state.engine.set_equalizer_enabled(true);
+    Ok(())
+}
+
+#[tauri::command]
 fn get_equalizer_presets() -> Vec<EqualizerPreset> {
     EqualizerPreset::default_presets()
 }
@@ -2238,6 +2265,77 @@ fn open_external_url(url: String) -> Result<(), String> {
         .spawn()
         .map_err(|e| format!("Błąd otwierania odnośnika w przeglądarce: {}", e))?;
     Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SampleTrackDto {
+    pub path: String,
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub duration_ms: u64,
+    pub genre: Option<String>,
+}
+
+pub fn resolve_or_extract_sample_track(data_dir: &std::path::Path) -> Option<SampleTrackDto> {
+    // 1. Sprawdź znane lokalizacje pliku na dysku (w trybie dev, test fixtures lub w katalogu danych)
+    let candidates = [
+        data_dir.join("sample").join("Skrzydła Białe.flac"),
+        std::path::PathBuf::from("tests/fixtures/Skrzydła Białe.flac"),
+        std::path::PathBuf::from("/usr/share/auralune/Skrzydła Białe.flac"),
+    ];
+
+    for candidate in &candidates {
+        if candidate.exists() && candidate.is_file() {
+            let path_str = candidate
+                .canonicalize()
+                .unwrap_or_else(|_| candidate.clone())
+                .to_string_lossy()
+                .to_string();
+            return Some(SampleTrackDto {
+                path: path_str,
+                title: "Skrzydła Białe".to_string(),
+                artist: "Das Letzte Kemonomimi".to_string(),
+                album: Some("Skrzydła Białe".to_string()),
+                duration_ms: 56820,
+                genre: Some("Folk-Rock".to_string()),
+            });
+        }
+    }
+
+    // 2. Jeśli plik nie istnieje (np. na czystym systemie/AppImage), wyodrębnij osadzony utwór do data_dir/sample/
+    static EMBEDDED_SAMPLE: &[u8] =
+        include_bytes!("../../../../tests/fixtures/Skrzydła Białe.flac");
+    let target_path = data_dir.join("sample").join("Skrzydła Białe.flac");
+    if let Some(parent) = target_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if std::fs::write(&target_path, EMBEDDED_SAMPLE).is_ok() {
+        let path_str = target_path
+            .canonicalize()
+            .unwrap_or_else(|_| target_path.clone())
+            .to_string_lossy()
+            .to_string();
+        Some(SampleTrackDto {
+            path: path_str,
+            title: "Skrzydła Białe".to_string(),
+            artist: "Das Letzte Kemonomimi".to_string(),
+            album: Some("Skrzydła Białe".to_string()),
+            duration_ms: 56820,
+            genre: Some("Folk-Rock".to_string()),
+        })
+    } else {
+        None
+    }
+}
+
+#[tauri::command]
+fn get_sample_track(app: tauri::AppHandle) -> Result<Option<SampleTrackDto>, String> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    Ok(resolve_or_extract_sample_track(&data_dir))
 }
 
 #[tauri::command]
@@ -5386,13 +5484,13 @@ pub fn run() {
                                         session.album.clone()
                                     };
 
-                                    let queue_item = if let Some(t) = track_opt {
+                                    let queue_item = if let Some(ref t) = track_opt {
                                         QueueItem {
                                             id: format!("track-{}", t.id),
                                             track_id: Some(t.id),
                                             uri: uri.clone(),
-                                            title: t.title,
-                                            artist: t.artist,
+                                            title: t.title.clone(),
+                                            artist: t.artist.clone(),
                                             album: album_title,
                                             duration_ms: (t.duration_ms.max(0)) as u64,
                                         }
@@ -5407,46 +5505,126 @@ pub fn run() {
                                             ),
                                             track_id: session.track_id,
                                             uri: uri.clone(),
-                                            title: session.title.unwrap_or_else(|| {
+                                            title: session.title.clone().unwrap_or_else(|| {
                                                 std::path::Path::new(uri)
                                                     .file_stem()
                                                     .and_then(|s| s.to_str())
                                                     .unwrap_or("Restored Track")
                                                     .to_string()
                                             }),
-                                            artist: session.artist.unwrap_or_else(|| "Unknown Artist".to_string()),
+                                            artist: session.artist.clone().unwrap_or_else(|| "Unknown Artist".to_string()),
                                             album: session.album.clone(),
                                             duration_ms: session.duration_ms.unwrap_or(0),
                                         }
                                     };
 
-                                    engine.set_active_item(queue_item.clone());
+                                    // Sprawdź czy utwór ze starej sesji to demo "Skrzydła Białe" podczas gdy w bibliotece są już utwory użytkownika
+                                    let is_demo_session = session.title.as_deref() == Some("Skrzydła Białe")
+                                        || uri.contains("Skrzydła Białe")
+                                        || session.track_id.is_none();
+                                    let has_user_tracks = rt.block_on(async {
+                                        db.list_tracks().await.map(|t| !t.is_empty()).unwrap_or(false)
+                                    });
 
-                                    // Bezpieczne załadowanie pliku w GStreamerze w stanie gotowości (Stopped/Standby),
-                                    // co zapobiega błędom i zapewnia natychmiastowe odtwarzanie po naciśnięciu Play.
-                                    if let Err(e) = engine.load_uri(uri) {
-                                        tracing::warn!("Nie udało się załadować pliku sesji do potoku: {}", e);
-                                    } else if let Some(pos) = session.position_ms {
-                                        if pos > 0 {
-                                            let _ = engine.seek(Duration::from_millis(pos));
+                                    if is_demo_session && has_user_tracks && track_opt.is_none() {
+                                        if let Some(first_track) = rt.block_on(async {
+                                            db.list_tracks().await.ok().and_then(|mut t| if t.is_empty() { None } else { Some(t.remove(0)) })
+                                        }) {
+                                            let first_album = if let Some(alb_id) = first_track.album_id {
+                                                rt.block_on(async {
+                                                    db.get_album_by_id(alb_id).await.ok().flatten().map(|alb| alb.title)
+                                                })
+                                            } else {
+                                                None
+                                            };
+                                            let user_queue_item = QueueItem {
+                                                id: format!("track-{}", first_track.id),
+                                                track_id: Some(first_track.id),
+                                                uri: first_track.path.clone(),
+                                                title: first_track.title,
+                                                artist: first_track.artist,
+                                                album: first_album,
+                                                duration_ms: (first_track.duration_ms.max(0)) as u64,
+                                            };
+                                            engine.set_active_item(user_queue_item.clone());
+                                            if let Err(e) = engine.load_uri(&first_track.path) {
+                                                tracing::warn!("Nie udało się załadować pliku użytkownika do potoku: {}", e);
+                                            }
+                                        }
+                                    } else {
+                                        engine.set_active_item(queue_item.clone());
+
+                                        // Bezpieczne załadowanie pliku w GStreamerze w stanie gotowości (Stopped/Standby),
+                                        // co zapobiega błędom i zapewnia natychmiastowe odtwarzanie po naciśnięciu Play.
+                                        if let Err(e) = engine.load_uri(uri) {
+                                            tracing::warn!("Nie udało się załadować pliku sesji do potoku: {}", e);
+                                        } else if let Some(pos) = session.position_ms {
+                                            if pos > 0 {
+                                                let _ = engine.seek(Duration::from_millis(pos));
+                                            }
+                                        }
+
+                                        if let Some(ref m) = mpris {
+                                            let m_clone = m.clone();
+                                            let track_info = desktop_integration::MprisTrackInfo {
+                                                title: queue_item.title.clone(),
+                                                artist: queue_item.artist.clone(),
+                                                album: queue_item.album.clone().unwrap_or_default(),
+                                                duration_ms: queue_item.duration_ms,
+                                                art_url: None,
+                                            };
+                                            rt.spawn(async move {
+                                                m_clone.update_track(track_info).await;
+                                                m_clone.update_playback_status(PlaybackState::Paused).await;
+                                            });
                                         }
                                     }
-
-                                    if let Some(ref m) = mpris {
-                                        let m_clone = m.clone();
-                                        let track_info = desktop_integration::MprisTrackInfo {
-                                            title: queue_item.title.clone(),
-                                            artist: queue_item.artist.clone(),
-                                            album: queue_item.album.clone().unwrap_or_default(),
-                                            duration_ms: queue_item.duration_ms,
-                                            art_url: None,
-                                        };
-                                        rt.spawn(async move {
-                                            m_clone.update_track(track_info).await;
-                                            m_clone.update_playback_status(PlaybackState::Paused).await;
-                                        });
-                                    }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Jeśli nie przywrócono żadnego utworu ze sesji (nowy użytkownik lub pusta sesja)
+                // i w bibliotece nie ma żadnych utworów, przygotuj domyślny utwór testowy "Skrzydła Białe":
+                if engine.current_queue_item().is_none() {
+                    let track_count = rt.block_on(async {
+                        db.list_tracks().await.map(|t| t.len()).unwrap_or(0)
+                    });
+                    if track_count == 0 {
+                        if let Some(sample) = resolve_or_extract_sample_track(&data_dir) {
+                            tracing::info!(
+                                "Brak utworów w bibliotece — załadowano domyślny utwór testowy: {} ({})",
+                                sample.title,
+                                sample.artist
+                            );
+                            let queue_item = QueueItem {
+                                id: "default-sample-track-skrzydla-biale".to_string(),
+                                track_id: None,
+                                uri: sample.path.clone(),
+                                title: sample.title.clone(),
+                                artist: sample.artist.clone(),
+                                album: sample.album.clone(),
+                                duration_ms: sample.duration_ms,
+                            };
+                            engine.set_active_item(queue_item.clone());
+                            if let Err(e) = engine.load_uri(&sample.path) {
+                                tracing::warn!("Nie udało się załadować utworu testowego do potoku: {}", e);
+                            }
+
+                            if let Some(ref m) = mpris {
+                                let m_clone = m.clone();
+                                let track_info = desktop_integration::MprisTrackInfo {
+                                    title: queue_item.title.clone(),
+                                    artist: queue_item.artist.clone(),
+                                    album: queue_item.album.clone().unwrap_or_default(),
+                                    duration_ms: queue_item.duration_ms,
+                                    art_url: None,
+                                };
+                                rt.spawn(async move {
+                                    m_clone.update_track(track_info).await;
+                                    m_clone.update_playback_status(PlaybackState::Paused).await;
+                                });
                             }
                         }
                     }
@@ -5640,6 +5818,8 @@ pub fn run() {
             set_equalizer_bands,
             set_equalizer_enabled,
             set_equalizer_params,
+            set_equalizer_preamp,
+            apply_auto_eq_profile,
             get_equalizer_presets,
             get_parametric_eq_state,
             set_parametric_eq_state,
@@ -5683,6 +5863,7 @@ pub fn run() {
             pick_custom_file,
             open_containing_folder,
             open_external_url,
+            get_sample_track,
             get_app_version,
             get_library_tracks,
             get_library_albums,

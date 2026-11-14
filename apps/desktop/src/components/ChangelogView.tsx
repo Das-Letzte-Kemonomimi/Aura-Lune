@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, Wrench, Tag, User, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Wrench, Tag, User, Calendar, History } from 'lucide-react';
 import type { Language } from '../i18n';
 
 interface ChangelogViewProps {
@@ -18,11 +18,78 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.0.8',
+    codename: 'Harmonic Resonance & Ultra-Wide Canvas',
+    date: '2026-11-14',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Skalowanie interfejsu (UI Scale 100%-130%) oraz obsługa szerokich monitorów (Ultra Wide Layout) z dynamiczną szerokością kontenerów, szybkim przełącznikiem w nagłówku i skrótami Ctrl +/-, Ctrl 0.',
+        en: 'UI scaling (100%-130%) and Ultra Wide Layout support with dynamic container max-width, quick header switcher, and shortcuts Ctrl +/-, Ctrl 0.',
+        de: 'UI-Skalierung (100%-130%) und Ultra-Wide-Layout mit dynamischer Containerbreite, Schnellwahlschalter in der Kopfzeile und Tastenkürzeln Ctrl +/-, Ctrl 0.',
+        fi: 'Käyttöliittymän skaalaus (100%-130%) ja ultraleveiden näyttöjen tuki dynaamisella leveydellä, pikavalitsimella ja pikanäppäimillä Ctrl +/-, Ctrl 0.',
+        la: 'Scansionis interfaciei (100%-130%) et latorum monitoriorum accommodatio cum latitudine dynamica et clavibus Ctrl +/-, Ctrl 0.',
+      },
+      {
+        pl: 'Domyślny utwór startowy „Skrzydła Białe” (Das Letzte Kemonomimi) dla nowo zainstalowanej, czystej biblioteki z natychmiastowym odsłuchem i testem efektów DSP.',
+        en: 'Default starter track "Skrzydła Białe" (Das Letzte Kemonomimi) for newly installed empty libraries with instant playback and DSP testing.',
+        de: 'Standard-Starttitel „Skrzydła Białe“ für leere Musikbibliotheken zum sofortigen Testen von DSP-Effekten.',
+        fi: 'Oletuskappale "Skrzydła Białe" puhtaalle musiikkikirjastolle välitöntä toistoa ja DSP-kokeilua varten.',
+        la: 'Carmen inaugurale "Skrzydła Białe" pro nova bibliotheca ad sonum et effectus DSP statim probandos.',
+      },
+      {
+        pl: 'Dynamiczny podgląd tonacji muzycznej Camelot Wheel oraz tempa BPM w czasie rzeczywistym pod suwakami Pitch Shift, Tempo i Playback Speed.',
+        en: 'Real-time Camelot Wheel key and BPM preview directly beneath Pitch Shift, Tempo, and Playback Speed sliders.',
+        de: 'Echtzeit-Anzeige der musikalischen Tonart (Camelot-Rad) und des BPM-Tempos unter den DSP-Schiebereglern.',
+        fi: 'Reaaliaikainen Camelot Wheel -sävellajin ja BPM-tempon esikatselu suoraan DSP-liukusäätimien alla.',
+        la: 'Conspectus clavis musicae Camelot et BPM sub vectibus DSP in tempore reali.',
+      },
+      {
+        pl: 'Opcja wyłączenia podświetlenia przycisków (Hover Glow) w ustawieniach motywów.',
+        en: 'Option to disable button hover glow effects in theme settings.',
+        de: 'Option zum Deaktivieren von Schaltflächen-Hover-Glow in den Design-Einstellungen.',
+        fi: 'Mahdollisuus kytkeä painikkeiden hehku (Hover Glow) pois päältä teema-asetuksissa.',
+        la: 'Optio ad splendorem pilleorum (Hover Glow) avertendum in rationibus thematum.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Wykrywanie i parsowanie kluczy molowych (D m, A min, F# m) w asystencie DJ i miksowaniu harmonicznym z pełną synchronizacją z analizatorem Key & BPM.',
+        en: 'Minor musical key detection and parsing (D m, A min, F# m) in Harmonic DJ assistant with full synchronization with Key & BPM analyzer.',
+        de: 'Erkennung von Moll-Tonarten im DJ-Harmonic-Assistenten mit vollständiger Synchronisation zum Key & BPM-Analysator.',
+        fi: 'Mollisävellajien tunnistus ja jäsennys DJ-miksausavustimessa täydellä synkronoinnilla analysoijan kanssa.',
+        la: 'Agnitio et interpretatio clavium minorum in adiutore DJ cum plena congruentia.',
+      },
+      {
+        pl: 'Automatyczna aktywacja i pełna responsywność 10-pasmowego korektora EQ oraz bezpośrednie aplikowanie profili AutoEQ z kompensacją preampu.',
+        en: 'Automatic activation and responsive live control for 10-band equalizer and direct AutoEQ headphone profile application with preamp gain compensation.',
+        de: 'Automatische Aktivierung des 10-Band-Equalizers und direktes Anwenden von AutoEQ-Kopfhörerprofilen mit Vorverstärker-Kompensation.',
+        fi: '10-kaistaisen taajuuskorjaimen automaattinen aktivointi ja AutoEQ-kuulokeprofiilien suora käyttö esivahvistinkompensoinnilla.',
+        la: 'Automatica aequatoris 10-zonarum activatio et profilium AutoEQ adhibitio cum compensatione praeamplificatoris.',
+      },
+      {
+        pl: 'Eliminacja rwania dźwięku przy eksporcie DSP (Transcoder / dsp_node) dzięki buforowi queue_enc i ścisłej rachubie offsetów ramek.',
+        en: 'Elimination of audio stutter in DSP transcode export via queue_enc buffer and rigorous frame offset tracking.',
+        de: 'Beseitigung von Audio-Rucklern beim DSP-Export durch queue_enc-Puffer und exakte Frame-Offset-Berechnung.',
+        fi: 'Äänen pätkimisen poisto DSP-transkoodauksessa queue_enc-puskurin ja kehyssiirtymälaskennan ansiosta.',
+        la: 'Remotio interrupti soni in exportatione DSP per queue_enc et calculum exactum.',
+      },
+      {
+        pl: 'Wznawianie zapamiętanej pozycji po uruchomieniu aplikacji oraz natychmiastowe odtwarzanie po pojedynczym kliknięciu w kolejce.',
+        en: 'Resuming saved playback position on app launch and single-click immediate playback in the queue.',
+        de: 'Wiederaufnahme der gespeicherten Wiedergabeposition beim Start und sofortige Wiedergabe per Einzelklick in der Warteschlange.',
+        fi: 'Tallennetun toistokohdan palautus sovelluksen käynnistyessä ja toisto yhdellä napsautuksella jonossa.',
+        la: 'Repetitio loci memoriae in initio et auditio statim uno ictu in ordine.',
+      },
+    ],
+  },
+  {
     version: '1.0.7',
     codename: 'PipeWire Pulse Ring-Buffer & Zero-Stutter Pipeline',
     date: '2026-11-08',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [],
     fixed: [
       {
@@ -1558,6 +1625,8 @@ const RELEASES: ChangelogRelease[] = [
 const LATEST_RELEASE = RELEASES.find((r) => r.isLatest) || RELEASES[0];
 
 export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl' }) => {
+  const [visibleCount, setVisibleCount] = useState(5);
+
   const getLocText = (obj: { pl: string; en: string; de: string; fi: string; la: string }) => {
     return obj[currentLang] || obj.pl || obj.en;
   };
@@ -1671,7 +1740,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
       </div>
 
       {/* Lista wydań */}
-      {RELEASES.map((rel) => (
+      {RELEASES.slice(0, visibleCount).map((rel) => (
         <div
           key={rel.version}
           className="glass-card"
@@ -1790,6 +1859,34 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
           </div>
         </div>
       ))}
+
+      {/* Przycisk doczytywania starszych wydań */}
+      {visibleCount < RELEASES.length && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px', marginBottom: '20px' }}>
+          <button
+            onClick={() => setVisibleCount((prev) => prev + 5)}
+            className="glass-card"
+            style={{
+              padding: '10px 24px',
+              borderRadius: '12px',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              background: 'rgba(168, 85, 247, 0.2)',
+              border: '1px solid var(--accent-purple)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <History size={16} color="var(--accent-purple)" />
+            {currentLang === 'pl'
+              ? `Pokaż starsze wydania (${RELEASES.length - visibleCount} pozostało)`
+              : `Load more releases (${RELEASES.length - visibleCount} remaining)`}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

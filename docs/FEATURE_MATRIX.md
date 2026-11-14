@@ -1,4 +1,4 @@
-# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.0.7)
+# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.0.8)
 
 > **OBOWIĄZKOWA INSTRUKCJA DLA KAŻDEGO AGENTA I PROGRAMISTY:**
 > 1. **ZAWSZE przed proponowaniem nowych funkcji, planowaniem roadmapy lub refaktoryzacją PRZECZYTAJ TEN PLIK**, aby nigdy nie sugerować i nie dublować funkcji, które są już wdrożone w kodzie.
@@ -63,15 +63,16 @@
 
 ## 4. 🎚️ Korekcja Brzmienia, Akustyka & Studio Dynamiki
 - [x] **10-Pasmowy Korektor Graficzny (Graphic EQ)**:
-  - 10 suwaków od 31 Hz do 16 kHz (-12 dB do +12 dB) z autostartem i bypass.
-  - Presety fabryczne: *Flat*, *Bass Boost*, *Electronic/Dance*, *Classical/Acoustic*, *Vocal Clarity*.
+  - 10 suwaków od 31 Hz do 16 kHz (-24 dB do +12 dB) z autostartem, dynamicznym bypassem i natychmiastową aktywacją w locie bez blokowania suwaków.
+  - Presety fabryczne: *Flat*, *Anime OST / Clear Voice*, *Mocny Bass (Bass Boost)*, *Elektroniczna / Dance*, *Rock*, *Pop*, *Klasyczna / Akustyczna*.
+  - Zintegrowany przedwzmacniacz (Preamp Gain) chroniący przed przesterowaniem.
 - [x] **Wielopasmowy Korektor Parametryczny (PEQ Studio - `ParametricEqModal`)**:
   - Do 32 w pełni parametrycznych pasm (filtry Peak, Low Shelf, High Shelf z dobrocią $Q$).
   - Bezpieczny Headroom / Safe Preamp Protection chroniący przed przesterowaniem cyfrowym (clippingiem).
   - Interaktywny wykres odpowiedzi częstotliwościowej SVG z przeciąganiem węzłów (35 ms throttle).
   - **Parser i eksporter profili EqualizerAPO / AutoEQ** w formacie `.txt`.
 - [x] **Baza Profili Słuchawkowych AutoEQ (`AutoEqModal`)**:
-  - Wbudowana baza gotowych profili kompensacyjnych dla setek modeli słuchawek (Harman Target, Crinacle, Rtings, Oratory1990) aplikowana w 1 kliknięcie.
+  - Wbudowana baza gotowych profili kompensacyjnych dla 160+ modeli słuchawek (Harman Target, Moondrop, Sennheiser, Sony, Beyerdynamic, Hifiman, Apple, Truthear itp.) aplikowana w 1 kliknięcie z automatyczną kompensacją Preamp.
 - [x] **Studio Dynamiki (`DynamicsStudioModal`)**:
   - **Kompresor audio**: Próg (Threshold), Współczynnik (Ratio 1:1 do 20:1), Miękkie kolano (Soft Knee), Wzmocnienie wyjściowe (Makeup Gain) z wizualną krzywą transferu.
   - **Saturator lampowy/taśmowy**: Tryby *Tube Warmth*, *Tape Saturation*, *Overdrive* z regulacją Drive, Warmth i Dry/Wet mix.
@@ -122,8 +123,10 @@
   - Ulubione, Ostatnio odtwarzane, Najczęściej odtwarzane, Pliki Hi-Res (24-bit / 96kHz+).
 - [x] **Formaty playlist**:
   - Pełny import i eksport playlist w standardzie M3U / M3U8 (`export_playlist_m3u8`, `import_playlist_m3u8`).
-- [x] **Wyszukiwarka Duplikatów (`DuplicateFinderModal`)**:
-  - Wyszukiwanie zduplikowanych plików po metadanych i sygnaturach plików.
+- [x] **Wyszukiwarka Duplikatów (`DuplicateFinderModal`) & Szybki Filtr Duplikatów w Bibliotece**:
+  - Wyszukiwanie zduplikowanych plików po metadanych i sygnaturach plików oraz przełącznik w pasku narzędzi biblioteki do natychmiastowego ukrywania zduplikowanych pozycji.
+- [x] **Natywny Drag & Drop plików i folderów z menedżera pulpitu**:
+  - Przeciąganie pojedynczych utworów i całych folderów bezpośrednio z okna menedżera plików (Dolphin, Nautilus, Thunar) z natychmiastowym wczytaniem i odtwarzaniem.
 
 ---
 
@@ -148,6 +151,8 @@
 ---
 
 ## 8. ⏱️ Narzędzia Odsłuchu & Tryby Playera
+- [x] **Domyślny Utwór Startowy „Skrzydła Białe” (Das Letzte Kemonomimi) dla Nowej/Pustej Biblioteki**:
+  - Automatyczne ładowanie i wyświetlanie autorskiego utworu testowego (FLAC 24-bit/44.1 kHz, 56.8s) przy pustej bibliotece użytkownika w odtwarzaczu głównym, gramofonie i mini-playerze, z gotowością do natychmiastowego odsłuchu i testu DSP. Utwór nie zanieczyszcza bazy SQLite, a po dodaniu własnych plików przez użytkownika aplikacja natychmiast przełącza się na jego utwory.
 - [x] **Precyzyjny Edytor Pętli A-B (`LoopEditorModal`)**:
   - Pętla dowolnego fragmentu utworu z dokładnością do 1 milisekundy, przyciskami nudgowania i podglądem fali.
 - [x] **Wielopunktowe Zakładki (`TrackBookmarksModal`)**:
@@ -230,8 +235,13 @@
   - Wgrywanie dowolnych grafik z dysku z automatycznym zabezpieczeniem kontrastu tekstu (przyciemnienie, gradient overlay).
 - [x] **Anime Ambience FX (`AnimeAmbienceFX`)**:
   - Konfigurowalne efekty cząsteczkowe na canvasie: opadające płatki sakury, świetliki, śnieg, deszcz.
-- [x] **Wymienne style ikon aplikacji**:
+- [x] **Wymienne style ikon aplikacji & Konfigurowalne efekty kursorowe (Hover Glow)**:
   - Przełącznik ikony: Styl klasyczny (*Classic Icon*) vs Styl neonowy (*Lineout Neon*).
+  - Opcjonalny przełącznik w Ustawieniach do wyłączenia rozjaśniania i poświaty przycisków po najechaniu kursorem (Hover Glow / Spotlight).
+- [x] **Skalowanie interfejsu (UI Scale) & Wsparcie szerokich monitorów (Ultra Wide Layout)**:
+  - 4-stopniowy wybór skali interfejsu (100% Standard, 110% Komfortowy, 120% Duży, 130% Maksymalny/Ultra Wide) z płynnym powiększaniem elementów, czcionek i widżetów.
+  - Dynamiczna szerokość robocza kontenerów (od 1500px do 2350px / 98.5vw) eliminująca puste przestrzenie po bokach na ekranach Full HD, 2K, 4K i ultrawide.
+  - Szybki przełącznik skali w nagłówku aplikacji oraz skróty klawiszowe (`Ctrl + +`, `Ctrl + -`, `Ctrl + 0`).
 - [x] **Wersjonowane Motywy JSON**:
   - Import, eksport i zapisywanie własnych palet kolorystycznych i stylów akcentu.
 

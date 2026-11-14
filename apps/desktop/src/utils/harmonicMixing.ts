@@ -83,20 +83,19 @@ export const CAMELOT_KEY_MAP: Record<string, CamelotKey> = {
 };
 
 /**
- * Parsuje kod Camelot (np. "8A", "11B") lub standardową notację (np. "Am", "C Maj")
+ * Parsuje kod Camelot (np. "8A", "11B") lub standardową notację (np. "Am", "A m", "A min", "C Maj", "F# m")
  */
 export function parseCamelotKey(raw?: string | null): CamelotKey | null {
   if (!raw) return null;
   const s = raw.trim();
   if (!s) return null;
 
-  // Sprawdź kod Camelot (np. 8A, 12B)
-  const match = s.match(/^(\d{1,2})\s*([ABab])$/);
-  if (match) {
-    const num = parseInt(match[1], 10);
-    const letter = match[2].toUpperCase() as 'A' | 'B';
+  // 1. Sprawdź kod Camelot (np. 8A, 12B, 11a, 4b)
+  const camelotMatch = s.match(/^(\d{1,2})\s*([ABab])$/);
+  if (camelotMatch) {
+    const num = parseInt(camelotMatch[1], 10);
+    const letter = camelotMatch[2].toUpperCase() as 'A' | 'B';
     if (num >= 1 && num <= 12) {
-      // Odtwórz nazwę klucza
       for (const val of Object.values(CAMELOT_KEY_MAP)) {
         if (val.number === num && val.letter === letter) {
           return { number: num, letter, raw: `${num}${letter}`, keyName: val.keyName };
@@ -106,16 +105,82 @@ export function parseCamelotKey(raw?: string | null): CamelotKey | null {
     }
   }
 
-  // Wyszukaj po notacji literowej
-  const clean = s.replace(/maj(or)?/i, '').replace(/min(or)?/i, 'm').trim();
-  if (CAMELOT_KEY_MAP[clean]) {
-    return CAMELOT_KEY_MAP[clean];
+  // 2. Normalizacja standardowej notacji (np. "A min", "A m", "Am", "C Maj", "F# m", "F# minor", "Bb moll")
+  const upper = s.toUpperCase();
+  const isMinor =
+    upper.includes('MIN') ||
+    upper.includes('MOLL') ||
+    (upper.includes('M') && !upper.includes('MAJ') && !upper.includes('DUR'));
+
+  // Wyciągnij prymę (nutę bazową, np. "C", "C#", "Db", "F#", "Bb", itp.)
+  const noteMatch = s.match(/^([A-Ga-g][#b]?)/);
+  if (!noteMatch) return null;
+
+  // Ujednolić wielkość liter nuty: pierwsza duża, druga (krzyżyk lub bemol) mała/#
+  let rootNote = noteMatch[1].charAt(0).toUpperCase();
+  if (noteMatch[1].length > 1) {
+    rootNote += noteMatch[1].charAt(1) === 'b' || noteMatch[1].charAt(1) === 'B' ? 'b' : '#';
   }
-  if (CAMELOT_KEY_MAP[s]) {
-    return CAMELOT_KEY_MAP[s];
+
+  const lookupKey = isMinor ? `${rootNote}m` : rootNote;
+  if (CAMELOT_KEY_MAP[lookupKey]) {
+    return CAMELOT_KEY_MAP[lookupKey];
+  }
+
+  // Fallback: bezpośrednie wyszukanie bez spacji
+  const noSpaces = s.replace(/\s+/g, '');
+  if (CAMELOT_KEY_MAP[noSpaces]) {
+    return CAMELOT_KEY_MAP[noSpaces];
   }
 
   return null;
+}
+
+/**
+ * Oblicza tonację po transpozycji o zadaną liczbę półtonów (w tym ułamkowych).
+ */
+export function getTransposedKey(
+  baseKeyStr?: string | null,
+  semitonesDelta: number = 0
+): { camelot: string; keyName: string; centsOffset: number } | null {
+  const base = parseCamelotKey(baseKeyStr);
+  if (!base) return null;
+
+  const roundedSt = Math.round(semitonesDelta);
+  const centsOffset = Math.round((semitonesDelta - roundedSt) * 100);
+
+  const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const match = base.keyName.match(/^([A-Ga-g][#b]?)/);
+  if (!match) return null;
+
+  let root = match[1].charAt(0).toUpperCase();
+  if (match[1].length > 1) {
+    root += match[1].charAt(1) === 'b' || match[1].charAt(1) === 'B' ? 'b' : '#';
+  }
+
+  const FLAT_TO_SHARP: Record<string, string> = {
+    'Db': 'C#',
+    'Eb': 'D#',
+    'Gb': 'F#',
+    'Ab': 'G#',
+    'Bb': 'A#',
+  };
+  const normalizedRoot = FLAT_TO_SHARP[root] || root;
+  const rootIndex = CHROMATIC_NOTES.indexOf(normalizedRoot);
+  if (rootIndex === -1) return null;
+
+  const isMinor = base.letter === 'A';
+  const newRootIndex = ((rootIndex + roundedSt) % 12 + 12) % 12;
+  const newRoot = CHROMATIC_NOTES[newRootIndex];
+
+  const lookupKey = isMinor ? `${newRoot}m` : newRoot;
+  const mapped = CAMELOT_KEY_MAP[lookupKey];
+
+  return {
+    camelot: mapped ? mapped.raw : base.raw,
+    keyName: mapped ? mapped.keyName : `${newRoot} ${isMinor ? 'min' : 'Maj'}`,
+    centsOffset,
+  };
 }
 
 /**

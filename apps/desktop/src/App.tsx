@@ -91,7 +91,7 @@ import { TapeDeckWidget, type TapeType } from './components/TapeDeckWidget';
 import { AnalogLoFiModal } from './components/AnalogLoFiModal';
 import { AudioPathInspectorModal } from './components/AudioPathInspectorModal';
 import { AudioHealthCheckModal } from './components/AudioHealthCheckModal';
-import { evaluateHarmonicMatch } from './utils/harmonicMixing';
+import { evaluateHarmonicMatch, getTransposedKey } from './utils/harmonicMixing';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { LyricsView } from './components/LyricsView';
 import { DesktopLyricsOverlay } from './components/DesktopLyricsOverlay';
@@ -351,8 +351,17 @@ interface ScanSummaryDto {
   errors: number;
 }
 
+interface SampleTrackDto {
+  path: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  duration_ms: number;
+  genre: string | null;
+}
+
 export default function App() {
-  const [filePath, setFilePath] = useState('tests/fixtures/test_sine_440hz.wav');
+  const [filePath, setFilePath] = useState('');
   const [status, setStatus] = useState<PlaybackStatus>({
     state: 'Stopped',
     position_ms: 0,
@@ -609,6 +618,13 @@ export default function App() {
         localStorage.setItem('auralune_crossfeed_fcut', targetFcut.toString());
         localStorage.setItem('auralune_crossfeed_feed', targetFeed.toString());
       } catch (_) { }
+      showMessage(
+        enabled
+          ? (language === 'pl'
+              ? `Włączono Crossfeed: ${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`
+              : `Crossfeed active: ${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`)
+          : (language === 'pl' ? 'Wyłączono Crossfeed (Bypass)' : 'Crossfeed disabled (Bypass)')
+      );
     } catch (e: any) {
       console.error('Błąd aktualizacji Crossfeed:', e);
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
@@ -828,6 +844,89 @@ export default function App() {
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
   const [showDownloadHub, setShowDownloadHub] = useState<boolean>(false);
 
+  // Skala interfejsu użytkownika i szerokość robocza układu (UI Scale & Layout Width)
+  const [uiScale, setUiScale] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_ui_scale');
+      if (saved) {
+        const parsed = parseFloat(saved);
+        if (!isNaN(parsed) && parsed >= 0.85 && parsed <= 1.45) {
+          return parsed;
+        }
+      }
+    } catch { }
+    return 1.0;
+  });
+
+  useEffect(() => {
+    try {
+      document.documentElement.style.zoom = String(uiScale);
+      document.documentElement.style.setProperty('--ui-scale', String(uiScale));
+      localStorage.setItem('auralune_ui_scale', String(uiScale));
+    } catch (e) {
+      console.warn('Błąd aplikacji skali interfejsu:', e);
+    }
+  }, [uiScale]);
+
+  const layoutMaxWidth = useMemo(() => {
+    if (uiScale >= 1.28) return 'min(2350px, 98.5vw)';
+    if (uiScale >= 1.18) return 'min(2050px, 98vw)';
+    if (uiScale >= 1.08) return 'min(1780px, 96.5vw)';
+    return 'min(1500px, 95vw)';
+  }, [uiScale]);
+
+  const handleSelectScale = (scale: number) => {
+    setUiScale(scale);
+    const label =
+      scale >= 1.28
+        ? (language === 'pl' ? '130% (Maksymalny / Szeroki)' : '130% (Ultra Wide)')
+        : scale >= 1.18
+          ? (language === 'pl' ? '120% (Duży)' : '120% (Large)')
+          : scale >= 1.08
+            ? (language === 'pl' ? '110% (Komfortowy / Powiększony)' : '110% (Comfortable)')
+            : (language === 'pl' ? '100% (Standardowy)' : '100% (Standard)');
+    showMessage(language === 'pl' ? `Skala interfejsu: ${label}` : `UI Scale: ${label}`);
+  };
+
+  const handleIncreaseScale = () => {
+    setUiScale((prev) => {
+      let next = 1.0;
+      if (prev < 1.08) next = 1.10;
+      else if (prev < 1.18) next = 1.20;
+      else if (prev < 1.28) next = 1.30;
+      else next = 1.30;
+      const label =
+        next >= 1.28
+          ? (language === 'pl' ? '130% (Maksymalny / Szeroki)' : '130% (Ultra Wide)')
+          : next >= 1.18
+            ? (language === 'pl' ? '120% (Duży)' : '120% (Large)')
+            : (language === 'pl' ? '110% (Komfortowy / Powiększony)' : '110% (Comfortable)');
+      showMessage(language === 'pl' ? `Skala interfejsu: ${label}` : `UI Scale: ${label}`);
+      return next;
+    });
+  };
+
+  const handleDecreaseScale = () => {
+    setUiScale((prev) => {
+      let next = 1.0;
+      if (prev > 1.25) next = 1.20;
+      else if (prev > 1.15) next = 1.10;
+      else next = 1.0;
+      const label =
+        next >= 1.18
+          ? (language === 'pl' ? '120% (Duży)' : '120% (Large)')
+          : next >= 1.08
+            ? (language === 'pl' ? '110% (Komfortowy / Powiększony)' : '110% (Comfortable)')
+            : (language === 'pl' ? '100% (Standardowy)' : '100% (Standard)');
+      showMessage(language === 'pl' ? `Skala interfejsu: ${label}` : `UI Scale: ${label}`);
+      return next;
+    });
+  };
+
+  const handleResetScale = () => {
+    handleSelectScale(1.0);
+  };
+
   // Zachowanie odtwarzania albumów i playlist (Autoplay & Kolejka)
   const [albumPlaybackMode, setAlbumPlaybackMode] = useState<AlbumPlaybackBehavior>(() => {
     try {
@@ -871,6 +970,7 @@ export default function App() {
   // Płynny Crossfade & Zaawansowane efekty DSP (Poweramp)
   const [crossfadeDuration, setCrossfadeDuration] = useState<number>(1500);
   const [bassBoost, setBassBoost] = useState<number>(0);
+  const lastBassBoostRef = useRef<number>(6.0);
   const [stereoWidenerActive, setStereoWidenerActive] = useState<boolean>(false);
   const [stereoWidenerAmount, setStereoWidenerAmount] = useState<number>(0.15);
   const [limiterEnabled, setLimiterEnabled] = useState<boolean>(true);
@@ -903,7 +1003,33 @@ export default function App() {
   });
   const [instantVolume, setInstantVolume] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('auralune_instant_volume') === 'true';
+      return localStorage.getItem('auralune_instant_volume') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  // Opcja podświetlenia kursorowego przycisków (Hover glow)
+  const [buttonGlowEnabled, setButtonGlowEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('auralune_button_glow_enabled');
+      return saved !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    document.body.classList.toggle('disable-button-glow', !buttonGlowEnabled);
+    try {
+      localStorage.setItem('auralune_button_glow_enabled', String(buttonGlowEnabled));
+    } catch { }
+  }, [buttonGlowEnabled]);
+
+  // Opcja ukrywania duplikatów utworów w bibliotece
+  const [hideDuplicates, setHideDuplicates] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('auralune_hide_duplicates') === 'true';
     } catch {
       return false;
     }
@@ -1000,6 +1126,7 @@ export default function App() {
   const [sleepTimerFadeOut, setSleepTimerFadeOut] = useState(true);
   const preFadeVolumeRef = useRef<number | null>(null);
   const lastTrackUriRef = useRef<string | null>(null);
+  const initialStartupPositionRef = useRef<number | null>(null);
 
   // Stan kolejki odtwarzania (Etap 7)
   const [queue, setQueue] = useState<PlaybackQueue>({
@@ -1373,7 +1500,19 @@ export default function App() {
   const filteredTracks = useMemo(() => {
     const rawQ = librarySearch.trim();
     const q = normalizeStr(rawQ);
+    const seenTrackKeys = new Set<string>();
+
     return tracks.filter((t) => {
+      // Filtr powtarzających się duplikatów utworów
+      if (hideDuplicates) {
+        const normTitle = (t.title || '').trim().toLowerCase();
+        const normArtist = (t.artist || '').trim().toLowerCase();
+        const durSec = Math.round((t.duration_ms || 0) / 1000);
+        const dupKey = t.path ? `path:${t.path}` : `meta:${normTitle}:${normArtist}:${durSec}`;
+        if (seenTrackKeys.has(dupKey)) return false;
+        seenTrackKeys.add(dupKey);
+      }
+
       const formatLower = (t.format || '').toLowerCase();
 
       // Filtr formatów
@@ -1486,6 +1625,7 @@ export default function App() {
     facetSelectedFormat,
     facetSelectedArtist,
     facetSelectedAlbumId,
+    hideDuplicates,
   ]);
 
   const filteredAlbums = useMemo(() => {
@@ -1728,6 +1868,120 @@ export default function App() {
     return null;
   }, [albums, currentPlayingTrack, status.current_track?.album, status.current_track?.artist]);
 
+  // Dynamiczna tonacja bazowa i BPM dla odtwarzanego utworu (z pamięcią podręczną)
+  const activeTrackKeyBpm = useMemo(() => {
+    let key = currentPlayingTrack?.initial_key || tracks.find((t) => t.path === status.current_track?.uri)?.initial_key || null;
+    let bpm = currentPlayingTrack?.bpm || tracks.find((t) => t.path === status.current_track?.uri)?.bpm || null;
+
+    if (!key || !bpm) {
+      const cacheId = currentPlayingTrack?.id ? `auralune_track_key_bpm_${currentPlayingTrack.id}` : null;
+      const cacheUri = currentPlayingTrack?.path ? `auralune_track_key_bpm_${currentPlayingTrack.path}` : (status.current_track?.uri ? `auralune_track_key_bpm_${status.current_track.uri}` : null);
+      const stored = (cacheId && localStorage.getItem(cacheId)) || (cacheUri && localStorage.getItem(cacheUri));
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (!key && typeof parsed.baseKeyIndex === 'number') {
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const note = notes[parsed.baseKeyIndex] || 'C';
+            key = parsed.isMinor ? `${note}m` : `${note} Maj`;
+          }
+          if (!bpm && typeof parsed.baseBpm === 'number') {
+            bpm = parsed.baseBpm;
+          }
+        } catch {}
+      }
+    }
+    return { key, bpm };
+  }, [currentPlayingTrack, tracks, status.current_track?.uri]);
+
+  // Obliczenie łącznego wpływu parametrów DSP (RubberBand / SoundTouch + Playback Rate)
+  const dspCombination = useMemo(() => {
+    const pitchSt = status.pitch_semitones ?? 0.0;
+    const tempoRatio = status.tempo_ratio ?? 1.0;
+    const rateRatio = status.rate_ratio ?? 1.0;
+    const engine = status.engine || 'RubberBand';
+
+    // Przeliczenie wpływu Playback Rate na tonację w półtonach: 12 * log2(rate)
+    const rateSemitones = 12 * Math.log2(Math.max(0.01, rateRatio));
+    // Łączna transpozycja w półtonach (Pitch Shift silnika + zmiana wynikająca z prędkości odtwarzania)
+    const totalPitchSemitones = Math.round((pitchSt + rateSemitones) * 100) / 100;
+    // Łączna prędkość (Tempo Time-Stretch * Prędkość Playback Rate)
+    const totalSpeedRatio = Math.round(tempoRatio * rateRatio * 1000) / 1000;
+
+    // Wyznaczenie łącznej tonacji na kole Camelota (z uwzględnieniem pitch i rate)
+    const totalKey = activeTrackKeyBpm.key
+      ? getTransposedKey(activeTrackKeyBpm.key, totalPitchSemitones)
+      : null;
+
+    // Wyznaczenie łącznego tempa w BPM (z uwzględnieniem tempo i rate)
+    const totalBpm = activeTrackKeyBpm.bpm
+      ? Math.round(activeTrackKeyBpm.bpm * totalSpeedRatio * 10) / 10
+      : null;
+
+    const hasPitch = Math.abs(pitchSt) > 0.005;
+    const hasTempo = Math.abs(tempoRatio - 1.0) > 0.005;
+    const hasRate = Math.abs(rateRatio - 1.0) > 0.005;
+    const isCombined = (hasPitch ? 1 : 0) + (hasTempo ? 1 : 0) + (hasRate ? 1 : 0) > 1;
+
+    return {
+      pitchSt,
+      tempoRatio,
+      rateRatio,
+      rateSemitones,
+      totalPitchSemitones,
+      totalSpeedRatio,
+      totalKey,
+      totalBpm,
+      hasPitch,
+      hasTempo,
+      hasRate,
+      isCombined,
+      engine,
+    };
+  }, [status.pitch_semitones, status.tempo_ratio, status.rate_ratio, status.engine, activeTrackKeyBpm]);
+
+  // Tekst plakietki statusowej dla gramofonu (Vinyl Turntable) i magnetofonu (Tape Deck)
+  const dspBadgeText = useMemo(() => {
+    if (status.engine === 'Bypass') return 'Bypass';
+    const { engine, hasPitch, hasTempo, hasRate, totalSpeedRatio, totalPitchSemitones, tempoRatio, pitchSt, rateRatio, rateSemitones } = dspCombination;
+
+    if (!hasPitch && !hasTempo && !hasRate) {
+      return `${engine} 1.00x`;
+    }
+    // Tylko tempo jest zmienione
+    if (hasTempo && !hasPitch && !hasRate) {
+      return `${engine} ${tempoRatio.toFixed(2)}x`;
+    }
+    // Tylko pitch jest zmieniony
+    if (hasPitch && !hasTempo && !hasRate) {
+      return `${engine} ${pitchSt > 0 ? `+${pitchSt.toFixed(2)}` : pitchSt.toFixed(2)}st`;
+    }
+    // Tylko prędkość taśmy/płyty (rate) jest zmieniona
+    if (hasRate && !hasTempo && !hasPitch) {
+      return `Rate ${rateRatio.toFixed(2)}x (${rateSemitones > 0 ? `+${rateSemitones.toFixed(2)}` : rateSemitones.toFixed(2)}st)`;
+    }
+    // Kombinacja (np. tempo + pitch, tempo + rate, pitch + rate, lub wszystkie trzy):
+    const pitchStr = Math.abs(totalPitchSemitones) > 0.005 ? `${totalPitchSemitones > 0 ? `+${totalPitchSemitones.toFixed(2)}` : totalPitchSemitones.toFixed(2)}st` : '';
+    const speedStr = `${totalSpeedRatio.toFixed(2)}x`;
+    if (pitchStr) {
+      return `${engine} Σ ${speedStr}, ${pitchStr}`;
+    }
+    return `${engine} Σ ${speedStr}`;
+  }, [status.engine, dspCombination]);
+
+  const dspBadgeTitle = useMemo(() => {
+    if (status.engine === 'Bypass') return 'DSP Bypass';
+    const { engine, tempoRatio, pitchSt, rateRatio, rateSemitones, totalSpeedRatio, totalPitchSemitones, totalKey, totalBpm } = dspCombination;
+    let text = `${engine} [T: ${tempoRatio.toFixed(2)}x, P: ${pitchSt >= 0 ? `+${pitchSt.toFixed(2)}` : pitchSt.toFixed(2)}st, R: ${rateRatio.toFixed(2)}x (${rateSemitones >= 0 ? `+${rateSemitones.toFixed(2)}` : rateSemitones.toFixed(2)}st)] → Σ Prędkość: ${totalSpeedRatio.toFixed(2)}x, Σ Wysokość: ${totalPitchSemitones >= 0 ? `+${totalPitchSemitones.toFixed(2)}` : totalPitchSemitones.toFixed(2)}st`;
+    if (totalKey) {
+      text += ` • Tonacja: ${totalKey.camelot} (${totalKey.keyName})`;
+    }
+    if (totalBpm) {
+      text += ` • Tempo: ${totalBpm} BPM`;
+    }
+    return text;
+  }, [status.engine, dspCombination]);
+
   const [trackDirectCover, setTrackDirectCover] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1749,7 +2003,15 @@ export default function App() {
     };
   }, [currentPlayingTrack?.path, filePath, status.current_track?.uri, currentAlbum?.cover_path]);
 
-  const currentCover = currentAlbum?.cover_path || trackDirectCover || null;
+  // Wyznaczenie czytelnego tytułu i wykonawcy z uwzględnieniem radia internetowego (Anime Radio)
+  const isPlayingRadio = Boolean(
+    currentRadioStation ||
+    (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) ||
+    (status.current_track?.uri && (status.current_track.uri.startsWith('http://') || status.current_track.uri.startsWith('https://')))
+  );
+
+  // W trybie radia internetowego czyścimy okładkę poprzedniego utworu lokalnego
+  const currentCover = isPlayingRadio ? null : (currentAlbum?.cover_path || trackDirectCover || null);
 
   const lastMprisSyncRef = useRef<string>('');
 
@@ -1789,13 +2051,6 @@ export default function App() {
     currentCover,
   ]);
 
-  // Wyznaczenie czytelnego tytułu i wykonawcy z uwzględnieniem radia internetowego (Anime Radio)
-  const isPlayingRadio = Boolean(
-    currentRadioStation ||
-    (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) ||
-    (status.current_track?.uri && (status.current_track.uri.startsWith('http://') || status.current_track.uri.startsWith('https://')))
-  );
-
   const cleanLiveTitle = status.live_stream_title && status.live_stream_title.trim() !== '-' && status.live_stream_title.trim() !== ''
     ? status.live_stream_title.trim()
     : null;
@@ -1817,8 +2072,11 @@ export default function App() {
       const candidate = filePath.split('/').pop() || '';
       if (!candidate.startsWith('http')) return candidate;
     }
+    if (tracks.length === 0) {
+      return 'Skrzydła Białe';
+    }
     return loc.player.noTrack;
-  }, [cleanLiveTitle, currentRadioStation?.name, currentPlayingTrack?.title, status.current_track?.title, filePath, loc.player.noTrack]);
+  }, [cleanLiveTitle, currentRadioStation?.name, currentPlayingTrack?.title, status.current_track?.title, filePath, tracks.length, loc.player.noTrack]);
 
   const effectiveDisplayArtist = useMemo(() => {
     if (currentRadioStation?.name) {
@@ -1833,8 +2091,11 @@ export default function App() {
     if (status.current_track?.artist && status.current_track.artist !== 'Unknown Artist') {
       return status.current_track.artist;
     }
+    if (tracks.length === 0 && (!status.current_track?.title || status.current_track.title === 'Skrzydła Białe')) {
+      return 'Das Letzte Kemonomimi';
+    }
     return isPlayingRadio ? 'Anime Radio' : loc.player.unknownArtist;
-  }, [currentRadioStation, cleanLiveTitle, currentPlayingTrack?.artist, status.current_track?.artist, isPlayingRadio, loc.player.unknownArtist]);
+  }, [currentRadioStation, cleanLiveTitle, currentPlayingTrack?.artist, status.current_track?.artist, status.current_track?.title, tracks.length, isPlayingRadio, loc.player.unknownArtist]);
 
   // Wizualizacja przebiegu utworu (Waveform) - deterministyczny profil fali dla bieżącego utworu
   const trackWaveformPeaks = useMemo(() => {
@@ -1977,6 +2238,15 @@ export default function App() {
       try {
         const res = await invoke<PlaybackStatus>('get_status');
         setStatus((prev) => {
+          // Jeśli backend jest w stanie Stopped i posiadamy zapamiętaną pozycję ze startu, zachowujemy ją w UI
+          if (res.state === 'Stopped' && initialStartupPositionRef.current !== null && prev.current_track) {
+            return {
+              ...res,
+              position_ms: initialStartupPositionRef.current,
+              duration_ms: prev.duration_ms || res.duration_ms,
+              current_track: prev.current_track,
+            };
+          }
           if (
             prev.state === res.state &&
             res.state !== 'Playing' &&
@@ -2396,9 +2666,13 @@ export default function App() {
             }
 
             if (trackUri || trackId) {
+              const savedPos = session.position_ms || 0;
+              if (savedPos > 1000) {
+                initialStartupPositionRef.current = savedPos;
+              }
               setStatus((prev) => ({
                 ...prev,
-                position_ms: session.position_ms || 0,
+                position_ms: savedPos,
                 duration_ms: session.duration_ms || prev.duration_ms,
                 engine: session.engine || prev.engine,
                 pitch_semitones: session.pitch_semitones ?? prev.pitch_semitones,
@@ -2603,6 +2877,68 @@ export default function App() {
       setTracks(t);
       const a = await invoke<AlbumRecord[]>('get_library_albums');
       setAlbums(a);
+
+      if (t.length === 0) {
+        // Jeśli biblioteka jest pusta, załaduj domyślny utwór testowy "Skrzydła Białe" (bez dodawania go do bazy biblioteki)
+        try {
+          const sample = await invoke<SampleTrackDto | null>('get_sample_track');
+          if (sample) {
+            setStatus((prev) => {
+              if (prev.current_track?.title && prev.current_track.title !== 'Skrzydła Białe') {
+                return prev;
+              }
+              if (prev.state === 'Playing') return prev;
+              return {
+                ...prev,
+                duration_ms: sample.duration_ms,
+                current_track: {
+                  id: 'default-sample-track-skrzydla-biale',
+                  uri: sample.path,
+                  track_id: null,
+                  title: sample.title,
+                  artist: sample.artist,
+                  album: sample.album,
+                  duration_ms: sample.duration_ms,
+                },
+              };
+            });
+            setFilePath((prev) => prev || sample.path);
+          }
+        } catch (sampleErr) {
+          console.warn('Nie udało się pobrać domyślnego utworu testowego:', sampleErr);
+        }
+      } else {
+        // Użytkownik posiada utwory w bibliotece.
+        // Jeśli aktualny utwór to utwór domyślny demo ("Skrzydła Białe") i nie jest aktywnie odtwarzany,
+        // przełącz widok z demo na pierwszy utwór użytkownika.
+        setStatus((prev) => {
+          const isSampleTrack = !prev.current_track?.track_id && (
+            prev.current_track?.id === 'default-sample-track-skrzydla-biale' ||
+            prev.current_track?.title === 'Skrzydła Białe'
+          );
+          if (isSampleTrack && prev.state !== 'Playing') {
+            const first = t[0];
+            setActiveTrackId(first.id);
+            setFilePath(first.path);
+            invoke('set_active_track', { trackId: first.id }).catch(() => { });
+            return {
+              ...prev,
+              position_ms: 0,
+              duration_ms: first.duration_ms,
+              current_track: {
+                id: `track-${first.id}`,
+                uri: first.path,
+                track_id: first.id,
+                title: first.title,
+                artist: first.artist,
+                album: null,
+                duration_ms: first.duration_ms,
+              },
+            };
+          }
+          return prev;
+        });
+      }
     } catch (e: any) {
       console.warn('Błąd ładowania biblioteki:', e);
     }
@@ -2855,6 +3191,49 @@ export default function App() {
       e.stopPropagation();
       isInternalDragging = false;
       setIsDraggingOver(false);
+
+      const paths: string[] = [];
+      // 1. Sprawdź files z menedżera plików (WebKitGTK udostępnia path na obiekcie File)
+      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          const file = e.dataTransfer.files[i] as any;
+          if (file.path) {
+            paths.push(file.path);
+          }
+        }
+      }
+
+      // 2. Sprawdź text/uri-list (standard w Linux / X11 / Wayland przy przeciąganiu z Nautilus, Dolphin, Thunar)
+      const uriList = e.dataTransfer?.getData('text/uri-list');
+      if (uriList) {
+        const lines = uriList.split(/[\r\n]+/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#')) {
+            if (trimmed.startsWith('file://')) {
+              try {
+                const decoded = decodeURIComponent(new URL(trimmed).pathname);
+                if (decoded && !paths.includes(decoded)) {
+                  paths.push(decoded);
+                }
+              } catch {
+                const plain = decodeURIComponent(trimmed.replace('file://', ''));
+                if (plain && !paths.includes(plain)) {
+                  paths.push(plain);
+                }
+              }
+            } else if (trimmed.startsWith('/')) {
+              if (!paths.includes(trimmed)) {
+                paths.push(trimmed);
+              }
+            }
+          }
+        }
+      }
+
+      if (paths.length > 0) {
+        handleDropPaths(paths);
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -3117,6 +3496,36 @@ export default function App() {
       setTracks(updatedTracks);
       setAlbums(updatedAlbums);
 
+      if (updatedTracks.length > 0) {
+        setStatus((prev) => {
+          const isSampleTrack = !prev.current_track?.track_id && (
+            prev.current_track?.id === 'default-sample-track-skrzydla-biale' ||
+            prev.current_track?.title === 'Skrzydła Białe'
+          );
+          if (isSampleTrack && prev.state !== 'Playing') {
+            const first = updatedTracks[0];
+            setActiveTrackId(first.id);
+            setFilePath(first.path);
+            invoke('set_active_track', { trackId: first.id }).catch(() => { });
+            return {
+              ...prev,
+              position_ms: 0,
+              duration_ms: first.duration_ms,
+              current_track: {
+                id: `track-${first.id}`,
+                uri: first.path,
+                track_id: first.id,
+                title: first.title,
+                artist: first.artist,
+                album: null,
+                duration_ms: first.duration_ms,
+              },
+            };
+          }
+          return prev;
+        });
+      }
+
       showMessage(
         `Dodano do biblioteki: ${summary.new_or_updated_tracks} zindeksowano (znaleziono: ${summary.total_files_found}).`
       );
@@ -3187,6 +3596,15 @@ export default function App() {
     if (!paths || paths.length === 0) return;
     try {
       await handleScanPaths(paths);
+      if (paths.length === 1) {
+        const p = paths[0];
+        const isAudio = /\.(flac|mp3|ogg|wav|m4a|aac|opus|alac|aiff|ape|wma)$/i.test(p);
+        if (isAudio) {
+          setFilePath(p);
+          await invoke('load_file', { path: p });
+          await invoke('play');
+        }
+      }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -3302,6 +3720,7 @@ export default function App() {
 
   // Odtwarzanie utworu z biblioteki z obsługą zakładek, kontekstu kolejki i globalnego Loop
   const handlePlayLibraryTrack = async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
+    initialStartupPositionRef.current = null;
     if (isPlayingLibraryTrackRef.current) return;
     isPlayingLibraryTrackRef.current = true;
     const safetyTimeout = setTimeout(() => {
@@ -3728,6 +4147,28 @@ export default function App() {
   // Szybkie profile klimatyczne DSP (Nightcore, Slowed Lo-Fi, Anime Vocal, Bass Impact, Flat)
   const handleApplyDspVibe = async (vibe: 'nightcore' | 'slowed' | 'vocal' | 'bass' | 'flat') => {
     try {
+      if (activeDspVibe === vibe) {
+        // Toggle off - ponowne kliknięcie wyłącza aktywny profil DSP (powrót do czystego Bypass)
+        setActiveDspVibe(null);
+        await invoke('set_dsp_engine', { engine: 'Bypass' });
+        await invoke('set_tempo', { tempoRatio: 1.0 });
+        await invoke('set_pitch', { semitones: 0.0 });
+        await invoke('set_rate', { rateRatio: 1.0 });
+        await invoke('set_equalizer_bands', { bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
+        await invoke('set_equalizer_enabled', { enabled: false });
+        setStatus((prev) => ({
+          ...prev,
+          engine: 'Bypass',
+          tempo_ratio: 1.0,
+          pitch_semitones: 0.0,
+          rate_ratio: 1.0,
+          equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          equalizer_enabled: false,
+        }));
+        showMessage(language === 'pl' ? 'Wyłączono profil DSP (Bypass)' : 'Deactivated DSP vibe profile (Bypass)');
+        return;
+      }
+
       setActiveDspVibe(vibe);
       let targetTempo = 1.0;
       let targetPitch = 0.0;
@@ -3910,7 +4351,8 @@ export default function App() {
         await invoke('pause');
       } else {
         const currentUri = status.current_track?.uri || filePath;
-        if (currentUri && (!status.current_track?.duration_ms || status.duration_ms === 0)) {
+        const targetResumePos = initialStartupPositionRef.current;
+        if (currentUri && (!status.current_track?.duration_ms || status.duration_ms === 0 || targetResumePos !== null)) {
           try {
             await invoke('load_file', { path: currentUri });
           } catch (loadErr) {
@@ -3918,6 +4360,16 @@ export default function App() {
           }
         }
         await invoke('play');
+        if (targetResumePos && targetResumePos > 1000) {
+          initialStartupPositionRef.current = null;
+          setTimeout(async () => {
+            try {
+              await invoke('seek', { positionMs: targetResumePos, fade: false });
+            } catch (seekErr) {
+              console.warn('Seek to restored position error:', seekErr);
+            }
+          }, 150);
+        }
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4021,6 +4473,7 @@ export default function App() {
   const isPlayingQueueIndexRef = useRef(false);
 
   const handlePlayQueueIndex = async (index: number, queueItem?: QueueItem) => {
+    initialStartupPositionRef.current = null;
     if (isPlayingQueueIndexRef.current) return;
     isPlayingQueueIndexRef.current = true;
     try {
@@ -4122,7 +4575,10 @@ export default function App() {
 
   const handlePlayRadioStation = async (station: RadioStation) => {
     try {
+      initialStartupPositionRef.current = null;
       setCurrentRadioStation(station);
+      setTrackDirectCover(null);
+      setActiveTrackId(null);
       await invoke('load_radio_stream', { url: station.url, stationName: station.name });
       showMessage(`${station.name} • ${loc.radio.buffering}`);
     } catch (err: any) {
@@ -4625,23 +5081,36 @@ export default function App() {
     }
   };
 
+  const handleTrackKeyBpmUpdated = (trackId: number, bpm: number, keyName: string) => {
+    setTracks((prev) =>
+      prev.map((t) => (t.id === trackId ? { ...t, bpm, initial_key: keyName } : t))
+    );
+  };
+
   const handleBassBoostChange = async (boostDb: number) => {
     const clamped = Math.max(0, Math.min(12, boostDb));
     setBassBoost(clamped);
+    if (clamped > 0) {
+      lastBassBoostRef.current = clamped;
+    }
     try {
       await invoke('set_app_setting', { key: 'bass_boost', value: clamped.toString() });
       const baseBands = [...(status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
       baseBands[0] = Math.min(12, Math.max(-24, clamped * 1.0));
       baseBands[1] = Math.min(12, Math.max(-24, clamped * 0.75));
       baseBands[2] = Math.min(12, Math.max(-24, clamped * 0.4));
-      await invoke('set_equalizer_bands', { bands: baseBands });
-      if (!status.equalizer_enabled) {
-        await invoke('set_equalizer_enabled', { enabled: true });
-      }
+      await invoke('set_equalizer_params', { enabled: true, bands: baseBands });
       setStatus((prev) => ({ ...prev, equalizer_bands: baseBands, equalizer_enabled: true }));
       if (clamped > 0 && !limiterEnabled) {
         handleToggleLimiter(true);
       }
+      showMessage(
+        clamped > 0
+          ? (language === 'pl'
+              ? `Włączono Bass Boost: +${clamped.toFixed(1)} dB`
+              : `Bass Boost active: +${clamped.toFixed(1)} dB`)
+          : (language === 'pl' ? 'Wyłączono Bass Boost (Bypass)' : 'Bass Boost disabled (Bypass)')
+      );
     } catch (e) {
       console.warn('Błąd ustawiania Bass Boost:', e);
     }
@@ -4652,6 +5121,13 @@ export default function App() {
     try {
       await invoke('set_stereo_widener', { active, amount: stereoWidenerAmount });
       await invoke('set_app_setting', { key: 'stereo_widener_active', value: active ? 'true' : 'false' });
+      showMessage(
+        active
+          ? (language === 'pl'
+              ? `Włączono Stereo Widener (${Math.round(stereoWidenerAmount * 100)}%)`
+              : `Stereo Widener active (${Math.round(stereoWidenerAmount * 100)}%)`)
+          : (language === 'pl' ? 'Wyłączono Stereo Widener (Bypass)' : 'Stereo Widener disabled (Bypass)')
+      );
     } catch (e) {
       console.warn('Błąd przełączania stereo widenera:', e);
     }
@@ -4660,9 +5136,11 @@ export default function App() {
   const handleStereoWidenerAmountChange = async (amt: number) => {
     const clamped = Math.max(0, Math.min(1, amt));
     setStereoWidenerAmount(clamped);
+    setStereoWidenerActive(true);
     try {
-      await invoke('set_stereo_widener', { active: stereoWidenerActive, amount: clamped });
+      await invoke('set_stereo_widener', { active: true, amount: clamped });
       await invoke('set_app_setting', { key: 'stereo_widener_amount', value: clamped.toString() });
+      await invoke('set_app_setting', { key: 'stereo_widener_active', value: 'true' });
     } catch (e) {
       console.warn('Błąd ustawiania stereo widenera:', e);
     }
@@ -4980,15 +5458,16 @@ export default function App() {
       setStatus((prev) => {
         const newBands = [...(prev.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
         newBands[bandIndex] = gainDb;
-        return { ...prev, equalizer_bands: newBands };
+        return { ...prev, equalizer_bands: newBands, equalizer_enabled: true };
       });
+      setSelectedEqPreset(language === 'pl' ? 'Własny (Custom)' : 'Custom');
     } catch (e: any) {
       console.error('Błąd zmiany pasma EQ:', e);
     }
   };
 
   const handleEqToggle = async () => {
-    const newEnabled = status.equalizer_enabled === false ? true : false;
+    const newEnabled = !status.equalizer_enabled;
     try {
       await invoke('set_equalizer_enabled', { enabled: newEnabled });
       setStatus((prev) => ({ ...prev, equalizer_enabled: newEnabled }));
@@ -5003,8 +5482,8 @@ export default function App() {
     const preset = eqPresets.find((p) => p.name === presetName);
     if (!preset) return;
     try {
-      await invoke('set_equalizer_bands', { bands: preset.bands });
-      setStatus((prev) => ({ ...prev, equalizer_bands: preset.bands }));
+      await invoke('set_equalizer_params', { enabled: true, bands: preset.bands });
+      setStatus((prev) => ({ ...prev, equalizer_bands: preset.bands, equalizer_enabled: true }));
       showMessage(
         language === 'pl'
           ? `Zastosowano profil korektora: ${preset.name}`
@@ -5018,9 +5497,10 @@ export default function App() {
   const handleResetEq = async () => {
     const flatBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     try {
-      await invoke('set_equalizer_bands', { bands: flatBands });
+      await invoke('set_equalizer_params', { enabled: true, bands: flatBands });
+      await invoke('set_equalizer_preamp', { preampDb: 0.0 }).catch(() => {});
       setSelectedEqPreset(language === 'pl' ? 'Płaski (Flat)' : 'Flat');
-      setStatus((prev) => ({ ...prev, equalizer_bands: flatBands }));
+      setStatus((prev) => ({ ...prev, equalizer_bands: flatBands, equalizer_enabled: true }));
       showMessage(t.notifications.dspPresetFlat);
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -5697,6 +6177,27 @@ export default function App() {
         return;
       }
 
+      // Ctrl/Cmd + Plus / NumpadAdd: Zwiększ skalę interfejsu (Zoom in)
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal')) {
+        e.preventDefault();
+        handleIncreaseScale();
+        return;
+      }
+
+      // Ctrl/Cmd + Minus / NumpadSubtract: Zmniejsz skalę interfejsu (Zoom out)
+      if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract')) {
+        e.preventDefault();
+        handleDecreaseScale();
+        return;
+      }
+
+      // Ctrl/Cmd + 0 / Numpad0: Resetuj skalę interfejsu do 100% (Reset zoom)
+      if ((e.ctrlKey || e.metaKey) && (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0')) {
+        e.preventDefault();
+        handleResetScale();
+        return;
+      }
+
       // Klawisz F lub Ctrl+F: Skocz do wyszukiwarki w Bibliotece
       if (((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F'))) {
         e.preventDefault();
@@ -5798,63 +6299,171 @@ export default function App() {
         </button>
       </div>
 
-      {/* Opcja formatu wyświetlania poziomu głośności (% vs dB) */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Volume2 size={16} color="var(--accent-cyan)" />
-            {loc.settings.volumeUnitTitle}
+      {/* Karta Konfiguracji Głośności, OSD i Statystyk Recap */}
+      <div className="glass-card" style={{ padding: '20px', marginBottom: '14px', borderRadius: '12px' }}>
+        <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Volume2 size={18} color="var(--accent-cyan)" /> {currentLang === 'pl' ? 'Regulacja Głośności, OSD i Statystyki' : 'Volume, OSD & Recap Settings'}
+        </h4>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.84rem' }}>
+          {/* Tryb głośności: Natychmiastowy vs Płynny */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: '#fff' }}>
+                {currentLang === 'pl' ? 'Szybkość reakcji suwaka głośności:' : 'Volume Slider Response:'}
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {instantVolume
+                  ? (currentLang === 'pl' ? 'Natychmiastowa (Direct Zero-Latency) - brak opóźnienia' : 'Instant (Zero-Latency) - immediate change')
+                  : (currentLang === 'pl' ? 'Płynna (Smooth Fade) - łagodne przejście' : 'Smooth Fade - subtle fade ramp')}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const next = !instantVolume;
+                setInstantVolume(next);
+                try {
+                  localStorage.setItem('auralune_instant_volume', String(next));
+                } catch { }
+              }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                background: instantVolume ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                border: `1px solid ${instantVolume ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
+                color: instantVolume ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              {instantVolume ? (currentLang === 'pl' ? '⚡ Natychmiast' : '⚡ Instant') : (currentLang === 'pl' ? '🌊 Płynnie (Fade)' : '🌊 Smooth Fade')}
+            </button>
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            {loc.settings.volumeUnitDesc}
+
+          {/* Jednostka wyświetlania głośności: Procenty vs Decybele */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: '#fff' }}>
+                {loc.settings.volumeUnitTitle}
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {volumeUnit === 'db' ? loc.settings.volumeUnitDb : loc.settings.volumeUnitPercent}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+              <button
+                type="button"
+                onClick={() => handleSetVolumeUnit('percent')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: volumeUnit === 'percent' ? 'var(--accent-pink)' : 'transparent',
+                  color: volumeUnit === 'percent' ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                %
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetVolumeUnit('db')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'transparent',
+                  color: volumeUnit === 'db' ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                dB
+              </button>
+            </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
-          <button
-            type="button"
-            onClick={() => handleSetVolumeUnit('percent')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '7px',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: 'none',
-              background: volumeUnit === 'percent' ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'transparent',
-              color: volumeUnit === 'percent' ? '#fff' : 'var(--text-muted)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            % (0 – 100%)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetVolumeUnit('db')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '7px',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: 'none',
-              background: volumeUnit === 'db' ? 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))' : 'transparent',
-              color: volumeUnit === 'db' ? '#fff' : 'var(--text-muted)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            dB (-∞ do 0.0 dB)
-          </button>
+
+          {/* Pozycja OSD głośności */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: '#fff' }}>
+                {currentLang === 'pl' ? 'Pozycja wskaźnika głośności (OSD):' : 'Volume OSD Position:'}
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {currentLang === 'pl' ? 'Pływające przezroczyste powiadomienie przy zmianie głośności' : 'Translucent floating HUD when volume changes'}
+              </div>
+            </div>
+            <select
+              value={volumeOsdPosition}
+              onChange={(e) => {
+                const pos = e.target.value as VolumeOsdPosition;
+                setVolumeOsdPosition(pos);
+                try {
+                  localStorage.setItem('auralune_volume_osd_position', pos);
+                } catch { }
+              }}
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                background: 'rgba(20, 24, 44, 0.95)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
+                padding: '6px 30px 6px 12px',
+                color: '#fff',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 10px center',
+              }}
+            >
+              <option value="bottom-center" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Środek)' : 'Bottom (Center)'}</option>
+              <option value="center" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Środek ekranu' : 'Screen Center'}</option>
+              <option value="top-right" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Góra (Prawo)' : 'Top (Right)'}</option>
+              <option value="top-left" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Góra (Lewo)' : 'Top (Left)'}</option>
+              <option value="bottom-right" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Prawo)' : 'Bottom (Right)'}</option>
+              <option value="bottom-left" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Lewo)' : 'Bottom (Left)'}</option>
+              <option value="off" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Wyłączone (Off)' : 'Disabled (Off)'}</option>
+            </select>
+          </div>
+
+          {/* Zgoda na Auralune Recap (Opt-In) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: '#fff' }}>
+                {currentLang === 'pl' ? 'Auralune Recap (Podsumowania Tydzień / Miesiąc / Rok):' : 'Auralune Recap (Rewind & Statistics):'}
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {currentLang === 'pl' ? 'Lokalne zliczanie czasu słuchania i rankingów w bazie SQLite' : 'Track listening hours and top artists locally in SQLite'}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const next = !recapOptIn;
+                setRecapOptIn(next);
+                try {
+                  localStorage.setItem('auralune_recap_opt_in', String(next));
+                } catch { }
+              }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                background: recapOptIn ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                border: `1px solid ${recapOptIn ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
+                color: recapOptIn ? 'var(--accent-pink)' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              {recapOptIn ? (currentLang === 'pl' ? '✓ Włączone' : '✓ Enabled') : (currentLang === 'pl' ? '○ Wyłączone' : '○ Disabled')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -7866,6 +8475,127 @@ export default function App() {
         <LanguageSelector currentLang={language} onLanguageChange={handleLanguageChange} />
       </div>
 
+      {/* Opcja podświetlenia kursorowego przycisków (Hover Glow) */}
+      <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={18} color="var(--accent-pink)" /> {language === 'pl' ? 'Podświetlenie kursorowe przycisków (Hover Glow)' : 'Button Hover Glow Effect'}
+          </h3>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+            {language === 'pl'
+              ? 'Subtelny efekt rozjaśnienia i poświaty po najechaniu kursorem myszy na przyciski w aplikacji'
+              : 'Subtle glow and brightness elevation when hovering over buttons'}
+          </p>
+        </div>
+        <button
+          onClick={() => setButtonGlowEnabled(!buttonGlowEnabled)}
+          style={{
+            padding: '8px 18px',
+            borderRadius: '10px',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            background: buttonGlowEnabled ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+            border: buttonGlowEnabled ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+            color: buttonGlowEnabled ? 'var(--accent-pink)' : 'var(--text-muted)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {buttonGlowEnabled
+            ? (language === 'pl' ? '✓ Włączone' : '✓ Enabled')
+            : (language === 'pl' ? '○ Wyłączone' : '○ Disabled')}
+        </button>
+      </div>
+
+      {/* Skala interfejsu i szerokość robocza (UI Scale & Layout Width) */}
+      <div className="glass-panel" style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Maximize2 size={18} color="var(--accent-cyan)" /> {language === 'pl' ? 'Skala interfejsu i szerokość robocza' : 'UI Scale & Layout Width'}
+            </h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+              {language === 'pl'
+                ? 'Dopasuj rozmiar elementów i wykorzystaj pełną szerokość ekranu (skróty: Ctrl + +, Ctrl + -, Ctrl + 0)'
+                : 'Adjust element scaling and fill wide screens (Shortcuts: Ctrl + +, Ctrl + -, Ctrl + 0)'}
+            </p>
+          </div>
+          <button
+            onClick={handleResetScale}
+            disabled={uiScale === 1.0}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              cursor: uiScale === 1.0 ? 'default' : 'pointer',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-subtle)',
+              color: uiScale === 1.0 ? 'var(--text-muted)' : 'var(--text-main)',
+              opacity: uiScale === 1.0 ? 0.5 : 1,
+            }}
+          >
+            {language === 'pl' ? 'Resetuj (100%)' : 'Reset (100%)'}
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
+          {[
+            {
+              scale: 1.0,
+              label: language === 'pl' ? '100% Standard' : '100% Standard',
+              desc: language === 'pl' ? 'Oryginalny rozmiar (max 1500px)' : 'Original size (max 1500px)',
+            },
+            {
+              scale: 1.10,
+              label: language === 'pl' ? '110% Komfortowy' : '110% Comfortable',
+              desc: language === 'pl' ? 'Lekko powiększony (max 1780px)' : 'Slightly enlarged (max 1780px)',
+            },
+            {
+              scale: 1.20,
+              label: language === 'pl' ? '120% Duży' : '120% Large',
+              desc: language === 'pl' ? 'Wyraźne elementy (max 2050px)' : 'Larger elements (max 2050px)',
+            },
+            {
+              scale: 1.30,
+              label: language === 'pl' ? '130% Maksymalny' : '130% Ultra Wide',
+              desc: language === 'pl' ? 'Duży / monitory 2K/4K (max 2350px)' : 'Max scale for 2K/4K (max 2350px)',
+            },
+          ].map((item) => {
+            const isSelected = Math.abs(uiScale - item.scale) < 0.03;
+            return (
+              <button
+                key={item.scale}
+                onClick={() => handleSelectScale(item.scale)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  textAlign: 'left',
+                  gap: '4px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: isSelected ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                  background: isSelected ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                  color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 0 12px rgba(6, 182, 212, 0.25)' : 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{item.label}</span>
+                  {isSelected && <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>✓</span>}
+                </div>
+                <span style={{ fontSize: '0.72rem', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                  {item.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="glass-panel" style={{ padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
           <Palette size={26} color="var(--accent-purple)" />
@@ -8828,191 +9558,31 @@ export default function App() {
         </p>
       </div>
 
-      {/* Karta Konfiguracji Głośności, OSD i Statystyk Recap */}
-      <div className="glass-card" style={{ padding: '20px' }}>
-        <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Volume2 size={18} color="var(--accent-cyan)" /> {currentLang === 'pl' ? 'Regulacja Głośności, OSD i Statystyki' : 'Volume, OSD & Recap Settings'}
-        </h4>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.84rem' }}>
-          {/* Tryb głośności: Natychmiastowy vs Płynny */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 600, color: '#fff' }}>
-                {currentLang === 'pl' ? 'Szybkość reakcji suwaka głośności:' : 'Volume Slider Response:'}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {instantVolume
-                  ? (currentLang === 'pl' ? 'Natychmiastowa (Direct Zero-Latency) - brak opóźnienia' : 'Instant (Zero-Latency) - immediate change')
-                  : (currentLang === 'pl' ? 'Płynna (Smooth Fade) - łagodne przejście' : 'Smooth Fade - subtle fade ramp')}
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                const next = !instantVolume;
-                setInstantVolume(next);
-                try {
-                  localStorage.setItem('auralune_instant_volume', String(next));
-                } catch { }
-              }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                background: instantVolume ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                border: `1px solid ${instantVolume ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
-                color: instantVolume ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              {instantVolume ? (currentLang === 'pl' ? '⚡ Natychmiast' : '⚡ Instant') : (currentLang === 'pl' ? '🌊 Płynnie (Fade)' : '🌊 Smooth Fade')}
-            </button>
+      {/* Karta Ponownego uruchomienia kreatora powitalnego */}
+      <div className="glass-card" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem' }}>
+            {currentLang === 'pl' ? 'Kreator konfiguracji początkowej' : 'Initial Setup Wizard'}
           </div>
-
-          {/* Jednostka wyświetlania głośności: Procenty vs Decybele */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 600, color: '#fff' }}>
-                {loc.settings.volumeUnitTitle}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {volumeUnit === 'db' ? loc.settings.volumeUnitDb : loc.settings.volumeUnitPercent}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-              <button
-                type="button"
-                onClick={() => handleSetVolumeUnit('percent')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  fontSize: '0.74rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: 'none',
-                  background: volumeUnit === 'percent' ? 'var(--accent-pink)' : 'transparent',
-                  color: volumeUnit === 'percent' ? '#fff' : 'var(--text-muted)',
-                }}
-              >
-                %
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetVolumeUnit('db')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  fontSize: '0.74rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: 'none',
-                  background: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'transparent',
-                  color: volumeUnit === 'db' ? '#fff' : 'var(--text-muted)',
-                }}
-              >
-                dB
-              </button>
-            </div>
-          </div>
-
-          {/* Pozycja OSD głośności */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 600, color: '#fff' }}>
-                {currentLang === 'pl' ? 'Pozycja wskaźnika głośności (OSD):' : 'Volume OSD Position:'}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {currentLang === 'pl' ? 'Pływające przezroczyste powiadomienie przy zmianie głośności' : 'Translucent floating HUD when volume changes'}
-              </div>
-            </div>
-            <select
-              value={volumeOsdPosition}
-              onChange={(e) => {
-                const pos = e.target.value as VolumeOsdPosition;
-                setVolumeOsdPosition(pos);
-                try {
-                  localStorage.setItem('auralune_volume_osd_position', pos);
-                } catch { }
-              }}
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                background: 'rgba(20, 24, 44, 0.95)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                padding: '6px 30px 6px 12px',
-                color: '#fff',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 10px center',
-              }}
-            >
-              <option value="bottom-center" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Środek)' : 'Bottom (Center)'}</option>
-              <option value="center" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Środek ekranu' : 'Screen Center'}</option>
-              <option value="top-right" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Góra (Prawo)' : 'Top (Right)'}</option>
-              <option value="top-left" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Góra (Lewo)' : 'Top (Left)'}</option>
-              <option value="bottom-right" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Prawo)' : 'Bottom (Right)'}</option>
-              <option value="bottom-left" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Dół (Lewo)' : 'Bottom (Left)'}</option>
-              <option value="off" style={{ background: '#121420' }}>{currentLang === 'pl' ? 'Wyłączone (Off)' : 'Disabled (Off)'}</option>
-            </select>
-          </div>
-
-          {/* Zgoda na Auralune Recap (Opt-In) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 600, color: '#fff' }}>
-                {currentLang === 'pl' ? 'Auralune Recap (Podsumowania Tydzień / Miesiąc / Rok):' : 'Auralune Recap (Rewind & Statistics):'}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {currentLang === 'pl' ? 'Lokalne zliczanie czasu słuchania i rankingów w bazie SQLite' : 'Track listening hours and top artists locally in SQLite'}
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                const next = !recapOptIn;
-                setRecapOptIn(next);
-                try {
-                  localStorage.setItem('auralune_recap_opt_in', String(next));
-                } catch { }
-              }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                background: recapOptIn ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                border: `1px solid ${recapOptIn ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-                color: recapOptIn ? 'var(--accent-pink)' : 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              {recapOptIn ? (currentLang === 'pl' ? '✓ Włączone' : '✓ Enabled') : (currentLang === 'pl' ? '○ Wyłączone' : '○ Disabled')}
-            </button>
-          </div>
-
-          {/* Przycisk Ponownego uruchomienia kreatora powitalnego */}
-          <div style={{ marginTop: '6px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => setIsOnboardingOpen(true)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--accent-cyan)',
-                cursor: 'pointer',
-              }}
-            >
-              {currentLang === 'pl' ? '🚀 Uruchom ponownie kreator powitalny (Onboarding)' : '🚀 Relaunch Welcome Onboarding Wizard'}
-            </button>
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            {currentLang === 'pl' ? 'Pozwala ponownie przejść wprowadzenie i przewodnik po odtwarzaczu' : 'Relaunch the welcome guide and onboarding tour'}
           </div>
         </div>
+        <button
+          onClick={() => setIsOnboardingOpen(true)}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--accent-cyan)',
+            cursor: 'pointer',
+          }}
+        >
+          {currentLang === 'pl' ? '🚀 Uruchom Onboarding' : '🚀 Relaunch Onboarding'}
+        </button>
       </div>
     </div>
   );
@@ -9780,7 +10350,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: uiScale >= 1.28 ? '16px 20px' : uiScale >= 1.18 ? '20px 22px' : '24px', position: 'relative' }}>
       {/* Dynamiczne tło anime z kontrolowanym rozmyciem i nakładką (obsługa statycznych grafik oraz wideo MP4/WebM) */}
       {themeBgImage && (themeBgImage.toLowerCase().endsWith('.mp4') || themeBgImage.toLowerCase().endsWith('.webm') || themeBgImage.startsWith('data:video/')) ? (
         <video
@@ -10447,6 +11017,37 @@ export default function App() {
               <span className="header-action-text">{loc.nav.fullscreen}</span>
             </button>
 
+            {/* Skala interfejsu (UI Scale Switcher) */}
+            <button
+              onClick={handleIncreaseScale}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                handleDecreaseScale();
+              }}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                background: uiScale > 1.0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                border: uiScale > 1.0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                color: uiScale > 1.0 ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              title={
+                language === 'pl'
+                  ? `Skala interfejsu: ${Math.round(uiScale * 100)}% (LPM: powiększ, PPM: pomniejsz, Skróty: Ctrl +/-, Ctrl 0)`
+                  : `UI Scale: ${Math.round(uiScale * 100)}% (Left click: zoom in, Right click: zoom out, Shortcuts: Ctrl +/-, Ctrl 0)`
+              }
+            >
+              <Maximize2 size={13} />
+              <span className="header-action-text">{Math.round(uiScale * 100)}%</span>
+            </button>
+
             {/* Mini-Player */}
             <button
               onClick={toggleMiniPlayer}
@@ -10551,7 +11152,7 @@ export default function App() {
         <main ref={mainContentRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: (activeTab !== 'player' || isPlayerScrolledDown) ? '88px' : '0' }}>
           {/* ZAKŁADKA 1: ODTWARZACZ (NOWOCZESNY WIDOK HI-FI DESKTOP) */}
           {activeTab === 'player' && (
-            <div style={{ maxWidth: 'min(1500px, 95vw)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
+            <div style={{ maxWidth: layoutMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
               <div className="glass-panel" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -10696,6 +11297,24 @@ export default function App() {
                             {loc.player.testSamples}
                           </span>
                           <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const sample = await invoke<SampleTrackDto | null>('get_sample_track');
+                                  if (sample) {
+                                    setFilePath(sample.path);
+                                    handleLoadFile(sample.path);
+                                  }
+                                } catch (e) {
+                                  console.warn('Błąd ładowania próbki Skrzydła Białe:', e);
+                                }
+                                setIsQuickLoadOpen(false);
+                              }}
+                              className="glass-card"
+                              style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-pink)', textAlign: 'center', fontWeight: 600 }}
+                            >
+                              🌸 Skrzydła Białe
+                            </button>
                             <button
                               onClick={() => {
                                 setFilePath('tests/fixtures/test_sine_440hz.wav');
@@ -11037,6 +11656,7 @@ export default function App() {
                     ) : nowPlayingVisualMode === 'turntable' ? (
                       <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', width: '100%' }}>
                         <div
+                          title={dspBadgeTitle}
                           style={{
                             padding: '4px 10px',
                             borderRadius: '6px',
@@ -11048,23 +11668,23 @@ export default function App() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '5px',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center',
+                            textAlign: 'center',
                           }}
                         >
                           <Disc3 size={11} color="var(--accent-pink)" />
                           {status.state === 'Playing'
                             ? (language === 'pl'
-                              ? (status.engine === 'Bypass'
-                                ? `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię opuszczone (Bypass)`
-                                : `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię opuszczone (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
-                              : (status.engine === 'Bypass'
-                                ? `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Engaged (Bypass)`
-                                : `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
+                              ? `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię opuszczone (${dspBadgeText})`
+                              : `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Engaged (${dspBadgeText})`)
                             : (language === 'pl' ? `Pauza • ${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię zaparkowane` : `Paused • ${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Parked`)}
                         </div>
                       </div>
                     ) : nowPlayingVisualMode === 'tape' ? (
                       <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', width: '100%' }}>
                         <div
+                          title={dspBadgeTitle}
                           style={{
                             padding: '4px 10px',
                             borderRadius: '6px',
@@ -11076,17 +11696,16 @@ export default function App() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '5px',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center',
+                            textAlign: 'center',
                           }}
                         >
                           <CassetteTape size={11} color="var(--accent-pink)" />
                           {status.state === 'Playing'
                             ? (language === 'pl'
-                              ? (status.engine === 'Bypass'
-                                ? `${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Rolka zaciśnięta (Bypass)`
-                                : `${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Rolka zaciśnięta (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`)
-                              : (status.engine === 'Bypass'
-                                ? `${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Pinch Roller Engaged (Bypass)`
-                                : `${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Pinch Roller Engaged (${status.engine} ${(status.tempo_ratio ?? 1.0).toFixed(2)}x)`))
+                              ? `${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Rolka zaciśnięta (${dspBadgeText})`
+                              : `${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Pinch Roller Engaged (${dspBadgeText})`)
                             : (language === 'pl' ? `Pauza • ${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Transport zatrzymany` : `Paused • ${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Transport Stopped`)}
                         </div>
                       </div>
@@ -11399,8 +12018,8 @@ export default function App() {
                           <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                             {formatTime(status.position_ms)}
                           </span>
-                          {/* Wskaźnik prędkości DSP jeśli tempo lub szybkość jest modyfikowane */}
-                          {((status.tempo_ratio ?? 1.0) !== 1.0 || (status.rate_ratio ?? 1.0) !== 1.0) && (
+                          {/* Wskaźnik prędkości i transpozycji DSP jeśli tempo, szybkość lub pitch jest modyfikowane */}
+                          {(dspCombination.hasTempo || dspCombination.hasRate || dspCombination.hasPitch) && (
                             <span
                               style={{
                                 fontSize: '0.68rem',
@@ -11411,13 +12030,11 @@ export default function App() {
                                 color: 'var(--accent-purple)',
                                 border: '1px solid rgba(168, 85, 247, 0.45)',
                               }}
-                              title={loc.dsp.dspSpeedTitle
-                                .replace('{0}', (status.tempo_ratio ?? 1.0).toFixed(2))
-                                .replace('{1}', formatTime(
-                                  Math.round((status.duration_ms ?? 0) / Math.max(0.01, (status.tempo_ratio ?? 1.0) * (status.rate_ratio ?? 1.0)))
-                                ))}
+                              title={`DSP (${dspCombination.engine}): Σ Speed ${dspCombination.totalSpeedRatio.toFixed(2)}x, Σ Pitch ${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st (Tempo: ${dspCombination.tempoRatio.toFixed(2)}x, Pitch: ${dspCombination.pitchSt.toFixed(2)}st, Rate: ${dspCombination.rateRatio.toFixed(2)}x)`}
                             >
-                              DSP {((status.tempo_ratio ?? 1.0) * (status.rate_ratio ?? 1.0)).toFixed(2)}x
+                              DSP {dspCombination.totalSpeedRatio !== 1.0 ? `${dspCombination.totalSpeedRatio.toFixed(2)}x` : ''}
+                              {dspCombination.totalSpeedRatio !== 1.0 && Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? ', ' : ''}
+                              {Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? `${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st` : ''}
                             </span>
                           )}
                           {loopPointA !== null && loopPointB !== null && (
@@ -11712,180 +12329,6 @@ export default function App() {
                         <button
                           onClick={() => setIsBookmarksModalOpen(true)}
                           className="glass-card"
-                          title={language === 'pl' ? 'Wielopunktowe znaczniki utworu (Cue Points)' : 'Track Cue Points / Bookmarks'}
-                          style={{
-                            padding: '6px 9px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            color: currentTrackBookmarks.length > 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            background: currentTrackBookmarks.length > 0 ? 'rgba(6, 182, 212, 0.15)' : undefined,
-                            border: currentTrackBookmarks.length > 0 ? '1px solid rgba(6, 182, 212, 0.4)' : undefined,
-                          }}
-                        >
-                          <Bookmark size={13} color="var(--accent-cyan)" />
-                          {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : (language === 'pl' ? 'Punkty' : 'Points')}
-                        </button>
-
-                        {/* Przyciski Pętli A-B */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <button
-                            onClick={() => setLoopPointA(status.position_ms)}
-                            className="glass-card"
-                            style={{
-                              padding: '5px 8px',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              fontFamily: loopPointA !== null ? 'monospace' : 'inherit',
-                              borderRadius: '6px',
-                              color: loopPointA !== null ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                              border: loopPointA !== null ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                              cursor: 'pointer',
-                            }}
-                            title={`${loc.shortcuts.loopA} (${language === 'pl' ? 'Kliknij, aby ustawić punkt A na bieżącej pozycji' : 'Click to set point A at current position'})`}
-                          >
-                            {loopPointA !== null ? `A: ${formatTimeMs(loopPointA)}` : 'A'}
-                          </button>
-                          <button
-                            onClick={() => setLoopPointB(status.position_ms)}
-                            className="glass-card"
-                            style={{
-                              padding: '5px 8px',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              fontFamily: loopPointB !== null ? 'monospace' : 'inherit',
-                              borderRadius: '6px',
-                              color: loopPointB !== null ? 'var(--accent-pink)' : 'var(--text-muted)',
-                              border: loopPointB !== null ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                              cursor: 'pointer',
-                            }}
-                            title={`${loc.shortcuts.loopB} (${language === 'pl' ? 'Kliknij, aby ustawić punkt B na bieżącej pozycji' : 'Click to set point B at current position'})`}
-                          >
-                            {loopPointB !== null ? `B: ${formatTimeMs(loopPointB)}` : 'B'}
-                          </button>
-                          <button
-                            onClick={() => setIsLoopEditorOpen(true)}
-                            className="glass-card"
-                            style={{
-                              padding: '5px 7px',
-                              fontSize: '0.72rem',
-                              borderRadius: '6px',
-                              color: (loopPointA !== null || loopPointB !== null) ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                              border: '1px solid var(--border-subtle)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                            title={loc.player.editLoop || (language === 'pl' ? 'Edytuj zakres pętli w milisekundach (np. 860ms)' : 'Edit loop range in milliseconds (e.g. 860ms)')}
-                          >
-                            <Sliders size={12} />
-                          </button>
-                          {(loopPointA !== null || loopPointB !== null) && (
-                            <button
-                              onClick={() => {
-                                setLoopPointA(null);
-                                setLoopPointB(null);
-                              }}
-                              className="glass-card"
-                              style={{
-                                padding: '5px 6px',
-                                fontSize: '0.72rem',
-                                borderRadius: '6px',
-                                color: '#ff6b81',
-                                border: '1px solid rgba(255, 107, 129, 0.3)',
-                                cursor: 'pointer',
-                              }}
-                              title={loc.shortcuts.loopClear}
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Przycisk Wyłącznika czasowego (Sleep Timer) */}
-                        <button
-                          onClick={() => setIsSleepTimerOpen(true)}
-                          className="glass-card"
-                          style={{
-                            padding: '6px 9px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                            color:
-                              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                                ? 'var(--accent-purple)'
-                                : 'var(--text-muted)',
-                            border:
-                              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                                ? '1px solid var(--accent-purple)'
-                                : '1px solid var(--border-subtle)',
-                            cursor: 'pointer',
-                          }}
-                          title={loc.player.sleepTimer}
-                        >
-                          <Moon size={14} />
-                          {(sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track') && (
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                              {sleepTimerRemainingSec !== null
-                                ? formatSleepTimer(sleepTimerRemainingSec)
-                                : 'Koniec'}
-                            </span>
-                          )}
-                        </button>
-
-                        {/* Przycisk Skrótów klawiszowych */}
-                        <button
-                          onClick={() => setIsShortcutsModalOpen(true)}
-                          className="glass-card"
-                          style={{
-                            padding: '6px 8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer',
-                          }}
-                          title={loc.shortcuts.title}
-                        >
-                          <Keyboard size={14} />
-                        </button>
-
-                        {/* Przycisk Tekstów piosenki (Lyrics) */}
-                        <button
-                          onClick={() => setShowLyrics(!showLyrics)}
-                          className="glass-card"
-                          style={{
-                            padding: '6px 9px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '0.75rem',
-                            borderRadius: '8px',
-                            color: showLyrics ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                            border: showLyrics ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                            background: showLyrics ? 'rgba(6, 182, 212, 0.18)' : 'transparent',
-                            cursor: 'pointer',
-                          }}
-                          title={loc.shortcuts.lyrics}
-                        >
-                          <Mic2 size={13} />
-                          <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>{loc.player.lyrics}</span>
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {/* Shuffle Button */}
-                        <button
-                          onClick={handleToggleShuffle}
-                          title={queue.shuffle ? loc.player.shuffleOn : loc.player.shuffleOff}
-                          style={{
                             width: '36px',
                             height: '36px',
                             borderRadius: '50%',
@@ -12757,6 +13200,7 @@ export default function App() {
                               onDragStart={(e) => handleQueueDragStart(idx, e)}
                               onDragOver={(e) => handleQueueDragOver(idx, e)}
                               onDrop={(e) => handleQueueDrop(idx, e)}
+                              onClick={() => handlePlayQueueIndex(idx, item)}
                               onDoubleClick={() => handlePlayQueueIndex(idx, item)}
                               className="glass-card"
                               style={{
@@ -13055,7 +13499,7 @@ export default function App() {
 
           {/* ZAKŁADKA 2: BIBLIOTEKA (ETAP 2) */}
           {activeTab === 'library' && (
-            <div className="glass-panel" style={{ padding: '28px', maxWidth: 'min(1500px, 95vw)', margin: '0 auto' }}>
+            <div className="glass-panel" style={{ padding: '28px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
               {/* Nagłówek biblioteki: tytuł, statystyka i przyciski akcji */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
@@ -13599,6 +14043,41 @@ export default function App() {
                     );
                   })}
                 </div>
+
+                {/* Przełącznik ukrywania duplikatów */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !hideDuplicates;
+                    setHideDuplicates(next);
+                    try {
+                      localStorage.setItem('auralune_hide_duplicates', String(next));
+                    } catch { }
+                    showMessage(
+                      next
+                        ? (language === 'pl' ? 'Włączono filtr: ukrywanie duplikatów utworów' : 'Filter enabled: hide track duplicates')
+                        : (language === 'pl' ? 'Wyłączono filtr ukrywania duplikatów (pokazuj wszystkie pliki)' : 'Filter disabled: show all duplicate files')
+                    );
+                  }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    background: hideDuplicates ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    border: hideDuplicates ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                    color: hideDuplicates ? '#fff' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title={language === 'pl' ? 'Ukryj powtarzające się duplikaty utworów w widoku biblioteki' : 'Hide repeated duplicate tracks in library view'}
+                >
+                  <Copy size={12} />
+                  {language === 'pl' ? (hideDuplicates ? 'Duplikaty: Ukryte' : 'Duplikaty') : (hideDuplicates ? 'Duplicates: Hidden' : 'Duplicates')}
+                </button>
 
                 {/* Kontrola sortowania */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
@@ -15667,7 +16146,7 @@ export default function App() {
 
           {/* ZAKŁADKA 3: DSP STUDIO (ETAP 3) */}
           {activeTab === 'dsp' && (
-            <div className="glass-panel" style={{ padding: '28px', maxWidth: '880px', margin: '0 auto' }}>
+            <div className="glass-panel" style={{ padding: '28px', maxWidth: uiScale >= 1.28 ? '1200px' : uiScale >= 1.18 ? '1080px' : uiScale >= 1.08 ? '960px' : '880px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -16006,95 +16485,117 @@ export default function App() {
                       +0.1
                     </button>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input
-                      type="text"
-                      value={
-                        editingPitch !== null
-                          ? editingPitch
-                          : (status.pitch_semitones ?? 0) > 0
-                            ? `+${(status.pitch_semitones ?? 0).toFixed(2)}`
-                            : (status.pitch_semitones ?? 0).toFixed(2)
-                      }
-                      onFocus={(e) => {
-                        setEditingPitch(
-                          (status.pitch_semitones ?? 0) > 0
-                            ? `+${(status.pitch_semitones ?? 0).toFixed(2)}`
-                            : (status.pitch_semitones ?? 0).toFixed(2)
-                        );
-                        e.target.select();
-                      }}
-                      onChange={(e) => setEditingPitch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          const step = e.shiftKey ? 0.01 : 0.1;
-                          const clean = (editingPitch ?? `${status.pitch_semitones ?? 0}`).replace(',', '.').trim();
-                          const current = parseFloat(clean);
-                          if (!isNaN(current)) {
-                            const next = Math.min(24, Math.round((current + step) * 100) / 100);
-                            setEditingPitch(next > 0 ? `+${next.toFixed(2)}` : next.toFixed(2));
-                            handlePitchChange(next);
-                          }
-                        } else if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          const step = e.shiftKey ? 0.01 : 0.1;
-                          const clean = (editingPitch ?? `${status.pitch_semitones ?? 0}`).replace(',', '.').trim();
-                          const current = parseFloat(clean);
-                          if (!isNaN(current)) {
-                            const next = Math.max(-24, Math.round((current - step) * 100) / 100);
-                            setEditingPitch(next > 0 ? `+${next.toFixed(2)}` : next.toFixed(2));
-                            handlePitchChange(next);
-                          }
-                        } else if (e.key === 'Enter') {
-                          const clean = (editingPitch ?? '').replace(',', '.').trim();
-                          const val = parseFloat(clean);
-                          if (!isNaN(val)) {
-                            const min = status.capabilities?.min_pitch_semitones ?? -24;
-                            const max = status.capabilities?.max_pitch_semitones ?? 24;
-                            const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                            handlePitchChange(clamped);
-                          }
-                          setEditingPitch(null);
-                          e.currentTarget.blur();
-                        } else if (e.key === 'Escape') {
-                          setEditingPitch(null);
-                          e.currentTarget.blur();
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="text"
+                        value={
+                          editingPitch !== null
+                            ? editingPitch
+                            : (status.pitch_semitones ?? 0) > 0
+                              ? `+${(status.pitch_semitones ?? 0).toFixed(2)}`
+                              : (status.pitch_semitones ?? 0).toFixed(2)
                         }
-                      }}
-                      onBlur={() => {
-                        if (editingPitch !== null) {
-                          const clean = editingPitch.replace(',', '.').trim();
-                          const val = parseFloat(clean);
-                          if (!isNaN(val)) {
-                            const min = status.capabilities?.min_pitch_semitones ?? -24;
-                            const max = status.capabilities?.max_pitch_semitones ?? 24;
-                            const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                            handlePitchChange(clamped);
+                        onFocus={(e) => {
+                          setEditingPitch(
+                            (status.pitch_semitones ?? 0) > 0
+                              ? `+${(status.pitch_semitones ?? 0).toFixed(2)}`
+                              : (status.pitch_semitones ?? 0).toFixed(2)
+                          );
+                          e.target.select();
+                        }}
+                        onChange={(e) => setEditingPitch(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 0.01 : 0.1;
+                            const clean = (editingPitch ?? `${status.pitch_semitones ?? 0}`).replace(',', '.').trim();
+                            const current = parseFloat(clean);
+                            if (!isNaN(current)) {
+                              const next = Math.min(24, Math.round((current + step) * 100) / 100);
+                              setEditingPitch(next > 0 ? `+${next.toFixed(2)}` : next.toFixed(2));
+                              handlePitchChange(next);
+                            }
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 0.01 : 0.1;
+                            const clean = (editingPitch ?? `${status.pitch_semitones ?? 0}`).replace(',', '.').trim();
+                            const current = parseFloat(clean);
+                            if (!isNaN(current)) {
+                              const next = Math.max(-24, Math.round((current - step) * 100) / 100);
+                              setEditingPitch(next > 0 ? `+${next.toFixed(2)}` : next.toFixed(2));
+                              handlePitchChange(next);
+                            }
+                          } else if (e.key === 'Enter') {
+                            const clean = (editingPitch ?? '').replace(',', '.').trim();
+                            const val = parseFloat(clean);
+                            if (!isNaN(val)) {
+                              const min = status.capabilities?.min_pitch_semitones ?? -24;
+                              const max = status.capabilities?.max_pitch_semitones ?? 24;
+                              const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
+                              handlePitchChange(clamped);
+                            }
+                            setEditingPitch(null);
+                            e.currentTarget.blur();
+                          } else if (e.key === 'Escape') {
+                            setEditingPitch(null);
+                            e.currentTarget.blur();
                           }
-                          setEditingPitch(null);
-                        }
-                      }}
-                      placeholder="0.00"
-                      title="Wpisz wartość i naciśnij Enter (lub użyj strzałek góra/dół)"
-                      style={{
-                        width: '60px',
-                        padding: '2px 6px',
-                        fontSize: '0.82rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        textAlign: 'center',
-                        color: 'var(--accent-pink)',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(244, 63, 94, 0.4)',
-                        borderRadius: '6px',
-                        outline: 'none',
-                        cursor: 'text',
-                      }}
-                    />
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600, fontSize: '0.85rem' }}>
-                      {loc.dsp.semitones} ({Math.round((status.pitch_semitones ?? 0) * 100)} {loc.dsp.cents}) | {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
-                    </span>
+                        }}
+                        onBlur={() => {
+                          if (editingPitch !== null) {
+                            const clean = editingPitch.replace(',', '.').trim();
+                            const val = parseFloat(clean);
+                            if (!isNaN(val)) {
+                              const min = status.capabilities?.min_pitch_semitones ?? -24;
+                              const max = status.capabilities?.max_pitch_semitones ?? 24;
+                              const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
+                              handlePitchChange(clamped);
+                            }
+                            setEditingPitch(null);
+                          }
+                        }}
+                        placeholder="0.00"
+                        title="Wpisz wartość i naciśnij Enter (lub użyj strzałek góra/dół)"
+                        style={{
+                          width: '60px',
+                          padding: '2px 6px',
+                          fontSize: '0.82rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          textAlign: 'center',
+                          color: 'var(--accent-pink)',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(244, 63, 94, 0.4)',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          cursor: 'text',
+                        }}
+                      />
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600, fontSize: '0.85rem' }}>
+                        {loc.dsp.semitones} ({Math.round((status.pitch_semitones ?? 0) * 100)} {loc.dsp.cents}) | {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
+                      </span>
+                    </div>
+                    {/* Wskaźnik wynikowej tonacji (Key) pod wskaźnikiem */}
+                    <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {dspCombination.totalKey ? (
+                        <span>
+                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                          {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
+                          {dspCombination.hasRate && (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', marginLeft: '4px' }}>
+                              (Σ {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st)
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st
+                          {dspCombination.hasRate && ` (${(status.pitch_semitones ?? 0).toFixed(2)} st + rate ${(dspCombination.rateSemitones > 0 ? '+' : '') + dspCombination.rateSemitones.toFixed(2)} st)`}
+                          {language === 'pl' ? ' (brak tonacji bazowej)' : ' (no base key)'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <input
@@ -16195,89 +16696,111 @@ export default function App() {
                       +0.1x
                     </button>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input
-                      type="text"
-                      value={
-                        editingTempo !== null
-                          ? editingTempo
-                          : (status.tempo_ratio ?? 1).toFixed(2)
-                      }
-                      onFocus={(e) => {
-                        setEditingTempo((status.tempo_ratio ?? 1).toFixed(2));
-                        e.target.select();
-                      }}
-                      onChange={(e) => setEditingTempo(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          const step = e.shiftKey ? 0.01 : 0.1;
-                          const clean = (editingTempo ?? `${status.tempo_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const current = parseFloat(clean);
-                          if (!isNaN(current)) {
-                            const next = Math.min(3.0, Math.round((current + step) * 100) / 100);
-                            setEditingTempo(next.toFixed(2));
-                            handleTempoChange(next);
-                          }
-                        } else if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          const step = e.shiftKey ? 0.01 : 0.1;
-                          const clean = (editingTempo ?? `${status.tempo_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const current = parseFloat(clean);
-                          if (!isNaN(current)) {
-                            const next = Math.max(0.1, Math.round((current - step) * 100) / 100);
-                            setEditingTempo(next.toFixed(2));
-                            handleTempoChange(next);
-                          }
-                        } else if (e.key === 'Enter') {
-                          const clean = (editingTempo ?? '').replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const val = parseFloat(clean);
-                          if (!isNaN(val)) {
-                            const min = status.capabilities?.min_tempo_ratio ?? 0.1;
-                            const max = status.capabilities?.max_tempo_ratio ?? 3.0;
-                            const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                            handleTempoChange(clamped);
-                          }
-                          setEditingTempo(null);
-                          e.currentTarget.blur();
-                        } else if (e.key === 'Escape') {
-                          setEditingTempo(null);
-                          e.currentTarget.blur();
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="text"
+                        value={
+                          editingTempo !== null
+                            ? editingTempo
+                            : (status.tempo_ratio ?? 1).toFixed(2)
                         }
-                      }}
-                      onBlur={() => {
-                        if (editingTempo !== null) {
-                          const clean = editingTempo.replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const val = parseFloat(clean);
-                          if (!isNaN(val)) {
-                            const min = status.capabilities?.min_tempo_ratio ?? 0.1;
-                            const max = status.capabilities?.max_tempo_ratio ?? 3.0;
-                            const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
-                            handleTempoChange(clamped);
+                        onFocus={(e) => {
+                          setEditingTempo((status.tempo_ratio ?? 1).toFixed(2));
+                          e.target.select();
+                        }}
+                        onChange={(e) => setEditingTempo(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 0.01 : 0.1;
+                            const clean = (editingTempo ?? `${status.tempo_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const current = parseFloat(clean);
+                            if (!isNaN(current)) {
+                              const next = Math.min(3.0, Math.round((current + step) * 100) / 100);
+                              setEditingTempo(next.toFixed(2));
+                              handleTempoChange(next);
+                            }
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 0.01 : 0.1;
+                            const clean = (editingTempo ?? `${status.tempo_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const current = parseFloat(clean);
+                            if (!isNaN(current)) {
+                              const next = Math.max(0.1, Math.round((current - step) * 100) / 100);
+                              setEditingTempo(next.toFixed(2));
+                              handleTempoChange(next);
+                            }
+                          } else if (e.key === 'Enter') {
+                            const clean = (editingTempo ?? '').replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const val = parseFloat(clean);
+                            if (!isNaN(val)) {
+                              const min = status.capabilities?.min_tempo_ratio ?? 0.1;
+                              const max = status.capabilities?.max_tempo_ratio ?? 3.0;
+                              const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
+                              handleTempoChange(clamped);
+                            }
+                            setEditingTempo(null);
+                            e.currentTarget.blur();
+                          } else if (e.key === 'Escape') {
+                            setEditingTempo(null);
+                            e.currentTarget.blur();
                           }
-                          setEditingTempo(null);
-                        }
-                      }}
-                      placeholder="1.00"
-                      title="Wpisz tempo (np. 1.25 lub 1,25) i naciśnij Enter (lub użyj strzałek góra/dół)"
-                      style={{
-                        width: '60px',
-                        padding: '2px 6px',
-                        fontSize: '0.82rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        textAlign: 'center',
-                        color: 'var(--accent-cyan)',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(6, 182, 212, 0.4)',
-                        borderRadius: '6px',
-                        outline: 'none',
-                        cursor: 'text',
-                      }}
-                    />
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '0.85rem' }}>
-                      x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
-                    </span>
+                        }}
+                        onBlur={() => {
+                          if (editingTempo !== null) {
+                            const clean = editingTempo.replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const val = parseFloat(clean);
+                            if (!isNaN(val)) {
+                              const min = status.capabilities?.min_tempo_ratio ?? 0.1;
+                              const max = status.capabilities?.max_tempo_ratio ?? 3.0;
+                              const clamped = Math.max(min, Math.min(max, Math.round(val * 100) / 100));
+                              handleTempoChange(clamped);
+                            }
+                            setEditingTempo(null);
+                          }
+                        }}
+                        placeholder="1.00"
+                        title="Wpisz tempo (np. 1.25 lub 1,25) i naciśnij Enter (lub użyj strzałek góra/dół)"
+                        style={{
+                          width: '60px',
+                          padding: '2px 6px',
+                          fontSize: '0.82rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          textAlign: 'center',
+                          color: 'var(--accent-cyan)',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(6, 182, 212, 0.4)',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          cursor: 'text',
+                        }}
+                      />
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '0.85rem' }}>
+                        x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
+                      </span>
+                    </div>
+                    {/* Wskaźnik wynikowego tempa (BPM) pod wskaźnikiem */}
+                    <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {dspCombination.totalBpm ? (
+                        <span>
+                          ⚡ Tempo: <strong style={{ color: '#fff' }}>{dspCombination.totalBpm.toFixed(1)} BPM</strong>
+                          {activeTrackKeyBpm.bpm ? ` (${language === 'pl' ? 'z' : 'from'} ${activeTrackKeyBpm.bpm.toFixed(1)})` : ''}
+                          {dspCombination.hasRate && (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', marginLeft: '4px' }}>
+                              (Σ {dspCombination.totalSpeedRatio.toFixed(2)}x)
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          ⚡ Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
+                          {dspCombination.hasRate && ` (${(status.tempo_ratio ?? 1).toFixed(2)}x × rate ${(status.rate_ratio ?? 1).toFixed(2)}x)`}
+                          {language === 'pl' ? ' (brak BPM bazowego)' : ' (no base BPM)'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <input
@@ -16380,85 +16903,110 @@ export default function App() {
                       +0.1x
                     </button>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input
-                      type="text"
-                      value={
-                        editingRate !== null
-                          ? editingRate
-                          : (status.rate_ratio ?? 1).toFixed(2)
-                      }
-                      onFocus={(e) => {
-                        setEditingRate((status.rate_ratio ?? 1).toFixed(2));
-                        e.target.select();
-                      }}
-                      onChange={(e) => setEditingRate(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          const step = e.shiftKey ? 0.01 : 0.1;
-                          const clean = (editingRate ?? `${status.rate_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const current = parseFloat(clean);
-                          if (!isNaN(current)) {
-                            const next = Math.min(3.0, Math.round((current + step) * 100) / 100);
-                            setEditingRate(next.toFixed(2));
-                            handleRateChange(next);
-                          }
-                        } else if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          const step = e.shiftKey ? 0.01 : 0.1;
-                          const clean = (editingRate ?? `${status.rate_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const current = parseFloat(clean);
-                          if (!isNaN(current)) {
-                            const next = Math.max(0.1, Math.round((current - step) * 100) / 100);
-                            setEditingRate(next.toFixed(2));
-                            handleRateChange(next);
-                          }
-                        } else if (e.key === 'Enter') {
-                          const clean = (editingRate ?? '').replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const val = parseFloat(clean);
-                          if (!isNaN(val)) {
-                            const clamped = Math.max(0.1, Math.min(3.0, Math.round(val * 100) / 100));
-                            handleRateChange(clamped);
-                          }
-                          setEditingRate(null);
-                          e.currentTarget.blur();
-                        } else if (e.key === 'Escape') {
-                          setEditingRate(null);
-                          e.currentTarget.blur();
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="text"
+                        value={
+                          editingRate !== null
+                            ? editingRate
+                            : (status.rate_ratio ?? 1).toFixed(2)
                         }
-                      }}
-                      onBlur={() => {
-                        if (editingRate !== null) {
-                          const clean = editingRate.replace('x', '').replace('X', '').replace(',', '.').trim();
-                          const val = parseFloat(clean);
-                          if (!isNaN(val)) {
-                            const clamped = Math.max(0.1, Math.min(3.0, Math.round(val * 100) / 100));
-                            handleRateChange(clamped);
+                        onFocus={(e) => {
+                          setEditingRate((status.rate_ratio ?? 1).toFixed(2));
+                          e.target.select();
+                        }}
+                        onChange={(e) => setEditingRate(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 0.01 : 0.1;
+                            const clean = (editingRate ?? `${status.rate_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const current = parseFloat(clean);
+                            if (!isNaN(current)) {
+                              const next = Math.min(3.0, Math.round((current + step) * 100) / 100);
+                              setEditingRate(next.toFixed(2));
+                              handleRateChange(next);
+                            }
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 0.01 : 0.1;
+                            const clean = (editingRate ?? `${status.rate_ratio ?? 1}`).replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const current = parseFloat(clean);
+                            if (!isNaN(current)) {
+                              const next = Math.max(0.1, Math.round((current - step) * 100) / 100);
+                              setEditingRate(next.toFixed(2));
+                              handleRateChange(next);
+                            }
+                          } else if (e.key === 'Enter') {
+                            const clean = (editingRate ?? '').replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const val = parseFloat(clean);
+                            if (!isNaN(val)) {
+                              const clamped = Math.max(0.1, Math.min(3.0, Math.round(val * 100) / 100));
+                              handleRateChange(clamped);
+                            }
+                            setEditingRate(null);
+                            e.currentTarget.blur();
+                          } else if (e.key === 'Escape') {
+                            setEditingRate(null);
+                            e.currentTarget.blur();
                           }
-                          setEditingRate(null);
-                        }
-                      }}
-                      placeholder="1.00"
-                      title="Wpisz prędkość (np. 1.15 lub 1,15) i naciśnij Enter (lub użyj strzałek góra/dół)"
-                      style={{
-                        width: '60px',
-                        padding: '2px 6px',
-                        fontSize: '0.82rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        textAlign: 'center',
-                        color: 'var(--accent-amber)',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(245, 158, 11, 0.4)',
-                        borderRadius: '6px',
-                        outline: 'none',
-                        cursor: 'text',
-                      }}
-                    />
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600, fontSize: '0.85rem' }}>
-                      x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
-                    </span>
+                        }}
+                        onBlur={() => {
+                          if (editingRate !== null) {
+                            const clean = editingRate.replace('x', '').replace('X', '').replace(',', '.').trim();
+                            const val = parseFloat(clean);
+                            if (!isNaN(val)) {
+                              const clamped = Math.max(0.1, Math.min(3.0, Math.round(val * 100) / 100));
+                              handleRateChange(clamped);
+                            }
+                            setEditingRate(null);
+                          }
+                        }}
+                        placeholder="1.00"
+                        title="Wpisz prędkość (np. 1.15 lub 1,15) i naciśnij Enter (lub użyj strzałek góra/dół)"
+                        style={{
+                          width: '60px',
+                          padding: '2px 6px',
+                          fontSize: '0.82rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          textAlign: 'center',
+                          color: 'var(--accent-amber)',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          cursor: 'text',
+                        }}
+                      />
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600, fontSize: '0.85rem' }}>
+                        x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
+                      </span>
+                    </div>
+                    {/* Wskaźnik wynikowej tonacji i tempa pod wskaźnikiem */}
+                    <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {dspCombination.totalKey ? (
+                        <span>
+                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                          {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: {(dspCombination.totalPitchSemitones > 0 ? '+' : '') + dspCombination.totalPitchSemitones.toFixed(2)} st
+                        </span>
+                      )}
+                      <span>•</span>
+                      {dspCombination.totalBpm ? (
+                        <span>
+                          ⚡ Tempo: <strong style={{ color: '#fff' }}>{dspCombination.totalBpm.toFixed(1)} BPM</strong>
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          ⚡ Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <input
@@ -16905,19 +17453,21 @@ export default function App() {
                         </span>
                       </div>
                     </div>
-                    <span
+                    <button
+                      onClick={() => handleBassBoostChange(bassBoost > 0 ? 0 : (lastBassBoostRef.current || 6))}
                       style={{
-                        fontFamily: 'var(--font-mono)',
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
-                        fontSize: '0.85rem',
+                        background: bassBoost > 0 ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                        border: `1px solid ${bassBoost > 0 ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
                         color: bassBoost > 0 ? 'var(--accent-pink)' : 'var(--text-muted)',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: bassBoost > 0 ? 'rgba(255, 77, 148, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                        cursor: 'pointer',
                       }}
                     >
-                      +{bassBoost.toFixed(1)} dB
-                    </span>
+                      {bassBoost > 0 ? `● BASS +${bassBoost.toFixed(1)} dB` : '○ BYPASS'}
+                    </button>
                   </div>
 
                   <input
@@ -17005,10 +17555,9 @@ export default function App() {
                       min={0}
                       max={1}
                       step={0.02}
-                      disabled={!stereoWidenerActive}
                       value={stereoWidenerAmount}
                       onChange={(e) => handleStereoWidenerAmountChange(Number(e.target.value))}
-                      style={{ width: '100%', cursor: stereoWidenerActive ? 'pointer' : 'not-allowed' }}
+                      style={{ width: '100%', cursor: 'pointer' }}
                     />
                   </div>
                 </div>
@@ -17119,7 +17668,7 @@ export default function App() {
                     </button>
                   </div>
 
-                  <div style={{ opacity: crossfeedEnabled ? 1 : 0.5, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ opacity: crossfeedEnabled ? 1 : 0.65, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {([
                         { id: 'Default', label: 'Default (700Hz/4.5dB)' },
@@ -17131,17 +17680,16 @@ export default function App() {
                         return (
                           <button
                             key={p.id}
-                            disabled={!crossfeedEnabled}
-                            onClick={() => handleSetCrossfeed(crossfeedEnabled, p.id)}
+                            onClick={() => handleSetCrossfeed(true, p.id)}
                             style={{
                               padding: '4px 8px',
                               borderRadius: '6px',
                               fontSize: '0.72rem',
                               fontWeight: 600,
-                              background: isActive ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.05)',
-                              border: `1px solid ${isActive ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
-                              color: isActive ? 'var(--accent-purple)' : 'var(--text-muted)',
-                              cursor: crossfeedEnabled ? 'pointer' : 'not-allowed',
+                              background: isActive && crossfeedEnabled ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+                              border: `1px solid ${isActive && crossfeedEnabled ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
+                              color: isActive && crossfeedEnabled ? 'var(--accent-purple)' : 'var(--text-muted)',
+                              cursor: 'pointer',
                             }}
                           >
                             {p.label}
@@ -17162,10 +17710,9 @@ export default function App() {
                             min="300"
                             max="2000"
                             step="25"
-                            disabled={!crossfeedEnabled}
                             value={crossfeedFcut}
-                            onChange={(e) => handleSetCrossfeed(crossfeedEnabled, 'Custom', parseInt(e.target.value, 10), crossfeedFeed)}
-                            style={{ width: '100%', cursor: crossfeedEnabled ? 'pointer' : 'not-allowed' }}
+                            onChange={(e) => handleSetCrossfeed(true, 'Custom', parseInt(e.target.value, 10), crossfeedFeed)}
+                            style={{ width: '100%', cursor: 'pointer' }}
                           />
                         </div>
                         <div>
@@ -17178,10 +17725,9 @@ export default function App() {
                             min="10"
                             max="150"
                             step="5"
-                            disabled={!crossfeedEnabled}
                             value={crossfeedFeed}
-                            onChange={(e) => handleSetCrossfeed(crossfeedEnabled, 'Custom', crossfeedFcut, parseInt(e.target.value, 10))}
-                            style={{ width: '100%', cursor: crossfeedEnabled ? 'pointer' : 'not-allowed' }}
+                            onChange={(e) => handleSetCrossfeed(true, 'Custom', crossfeedFcut, parseInt(e.target.value, 10))}
+                            style={{ width: '100%', cursor: 'pointer' }}
                           />
                         </div>
                       </div>
@@ -17224,6 +17770,11 @@ export default function App() {
                         boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                       }}
                     >
+                      {selectedEqPreset && !eqPresets.some((p) => p.name === selectedEqPreset) && (
+                        <option value={selectedEqPreset} style={{ background: '#181824', color: '#ff4d94' }}>
+                          {selectedEqPreset}
+                        </option>
+                      )}
                       {eqPresets.map((preset) => (
                         <option key={preset.name} value={preset.name} style={{ background: '#181824', color: '#fff' }}>
                           {preset.name}
@@ -17441,12 +17992,10 @@ export default function App() {
                           max={12}
                           step={0.5}
                           value={gain}
-                          disabled={status.equalizer_enabled === false}
                           onChange={(e) => handleEqBandChange(idx, Number(e.target.value))}
                           style={{
                             width: '100%',
-                            cursor: status.equalizer_enabled === false ? 'not-allowed' : 'pointer',
-                            opacity: status.equalizer_enabled === false ? 0.4 : 1,
+                            cursor: 'pointer',
                           }}
                         />
                       </div>
@@ -17488,7 +18037,7 @@ export default function App() {
 
           {/* ZAKŁADKA: PLAYLISTY (ETAP 7) */}
           {activeTab === 'playlists' && (
-            <div className="glass-panel" style={{ padding: '28px', maxWidth: 'min(1500px, 95vw)', margin: '0 auto' }}>
+            <div className="glass-panel" style={{ padding: '28px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
@@ -18563,7 +19112,9 @@ export default function App() {
               style={{
                 width: '100%',
                 maxWidth: '940px',
-                maxHeight: '88vh',
+                height: '84vh',
+                minHeight: '560px',
+                maxHeight: '840px',
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: '20px',
@@ -19056,6 +19607,7 @@ export default function App() {
         }}
         crossfadeDurationMs={crossfadeDuration}
         onSetCrossfadeDuration={handleCrossfadeDurationChange}
+        onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
         currentLang={language}
       />
 
@@ -19066,11 +19618,21 @@ export default function App() {
         currentBands={status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
         onApplyProfile={async (bands, preampDb, profileName) => {
           try {
-            await invoke('set_equalizer_bands', { bands });
-            await invoke('set_equalizer_enabled', { enabled: true });
+            await invoke('apply_auto_eq_profile', {
+              profileName,
+              bands,
+              preampDb: preampDb || 0,
+            });
+            const autoEqLabel = `🎧 ${profileName} (AutoEQ)`;
+            setEqPresets((prev) => {
+              if (prev.some((p) => p.name === autoEqLabel)) return prev;
+              return [...prev, { name: autoEqLabel, bands }];
+            });
+            setSelectedEqPreset(autoEqLabel);
             setStatus((prev) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
             showMessage(
-              `Zastosowano profil słuchawek AutoEQ: ${profileName}${preampDb !== 0 ? ` (Preamp: ${preampDb.toFixed(1)} dB)` : ''
+              `Zastosowano profil słuchawek AutoEQ: ${profileName}${
+                preampDb !== 0 ? ` (Preamp: ${preampDb.toFixed(1)} dB)` : ''
               }`
             );
             setIsAutoEqOpen(false);
@@ -19170,6 +19732,7 @@ export default function App() {
         rateRatio={status.rate_ratio ?? 1}
         onPitchChange={handlePitchChange}
         onTempoChange={handleTempoChange}
+        onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
         currentLang={language}
       />
 

@@ -40,6 +40,7 @@ interface HarmonicSuggesterModalProps {
   onSyncTempo: (targetBpm: number) => void;
   crossfadeDurationMs: number;
   onSetCrossfadeDuration: (ms: number) => void;
+  onTrackKeyBpmUpdated?: (trackId: number, bpm: number, keyName: string) => void;
   currentLang?: Language;
 }
 
@@ -53,6 +54,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   onSyncTempo,
   crossfadeDurationMs,
   onSetCrossfadeDuration,
+  onTrackKeyBpmUpdated,
   currentLang = 'pl',
 }) => {
   const isPl = currentLang === 'pl';
@@ -74,6 +76,39 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
     }
     return libraryTracks[0] || null;
   }, [currentTrack, selectedTrackId, libraryTracks]);
+
+  // Synchronizacja z localStorage (np. jeśli KeyBpmModal wcześniej przeanalizował ten utwór)
+  useEffect(() => {
+    if (!isOpen || !effectiveCurrentTrack) return;
+    setAnalyzedCurrentKey(null);
+    setAnalyzedCurrentBpm(null);
+
+    // Jeśli utwór ma już poprawnie sparsowany Camelot i BPM, nie trzeba szukać w cache
+    if (parseCamelotKey(effectiveCurrentTrack.initial_key) && effectiveCurrentTrack.bpm) {
+      return;
+    }
+
+    const cacheKeyId = effectiveCurrentTrack.id ? `auralune_track_key_bpm_${effectiveCurrentTrack.id}` : null;
+    const cacheKeyUri = effectiveCurrentTrack.uri ? `auralune_track_key_bpm_${effectiveCurrentTrack.uri}` : null;
+    const stored = (cacheKeyId && localStorage.getItem(cacheKeyId)) || (cacheKeyUri && localStorage.getItem(cacheKeyUri));
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.baseKeyIndex === 'number') {
+          const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+          const note = notes[parsed.baseKeyIndex] || 'C';
+          const keyStr = parsed.isMinor ? `${note}m` : `${note} Maj`;
+          setAnalyzedCurrentKey(keyStr);
+          if (effectiveCurrentTrack.id && parsed.baseBpm) {
+            onTrackKeyBpmUpdated?.(effectiveCurrentTrack.id, parsed.baseBpm, keyStr);
+          }
+        }
+        if (typeof parsed.baseBpm === 'number') {
+          setAnalyzedCurrentBpm(parsed.baseBpm);
+        }
+      } catch {}
+    }
+  }, [isOpen, effectiveCurrentTrack?.id, effectiveCurrentTrack?.uri]);
 
   const effectiveKey = analyzedCurrentKey || effectiveCurrentTrack?.initial_key || null;
   const effectiveBpm = analyzedCurrentBpm || effectiveCurrentTrack?.bpm || null;
@@ -116,8 +151,12 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         forceRecompute: true,
       });
       if (res) {
-        setAnalyzedCurrentKey(res.camelot || res.key_name);
+        const keyToUse = res.camelot || res.key_name;
+        setAnalyzedCurrentKey(keyToUse);
         setAnalyzedCurrentBpm(res.bpm);
+        if (effectiveCurrentTrack.id) {
+          onTrackKeyBpmUpdated?.(effectiveCurrentTrack.id, res.bpm, keyToUse);
+        }
       }
     } catch (e) {
       console.error('Błąd analizy utworu:', e);
@@ -128,10 +167,10 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
 
   // Automatyczna próba wykrycia klucza i BPM po otwarciu okna dla utworu, który ich nie posiada
   useEffect(() => {
-    if (isOpen && effectiveCurrentTrack && !effectiveKey && !effectiveBpm && !isAnalyzingCurrent) {
+    if (isOpen && effectiveCurrentTrack && (!currentCamelot || !effectiveBpm) && !isAnalyzingCurrent) {
       handleAnalyzeCurrent();
     }
-  }, [isOpen, effectiveCurrentTrack?.id]);
+  }, [isOpen, effectiveCurrentTrack?.id, Boolean(currentCamelot), Boolean(effectiveBpm)]);
 
   // Ranking utworów z biblioteki
   const rankedTracks = useMemo(() => {
@@ -379,7 +418,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{isPl ? 'BPM nieznane' : 'BPM unknown'}</span>
               )}
 
-              {(!effectiveKey || !effectiveBpm) && effectiveCurrentTrack && (
+              {(!currentCamelot || !effectiveBpm) && effectiveCurrentTrack && (
                 <button
                   onClick={handleAnalyzeCurrent}
                   disabled={isAnalyzingCurrent}

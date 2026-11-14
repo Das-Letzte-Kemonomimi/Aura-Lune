@@ -9,6 +9,49 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.0.8] — „Harmonic Resonance & Ultra-Wide Canvas” - 2026-11-14
+**Autorka**: Das Letzte Kemonomimi
+
+### ✨ Dodano (Added)
+- **Skalowanie interfejsu użytkownika (UI Scale) oraz obsługa szerokich monitorów (Ultra Wide Layout)**:
+  - Wprowadzono 4-stopniowy selektor skali interfejsu: `100% (Standardowy)`, `110% (Komfortowy)`, `120% (Duży)` oraz `130% (Maksymalny / Ultra Wide)` dostępny w Ustawieniach (*Motywy i Wygląd*).
+  - Dodano przycisk szybkiego przełączania skali w nagłówku aplikacji (LPM: powiększ, PPM: pomniejsz) obok przycisków Pełny ekran i Mini-Player.
+  - Dodano globalne skróty klawiaturowe: `Ctrl + +` / `NumpadAdd` (powiększ), `Ctrl + -` / `NumpadSubtract` (pomniejsz) oraz `Ctrl + 0` / `Numpad0` (resetuj do 100%).
+  - Zwiększono limit szerokości roboczej kontenerów aplikacji z sztywnego 1500px do dynamicznego `layoutMaxWidth` (do 2350px / 98.5vw przy wyższych skalach), eliminując puste przestrzenie po bokach na ekranach Full HD, 2K, 4K i Ultrawide.
+  - Wybór skali jest trwale zapisywany w `localStorage` (`auralune_ui_scale`) i przywracany przy starcie.
+- **Domyślny utwór startowy „Skrzydła Białe” (Das Letzte Kemonomimi) dla nowo zainstalowanej / pustej biblioteki**:
+  Gdy użytkownik nie ma jeszcze żadnych utworów w bibliotece, odtwarzacz automatycznie ładuje i wyświetla utwór testowy „Skrzydła Białe” (FLAC 24-bit/44.1 kHz, 56.8s) w odtwarzaczu głównym, mini-playerze i gramofonie, gotowy do natychmiastowego odtworzenia i przetestowania efektów DSP, equalizera i regulacji prędkości. Utwór nie jest zapisywany w bazie SQLite (karty Biblioteka / Albumy / Wykonawcy pozostają puste i czyste). Gdy użytkownik doda lub przeskanuje własną muzykę (`tracks.length > 0`), aplikacja natychmiast przełącza się na kolekcję użytkownika, a utwór testowy nie jest już wyświetlany jako domyślny.
+- **Dynamiczny podgląd tonacji (Key) i tempa (BPM) pod wskaźnikami DSP w czasie rzeczywistym**:
+  - Pod wskaźnikiem **Pitch Shift** wyświetlana jest w locie wynikowa tonacja muzyczna na kole Camelota (np. `🎯 Klucz: 11A (F# min) +35¢`) przy przeciąganiu suwaka.
+  - Pod wskaźnikiem **Tempo (Time Stretch)** wyświetlane jest wynikowe tempo utworu w BPM (np. `⚡ Tempo: 116.3 BPM (z 93.0)`).
+  - Pod wskaźnikiem **Playback Speed (Rate)** wyświetlana jest jednocześnie wynikowa tonacja (wynikająca z warispeedu $12 \cdot \log_2(\text{rate})$) oraz wynikowe tempo BPM.
+- **Opcja wyłączenia podświetlenia przycisków (Hover Glow)**: Dodano dedykowany przełącznik w Ustawieniach (Motywy i Wygląd), który pozwala wyłączyć rozjaśnianie i poświatę przycisków po najechaniu kursorem (`body.disable-button-glow`).
+- **Filtr deduplikacji biblioteki (Hide Duplicates)**: Wprowadzono przełącznik deduplikacji w pasku narzędzi biblioteki ukrywający powtarzające się utwory o tej samej ścieżce lub metadanych (tytuł, wykonawca, długość).
+- **Obsługa natywnego Drag & Drop plików i folderów z menedżera pulpitu**: Obsłużono `text/uri-list` oraz `File.path` w zdarzeniu `drop`, co pozwala przeciągać foldery i utwory bezpośrednio z Dolphin/Nautilus/Thunar z natychmiastowym odtwarzaniem.
+- **Paginacja wydań w Changelog (Load more)**: Wprowadzono limit 5 ostatnich wydań na start z przyciskiem doładowywania starszych wersji w celu odciążenia renderowania.
+
+### 🛠️ Poprawiono (Fixed)
+- **Uwzględnianie pełnej kombinacji DSP (Tempo, Pitch Shift i Playback Rate) na plakietkach odtwarzacza (Vinyl Turntable & Tape Deck)**: Zastąpiono sztywne wyświetlanie wyłącznie tempa dynamicznym formatowaniem `dspBadgeText`, które kalkuluje łączną transpozycję w półtonach ($\text{pitch} + 12 \cdot \log_2(\text{rate})$), efektywne tempo ($\text{tempo} \times \text{rate}$) oraz prezentuje wypadkowy stan (np. `RubberBand Σ 0.64x, +1.86st`, `RubberBand +2.00st`) z pełnym dymkiem informacyjnym (tonacja Camelot + BPM).
+- **Zintegrowany podgląd kombinacji parametrów pod suwakami DSP**: Wskaźnik pod suwakiem *Pitch Shift* uwzględnia transpozycję wynikającą z prędkości odtwarzania *Playback Rate*, wskaźnik pod *Tempo* uwzględnia prędkość *Playback Rate*, a wskaźnik *DSP* przy pasku postępu w widoku Now Playing uaktywnia się również przy modyfikacji samego pitchu.
+- **Wykrywanie i parsowanie tonacji w asystencie DJ i miksowaniu harmonicznym (Camelot Wheel)**: Naprawiono błąd parsowania kluczy molowych ze spacjami (np. `D m`, `A m`, `F# m`, `A min`) generowanych przez backend Rust i bazę danych, przez co w oknie asystenta DJ pojawiał się komunikat `Key unknown` i brakowało kandydatów w tonacji. Zapewniono pełną synchronizację wykrytej tonacji i BPM z modala `Key & BPM Analyzer` z biblioteką utworów (`tracks`) oraz automatyczne wyzwalanie analizy klucza, gdy znane jest tylko BPM utworu.
+- **Pełna responsywność i automatyczna aktywacja 10-pasmowego korektora graficznego (EQ)**: Usunięto blokadę `disabled` na suwakach pasm korektora w trybie bypass. Ruch dowolnego suwaka w czasie rzeczywistym natychmiast uaktywnia korektor, przesyła zaktualizowane pasma do elementu `equalizer-10bands` GStreamera w locie i przełącza wskaźnik stanu na „Włączony”.
+- **Bezpośrednie aplikowanie profili słuchawkowych AutoEQ z kompensacją Preamp**: Wprowadzono dedykowaną komendę backendu `apply_auto_eq_profile`, która atomowo ładuje 10 pasm profilu słuchawek, uaktywnia korektor graficzny, steruje kompensacją przedwzmacniacza (preamp) na elemencie `peq_preamp` GStreamera (zapobiegając przesterom basu) oraz rejestruje wybrany model w rozwijanej liście presetów (`selectedEqPreset`).
+- **Niezależny przedwzmacniacz EQ (Preamp Gain)**: Zintegrowano sterowanie głośnością preampu dla korektora graficznego i parametrycznego, gwarantując bezpieczny headroom bez cyfrowego obcinania próbek (clipping).
+- **Eliminacja rwania dźwięku przy eksporcie DSP (Transcoder / dsp_node)**: Wprowadzono ścisłą rachubę offsetów ramek (`set_offset`, `set_offset_end`) oraz nanosekundowych znaczników PTS w `dsp_node.rs`, a w potoku transkodera dodano bufor rozprzęgający `queue_enc` (3s), eliminując backpressure i jitter czasowy.
+- **Wznawianie zapamiętanej pozycji po uruchomieniu**: Naprawiono błąd, przez który po starcie aplikacji pasek postępu pokazywał zapamiętaną pozycję (np. 1:37), ale kliknięcie Play odtwarzało od 0:00.
+- **Pojedyncze kliknięcie w kolejce odtwarzania**: Zmieniono obsługę kolejki z wymaganego podwójnego kliknięcia na natychmiastowe odtwarzanie po pojedynczym kliknięciu (`onClick`), aktualizując również podpowiedzi w i18n ("Click to play").
+- **Odklikiwanie DSP Vibe Profile**: Ponowne kliknięcie aktywnego profilu (Nightcore, Slowed & Lo-Fi, Anime Vocal, Bass) bezpiecznie go odklikuje/wyłącza i przywraca czysty tryb Bypass.
+- **Czyszczenie okładki po włączeniu radia internetowego**: W trybie stacji radiowej okładka poprzedniego utworu jest natychmiast zerowana, wyświetlając dedykowaną ikonę radia.
+- **Stabilna wysokość okna Ustawień**: Ustalono stałą wysokość modala (`height: 84vh`, `minHeight: 560px`, `maxHeight: 840px`), eliminując skakanie okna przy przełączaniu zakładek.
+- **Skalowanie nawigacji nagłówka**: Zwiększono breakpointy dla `.header-action-text` (1680px) i `.header-nav-label` (1350px), dzięki czemu przyciski nie ulegają ucięciu na mniejszych ekranach.
+- **Dynamiczna wersja w skrypcie instalacyjnym (`install.sh`)**: Zastąpiono przestarzałą wersję 0.8.0 dynamicznym odczytem z `tauri.conf.json` oraz najnowszego tagu z GitHub Releases.
+
+### 🔄 Zmieniono (Changed)
+- **Przeniesienie konfiguracji głośności**: Przeniesiono kartę „Regulacja Głośności, OSD i Statystyki” z zakładki *About* do zakładki *Dźwięk i urządzenia* (*Audio & Devices*).
+- **Domyślny tryb reakcji suwaka głośności**: Przestawiono domyślną reakcję suwaka głośności na natychmiastową (Direct Zero-Latency).
+
+---
+
 ## [1.0.7] — „PipeWire Pulse Ring-Buffer & Zero-Stutter Pipeline” - 2026-11-08
 **Autorka**: Das Letzte Kemonomimi
 
