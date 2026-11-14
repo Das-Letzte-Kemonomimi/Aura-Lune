@@ -18,11 +18,64 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.1.1',
+    codename: 'Spectral Precision & Floating Studio',
+    date: '2026-11-14',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Separacja spektralna STFT HPSS & Stereo Azimuth: pełnopasmowy rozkład harmoniczno-perkusyjny z filtracją medianową i dekompozycją Center/Side w stereo 44.1 kHz.',
+        en: 'Spectral STFT HPSS & Stereo Azimuth separation: full-bandwidth harmonic-percussive decomposition with 2D median filtering and Center/Side stereo imaging in 44.1 kHz.',
+        de: 'Spektrale STFT HPSS & Stereo Azimuth Separation: Vollband-Harmonie- und Perkussionstrennung mit 2D-Medianfilterung und Center/Side-Stereodekomposition in 44.1 kHz.',
+        fi: 'Spektrinen STFT HPSS & Stereo Azimuth -erottelu: täyden kaistan harmoninen ja perkussiivinen hajotelma 2D-mediaanisuodatuksella ja Center/Side-stereolla 44.1 kHz:ssä.',
+        la: 'Separatio spectralis STFT HPSS et Stereo Azimuth: divisio harmonica et percussiva plenae latitudinis cum filtratione mediana et Center/Side in 44.1 kHz.',
+      },
+      {
+        pl: 'Pływające Studio Analizy Muzycznej (Floating Studio): dedykowane, responsywne okno modalne 1200x88vh z animacją, akcentami anime glassmorphism i obsługą klawisza Esc.',
+        en: 'Floating Music Analysis Studio: dedicated responsive 1200x88vh modal window with smooth entry animations, anime glassmorphism styling, and Esc keyboard dismissal.',
+        de: 'Schwebendes Musikanalyse-Studio: Dediziertes modales 1200x88vh-Fenster mit Anime-Glassmorphism und Esc-Unterstützung.',
+        fi: 'Kelluva Musiikkianalyysistudio: responsiivinen 1200x88vh-modaalinen ikkuna anime-lasimorfismilla ja Esc-näppäintuen kera.',
+        la: 'Studium Musicae Analyticae fluctuans: fenestra modalis 1200x88vh cum stilo vitreo et clave Esc.',
+      },
+      {
+        pl: '1-klikowe pobieranie modeli AI: wbudowany downloader oficjalnych wag sieci neuronowych (HTDemucs v4, Basic Pitch) ze strumieniowym wskaźnikiem postępu.',
+        en: '1-click AI model downloads: integrated downloader for official neural network weights (HTDemucs v4, Basic Pitch) with live streaming progress.',
+        de: '1-Klick-KI-Modell-Downloads: Integrierter Downloader für offizielle neuronale Gewichte mit Streaming-Fortschritt.',
+        fi: '1-klikkauksen tekoälymallien lataus: integroitu lataaja virallisille neuroverkkojen painoille suoratoistoedistymisellä.',
+        la: 'Modulorum AI download uno ictu: procurator integrationis pro ponderibus neuralibus cum indicatore progressus.',
+      },
+      {
+        pl: 'Odsłuch A/B w czasie rzeczywistym i natychmiastowy powrót do utworu: szybkie porównanie miksu stemów z oryginałem oraz dedykowany przycisk powrotu w odtwarzaczu.',
+        en: 'Real-time A/B preview and instant track return: seamless A/B comparison between stem mix and original master with dedicated return button in player.',
+        de: 'Echtzeit-A/B-Vorschau und sofortige Rückkehr zum Titel: Nahtloser Vergleich zwischen Stem-Mix und Original mit Rückkehr-Button im Player.',
+        fi: 'Reaaliaikainen A/B-esikuuntelu ja välitön paluu kappaleeseen: saumaton A/B-vertailu stem-miksauksen ja alkuperäisen välillä.',
+        la: 'Auditio A/B tempore reali et reditus promptus ad carmen: comparatio directa mixturae cum originali.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Wyeliminowano problem zepsutego renderowania elementów HTML w treści aplikacji po kliknięciu Analysis.',
+        en: 'Fixed broken in-flow HTML rendering and button overlap when opening Music Analysis.',
+        de: 'Fehlerhafte HTML-Darstellung und überlappende Schaltflächen beim Öffnen der Musikanalyse behoben.',
+        fi: 'Korjattu hajonnut HTML-renderöinti ja päällekkäiset painikkeet Musiikkianalyysiä avattaessa.',
+        la: 'Correcta repraesentatio HTML interrupta cum Studium Analyticae aperitur.',
+      },
+      {
+        pl: 'Zachowanie oryginalnego utworu i metadanych w kolejce podczas odtwarzania stemów.',
+        en: 'Preserved original track and metadata in playback queue when engaging stem multitrack.',
+        de: 'Originaltitel und Metadaten in der Wiedergabeschlange bei Stem-Wiedergabe beibehalten.',
+        fi: 'Säilytetty alkuperäinen kappale ja metatiedot toistojonossa stem-toiston aikana.',
+        la: 'Conservatum carmen originale et metadata in ordine canendi.',
+      },
+    ],
+  },
+  {
     version: '1.1.0',
     codename: 'Harmonic Intelligence & Stem Synthesis',
     date: '2026-11-14',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Studio Analizy Muzycznej (Music Analysis Studio): chronologiczna detekcja akordów na siatce taktowej (Beat Grid), interaktywna oś czasu zsynchronizowana z odtwarzaniem, dynamiczna transpozycja z Pitch Shiftem i eksport do ChordPro/TXT/JSON.',
