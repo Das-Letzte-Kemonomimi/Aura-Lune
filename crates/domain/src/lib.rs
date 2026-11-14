@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod bookmark;
 pub mod crossfeed;
 pub mod cue;
@@ -14,6 +15,10 @@ pub mod silence;
 pub mod theme;
 pub mod transcode;
 
+pub use analysis::{
+    AiModelInfo, AiTaskType, AnalysisCapabilities, BeatPoint, ChordSegment, DetectedNote,
+    StemMixerState, StemSeparationData, TrackChordsData, TrackTranscriptionData,
+};
 pub use bookmark::TrackBookmark;
 pub use crossfeed::{CrossfeedConfig, CrossfeedPreset};
 pub use cue::{CueSheet, CueTrack};

@@ -331,6 +331,67 @@ impl Database {
         .execute(&self.pool)
         .await;
 
+        // Migracja: Pamięć podręczna analizy muzycznej (akordy, transkrypcja nutowa, separacja stemów, rejestr modeli AI)
+        let _ = sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS track_chords (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+                file_hash TEXT NOT NULL,
+                analyzer_version TEXT NOT NULL,
+                beat_grid_json TEXT NOT NULL,
+                chords_json TEXT NOT NULL,
+                user_overrides_json TEXT,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_track_chords_track ON track_chords(track_id);
+            CREATE INDEX IF NOT EXISTS idx_track_chords_hash ON track_chords(file_hash);
+
+            CREATE TABLE IF NOT EXISTS track_transcriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+                file_hash TEXT NOT NULL,
+                analyzer_version TEXT NOT NULL,
+                notes_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_track_transcriptions_track ON track_transcriptions(track_id);
+            CREATE INDEX IF NOT EXISTS idx_track_transcriptions_hash ON track_transcriptions(file_hash);
+
+            CREATE TABLE IF NOT EXISTS stem_tracks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+                file_hash TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                stems_dir TEXT NOT NULL,
+                vocals_path TEXT NOT NULL,
+                drums_path TEXT NOT NULL,
+                bass_path TEXT NOT NULL,
+                other_path TEXT NOT NULL,
+                piano_path TEXT,
+                guitar_path TEXT,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_stem_tracks_track ON stem_tracks(track_id);
+            CREATE INDEX IF NOT EXISTS idx_stem_tracks_hash ON stem_tracks(file_hash);
+
+            CREATE TABLE IF NOT EXISTS ai_models (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                task_type TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                sha256 TEXT NOT NULL,
+                license TEXT NOT NULL,
+                download_url TEXT,
+                description TEXT NOT NULL DEFAULT '',
+                installed_at INTEGER NOT NULL
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await;
+
         // Inicjalizacja domyślnych motywów anime (upewniamy się, że każdy motyw istnieje)
         for theme in domain::default_themes() {
             if self.get_theme(&theme.id).await?.is_none() {
@@ -1619,6 +1680,293 @@ impl Database {
         .await?;
         Ok(res)
     }
+
+    // =========================================================================
+    // Moduł analizy muzycznej (akordy, transkrypcja nutowa, separacja stemów)
+    // =========================================================================
+
+    /// Zapisuje wynik detekcji akordów i siatki taktowej dla utworu.
+    pub async fn save_track_chords(
+        &self,
+        track_id: i64,
+        file_hash: &str,
+        analyzer_version: &str,
+        beat_grid_json: &str,
+        chords_json: &str,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO track_chords (track_id, file_hash, analyzer_version, beat_grid_json, chords_json, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6);
+            "#,
+        )
+        .bind(track_id)
+        .bind(file_hash)
+        .bind(analyzer_version)
+        .bind(beat_grid_json)
+        .bind(chords_json)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Pobiera zapisane dane akordów i siatki taktów dla danego utworu.
+    pub async fn get_track_chords(
+        &self,
+        track_id: i64,
+    ) -> Result<Option<(String, String, Option<String>)>, StorageError> {
+        let row = sqlx::query(
+            "SELECT beat_grid_json, chords_json, user_overrides_json FROM track_chords WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;",
+        )
+        .bind(track_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| {
+            let beat: String = r.get(0);
+            let chords: String = r.get(1);
+            let overrides: Option<String> = r.get(2);
+            (beat, chords, overrides)
+        }))
+    }
+
+    /// Zapisuje ręczne poprawki akordów wprowadzone przez użytkowniczkę.
+    pub async fn save_chord_overrides(
+        &self,
+        track_id: i64,
+        overrides_json: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query("UPDATE track_chords SET user_overrides_json = ?1 WHERE track_id = ?2;")
+            .bind(overrides_json)
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Zapisuje wynik polifonicznej transkrypcji nutowej.
+    pub async fn save_track_transcription(
+        &self,
+        track_id: i64,
+        file_hash: &str,
+        analyzer_version: &str,
+        notes_json: &str,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO track_transcriptions (track_id, file_hash, analyzer_version, notes_json, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5);
+            "#,
+        )
+        .bind(track_id)
+        .bind(file_hash)
+        .bind(analyzer_version)
+        .bind(notes_json)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Pobiera zapisaną transkrypcję nutową utworu.
+    pub async fn get_track_transcription(
+        &self,
+        track_id: i64,
+    ) -> Result<Option<String>, StorageError> {
+        let row = sqlx::query(
+            "SELECT notes_json FROM track_transcriptions WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;",
+        )
+        .bind(track_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.get(0)))
+    }
+
+    /// Zapisuje metadane rozdzielonych ścieżek stemów.
+    pub async fn save_stem_tracks(
+        &self,
+        data: &domain::analysis::StemSeparationData,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO stem_tracks (
+                track_id, file_hash, model_name, stems_dir,
+                vocals_path, drums_path, bass_path, other_path,
+                piano_path, guitar_path, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11);
+            "#,
+        )
+        .bind(data.track_id)
+        .bind(&data.file_hash)
+        .bind(&data.model_name)
+        .bind(&data.stems_dir)
+        .bind(&data.vocals_path)
+        .bind(&data.drums_path)
+        .bind(&data.bass_path)
+        .bind(&data.other_path)
+        .bind(&data.piano_path)
+        .bind(&data.guitar_path)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Pobiera rozdzielone ścieżki dla danego utworu.
+    pub async fn get_stem_tracks(
+        &self,
+        track_id: i64,
+    ) -> Result<Option<domain::analysis::StemSeparationData>, StorageError> {
+        let row = sqlx::query(
+            r#"
+            SELECT track_id, file_hash, model_name, stems_dir,
+                   vocals_path, drums_path, bass_path, other_path,
+                   piano_path, guitar_path
+            FROM stem_tracks WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;
+            "#,
+        )
+        .bind(track_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| domain::analysis::StemSeparationData {
+            track_id: r.get(0),
+            file_hash: r.get(1),
+            model_name: r.get(2),
+            stems_dir: r.get(3),
+            vocals_path: r.get(4),
+            drums_path: r.get(5),
+            bass_path: r.get(6),
+            other_path: r.get(7),
+            piano_path: r.get(8),
+            guitar_path: r.get(9),
+        }))
+    }
+
+    /// Usuwa rekord i powiązane stemy dla danego utworu.
+    pub async fn delete_stem_tracks(&self, track_id: i64) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM stem_tracks WHERE track_id = ?1;")
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Rejestruje zainstalowany model AI w menedżerze modeli.
+    pub async fn register_ai_model(
+        &self,
+        model: &domain::analysis::AiModelInfo,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO ai_models (id, name, task_type, file_path, file_size, sha256, license, download_url, description, installed_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(id) DO UPDATE SET
+                file_path = excluded.file_path,
+                file_size = excluded.file_size,
+                sha256 = excluded.sha256,
+                installed_at = excluded.installed_at;
+            "#,
+        )
+        .bind(&model.id)
+        .bind(&model.name)
+        .bind(model.task_type.as_str())
+        .bind(&model.file_path)
+        .bind(model.file_size as i64)
+        .bind(&model.sha256)
+        .bind(&model.license)
+        .bind(&model.download_url)
+        .bind(&model.description)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Pobiera zarejestrowany model po identyfikatorze.
+    pub async fn get_ai_model(
+        &self,
+        id: &str,
+    ) -> Result<Option<domain::analysis::AiModelInfo>, StorageError> {
+        let row = sqlx::query(
+            "SELECT id, name, task_type, file_path, file_size, sha256, license, download_url, description FROM ai_models WHERE id = ?1;",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| {
+            let task_str: String = r.get(2);
+            domain::analysis::AiModelInfo {
+                id: r.get(0),
+                name: r.get(1),
+                task_type: domain::analysis::AiTaskType::from_str_repr(&task_str)
+                    .unwrap_or(domain::analysis::AiTaskType::StemSeparation),
+                file_path: r.get(3),
+                file_size: r.get::<i64, _>(4) as u64,
+                sha256: r.get(5),
+                license: r.get(6),
+                download_url: r.get(7),
+                description: r.get(8),
+                is_installed: true,
+            }
+        }))
+    }
+
+    /// Listuje wszystkie zarejestrowane modele AI.
+    pub async fn list_ai_models(&self) -> Result<Vec<domain::analysis::AiModelInfo>, StorageError> {
+        let rows = sqlx::query(
+            "SELECT id, name, task_type, file_path, file_size, sha256, license, download_url, description FROM ai_models ORDER BY name ASC;",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let task_str: String = r.get(2);
+                domain::analysis::AiModelInfo {
+                    id: r.get(0),
+                    name: r.get(1),
+                    task_type: domain::analysis::AiTaskType::from_str_repr(&task_str)
+                        .unwrap_or(domain::analysis::AiTaskType::StemSeparation),
+                    file_path: r.get(3),
+                    file_size: r.get::<i64, _>(4) as u64,
+                    sha256: r.get(5),
+                    license: r.get(6),
+                    download_url: r.get(7),
+                    description: r.get(8),
+                    is_installed: true,
+                }
+            })
+            .collect())
+    }
+
+    /// Usuwa model z rejestru.
+    pub async fn delete_ai_model(&self, id: &str) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM ai_models WHERE id = ?1;")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1929,5 +2277,86 @@ mod tests {
             album_rec.cover_path.as_deref(),
             Some("/covers/custom_in_extremo.jpg")
         );
+
+        // 11. Testy pamięci podręcznej analizy muzycznej (akordy, transkrypcja, stemy, modele AI)
+        db.save_track_chords(
+            track_id,
+            "hash123",
+            "1.0.0",
+            r#"[{"time_ms":0,"beat_number":1,"is_downbeat":true}]"#,
+            r#"[{"start_ms":0,"end_ms":2000,"chord":"C","confidence":0.95}]"#,
+        )
+        .await
+        .unwrap();
+
+        let chords = db.get_track_chords(track_id).await.unwrap();
+        assert!(chords.is_some());
+        let (beat_json, chords_json, overrides) = chords.unwrap();
+        assert!(beat_json.contains("beat_number"));
+        assert!(chords_json.contains("\"chord\":\"C\""));
+        assert!(overrides.is_none());
+
+        db.save_chord_overrides(track_id, r#"[{"start_ms":0,"end_ms":2000,"chord":"Cmaj7"}]"#)
+            .await
+            .unwrap();
+        let chords2 = db.get_track_chords(track_id).await.unwrap().unwrap();
+        assert_eq!(
+            chords2.2,
+            Some(r#"[{"start_ms":0,"end_ms":2000,"chord":"Cmaj7"}]"#.to_string())
+        );
+
+        db.save_track_transcription(
+            track_id,
+            "hash123",
+            "1.0.0",
+            r#"[{"onset_ms":100,"duration_ms":500,"midi_pitch":60,"velocity":80}]"#,
+        )
+        .await
+        .unwrap();
+        let trans = db.get_track_transcription(track_id).await.unwrap();
+        assert!(trans.is_some());
+        assert!(trans.unwrap().contains("\"midi_pitch\":60"));
+
+        let stem_data = domain::analysis::StemSeparationData {
+            track_id,
+            file_hash: "hash123".to_string(),
+            model_name: "htdemucs_v4".to_string(),
+            stems_dir: "/tmp/stems".to_string(),
+            vocals_path: "/tmp/stems/vocals.flac".to_string(),
+            drums_path: "/tmp/stems/drums.flac".to_string(),
+            bass_path: "/tmp/stems/bass.flac".to_string(),
+            other_path: "/tmp/stems/other.flac".to_string(),
+            piano_path: None,
+            guitar_path: None,
+        };
+        db.save_stem_tracks(&stem_data).await.unwrap();
+        let fetched_stems = db.get_stem_tracks(track_id).await.unwrap();
+        assert!(fetched_stems.is_some());
+        let stems = fetched_stems.unwrap();
+        assert_eq!(stems.vocals_path, "/tmp/stems/vocals.flac");
+
+        let model_info = domain::analysis::AiModelInfo {
+            id: "htdemucs_v4".to_string(),
+            name: "HTDemucs v4".to_string(),
+            task_type: domain::analysis::AiTaskType::StemSeparation,
+            file_path: "/models/htdemucs.onnx".to_string(),
+            file_size: 80_000_000,
+            sha256: "abc123sha256".to_string(),
+            license: "MIT".to_string(),
+            download_url: Some("https://example.com/htdemucs.onnx".to_string()),
+            description: "4-Stem separation model".to_string(),
+            is_installed: true,
+        };
+        db.register_ai_model(&model_info).await.unwrap();
+        let models = db.list_ai_models().await.unwrap();
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].name, "HTDemucs v4");
+
+        let fetched_model = db.get_ai_model("htdemucs_v4").await.unwrap();
+        assert!(fetched_model.is_some());
+        assert_eq!(fetched_model.unwrap().sha256, "abc123sha256");
+
+        db.delete_ai_model("htdemucs_v4").await.unwrap();
+        assert!(db.get_ai_model("htdemucs_v4").await.unwrap().is_none());
     }
 }
