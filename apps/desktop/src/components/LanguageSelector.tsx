@@ -42,11 +42,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="glass-card"
         style={{
-          padding: '6px 12px',
+          padding: '6px 10px',
           display: 'flex',
           alignItems: 'center',
-          gap: '7px',
-          fontSize: '0.8rem',
+          gap: '6px',
+          fontSize: '0.85rem',
           fontWeight: 600,
           color: 'var(--text-secondary)',
           border: '1px solid var(--border-subtle)',
@@ -55,13 +55,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           cursor: 'pointer',
           transition: 'all 0.2s ease',
         }}
-        title="Wybierz język interfejsu (Language / Język / Sprache / Kieli / Lingua)"
+        title={`Język / Language: ${activeOption.label} (${activeOption.code})`}
       >
         <Globe size={14} color="var(--accent-cyan)" />
-        <span>
-          {activeOption.flag} {activeOption.label}
-        </span>
-        <ChevronDown size={13} style={{ opacity: 0.6 }} />
+        <span style={{ fontSize: '1rem', lineHeight: 1 }}>{activeOption.flag}</span>
+        <ChevronDown size={12} style={{ opacity: 0.6 }} />
       </button>
 
       {isOpen && (

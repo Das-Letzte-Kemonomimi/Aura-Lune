@@ -899,7 +899,7 @@ export default function App() {
       if (prev < 1.08) next = 1.10;
       else if (prev < 1.18) next = 1.20;
       else if (prev < 1.28) next = 1.30;
-      else next = 1.30;
+      else next = 1.0;
       const label =
         next >= 1.28
           ? (language === 'pl' ? '130% (Maksymalny / Szeroki)' : '130% (Ultra Wide)')
@@ -10355,7 +10355,19 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: uiScale >= 1.28 ? '16px 20px' : uiScale >= 1.18 ? '20px 22px' : '24px', position: 'relative' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        maxHeight: '100%',
+        width: '100%',
+        overflow: 'hidden',
+        padding: uiScale >= 1.28 ? '12px 18px 8px' : uiScale >= 1.18 ? '14px 20px 10px' : '16px 24px 12px',
+        position: 'relative',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* Dynamiczne tło anime z kontrolowanym rozmyciem i nakładką (obsługa statycznych grafik oraz wideo MP4/WebM) */}
       {themeBgImage && (themeBgImage.toLowerCase().endsWith('.mp4') || themeBgImage.toLowerCase().endsWith('.webm') || themeBgImage.startsWith('data:video/')) ? (
         <video
@@ -10402,7 +10414,7 @@ export default function App() {
       <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} />
 
       {/* Główny kontener interfejsu (ukrywany bez utraty stanu gdy aktywny jest tryb pełnoekranowy Kiosk) */}
-      <div style={{ display: isBigScreen ? 'none' : 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div style={{ display: isBigScreen ? 'none' : 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
 
         {/* Globalny ekran nakładki przeciągania plików (Drag & Drop Overlay) */}
         {isDraggingOver && (
@@ -10550,10 +10562,13 @@ export default function App() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '20px',
-            gap: '10px',
+            marginBottom: '14px',
+            gap: '8px',
             minWidth: 0,
             flexWrap: 'wrap',
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 100,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flexShrink: 0 }}>
@@ -10904,7 +10919,7 @@ export default function App() {
               title={loc.lyricsView?.desktopLyricsToggle || 'Pulpit HUD / Tekst (Desktop Lyrics)'}
             >
               <Tv size={14} />
-              <span className="header-action-text">{loc.lyricsView?.desktopLyricsToggle || 'HUD'}</span>
+              <span className="header-action-text">{language === 'pl' ? 'Pulpit LRC' : 'Desktop LRC'}</span>
             </button>
 
             {/* Efekty cząsteczkowe Ambience */}
@@ -11017,7 +11032,7 @@ export default function App() {
               title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}
             >
               <Disc3 size={14} />
-              <span className="header-action-text">{loc.nav.harmonicSuggester}</span>
+              <span className="header-action-text">{language === 'pl' ? 'Harmonic DJ' : 'Harmonic DJ'}</span>
             </button>
 
             {/* Paleta komend Ctrl+K */}
@@ -11168,7 +11183,7 @@ export default function App() {
               title={loc.settings.title}
             >
               <Settings size={14} />
-              <span className="header-action-text">{loc.settings.title}</span>
+              <span className="header-action-text">{language === 'pl' ? 'Ustawienia' : 'Settings'}</span>
             </button>
 
             {/* Wybór języka interfejsu (Language Selector) */}
@@ -11199,7 +11214,7 @@ export default function App() {
         )}
 
         {/* Główna zawartość */}
-        <main ref={mainContentRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: (activeTab !== 'player' || isPlayerScrolledDown) ? '88px' : '0' }}>
+        <main ref={mainContentRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: (activeTab !== 'player' || isPlayerScrolledDown) ? '88px' : '0' }}>
           {/* ZAKŁADKA 1: ODTWARZACZ (NOWOCZESNY WIDOK HI-FI DESKTOP) */}
           {activeTab === 'player' && (
             <div style={{ maxWidth: layoutMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
@@ -19194,6 +19209,7 @@ export default function App() {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '24px',
+              overflowY: 'auto',
             }}
             onClick={() => setIsSettingsOpen(false)}
           >
@@ -19201,10 +19217,9 @@ export default function App() {
               className="glass-panel"
               style={{
                 width: '100%',
-                maxWidth: '940px',
-                height: '84vh',
-                minHeight: '560px',
-                maxHeight: '840px',
+                maxWidth: '960px',
+                height: '86vh',
+                maxHeight: '860px',
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: '20px',
@@ -19224,6 +19239,7 @@ export default function App() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   background: 'rgba(0, 0, 0, 0.35)',
+                  flexShrink: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -19268,6 +19284,7 @@ export default function App() {
                   background: 'rgba(0, 0, 0, 0.2)',
                   borderBottom: '1px solid var(--border-subtle)',
                   overflowX: 'auto',
+                  flexShrink: 0,
                 }}
               >
                 <button
@@ -19387,7 +19404,7 @@ export default function App() {
               </div>
 
               {/* Treść wybranej pod-zakładki ustawień */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px' }}>
                 {settingsTab === 'themes' && renderThemesSection()}
                 {settingsTab === 'devices' && renderDevicesSection()}
                 {settingsTab === 'transcode' && renderTranscodeSection()}

@@ -25,7 +25,11 @@
   - Nowa sekcja w bibliotece „Stem Projects” oraz bezpośredni przycisk tworzenia projektu w widoku pełnoekranowym (Big Screen) i na liście utworów.
 
 ### 🛠️ Poprawiono (Fixed)
-- *(brak oczekujących wpisów — dodaj opis poprawki błędu podczas implementacji)*
+- **Stabilizacja przewijania i stały nagłówek interfejsu (Fixed Top Header & Non-scrollable Root)**:
+  - Zablokowano przewijanie kontenera bazowego okna (`html, body, #root { overflow: hidden; height: 100% }`), dzięki czemu górny pasek nawigacyjny (`<header>`) pozostaje w 100% nieruchomy na samej górze ekranu i nie ucieka z widoku podczas scrollowania.
+  - Naprawiono przewijanie w oknie Ustawień (`isSettingsOpen`): dodano wymuszenie elastyczności `minHeight: 0` dla kontenera zawartości pod-zakładek oraz `overflowY: 'auto'` dla tła modalu, gwarantując płynne przewijanie kółkiem myszy i paskiem przewijania bez ucinania dolnych sekcji.
+  - Odchudzono przycisk wyboru języka (`LanguageSelector`): usunięto pełny tekst ("English", "Polski") z przycisku głównego, pozostawiając wyłącznie estetyczną ikonę globu 🌐 oraz flagę aktywnego języka (np. 🇬🇧, 🇵🇱), co zaoszczędziło cenne miejsce na pasku narzędzi.
+  - Zoptymalizowano szerokość paska narzędziowego i zachowanie skali UI: skrócono zbyt długie etykiety (`Floating Desktop Lyrics Overlay` → `Desktop LRC`, `Harmonic DJ Suggester` → `Harmonic DJ`, `Auralune Settings` → `Ustawienia`/`Settings`), dostosowano media query punktu przełamania tekstu etykiet oraz dodano pełne zapętlenie kliknięć w selektor skali (100% → 110% → 120% → 130% → 100%).
 
 ### 🔄 Zmieniono (Changed)
 - *(brak oczekujących wpisów — dodaj opis zmiany konfiguracji/architektury podczas implementacji)*
