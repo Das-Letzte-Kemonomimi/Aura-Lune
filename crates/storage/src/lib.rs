@@ -387,6 +387,52 @@ impl Database {
                 description TEXT NOT NULL DEFAULT '',
                 installed_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS stem_projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL,
+                track_hash TEXT NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                album TEXT NOT NULL,
+                cover_uri TEXT,
+                status TEXT NOT NULL,
+                progress REAL NOT NULL DEFAULT 0.0,
+                model_name TEXT NOT NULL,
+                disk_size_bytes INTEGER NOT NULL DEFAULT 0,
+                active_mix_name TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_stem_projects_track ON stem_projects(track_id);
+            CREATE INDEX IF NOT EXISTS idx_stem_projects_hash ON stem_projects(track_hash);
+
+            CREATE TABLE IF NOT EXISTS stem_project_channels (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES stem_projects(id) ON DELETE CASCADE,
+                stem_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                parent_stem TEXT,
+                file_path TEXT NOT NULL,
+                color_hex TEXT NOT NULL,
+                quality_tier TEXT NOT NULL,
+                volume REAL NOT NULL DEFAULT 0.75,
+                pan REAL NOT NULL DEFAULT 0.0,
+                mute INTEGER NOT NULL DEFAULT 0,
+                solo INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_stem_channels_proj ON stem_project_channels(project_id);
+
+            CREATE TABLE IF NOT EXISTS stem_project_mixes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL REFERENCES stem_projects(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                channels_json TEXT NOT NULL,
+                master_volume REAL NOT NULL DEFAULT 1.0,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_stem_mixes_proj ON stem_project_mixes(project_id);
             "#,
         )
         .execute(&self.pool)
@@ -1967,6 +2013,388 @@ impl Database {
             .await?;
         Ok(())
     }
+
+    // =========================================================================
+    // MODUŁ PROJEKTÓW STEMÓW (STEM PROJECTS & MULTITRACK MIXES)
+    // =========================================================================
+
+    /// Tworzy nowy projekt stemów i zwraca jego ID.
+    pub async fn create_stem_project(&self, project: &domain::StemProject) -> Result<i64, StorageError> {
+        let status_str = match project.status {
+            domain::StemProjectStatus::Queued => "queued",
+            domain::StemProjectStatus::Separating => "separating",
+            domain::StemProjectStatus::Ready => "ready",
+            domain::StemProjectStatus::Failed => "failed",
+        };
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO stem_projects (
+                track_id, track_hash, title, artist, album, cover_uri,
+                status, progress, model_name, disk_size_bytes, active_mix_name,
+                created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            RETURNING id;
+            "#,
+        )
+        .bind(project.track_id)
+        .bind(&project.track_hash)
+        .bind(&project.title)
+        .bind(&project.artist)
+        .bind(&project.album)
+        .bind(&project.cover_uri)
+        .bind(status_str)
+        .bind(project.progress as f64)
+        .bind(&project.model_name)
+        .bind(project.disk_size_bytes as i64)
+        .bind(&project.active_mix_name)
+        .bind(&project.created_at)
+        .bind(&project.updated_at)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let project_id: i64 = row.get(0);
+
+        if !project.channels.is_empty() {
+            self.save_stem_project_channels(project_id, &project.channels).await?;
+        }
+
+        Ok(project_id)
+    }
+
+    /// Pobiera projekt stemów wraz z przypisanymi kanałami.
+    pub async fn get_stem_project(&self, project_id: i64) -> Result<Option<domain::StemProject>, StorageError> {
+        let row_opt = sqlx::query(
+            r#"
+            SELECT id, track_id, track_hash, title, artist, album, cover_uri,
+                   status, progress, model_name, disk_size_bytes, active_mix_name,
+                   created_at, updated_at
+            FROM stem_projects
+            WHERE id = ?1;
+            "#,
+        )
+        .bind(project_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let row = match row_opt {
+            Some(r) => r,
+            None => return Ok(None),
+        };
+
+        let status_str: String = row.get("status");
+        let status = match status_str.as_str() {
+            "separating" => domain::StemProjectStatus::Separating,
+            "ready" => domain::StemProjectStatus::Ready,
+            "failed" => domain::StemProjectStatus::Failed,
+            _ => domain::StemProjectStatus::Queued,
+        };
+
+        let channels = self.get_stem_project_channels(project_id).await?;
+
+        Ok(Some(domain::StemProject {
+            id: row.get("id"),
+            track_id: row.get("track_id"),
+            track_hash: row.get("track_hash"),
+            title: row.get("title"),
+            artist: row.get("artist"),
+            album: row.get("album"),
+            cover_uri: row.get("cover_uri"),
+            status,
+            progress: row.get::<f64, _>("progress") as f32,
+            model_name: row.get("model_name"),
+            disk_size_bytes: row.get::<i64, _>("disk_size_bytes") as u64,
+            channels,
+            active_mix_name: row.get("active_mix_name"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }))
+    }
+
+    /// Zwraca listę wszystkich projektów stemów posortowaną od najnowszych.
+    pub async fn list_stem_projects(&self) -> Result<Vec<domain::StemProject>, StorageError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, track_id, track_hash, title, artist, album, cover_uri,
+                   status, progress, model_name, disk_size_bytes, active_mix_name,
+                   created_at, updated_at
+            FROM stem_projects
+            ORDER BY updated_at DESC, id DESC;
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut projects = Vec::new();
+        for row in rows {
+            let pid: i64 = row.get("id");
+            let status_str: String = row.get("status");
+            let status = match status_str.as_str() {
+                "separating" => domain::StemProjectStatus::Separating,
+                "ready" => domain::StemProjectStatus::Ready,
+                "failed" => domain::StemProjectStatus::Failed,
+                _ => domain::StemProjectStatus::Queued,
+            };
+            let channels = self.get_stem_project_channels(pid).await?;
+
+            projects.push(domain::StemProject {
+                id: pid,
+                track_id: row.get("track_id"),
+                track_hash: row.get("track_hash"),
+                title: row.get("title"),
+                artist: row.get("artist"),
+                album: row.get("album"),
+                cover_uri: row.get("cover_uri"),
+                status,
+                progress: row.get::<f64, _>("progress") as f32,
+                model_name: row.get("model_name"),
+                disk_size_bytes: row.get::<i64, _>("disk_size_bytes") as u64,
+                channels,
+                active_mix_name: row.get("active_mix_name"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            });
+        }
+
+        Ok(projects)
+    }
+
+    /// Aktualizuje status, postęp i rozmiar na dysku projektu stemów.
+    pub async fn update_stem_project_status(
+        &self,
+        project_id: i64,
+        status: domain::StemProjectStatus,
+        progress: f32,
+        disk_size_bytes: u64,
+    ) -> Result<(), StorageError> {
+        let status_str = match status {
+            domain::StemProjectStatus::Queued => "queued",
+            domain::StemProjectStatus::Separating => "separating",
+            domain::StemProjectStatus::Ready => "ready",
+            domain::StemProjectStatus::Failed => "failed",
+        };
+
+        sqlx::query(
+            r#"
+            UPDATE stem_projects
+            SET status = ?1, progress = ?2, disk_size_bytes = ?3, updated_at = datetime('now')
+            WHERE id = ?4;
+            "#,
+        )
+        .bind(status_str)
+        .bind(progress as f64)
+        .bind(disk_size_bytes as i64)
+        .bind(project_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Zmienia tytuł projektu stemów.
+    pub async fn rename_stem_project(&self, project_id: i64, title: &str) -> Result<(), StorageError> {
+        sqlx::query(
+            r#"
+            UPDATE stem_projects
+            SET title = ?1, updated_at = datetime('now')
+            WHERE id = ?2;
+            "#,
+        )
+        .bind(title)
+        .bind(project_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Usuwa projekt stemów (kaskadowo usuwając kanały i miksy).
+    pub async fn delete_stem_project(&self, project_id: i64) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
+            .bind(project_id)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM stem_project_mixes WHERE project_id = ?1;")
+            .bind(project_id)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM stem_projects WHERE id = ?1;")
+            .bind(project_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Zapisuje listę kanałów dla projektu stemów (zastępuje istniejące).
+    pub async fn save_stem_project_channels(
+        &self,
+        project_id: i64,
+        channels: &[domain::StemChannel],
+    ) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
+            .bind(project_id)
+            .execute(&self.pool)
+            .await?;
+
+        for ch in channels {
+            let quality_str = match ch.quality_tier {
+                domain::StemQualityTier::HighQuality => "high_quality",
+                domain::StemQualityTier::Experimental => "experimental",
+                domain::StemQualityTier::DspFallback => "dsp_fallback",
+                domain::StemQualityTier::Unavailable => "unavailable",
+            };
+
+            sqlx::query(
+                r#"
+                INSERT INTO stem_project_channels (
+                    project_id, stem_id, name, parent_stem, file_path,
+                    color_hex, quality_tier, volume, pan, mute, solo
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11);
+                "#,
+            )
+            .bind(project_id)
+            .bind(&ch.id)
+            .bind(&ch.name)
+            .bind(&ch.parent_stem)
+            .bind(&ch.file_path)
+            .bind(&ch.color_hex)
+            .bind(quality_str)
+            .bind(ch.volume as f64)
+            .bind(ch.pan as f64)
+            .bind(ch.mute as i32)
+            .bind(ch.solo as i32)
+            .execute(&self.pool)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Pobiera kanały dla danego projektu stemów.
+    pub async fn get_stem_project_channels(&self, project_id: i64) -> Result<Vec<domain::StemChannel>, StorageError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT stem_id, name, parent_stem, file_path, color_hex,
+                   quality_tier, volume, pan, mute, solo
+            FROM stem_project_channels
+            WHERE project_id = ?1
+            ORDER BY id ASC;
+            "#,
+        )
+        .bind(project_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut channels = Vec::new();
+        for r in rows {
+            let q_str: String = r.get("quality_tier");
+            let quality_tier = match q_str.as_str() {
+                "high_quality" => domain::StemQualityTier::HighQuality,
+                "experimental" => domain::StemQualityTier::Experimental,
+                "unavailable" => domain::StemQualityTier::Unavailable,
+                _ => domain::StemQualityTier::DspFallback,
+            };
+
+            channels.push(domain::StemChannel {
+                id: r.get("stem_id"),
+                name: r.get("name"),
+                parent_stem: r.get("parent_stem"),
+                file_path: r.get("file_path"),
+                color_hex: r.get("color_hex"),
+                quality_tier,
+                volume: r.get::<f64, _>("volume") as f32,
+                pan: r.get::<f64, _>("pan") as f32,
+                mute: r.get::<i32, _>("mute") != 0,
+                solo: r.get::<i32, _>("solo") != 0,
+            });
+        }
+
+        Ok(channels)
+    }
+
+    /// Zapisuje miks parametrów dla projektu stemów.
+    pub async fn save_stem_project_mix(&self, mix: &domain::StemProjectMix) -> Result<i64, StorageError> {
+        let channels_json = serde_json::to_string(&mix.channels).unwrap_or_else(|_| "{}".to_string());
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO stem_project_mixes (
+                project_id, name, is_default, channels_json, master_volume, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            RETURNING id;
+            "#,
+        )
+        .bind(mix.project_id)
+        .bind(&mix.name)
+        .bind(mix.is_default as i32)
+        .bind(&channels_json)
+        .bind(mix.master_volume as f64)
+        .bind(&mix.updated_at)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let mix_id: i64 = row.get(0);
+        Ok(mix_id)
+    }
+
+    /// Pobiera zapisane miksy dla danego projektu stemów.
+    pub async fn get_stem_project_mixes(&self, project_id: i64) -> Result<Vec<domain::StemProjectMix>, StorageError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, project_id, name, is_default, channels_json, master_volume, updated_at
+            FROM stem_project_mixes
+            WHERE project_id = ?1
+            ORDER BY is_default DESC, updated_at DESC;
+            "#,
+        )
+        .bind(project_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut mixes = Vec::new();
+        for r in rows {
+            let ch_json: String = r.get("channels_json");
+            let channels = serde_json::from_str(&ch_json).unwrap_or_default();
+
+            mixes.push(domain::StemProjectMix {
+                id: Some(r.get("id")),
+                project_id: r.get("project_id"),
+                name: r.get("name"),
+                is_default: r.get::<i32, _>("is_default") != 0,
+                channels,
+                master_volume: r.get::<f64, _>("master_volume") as f32,
+                updated_at: r.get("updated_at"),
+            });
+        }
+
+        Ok(mixes)
+    }
+
+    /// Usuwa zapisany miks.
+    pub async fn delete_stem_project_mix(&self, mix_id: i64) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM stem_project_mixes WHERE id = ?1;")
+            .bind(mix_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Ustawia nazwę aktywnego miksu dla projektu stemów.
+    pub async fn set_active_stem_project_mix(&self, project_id: i64, mix_name: &str) -> Result<(), StorageError> {
+        sqlx::query(
+            r#"
+            UPDATE stem_projects
+            SET active_mix_name = ?1, updated_at = datetime('now')
+            WHERE id = ?2;
+            "#,
+        )
+        .bind(mix_name)
+        .bind(project_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -2361,5 +2789,97 @@ mod tests {
 
         db.delete_ai_model("htdemucs_v4").await.unwrap();
         assert!(db.get_ai_model("htdemucs_v4").await.unwrap().is_none());
+
+        // 8. Test modułu Stem Projects (Moises-like)
+        let sample_project = domain::StemProject {
+            id: 0,
+            track_id,
+            track_hash: "hash123".to_string(),
+            title: "Sparkle (Multitrack Project)".to_string(),
+            artist: "RADWIMPS".to_string(),
+            album: "Your Name.".to_string(),
+            cover_uri: None,
+            status: domain::StemProjectStatus::Ready,
+            progress: 1.0,
+            model_name: "htdemucs_6s".to_string(),
+            disk_size_bytes: 120_000_000,
+            channels: vec![
+                domain::StemChannel {
+                    id: "lead_vocal".to_string(),
+                    name: "Lead Vocal".to_string(),
+                    parent_stem: Some("vocals".to_string()),
+                    file_path: "/tmp/stems/lead_vocal.flac".to_string(),
+                    color_hex: "#f43f5e".to_string(),
+                    quality_tier: domain::StemQualityTier::HighQuality,
+                    volume: 0.75,
+                    pan: 0.0,
+                    mute: false,
+                    solo: false,
+                },
+                domain::StemChannel {
+                    id: "kick".to_string(),
+                    name: "Kick Drum".to_string(),
+                    parent_stem: Some("drums".to_string()),
+                    file_path: "/tmp/stems/kick.flac".to_string(),
+                    color_hex: "#ea580c".to_string(),
+                    quality_tier: domain::StemQualityTier::HighQuality,
+                    volume: 0.75,
+                    pan: 0.0,
+                    mute: false,
+                    solo: false,
+                },
+            ],
+            active_mix_name: Some("Default".to_string()),
+            created_at: "2026-11-14T19:00:00Z".to_string(),
+            updated_at: "2026-11-14T19:00:00Z".to_string(),
+        };
+
+        let proj_id = db.create_stem_project(&sample_project).await.unwrap();
+        assert!(proj_id > 0);
+
+        let fetched_proj = db.get_stem_project(proj_id).await.unwrap().unwrap();
+        assert_eq!(fetched_proj.title, "Sparkle (Multitrack Project)");
+        assert_eq!(fetched_proj.channels.len(), 2);
+        assert_eq!(fetched_proj.channels[0].id, "lead_vocal");
+        assert_eq!(fetched_proj.channels[0].volume, 0.75);
+
+        let mut mix_settings = std::collections::HashMap::new();
+        mix_settings.insert(
+            "lead_vocal".to_string(),
+            domain::ChannelMixSetting {
+                volume: 0.85,
+                pan: 0.0,
+                mute: false,
+                solo: false,
+            },
+        );
+        let sample_mix = domain::StemProjectMix {
+            id: None,
+            project_id: proj_id,
+            name: "Acapella Boost".to_string(),
+            is_default: false,
+            channels: mix_settings,
+            master_volume: 1.0,
+            updated_at: "2026-11-14T19:30:00Z".to_string(),
+        };
+        let mix_id = db.save_stem_project_mix(&sample_mix).await.unwrap();
+        assert!(mix_id > 0);
+
+        let mixes = db.get_stem_project_mixes(proj_id).await.unwrap();
+        assert_eq!(mixes.len(), 1);
+        assert_eq!(mixes[0].name, "Acapella Boost");
+        assert_eq!(mixes[0].channels.get("lead_vocal").unwrap().volume, 0.85);
+
+        db.rename_stem_project(proj_id, "Sparkle (Acoustic Mix)").await.unwrap();
+        let renamed = db.get_stem_project(proj_id).await.unwrap().unwrap();
+        assert_eq!(renamed.title, "Sparkle (Acoustic Mix)");
+
+        let all_projects = db.list_stem_projects().await.unwrap();
+        assert_eq!(all_projects.len(), 1);
+
+        db.delete_stem_project(proj_id).await.unwrap();
+        assert!(db.get_stem_project(proj_id).await.unwrap().is_none());
+        assert_eq!(db.get_stem_project_channels(proj_id).await.unwrap().len(), 0);
+        assert_eq!(db.get_stem_project_mixes(proj_id).await.unwrap().len(), 0);
     }
 }
