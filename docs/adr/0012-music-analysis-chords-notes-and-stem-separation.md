@@ -58,3 +58,4 @@
 - **Zgodność z licencją GPL-3.0**: Weryfikacja licencji każdego modelu (np. Apache-2.0 dla Spotify Basic Pitch, MIT/CC dla modeli Demucs).
 - **Czysta izolacja wątku audio**: Callback audio nie wykonuje alokacji pamięci, zapytań SQL ani żądań sieciowych.
 - **Płynna obsługa w locie**: Użytkowniczka może w czasie rzeczywistym zmieniać tempo (Rubber Band/SoundTouch) oraz tonację, a wykryte akordy i nuty automatycznie transponują się w interfejsie.
+

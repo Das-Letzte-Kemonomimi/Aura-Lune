@@ -139,3 +139,163 @@ fn test_analyze_track_replaygain_flac() {
         );
     }
 }
+
+#[test]
+fn test_chord_templates_generation() {
+    use audio_engine::analysis::generate_chord_templates;
+    let defs = generate_chord_templates();
+    assert_eq!(defs.len(), 12 * 9 + 1, "Powinno być 109 definicji akordów");
+
+    let c_maj = defs.iter().find(|d| d.symbol == "C").unwrap();
+    assert_eq!(c_maj.root_idx, 0);
+    assert_eq!(c_maj.quality, "maj");
+    assert!(c_maj.template[0] > 0.0); // C
+    assert!(c_maj.template[4] > 0.0); // E
+    assert!(c_maj.template[7] > 0.0); // G
+
+    let a_min = defs.iter().find(|d| d.symbol == "Am").unwrap();
+    assert_eq!(a_min.root_idx, 9);
+    assert_eq!(a_min.quality, "min");
+    assert!(a_min.template[9] > 0.0); // A
+    assert!(a_min.template[0] > 0.0); // C
+    assert!(a_min.template[4] > 0.0); // E
+}
+
+#[test]
+fn test_extract_chroma_synthetic_c_major() {
+    use audio_engine::analysis::extract_chroma_frame;
+    // Syntetyczny akord C-dur: C4 (261.63 Hz), E4 (329.63 Hz), G4 (392.00 Hz)
+    let sample_rate = 22050.0;
+    let n = 2048;
+    let mut samples = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f64 / sample_rate;
+        let s = (2.0 * PI * 261.63 * t).sin()
+            + (2.0 * PI * 329.63 * t).sin()
+            + (2.0 * PI * 392.00 * t).sin();
+        samples.push(s as f32);
+    }
+
+    let chroma = extract_chroma_frame(&samples, sample_rate);
+    // Sprawdź czy składowe C (0), E (4), G (7) dominują
+    assert!(
+        chroma[0] > 0.2,
+        "Nuta C (indeks 0) powinna mieć wysoką energię: {}",
+        chroma[0]
+    );
+    assert!(
+        chroma[4] > 0.2,
+        "Nuta E (indeks 4) powinna mieć wysoką energię: {}",
+        chroma[4]
+    );
+    assert!(
+        chroma[7] > 0.2,
+        "Nuta G (indeks 7) powinna mieć wysoką energię: {}",
+        chroma[7]
+    );
+}
+
+#[test]
+fn test_transpose_chord() {
+    use audio_engine::analysis::transpose_chord;
+
+    assert_eq!(transpose_chord("C", 2), "D");
+    assert_eq!(transpose_chord("Am", 2), "Bm");
+    assert_eq!(transpose_chord("F#7", 1), "G7");
+    assert_eq!(transpose_chord("Bb", 2), "C");
+    assert_eq!(transpose_chord("C/G", 2), "D/A");
+    assert_eq!(transpose_chord("N", 4), "N");
+    assert_eq!(transpose_chord("G", -2), "F");
+}
+
+#[test]
+fn test_export_chords_formats() {
+    use audio_engine::analysis::{export_chords_to_chordpro, export_chords_to_text};
+    use domain::analysis::{BeatPoint, ChordSegment, TrackChordsData};
+
+    let data = TrackChordsData {
+        track_id: 1,
+        file_hash: "testhash".to_string(),
+        bpm: 120.0,
+        key: "C Maj".to_string(),
+        camelot: "8B".to_string(),
+        beat_grid: vec![
+            BeatPoint {
+                time_ms: 0,
+                beat_number: 1,
+                is_downbeat: true,
+            },
+            BeatPoint {
+                time_ms: 500,
+                beat_number: 2,
+                is_downbeat: false,
+            },
+            BeatPoint {
+                time_ms: 1000,
+                beat_number: 3,
+                is_downbeat: false,
+            },
+            BeatPoint {
+                time_ms: 1500,
+                beat_number: 4,
+                is_downbeat: false,
+            },
+            BeatPoint {
+                time_ms: 2000,
+                beat_number: 1,
+                is_downbeat: true,
+            },
+            BeatPoint {
+                time_ms: 2500,
+                beat_number: 2,
+                is_downbeat: false,
+            },
+            BeatPoint {
+                time_ms: 3000,
+                beat_number: 3,
+                is_downbeat: false,
+            },
+            BeatPoint {
+                time_ms: 3500,
+                beat_number: 4,
+                is_downbeat: false,
+            },
+        ],
+        chords: vec![
+            ChordSegment {
+                start_ms: 0,
+                end_ms: 2000,
+                chord: "C".to_string(),
+                root_note: "C".to_string(),
+                quality: "maj".to_string(),
+                bass_note: None,
+                confidence: 0.95,
+                beat: 1,
+                bar: 1,
+            },
+            ChordSegment {
+                start_ms: 2000,
+                end_ms: 4000,
+                chord: "Am".to_string(),
+                root_note: "A".to_string(),
+                quality: "min".to_string(),
+                bass_note: None,
+                confidence: 0.92,
+                beat: 1,
+                bar: 2,
+            },
+        ],
+        analyzer_version: "1.0.8-classic".to_string(),
+    };
+
+    let chordpro = export_chords_to_chordpro(&data, "Test Song", "Test Artist");
+    assert!(chordpro.contains("{title: Test Song}"));
+    assert!(chordpro.contains("{key: C Maj}"));
+    assert!(chordpro.contains("| [C]"));
+    assert!(chordpro.contains("| [Am]"));
+
+    let text = export_chords_to_text(&data);
+    assert!(text.contains("Klucz: C Maj"));
+    assert!(text.contains("| C"));
+    assert!(text.contains("| Am"));
+}

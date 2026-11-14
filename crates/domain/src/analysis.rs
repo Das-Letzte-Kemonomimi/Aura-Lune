@@ -7,21 +7,21 @@ use serde::{Deserialize, Serialize};
 pub struct ChordSegment {
     pub start_ms: u64,
     pub end_ms: u64,
-    pub chord: String,          // np. "C", "Am", "G7", "Fmaj7", "N" (No chord)
-    pub root_note: String,      // np. "C", "A", "G"
-    pub quality: String,        // np. "maj", "min", "7", "maj7", "min7", "sus4", "dim", "aug"
+    pub chord: String,             // np. "C", "Am", "G7", "Fmaj7", "N" (No chord)
+    pub root_note: String,         // np. "C", "A", "G"
+    pub quality: String,           // np. "maj", "min", "7", "maj7", "min7", "sus4", "dim", "aug"
     pub bass_note: Option<String>, // np. "G" w "C/G" (slash chords)
-    pub confidence: f32,        // 0.0 .. 1.0
-    pub beat: u32,              // numer uderzenia w takcie (1, 2, 3, 4)
-    pub bar: u32,               // numer taktu (1, 2, 3...)
+    pub confidence: f32,           // 0.0 .. 1.0
+    pub beat: u32,                 // numer uderzenia w takcie (1, 2, 3, 4)
+    pub bar: u32,                  // numer taktu (1, 2, 3...)
 }
 
 /// Pojedynczy punkt siatki taktowej (Beat Grid).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BeatPoint {
     pub time_ms: u64,
-    pub beat_number: u32,       // 1, 2, 3, 4...
-    pub is_downbeat: bool,      // true dla 1. uderzenia taktu
+    pub beat_number: u32,  // 1, 2, 3, 4...
+    pub is_downbeat: bool, // true dla 1. uderzenia taktu
 }
 
 /// Zestaw danych harmonicznych i siatki rytmicznej dla utworu.
@@ -30,8 +30,8 @@ pub struct TrackChordsData {
     pub track_id: i64,
     pub file_hash: String,
     pub bpm: f64,
-    pub key: String,            // np. "C Maj", "A min"
-    pub camelot: String,        // np. "8B", "8A"
+    pub key: String,     // np. "C Maj", "A min"
+    pub camelot: String, // np. "8B", "8A"
     pub beat_grid: Vec<BeatPoint>,
     pub chords: Vec<ChordSegment>,
     pub analyzer_version: String,
@@ -42,11 +42,11 @@ pub struct TrackChordsData {
 pub struct DetectedNote {
     pub onset_ms: u64,
     pub duration_ms: u64,
-    pub midi_pitch: u8,          // 0 .. 127 (60 = C4)
-    pub pitch_name: String,      // np. "C4", "A#3", "F5"
-    pub cents_offset: i8,        // odchylenie od stroju równomiernie temperowanego (-50 .. +50)
-    pub velocity: u8,            // 1 .. 127
-    pub stem: Option<String>,    // np. "vocals", "bass", "piano", "guitar"
+    pub midi_pitch: u8,       // 0 .. 127 (60 = C4)
+    pub pitch_name: String,   // np. "C4", "A#3", "F5"
+    pub cents_offset: i8,     // odchylenie od stroju równomiernie temperowanego (-50 .. +50)
+    pub velocity: u8,         // 1 .. 127
+    pub stem: Option<String>, // np. "vocals", "bass", "piano", "guitar"
 }
 
 /// Zestaw nut transkrypcji utworu (dla Piano-Roll i eksportu MIDI).
@@ -104,13 +104,13 @@ impl AiTaskType {
 /// Informacje o modelu AI zarejestrowanym w menedżerze modeli.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AiModelInfo {
-    pub id: String,              // unikalny identyfikator, np. "htdemucs_v4", "basic_pitch"
-    pub name: String,            // czytelna nazwa, np. "HTDemucs v4 (4-Stem Studio)"
+    pub id: String,   // unikalny identyfikator, np. "htdemucs_v4", "basic_pitch"
+    pub name: String, // czytelna nazwa, np. "HTDemucs v4 (4-Stem Studio)"
     pub task_type: AiTaskType,
     pub file_path: String,
     pub file_size: u64,
     pub sha256: String,
-    pub license: String,         // np. "MIT", "Apache-2.0"
+    pub license: String, // np. "MIT", "Apache-2.0"
     pub download_url: Option<String>,
     pub is_installed: bool,
     pub description: String,

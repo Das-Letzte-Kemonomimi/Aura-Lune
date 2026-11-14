@@ -2296,9 +2296,12 @@ mod tests {
         assert!(chords_json.contains("\"chord\":\"C\""));
         assert!(overrides.is_none());
 
-        db.save_chord_overrides(track_id, r#"[{"start_ms":0,"end_ms":2000,"chord":"Cmaj7"}]"#)
-            .await
-            .unwrap();
+        db.save_chord_overrides(
+            track_id,
+            r#"[{"start_ms":0,"end_ms":2000,"chord":"Cmaj7"}]"#,
+        )
+        .await
+        .unwrap();
         let chords2 = db.get_track_chords(track_id).await.unwrap().unwrap();
         assert_eq!(
             chords2.2,

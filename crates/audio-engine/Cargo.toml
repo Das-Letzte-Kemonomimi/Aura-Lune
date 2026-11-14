@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+analysis-ml = []
+
 [dependencies]
 domain = { path = "../domain" }
 dsp-api = { path = "../dsp-api" }
@@ -17,7 +21,10 @@ glib.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
+serde_json = { workspace = true }
 lofty.workspace = true
+sha2 = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = "0.3"
