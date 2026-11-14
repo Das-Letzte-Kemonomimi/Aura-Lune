@@ -76,47 +76,47 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
     activeBg: string;
     activeBorder: string;
   }> = [
-    {
-      id: 'chords',
-      label: 'Akordy & Harmonia',
-      icon: <Music size={14} />,
-      color: '#f43f5e',
-      activeBg: 'rgba(244, 63, 94, 0.18)',
-      activeBorder: 'rgba(244, 63, 94, 0.45)',
-    },
-    {
-      id: 'pianoroll',
-      label: 'Piano-Roll & MIDI',
-      icon: <Piano size={14} />,
-      color: '#c084fc',
-      activeBg: 'rgba(192, 132, 252, 0.18)',
-      activeBorder: 'rgba(192, 132, 252, 0.45)',
-    },
-    {
-      id: 'stems',
-      label: 'Stemy & Karaoke',
-      icon: <Layers size={14} />,
-      color: '#38bdf8',
-      activeBg: 'rgba(56, 189, 248, 0.18)',
-      activeBorder: 'rgba(56, 189, 248, 0.45)',
-    },
-    {
-      id: 'projects',
-      label: 'Projekty Stemów',
-      icon: <Sliders size={14} />,
-      color: '#10b981',
-      activeBg: 'rgba(16, 185, 129, 0.18)',
-      activeBorder: 'rgba(16, 185, 129, 0.45)',
-    },
-    {
-      id: 'models',
-      label: 'Modele AI',
-      icon: <Cpu size={14} />,
-      color: '#f59e0b',
-      activeBg: 'rgba(245, 158, 11, 0.18)',
-      activeBorder: 'rgba(245, 158, 11, 0.45)',
-    },
-  ];
+      {
+        id: 'chords',
+        label: 'Akordy & Harmonia',
+        icon: <Music size={14} />,
+        color: '#f43f5e',
+        activeBg: 'rgba(244, 63, 94, 0.18)',
+        activeBorder: 'rgba(244, 63, 94, 0.45)',
+      },
+      {
+        id: 'pianoroll',
+        label: 'Piano-Roll & MIDI',
+        icon: <Piano size={14} />,
+        color: '#c084fc',
+        activeBg: 'rgba(192, 132, 252, 0.18)',
+        activeBorder: 'rgba(192, 132, 252, 0.45)',
+      },
+      {
+        id: 'stems',
+        label: 'Stemy & Karaoke',
+        icon: <Layers size={14} />,
+        color: '#38bdf8',
+        activeBg: 'rgba(56, 189, 248, 0.18)',
+        activeBorder: 'rgba(56, 189, 248, 0.45)',
+      },
+      {
+        id: 'projects',
+        label: 'Projekty Stemów',
+        icon: <Sliders size={14} />,
+        color: '#10b981',
+        activeBg: 'rgba(16, 185, 129, 0.18)',
+        activeBorder: 'rgba(16, 185, 129, 0.45)',
+      },
+      {
+        id: 'models',
+        label: 'Modele AI',
+        icon: <Cpu size={14} />,
+        color: '#f59e0b',
+        activeBg: 'rgba(245, 158, 11, 0.18)',
+        activeBorder: 'rgba(245, 158, 11, 0.45)',
+      },
+    ];
 
   return (
     <div

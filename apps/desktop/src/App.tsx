@@ -468,7 +468,8 @@ export default function App() {
 
   // Stan korektora graficznego EQ & Spectrum
   const [eqPresets, setEqPresets] = useState<EqualizerPreset[]>([]);
-  const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Flat');
+  const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Płaski (Flat)');
+  const [isEqPresetMenuOpen, setIsEqPresetMenuOpen] = useState<boolean>(false);
   const getEqPresetDisplayName = (name: string, isPl: boolean) => {
     switch (name) {
       case 'Flat':
@@ -483,6 +484,9 @@ export default function App() {
       case 'Classical / Acoustic':
       case 'Klasyczna / Akustyczna':
         return isPl ? 'Klasyczna / Akustyczna' : 'Classical / Acoustic';
+      case 'Custom':
+      case 'Własny (Custom)':
+        return isPl ? 'Własny (Custom)' : 'Custom';
       default:
         return name;
     }
@@ -2267,7 +2271,9 @@ export default function App() {
             prev.position_ms === res.position_ms &&
             prev.volume === res.volume &&
             prev.tempo_ratio === res.tempo_ratio &&
-            prev.pitch_semitones === res.pitch_semitones
+            prev.pitch_semitones === res.pitch_semitones &&
+            prev.equalizer_enabled === res.equalizer_enabled &&
+            JSON.stringify(prev.equalizer_bands) === JSON.stringify(res.equalizer_bands)
           ) {
             return prev;
           }
@@ -5440,6 +5446,20 @@ export default function App() {
     return () => window.removeEventListener('click', handleOutsideClick);
   }, [isDspQuickMenuOpen]);
 
+  useEffect(() => {
+    if (!isEqPresetMenuOpen) return;
+    const handleOutsideClick = () => setIsEqPresetMenuOpen(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsEqPresetMenuOpen(false);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEqPresetMenuOpen]);
+
   const loadPresets = async () => {
     try {
       const list = await invoke<DspPresetRecord[]>('list_dsp_presets');
@@ -5500,16 +5520,37 @@ export default function App() {
   };
 
   const handleApplyEqPreset = async (presetName: string) => {
-    setSelectedEqPreset(presetName);
-    const preset = eqPresets.find((p) => p.name === presetName);
-    if (!preset) return;
+    let targetBands: number[] | null = null;
+    let targetName = presetName;
+
+    const preset = eqPresets.find(
+      (p) =>
+        p.name === presetName ||
+        getEqPresetDisplayName(p.name, true) === presetName ||
+        getEqPresetDisplayName(p.name, false) === presetName
+    );
+
+    if (preset) {
+      targetBands = preset.bands;
+      targetName = preset.name;
+    } else if (presetName === 'Flat' || presetName === 'Płaski (Flat)') {
+      targetBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      targetName = language === 'pl' ? 'Płaski (Flat)' : 'Flat';
+    }
+
+    if (!targetBands) return;
+
+    setSelectedEqPreset(targetName);
+    setIsEqPresetMenuOpen(false);
+
     try {
-      await invoke('set_equalizer_params', { enabled: true, bands: preset.bands });
-      setStatus((prev) => ({ ...prev, equalizer_bands: preset.bands, equalizer_enabled: true }));
+      await invoke('set_equalizer_params', { enabled: true, bands: targetBands });
+      await invoke('set_equalizer_bands', { bands: targetBands }).catch(() => {});
+      setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands], equalizer_enabled: true }));
       showMessage(
         language === 'pl'
-          ? `Zastosowano profil korektora: ${preset.name}`
-          : `Applied EQ preset: ${getEqPresetDisplayName(preset.name, false)}`
+          ? `Zastosowano profil korektora: ${targetName}`
+          : `Applied EQ preset: ${getEqPresetDisplayName(targetName, false)}`
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -5520,8 +5561,10 @@ export default function App() {
     const flatBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     try {
       await invoke('set_equalizer_params', { enabled: true, bands: flatBands });
+      await invoke('set_equalizer_bands', { bands: flatBands }).catch(() => {});
       await invoke('set_equalizer_preamp', { preampDb: 0.0 }).catch(() => {});
       setSelectedEqPreset(language === 'pl' ? 'Płaski (Flat)' : 'Flat');
+      setIsEqPresetMenuOpen(false);
       setStatus((prev) => ({ ...prev, equalizer_bands: flatBands, equalizer_enabled: true }));
       showMessage(t.notifications.dspPresetFlat);
     } catch (e: any) {
@@ -17889,38 +17932,135 @@ export default function App() {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Wybór presetu EQ */}
-                    <select
-                      value={selectedEqPreset}
-                      onChange={(e) => handleApplyEqPreset(e.target.value)}
-                      style={{
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        padding: '6px 30px 6px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(20, 24, 44, 0.95)',
-                        color: '#ffffff',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 10px center',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                      }}
-                    >
-                      {selectedEqPreset && !eqPresets.some((p) => p.name === selectedEqPreset) && (
-                        <option value={selectedEqPreset} style={{ background: '#181824', color: '#ff4d94' }}>
-                          {selectedEqPreset}
-                        </option>
+                    {/* Wybór presetu EQ - nowoczesne anime glassmorphism dropdown */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsEqPresetMenuOpen((prev) => !prev);
+                        }}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          background: 'rgba(20, 24, 44, 0.95)',
+                          color: '#ffffff',
+                          border: isEqPresetMenuOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                          transition: 'all 0.18s ease',
+                        }}
+                        title={loc.dsp.eqPresets}
+                      >
+                        <Sliders size={13} color="var(--accent-pink)" />
+                        <span>{getEqPresetDisplayName(selectedEqPreset, language === 'pl')}</span>
+                        <ChevronDown
+                          size={12}
+                          style={{
+                            color: 'var(--text-muted)',
+                            transform: isEqPresetMenuOpen ? 'rotate(180deg)' : 'none',
+                            transition: 'transform 0.18s ease',
+                          }}
+                        />
+                      </button>
+
+                      {isEqPresetMenuOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 6px)',
+                            left: 0,
+                            minWidth: '220px',
+                            background: 'rgba(18, 22, 38, 0.98)',
+                            backdropFilter: 'blur(16px)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-accent)',
+                            boxShadow: '0 12px 32px rgba(0,0,0,0.7)',
+                            padding: '6px',
+                            zIndex: 1000,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                            animation: 'fadeIn 0.15s ease-out',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 600 }}>
+                            {loc.dsp.eqPresets}
+                          </div>
+
+                          {/* Opcja Własny (Custom) jeśli suwaki zostały zmienione ręcznie */}
+                          {selectedEqPreset &&
+                            !eqPresets.some(
+                              (p) =>
+                                p.name === selectedEqPreset ||
+                                getEqPresetDisplayName(p.name, true) === getEqPresetDisplayName(selectedEqPreset, true)
+                            ) && (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '7px 10px',
+                                  borderRadius: '8px',
+                                  background: 'rgba(255, 77, 148, 0.12)',
+                                  color: 'var(--accent-pink)',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                <span>{getEqPresetDisplayName(selectedEqPreset, language === 'pl')}</span>
+                                <Check size={13} color="var(--accent-pink)" />
+                              </div>
+                            )}
+
+                          {eqPresets.map((preset) => {
+                            const isSelected =
+                              selectedEqPreset === preset.name ||
+                              getEqPresetDisplayName(selectedEqPreset, true) === getEqPresetDisplayName(preset.name, true);
+                            const displayName = getEqPresetDisplayName(preset.name, language === 'pl');
+                            return (
+                              <button
+                                key={preset.name}
+                                type="button"
+                                onClick={() => handleApplyEqPreset(preset.name)}
+                                style={{
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '7px 10px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  background: isSelected ? 'rgba(255, 77, 148, 0.15)' : 'transparent',
+                                  color: isSelected ? 'var(--accent-pink)' : '#fff',
+                                  fontSize: '0.8rem',
+                                  fontWeight: isSelected ? 700 : 500,
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'background 0.12s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                <span>{displayName}</span>
+                                {isSelected && <Check size={13} color="var(--accent-pink)" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       )}
-                      {eqPresets.map((preset) => (
-                        <option key={preset.name} value={preset.name} style={{ background: '#181824', color: '#fff' }}>
-                          {preset.name}
-                        </option>
-                      ))}
-                    </select>
+                    </div>
 
                     {/* Przycisk Reset EQ */}
                     <button

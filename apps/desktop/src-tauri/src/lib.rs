@@ -1387,7 +1387,10 @@ fn set_equalizer_params(
         if b.len() == 10 {
             let mut arr = [0.0; 10];
             arr.copy_from_slice(&b);
-            let _ = state.engine.set_equalizer_bands(&arr);
+            state
+                .engine
+                .set_equalizer_bands(&arr)
+                .map_err(|e| format!("Błąd zapisu pasm korektora: {}", e))?;
         }
     }
     Ok(())

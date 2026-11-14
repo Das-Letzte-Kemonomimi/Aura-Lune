@@ -175,47 +175,47 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     setVolume: (val: number) => void;
     toggleMute: () => void;
   }> = [
-    {
-      id: 'vocals',
-      label: 'Wokal (Vocals)',
-      icon: <Mic size={16} />,
-      color: '#ec4899',
-      volume: mixerState.vocals_volume,
-      mute: mixerState.vocals_mute || mixerState.karaoke_mode,
-      setVolume: (v) => updateMixer({ ...mixerState, vocals_volume: v }),
-      toggleMute: () => updateMixer({ ...mixerState, vocals_mute: !mixerState.vocals_mute }),
-    },
-    {
-      id: 'drums',
-      label: 'Perkusja (Drums)',
-      icon: <Disc size={16} />,
-      color: '#f59e0b',
-      volume: mixerState.drums_volume,
-      mute: mixerState.drums_mute,
-      setVolume: (v) => updateMixer({ ...mixerState, drums_volume: v }),
-      toggleMute: () => updateMixer({ ...mixerState, drums_mute: !mixerState.drums_mute }),
-    },
-    {
-      id: 'bass',
-      label: 'Bas (Bass)',
-      icon: <Radio size={16} />,
-      color: '#06b6d4',
-      volume: mixerState.bass_volume,
-      mute: mixerState.bass_mute,
-      setVolume: (v) => updateMixer({ ...mixerState, bass_volume: v }),
-      toggleMute: () => updateMixer({ ...mixerState, bass_mute: !mixerState.bass_mute }),
-    },
-    {
-      id: 'other',
-      label: 'Pozostałe (Other)',
-      icon: <Sliders size={16} />,
-      color: '#a855f7',
-      volume: mixerState.other_volume,
-      mute: mixerState.other_mute,
-      setVolume: (v) => updateMixer({ ...mixerState, other_volume: v }),
-      toggleMute: () => updateMixer({ ...mixerState, other_mute: !mixerState.other_mute }),
-    },
-  ];
+      {
+        id: 'vocals',
+        label: 'Wokal (Vocals)',
+        icon: <Mic size={16} />,
+        color: '#ec4899',
+        volume: mixerState.vocals_volume,
+        mute: mixerState.vocals_mute || mixerState.karaoke_mode,
+        setVolume: (v) => updateMixer({ ...mixerState, vocals_volume: v }),
+        toggleMute: () => updateMixer({ ...mixerState, vocals_mute: !mixerState.vocals_mute }),
+      },
+      {
+        id: 'drums',
+        label: 'Perkusja (Drums)',
+        icon: <Disc size={16} />,
+        color: '#f59e0b',
+        volume: mixerState.drums_volume,
+        mute: mixerState.drums_mute,
+        setVolume: (v) => updateMixer({ ...mixerState, drums_volume: v }),
+        toggleMute: () => updateMixer({ ...mixerState, drums_mute: !mixerState.drums_mute }),
+      },
+      {
+        id: 'bass',
+        label: 'Bas (Bass)',
+        icon: <Radio size={16} />,
+        color: '#06b6d4',
+        volume: mixerState.bass_volume,
+        mute: mixerState.bass_mute,
+        setVolume: (v) => updateMixer({ ...mixerState, bass_volume: v }),
+        toggleMute: () => updateMixer({ ...mixerState, bass_mute: !mixerState.bass_mute }),
+      },
+      {
+        id: 'other',
+        label: 'Pozostałe (Other)',
+        icon: <Sliders size={16} />,
+        color: '#a855f7',
+        volume: mixerState.other_volume,
+        mute: mixerState.other_mute,
+        setVolume: (v) => updateMixer({ ...mixerState, other_volume: v }),
+        toggleMute: () => updateMixer({ ...mixerState, other_mute: !mixerState.other_mute }),
+      },
+    ];
 
   const content = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
@@ -457,8 +457,8 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                   border: isSolo
                     ? '1px solid #f59e0b'
                     : stem.mute
-                    ? '1px solid rgba(239, 68, 68, 0.3)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
+                      ? '1px solid rgba(239, 68, 68, 0.3)'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '12px',
