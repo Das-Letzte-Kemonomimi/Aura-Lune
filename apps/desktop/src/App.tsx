@@ -20,6 +20,7 @@ import {
   Zap,
   FolderOpen,
   Music,
+  BarChart2,
   Disc,
   Clock,
   Bookmark,
@@ -108,6 +109,7 @@ import { LoopEditorModal, formatTimeMs, parseTimeToMs } from './components/LoopE
 import { OnboardingModal } from './components/OnboardingModal';
 import { VolumeOsd, type VolumeOsdPosition } from './components/VolumeOsd';
 import { KeyBpmModal } from './components/KeyBpmModal';
+import { MusicAnalysisModal } from './components/MusicAnalysisModal';
 import { AuraluneRecapModal } from './components/AuraluneRecapModal';
 import { TagEditorModal } from './components/TagEditorModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
@@ -994,6 +996,8 @@ export default function App() {
   });
   const [isRecapModalOpen, setIsRecapModalOpen] = useState<boolean>(false);
   const [isKeyBpmModalOpen, setIsKeyBpmModalOpen] = useState<boolean>(false);
+  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState<boolean>(false);
+  const [analysisInitialTab, setAnalysisInitialTab] = useState<'chords' | 'pianoroll' | 'stems' | 'models'>('chords');
   const [volumeOsdPosition, setVolumeOsdPosition] = useState<VolumeOsdPosition>(() => {
     try {
       return (localStorage.getItem('auralune_volume_osd_position') as VolumeOsdPosition) || 'bottom-center';
@@ -5538,12 +5542,6 @@ export default function App() {
   }, [status.position_ms, status.state, loopPointA, loopPointB]);
 
 
-  const formatSleepTimer = (sec: number | null) => {
-    if (sec === null) return '';
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
 
 
 
@@ -10766,6 +10764,33 @@ export default function App() {
               <span className="header-action-text">Key & BPM</span>
             </button>
 
+            {/* Przycisk Analizy Muzycznej (Chords, Piano-Roll, Stems) */}
+            <button
+              onClick={() => {
+                setAnalysisInitialTab('chords');
+                setIsAnalysisModalOpen(true);
+              }}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                background: 'rgba(236, 72, 153, 0.15)',
+                border: '1px solid rgba(236, 72, 153, 0.35)',
+                color: 'var(--accent-pink)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flexShrink: 0,
+              }}
+              title={currentLang === 'pl' ? 'Analiza Muzyczna (Akordy, Piano-Roll, Stemy)' : 'Music Analysis (Chords, Piano-Roll, Stems)'}
+            >
+              <BarChart2 size={14} color="var(--accent-pink)" />
+              <span className="header-action-text">{currentLang === 'pl' ? 'Analiza' : 'Analysis'}</span>
+            </button>
+
             {/* Wyłącznik Czasowy (Sleep Timer) */}
             <button
               onClick={() => setIsSleepTimerOpen(true)}
@@ -12325,10 +12350,12 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Przycisk Wielopunktowych Zakładek (Cue Points) */}
+                        {/* Shuffle Button */}
                         <button
-                          onClick={() => setIsBookmarksModalOpen(true)}
+                          onClick={handleToggleShuffle}
+                          title={loc.shortcuts.shuffle}
                           className="glass-card"
+                          style={{
                             width: '36px',
                             height: '36px',
                             borderRadius: '50%',
@@ -19734,6 +19761,25 @@ export default function App() {
         onTempoChange={handleTempoChange}
         onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
         currentLang={language}
+      />
+
+      {/* Studio Analizy Muzycznej (Akordy, Piano-Roll, Stemy, Modele AI) */}
+      <MusicAnalysisModal
+        isOpen={isAnalysisModalOpen}
+        onClose={() => setIsAnalysisModalOpen(false)}
+        trackId={activeTrackId || status.current_track?.track_id || undefined}
+        trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
+        trackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
+        trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || undefined}
+        currentTimeMs={status.position_ms}
+        durationMs={status.duration_ms ?? undefined}
+        pitchSemitones={status.pitch_semitones ?? 0}
+        onSeek={handleSeek}
+        onSetLoop={(start, end) => {
+          setLoopPointA(start);
+          setLoopPointB(end);
+        }}
+        initialTab={analysisInitialTab}
       />
 
       {/* Podsumowanie Tygodnia, Miesiąca i Roku (Auralune Recap / Wrapped) */}

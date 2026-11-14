@@ -16,6 +16,7 @@ import {
   CassetteTape,
   Disc3,
   Image,
+  Music,
 } from 'lucide-react';
 import { SpectrumVisualizer } from './SpectrumVisualizer';
 import { VuMeterWidget } from './VuMeterWidget';
@@ -39,6 +40,7 @@ interface BigScreenViewProps {
   spectrum?: number[];
   currentLang?: Language;
   volumeUnit?: 'percent' | 'db';
+  currentChord?: string;
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -66,6 +68,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   spectrum,
   currentLang = 'en',
   volumeUnit = 'percent',
+  currentChord,
   onPlayPause,
   onPrev,
   onNext,
@@ -226,6 +229,27 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
               }}
             >
               <Zap size={12} /> DSP: {tempoRatio.toFixed(2)}x
+            </span>
+          )}
+          {currentChord && (
+            <span
+              style={{
+                padding: '4px 12px',
+                borderRadius: '20px',
+                background: 'rgba(236, 72, 153, 0.25)',
+                border: '1px solid rgba(236, 72, 153, 0.6)',
+                color: 'var(--accent-pink)',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 0 12px rgba(236, 72, 153, 0.4)',
+              }}
+              title="Aktualny akord (Music Analysis)"
+            >
+              <Music size={14} /> {currentChord}
             </span>
           )}
         </div>
