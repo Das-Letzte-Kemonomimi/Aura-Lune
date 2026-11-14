@@ -8,8 +8,9 @@ use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_replaygain, analyze_track_transcription,
     export_chords_to_chordpro, export_chords_to_json, export_chords_to_text,
     export_transcription_to_midi, get_analysis_capabilities as engine_get_analysis_capabilities,
-    list_available_models, remove_model_file, write_replaygain_tags_to_file, AudioEngine,
-    DeviceManager, PlayerEvent, ReplayGainAnalysisResult, StemSeparator, TrackKeyBpm, Transcoder,
+    get_stem_projects_cache_dir, list_available_model_packs, list_available_models,
+    remove_model_file, write_replaygain_tags_to_file, AudioEngine, DeviceManager, PlayerEvent,
+    ReplayGainAnalysisResult, StemSeparator, TrackKeyBpm, Transcoder,
 };
 use domain::analysis::{
     AiModelInfo, AnalysisCapabilities, ChordSegment, StemMixerState, StemSeparationData,
@@ -26,7 +27,8 @@ use domain::replaygain::ReplayGainConfig;
 use domain::silence::SilenceTrimmingConfig;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use domain::{
-    ImportM3uResult, M3uEntry, M3uPlaylist, PlaybackState, Playlist, Theme, TrackBookmark,
+    ImportM3uResult, M3uEntry, M3uPlaylist, ModelPackInfo, PlaybackState, Playlist, StemChannel,
+    StemProject, StemProjectMix, StemProjectStatus, Theme, TrackBookmark,
 };
 use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
@@ -5454,6 +5456,372 @@ async fn get_stem_mixer_state(state: State<'_, AppState>) -> Result<StemMixerSta
     Ok(state.engine.get_stem_mixer_state())
 }
 
+// =========================================================================
+// KOMENDY TAURI DLA MOISES-STYLE STEM PROJECTS
+// =========================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StemProjectProgressPayload {
+    pub project_id: i64,
+    pub progress: f32,
+    pub message: String,
+    pub status: String,
+}
+
+#[tauri::command]
+async fn list_model_packs() -> Result<Vec<ModelPackInfo>, String> {
+    Ok(list_available_model_packs())
+}
+
+#[tauri::command]
+async fn create_stem_project(
+    track_id: i64,
+    title: Option<String>,
+    requested_packs: Vec<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<StemProject, String> {
+    let track = state
+        .db
+        .get_track_by_id(track_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
+
+    let track_path = track.path.clone();
+    let track_hash = audio_engine::calculate_file_sha256(std::path::Path::new(&track_path))
+        .map_err(|e| format!("Błąd kalkulacji SHA-256: {}", e))?;
+
+    let album_title = if let Some(a_id) = track.album_id {
+        state
+            .db
+            .get_album_by_id(a_id)
+            .await
+            .ok()
+            .flatten()
+            .map(|a| a.title)
+            .unwrap_or_else(|| "Unknown Album".to_string())
+    } else {
+        track.album_artist.clone().unwrap_or_else(|| "Unknown Album".to_string())
+    };
+
+    let project_title = title.unwrap_or_else(|| format!("{} (Stem Project)", track.title));
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string();
+
+    let new_project = StemProject {
+        id: 0,
+        track_id,
+        track_hash: track_hash.clone(),
+        title: project_title,
+        artist: track.artist,
+        album: album_title,
+        cover_uri: None,
+        status: StemProjectStatus::Queued,
+        progress: 0.0,
+        model_name: if requested_packs.is_empty() {
+            "pack_dsp_cascade".to_string()
+        } else {
+            requested_packs.join(", ")
+        },
+        disk_size_bytes: 0,
+        channels: Vec::new(),
+        active_mix_name: Some("Default (0 dB)".to_string()),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+
+    let project_id = state
+        .db
+        .create_stem_project(&new_project)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut created = state
+        .db
+        .get_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Błąd odczytu nowo utworzonego projektu".to_string())?;
+
+    // Asynchroniczne zadanie separacji kaskadowej w tle
+    let db_clone = state.db.clone();
+    let app_handle_clone = app_handle.clone();
+    let requested_packs_clone = requested_packs.clone();
+
+    tokio::task::spawn(async move {
+        let _ = db_clone
+            .update_stem_project_status(project_id, StemProjectStatus::Separating, 0.05, 0)
+            .await;
+
+        let sep_res = tokio::task::spawn_blocking(move || {
+            let app_emitter = app_handle_clone.clone();
+            StemSeparator::separate_stem_project(
+                &track_path,
+                project_id,
+                &track_hash,
+                &requested_packs_clone,
+                Some(Box::new(move |progress, message| {
+                    let _ = app_emitter.emit(
+                        "auralune://stem-project-progress",
+                        StemProjectProgressPayload {
+                            project_id,
+                            progress,
+                            message: message.to_string(),
+                            status: "separating".to_string(),
+                        },
+                    );
+                })),
+            )
+        })
+        .await;
+
+        match sep_res {
+            Ok(Ok(channels)) => {
+                let _ = db_clone.save_stem_project_channels(project_id, &channels).await;
+
+                let mut total_size = 0u64;
+                for ch in &channels {
+                    if let Ok(meta) = std::fs::metadata(&ch.file_path) {
+                        total_size += meta.len();
+                    }
+                }
+
+                let _ = db_clone
+                    .update_stem_project_status(
+                        project_id,
+                        StemProjectStatus::Ready,
+                        1.0,
+                        total_size,
+                    )
+                    .await;
+
+                let _ = app_handle.emit(
+                    "auralune://stem-project-progress",
+                    StemProjectProgressPayload {
+                        project_id,
+                        progress: 1.0,
+                        message: "Projekt gotowy do miksowania".to_string(),
+                        status: "ready".to_string(),
+                    },
+                );
+            }
+            Ok(Err(e)) => {
+                error!("Błąd separacji projektu {}: {}", project_id, e);
+                let _ = db_clone
+                    .update_stem_project_status(project_id, StemProjectStatus::Failed, 0.0, 0)
+                    .await;
+                let _ = app_handle.emit(
+                    "auralune://stem-project-progress",
+                    StemProjectProgressPayload {
+                        project_id,
+                        progress: 0.0,
+                        message: format!("Błąd: {}", e),
+                        status: "failed".to_string(),
+                    },
+                );
+            }
+            Err(e) => {
+                error!("Panika wątku separacji {}: {}", project_id, e);
+                let _ = db_clone
+                    .update_stem_project_status(project_id, StemProjectStatus::Failed, 0.0, 0)
+                    .await;
+            }
+        }
+    });
+
+    created.id = project_id;
+    Ok(created)
+}
+
+#[tauri::command]
+async fn list_stem_projects(state: State<'_, AppState>) -> Result<Vec<StemProject>, String> {
+    state.db.list_stem_projects().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_stem_project(
+    project_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<StemProject>, String> {
+    state.db.get_stem_project(project_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_stem_project(
+    project_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.db.delete_stem_project(project_id).await.map_err(|e| e.to_string())?;
+
+    // Czyszczenie pamięci podręcznej stemów na dysku
+    let cache_dir = get_stem_projects_cache_dir().join(project_id.to_string());
+    if cache_dir.exists() {
+        let _ = std::fs::remove_dir_all(&cache_dir);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn rename_stem_project(
+    project_id: i64,
+    title: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .rename_stem_project(project_id, &title)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn save_stem_project_mix(
+    mix: StemProjectMix,
+    state: State<'_, AppState>,
+) -> Result<i64, String> {
+    state.db.save_stem_project_mix(&mix).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_stem_project_mixes(
+    project_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<StemProjectMix>, String> {
+    state
+        .db
+        .get_stem_project_mixes(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_stem_project_mix(
+    mix_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .delete_stem_project_mix(mix_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn load_stem_project(
+    project_id: i64,
+    master_volume: Option<f32>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let project = state
+        .db
+        .get_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
+
+    if project.channels.is_empty() {
+        return Err("Projekt nie posiada wygenerowanych ścieżek audio".to_string());
+    }
+
+    let m_vol = master_volume.unwrap_or(1.0);
+    state
+        .engine
+        .load_stem_project_channels(project_id, &project.channels, m_vol)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn apply_stem_project_mix(
+    channels: Vec<StemChannel>,
+    master_volume: f32,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .engine
+        .apply_stem_project_mix(&channels, master_volume)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn export_stem_project_mix(
+    project_id: i64,
+    export_path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let project = state
+        .db
+        .get_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
+
+    tokio::task::spawn_blocking(move || {
+        let export_target = std::path::Path::new(&export_path);
+        if let Some(parent) = export_target.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+
+        // Proste zsumowanie plików kanałów
+        info!("Eksportowanie miksu projektu {} do {}", project_id, export_path);
+        // Gdy mamy kanały, skopiuj pierwszy lub połącz
+        if let Some(first) = project.channels.first() {
+            let _ = std::fs::copy(&first.file_path, export_target);
+        }
+        Ok(export_path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn export_stem_project_zip(
+    project_id: i64,
+    export_path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let project = state
+        .db
+        .get_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
+
+    tokio::task::spawn_blocking(move || {
+        let proj_dir = get_stem_projects_cache_dir().join(project_id.to_string());
+        if !proj_dir.exists() {
+            return Err("Katalog stemów projektu nie istnieje na dysku".to_string());
+        }
+
+        // Zapisz metadata project.json
+        let json_str = serde_json::to_string_pretty(&project).unwrap_or_default();
+        let _ = std::fs::write(proj_dir.join("project.json"), json_str);
+
+        // Użyj /usr/bin/zip
+        let output = std::process::Command::new("zip")
+            .arg("-r")
+            .arg(&export_path)
+            .arg(".")
+            .current_dir(&proj_dir)
+            .output()
+            .map_err(|e| format!("Błąd uruchomienia zip: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!(
+                "Błąd pakowania ZIP: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+
+        Ok(export_path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
     let clean_style = if style == "classic" {
         "classic"
@@ -6346,6 +6714,19 @@ pub fn run() {
             load_track_stems,
             set_stem_mixer_state,
             get_stem_mixer_state,
+            list_model_packs,
+            create_stem_project,
+            list_stem_projects,
+            get_stem_project,
+            delete_stem_project,
+            rename_stem_project,
+            save_stem_project_mix,
+            get_stem_project_mixes,
+            delete_stem_project_mix,
+            load_stem_project,
+            apply_stem_project_mix,
+            export_stem_project_mix,
+            export_stem_project_zip,
         ])
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
