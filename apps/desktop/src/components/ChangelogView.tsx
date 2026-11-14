@@ -52,6 +52,13 @@ const RELEASES: ChangelogRelease[] = [
         fi: 'Tekoälymallien hallinta: paikallinen ONNX-mallien hallinta (HTDemucs v4, Basic Pitch), SHA-256-tarkistus, GPU-tunnistus ja nolla telemetriaa.',
         la: 'Curator Modulorum AI: administratio localis modulorum ONNX, verificatio SHA-256, detectio GPU et nulla telemetria.',
       },
+      {
+        pl: 'Moises-Style Stem Projects Studio: kaskadowa separacja wielościeżkowa (lead/backing vocals, składowe perkusji, gitary, pianino, smyczki), studyjne fadery 0–100% z 75% unity gain (0 dB), presety miksu, zapis w SQLite oraz eksport FLAC/WAV i ZIP.',
+        en: 'Moises-Style Stem Projects Studio: cascaded fine-grained separation (lead/backing vocals, drum pieces, guitars, piano, strings), studio 0-100% faders with 75% unity gain (0 dB), mix presets, SQLite recall, and FLAC/WAV and ZIP export.',
+        de: 'Moises-Style Stem Projects Studio: Kaskadierte Stem-Trennung, Studio-Fader von 0–100% (75% = 0 dB), Mix-Presets, SQLite-Speicherung sowie FLAC/WAV- und ZIP-Export.',
+        fi: 'Moises-tyylinen Stem Projects Studio: kaskadierottelu, 0–100% liukusäätimet (75% = 0 dB), miksausasetukset, SQLite-tallennus sekä FLAC/WAV- ja ZIP-vienti.',
+        la: 'Moises-Style Stem Projects Studio: separatio multiplex stemmatum, fader 0-100% (75% = 0 dB), praedefinitiones mixturae, memoria SQLite et exportatio FLAC/WAV/ZIP.',
+      },
     ],
     fixed: [
       {
@@ -60,6 +67,13 @@ const RELEASES: ChangelogRelease[] = [
         de: 'Mathematische Rekonstruktion von Stems in der DSP: Die Summe aller Stems entspricht exakt dem Originalsignal ohne Phasenverschiebungen.',
         fi: 'Matemaattinen stem-rekonstruktio DSP-moottorissa: kaikkien tuotettujen stemmien summa vastaa tarkasti alkuperäistä signaalia.',
         la: 'Reconstructio mathematica stemmatum in DSP: summa partium accurate originalem aequat sine phase erroribus.',
+      },
+      {
+        pl: 'Stabilizacja przewijania i stały nagłówek: zablokowano niepożądane przewijanie okna, zamocowano nagłówek na stałe na górze, odblokowano scrollowanie w oknie Ustawień i wprowadzono kompaktowy selektor języka.',
+        en: 'Scroll stabilization and fixed header: locked root window scrolling, pinned header at top, fixed scroll container in Settings modal, and added compact language selector.',
+        de: 'Scroll-Stabilisierung und fester Header: Unbeabsichtigtes Scrollen des Fensters gesperrt, Header fixiert, Scrollen in Einstellungen behoben und kompakter Sprachwähler.',
+        fi: 'Vierityksen vakautus ja kiinteä yläpalkki: estetty ikkunan vieritys, kiinnitetty yläpalkki, korjattu Asetukset-ikkunan vieritys ja tehty kielivalitsimesta kompakti.',
+        la: 'Stabilizatio volutionis et caput fixum: volubilitas fenestrae correcta, caput fixum in summo, volubilitas in Optionibus restituta et selector linguae compactus.',
       },
     ],
   },
