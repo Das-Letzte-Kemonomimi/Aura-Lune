@@ -95,7 +95,8 @@ impl HttpDownloadProvider {
                 "Auralune/{} ( legal-download-client )",
                 env!("CARGO_PKG_VERSION")
             ))
-            .timeout(std::time::Duration::from_secs(60))
+            .connect_timeout(std::time::Duration::from_secs(30))
+            .timeout(std::time::Duration::from_secs(3600))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
@@ -401,5 +402,29 @@ mod tests {
     fn test_download_job_creation() {
         let mgr = DownloadManager::new();
         assert_eq!(mgr.list_jobs().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_http_download_huggingface_model_and_sha256() {
+        let temp_dir = std::env::temp_dir();
+        let dest = temp_dir.join(format!("test_nmp_{}.onnx", std::process::id()));
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let provider = HttpDownloadProvider::new();
+
+        let res = provider
+            .download(
+                "https://huggingface.co/daserge/basic-pitch-onnx/resolve/main/nmp.onnx",
+                &dest,
+                Some("2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec"),
+                cancel_flag,
+                None,
+            )
+            .await;
+
+        assert!(res.is_ok(), "Download failed: {:?}", res);
+        let downloaded = res.unwrap();
+        assert!(downloaded.exists());
+        assert_eq!(std::fs::metadata(&downloaded).unwrap().len(), 230444);
+        let _ = fs::remove_file(downloaded);
     }
 }

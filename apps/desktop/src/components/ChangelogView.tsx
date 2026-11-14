@@ -18,11 +18,43 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.1.2',
+    codename: 'Verified Weights & Model Engine',
+    date: '2026-11-14',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Oficjalny katalog modeli AI ze zweryfikowanymi linkami: HTDemucs v4, HTDemucs 6s, UVR MDX-Net Karaoke oraz Spotify Basic Pitch pobierane bezpośrednio z publicznych mirrorów Hugging Face.',
+        en: 'Official AI model catalog with verified URLs: HTDemucs v4, HTDemucs 6s, UVR MDX-Net Karaoke, and Spotify Basic Pitch directly downloaded from public Hugging Face mirrors.',
+        de: 'Offizieller KI-Modellkatalog mit verifizierten URLs: Direkter Download von Hugging Face-Mirrors.',
+        fi: 'Virallinen tekoälymalliluettelo vahvistetuilla linkeillä Hugging Face -peileistä.',
+        la: 'Catalogus officialis exemplarium AI cum nexibus veritatis ex Hugging Face.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Eliminacja błędu HTTP 404 podczas pobierania modeli AI oraz dodanie weryfikacji sumy kontrolnej SHA-256 w locie.',
+        en: 'Resolved HTTP 404 error during AI model downloads and added on-the-fly SHA-256 cryptographic verification.',
+        de: 'HTTP 404-Fehler beim Herunterladen von KI-Modellen behoben und SHA-256-Prüfung hinzugefügt.',
+        fi: 'Korjattu HTTP 404 -virhe tekoälymallien latauksessa ja lisätty reaaliaikainen SHA-256-tarkistus.',
+        la: 'Error HTTP 404 in exoneratione exemplarium AI sublatus et verificatio SHA-256 addita.',
+      },
+      {
+        pl: 'Stylowany baner błędów w oknie Menedżera Modeli AI zamiast natywnych powiadomień JavaScript alert().',
+        en: 'Styled inline error banner in AI Model Manager instead of native blocking JavaScript alert() dialogs.',
+        de: 'Stilisiertes Inline-Fehlerbanner im KI-Modell-Manager anstelle von nativen alert()-Dialogen.',
+        fi: 'Tyylitelty virhepalkki tekoälyhallinnassa natiivien alert()-ilmoitusten sijaan.',
+        la: 'Vexillum erroris ornatum pro fenestris JavaScript alert().',
+      },
+    ],
+  },
+  {
     version: '1.1.1',
     codename: 'Spectral Precision & Floating Studio',
     date: '2026-11-14',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Separacja spektralna STFT HPSS & Stereo Azimuth: pełnopasmowy rozkład harmoniczno-perkusyjny z filtracją medianową i dekompozycją Center/Side w stereo 44.1 kHz.',

@@ -92,11 +92,12 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   if (!isOpen) return null;
 
   const handleDownload = async (id: string) => {
+    setError(null);
     try {
       setDownloading((prev) => ({ ...prev, [id]: 0.01 }));
       await invoke('download_ai_model', { modelId: id });
     } catch (err: any) {
-      alert(`Błąd pobierania modelu: ${err}`);
+      setError(`Błąd pobierania modelu: ${err}`);
       setDownloading((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -107,13 +108,14 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
 
   const handleDelete = async (id: string) => {
     if (!confirm('Czy na pewno chcesz usunąć wagi tego modelu z dysku?')) return;
+    setError(null);
     try {
       await invoke('delete_ai_model', { modelId: id });
       setModels((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_installed: false } : m))
       );
     } catch (err: any) {
-      alert(`Błąd usuwania modelu: ${err}`);
+      setError(`Błąd usuwania modelu: ${err}`);
     }
   };
 

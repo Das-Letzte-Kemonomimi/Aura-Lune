@@ -9,6 +9,18 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.1.2] — „Verified Weights & Model Engine” - 2026-11-14
+**Autorka**: Das Letzte Kemonomimi
+
+### 🛠️ Poprawiono (Fixed)
+- **Oficjalne adresy pobierania modeli AI (eliminacja błędu 404)**: Zaktualizowano adresy pobierania wag sieci neuronowych w Menedżerze Modeli i Pakietach Stemów (`model_manager.rs`) na zweryfikowane, publicznie dostępne mirrory Hugging Face (`StemSplitio/htdemucs-onnx`, `StemSplitio/htdemucs-6s-onnx`, `musetric/uvr-mdxnet-kara2-onnx`, `daserge/basic-pitch-onnx`).
+- **Kryptograficzna weryfikacja SHA-256 w locie**: Wdrożono rygorystyczną weryfikację sumy kontrolnej SHA-256 dla każdego pobieranego modelu AI przed zatwierdzeniem instalacji, chroniąc przed uszkodzonymi lub niekompletnymi plikami.
+- **Zwiększenie limitu czasu (timeout) pobierania**: Podniesiono limit czasu w `HttpDownloadProvider` z 60 sekund do 1 godziny dla pobierania dużych modeli wag AI (300+ MB) na łączach o dowolnej przepustowości.
+- **Estetyczne komunikaty błędów w UI**: Zastąpiono natywne, blokujące powiadomienia JavaScript (`alert()`) dedykowanym, stylowanym banerem błędu inline w oknie Menedżera Modeli AI.
+- **Usunięcie duplikatu komendy Tauri**: Usunięto zduplikowaną deklarację funkcji `download_ai_model` w `apps/desktop/src-tauri/src/lib.rs`.
+
+---
+
 ## [1.1.1] — „Spectral Precision & Floating Studio” - 2026-11-14
 **Autorka**: Das Letzte Kemonomimi
 

@@ -97,14 +97,44 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             name: "HTDemucs v4 (4-Stem Studio)".to_string(),
             task_type: AiTaskType::StemSeparation,
             file_path: models_dir.join("htdemucs_v4.onnx").to_string_lossy().to_string(),
-            file_size: 80_542_112,
-            sha256: "b4a8e9e1c2d3f4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456".to_string(),
-            license: "MIT".to_string(),
+            file_size: 316_446_953,
+            sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".to_string(),
+            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
             download_url: Some(
-                "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.1.0/htdemucs_v4.onnx".to_string(),
+                "https://huggingface.co/StemSplitio/htdemucs-onnx/resolve/main/htdemucs.onnx".to_string(),
             ),
             is_installed: false,
             description: "Studyjnej jakości rozbicie utworu na 4 stem-y: wokal, perkusja, bas i instrumenty towarzyszące."
+                .to_string(),
+        },
+        AiModelInfo {
+            id: "htdemucs_6s".to_string(),
+            name: "HTDemucs 6s (6-Stem Extended)".to_string(),
+            task_type: AiTaskType::StemSeparation,
+            file_path: models_dir.join("htdemucs_6s.onnx").to_string_lossy().to_string(),
+            file_size: 258_159_781,
+            sha256: "48f8e84945579f8ab340e083339e9221e03785dbe733a52c388200b6d3ca779a".to_string(),
+            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            download_url: Some(
+                "https://huggingface.co/StemSplitio/htdemucs-6s-onnx/resolve/main/htdemucs_6s.onnx".to_string(),
+            ),
+            is_installed: false,
+            description: "Rozszerzony model 6-ścieżkowy: Wokal, Perkusja, Bas, Gitara, Fortepian oraz Podkład."
+                .to_string(),
+        },
+        AiModelInfo {
+            id: "uvr_mdx_karaoke".to_string(),
+            name: "UVR MDX-Net Karaoke 2 (Lead & Backing)".to_string(),
+            task_type: AiTaskType::StemSeparation,
+            file_path: models_dir.join("uvr_mdx_karaoke.onnx").to_string_lossy().to_string(),
+            file_size: 52_832_612,
+            sha256: "f90e997ad60af6bf25bac77ad02f5e127a564d363a2b60ecb41100cd83e4ba12".to_string(),
+            license: "MIT".to_string(),
+            download_url: Some(
+                "https://huggingface.co/musetric/uvr-mdxnet-kara2-onnx/resolve/main/kara2.onnx".to_string(),
+            ),
+            is_installed: false,
+            description: "Dedykowana izolacja wokalu prowadzącego (Lead) od chórków i harmonii (Backing)."
                 .to_string(),
         },
         AiModelInfo {
@@ -112,11 +142,11 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             name: "Spotify Basic Pitch (Polyphonic Transcription)".to_string(),
             task_type: AiTaskType::NoteTranscription,
             file_path: models_dir.join("basic_pitch.onnx").to_string_lossy().to_string(),
-            file_size: 19_842_048,
-            sha256: "c1d2e3f4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456789a".to_string(),
+            file_size: 230_444,
+            sha256: "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec".to_string(),
             license: "Apache-2.0".to_string(),
             download_url: Some(
-                "https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.1.0/basic_pitch.onnx".to_string(),
+                "https://huggingface.co/daserge/basic-pitch-onnx/resolve/main/nmp.onnx".to_string(),
             ),
             is_installed: false,
             description: "Wielogłosowa polifoniczna transkrypcja instrumentów i melodii wprost do nut i plików MIDI."
@@ -153,10 +183,10 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
                 "other".to_string(),
             ],
             model_files: vec!["htdemucs_v4.onnx".to_string()],
-            total_size_bytes: 80_542_112,
+            total_size_bytes: 316_446_953,
             license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
-            source_url: "https://github.com/facebookresearch/demucs".to_string(),
-            sha256: "b4a8e9e1c2d3f4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456".to_string(),
+            source_url: "https://huggingface.co/StemSplitio/htdemucs-onnx".to_string(),
+            sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".to_string(),
             is_installed: false,
             gpu_recommended: true,
             speed_estimate_sec_per_min: 12.0,
@@ -176,10 +206,10 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
                 "other".to_string(),
             ],
             model_files: vec!["htdemucs_6s.onnx".to_string()],
-            total_size_bytes: 142_110_400,
+            total_size_bytes: 258_159_781,
             license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
-            source_url: "https://github.com/facebookresearch/demucs".to_string(),
-            sha256: "c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0123456789abcdef0123456789abcdef0".to_string(),
+            source_url: "https://huggingface.co/StemSplitio/htdemucs-6s-onnx".to_string(),
+            sha256: "48f8e84945579f8ab340e083339e9221e03785dbe733a52c388200b6d3ca779a".to_string(),
             is_installed: false,
             gpu_recommended: true,
             speed_estimate_sec_per_min: 18.0,
@@ -195,10 +225,10 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
                 "backing_vocals".to_string(),
             ],
             model_files: vec!["uvr_mdx_karaoke.onnx".to_string()],
-            total_size_bytes: 48_230_000,
+            total_size_bytes: 52_832_612,
             license: "MIT".to_string(),
-            source_url: "https://github.com/Anjok07/ultimatevocalremovergui".to_string(),
-            sha256: "d7e8f9a0b1c2d3e4f5a6b7c8d9e0f123456789abcdef0123456789abcdef0123".to_string(),
+            source_url: "https://huggingface.co/musetric/uvr-mdxnet-kara2-onnx".to_string(),
+            sha256: "f90e997ad60af6bf25bac77ad02f5e127a564d363a2b60ecb41100cd83e4ba12".to_string(),
             is_installed: false,
             gpu_recommended: false,
             speed_estimate_sec_per_min: 8.0,
@@ -398,7 +428,9 @@ mod tests {
         let caps = get_analysis_capabilities();
         assert!(!caps.acceleration_provider.is_empty());
         assert!(!caps.models.is_empty());
-        assert_eq!(caps.models[0].id, "htdemucs_v4");
-        assert_eq!(caps.models[1].id, "spotify_basic_pitch");
+        assert!(caps.models.iter().any(|m| m.id == "htdemucs_v4"));
+        assert!(caps.models.iter().any(|m| m.id == "htdemucs_6s"));
+        assert!(caps.models.iter().any(|m| m.id == "uvr_mdx_karaoke"));
+        assert!(caps.models.iter().any(|m| m.id == "spotify_basic_pitch"));
     }
 }

@@ -5164,7 +5164,7 @@ async fn download_ai_model(model_id: String, app_handle: tauri::AppHandle) -> Re
         .download(
             &url,
             &dest_path,
-            None,
+            Some(&model.sha256),
             cancel_flag,
             Some(Box::new(move |downloaded, total| {
                 let progress = if let Some(tot) = total {
