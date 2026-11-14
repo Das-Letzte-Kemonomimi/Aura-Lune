@@ -12345,10 +12345,9 @@ export default function App() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                             <button
                               onClick={handleSaveBookmark}
-                              title={loc.player.bookmarkDesc || (language === 'pl' ? 'Zapisz nową zakładkę na bieżącej pozycji' : 'Save new bookmark at current position')}
                               className="glass-card"
                               style={{
-                                padding: '6px 8px',
+                                padding: '6px 10px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '4px',
