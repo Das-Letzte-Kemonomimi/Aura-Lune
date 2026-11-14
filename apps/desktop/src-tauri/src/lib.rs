@@ -94,6 +94,8 @@ pub struct PlaybackStatusDto {
     pub replaygain_config: ReplayGainConfig,
     pub replaygain_status: (f64, f64, bool),
     pub live_stream_title: Option<String>,
+    pub is_stems_active: bool,
+    pub active_stem_project_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1337,6 +1339,8 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
         replaygain_config: state.engine.replaygain_config(),
         replaygain_status: state.engine.replaygain_status(),
         live_stream_title,
+        is_stems_active: state.engine.is_stems_active(),
+        active_stem_project_id: state.engine.active_stem_project_id(),
     }
 }
 
@@ -5417,6 +5421,8 @@ async fn get_track_stems(
 #[tauri::command]
 async fn load_track_stems(
     track_id: i64,
+    seek_position_ms: Option<u64>,
+    start_playing: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<StemMixerState, String> {
     let stems = state
@@ -5428,6 +5434,18 @@ async fn load_track_stems(
             "Brak rozdzielonych stemów dla tego utworu. Rozpocznij separację najpierw.".to_string()
         })?;
 
+    let orig_track = state.db.get_track_by_id(track_id).await.ok().flatten();
+    let orig_uri = orig_track
+        .as_ref()
+        .map(|t| t.path.clone())
+        .or_else(|| state.engine.current_uri())
+        .or_else(|| state.engine.queue().current_item().map(|it| it.uri.clone()));
+
+    let cur_pos = seek_position_ms
+        .map(std::time::Duration::from_millis)
+        .or_else(|| state.engine.position());
+    let auto_play = start_playing.unwrap_or_else(|| state.engine.state() == PlaybackState::Playing);
+
     let mixer_state = StemMixerState {
         enabled: true,
         ..state.engine.get_stem_mixer_state()
@@ -5435,8 +5453,28 @@ async fn load_track_stems(
 
     state
         .engine
-        .load_stems(&stems, mixer_state.clone())
+        .load_stems(
+            &stems,
+            mixer_state.clone(),
+            orig_uri.clone(),
+            cur_pos,
+            auto_play,
+        )
         .map_err(|e| e.to_string())?;
+
+    if let Some(track) = orig_track {
+        let queue_item = QueueItem {
+            id: format!("stems-track-{}", track_id),
+            track_id: Some(track.id),
+            uri: orig_uri.unwrap_or_else(|| track.path.clone()),
+            title: track.title.clone(),
+            artist: track.artist.clone(),
+            album: track.album_id.map(|aid| format!("Album #{}", aid)),
+            duration_ms: track.duration_ms.max(0) as u64,
+        };
+        state.engine.set_active_item(queue_item.clone());
+        sync_mpris_from_queue_item(&queue_item, &state);
+    }
     Ok(mixer_state)
 }
 
@@ -5729,6 +5767,8 @@ async fn delete_stem_project_mix(mix_id: i64, state: State<'_, AppState>) -> Res
 async fn load_stem_project(
     project_id: i64,
     master_volume: Option<f32>,
+    seek_position_ms: Option<u64>,
+    start_playing: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let project = state
@@ -5742,11 +5782,65 @@ async fn load_stem_project(
         return Err("Projekt nie posiada wygenerowanych ścieżek audio".to_string());
     }
 
+    let orig_track = state
+        .db
+        .get_track_by_id(project.track_id)
+        .await
+        .ok()
+        .flatten();
+
+    let orig_uri = orig_track
+        .as_ref()
+        .map(|t| t.path.clone())
+        .or_else(|| state.engine.current_uri())
+        .or_else(|| state.engine.queue().current_item().map(|it| it.uri.clone()));
+
     let m_vol = master_volume.unwrap_or(1.0);
+    let cur_pos = seek_position_ms
+        .map(std::time::Duration::from_millis)
+        .or_else(|| state.engine.position());
+    let auto_play = start_playing.unwrap_or_else(|| state.engine.state() == PlaybackState::Playing);
+
     state
         .engine
-        .load_stem_project_channels(project_id, &project.channels, m_vol)
-        .map_err(|e| e.to_string())
+        .load_stem_project_channels(
+            project_id,
+            &project.channels,
+            m_vol,
+            orig_uri.clone(),
+            cur_pos,
+            auto_play,
+        )
+        .map_err(|e| e.to_string())?;
+
+    if let Some(track) = orig_track {
+        let queue_item = QueueItem {
+            id: format!("stem-project-{}", project_id),
+            track_id: Some(track.id),
+            uri: orig_uri.unwrap_or_else(|| track.path.clone()),
+            title: project.title.clone(),
+            artist: project.artist.clone(),
+            album: Some(project.album.clone()),
+            duration_ms: track.duration_ms.max(0) as u64,
+        };
+        state.engine.set_active_item(queue_item.clone());
+        sync_mpris_from_queue_item(&queue_item, &state);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn restore_original_track(state: State<'_, AppState>) -> Result<(), String> {
+    state
+        .engine
+        .restore_original_track()
+        .map_err(|e| e.to_string())?;
+
+    let q = state.engine.queue();
+    if let Some(item) = q.current_item() {
+        sync_mpris_from_queue_item(item, &state);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -6742,6 +6836,7 @@ pub fn run() {
             get_stem_project_mixes,
             delete_stem_project_mix,
             load_stem_project,
+            restore_original_track,
             apply_stem_project_mix,
             export_stem_project_mix,
             export_stem_project_zip,

@@ -292,6 +292,8 @@ interface PlaybackStatus {
   };
   replaygain_status?: [number, number, boolean];
   live_stream_title?: string | null;
+  is_stems_active?: boolean;
+  active_stem_project_id?: number | null;
 }
 
 
@@ -5419,6 +5421,15 @@ export default function App() {
       showMessage(language === 'pl' ? 'Przywrócono czysty strumień Bit-Perfect Direct Bypass' : 'Reset to Bit-Perfect Direct Bypass');
     } catch (err: any) {
       console.error('Failed to reset bit-perfect:', err);
+    }
+  };
+
+  const handleRestoreOriginalTrack = async () => {
+    try {
+      await invoke('restore_original_track');
+      showMessage(language === 'pl' ? 'Przywrócono oryginalny utwór' : 'Original track restored');
+    } catch (err: any) {
+      showMessage(`${language === 'pl' ? 'Błąd przywracania utworu:' : 'Error restoring track:'} ${err}`, true);
     }
   };
 
@@ -12610,6 +12621,47 @@ export default function App() {
                     >
                       {status.engine === 'Bypass' ? '● BYPASS' : `● ${status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}`}
                     </button>
+
+                    {/* Wskaźnik i przycisk powrotu ze stemów (jeśli stemy są aktywne) */}
+                    {status.is_stems_active && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '3px 8px',
+                          borderRadius: '8px',
+                          background: 'rgba(236, 72, 153, 0.2)',
+                          border: '1px solid rgba(236, 72, 153, 0.45)',
+                          fontSize: '0.75rem',
+                          color: '#f43f5e',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <Sliders size={12} />
+                        <span>{language === 'pl' ? 'Miks stemów' : 'Stem Mix'}</span>
+                        <button
+                          onClick={handleRestoreOriginalTrack}
+                          title={language === 'pl' ? 'Wróć do oryginalnego utworu (wyjście ze stemów)' : 'Return to original track (exit stems)'}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.18)',
+                            border: '1px solid rgba(255, 255, 255, 0.28)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                        >
+                          <RotateCcw size={11} />
+                          {language === 'pl' ? 'Wróć do utworu' : 'Restore original'}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Pitch Chip */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>

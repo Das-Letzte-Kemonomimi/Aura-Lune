@@ -88,6 +88,8 @@ struct PipelineInner {
     crossfade_duration_ms: u64,
     stem_mixer_elements: Option<StemMixerHandles>,
     stem_mixer_state: StemMixerState,
+    original_track_uri: Option<String>,
+    active_stem_project_id: Option<i64>,
 }
 
 struct StemMixerHandles {
@@ -651,6 +653,8 @@ impl AudioEngine {
             crossfade_duration_ms: 1500,
             stem_mixer_elements: None,
             stem_mixer_state: StemMixerState::default(),
+            original_track_uri: None,
+            active_stem_project_id: None,
         }));
 
         let replaygain_mode = Arc::new(AtomicU8::new(ReplayGainMode::Off as u8));
@@ -772,6 +776,10 @@ impl AudioEngine {
         }
         inner.uri_decoder = Some(uri_decoder);
         inner.current_uri = Some(uri.to_string());
+        if !uri.starts_with("stem") {
+            inner.original_track_uri = Some(uri.to_string());
+            inner.active_stem_project_id = None;
+        }
         inner.state = PlaybackState::Stopped;
 
         info!("Załadowano URI: {}", uri);
@@ -786,6 +794,9 @@ impl AudioEngine {
         &self,
         stems: &StemSeparationData,
         initial_state: StemMixerState,
+        original_uri: Option<String>,
+        seek_pos: Option<Duration>,
+        start_playing: bool,
     ) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
 
@@ -903,6 +914,10 @@ impl AudioEngine {
 
         let _ = audiomixer.sync_state_with_parent();
 
+        if let Some(orig) = original_uri {
+            inner.original_track_uri = Some(orig);
+        }
+        inner.active_stem_project_id = None;
         inner.stem_mixer_elements = Some(StemMixerHandles {
             audiomixer,
             stem_volumes,
@@ -910,7 +925,25 @@ impl AudioEngine {
         });
         inner.stem_mixer_state = initial_state;
         inner.current_uri = Some(format!("stems://{}", stems.track_id));
-        inner.state = PlaybackState::Stopped;
+
+        if let Some(pos) = seek_pos {
+            inner.base_media_pos = pos;
+            inner.base_sink_pts = pos;
+        }
+
+        if start_playing {
+            inner.state = PlaybackState::Playing;
+            inner.volume.set_property("volume", inner.user_volume);
+            let _ = inner.pipeline.set_state(gst::State::Playing);
+            if let Some(pos) = seek_pos {
+                let _ = inner.pipeline.seek_simple(
+                    gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                    gst::ClockTime::from_nseconds(pos.as_nanos() as u64),
+                );
+            }
+        } else {
+            inner.state = PlaybackState::Stopped;
+        }
 
         info!("Załadowano stemy dla utworu {}", stems.track_id);
         Ok(())
@@ -944,6 +977,9 @@ impl AudioEngine {
         project_id: i64,
         channels: &[StemChannel],
         master_volume: f32,
+        original_uri: Option<String>,
+        seek_pos: Option<Duration>,
+        start_playing: bool,
     ) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
 
@@ -1062,13 +1098,35 @@ impl AudioEngine {
 
         let _ = audiomixer.sync_state_with_parent();
 
+        if let Some(orig) = original_uri {
+            inner.original_track_uri = Some(orig);
+        }
+        inner.active_stem_project_id = Some(project_id);
         inner.stem_mixer_elements = Some(StemMixerHandles {
             audiomixer,
             stem_volumes,
             stem_elements,
         });
         inner.current_uri = Some(format!("stemproject://{}", project_id));
-        inner.state = PlaybackState::Stopped;
+
+        if let Some(pos) = seek_pos {
+            inner.base_media_pos = pos;
+            inner.base_sink_pts = pos;
+        }
+
+        if start_playing {
+            inner.state = PlaybackState::Playing;
+            inner.volume.set_property("volume", inner.user_volume);
+            let _ = inner.pipeline.set_state(gst::State::Playing);
+            if let Some(pos) = seek_pos {
+                let _ = inner.pipeline.seek_simple(
+                    gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                    gst::ClockTime::from_nseconds(pos.as_nanos() as u64),
+                );
+            }
+        } else {
+            inner.state = PlaybackState::Stopped;
+        }
 
         info!(
             "Załadowano projekt stemów {} (liczba kanałów: {})",
@@ -1101,6 +1159,65 @@ impl AudioEngine {
             }
         }
         Ok(())
+    }
+
+    /// Przywraca odtwarzanie oryginalnego utworu (wyjście z trybu miksera stemów / Stem Project),
+    /// z zachowaniem bieżącej pozycji odtwarzania oraz stanu odtwarzania (Playing / Paused).
+    pub fn restore_original_track(&self) -> Result<(), AudioEngineError> {
+        let (orig_uri, pos, was_playing) = {
+            let inner = self.inner.lock().unwrap();
+            let pos = inner
+                .pipeline
+                .query_position::<gst::ClockTime>()
+                .map(|t| Duration::from_nanos(t.nseconds()))
+                .unwrap_or(inner.base_media_pos);
+            let was_playing = inner.state == PlaybackState::Playing;
+            let uri = inner.original_track_uri.clone().or_else(|| {
+                self.queue
+                    .lock()
+                    .unwrap()
+                    .current_item()
+                    .map(|it| it.uri.clone())
+            });
+            (uri, pos, was_playing)
+        };
+
+        if let Some(uri) = orig_uri {
+            info!(
+                "Przywracanie oryginalnego utworu: {} (pozycja: {:?}, was_playing: {})",
+                uri, pos, was_playing
+            );
+            self.load_uri(&uri)?;
+            if !pos.is_zero() {
+                let _ = self.seek(pos);
+            }
+            if was_playing {
+                let _ = self.play();
+            }
+            Ok(())
+        } else {
+            Err(AudioEngineError::FileNotFound(
+                "Brak zapisanego oryginalnego utworu do przywrócenia".into(),
+            ))
+        }
+    }
+
+    /// Czy w potoku audio aktywne są stemy (audiomixer).
+    pub fn is_stems_active(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner.stem_mixer_elements.is_some()
+    }
+
+    /// ID aktywnego projektu stemów (jeśli jest załadowany).
+    pub fn active_stem_project_id(&self) -> Option<i64> {
+        let inner = self.inner.lock().unwrap();
+        inner.active_stem_project_id
+    }
+
+    /// URI oryginalnego utworu skojarzonego ze stemami.
+    pub fn original_track_uri(&self) -> Option<String> {
+        let inner = self.inner.lock().unwrap();
+        inner.original_track_uri.clone()
     }
 
     /// Rozpoczyna lub wznawia odtwarzanie.

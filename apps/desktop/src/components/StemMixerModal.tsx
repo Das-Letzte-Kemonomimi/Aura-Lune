@@ -8,6 +8,7 @@ import {
   Sparkles,
   X,
   Play,
+  RotateCcw,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -135,6 +136,15 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     }
   };
 
+  const handleRestoreOriginalTrack = async () => {
+    try {
+      await invoke('restore_original_track');
+      setMixerState((prev) => ({ ...prev, enabled: false }));
+    } catch (err) {
+      console.error('Błąd przywracania oryginalnego utworu:', err);
+    }
+  };
+
   const updateMixer = async (newMixer: StemMixerState) => {
     setMixerState(newMixer);
     try {
@@ -244,13 +254,21 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                 <span>Tryb Karaoke (Wycisz wokal)</span>
               </button>
 
-              {!mixerState.enabled && (
+              {!mixerState.enabled ? (
                 <button
                   onClick={handleLoadStemsToPlayer}
                   className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/40 text-xs font-medium transition"
                 >
                   <Play className="w-3.5 h-3.5" />
                   <span>Włącz stemy w odtwarzaczu</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleRestoreOriginalTrack}
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Wróć do oryginalnego utworu</span>
                 </button>
               )}
             </div>

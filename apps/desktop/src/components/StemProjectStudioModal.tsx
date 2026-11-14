@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Play,
   Pause,
@@ -10,7 +10,6 @@ import {
   Sliders,
   Music,
   Piano,
-  Radio,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -60,6 +59,8 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   const [newMixName, setNewMixName] = useState<string>('');
   const [isSavingMix, setIsSavingMix] = useState<boolean>(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [isOriginalMode, setIsOriginalMode] = useState<boolean>(false);
+  const hasAutoLoadedRef = useRef(false);
 
   // Pobranie danych projektu
   const fetchProjectData = useCallback(async () => {
@@ -129,15 +130,65 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
     []
   );
 
-  // Załadowanie projektu do odtwarzacza
-  const handleLoadProjectToPlayer = async () => {
-    if (!projectId) return;
+  // Przełączanie w czasie rzeczywistym na miks stemów
+  const handleSwitchToStems = useCallback(
+    async (startPlaying?: boolean) => {
+      if (!projectId) return;
+      try {
+        await invoke('load_stem_project', {
+          projectId,
+          masterVolume,
+          seekPositionMs: currentTimeMs,
+          startPlaying: startPlaying ?? isPlaying,
+        });
+        setIsOriginalMode(false);
+      } catch (err: any) {
+        setError(`Błąd załadowania stemów na żywo: ${err}`);
+      }
+    },
+    [projectId, masterVolume, currentTimeMs, isPlaying]
+  );
+
+  // Przełączanie w czasie rzeczywistym na oryginalny utwór (A/B)
+  const handleSwitchToOriginal = useCallback(async () => {
     try {
-      await invoke('load_stem_project', { projectId, masterVolume });
+      await invoke('restore_original_track');
+      setIsOriginalMode(true);
     } catch (err: any) {
-      setError(`Błąd ładowania ścieżek: ${err}`);
+      setError(`Błąd przywracania oryginalnego utworu: ${err}`);
     }
+  }, []);
+
+  // Wróć do oryginalnego utworu i zamknij okno studia
+  const handleReturnToOriginalAndClose = async () => {
+    try {
+      await invoke('restore_original_track');
+    } catch (err: any) {
+      console.warn('Błąd przywracania oryginalnego utworu:', err);
+    }
+    onClose();
   };
+
+  // Zamknięcie okna studia (z bezpiecznym powrotem do oryginału)
+  const handleClose = async () => {
+    if (!isOriginalMode) {
+      try {
+        await invoke('restore_original_track');
+      } catch {}
+    }
+    onClose();
+  };
+
+  // Automatyczny załadunek stemów na żywo (IRL) po otwarciu gotowego projektu
+  useEffect(() => {
+    if (isOpen && projectId && project?.status === 'ready' && !hasAutoLoadedRef.current) {
+      hasAutoLoadedRef.current = true;
+      handleSwitchToStems(isPlaying);
+    }
+    if (!isOpen) {
+      hasAutoLoadedRef.current = false;
+    }
+  }, [isOpen, projectId, project?.status, handleSwitchToStems, isPlaying]);
 
   // Modyfikacja suwaka głośności pojedynczego kanału
   const handleVolumeChange = (channelId: string, newVolume: number) => {
@@ -432,27 +483,86 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
           </div>
         </div>
 
-        {/* Zarządzanie miksami i eksport */}
+        {/* Zarządzanie miksami, odsłuch na żywo A/B i powrót do utworu */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Przycisk aktywacji w odtwarzaczu */}
-          <button
-            onClick={handleLoadProjectToPlayer}
+          {/* Przełącznik odsłuchu na żywo (A/B Live Comparison) */}
+          <div
             style={{
-              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(0, 0, 0, 0.45)',
+              borderRadius: '12px',
+              padding: '3px',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+            }}
+          >
+            <button
+              onClick={handleSwitchToOriginal}
+              title="Przełącz na oryginalny utwór (Master)"
+              style={{
+                padding: '6px 13px',
+                borderRadius: '9px',
+                background: isOriginalMode ? 'linear-gradient(135deg, #06b6d4, #3b82f6)' : 'transparent',
+                color: isOriginalMode ? '#ffffff' : '#94a3b8',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: isOriginalMode ? '0 2px 8px rgba(6, 182, 212, 0.4)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Music size={13} />
+              Oryginał (Master)
+            </button>
+            <button
+              onClick={() => handleSwitchToStems()}
+              title="Przełącz na odsłuch miksu stemów na żywo"
+              style={{
+                padding: '6px 13px',
+                borderRadius: '9px',
+                background: !isOriginalMode ? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'transparent',
+                color: !isOriginalMode ? '#ffffff' : '#94a3b8',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: !isOriginalMode ? '0 2px 8px rgba(236, 72, 153, 0.4)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Sliders size={13} />
+              Miks stemów (Na żywo)
+            </button>
+          </div>
+
+          {/* Przycisk powrotu do oryginalnego utworu i zamknięcia studia */}
+          <button
+            onClick={handleReturnToOriginalAndClose}
+            title="Przywróć oryginalny utwór i wyjdź ze studia stemów"
+            style={{
+              padding: '7px 14px',
               borderRadius: '10px',
-              background: 'rgba(236, 72, 153, 0.2)',
-              border: '1px solid rgba(236, 72, 153, 0.4)',
-              color: 'var(--accent-pink)',
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              color: 'var(--accent-cyan)',
               fontWeight: 700,
               fontSize: '0.8rem',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            <Radio size={14} />
-            Załaduj do potoku audio
+            <RotateCcw size={14} />
+            Wróć do utworu
           </button>
 
           {/* Selektor miksu */}
@@ -523,7 +633,8 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
           </button>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
+            title="Zamknij studio i wróć do utworu"
             style={{
               background: 'transparent',
               border: 'none',
@@ -1013,7 +1124,18 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
-            onClick={onPlayPause}
+            onClick={async () => {
+              if (isOriginalMode) {
+                onPlayPause?.();
+              } else {
+                if (!isPlaying) {
+                  await handleSwitchToStems(true);
+                  if (!isPlaying) onPlayPause?.();
+                } else {
+                  onPlayPause?.();
+                }
+              }
+            }}
             style={{
               width: '40px',
               height: '40px',

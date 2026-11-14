@@ -465,7 +465,7 @@ fn test_stem_mixer_pipeline_playback() {
 
     // 1. Ładowanie stemów do miksera
     engine
-        .load_stems(&separation, StemMixerState::default())
+        .load_stems(&separation, StemMixerState::default(), None, None, false)
         .expect("Załadowanie stemów do audiomixera");
 
     // 2. Modyfikacja stanu miksera w locie
@@ -609,7 +609,37 @@ fn test_stem_project_multitrack_pipeline_playback() {
 
     // 1. Ładowanie multitracku projektu stemów
     engine
-        .load_stem_project_channels(888, &channels, 1.0)
+        .load_stem_project_channels(
+            888,
+            &channels,
+            1.0,
+            Some(format!("file://{}", fixture_path.display())),
+            None,
+            false,
+        )
+        .expect("Załadowanie multitracku stemów do potoku");
+
+    assert!(engine.is_stems_active());
+    assert_eq!(engine.active_stem_project_id(), Some(888));
+    assert!(engine.original_track_uri().is_some());
+
+    // Test przywracania oryginalnego utworu
+    engine
+        .restore_original_track()
+        .expect("Przywrócenie oryginalnego utworu");
+    assert!(!engine.is_stems_active());
+    assert_eq!(engine.active_stem_project_id(), None);
+
+    // Ponowne załadowanie dla testu miksu
+    engine
+        .load_stem_project_channels(
+            888,
+            &channels,
+            1.0,
+            Some(format!("file://{}", fixture_path.display())),
+            None,
+            false,
+        )
         .expect("Załadowanie multitracku stemów do potoku");
 
     // 2. Modyfikacja miksu (np. Solo na lead_vocal, Mute na kick)

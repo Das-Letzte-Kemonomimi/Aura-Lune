@@ -13,10 +13,12 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(brak oczekujących wpisów — dodaj opis nowej funkcji podczas implementacji)*
+- **Odsłuch na żywo A/B i natychmiastowy powrót do utworu**: Wprowadzono przełącznik A/B (`Oryginał (Master)` <-> `Miks stemów (Na żywo)`) w studiu projektów stemów oraz mikserze 4-ścieżkowym, z automatycznym ładowaniem w czasie rzeczywistym (IRL) i bezproblemowym zachowaniem pozycji czasowej utworu.
+- **Dedykowany przycisk powrotu ze stemów w odtwarzaczu**: Nowy chip statusowy i przycisk w głównym odtwarzaczu (`Miks stemów • [Wróć do utworu]`) umożliwiający natychmiastowy powrót do oryginalnego utworu bez zatrzymywania muzyki.
 
 ### 🛠️ Poprawiono (Fixed)
-- *(brak oczekujących wpisów — dodaj opis poprawki błędu podczas implementacji)*
+- **Zachowanie oryginalnego utworu w kolejce**: Usunięto błąd podmiany metadanych utworu na pusty byt przy ładowaniu multitracku stemów — oryginalny plik, tytuł, wykonawca, okładka i album pozostają w pełni nienaruszone.
+- **Usunięcie manualnego przycisku ładowania do potoku**: Zastąpiono niewygodny przycisk „Załaduj do potoku audio” w pełni automatycznym, natychmiastowym ładowaniem na żywo (IRL).
 
 ### 🔄 Zmieniono (Changed)
 - *(brak oczekujących wpisów — dodaj opis zmiany konfiguracji/architektury podczas implementacji)*
