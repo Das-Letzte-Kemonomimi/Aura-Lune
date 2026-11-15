@@ -155,14 +155,15 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
       h = Math.imul(h, 0x01000193);
     }
     const peaks: number[] = [];
-    const count = 80;
+    const count = 160;
     for (let i = 0; i < count; i++) {
       h ^= h << 13;
       h ^= h >>> 17;
       h ^= h << 5;
       const rnd = ((h >>> 0) % 1000) / 1000;
-      const envelope = Math.sin((i / count) * Math.PI) * 0.45 + 0.55;
-      const heightPct = Math.round((0.2 + rnd * 0.75 * envelope) * 100);
+      const envelope = Math.sin((i / count) * Math.PI) * 0.4 + 0.6;
+      const harmonic = Math.sin((i / count) * Math.PI * 4) * 0.15;
+      const heightPct = Math.round((0.15 + (rnd * 0.7 + harmonic) * envelope) * 100);
       peaks.push(Math.max(16, Math.min(100, heightPct)));
     }
     return peaks;
@@ -1079,7 +1080,11 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
           <WaveformCanvas
             peaks={waveformPeaks}
             progress={progress}
-            height={48}
+            durationMs={durationMs || 0}
+            positionMs={positionMs || 0}
+            isPlaying={isPlaying}
+            height={64}
+            currentLang={currentLang}
             onSeek={(pct) => {
               if (durationMs && durationMs > 0) {
                 onSeek(Math.floor(pct * durationMs));

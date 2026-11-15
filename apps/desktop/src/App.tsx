@@ -2126,14 +2126,15 @@ export default function App() {
       h = Math.imul(h, 0x01000193);
     }
     const peaks: number[] = [];
-    const count = 72;
+    const count = 160;
     for (let i = 0; i < count; i++) {
       h ^= h << 13;
       h ^= h >>> 17;
       h ^= h << 5;
       const rnd = ((h >>> 0) % 1000) / 1000;
-      const envelope = Math.sin((i / count) * Math.PI) * 0.45 + 0.55;
-      const heightPct = Math.round((0.2 + rnd * 0.75 * envelope) * 100);
+      const envelope = Math.sin((i / count) * Math.PI) * 0.4 + 0.6;
+      const harmonic = Math.sin((i / count) * Math.PI * 4) * 0.15;
+      const heightPct = Math.round((0.15 + (rnd * 0.7 + harmonic) * envelope) * 100);
       peaks.push(Math.max(16, Math.min(100, heightPct)));
     }
     return peaks;
@@ -12197,20 +12198,24 @@ export default function App() {
                         <span>{status.duration_ms ? formatTime(status.duration_ms) : '--:--'}</span>
                       </div>
 
-                      {/* Wizualizacja przebiegu utworu (Waveform) - interaktywne słupki zsynchronizowane z DSP */}
+                      {/* Wizualizacja przebiegu utworu (Waveform) - interaktywna fala zsynchronizowana z DSP */}
                       <WaveformCanvas
                         peaks={trackWaveformPeaks}
                         progress={status.duration_ms && status.duration_ms > 0 ? (status.position_ms / status.duration_ms) * 100 : 0}
-                        height={52}
+                        durationMs={status.duration_ms || 0}
+                        positionMs={status.position_ms || 0}
+                        isPlaying={status.state === 'Playing'}
+                        height={66}
                         colorPlayedStart="#f43f5e"
                         colorPlayedEnd="#a855f7"
+                        currentLang={language}
                         onSeek={(pct) => {
                           if (status.duration_ms && status.duration_ms > 0) {
                             handleSeek(Math.floor(pct * status.duration_ms));
                           }
                         }}
                         title={`${loc.waveform.title} (${loc.waveform.hint})`}
-                        style={{ marginBottom: '8px', background: 'rgba(0, 0, 0, 0.25)' }}
+                        style={{ marginBottom: '10px' }}
                       />
 
                       {/* Kontener suwaka z podświetleniem pętli A-B oraz znacznikiem zakładki */}

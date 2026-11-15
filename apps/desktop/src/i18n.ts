@@ -95,6 +95,10 @@ export interface Translations {
   waveform: {
     title: string;
     hint: string;
+    styleBars: string;
+    styleSmooth: string;
+    styleScrolling: string;
+    styleMirror: string;
   };
   queue: {
     title: string;
@@ -899,6 +903,10 @@ export const translations: Record<Language, Translations> = {
     waveform: {
       title: 'Track Waveform',
       hint: 'Click anywhere to seek',
+      styleBars: 'Cyber Bars',
+      styleSmooth: 'Smooth Wave',
+      styleScrolling: 'Scrolling DJ Wave',
+      styleMirror: 'Mirror Spectrum',
     },
     queue: {
       title: 'Playback Queue',
@@ -1702,6 +1710,10 @@ export const translations: Record<Language, Translations> = {
     waveform: {
       title: 'Przebieg utworu',
       hint: 'Kliknij, aby przewinąć',
+      styleBars: 'Słupki Cyber',
+      styleSmooth: 'Gładka Fala',
+      styleScrolling: 'Przewijana Fala DJ',
+      styleMirror: 'Lustrzane Spektrum',
     },
     queue: {
       title: 'Kolejka odtwarzania',
@@ -2505,6 +2517,10 @@ export const translations: Record<Language, Translations> = {
     waveform: {
       title: 'Wellenform',
       hint: 'Klicken zum Spulen',
+      styleBars: 'Cyber-Balken',
+      styleSmooth: 'Glatte Welle',
+      styleScrolling: 'Scrollende DJ-Welle',
+      styleMirror: 'Spiegel-Spektrum',
     },
     queue: {
       title: 'Wiedergabewarteschlange',
@@ -3308,6 +3324,10 @@ export const translations: Record<Language, Translations> = {
     waveform: {
       title: 'Aaltomuoto',
       hint: 'Napsauta siirtyäksesi',
+      styleBars: 'Kyberpalkit',
+      styleSmooth: 'Sileä Aalto',
+      styleScrolling: 'Vierivä DJ-Aalto',
+      styleMirror: 'Peilispektri',
     },
     queue: {
       title: 'Toistojono',
@@ -4111,6 +4131,10 @@ export const translations: Record<Language, Translations> = {
     waveform: {
       title: 'Unda Cantus',
       hint: 'Prome quo vis',
+      styleBars: 'Virgae Cyber',
+      styleSmooth: 'Unda Levis',
+      styleScrolling: 'Unda Volubilis DJ',
+      styleMirror: 'Speculum Undae',
     },
     queue: {
       title: 'Ordo Cantuum',
