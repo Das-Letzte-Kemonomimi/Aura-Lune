@@ -9,6 +9,32 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.1.5] — „Player Dock Harmony & Waveform Precision” - 2026-11-15
+**Autorka**: Das Letzte Kemonomimi
+
+### ✨ Dodano (Added)
+- **Kompletny 8-przyciskowy pasek narzędzi doku odtwarzacza**:
+  - W pełni przywrócono ergonomiczny pasek narzędzi po lewej stronie przycisków sterowania:
+    1. `Bookmark` (Złoty znacznik z segmentowanym licznikiem i usuwaniem),
+    2. `Points` (Otwieranie okna `TrackBookmarksModal` z dynamiczną liczbą punktów cue utworu),
+    3. `A` (Kwadratowy przycisk 32x32 do zapisu punktu pętli A i podglądu milisekund),
+    4. `B` (Kwadratowy przycisk 32x32 do zapisu punktu pętli B i podglądu milisekund),
+    5. `Sliders` (Kwadratowy przycisk 32x32 edytora pętli `LoopEditorModal` + szybkie kasowanie `✕`),
+    6. `Moon` (Kwadratowy przycisk 32x32 wyłącznika czasowego `SleepTimerModal` z dynamicznym odliczaniem minut i sekund),
+    7. `Keyboard` (Kwadratowy przycisk 32x32 skrótów klawiszowych `KeyboardShortcutsModal`),
+    8. `Lyrics` (Przycisk pigułkowy z mikrofonem przełączający widok zsynchronizowanych tekstów piosenek).
+- **Interaktywna strefa pętli A-B na płótnie fali dźwiękowej (`WaveformCanvas`)**:
+  - Dynamiczne renderowanie półprzezroczystego obszaru pętli pomiędzy punktami A i B z gradientowym podświetleniem oraz znacznikami `[A` (Cyan) i `B]` (Pink).
+  - Wskaźniki A i B na pasku postępu zyskały interakcję: pojedyncze kliknięcie wykonuje skok seek do punktu, a podwójne kliknięcie otwiera edytor pętli.
+
+### 🛠️ Poprawiono (Fixed)
+- **Stała widoczność stanu pętli nad waveformem**:
+  - Pasek informacyjny nad przebiegiem fali prezentuje aktywny stan pętli nawet wtedy, gdy zdefiniowano dopiero sam punkt A, umożliwiając łatwą edycję i czyszczenie pętli (skrót `C`).
+- **Niezawodne pobieranie modeli AI**:
+  - Weryfikacja bezpośrednich mirrorów HuggingFace ONNX dla modeli Demucs i Basic Pitch z eliminacją dawnego błędu 404.
+
+---
+
 ## [1.1.4] — „Waveform Polish & Studio Analysis Harmony” - 2026-11-15
 **Autorka**: Das Letzte Kemonomimi
 

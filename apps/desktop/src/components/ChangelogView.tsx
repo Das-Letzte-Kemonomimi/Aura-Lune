@@ -18,11 +18,50 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.1.5',
+    codename: 'Player Dock Harmony & Waveform Precision',
+    date: '2026-11-15',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Kompletny 8-przyciskowy pasek narzędzi doku odtwarzacza (Bookmark, Points, A, B, Sliders, Moon, Keyboard, Lyrics) przywrócony 1:1 według wzorca graficznego.',
+        en: 'Complete 8-button player dock toolbar (Bookmark, Points, A, B, Sliders, Moon, Keyboard, Lyrics) restored 1:1 matching design reference.',
+        de: 'Vollständige 8-Tasten-Dock-Symbolleiste des Players 1:1 nach Designvorlage wiederhergestellt.',
+        fi: 'Täydellinen 8-painikkeinen soittimen työkalurivi palautettu 1:1 mallin mukaiseksi.',
+        la: 'Tabula octo instrumentorum psaltis 1:1 restituta.',
+      },
+      {
+        pl: 'Interaktywna strefa pętli A-B na płótnie fali dźwiękowej (WaveformCanvas) z podświetleniem gradientowym i wskaźnikami punktów skoku.',
+        en: 'Interactive A-B loop zone on the WaveformCanvas with gradient highlight and click-to-seek point markers.',
+        de: 'Interaktive A-B-Schleifenzone auf der Wellenform mit Farbverlauf und Klick-zu-Seek-Markierungen.',
+        fi: 'Interaktiivinen A-B-silmukka-alue aaltomuodolla liukuvärillä ja napsautussiirtymä-merkinnöillä.',
+        la: 'Regio ansae A-B interactiva in tela undarum cum illuminatione.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Naprawiono stałą widoczność stanu pętli nad waveformem oraz skok seek po kliknięciu znaczników A i B na osi czasu.',
+        en: 'Fixed persistent loop state visibility above waveform and seek on timeline A/B marker click.',
+        de: 'Dauerhafte Sichtbarkeit des Schleifenstatus über der Wellenform und Seek per Klick auf A/B-Markierungen behoben.',
+        fi: 'Korjattu silmukan tilan jatkuva näkyvyys aaltomuodon yläpuolella ja aikajanan A/B-merkkien napsautushaku.',
+        la: 'Status ansae supra undas et saltus ad puncta A/B correctus.',
+      },
+      {
+        pl: 'Zweryfikowano niezawodne pobieranie modeli AI z bezpośrednich mirrorów HuggingFace ONNX z eliminacją błędu 404.',
+        en: 'Verified reliable AI model downloads from direct HuggingFace ONNX mirrors eliminating 404 errors.',
+        de: 'Zuverlässiger Download von KI-Modellen von direkten HuggingFace-Spiegeln ohne 404-Fehler verifiziert.',
+        fi: 'Varmennettu tekoälymallien luotettava lataus suorista HuggingFace ONNX -peileistä ilman 404-virheitä.',
+        la: 'Depromptio exemplarium AI ex HuggingFace sine errore 404 verificata.',
+      },
+    ],
+  },
+  {
     version: '1.1.4',
     codename: 'Waveform Polish & Studio Analysis Harmony',
     date: '2026-11-15',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
+    isLatest: false,
     added: [
       {
         pl: 'Akustyczna ekstrakcja szczytów fali audio (Real File Waveform Peaks) w GStreamer i zapis do bazy SQLite track_waveforms.',

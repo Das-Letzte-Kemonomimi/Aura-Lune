@@ -8,6 +8,8 @@ export interface WaveformCanvasProps {
   progress: number; // 0..100
   durationMs?: number;
   positionMs?: number;
+  loopPointA?: number | null;
+  loopPointB?: number | null;
   isPlaying?: boolean;
   height?: number;
   className?: string;
@@ -50,6 +52,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   progress,
   durationMs = 0,
   positionMs = 0,
+  loopPointA = null,
+  loopPointB = null,
   isPlaying = false,
   height = 64,
   className,
@@ -513,6 +517,69 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.restore();
     }
 
+    // ==========================================
+    // WIZUALIZACJA OBSZARU PĘTLI A-B (LOOP ZONE)
+    // ==========================================
+    if (durationMs > 0 && (loopPointA !== null || loopPointB !== null)) {
+      ctx.save();
+      const xA = loopPointA !== null ? Math.max(0, Math.min(width, (loopPointA / durationMs) * width)) : null;
+      const xB = loopPointB !== null ? Math.max(0, Math.min(width, (loopPointB / durationMs) * width)) : null;
+
+      // Obszar podświetlenia pętli pomiędzy A i B
+      if (xA !== null && xB !== null && xB > xA) {
+        const loopGrad = ctx.createLinearGradient(xA, 0, xB, 0);
+        loopGrad.addColorStop(0, 'rgba(6, 182, 212, 0.22)');
+        loopGrad.addColorStop(1, 'rgba(244, 63, 94, 0.22)');
+        ctx.fillStyle = loopGrad;
+        ctx.fillRect(xA, 0, xB - xA, canvasHeight);
+
+        // Krawędzie pętli (subtelne akcenty świetlne)
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
+        ctx.fillRect(xA, 0, Math.min(3, xB - xA), canvasHeight);
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+        ctx.fillRect(Math.max(xA, xB - 3), 0, Math.min(3, xB - xA), canvasHeight);
+      }
+
+      // Pionowy znacznik punktu A (Cyan)
+      if (xA !== null) {
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 6;
+        ctx.setLineDash([3, 2]);
+        ctx.beginPath();
+        ctx.moveTo(xA, 0);
+        ctx.lineTo(xA, canvasHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Etykieta [A
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText('[A', Math.min(width - 18, Math.max(2, xA + 3)), 11);
+      }
+
+      // Pionowy znacznik punktu B (Pink)
+      if (xB !== null) {
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#f43f5e';
+        ctx.shadowBlur = 6;
+        ctx.setLineDash([3, 2]);
+        ctx.beginPath();
+        ctx.moveTo(xB, 0);
+        ctx.lineTo(xB, canvasHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Etykieta B]
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText('B]', Math.max(2, xB - 15), 11);
+      }
+      ctx.restore();
+    }
+
     ctx.restore();
   }, [
     dimensions,
@@ -525,6 +592,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     hoverX,
     positionMs,
     durationMs,
+    loopPointA,
+    loopPointB,
     isPlaying,
   ]);
 

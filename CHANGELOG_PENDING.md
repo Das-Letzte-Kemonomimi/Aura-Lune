@@ -17,4 +17,3 @@
 ### 🛠️ Poprawiono (Fixed)
 
 ### 🔄 Zmieniono (Changed)
-

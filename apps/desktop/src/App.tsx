@@ -12157,23 +12157,55 @@ export default function App() {
                               {Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? `${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st` : ''}
                             </span>
                           )}
-                          {loopPointA !== null && loopPointB !== null && (
-                            <span
-                              onClick={() => setIsLoopEditorOpen(true)}
-                              style={{
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                background: 'rgba(6, 182, 212, 0.2)',
-                                color: 'var(--accent-cyan)',
-                                border: '1px solid rgba(6, 182, 212, 0.4)',
-                                cursor: 'pointer',
-                              }}
-                              title={`${loc.player.editLoop || (language === 'pl' ? 'Edytuj pętlę A-B' : 'Edit A-B loop')} (${language === 'pl' ? 'Kliknij, aby edytować milisekundy' : 'Click to edit milliseconds'})`}
-                            >
-                              {loc.player.loopAB}: {formatTimeMs(loopPointA)} → {formatTimeMs(loopPointB)}
-                            </span>
+                          {(loopPointA !== null || loopPointB !== null) && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span
+                                onClick={() => setIsLoopEditorOpen(true)}
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  background: loopPointA !== null && loopPointB !== null ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                                  color: loopPointA !== null && loopPointB !== null ? 'var(--accent-cyan)' : '#fbbf24',
+                                  border: loopPointA !== null && loopPointB !== null ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(251, 191, 36, 0.4)',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                                title={`${loc.player.editLoop || (language === 'pl' ? 'Edytuj pętlę A-B' : 'Edit A-B loop')} (${language === 'pl' ? 'Kliknij, aby edytować milisekundy' : 'Click to edit milliseconds'})`}
+                              >
+                                <span>🔁 {loc.player.loopAB}:</span>
+                                <span style={{ color: 'var(--accent-cyan)' }}>{loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000'}</span>
+                                <span>→</span>
+                                <span style={{ color: 'var(--accent-pink)' }}>{loopPointB !== null ? formatTimeMs(loopPointB) : '—'}</span>
+                                {loopPointA !== null && loopPointB !== null && loopPointB > loopPointA && (
+                                  <span style={{ opacity: 0.85, fontSize: '0.62rem' }}>
+                                    ({((loopPointB - loopPointA) / 1000).toFixed(1)}s)
+                                  </span>
+                                )}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setLoopPointA(null);
+                                  setLoopPointB(null);
+                                  showMessage(language === 'pl' ? 'Wyczyszczono pętlę A-B (Skrót: C)' : 'Cleared A-B loop (Key: C)');
+                                }}
+                                style={{
+                                  padding: '1px 5px',
+                                  fontSize: '0.65rem',
+                                  background: 'rgba(244, 63, 94, 0.2)',
+                                  border: '1px solid rgba(244, 63, 94, 0.45)',
+                                  color: '#ff6b81',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                }}
+                                title={loc.player.clearLoop || (language === 'pl' ? 'Wyczyść pętlę A-B' : 'Clear A-B loop')}
+                              >
+                                ✕
+                              </button>
+                            </div>
                           )}
 
                           {/* Przełącznik płynnego wyciszenia paska postępu (Fade Seek) */}
@@ -12204,6 +12236,8 @@ export default function App() {
                         progress={status.duration_ms && status.duration_ms > 0 ? (status.position_ms / status.duration_ms) * 100 : 0}
                         durationMs={status.duration_ms || 0}
                         positionMs={status.position_ms || 0}
+                        loopPointA={loopPointA}
+                        loopPointB={loopPointB}
                         isPlaying={status.state === 'Playing'}
                         height={66}
                         colorPlayedStart="#f43f5e"
@@ -12239,7 +12273,15 @@ export default function App() {
                         )}
                         {loopPointA !== null && status.duration_ms && (
                           <div
-                            onClick={() => setIsLoopEditorOpen(true)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSeek(loopPointA);
+                              showMessage(language === 'pl' ? `Skok do Punktu A: ${formatTimeMs(loopPointA)}` : `Jump to Point A: ${formatTimeMs(loopPointA)}`);
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setIsLoopEditorOpen(true);
+                            }}
                             style={{
                               position: 'absolute',
                               top: '-16px',
@@ -12255,14 +12297,22 @@ export default function App() {
                               cursor: 'pointer',
                               zIndex: 2,
                             }}
-                            title={language === 'pl' ? `Punkt A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - kliknij, aby edytować` : `Point A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - click to edit`}
+                            title={language === 'pl' ? `Punkt A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - kliknij, aby skoczyć (podwójny klik: edytor)` : `Point A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - click to jump (double click: editor)`}
                           >
                             A
                           </div>
                         )}
                         {loopPointB !== null && status.duration_ms && (
                           <div
-                            onClick={() => setIsLoopEditorOpen(true)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSeek(loopPointB);
+                              showMessage(language === 'pl' ? `Skok do Punktu B: ${formatTimeMs(loopPointB)}` : `Jump to Point B: ${formatTimeMs(loopPointB)}`);
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setIsLoopEditorOpen(true);
+                            }}
                             style={{
                               position: 'absolute',
                               top: '-16px',
@@ -12278,7 +12328,7 @@ export default function App() {
                               cursor: 'pointer',
                               zIndex: 2,
                             }}
-                            title={language === 'pl' ? `Punkt B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - kliknij, aby edytować` : `Point B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - click to edit`}
+                            title={language === 'pl' ? `Punkt B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - kliknij, aby skoczyć (podwójny klik: edytor)` : `Point B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - click to jump (double click: editor)`}
                           >
                             B
                           </div>
@@ -12370,24 +12420,29 @@ export default function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       {/* Narzędzia lewe: Zakładka, Pętla A-B, Sleep Timer, Skróty */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {/* Przycisk Zakładki (Bookmark) */}
+                        {/* 1. Przycisk Zakładki (Bookmark) */}
                         {currentBookmark === null ? (
                           <button
                             onClick={handleSaveBookmark}
                             title={loc.player.bookmarkDesc || (language === 'pl' ? 'Zapisz zakładkę odtwarzania' : 'Save playback bookmark')}
                             className="glass-card"
                             style={{
-                              padding: '6px 10px',
+                              height: '32px',
+                              padding: '0 11px',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '5px',
-                              color: activeTrackId ? 'var(--accent-amber)' : 'var(--text-muted)',
+                              color: activeTrackId ? '#fbbf24' : 'var(--text-muted)',
+                              background: activeTrackId ? 'rgba(251, 191, 36, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                              border: activeTrackId ? '1px solid rgba(251, 191, 36, 0.35)' : '1px solid var(--border-subtle)',
                               fontSize: '0.75rem',
+                              fontWeight: 700,
                               borderRadius: '8px',
                               cursor: 'pointer',
                             }}
                           >
-                            <Bookmark size={14} /> {loc.player.bookmark}
+                            <Bookmark size={13} fill={activeTrackId ? '#fbbf24' : 'none'} color="#fbbf24" />
+                            <span>{loc.player.bookmark}</span>
                           </button>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
@@ -12395,19 +12450,21 @@ export default function App() {
                               onClick={handleSaveBookmark}
                               className="glass-card"
                               style={{
-                                padding: '6px 10px',
+                                padding: '6px 9px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '4px',
                                 color: '#fbbf24',
-                                background: 'rgba(251, 191, 36, 0.12)',
+                                background: 'rgba(251, 191, 36, 0.15)',
                                 border: '1px solid rgba(251, 191, 36, 0.45)',
                                 fontSize: '0.75rem',
+                                fontWeight: 700,
                                 borderRadius: '8px 0 0 8px',
                                 cursor: 'pointer',
+                                height: '32px',
                               }}
                             >
-                              <Bookmark size={14} fill="#fbbf24" /> {loc.player.bookmark}
+                              <Bookmark size={13} fill="#fbbf24" color="#fbbf24" /> {loc.player.bookmark}
                             </button>
                             <button
                               onClick={() => handleJumpToBookmark(currentBookmark)}
@@ -12425,6 +12482,7 @@ export default function App() {
                                 borderLeft: 'none',
                                 borderRight: '1px solid rgba(251, 191, 36, 0.3)',
                                 cursor: 'pointer',
+                                height: '32px',
                               }}
                             >
                               {formatTime(currentBookmark)}
@@ -12441,12 +12499,253 @@ export default function App() {
                                 borderLeft: 'none',
                                 borderRadius: '0 8px 8px 0',
                                 cursor: 'pointer',
+                                height: '32px',
                               }}
                             >
                               <X size={12} />
                             </button>
                           </div>
                         )}
+
+                        {/* 2. Przycisk Wielopunktowych Zakładek (Points / Cue Points) */}
+                        <button
+                          onClick={() => {
+                            if (!activeTrackId && !status.current_track?.track_id) {
+                              showMessage(language === 'pl' ? 'Załaduj utwór, aby zarządzać znacznikami' : 'Load track to manage cue points', true);
+                              return;
+                            }
+                            setIsBookmarksModalOpen(true);
+                          }}
+                          className="glass-card"
+                          style={{
+                            height: '32px',
+                            padding: '0 10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: 'var(--accent-cyan)',
+                            background: 'rgba(6, 182, 212, 0.12)',
+                            border: '1px solid rgba(6, 182, 212, 0.4)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                          }}
+                          title={language === 'pl' 
+                            ? `Wielopunktowe znaczniki utworu (Cue Points)${currentTrackBookmarks.length > 0 ? ` [${currentTrackBookmarks.length} zapisanych]` : ''}` 
+                            : `Track Cue Points & Bookmarks${currentTrackBookmarks.length > 0 ? ` [${currentTrackBookmarks.length} saved]` : ''}`}
+                        >
+                          <Bookmark size={13} color="var(--accent-cyan)" />
+                          <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : (language === 'pl' ? 'Punkty' : 'Points')}</span>
+                        </button>
+
+                        {/* 3. Przycisk Punktu A */}
+                        <button
+                          onClick={() => {
+                            const pos = status.position_ms;
+                            setLoopPointA(pos);
+                            showMessage(language === 'pl' 
+                              ? `Ustawiono Punkt A: ${formatTimeMs(pos)} (Skrót: A)` 
+                              : `Set Point A: ${formatTimeMs(pos)} (Key: A)`);
+                          }}
+                          className="glass-card"
+                          style={{
+                            minWidth: '32px',
+                            height: '32px',
+                            padding: '0 8px',
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            borderRadius: '8px',
+                            color: loopPointA !== null ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                            background: loopPointA !== null ? 'rgba(6, 182, 212, 0.22)' : 'rgba(255, 255, 255, 0.05)',
+                            border: loopPointA !== null ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={loopPointA !== null
+                            ? (language === 'pl' 
+                                ? `Punkt A: ${formatTimeMs(loopPointA)} — kliknij, aby ustawić na nowo na ${formatTime(status.position_ms)} (Klawisz: A)`
+                                : `Point A: ${formatTimeMs(loopPointA)} — click to update to ${formatTime(status.position_ms)} (Key: A)`)
+                            : (language === 'pl' ? 'Ustaw Punkt A na bieżącej pozycji (Klawisz: A)' : 'Set Point A at current position (Key: A)')}
+                        >
+                          A
+                        </button>
+
+                        {/* 4. Przycisk Punktu B */}
+                        <button
+                          onClick={() => {
+                            const pos = status.position_ms;
+                            setLoopPointB(pos);
+                            showMessage(language === 'pl' 
+                              ? `Ustawiono Punkt B: ${formatTimeMs(pos)} (Skrót: B)` 
+                              : `Set Point B: ${formatTimeMs(pos)} (Key: B)`);
+                          }}
+                          className="glass-card"
+                          style={{
+                            minWidth: '32px',
+                            height: '32px',
+                            padding: '0 8px',
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            borderRadius: '8px',
+                            color: loopPointB !== null ? 'var(--accent-pink)' : 'var(--text-secondary)',
+                            background: loopPointB !== null ? 'rgba(244, 63, 94, 0.22)' : 'rgba(255, 255, 255, 0.05)',
+                            border: loopPointB !== null ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={loopPointB !== null
+                            ? (language === 'pl' 
+                                ? `Punkt B: ${formatTimeMs(loopPointB)} — kliknij, aby ustawić na nowo na ${formatTime(status.position_ms)} (Klawisz: B)`
+                                : `Point B: ${formatTimeMs(loopPointB)} — click to update to ${formatTime(status.position_ms)} (Key: B)`)
+                            : (language === 'pl' ? 'Ustaw Punkt B na bieżącej pozycji (Klawisz: B)' : 'Set Point B at current position (Key: B)')}
+                        >
+                          B
+                        </button>
+
+                        {/* 5. Przycisk Edytora Pętli A-B (Sliders) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                          <button
+                            onClick={() => setIsLoopEditorOpen(true)}
+                            className="glass-card"
+                            style={{
+                              minWidth: '32px',
+                              height: '32px',
+                              padding: '0 8px',
+                              borderRadius: (loopPointA !== null || loopPointB !== null) ? '8px 0 0 8px' : '8px',
+                              color: (loopPointA !== null && loopPointB !== null) ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                              background: (loopPointA !== null && loopPointB !== null) ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+                              border: (loopPointA !== null && loopPointB !== null) ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title={loc.player.editLoop || (language === 'pl' ? 'Edytuj zakres pętli A-B w milisekundach' : 'Edit loop range in milliseconds')}
+                          >
+                            <Sliders size={13} />
+                          </button>
+                          {(loopPointA !== null || loopPointB !== null) && (
+                            <button
+                              onClick={() => {
+                                setLoopPointA(null);
+                                setLoopPointB(null);
+                                showMessage(language === 'pl' ? 'Wyczyszczono pętlę A-B (Skrót: C)' : 'Cleared A-B loop (Key: C)');
+                              }}
+                              className="glass-card"
+                              style={{
+                                minWidth: '22px',
+                                height: '32px',
+                                padding: '0 4px',
+                                borderRadius: '0 8px 8px 0',
+                                color: '#ff6b81',
+                                background: 'rgba(255, 107, 129, 0.15)',
+                                border: '1px solid rgba(255, 107, 129, 0.35)',
+                                borderLeft: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title={loc.shortcuts.loopClear}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* 6. Przycisk Wyłącznika czasowego (Sleep Timer) */}
+                        <button
+                          onClick={() => setIsSleepTimerOpen(true)}
+                          className="glass-card"
+                          style={{
+                            minWidth: '32px',
+                            height: '32px',
+                            padding: '0 8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            fontSize: '0.75rem',
+                            borderRadius: '8px',
+                            color:
+                              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
+                                ? 'var(--accent-purple)'
+                                : 'var(--text-secondary)',
+                            border:
+                              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
+                                ? '1px solid var(--accent-purple)'
+                                : '1px solid var(--border-subtle)',
+                            background:
+                              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
+                                ? 'rgba(168, 85, 247, 0.18)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                            cursor: 'pointer',
+                          }}
+                          title={loc.player.sleepTimer}
+                        >
+                          <Moon size={13} />
+                          {(sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track') && (
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.68rem', marginLeft: '2px' }}>
+                              {sleepTimerRemainingSec !== null
+                                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
+                                : (language === 'pl' ? 'Koniec' : 'End')}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* 7. Przycisk Skrótów klawiszowych */}
+                        <button
+                          onClick={() => setIsShortcutsModalOpen(true)}
+                          className="glass-card"
+                          style={{
+                            minWidth: '32px',
+                            height: '32px',
+                            padding: '0 8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            borderRadius: '8px',
+                            color: 'var(--text-secondary)',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                          }}
+                          title={loc.shortcuts.title}
+                        >
+                          <Keyboard size={13} />
+                        </button>
+
+                        {/* 8. Przycisk Tekstów piosenki (Lyrics) */}
+                        <button
+                          onClick={() => setShowLyrics(!showLyrics)}
+                          className="glass-card"
+                          style={{
+                            height: '32px',
+                            padding: '0 10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            borderRadius: '8px',
+                            color: showLyrics ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                            border: showLyrics ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                            background: showLyrics ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+                            cursor: 'pointer',
+                          }}
+                          title={loc.shortcuts.lyrics}
+                        >
+                          <Mic2 size={13} />
+                          <span>{loc.player.lyrics}</span>
+                        </button>
 
                         {/* Shuffle Button */}
                         <button
