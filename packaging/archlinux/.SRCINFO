@@ -27,6 +27,6 @@ pkgbase = auralune-bin
 	conflicts = auralune-git
 	options = !strip
 	source = auralune-bin-1.1.3.AppImage::https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/download/v1.1.3/Auralune_1.1.3_amd64.AppImage
-	sha256sums = 3369c62a2cd90145c782fdcbf8d977777c7831aa8d74846519bd435767187953
+	sha256sums = d9723cfa6cac7908c84a6e3150caef3c15294a1fbfd4460e93ec671d4b46df80
 
 pkgname = auralune-bin
