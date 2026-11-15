@@ -13,10 +13,8 @@
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
 ### ✨ Dodano (Added)
-- *(brak oczekujących wpisów — dodaj opis nowej funkcji podczas implementacji)*
 
 ### 🛠️ Poprawiono (Fixed)
-- *(brak oczekujących wpisów — dodaj opis poprawki błędu podczas implementacji)*
 
 ### 🔄 Zmieniono (Changed)
-- *(brak oczekujących wpisów — dodaj opis zmiany konfiguracji/architektury podczas implementacji)*
+

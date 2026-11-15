@@ -9,6 +9,19 @@ Format oparty jest o [Keep a Changelog](https://keepachangelog.com/pl/1.0.0/), a
 
 ---
 
+## [1.1.4] — „Waveform Polish & Studio Analysis Harmony” - 2026-11-15
+**Autorka**: Das Letzte Kemonomimi
+
+### ✨ Dodano (Added)
+- **Akustyczna ekstrakcja szczytów fali audio (Real File Waveform Peaks Extractor)**: GStreamer dekoduje rzeczywiste amplitudy/RMS utworu do bazy SQLite (`track_waveforms`), gwarantując autentyczny profil dynamiki zamiast procedury syntetycznej.
+
+### 🛠️ Poprawiono (Fixed)
+- **Przeniesienie paska narzędzi i selektora stylów fali nad pasek postępu**: Przyciski wyboru stylów fali dźwiękowej zostały przeniesione z wnętrza płótna fali do jednolitego paska narzędziowego NAD paskiem postępu, eliminując przesłanianie słupków fali dźwiękowej.
+- **Rozwiązanie artefaktu graficznego (glitcha rogów przycisku) na płótnie fali dźwiękowej**: Usunięcie nakładających się przycisków DOM ze struktury `<canvas>`, dodanie izolacji kompozytora WebKitGTK (`isolation: isolate`, `contain: paint layout`) oraz translacji `translateZ(0)` dla pływającego wskaźnika czasu, całkowicie eliminujące błąd obcinania subpikselowych zaokrąglonych narożników przez silnik renderujący Linux Wayland / WebKitGTK.
+- **Wyeliminowanie nakładania się okien modalnych w Studio Analizy Muzycznej (`MusicAnalysisModal`)**: Wdrożenie pełnej obsługi właściwości `embedded` w komponentach `StemMixerModal` oraz `ModelManagerModal`, zapobiegające powstawaniu kaskadowo nakładających się okien modalnych z podwójnymi nagłówkami i przyciskami zamknięcia w zakładkach analizy muzycznej i stemów.
+
+---
+
 ## [1.1.3] — „Graphic Equalizer Precision & Glassmorphism Dropdown” - 2026-11-15
 **Autorka**: Das Letzte Kemonomimi
 

@@ -433,6 +433,14 @@ impl Database {
                 updated_at TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_stem_mixes_proj ON stem_project_mixes(project_id);
+
+            CREATE TABLE IF NOT EXISTS track_waveforms (
+                track_id INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+                sample_count INTEGER NOT NULL,
+                peaks_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_track_waveforms_track ON track_waveforms(track_id);
             "#,
         )
         .execute(&self.pool)
@@ -1837,6 +1845,46 @@ impl Database {
         Ok(row.map(|r| r.get(0)))
     }
 
+    /// Zapisuje wyekstrahowane punkty szczytowe fali (waveform peaks) dla utworu.
+    pub async fn save_track_waveform(
+        &self,
+        track_id: i64,
+        sample_count: i64,
+        peaks_json: &str,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO track_waveforms (track_id, sample_count, peaks_json, created_at)
+            VALUES (?1, ?2, ?3, ?4)
+            ON CONFLICT(track_id) DO UPDATE SET
+                sample_count = excluded.sample_count,
+                peaks_json = excluded.peaks_json,
+                created_at = excluded.created_at;
+            "#,
+        )
+        .bind(track_id)
+        .bind(sample_count)
+        .bind(peaks_json)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Pobiera zapisane punkty szczytowe fali utworu (waveform peaks).
+    pub async fn get_track_waveform(&self, track_id: i64) -> Result<Option<String>, StorageError> {
+        let row =
+            sqlx::query("SELECT peaks_json FROM track_waveforms WHERE track_id = ?1 LIMIT 1;")
+                .bind(track_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(row.map(|r| r.get(0)))
+    }
+
     /// Zapisuje metadane rozdzielonych ścieżek stemów.
     pub async fn save_stem_tracks(
         &self,
@@ -2911,5 +2959,65 @@ mod tests {
             0
         );
         assert_eq!(db.get_stem_project_mixes(proj_id).await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_track_waveform_storage() {
+        let db = Database::new_in_memory().await.unwrap();
+        let track = TrackRecord {
+            id: 0,
+            path: "/music/test_wave.flac".to_string(),
+            title: "Waveform Track".to_string(),
+            artist: "Artist".to_string(),
+            album_artist: None,
+            album_id: None,
+            disc_no: None,
+            track_no: Some(1),
+            duration_ms: 180_000,
+            format: "FLAC".to_string(),
+            sample_rate: 44100,
+            channels: 2,
+            bit_depth: Some(16),
+            file_size: 15_000_000,
+            modified_time: 1234567,
+            is_favorite: None,
+            play_count: None,
+            last_played_at: None,
+            total_play_time_ms: None,
+            bpm: None,
+            initial_key: None,
+            replaygain_track_gain: None,
+            replaygain_track_peak: None,
+            rating: None,
+        };
+        let track_id = db.upsert_track(&track).await.unwrap();
+
+        // 1. Initial check - should be None
+        assert!(db.get_track_waveform(track_id).await.unwrap().is_none());
+
+        // 2. Save waveform peaks
+        let sample_peaks = vec![0.15f32, 0.45, 0.88, 0.95, 0.62, 0.33];
+        let peaks_json = serde_json::to_string(&sample_peaks).unwrap();
+        db.save_track_waveform(track_id, sample_peaks.len() as i64, &peaks_json)
+            .await
+            .unwrap();
+
+        // 3. Retrieve and verify
+        let fetched_json = db.get_track_waveform(track_id).await.unwrap().unwrap();
+        let fetched_peaks: Vec<f32> = serde_json::from_str(&fetched_json).unwrap();
+        assert_eq!(fetched_peaks.len(), 6);
+        assert!((fetched_peaks[2] - 0.88).abs() < 1e-4);
+
+        // 4. Overwrite (upsert)
+        let updated_peaks = vec![0.5f32, 0.9f32];
+        let updated_json = serde_json::to_string(&updated_peaks).unwrap();
+        db.save_track_waveform(track_id, updated_peaks.len() as i64, &updated_json)
+            .await
+            .unwrap();
+
+        let updated_fetched = db.get_track_waveform(track_id).await.unwrap().unwrap();
+        let updated_result: Vec<f32> = serde_json::from_str(&updated_fetched).unwrap();
+        assert_eq!(updated_result.len(), 2);
+        assert_eq!(updated_result[0], 0.5);
     }
 }

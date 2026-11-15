@@ -18,11 +18,49 @@ interface ChangelogRelease {
 
 const RELEASES: ChangelogRelease[] = [
   {
+    version: '1.1.4',
+    codename: 'Waveform Polish & Studio Analysis Harmony',
+    date: '2026-11-15',
+    author: 'Das Letzte Kemonomimi',
+    isLatest: true,
+    added: [
+      {
+        pl: 'Akustyczna ekstrakcja szczytów fali audio (Real File Waveform Peaks) w GStreamer i zapis do bazy SQLite track_waveforms.',
+        en: 'Acoustic waveform peak extraction from real audio files via GStreamer stored in SQLite track_waveforms cache.',
+        de: 'Echte Audio-Wellenformspitzen-Extraktion via GStreamer und Speicherung in der SQLite-Datenbank.',
+        fi: 'Todellisten äänitiedostojen aaltomuodon huippujen purku GStreamerilla ja tallennus SQLite-tietokantaan.',
+        la: 'Extractio cacuminum undarum ex veris fasciculis audio per GStreamer in SQLite repositorium.',
+      },
+    ],
+    fixed: [
+      {
+        pl: 'Przeniesiono pasek narzędzi stylów fali dźwiękowej nad pasek postępu do dedykowanego paska narzędziowego, uwalniając całe płótno fali.',
+        en: 'Moved the waveform style toolbar above the progress bar, freeing the full waveform canvas.',
+        de: 'Wellenform-Werkzeugleiste über den Fortschrittsbalken verlegt, um die gesamte Wellenformfläche freizugeben.',
+        fi: 'Siirretty aaltomuodon työkalupalkki edistymispalkin yläpuolelle vapauttaen koko aaltomuotopaneelin.',
+        la: 'Tabula instrumentorum stylorum undarum super indicem progressus mota est.',
+      },
+      {
+        pl: 'Rozwiązano artefakt graficzny (glitch rogów ramki) na fali poprzez izolację kompozytora WebKitGTK i translateZ(0).',
+        en: 'Fixed WebKitGTK compositor corner ghost glitch on waveform canvas via isolation and translateZ(0).',
+        de: 'WebKitGTK-Kompositor-Eckenartefakt auf der Wellenform durch Schichtisolation behoben.',
+        fi: 'Korjattu WebKitGTK-komposiittorin kulmaglitch aaltomuotopaneelissa eristyksen avulla.',
+        la: 'Glitch angulorum compositori WebKitGTK in tela undarum per isolationem correctum.',
+      },
+      {
+        pl: 'Wyeliminowano nakładanie się okien w Studio Analizy Muzycznej poprzez wdrożenie czystego trybu embedded w mikserze i menedżerze modeli.',
+        en: 'Eliminated modal stacking in Music Analysis Studio by implementing clean embedded mode in stem mixer and model manager.',
+        de: 'Überlappende Modalfenster im Musik-Analyse-Studio durch sauberen Embedded-Modus behoben.',
+        fi: 'Poistettu päällekkäiset modaali-ikkunat musiikkianalyysistudiossa puhtaan sulautetun tilan avulla.',
+        la: 'Superextensio fenestrarum in Studio Musicae emendata per modum insertum mundum.',
+      },
+    ],
+  },
+  {
     version: '1.1.3',
     codename: 'Graphic Equalizer Precision & Glassmorphism Dropdown',
     date: '2026-11-15',
     author: 'Das Letzte Kemonomimi',
-    isLatest: true,
     added: [
       {
         pl: 'Nowe, w pełni dedykowane rozwijane menu presetów 10-pasmowego korektora graficznego w stylu anime glassmorphism ze wskaźnikami wyboru, eliminujące błędy natywnego elementu HTML <select> w WebKitGTK.',

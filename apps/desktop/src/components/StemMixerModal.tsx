@@ -550,7 +550,11 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
   );
 
   if (embedded) {
-    return content;
+    return (
+      <div style={{ width: '100%', height: '100%', overflowY: 'auto', padding: '4px' }}>
+        {content}
+      </div>
+    );
   }
 
   return (

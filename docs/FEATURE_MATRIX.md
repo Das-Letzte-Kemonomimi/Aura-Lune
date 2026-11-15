@@ -1,4 +1,4 @@
-# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.1.3)
+# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.1.4)
 
 > **OBOWIĄZKOWA INSTRUKCJA DLA KAŻDEGO AGENTA I PROGRAMISTY:**
 > 1. **ZAWSZE przed proponowaniem nowych funkcji, planowaniem roadmapy lub refaktoryzacją PRZECZYTAJ TEN PLIK**, aby nigdy nie sugerować i nie dublować funkcji, które są już wdrożone w kodzie.
@@ -38,6 +38,8 @@
 - [x] **Presety DSP i zapamiętywanie profilu**:
   - Globalne presety (np. *Nightcore 1.25x*, *Slowed + Reverb 0.82x*), presety per album lub per utwór.
   - Wybór domyślnego silnika startowego i opcja resetu w 1 klik.
+- [x] **Narzędzie Tap Tempo (BPM Detector & DSP Sync)**:
+  - Interaktywny przycisk `[ TAP BPM ]` z pulsującą diodą rytmiczną, automatyczną filtracją odstępów, detekcją tempa BPM na żywo oraz przyciskiem natychmiastowej synchronizacji suwaka DSP Tempo do wykrytego tempa.
 - [x] **Konfigurowalny rozmiar bloku DSP**: Regulacja `dsp_block_size` (256 – 8192 próbek).
 
 ---
@@ -153,6 +155,12 @@
 ## 8. ⏱️ Narzędzia Odsłuchu & Tryby Playera
 - [x] **Domyślny Utwór Startowy „Skrzydła Białe” (Das Letzte Kemonomimi) dla Nowej/Pustej Biblioteki**:
   - Automatyczne ładowanie i wyświetlanie autorskiego utworu testowego (FLAC 24-bit/44.1 kHz, 56.8s) przy pustej bibliotece użytkownika w odtwarzaczu głównym, gramofonie i mini-playerze, z gotowością do natychmiastowego odsłuchu i testu DSP. Utwór nie zanieczyszcza bazy SQLite, a po dodaniu własnych plików przez użytkownika aplikacja natychmiast przełącza się na jego utwory.
+- [x] **Wielostylowy i wielobarwny silnik Waveform (`WaveformCanvas`)**:
+  - Obsługa 4 trybów renderowania (Gładka fala, Cyber słupki, Przewijany DJ, Lustrzane spektrum) oraz 5 neonowych palet barwnych (Cyber Neon, Synthwave Sunset, Tokyo Midnight, Retro Amber, Vaporwave Violet) z pamięcią w `localStorage`.
+  - Prawdziwa ekstrakcja szczytów fali z pliku za pomocą dekodera GStreamer z zapisem w pamięci podręcznej SQLite (`track_waveforms`).
+  - Interaktywna wizualizacja pętli A-B (podświetlony obszar pętli, flagi graniczne [A] i [B]) oraz diamentowe znaczniki zakładek (cue points) bezpośrednio na wykresie fali.
+- [x] **Mini-Waveform Sparkline w kolejce odtwarzania (`QueueSparkline`)**:
+  - Miniaturowe wykresy dynamiki fali przy każdym utworze w kolejce z przełącznikiem widoczności w konfiguratorze kolumn.
 - [x] **Precyzyjny Edytor Pętli A-B (`LoopEditorModal`)**:
   - Pętla dowolnego fragmentu utworu z dokładnością do 1 milisekundy, przyciskami nudgowania i podglądem fali.
 - [x] **Wielopunktowe Zakładki (`TrackBookmarksModal`)**:

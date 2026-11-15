@@ -120,6 +120,7 @@ export interface Translations {
     colArtist: string;
     colAlbum: string;
     colFormat: string;
+    colSparkline: string;
     colDuration: string;
     colPath: string;
     compactMode: string;
@@ -131,6 +132,7 @@ export interface Translations {
     headerAlbum: string;
     headerQuality: string;
     headerPath: string;
+    headerWave: string;
     headerTime: string;
     headerActions: string;
     dragHint: string;
@@ -928,6 +930,7 @@ export const translations: Record<Language, Translations> = {
       colArtist: 'Artist',
       colAlbum: 'Album',
       colFormat: 'Format & Quality (FLAC, bit-depth)',
+      colSparkline: 'Waveform Preview (Mini-Wave)',
       colDuration: 'Duration (MM:SS)',
       colPath: 'Disk file path (URI)',
       compactMode: 'Compact layout (tighter spacing)',
@@ -939,6 +942,7 @@ export const translations: Record<Language, Translations> = {
       headerAlbum: 'Album',
       headerQuality: 'Quality',
       headerPath: 'Path',
+      headerWave: 'Wave',
       headerTime: 'Time',
       headerActions: 'Actions',
       dragHint: 'Drag tracks to reorder • Click to play',
@@ -1735,6 +1739,7 @@ export const translations: Record<Language, Translations> = {
       colArtist: 'Wykonawca (Artist)',
       colAlbum: 'Album',
       colFormat: 'Format & Jakość (FLAC, bit-depth)',
+      colSparkline: 'Podgląd fali (Mini-Waveform)',
       colDuration: 'Czas trwania (MM:SS)',
       colPath: 'Ścieżka pliku na dysku (URI)',
       compactMode: 'Zwarty układ (mniejszy odstęp)',
@@ -1746,6 +1751,7 @@ export const translations: Record<Language, Translations> = {
       headerAlbum: 'Album',
       headerQuality: 'Jakość',
       headerPath: 'Ścieżka',
+      headerWave: 'Fala',
       headerTime: 'Czas',
       headerActions: 'Akcje',
       dragHint: 'Przeciągaj utwory aby zmienić kolejność • Kliknij, aby odtworzyć',
@@ -2542,6 +2548,7 @@ export const translations: Record<Language, Translations> = {
       colArtist: 'Künstler',
       colAlbum: 'Album',
       colFormat: 'Format & Qualität (FLAC, Bit-Tiefe)',
+      colSparkline: 'Wellenform-Vorschau (Mini-Wave)',
       colDuration: 'Dauer (MM:SS)',
       colPath: 'Dateipfad auf Datenträger (URI)',
       compactMode: 'Kompaktes Layout',
@@ -2553,6 +2560,7 @@ export const translations: Record<Language, Translations> = {
       headerAlbum: 'Album',
       headerQuality: 'Qualität',
       headerPath: 'Pfad',
+      headerWave: 'Welle',
       headerTime: 'Zeit',
       headerActions: 'Aktionen',
       dragHint: 'Titel ziehen zum Umsortieren • Klick zum Abspielen',
@@ -3349,6 +3357,7 @@ export const translations: Record<Language, Translations> = {
       colArtist: 'Esittäjä',
       colAlbum: 'Albumi',
       colFormat: 'Formaatti & laatu (FLAC, bittisyvyys)',
+      colSparkline: 'Aaltomuodon esikatselu (Mini-Wave)',
       colDuration: 'Kesto (MM:SS)',
       colPath: 'Tiedostopolku levyllä (URI)',
       compactMode: 'Kompakti asettelu',
@@ -3360,6 +3369,7 @@ export const translations: Record<Language, Translations> = {
       headerAlbum: 'Albumi',
       headerQuality: 'Laatu',
       headerPath: 'Polku',
+      headerWave: 'Aalto',
       headerTime: 'Aika',
       headerActions: 'Toiminnot',
       dragHint: 'Vedä järjestääksesi • Napsauta toistaaksesi',
@@ -4156,6 +4166,7 @@ export const translations: Record<Language, Translations> = {
       colArtist: 'Artifex',
       colAlbum: 'Alba',
       colFormat: 'Forma & Qualitas (FLAC, bit-depth)',
+      colSparkline: 'Praevisio undae (Mini-Waveform)',
       colDuration: 'Tempus (MM:SS)',
       colPath: 'Via fasciculi in disco (URI)',
       compactMode: 'Forma compacta',
@@ -4167,6 +4178,7 @@ export const translations: Record<Language, Translations> = {
       headerAlbum: 'Alba',
       headerQuality: 'Qualitas',
       headerPath: 'Via',
+      headerWave: 'Unda',
       headerTime: 'Tempus',
       headerActions: 'Actiones',
       dragHint: 'Trahito ad ordinandum • Premito ad canendum',

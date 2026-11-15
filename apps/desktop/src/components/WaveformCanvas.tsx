@@ -570,121 +570,135 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 
   return (
     <div
-      ref={containerRef}
-      className={`waveform-container ${className || ''}`}
+      className={`waveform-wrapper ${className || ''}`}
       style={{
-        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
         width: '100%',
-        height: `${height}px`,
-        cursor: onSeek ? 'pointer' : 'default',
-        borderRadius: '12px',
-        overflow: 'hidden',
-        background: 'rgba(10, 12, 22, 0.55)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)',
-        userSelect: 'none',
-        transition: 'border-color 0.2s ease',
+        gap: '6px',
         ...style,
       }}
-      onClick={handleClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      title={title}
     >
-      <canvas
-        ref={canvasRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'block',
-          willChange: 'transform',
-        }}
-      />
-
-      {/* Pływający wskaźnik czasu przy najechaniu myszą */}
-      {hoverX !== null && hoverTimeStr && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '6px',
-            left: `${Math.max(30, Math.min(dimensions.width - 30, hoverX))}px`,
-            transform: 'translateX(-50%)',
-            background: 'rgba(15, 20, 32, 0.95)',
-            border: '1px solid var(--accent-cyan)',
-            color: '#fff',
-            fontSize: '0.68rem',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            padding: '2px 6px',
-            borderRadius: '4px',
-            pointerEvents: 'none',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
-            zIndex: 10,
-          }}
-        >
-          {hoverTimeStr}
-        </div>
-      )}
-
-      {/* Przełącznik stylów fali w prawym górnym rogu */}
+      {/* Pasek narzędzi fali NAD paskiem postępu */}
       {showStyleSelector && (
         <div
           style={{
-            position: 'absolute',
-            top: '6px',
-            right: '8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '3px',
-            background: 'rgba(15, 18, 30, 0.88)',
-            backdropFilter: 'blur(10px)',
-            padding: '2px 4px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-subtle)',
-            zIndex: 20,
-            opacity: 0.82,
-            transition: 'opacity 0.15s ease',
+            justifyContent: 'flex-end',
+            gap: '6px',
+            width: '100%',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.82')}
-          onClick={(e) => e.stopPropagation()}
         >
-          {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
-            const isSelected = activeStyle === st;
-            return (
-              <button
-                key={st}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStyleSelect(st);
-                }}
-                title={styleLabels[st].name}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '3px 6px',
-                  borderRadius: '6px',
-                  border: isSelected ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                  background: isSelected ? 'rgba(244, 63, 94, 0.22)' : 'transparent',
-                  color: isSelected ? 'var(--accent-pink)' : 'var(--text-muted)',
-                  fontSize: '0.68rem',
-                  fontWeight: isSelected ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {styleLabels[st].icon}
-                <span style={{ display: isSelected ? 'inline' : 'none', fontSize: '0.65rem' }}>
-                  {styleLabels[st].name}
-                </span>
-              </button>
-            );
-          })}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              background: 'rgba(15, 18, 30, 0.88)',
+              backdropFilter: 'blur(10px)',
+              padding: '2px 4px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
+              const isSelected = activeStyle === st;
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStyleSelect(st);
+                  }}
+                  title={styleLabels[st].name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    border: isSelected ? '1px solid var(--accent-pink)' : '1px solid transparent',
+                    background: isSelected ? 'rgba(244, 63, 94, 0.22)' : 'transparent',
+                    color: isSelected ? 'var(--accent-pink)' : 'var(--text-muted)',
+                    fontSize: '0.7rem',
+                    fontWeight: isSelected ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {styleLabels[st].icon}
+                  <span style={{ display: isSelected ? 'inline' : 'none', fontSize: '0.68rem' }}>
+                    {styleLabels[st].name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* Kontener płótna fali */}
+      <div
+        ref={containerRef}
+        className="waveform-container"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: `${height}px`,
+          cursor: onSeek ? 'pointer' : 'default',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          background: 'rgba(10, 12, 22, 0.55)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)',
+          userSelect: 'none',
+          isolation: 'isolate',
+          contain: 'paint layout',
+          transition: 'border-color 0.2s ease',
+        }}
+        onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        title={title}
+      >
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'block',
+            willChange: 'transform',
+          }}
+        />
+
+        {/* Pływający wskaźnik czasu przy najechaniu myszą */}
+        {hoverX !== null && hoverTimeStr && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '6px',
+              left: `${Math.max(30, Math.min(dimensions.width - 30, hoverX))}px`,
+              transform: 'translateX(-50%) translateZ(0)',
+              background: 'rgba(15, 20, 32, 0.95)',
+              border: '1px solid var(--accent-cyan)',
+              color: '#fff',
+              fontSize: '0.68rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '4px',
+              pointerEvents: 'none',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+              zIndex: 10,
+            }}
+          >
+            {hoverTimeStr}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

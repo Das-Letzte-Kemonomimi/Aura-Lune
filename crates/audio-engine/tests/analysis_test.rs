@@ -684,3 +684,49 @@ fn test_model_packs_catalog_integrity() {
     let dsp_available = list.iter().find(|p| p.id == "pack_dsp_cascade").unwrap();
     assert!(dsp_available.is_installed);
 }
+
+#[test]
+fn test_extract_track_waveform_peaks() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture_path = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/Skrzydła Białe.flac");
+
+    assert!(fixture_path.exists(), "Plik fixture musi istnieć");
+
+    let count = 160;
+    let peaks = audio_engine::extract_track_waveform_peaks(fixture_path.to_str().unwrap(), count)
+        .expect("Ekstrakcja szczytów fali powinna się powieść");
+
+    assert_eq!(
+        peaks.len(),
+        count,
+        "Liczba punktów szczytowych powinna wynosić 160"
+    );
+
+    // Wszystkie punkty powinny być w przedziale [0.05, 1.0]
+    for &p in &peaks {
+        assert!(
+            (0.05..=1.0).contains(&p),
+            "Punkt fali {} poza zakresem [0.05, 1.0]",
+            p
+        );
+    }
+
+    // Najwyższy punkt powinien osiągać 1.0 (znormalizowany)
+    let max_peak = peaks.iter().cloned().fold(0.0f32, f32::max);
+    assert!(
+        (max_peak - 1.0).abs() < 1e-3,
+        "Maksymalny punkt fali powinien wynosić 1.0"
+    );
+
+    // Powinna istnieć zmienność dynamiczna (nie linia prosta)
+    let min_peak = peaks.iter().cloned().fold(1.0f32, f32::min);
+    assert!(
+        max_peak > min_peak + 0.1,
+        "Wykres fali powinien odzwierciedlać dynamikę utworu"
+    );
+}

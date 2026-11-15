@@ -15,8 +15,9 @@ pub use analysis::{
     detect_chords_from_samples, detect_notes_from_samples, export_chords_to_chordpro,
     export_chords_to_json, export_chords_to_text, export_transcription_to_json,
     export_transcription_to_midi, extract_beat_grid, extract_chroma_frame,
-    generate_chord_templates, midi_pitch_to_name, transpose_chord, viterbi_smooth_chords,
-    write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult, TrackKeyBpm,
+    extract_track_waveform_peaks, generate_chord_templates, midi_pitch_to_name, transpose_chord,
+    viterbi_smooth_chords, write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult,
+    TrackKeyBpm,
 };
 pub use device::DeviceManager;
 pub use error::AudioEngineError;

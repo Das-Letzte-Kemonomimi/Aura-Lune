@@ -5209,6 +5209,50 @@ async fn download_ai_model(model_id: String, app_handle: tauri::AppHandle) -> Re
 }
 
 #[tauri::command]
+async fn get_or_extract_track_waveform(
+    track_id: Option<i64>,
+    path: String,
+    count: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<Vec<f32>, String> {
+    let desired_count = count.unwrap_or(160);
+
+    // 1. Sprawdź pamięć podręczną SQLite
+    if let Some(id) = track_id {
+        if let Ok(Some(cached_json)) = state.db.get_track_waveform(id).await {
+            if let Ok(peaks) = serde_json::from_str::<Vec<f32>>(&cached_json) {
+                if !peaks.is_empty() {
+                    return Ok(peaks);
+                }
+            }
+        }
+    }
+
+    // 2. Wyekstrahuj wierno-akustyczny profil szczytów z pliku audio w osobnym wątku
+    let path_clone = path.clone();
+    let peaks = tokio::task::spawn_blocking(move || {
+        audio_engine::extract_track_waveform_peaks(&path_clone, desired_count)
+    })
+    .await
+    .map_err(|e| format!("Błąd wątku roboczego ekstrakcji: {}", e))?
+    .map_err(|e| format!("Błąd ekstrakcji fali: {}", e))?;
+
+    // 3. Zapisz w SQLite w tle jeśli podano track_id
+    if let Some(id) = track_id {
+        if !peaks.is_empty() {
+            let db = state.db.clone();
+            let peaks_json = serde_json::to_string(&peaks).unwrap_or_default();
+            let sample_cnt = peaks.len() as i64;
+            tokio::spawn(async move {
+                let _ = db.save_track_waveform(id, sample_cnt, &peaks_json).await;
+            });
+        }
+    }
+
+    Ok(peaks)
+}
+
+#[tauri::command]
 async fn detect_track_chords(
     path: String,
     track_id: Option<i64>,
@@ -6894,6 +6938,7 @@ pub fn run() {
             list_ai_models,
             delete_ai_model,
             download_ai_model,
+            get_or_extract_track_waveform,
             detect_track_chords,
             get_cached_chords,
             save_chord_overrides,

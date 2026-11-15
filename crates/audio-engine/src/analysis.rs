@@ -1915,3 +1915,176 @@ pub fn analyze_track_transcription(
         analyzer_version: "1.1.0-salience".to_string(),
     })
 }
+
+/// Ekstrahuje znormalizowane wartości szczytowe/RMS amplitudy dla całego utworu
+/// w określonej liczbie kubełków (np. 160 próbek), umożliwiając renderowanie
+/// wierno-akustycznego wykresu fali (waveform).
+pub fn extract_track_waveform_peaks(uri_or_path: &str, count: usize) -> Result<Vec<f32>, String> {
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+
+    let _ = gst::init();
+    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
+        uri_or_path.to_string()
+    } else if uri_or_path.starts_with("file://") {
+        let stripped = uri_or_path.trim_start_matches("file://");
+        glib::filename_to_uri(Path::new(stripped), None)
+            .map(|u| u.to_string())
+            .unwrap_or_else(|_| uri_or_path.to_string())
+    } else {
+        let path = Path::new(uri_or_path);
+        if !path.exists() {
+            return Err(format!("Plik nie istnieje: {}", uri_or_path));
+        }
+        let canonical = path
+            .canonicalize()
+            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
+        glib::filename_to_uri(&canonical, None)
+            .map(|u| u.to_string())
+            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
+    };
+
+    let pipeline = gst::Pipeline::new();
+
+    let uridecodebin = gst::ElementFactory::make("uridecodebin")
+        .property("uri", &uri)
+        .build()
+        .map_err(|e| format!("Brak uridecodebin: {}", e))?;
+
+    let audioconvert = gst::ElementFactory::make("audioconvert")
+        .build()
+        .map_err(|e| format!("Brak audioconvert: {}", e))?;
+
+    let audioresample = gst::ElementFactory::make("audioresample")
+        .build()
+        .map_err(|e| format!("Brak audioresample: {}", e))?;
+
+    let sample_rate = 11025u32;
+    let caps = gst_audio::AudioCapsBuilder::new()
+        .format(gst_audio::AudioFormat::F32le)
+        .rate(sample_rate as i32)
+        .channels(1)
+        .build();
+
+    let capsfilter = gst::ElementFactory::make("capsfilter")
+        .property("caps", &caps)
+        .build()
+        .map_err(|e| format!("Brak capsfilter: {}", e))?;
+
+    let appsink = gst_app::AppSink::builder()
+        .caps(&caps)
+        .property("sync", false)
+        .max_buffers(4000)
+        .drop(false)
+        .build();
+
+    pipeline
+        .add_many([
+            &uridecodebin,
+            &audioconvert,
+            &audioresample,
+            &capsfilter,
+            appsink.upcast_ref(),
+        ])
+        .map_err(|e| format!("Błąd dodawania do potoku: {}", e))?;
+
+    gst::Element::link_many([
+        &audioconvert,
+        &audioresample,
+        &capsfilter,
+        appsink.upcast_ref(),
+    ])
+    .map_err(|e| format!("Błąd linkowania elementów: {}", e))?;
+
+    let convert_sink_pad = audioconvert
+        .static_pad("sink")
+        .ok_or_else(|| "Brak sink pad w audioconvert".to_string())?;
+
+    uridecodebin.connect_pad_added(move |_bin, src_pad| {
+        if convert_sink_pad.is_linked() {
+            return;
+        }
+        let caps = src_pad
+            .current_caps()
+            .unwrap_or_else(|| src_pad.query_caps(None));
+        if let Some(structure) = caps.structure(0) {
+            if structure.name().starts_with("audio/") {
+                let _ = src_pad.link(&convert_sink_pad);
+            }
+        }
+    });
+
+    pipeline
+        .set_state(gst::State::Playing)
+        .map_err(|e| format!("Błąd uruchomienia dekodera: {}", e))?;
+
+    let mut collected: Vec<f32> = Vec::new();
+    let start_time = std::time::Instant::now();
+    let max_wait = std::time::Duration::from_secs(12);
+
+    while start_time.elapsed() < max_wait {
+        if appsink.is_eos() {
+            break;
+        }
+        if let Ok(sample) = appsink.pull_sample() {
+            if let Some(buffer) = sample.buffer() {
+                if let Ok(map) = buffer.map_readable() {
+                    let num_floats = map.len() / std::mem::size_of::<f32>();
+                    let slice = unsafe {
+                        std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats)
+                    };
+                    collected.extend_from_slice(slice);
+                    if collected.len() >= 20_000_000 {
+                        break;
+                    }
+                }
+            }
+        } else {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    let _ = pipeline.set_state(gst::State::Null);
+
+    if collected.is_empty() {
+        return Err("Brak próbek audio do wygenerowania przebiegu fali".to_string());
+    }
+
+    let total_samples = collected.len();
+    let chunk_size = total_samples as f64 / count as f64;
+    let mut peaks = Vec::with_capacity(count);
+    let mut max_global_peak: f32 = 0.0001;
+
+    for i in 0..count {
+        let start_idx = (i as f64 * chunk_size) as usize;
+        let end_idx = (((i + 1) as f64 * chunk_size) as usize).min(total_samples);
+        if start_idx >= end_idx {
+            peaks.push(0.05);
+            continue;
+        }
+        let slice = &collected[start_idx..end_idx];
+        let mut max_val: f32 = 0.0;
+        let mut sum_sq: f64 = 0.0;
+        for &s in slice {
+            let abs_s = s.abs();
+            if abs_s > max_val {
+                max_val = abs_s;
+            }
+            sum_sq += (s as f64) * (s as f64);
+        }
+        let rms = (sum_sq / slice.len() as f64).sqrt() as f32;
+        let bucket_val = 0.7 * max_val + 0.3 * rms;
+        if bucket_val > max_global_peak {
+            max_global_peak = bucket_val;
+        }
+        peaks.push(bucket_val);
+    }
+
+    for p in peaks.iter_mut() {
+        let norm = (*p / max_global_peak).clamp(0.05, 1.0);
+        *p = (norm * 1000.0).round() / 1000.0;
+    }
+
+    Ok(peaks)
+}
