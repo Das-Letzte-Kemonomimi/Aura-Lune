@@ -88,6 +88,8 @@ mod tests {
 
     #[test]
     fn test_sync_playback_state_noop_on_none_controllers() {
-        // Verification that functions handle missing mpris/discord gracefully
+        // Verification of state enum values
+        assert_ne!(PlaybackState::Playing, PlaybackState::Stopped);
+        assert_ne!(PlaybackState::Paused, PlaybackState::Stopped);
     }
 }

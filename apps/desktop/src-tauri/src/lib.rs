@@ -436,10 +436,7 @@ fn seek(position_ms: u64, fade: Option<bool>, state: State<'_, AppState>) -> Res
 
 #[tauri::command]
 fn set_pitch(semitones: f64, state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .engine
-        .set_pitch_semitones(semitones)
-        .map_err(|e| e.to_string())
+    commands::dsp::set_pitch_internal(&state, semitones)
 }
 
 #[tauri::command]
@@ -448,8 +445,7 @@ fn set_tempo(
     ratio: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let r = tempo_ratio.or(ratio).unwrap_or(1.0);
-    state.engine.set_tempo_ratio(r).map_err(|e| e.to_string())
+    commands::dsp::set_tempo_internal(&state, tempo_ratio, ratio)
 }
 
 #[tauri::command]
@@ -458,16 +454,12 @@ fn set_tempo_ratio(
     ratio: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let r = tempo_ratio.or(ratio).unwrap_or(1.0);
-    state.engine.set_tempo_ratio(r).map_err(|e| e.to_string())
+    commands::dsp::set_tempo_internal(&state, tempo_ratio, ratio)
 }
 
 #[tauri::command]
 fn set_pitch_semitones(semitones: f64, state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .engine
-        .set_pitch_semitones(semitones)
-        .map_err(|e| e.to_string())
+    commands::dsp::set_pitch_internal(&state, semitones)
 }
 
 #[tauri::command]
@@ -476,8 +468,7 @@ fn set_rate(
     rate: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let r = rate_ratio.or(rate).unwrap_or(1.0);
-    state.engine.set_rate_ratio(r).map_err(|e| e.to_string())
+    commands::dsp::set_rate_internal(&state, rate_ratio, rate)
 }
 
 #[tauri::command]
@@ -486,8 +477,7 @@ fn set_rate_ratio(
     rate: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let r = rate_ratio.or(rate).unwrap_or(1.0);
-    state.engine.set_rate_ratio(r).map_err(|e| e.to_string())
+    commands::dsp::set_rate_internal(&state, rate_ratio, rate)
 }
 
 #[tauri::command]
@@ -1270,30 +1260,17 @@ fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
 
 #[tauri::command]
 fn set_equalizer_band(band: usize, gain_db: f64, state: State<'_, AppState>) -> Result<(), String> {
-    info!(
-        "Tauri command: set_equalizer_band({}, {} dB)",
-        band, gain_db
-    );
-    state
-        .engine
-        .set_equalizer_band(band, gain_db)
-        .map_err(|e| e.to_string())
+    commands::dsp::set_equalizer_band_internal(&state, band, gain_db)
 }
 
 #[tauri::command]
 fn set_equalizer_bands(bands: [f64; 10], state: State<'_, AppState>) -> Result<(), String> {
-    info!("Tauri command: set_equalizer_bands({:?})", bands);
-    state
-        .engine
-        .set_equalizer_bands(&bands)
-        .map_err(|e| e.to_string())
+    commands::dsp::set_equalizer_bands_internal(&state, &bands)
 }
 
 #[tauri::command]
 fn set_equalizer_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
-    info!("Tauri command: set_equalizer_enabled({})", enabled);
-    state.engine.set_equalizer_enabled(enabled);
-    Ok(())
+    commands::dsp::set_equalizer_enabled_internal(&state, enabled)
 }
 
 #[tauri::command]
@@ -1302,19 +1279,12 @@ fn set_equalizer_params(
     bands: Option<Vec<f64>>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    info!(
-        "Tauri command: set_equalizer_params(enabled: {}, bands: {:?})",
-        enabled, bands
-    );
-    state.engine.set_equalizer_enabled(enabled);
+    commands::dsp::set_equalizer_enabled_internal(&state, enabled)?;
     if let Some(b) = bands {
         if b.len() == 10 {
             let mut arr = [0.0; 10];
             arr.copy_from_slice(&b);
-            state
-                .engine
-                .set_equalizer_bands(&arr)
-                .map_err(|e| format!("Błąd zapisu pasm korektora: {}", e))?;
+            commands::dsp::set_equalizer_bands_internal(&state, &arr)?;
         }
     }
     Ok(())
@@ -1322,9 +1292,7 @@ fn set_equalizer_params(
 
 #[tauri::command]
 fn set_equalizer_preamp(preamp_db: f64, state: State<'_, AppState>) -> Result<(), String> {
-    info!("Tauri command: set_equalizer_preamp({} dB)", preamp_db);
-    state.engine.set_equalizer_preamp(preamp_db);
-    Ok(())
+    commands::dsp::set_equalizer_preamp_internal(&state, preamp_db)
 }
 
 #[tauri::command]
@@ -1334,27 +1302,17 @@ fn apply_auto_eq_profile(
     preamp_db: f64,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    info!(
-        "Tauri command: apply_auto_eq_profile('{}', preamp: {} dB, bands: {:?})",
-        profile_name, preamp_db, bands
-    );
-    state
-        .engine
-        .set_equalizer_bands(&bands)
-        .map_err(|e| e.to_string())?;
-    state.engine.set_equalizer_preamp(preamp_db);
-    state.engine.set_equalizer_enabled(true);
-    Ok(())
+    commands::dsp::apply_auto_eq_profile_internal(&state, &profile_name, &bands, preamp_db)
 }
 
 #[tauri::command]
 fn get_equalizer_presets() -> Vec<EqualizerPreset> {
-    EqualizerPreset::default_presets()
+    commands::dsp::get_equalizer_presets_internal()
 }
 
 #[tauri::command]
 fn get_parametric_eq_state(state: State<'_, AppState>) -> domain::ParametricEqState {
-    state.engine.get_parametric_eq_state()
+    commands::dsp::get_parametric_eq_state_internal(&state)
 }
 
 #[tauri::command]
@@ -1362,16 +1320,7 @@ fn set_parametric_eq_state(
     eq_state: domain::ParametricEqState,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    info!(
-        "Tauri command: set_parametric_eq_state(enabled={}, preamp={} dB, bands={})",
-        eq_state.enabled,
-        eq_state.preamp_db,
-        eq_state.bands.len()
-    );
-    state
-        .engine
-        .set_parametric_eq_state(&eq_state)
-        .map_err(|e| e.to_string())
+    commands::dsp::set_parametric_eq_state_internal(&state, &eq_state)
 }
 
 #[tauri::command]
@@ -1711,19 +1660,7 @@ async fn scan_library(
     folder_path: String,
     state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, String> {
-    info!("Tauri command: scan_library('{}')", folder_path);
-    let summary = state
-        .scanner
-        .scan_directory(&folder_path, &state.db)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(ScanSummaryDto {
-        total_files_found: summary.total_files_found,
-        new_or_updated_tracks: summary.new_or_updated_tracks,
-        skipped_unchanged: summary.skipped_unchanged,
-        errors: summary.errors,
-    })
+    commands::library::scan_library_internal(&state, &folder_path).await
 }
 
 #[tauri::command]
@@ -1731,20 +1668,7 @@ async fn scan_paths(
     paths: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, String> {
-    info!("Tauri command: scan_paths({:?})", paths);
-    let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
-    let summary = state
-        .scanner
-        .scan_paths(&path_bufs, &state.db)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(ScanSummaryDto {
-        total_files_found: summary.total_files_found,
-        new_or_updated_tracks: summary.new_or_updated_tracks,
-        skipped_unchanged: summary.skipped_unchanged,
-        errors: summary.errors,
-    })
+    commands::library::scan_paths_internal(&state, &paths).await
 }
 
 fn is_kde_environment() -> bool {
@@ -2285,7 +2209,7 @@ fn get_app_version() -> String {
 
 #[tauri::command]
 async fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
-    state.db.list_tracks().await.map_err(|e| e.to_string())
+    commands::library::get_library_tracks_internal(&state).await
 }
 
 fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
@@ -2341,7 +2265,7 @@ async fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecor
 
 #[tauri::command]
 async fn get_library_artists(state: State<'_, AppState>) -> Result<Vec<ArtistRecord>, String> {
-    state.db.list_artists().await.map_err(|e| e.to_string())
+    commands::library::get_library_artists_internal(&state).await
 }
 
 #[tauri::command]
