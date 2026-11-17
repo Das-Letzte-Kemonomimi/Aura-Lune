@@ -15,7 +15,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface ImportedItem {
   file_path: string;
@@ -67,7 +67,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<UrlImportResult | null>(null);
 
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
 
   useEffect(() => {
     if (isOpen) {
@@ -122,15 +122,11 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
     e.preventDefault();
     const cleanUrl = url.trim();
     if (!cleanUrl) {
-      setErrorMessage(isPl ? 'Wprowadź poprawny adres URL.' : 'Please enter a valid URL.');
+      setErrorMessage(loc.urlImport.errorInvalidUrl);
       return;
     }
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-      setErrorMessage(
-        isPl
-          ? 'Adres URL musi rozpoczynać się od http:// lub https://'
-          : 'URL must start with http:// or https://'
-      );
+      setErrorMessage(loc.urlImport.errorInvalidUrl);
       return;
     }
 
@@ -290,12 +286,10 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.3px' }}>
-                {isPl ? 'Importer audio URL (foobar2000 / Poweramp)' : 'URL Audio Importer (foobar2000 / Poweramp)'}
+                {loc.urlImport.title}
               </h2>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary, #a0a0b5)' }}>
-                {isPl
-                  ? 'Pobieranie ścieżek, playlist i kanałów z filtrami bitratu oraz strukturą katalogów'
-                  : 'Download tracks, playlists & channels with bitrate filters and directory hierarchies'}
+                {loc.urlImport.subtitle}
               </p>
             </div>
           </div>
@@ -313,7 +307,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
               justifyContent: 'center',
               transition: 'all 0.15s ease',
             }}
-            title={isPl ? 'Zamknij (Esc)' : 'Close (Esc)'}
+            title={loc.urlImport.closeEsc}
           >
             <X size={20} />
           </button>
@@ -333,7 +327,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   color: 'var(--color-text-main, #f0f0f5)',
                 }}
               >
-                {isPl ? 'Adres URL utworu, playlisty lub kanału' : 'URL of track, playlist or artist channel'}
+                {loc.urlImport.urlLabel}
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
@@ -372,16 +366,14 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                     fontSize: '0.82rem',
                     whiteSpace: 'nowrap',
                   }}
-                  title={isPl ? 'Wklej ze schowka' : 'Paste from clipboard'}
+                  title={loc.urlImport.pasteTooltip}
                 >
                   <Clipboard size={15} />
-                  {isPl ? 'Wklej' : 'Paste'}
+                  {loc.urlImport.paste}
                 </button>
               </div>
               <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
-                {isPl
-                  ? 'Wspiera YouTube, SoundCloud (utwory, sety, profile i playlisty), Bandcamp oraz linki HTTP/HTTPS.'
-                  : 'Supports YouTube, SoundCloud (tracks, sets, channels & playlists), Bandcamp and HTTP/HTTPS links.'}
+                {loc.urlImport.urlHint}
               </span>
             </div>
 
@@ -395,7 +387,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   marginBottom: '8px',
                 }}
               >
-                {isPl ? 'Format audio do wyodrębnienia' : 'Target audio format'}
+                {loc.urlImport.targetFormat}
               </label>
               <div
                 style={{
@@ -405,10 +397,10 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                 }}
               >
                 {[
-                  { id: 'flac', name: 'FLAC', desc: isPl ? 'Bezstratny (Bit-perfect)' : 'Lossless' },
-                  { id: 'mp3', name: 'MP3', desc: isPl ? 'MPEG Audio Layer 3' : 'MPEG-3' },
-                  { id: 'opus', name: 'OPUS', desc: isPl ? 'Nowoczesny i przejrzysty' : 'Modern Hi-Fi' },
-                  { id: 'm4a', name: 'M4A', desc: isPl ? 'Apple AAC / iTunes' : 'Apple AAC' },
+                  { id: 'flac', name: 'FLAC', desc: loc.urlImport.formatFlacDesc },
+                  { id: 'mp3', name: 'MP3', desc: loc.urlImport.formatMp3Desc },
+                  { id: 'opus', name: 'OPUS', desc: loc.urlImport.formatOpusDesc },
+                  { id: 'm4a', name: 'M4A', desc: loc.urlImport.formatM4aDesc },
                 ].map((fmt) => (
                   <button
                     key={fmt.id}
@@ -458,7 +450,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                   <SlidersHorizontal size={15} style={{ color: '#c084fc' }} />
                   <span style={{ fontSize: '0.84rem', fontWeight: 500, color: '#f0f0f5' }}>
-                    {isPl ? 'Jakość kodowania i bitrate (FFmpeg)' : 'Encoding quality & bitrate (FFmpeg)'}
+                    {loc.urlImport.encodingQuality}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -574,9 +566,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
               >
                 <Sparkles size={16} style={{ flexShrink: 0, color: '#38bdf8' }} />
                 <span>
-                  {isPl
-                    ? 'Format FLAC koduje dźwięk bezstratnie (bit-perfect) z zachowaniem pełnego pasma źródłowego.'
-                    : 'FLAC format encodes lossless bit-perfect audio preserving all original frequency spectrum.'}
+                  {loc.urlImport.flacLosslessNotice}
                 </span>
               </div>
             )}
@@ -618,14 +608,10 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   />
                   <div>
                     <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
-                      {isPl
-                        ? 'Pobierz całą playlistę / album / kanał SoundCloud'
-                        : 'Download full playlist / album / SoundCloud channel'}
+                      {loc.urlImport.downloadPlaylistLabel}
                     </div>
                     <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '1px' }}>
-                      {isPl
-                        ? 'Wyodrębnia wszystkie utwory z linku zbiorczego i kolejkuje je w bibliotece'
-                        : 'Extracts all tracks from collection URL and indexes them in library'}
+                      {loc.urlImport.downloadPlaylistDesc}
                     </div>
                   </div>
                 </label>
@@ -644,7 +630,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                     }}
                   >
                     <ListMusic size={13} />
-                    {isPl ? 'Tryb zbiorczy' : 'Batch mode'}
+                    {loc.urlImport.batchMode}
                   </span>
                 )}
               </div>
@@ -671,7 +657,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                         marginBottom: '4px',
                       }}
                     >
-                      {isPl ? 'Limit pobieranych utworów:' : 'Track download limit:'}
+                      {loc.urlImport.trackLimit}
                     </label>
                     <select
                       value={maxItems}
@@ -688,12 +674,12 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                         outline: 'none',
                       }}
                     >
-                      <option value={0}>{isPl ? 'Bez limitu (Wszystkie utwory)' : 'No limit (All tracks)'}</option>
-                      <option value={5}>{isPl ? 'Maksymalnie 5 utworów' : 'Max 5 tracks'}</option>
-                      <option value={10}>{isPl ? 'Maksymalnie 10 utworów' : 'Max 10 tracks'}</option>
-                      <option value={25}>{isPl ? 'Maksymalnie 25 utworów' : 'Max 25 tracks'}</option>
-                      <option value={50}>{isPl ? 'Maksymalnie 50 utworów' : 'Max 50 tracks'}</option>
-                      <option value={100}>{isPl ? 'Maksymalnie 100 utworów' : 'Max 100 tracks'}</option>
+                      <option value={0}>{loc.urlImport.limitUnlimited}</option>
+                      <option value={5}>{loc.urlImport.limit5}</option>
+                      <option value={10}>{loc.urlImport.limit10}</option>
+                      <option value={25}>{loc.urlImport.limit25}</option>
+                      <option value={50}>{loc.urlImport.limit50}</option>
+                      <option value={100}>{loc.urlImport.limit100}</option>
                     </select>
                   </div>
 
@@ -708,7 +694,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                         marginBottom: '4px',
                       }}
                     >
-                      {isPl ? 'Układ katalogów (foobar2000):' : 'Folder hierarchy (foobar2000):'}
+                      {loc.urlImport.folderHierarchy}
                     </label>
                     <select
                       value={folderStructure}
@@ -726,13 +712,13 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                       }}
                     >
                       <option value="playlist">
-                        {isPl ? 'Podfolder playlisty / albumu (Katalog / 01 - Tytuł)' : 'Playlist / Album folder'}
+                        {loc.urlImport.hierarchyAlbum}
                       </option>
                       <option value="artist_album">
-                        {isPl ? 'Hierarchia Wykonawca / Album (Artysta / Album / 01)' : 'Artist / Album hierarchy'}
+                        {loc.urlImport.hierarchyArtistAlbum}
                       </option>
                       <option value="flat">
-                        {isPl ? 'Płaski katalog (wszystkie bezpośrednio w folderze)' : 'Flat (all in one folder)'}
+                        {loc.urlImport.hierarchyFlat}
                       </option>
                     </select>
                   </div>
@@ -750,7 +736,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   marginBottom: '6px',
                 }}
               >
-                {isPl ? 'Katalog docelowy pobierania' : 'Destination folder'}
+                {loc.urlImport.destFolder}
               </label>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
@@ -788,7 +774,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   }}
                 >
                   <FolderOpen size={15} />
-                  {isPl ? 'Zmień...' : 'Browse...'}
+                  {loc.urlImport.browse}
                 </button>
               </div>
             </div>
@@ -809,9 +795,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
             >
               <Sparkles size={16} style={{ flexShrink: 0, color: '#c084fc' }} />
               <span>
-                {isPl
-                  ? 'Auralune automatycznie pobiera okładki, metadane wykonawcy i albumu oraz bezzwłocznie indeksuje nowe pliki w lokalnej bazie SQLite.'
-                  : 'Auralune automatically embeds cover art and artist metadata, and immediately indexes new tracks into the local SQLite database.'}
+                {loc.urlImport.sqliteIndexingHint}
               </span>
             </div>
 
@@ -851,7 +835,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   fontSize: '0.88rem',
                 }}
               >
-                {isPl ? 'Anuluj' : 'Cancel'}
+                {loc.common.cancel}
               </button>
               <button
                 type="submit"
@@ -876,23 +860,15 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   <>
                     <Loader2 size={16} className="animate-spin" />
                     {downloadPlaylist
-                      ? isPl
-                        ? 'Pobieranie i indeksowanie playlisty...'
-                        : 'Harvesting & indexing playlist...'
-                      : isPl
-                        ? 'Pobieranie i indeksowanie...'
-                        : 'Downloading & indexing...'}
+                      ? loc.urlImport.loadingPlaylist
+                      : loc.urlImport.loadingTrack}
                   </>
                 ) : (
                   <>
                     <Download size={16} />
                     {downloadPlaylist
-                      ? isPl
-                        ? 'Pobierz całą playlistę / kanał'
-                        : 'Download full playlist / channel'
-                      : isPl
-                        ? 'Pobierz i dodaj do biblioteki'
-                        : 'Download & add to library'}
+                      ? loc.urlImport.btnDownloadPlaylist
+                      : loc.urlImport.btnDownloadTrack}
                   </>
                 )}
               </button>
@@ -917,17 +893,11 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                   {result.items && result.items.length > 1
-                    ? isPl
-                      ? `Pomyślnie pobrano i zindeksowano ${result.items.length} utworów!`
-                      : `Successfully downloaded & indexed ${result.items.length} tracks!`
-                    : isPl
-                      ? 'Utwór został pomyślnie pobrany i zindeksowany!'
-                      : 'Audio track successfully downloaded & indexed!'}
+                    ? loc.urlImport.successMultiTitle.replace('{0}', String(result.items.length))
+                    : loc.urlImport.successSingleTitle}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#bbf7d0', marginTop: '2px' }}>
-                  {isPl
-                    ? 'Wszystkie pliki zostały natychmiast zindeksowane w bibliotece Auralune i są gotowe do odtworzenia.'
-                    : 'All audio files are indexed in Auralune database and ready for immediate playback.'}
+                  {loc.urlImport.successDesc}
                 </div>
               </div>
             </div>
@@ -985,7 +955,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {result.artist} • {result.album || (isPl ? 'Import z URL' : 'URL Import')}
+                    {result.artist} • {result.album || loc.urlImport.defaultAlbum}
                   </div>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px', fontSize: '0.72rem' }}>
                     <span
@@ -1047,7 +1017,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                     }}
                   >
                     <Play size={18} fill="#fff" />
-                    {isPl ? 'Odtwórz wszystkie utwory' : 'Play all tracks'}
+                    {loc.urlImport.playAll}
                   </button>
                   <button
                     type="button"
@@ -1068,7 +1038,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                     }}
                   >
                     <ListPlus size={18} />
-                    {isPl ? 'Dodaj wszystkie do kolejki' : 'Queue all tracks'}
+                    {loc.urlImport.queueAll}
                   </button>
                 </div>
 
@@ -1163,7 +1133,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
-                          title={isPl ? 'Odtwórz ten utwór' : 'Play this track'}
+                          title={loc.urlImport.playTrack}
                         >
                           <Play size={13} fill="#d8b4fe" />
                         </button>
@@ -1181,7 +1151,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
-                          title={isPl ? 'Dodaj do kolejki' : 'Add to queue'}
+                          title={loc.urlImport.queueTrack}
                         >
                           <ListPlus size={13} />
                         </button>
@@ -1215,7 +1185,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   }}
                 >
                   <Play size={18} fill="#fff" />
-                  {isPl ? 'Odtwórz teraz' : 'Play now'}
+                  {loc.urlImport.playNow}
                 </button>
                 <button
                   type="button"
@@ -1236,7 +1206,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                   }}
                 >
                   <ListPlus size={18} />
-                  {isPl ? 'Dodaj do kolejki' : 'Add to queue'}
+                  {loc.urlImport.addToQueue}
                 </button>
               </div>
             )}
@@ -1259,7 +1229,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                 }}
               >
                 <FolderOpen size={15} />
-                {isPl ? 'Pokaż w folderze' : 'Show in folder'}
+                {loc.urlImport.showInFolder}
               </button>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -1275,7 +1245,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                     fontWeight: 500,
                   }}
                 >
-                  {isPl ? '+ Pobierz kolejny link' : '+ Download another link'}
+                  {loc.urlImport.downloadAnother}
                 </button>
                 <button
                   type="button"
@@ -1291,7 +1261,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
                     fontWeight: 500,
                   }}
                 >
-                  {isPl ? 'Gotowe' : 'Done'}
+                  {loc.urlImport.done}
                 </button>
               </div>
             </div>

@@ -19,7 +19,7 @@ import {
   Disc3,
   Headphones,
 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface CommandItem {
   id: string;
@@ -89,6 +89,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenHealthCheck,
   onSelectTab,
 }) => {
+  const loc = getTranslations(currentLang);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -100,15 +101,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
   // Wszystkie stałe akcje systemowe
   const systemActions: CommandItem[] = useMemo(() => {
-    const isPl = currentLang === 'pl';
     return [
       {
         id: 'action-play-pause',
         type: 'action',
         title: isPlaying
-          ? isPl ? 'Wstrzymaj odtwarzanie (Pauza)' : 'Pause Playback'
-          : isPl ? 'Wznów odtwarzanie (Play)' : 'Resume Playback',
-        subtitle: isPl ? 'Sterowanie odtwarzaczem' : 'Player control',
+          ? loc.commandPalette.actionPause
+          : loc.commandPalette.actionPlay,
+        subtitle: loc.commandPalette.actionPlayerControl,
         icon: isPlaying ? <Pause size={18} /> : <Play size={18} />,
         badge: 'Space',
         onExecute: () => {
@@ -119,8 +119,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-next',
         type: 'action',
-        title: isPl ? 'Następny utwór' : 'Next Track',
-        subtitle: isPl ? 'Przejdź do kolejnego utworu w kolejce' : 'Skip to next track',
+        title: loc.commandPalette.actionNext,
+        subtitle: loc.commandPalette.actionNextSubtitle,
         icon: <SkipForward size={18} />,
         badge: 'N',
         onExecute: () => {
@@ -131,8 +131,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-prev',
         type: 'action',
-        title: isPl ? 'Poprzedni utwór' : 'Previous Track',
-        subtitle: isPl ? 'Wróć do poprzedniego utworu' : 'Go back to previous track',
+        title: loc.commandPalette.actionPrev,
+        subtitle: loc.commandPalette.actionPrevSubtitle,
         icon: <SkipBack size={18} />,
         badge: 'P',
         onExecute: () => {
@@ -143,8 +143,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-shuffle',
         type: 'action',
-        title: isPl ? 'Przełącz losowe odtwarzanie (Shuffle)' : 'Toggle Shuffle',
-        subtitle: isPl ? 'Włącz lub wyłącz losową kolejność' : 'Randomize playback order',
+        title: loc.commandPalette.actionShuffle,
+        subtitle: loc.commandPalette.actionShuffleSubtitle,
         icon: <Shuffle size={18} />,
         onExecute: () => {
           onToggleShuffle();
@@ -154,8 +154,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-shuffle-all',
         type: 'action',
-        title: isPl ? '🔀 Wymieszaj całą bibliotekę (Shuffle All)' : '🔀 Shuffle All Tracks',
-        subtitle: isPl ? 'Wylosuj wszystkie utwory do kolejki i natychmiast rozpocznij odtwarzanie' : 'Randomize entire library into queue and play',
+        title: loc.commandPalette.actionShuffleAll,
+        subtitle: loc.commandPalette.actionShuffleAllSubtitle,
         icon: <Shuffle size={18} color="var(--accent-pink)" />,
         badge: '1.0',
         onExecute: () => {
@@ -168,8 +168,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-health-check',
         type: 'action',
-        title: isPl ? '🩺 Test środowiska audio (Linux Audio Health Check)' : '🩺 Linux Audio Health Check',
-        subtitle: isPl ? 'Audyt PipeWire, silników DSP Rubber Band/SoundTouch, kodeków i bazy SQLite' : 'Audit PipeWire, DSP engines, codecs and SQLite',
+        title: loc.commandPalette.actionHealthCheck,
+        subtitle: loc.commandPalette.actionHealthCheckSubtitle,
         icon: <Activity size={18} color="#4ade80" />,
         badge: 'v1.0',
         onExecute: () => {
@@ -182,12 +182,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-stop-after-current',
         type: 'action',
-        title: isPl
-          ? `Zatrzymaj po bieżącym utworze (Stop After Current Track) ${stopAfterCurrent ? '• [WŁĄCZONE]' : ''}`
-          : `Stop After Current Track ${stopAfterCurrent ? '• [ACTIVE]' : ''}`,
-        subtitle: isPl
-          ? 'Zatrzymaj odtwarzanie po zakończeniu obecnego utworu (klasyk z foobar2000)'
-          : 'Cleanly stops playback after the current track reaches end',
+        title: `${loc.commandPalette.actionStopAfterCurrent} ${stopAfterCurrent ? `• ${loc.commandPalette.activeTag}` : ''}`,
+        subtitle: loc.commandPalette.actionStopAfterCurrentSubtitle,
         icon: <Square size={18} style={{ fill: stopAfterCurrent ? 'var(--accent-pink)' : 'none' }} />,
         badge: stopAfterCurrent ? 'ON' : 'OFF',
         onExecute: () => {
@@ -200,10 +196,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-url-import',
         type: 'action',
-        title: isPl ? 'Wbudowany importer audio z URL (yt-dlp)' : 'Import Audio from URL (yt-dlp)',
-        subtitle: isPl
-          ? 'Pobierz utwór z YouTube/SoundCloud z okładką bezpośrednio do biblioteki'
-          : 'Download track from URL with thumbnail and metadata to library',
+        title: loc.commandPalette.actionUrlImport,
+        subtitle: loc.commandPalette.actionUrlImportSubtitle,
         icon: <Download size={18} />,
         badge: 'yt-dlp',
         onExecute: () => {
@@ -216,8 +210,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-big-screen',
         type: 'action',
-        title: isPl ? 'Otwórz widok pełnoekranowy (Big Screen Now Playing)' : 'Open Big Screen View',
-        subtitle: isPl ? 'Kinowy tryb pełnoekranowy z wizualizerem' : 'Cinema fullscreen mode',
+        title: loc.commandPalette.actionBigScreen,
+        subtitle: loc.commandPalette.actionBigScreenSubtitle,
         icon: <Maximize2 size={18} />,
         badge: 'F11',
         onExecute: () => {
@@ -228,10 +222,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-soundscape-mixer',
         type: 'action',
-        title: isPl ? 'Generator Dźwięków Tła (Lofi Soundscape Mixer)' : 'Lofi Soundscape Mixer',
-        subtitle: isPl
-          ? 'Deszcz, trzask winyla, ognisko, wiatr z dzwonkami Furin, kawiarnia'
-          : 'Rain, vinyl crackle, campfire, wind & chimes, cafe ambience',
+        title: loc.commandPalette.actionSoundscape,
+        subtitle: loc.commandPalette.actionSoundscapeSubtitle,
         icon: <Waves size={18} />,
         badge: 'Ambience',
         onExecute: () => {
@@ -244,10 +236,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-harmonic-suggester',
         type: 'action',
-        title: isPl ? 'Harmonic Queue Assistant & DJ Crossfade' : 'Harmonic Queue Assistant & DJ Crossfade',
-        subtitle: isPl
-          ? 'Podpowiedzi pasujących utworów (Camelot Wheel ±1 krok, BPM ±6%) oraz beat-matched crossfade'
-          : 'Harmonic next-track suggestions (Camelot wheel ±1 step, BPM ±6%) and beat-matched crossfade',
+        title: loc.commandPalette.actionHarmonicSuggester,
+        subtitle: loc.commandPalette.actionHarmonicSuggesterSubtitle,
         icon: <Disc3 size={18} />,
         badge: 'DJ / Camelot',
         onExecute: () => {
@@ -260,10 +250,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-auto-eq-profiles',
         type: 'action',
-        title: isPl ? 'Baza profili słuchawkowych AutoEQ (1-klikowy EQ)' : 'AutoEQ Headphone Profiles (1-click EQ)',
-        subtitle: isPl
-          ? 'Profile kompensacji Harmana dla ponad 160 modeli słuchawek (Moondrop, Sennheiser, Sony, Beyer...)'
-          : 'Harman target compensation profiles for 160+ headphones (Moondrop, Sennheiser, Sony, Beyer...)',
+        title: loc.commandPalette.actionAutoEq,
+        subtitle: loc.commandPalette.actionAutoEqSubtitle,
         icon: <Headphones size={18} />,
         badge: 'Harman EQ',
         onExecute: () => {
@@ -276,10 +264,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-parametric-eq',
         type: 'action',
-        title: isPl ? 'Korektor Parametryczny (PEQ Studio)' : 'Parametric EQ Studio (PEQ)',
-        subtitle: isPl
-          ? 'Wielopasmowy korektor z filtrami Peak/Shelf, regulacją Q, krzywą biquad i importem EqualizerAPO'
-          : 'Multi-band parametric EQ with Peak/Shelf filters, Q control, biquad curve, and EqualizerAPO import',
+        title: loc.commandPalette.actionParametricEq,
+        subtitle: loc.commandPalette.actionParametricEqSubtitle,
         icon: <Sliders size={18} />,
         badge: 'PEQ Studio',
         onExecute: () => {
@@ -292,10 +278,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-dynamics-studio',
         type: 'action',
-        title: isPl ? 'Studio Dynamiki & Lampy (Dynamics Studio)' : 'Dynamics & Warmth Studio',
-        subtitle: isPl
-          ? 'Kompresor dynamiki, nasycenie taśmowe, ciepło lampowe i limiter słuchawkowy'
-          : 'Dynamic range compressor, tape saturation, tube warmth and headphone limiter',
+        title: loc.commandPalette.actionDynamics,
+        subtitle: loc.commandPalette.actionDynamicsSubtitle,
         icon: <Activity size={18} />,
         badge: 'Dynamics',
         onExecute: () => {
@@ -309,8 +293,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-sakura',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Płatki Sakury 🌸' : 'Anime Ambience: Sakura Petals 🌸',
-        subtitle: isPl ? 'Spadające delikatne płatki wiśni' : 'Drifting cherry blossom petals',
+        title: loc.commandPalette.actionAmbienceSakura,
+        subtitle: loc.commandPalette.actionAmbienceSakuraSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('sakura');
@@ -320,8 +304,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-neon-rain',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Cyberpunk Neon Rain 🌧️' : 'Anime Ambience: Cyberpunk Neon Rain 🌧️',
-        subtitle: isPl ? 'Neonowy deszcz w stylu Blade Runner' : 'Neon rain streaks',
+        title: loc.commandPalette.actionAmbienceNeon,
+        subtitle: loc.commandPalette.actionAmbienceNeonSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('neon_rain');
@@ -331,8 +315,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-meteor',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Spadające gwiazdy (Meteor Shower) 🌠' : 'Anime Ambience: Meteor Shower 🌠',
-        subtitle: isPl ? 'Meteory i gwiezdne poświaty' : 'Shooting stars & nebula sky',
+        title: loc.commandPalette.actionAmbienceMeteor,
+        subtitle: loc.commandPalette.actionAmbienceMeteorSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('meteor_shower');
@@ -342,8 +326,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-matrix',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Cyber Matrix Rain 🟩' : 'Anime Ambience: Cyber Matrix Rain 🟩',
-        subtitle: isPl ? 'Cyfrowy deszcz znaków katakana' : 'Digital falling glyphs',
+        title: loc.commandPalette.actionAmbienceMatrix,
+        subtitle: loc.commandPalette.actionAmbienceMatrixSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('matrix_rain');
@@ -353,8 +337,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-momiji',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Jesienne liście klonu (Momiji) 🍁' : 'Anime Ambience: Autumn Leaves (Momiji) 🍁',
-        subtitle: isPl ? 'Czerwono-złote japońskie liście klonu na wietrze' : 'Drifting Japanese autumn foliage',
+        title: loc.commandPalette.actionAmbienceMomiji,
+        subtitle: loc.commandPalette.actionAmbienceMomijiSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('momiji');
@@ -364,8 +348,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-fireflies',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Świetliki / Stardust ✨' : 'Anime Ambience: Fireflies / Stardust ✨',
-        subtitle: isPl ? 'Złote unoszące się świetliki' : 'Floating golden orbs',
+        title: loc.commandPalette.actionAmbienceFireflies,
+        subtitle: loc.commandPalette.actionAmbienceFirefliesSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('fireflies');
@@ -375,8 +359,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-snow',
         type: 'action',
-        title: isPl ? 'Otoczenie Anime: Śnieg ❄️' : 'Anime Ambience: Snow ❄️',
-        subtitle: isPl ? 'Spokojnie opadające płatki śniegu' : 'Gentle snow falling',
+        title: loc.commandPalette.actionAmbienceSnow,
+        subtitle: loc.commandPalette.actionAmbienceSnowSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('snow');
@@ -386,8 +370,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-embers',
         type: 'action',
-        title: isPl ? 'Otoczenie: Gotyckie Płonące Iskry / Embers 🔥' : 'Ambience: Gothic Burning Embers 🔥',
-        subtitle: isPl ? 'Wznoszące się w górę płomienne iskry i żar ognia' : 'Rising gothic sparks & flame embers',
+        title: loc.commandPalette.actionAmbienceEmbers,
+        subtitle: loc.commandPalette.actionAmbienceEmbersSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('embers');
@@ -397,8 +381,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-ambience-off',
         type: 'action',
-        title: isPl ? 'Wyłącz efekty otoczenia Anime' : 'Turn off Ambience Effects',
-        subtitle: isPl ? 'Czyste tło bez animacji cząsteczkowych' : 'Disable particle overlay',
+        title: loc.commandPalette.actionAmbienceOff,
+        subtitle: loc.commandPalette.actionAmbienceOffSubtitle,
         icon: <Sparkles size={18} />,
         onExecute: () => {
           onSetAmbience('off');
@@ -409,8 +393,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-dsp-rubberband',
         type: 'action',
-        title: isPl ? 'Przełącz silnik DSP na Rubber Band' : 'Switch DSP Engine to Rubber Band',
-        subtitle: isPl ? 'Profesjonalny phase-vocoder o wysokiej wierności' : 'High-fidelity phase vocoder',
+        title: loc.commandPalette.actionDspRubberBand,
+        subtitle: loc.commandPalette.actionDspRubberBandSubtitle,
         icon: <Sliders size={18} />,
         onExecute: () => {
           onSetDspEngine('RubberBand');
@@ -420,8 +404,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-dsp-soundtouch',
         type: 'action',
-        title: isPl ? 'Przełącz silnik DSP na SoundTouch' : 'Switch DSP Engine to SoundTouch',
-        subtitle: isPl ? 'Szybki silnik WSOLA o minimalnej latencji' : 'Fast WSOLA engine',
+        title: loc.commandPalette.actionDspSoundTouch,
+        subtitle: loc.commandPalette.actionDspSoundTouchSubtitle,
         icon: <Sliders size={18} />,
         onExecute: () => {
           onSetDspEngine('SoundTouch');
@@ -431,8 +415,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-dsp-reset',
         type: 'action',
-        title: isPl ? 'Zresetuj efekty DSP (Pitch & Tempo)' : 'Reset DSP Effects (Pitch & Tempo)',
-        subtitle: isPl ? 'Przywróć 1.0x tempo i 0.0 semitonów pitchu' : 'Restore 1.0x tempo and 0 semitones',
+        title: loc.commandPalette.actionDspReset,
+        subtitle: loc.commandPalette.actionDspResetSubtitle,
         icon: <Sliders size={18} />,
         onExecute: () => {
           onResetDsp();
@@ -442,8 +426,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-scan-replaygain',
         type: 'action',
-        title: isPl ? 'Skanuj głośność biblioteki (ReplayGain EBU R128)' : 'Scan Library Loudness (ReplayGain)',
-        subtitle: isPl ? 'Oblicz znormalizowaną głośność dla wszystkich utworów' : 'Batch calculate track gain',
+        title: loc.commandPalette.actionScanReplaygain,
+        subtitle: loc.commandPalette.actionScanReplaygainSubtitle,
         icon: <Activity size={18} />,
         onExecute: () => {
           onOpenReplayGainScanner();
@@ -454,8 +438,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-nav-player',
         type: 'action',
-        title: isPl ? 'Przejdź do: Odtwarzacz (Now Playing)' : 'Navigate to: Now Playing',
-        subtitle: isPl ? 'Główny ekran odtwarzacza' : 'Main playback screen',
+        title: loc.commandPalette.actionNavPlayer,
+        subtitle: loc.commandPalette.actionNavPlayerSubtitle,
         icon: <Music size={18} />,
         badge: '1',
         onExecute: () => {
@@ -466,8 +450,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-nav-library',
         type: 'action',
-        title: isPl ? 'Przejdź do: Biblioteka' : 'Navigate to: Library',
-        subtitle: isPl ? 'Kolekcja utworów, albumów i artystów' : 'Music library',
+        title: loc.commandPalette.actionNavLibrary,
+        subtitle: loc.commandPalette.actionNavLibrarySubtitle,
         icon: <Layers size={18} />,
         badge: '2',
         onExecute: () => {
@@ -478,8 +462,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'action-nav-dsp',
         type: 'action',
-        title: isPl ? 'Przejdź do: Zaawansowany panel DSP' : 'Navigate to: DSP Effects Studio',
-        subtitle: isPl ? 'Equalizer, pitch, tempo i eksport' : 'EQ, pitch, tempo & transcode',
+        title: loc.commandPalette.actionNavDsp,
+        subtitle: loc.commandPalette.actionNavDspSubtitle,
         icon: <Sliders size={18} />,
         badge: '3',
         onExecute: () => {
@@ -488,7 +472,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         },
       },
     ];
-  }, [isPlaying, currentLang]);
+  }, [isPlaying, loc, stopAfterCurrent, onTogglePlay, onClose, onNext, onPrevious, onToggleShuffle, onShuffleAll, onOpenHealthCheck, onToggleStopAfterCurrent, onOpenUrlImportModal, onOpenBigScreen, onOpenSoundscape, onOpenHarmonicSuggester, onOpenAutoEq, onOpenParametricEq, onOpenDynamicsStudio, onSetAmbience, onSetDspEngine, onResetDsp, onOpenReplayGainScanner, onSelectTab]);
 
   // Filtrowane wyniki
   const filteredItems: CommandItem[] = useMemo(() => {
@@ -630,11 +614,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              currentLang === 'pl'
-                ? 'Szukaj utworu, wykonawcy, albumu lub komendy...'
-                : 'Search tracks, artists, albums, or commands...'
-            }
+            placeholder={loc.commandPalette.placeholder}
             style={{
               width: '100%',
               background: 'transparent',
@@ -675,7 +655,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         >
           {filteredItems.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '36px 0', color: '#64748b', fontSize: '0.9rem' }}>
-              {currentLang === 'pl' ? 'Brak wyników dla zapytania' : 'No results found'}
+              {loc.commandPalette.noResults}
             </div>
           ) : (
             filteredItems.map((item, idx) => {

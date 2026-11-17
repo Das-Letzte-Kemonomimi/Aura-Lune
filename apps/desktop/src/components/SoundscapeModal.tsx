@@ -12,7 +12,7 @@ import {
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 import {
   soundscapeEngine,
   SOUNDSCAPE_PRESETS,
@@ -31,6 +31,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   onClose,
   currentLang = 'pl',
 }) => {
+  const loc = getTranslations(currentLang);
   const [volumes, setVolumes] = useState<SoundscapeVolumes>(() => soundscapeEngine.getVolumes());
   const [isMuted, setIsMuted] = useState<boolean>(() => soundscapeEngine.getIsMuted());
   const [autoSync, setAutoSync] = useState<boolean>(() => soundscapeEngine.isAutoSyncEnabled());
@@ -57,8 +58,6 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const isPl = currentLang === 'pl';
 
   const handleMasterChange = (val: number) => {
     soundscapeEngine.setMasterVolume(val);
@@ -106,40 +105,40 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   }> = [
     {
       key: 'rain',
-      label: isPl ? 'Cichy Deszcz' : 'Gentle Rain',
-      sublabel: isPl ? 'Krople wody i szum deszczu' : 'Droplets & atmospheric rain',
+      label: loc.soundscape.channelRain,
+      sublabel: loc.soundscape.channelRainDesc,
       icon: <CloudRain size={18} />,
       color: '#38bdf8',
       bgAccent: 'rgba(56, 189, 248, 0.15)',
     },
     {
       key: 'vinyl',
-      label: isPl ? 'Winyl & Kurz Igły' : 'Vinyl & Dust Crackle',
-      sublabel: isPl ? 'Trzask płyty gramofonowej' : 'Analog needle crackle & warmth',
+      label: loc.soundscape.channelVinyl,
+      sublabel: loc.soundscape.channelVinylDesc,
       icon: <Disc size={18} />,
       color: '#f59e0b',
       bgAccent: 'rgba(245, 158, 11, 0.15)',
     },
     {
       key: 'campfire',
-      label: isPl ? 'Ognisko & Iskry' : 'Campfire & Embers',
-      sublabel: isPl ? 'Trzaskające drewno i ciepły bas' : 'Crackling wood and warm bass',
+      label: loc.soundscape.channelCampfire,
+      sublabel: loc.soundscape.channelCampfireDesc,
       icon: <Flame size={18} />,
       color: '#f43f5e',
       bgAccent: 'rgba(244, 63, 94, 0.15)',
     },
     {
       key: 'wind_chimes',
-      label: isPl ? 'Wiatr & Dzwonki Wietrzne' : 'Wind & Japanese Chimes',
-      sublabel: isPl ? 'Japońskie dzwonki Furin w skali Insen' : 'Furin chimes in Japanese pentatonic scale',
+      label: loc.soundscape.channelWind,
+      sublabel: loc.soundscape.channelWindDesc,
       icon: <Wind size={18} />,
       color: '#ec4899',
       bgAccent: 'rgba(236, 72, 153, 0.15)',
     },
     {
       key: 'cafe_brown',
-      label: isPl ? 'Kawiarnia / Szum Brązowy' : 'Warm Cafe / Brown Noise',
-      sublabel: isPl ? 'Głęboki, kojący szum do nauki' : 'Deep brown noise for focus & relaxation',
+      label: loc.soundscape.channelCafe,
+      sublabel: loc.soundscape.channelCafeDesc,
       icon: <Coffee size={18} />,
       color: '#a855f7',
       bgAccent: 'rgba(168, 85, 247, 0.15)',
@@ -205,7 +204,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
-          title={isPl ? 'Zamknij (Esc)' : 'Close (Esc)'}
+          title={loc.common.close}
         >
           <X size={18} />
         </button>
@@ -229,12 +228,10 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              {isPl ? 'Generator Dźwięków Tła' : 'Lofi Soundscape Mixer'}
+              {loc.soundscape.title}
             </h2>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #a1a1aa)', marginTop: '2px' }}>
-              {isPl
-                ? 'Relaksujące, proceduralne tło audio miksowane z muzyką'
-                : 'Procedural ambient audio layers seamlessly blended with your music'}
+              {loc.soundscape.subtitle}
             </div>
           </div>
         </div>
@@ -267,20 +264,20 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
                   color: isMuted ? '#f87171' : '#c084fc',
                   cursor: 'pointer',
                 }}
-                title={isMuted ? (isPl ? 'Włącz dźwięk' : 'Unmute') : (isPl ? 'Wycisz' : 'Mute')}
+                title={isMuted ? loc.soundscape.unmute : loc.soundscape.mute}
               >
                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
               <div>
                 <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
-                  {isPl ? 'Głośność główna (Master)' : 'Master Soundscape Volume'}
+                  {loc.soundscape.masterVolume}
                 </span>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
                   {isMuted
-                    ? (isPl ? 'Wyciszono' : 'Muted')
+                    ? loc.soundscape.muted
                     : isAnyActive
-                    ? (isPl ? 'Aktywny szum tła' : 'Soundscape active')
-                    : (isPl ? 'Wszystkie kanały wyciszone' : 'All channels silent')}
+                    ? loc.soundscape.active
+                    : loc.soundscape.allSilent}
                 </div>
               </div>
             </div>
@@ -303,10 +300,10 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
                   gap: '4px',
                   cursor: 'pointer',
                 }}
-                title={isPl ? 'Wyzeruj wszystkie suwaki' : 'Reset all sliders to zero'}
+                title={loc.soundscape.resetZero}
               >
                 <RotateCcw size={12} />
-                <span>{isPl ? 'Zeruj' : 'Reset'}</span>
+                <span>{loc.soundscape.resetZero}</span>
               </button>
             </div>
           </div>
@@ -330,7 +327,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         {/* Gotowe presety */}
         <div>
           <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
-            {isPl ? 'Szybkie presety nastroju:' : 'Quick Mood Presets:'}
+            {loc.soundscape.quickPresets}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {SOUNDSCAPE_PRESETS.map((preset) => (
@@ -361,7 +358,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
                 }}
               >
                 <span>{preset.icon}</span>
-                <span>{isPl ? preset.name.pl : preset.name.en}</span>
+                <span>{preset.name.en}</span>
               </button>
             ))}
           </div>
@@ -370,7 +367,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         {/* Lista kanałów ambientowych */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8' }}>
-            {isPl ? 'Pojedyncze kanały otoczenia:' : 'Individual Ambient Layers:'}
+            {loc.soundscape.individualLayers}
           </div>
 
           {channels.map((chan) => {
@@ -441,7 +438,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
                         cursor: 'pointer',
                       }}
                     >
-                      {vol > 0 ? (isPl ? 'Wycisz' : 'Off') : (isPl ? 'Włącz' : 'On')}
+                      {vol > 0 ? loc.soundscape.mute : loc.soundscape.unmute}
                     </button>
                   </div>
                 </div>
@@ -484,14 +481,10 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
             <Sparkles size={16} color="#f472b6" />
             <div>
               <div style={{ fontSize: '0.84rem', fontWeight: 600 }}>
-                {isPl
-                  ? 'Auto-synchronizacja z efektami cząsteczkowymi (Ambience FX)'
-                  : 'Auto-sync with visual particle effects (Ambience FX)'}
+                {loc.soundscape.autoSyncTitle}
               </div>
               <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                {isPl
-                  ? 'Wybór Sakury włącza dzwonki, Neon Rain włącza deszcz, a Iskry ognisko'
-                  : 'Sakura triggers wind chimes, Neon Rain triggers rain, Embers triggers campfire'}
+                {loc.soundscape.autoSyncDesc}
               </div>
             </div>
           </div>

@@ -11,7 +11,7 @@ import {
   Play,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface DownloadJobDto {
   id: string;
@@ -43,7 +43,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   onPlayPath,
   currentLang = 'pl',
 }) => {
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
   const [remoteUrl, setRemoteUrl] = useState('');
   const [destinationFolder, setDestinationFolder] = useState('');
   const [filename, setFilename] = useState('');
@@ -114,7 +114,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         setDestinationFolder(selected);
       }
     } catch (err) {
-      setErrorMessage(isPl ? `Błąd wyboru folderu: ${String(err)}` : `Folder selection error: ${String(err)}`);
+      setErrorMessage(loc.downloadHub.errorSelectFolder.replace('{0}', String(err)));
     }
   };
 
@@ -125,11 +125,11 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
 
     const trimmedUrl = remoteUrl.trim();
     if (!trimmedUrl) {
-      setErrorMessage(isPl ? 'Wprowadź prawidłowy adres URL audio.' : 'Please enter a valid audio URL.');
+      setErrorMessage(loc.downloadHub.errorInvalidUrl);
       return;
     }
     if (!destinationFolder.trim()) {
-      setErrorMessage(isPl ? 'Wskaż katalog docelowy zapisu.' : 'Please specify a destination folder.');
+      setErrorMessage(loc.downloadHub.errorSpecifyDest);
       return;
     }
 
@@ -146,13 +146,13 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         expectedSha256: expectedSha.trim() || null,
       });
 
-      setSuccessMessage(isPl ? 'Zadanie pobierania dodane do kolejki!' : 'Download job added to queue!');
+      setSuccessMessage(loc.downloadHub.jobAdded);
       setRemoteUrl('');
       setFilename('');
       setExpectedSha('');
       await fetchJobs();
     } catch (err) {
-      setErrorMessage(isPl ? `Błąd uruchamiania pobierania: ${String(err)}` : `Failed to start download: ${String(err)}`);
+      setErrorMessage(loc.downloadHub.errorStartDownload.replace('{0}', String(err)));
     } finally {
       setIsSubmitting(false);
     }
@@ -236,12 +236,10 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-                Legal Download Hub
+                {loc.downloadHub.title}
               </h2>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
-                {isPl
-                  ? 'Bezpieczne pobieranie ze zweryfikowanych źródeł (Archive.org, Podcasty, Creative Commons, URL)'
-                  : 'Secure downloads from verified sources (Archive.org, Podcasts, Creative Commons, URL)'}
+                {loc.downloadHub.subtitle}
               </p>
             </div>
           </div>
@@ -282,9 +280,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
           >
             <ShieldCheck size={20} color="#38bdf8" style={{ flexShrink: 0 }} />
             <span>
-              {isPl
-                ? 'Auralune pobiera pliki do chronionego bufora tymczasowego (.tmp), weryfikuje sumę SHA-256 i dokonuje atomowego przeniesienia do biblioteki. Brak obchodzenia DRM.'
-                : 'Auralune downloads to an isolated temporary (.tmp) buffer, verifies SHA-256 checksums, and performs atomic move into library. No DRM circumvention.'}
+              {loc.downloadHub.securityBanner}
             </span>
           </div>
 
@@ -330,7 +326,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
           <form onSubmit={handleStartDownload} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                {isPl ? 'Bezpośredni URL pliku audio (HTTP / HTTPS)' : 'Direct audio file URL (HTTP / HTTPS)'}
+                {loc.downloadHub.directUrl}
               </label>
               <input
                 type="url"
@@ -355,14 +351,14 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                  {isPl ? 'Katalog zapisu' : 'Destination folder'}
+                  {loc.downloadHub.destinationFolder}
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
                     required
                     readOnly
-                    placeholder={isPl ? 'Wybierz katalog...' : 'Select folder...'}
+                    placeholder={loc.downloadHub.selectFolderPlaceholder}
                     value={destinationFolder}
                     style={{
                       flex: 1,
@@ -392,14 +388,14 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    <Folder size={16} /> {isPl ? 'Przeglądaj' : 'Browse'}
+                    <Folder size={16} /> {loc.downloadHub.browse}
                   </button>
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                  {isPl ? 'Nazwa pliku' : 'Filename'}
+                  {loc.downloadHub.filename}
                 </label>
                 <input
                   type="text"
@@ -424,9 +420,9 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                {isPl ? 'Oczekiwana suma SHA-256' : 'Expected SHA-256'}{' '}
+                {loc.downloadHub.expectedSha256}{' '}
                 <span style={{ color: 'var(--text-muted, #94a3b8)', fontWeight: 400 }}>
-                  {isPl ? '(opcjonalnie dla weryfikacji integralności)' : '(optional for integrity check)'}
+                  {loc.downloadHub.integrityOptional}
                 </span>
               </label>
               <input
@@ -472,7 +468,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
               }}
             >
               <Download size={18} />
-              {isSubmitting ? (isPl ? 'Rozpoczynanie...' : 'Starting...') : (isPl ? 'Rozpocznij bezpieczne pobieranie' : 'Start Secure Download')}
+              {isSubmitting ? loc.downloadHub.starting : loc.downloadHub.startDownload}
             </button>
           </form>
 
@@ -480,7 +476,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
           <div style={{ marginTop: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileAudio size={18} color="var(--accent-pink, #ff4d94)" /> {isPl ? 'Kolejka zadań pobierania' : 'Download Queue'} ({jobs.length})
+                <FileAudio size={18} color="var(--accent-pink, #ff4d94)" /> {loc.downloadHub.queueTitle} ({jobs.length})
               </h3>
               <button
                 onClick={fetchJobs}
@@ -495,7 +491,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                   gap: '4px',
                 }}
               >
-                <RefreshCw size={12} /> {isPl ? 'Odśwież listę' : 'Refresh list'}
+                <RefreshCw size={12} /> {loc.downloadHub.refreshList}
               </button>
             </div>
 
@@ -511,9 +507,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                   fontSize: '0.85rem',
                 }}
               >
-                {isPl
-                  ? 'Brak zadań w kolejce. Wprowadź legalny adres URL powyżej, aby rozpocząć pobieranie.'
-                  : 'No downloads in queue. Enter a valid URL above to start downloading.'}
+                {loc.downloadHub.emptyQueue}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -563,7 +557,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                                   : '#cbd5e1',
                             }}
                           >
-                            {job.state === 'Downloading' ? (isPl ? 'Pobieranie...' : 'Downloading...') : job.state}
+                            {job.state === 'Downloading' ? loc.downloadHub.downloading : job.state}
                           </span>
                           <span
                             style={{
@@ -596,7 +590,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                                 cursor: 'pointer',
                               }}
                             >
-                              {isPl ? 'Anuluj' : 'Cancel'}
+                              {loc.common.cancel}
                             </button>
                           )}
                           {job.state === 'Completed' && (
@@ -619,7 +613,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                                 gap: '4px',
                               }}
                             >
-                              <Play size={12} /> {isPl ? 'Odtwórz w Auralune' : 'Play in Auralune'}
+                              <Play size={12} /> {loc.downloadHub.playInAuralune}
                             </button>
                           )}
                         </div>
@@ -661,21 +655,21 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                               {formatBytes(job.downloaded_bytes)}
                               {job.total_bytes ? ` / ${formatBytes(job.total_bytes)}` : ''}
                             </span>
-                            <span>{percent !== null ? `${percent}%` : (isPl ? 'Pobieranie strumieniowe...' : 'Streaming...')}</span>
+                            <span>{percent !== null ? `${percent}%` : loc.downloadHub.streaming}</span>
                           </div>
                         </div>
                       )}
 
                       {job.error && (
                         <div style={{ fontSize: '0.75rem', color: '#f87171' }}>
-                          {isPl ? 'Błąd:' : 'Error:'} {job.error}
+                          {loc.downloadHub.error} {job.error}
                         </div>
                       )}
 
                       {job.state === 'Completed' && job.actual_sha256 && (
                         <div style={{ fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace' }}>
                           SHA-256: {job.actual_sha256.substring(0, 16)}...
-                          {job.expected_sha256 && (isPl ? ' (Zweryfikowano ✓)' : ' (Verified ✓)')}
+                          {job.expected_sha256 && loc.downloadHub.verified}
                         </div>
                       )}
                     </div>
@@ -698,7 +692,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
           }}
         >
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)' }}>
-            {isPl ? 'Zgodność ze standardem Arch Linux & AGENTS.md Etap 7' : 'Arch Linux & AGENTS.md Stage 7 Compliant'}
+            {loc.downloadHub.compliance}
           </span>
           <button
             onClick={onClose}
@@ -713,7 +707,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            {isPl ? 'Zamknij' : 'Close'}
+            {loc.common.close}
           </button>
         </div>
       </div>

@@ -32,7 +32,7 @@ import { RadioView } from './components/RadioView';
 import { soundscapeEngine } from './utils/soundscapeAudio';
 import { vinylSimulator } from './utils/vinylSimulator';
 import { useVirtualScroll } from './hooks/useVirtualScroll';
-import { type Language, getTranslations } from './i18n';
+import { type Language, type Translations, getTranslations } from './i18n';
 import { type EqualizerPreset } from './types/equalizer';
 import {
   type QueueItem,
@@ -274,23 +274,26 @@ export default function App() {
   const [eqPresets, setEqPresets] = useState<EqualizerPreset[]>([]);
   const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Płaski (Flat)');
   const [isEqPresetMenuOpen, setIsEqPresetMenuOpen] = useState<boolean>(false);
-  const getEqPresetDisplayName = (name: string, isPl: boolean) => {
+  const getEqPresetDisplayName = (name: string, locOrIsPl?: Translations | boolean) => {
+    const l = (locOrIsPl && typeof locOrIsPl === 'object' && 'dsp' in locOrIsPl)
+      ? (locOrIsPl as Translations)
+      : loc;
     switch (name) {
       case 'Flat':
       case 'Płaski (Flat)':
-        return isPl ? 'Płaski (Flat)' : 'Flat';
+        return l.dsp.presetFlat;
       case 'Bass Boost':
       case 'Mocny Bass (Bass Boost)':
-        return isPl ? 'Mocny Bass (Bass Boost)' : 'Bass Boost';
+        return l.dsp.presetBassBoost;
       case 'Electronic / Dance':
       case 'Elektroniczna / Dance':
-        return isPl ? 'Elektroniczna / Dance' : 'Electronic / Dance';
+        return l.dsp.presetElectronic;
       case 'Classical / Acoustic':
       case 'Klasyczna / Akustyczna':
-        return isPl ? 'Klasyczna / Akustyczna' : 'Classical / Acoustic';
+        return l.dsp.presetAcoustic;
       case 'Custom':
       case 'Własny (Custom)':
-        return isPl ? 'Własny (Custom)' : 'Custom';
+        return l.dsp.presetCustom;
       default:
         return name;
     }
@@ -435,10 +438,8 @@ export default function App() {
       } catch (_) { }
       showMessage(
         enabled
-          ? (language === 'pl'
-              ? `Włączono Crossfeed: ${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`
-              : `Crossfeed active: ${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`)
-          : (language === 'pl' ? 'Wyłączono Crossfeed (Bypass)' : 'Crossfeed disabled (Bypass)')
+          ? t.notifications.crossfeedOn.replace('{0}', `${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`)
+          : t.notifications.crossfeedOff
       );
     } catch (e: any) {
       console.error('Błąd aktualizacji Crossfeed:', e);
@@ -631,12 +632,8 @@ export default function App() {
     } catch (_) { }
     showMessage(
       next
-        ? (language === 'pl'
-          ? 'Infinity Queue (Auto-DJ): WŁĄCZONE — harmoniczne utwory będą dokładać się bez końca!'
-          : 'Infinity Queue (Auto-DJ): ACTIVE — harmonic Camelot matches will be queued continuously!')
-        : (language === 'pl'
-          ? 'Infinity Queue (Auto-DJ): Wyłączone'
-          : 'Infinity Queue (Auto-DJ): Disabled')
+        ? t.notifications.infinityQueueActive
+        : t.notifications.infinityQueueDisabled
     );
   };
   const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'stem-projects' | 'radio' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
@@ -685,13 +682,13 @@ export default function App() {
     setUiScale(scale);
     const label =
       scale >= 1.28
-        ? (language === 'pl' ? '130% (Maksymalny / Szeroki)' : '130% (Ultra Wide)')
+        ? t.notifications.scale130
         : scale >= 1.18
-          ? (language === 'pl' ? '120% (Duży)' : '120% (Large)')
+          ? t.notifications.scale120
           : scale >= 1.08
-            ? (language === 'pl' ? '110% (Komfortowy / Powiększony)' : '110% (Comfortable)')
-            : (language === 'pl' ? '100% (Standardowy)' : '100% (Standard)');
-    showMessage(language === 'pl' ? `Skala interfejsu: ${label}` : `UI Scale: ${label}`);
+            ? t.notifications.scale110
+            : t.notifications.scale100;
+    showMessage(t.notifications.scaleLabel.replace('{0}', label));
   };
 
   const handleIncreaseScale = () => {
@@ -703,11 +700,11 @@ export default function App() {
       else next = 1.0;
       const label =
         next >= 1.28
-          ? (language === 'pl' ? '130% (Maksymalny / Szeroki)' : '130% (Ultra Wide)')
+          ? t.notifications.scale130
           : next >= 1.18
-            ? (language === 'pl' ? '120% (Duży)' : '120% (Large)')
-            : (language === 'pl' ? '110% (Komfortowy / Powiększony)' : '110% (Comfortable)');
-      showMessage(language === 'pl' ? `Skala interfejsu: ${label}` : `UI Scale: ${label}`);
+            ? t.notifications.scale120
+            : t.notifications.scale110;
+      showMessage(t.notifications.scaleLabel.replace('{0}', label));
       return next;
     });
   };
@@ -720,11 +717,11 @@ export default function App() {
       else next = 1.0;
       const label =
         next >= 1.18
-          ? (language === 'pl' ? '120% (Duży)' : '120% (Large)')
+          ? t.notifications.scale120
           : next >= 1.08
-            ? (language === 'pl' ? '110% (Komfortowy / Powiększony)' : '110% (Comfortable)')
-            : (language === 'pl' ? '100% (Standardowy)' : '100% (Standard)');
-      showMessage(language === 'pl' ? `Skala interfejsu: ${label}` : `UI Scale: ${label}`);
+            ? t.notifications.scale110
+            : t.notifications.scale100;
+      showMessage(t.notifications.scaleLabel.replace('{0}', label));
       return next;
     });
   };
@@ -860,9 +857,7 @@ export default function App() {
       localStorage.setItem('auralune_volume_unit', unit);
     } catch { }
     showMessage(
-      language === 'pl'
-        ? `Zmieniono format wyświetlania głośności: ${unit === 'db' ? 'Decybele (dB)' : 'Procenty (%)'}`
-        : `Volume display format set to: ${unit === 'db' ? 'Decibels (dB)' : 'Percentage (%)'}`
+      t.notifications.volumeUnitChanged.replace('{0}', unit === 'db' ? t.notifications.volumeUnitDb : t.notifications.volumeUnitPercent)
     );
   };
 
@@ -893,12 +888,8 @@ export default function App() {
       });
       showMessage(
         next
-          ? (language === 'pl'
-            ? 'Włączono zapamiętywanie sesji odtwarzania przy ponownym uruchomieniu'
-            : 'Enabled restoring playback session on startup')
-          : (language === 'pl'
-            ? 'Wyłączono zapamiętywanie sesji odtwarzania przy ponownym uruchomieniu'
-            : 'Disabled restoring playback session on startup')
+          ? t.notifications.restoreSessionMsgOn
+          : t.notifications.restoreSessionMsgOff
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -1160,7 +1151,7 @@ export default function App() {
                     : next === 'momiji'
                       ? t.notifications.ambienceMomiji
                       : next === 'embers'
-                        ? (language === 'pl' ? 'Otoczenie: Gotyckie Płonące Iskry 🔥' : 'Ambience: Gothic Burning Embers 🔥')
+                        ? t.notifications.ambienceGothicEmbers
                         : t.notifications.ambienceOff
       );
       try {
@@ -2135,7 +2126,7 @@ export default function App() {
                   listenedAt: Math.floor(Date.now() / 1000),
                 })
                   .then(() => {
-                    showMessage(language === 'pl' ? `Scrobble wysłany do ListenBrainz: ${currentTrackObj.title}` : `Scrobbled to ListenBrainz: ${currentTrackObj.title}`);
+                    showMessage(t.notifications.scrobbledListenbrainz.replace('{0}', currentTrackObj.title));
                   })
                   .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
               }
@@ -2168,7 +2159,7 @@ export default function App() {
                   },
                 })
                   .then(() => {
-                    showMessage(language === 'pl' ? `Scrobble wysłany do Last.fm: ${currentTrackObj.title}` : `Scrobbled to Last.fm: ${currentTrackObj.title}`);
+                    showMessage(t.notifications.scrobbledLastfm.replace('{0}', currentTrackObj.title));
                   })
                   .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
               }
@@ -3198,9 +3189,9 @@ export default function App() {
         .then(async () => {
           await refreshQueue();
           showMessage(
-            language === 'pl'
-              ? `Infinity Queue (Auto-DJ): Dobrano „${bestTrack.title}” • ${bestBadge}`
-              : `Infinity Queue (Auto-DJ): Queued "${bestTrack.title}" • ${bestBadge}`
+            t.notifications.infinityQueuePicked
+              .replace('{0}', bestTrack.title)
+              .replace('{1}', bestBadge)
           );
         })
         .catch((err) => {
@@ -3833,7 +3824,7 @@ export default function App() {
     try {
       await invoke('delete_bookmark', { trackId: activeTrackId });
       setCurrentBookmark(null);
-      showMessage(loc.player.bookmarkDeleted || (language === 'pl' ? 'Usunięto zakładkę dla tego utworu' : 'Removed bookmark for this track'));
+      showMessage(loc.player.bookmarkDeleted);
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
@@ -3842,7 +3833,7 @@ export default function App() {
   // Skok do zapisanej zakładki
   const handleJumpToBookmark = async (pos: number) => {
     await handleSeek(pos);
-    showMessage((loc.player.bookmarkJump || (language === 'pl' ? 'Skocz do zakładki ({0})' : 'Jump to bookmark ({0})')).replace('{0}', formatTime(pos)));
+    showMessage(loc.player.bookmarkJump.replace('{0}', formatTime(pos)));
   };
 
   // Sterowanie odtwarzaczem
@@ -3924,7 +3915,7 @@ export default function App() {
           equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
           equalizer_enabled: false,
         }));
-        showMessage(language === 'pl' ? 'Wyłączono profil DSP (Bypass)' : 'Deactivated DSP vibe profile (Bypass)');
+        showMessage(t.notifications.dspVibeBypass);
         return;
       }
 
@@ -3941,33 +3932,25 @@ export default function App() {
         targetPitch = 0.0;
         targetRate = 1.25;
         bands = [0, 0, 0, 0, 1.0, 1.5, 2.5, 3.0, 2.5, 2.0];
-        msg = language === 'pl'
-          ? 'Aktywowano klimat Nightcore: +25% szybkości odtwarzania (Playback Speed)!'
-          : 'Activated Nightcore vibe: +25% playback speed!';
+        msg = t.notifications.dspVibeNightcore;
       } else if (vibe === 'slowed') {
         targetTempo = 0.85;
         targetPitch = -2.0;
         targetRate = 1.0;
         bands = [4.5, 4.0, 3.0, 1.0, 0, 0, -1.0, -1.5, -2.5, -3.0];
-        msg = language === 'pl'
-          ? 'Aktywowano klimat Slowed & Lo-Fi: -15% tempo, -2.0st pitch!'
-          : 'Activated Slowed & Lo-Fi vibe: -15% tempo, -2.0st pitch!';
+        msg = t.notifications.dspVibeSlowed;
       } else if (vibe === 'vocal') {
         targetTempo = 1.0;
         targetPitch = 0.0;
         targetRate = 1.0;
         bands = [-2.0, -1.5, -1.0, 0, 1.5, 3.5, 4.0, 3.0, 1.5, 0.5];
-        msg = language === 'pl'
-          ? 'Aktywowano Anime Vocal Boost: uwypuklone pasmo wokalne!'
-          : 'Activated Anime Vocal Boost: enhanced vocal frequencies!';
+        msg = t.notifications.dspVibeVocal;
       } else if (vibe === 'bass') {
         targetTempo = 1.0;
         targetPitch = 0.0;
         targetRate = 1.0;
         bands = [6.0, 5.5, 3.5, 1.0, 0, 0, 0, 0.5, 1.0, 1.0];
-        msg = language === 'pl'
-          ? 'Aktywowano Bass Impact: podbicie sub-basu +6dB!'
-          : 'Activated Bass Impact: +6dB sub-bass boost!';
+        msg = t.notifications.dspVibeBass;
       } else if (vibe === 'flat') {
         targetTempo = 1.0;
         targetPitch = 0.0;
@@ -4216,13 +4199,9 @@ export default function App() {
       const newVal = await invoke<boolean>('toggle_stop_after_current');
       setStatus((prev) => ({ ...prev, stop_after_current: newVal }));
       if (newVal) {
-        showMessage(language === 'pl'
-          ? 'Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)'
-          : 'Stop After Current Track: ON (foobar2000)');
+        showMessage(t.notifications.stopAfterCurrentOn);
       } else {
-        showMessage(language === 'pl'
-          ? 'Zatrzymaj po bieżącym utworze: WYŁĄCZONE'
-          : 'Stop After Current Track: OFF');
+        showMessage(t.notifications.stopAfterCurrentOff);
       }
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4431,8 +4410,8 @@ export default function App() {
       await invoke('set_app_setting', { key: 'close_to_tray', value: String(enabled) });
       showMessage(
         enabled
-          ? (language === 'pl' ? 'Włączono minimalizowanie do zasobnika systemowego' : 'Minimize to system tray enabled')
-          : (language === 'pl' ? 'Wyłączono minimalizowanie do zasobnika systemowego' : 'Minimize to system tray disabled')
+          ? t.notifications.minimizeTrayOn
+          : t.notifications.minimizeTrayOff
       );
     } catch (e: any) {
       console.warn('Błąd zapisu close_to_tray:', e);
@@ -4445,8 +4424,8 @@ export default function App() {
       await invoke('set_discord_rpc_enabled', { enabled });
       showMessage(
         enabled
-          ? (language === 'pl' ? 'Włączono integrację Discord Rich Presence (RPC)' : 'Discord Rich Presence (RPC) enabled')
-          : (language === 'pl' ? 'Wyłączono integrację Discord Rich Presence (RPC)' : 'Discord Rich Presence (RPC) disabled')
+          ? t.notifications.discordRpcOn
+          : t.notifications.discordRpcOff
       );
       const st = await invoke<{ enabled: boolean; connected: boolean; client_id: string }>('get_discord_rpc_status');
       if (st) {
@@ -4559,8 +4538,8 @@ export default function App() {
       await invoke('set_app_setting', { key: 'listenbrainz_enabled', value: enabled ? 'true' : 'false' });
       showMessage(
         enabled
-          ? (language === 'pl' ? 'ListenBrainz Scrobbler włączony' : 'ListenBrainz Scrobbler enabled')
-          : (language === 'pl' ? 'ListenBrainz Scrobbler wyłączony' : 'ListenBrainz Scrobbler disabled')
+          ? t.notifications.listenbrainzOn
+          : t.notifications.listenbrainzOff
       );
     } catch (e) {
       console.warn('Błąd zapisu listenbrainz_enabled:', e);
@@ -4608,7 +4587,7 @@ export default function App() {
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${session.username}`);
       await invoke('set_app_setting', { key: 'lastfm_session_key', value: session.session_key });
       await invoke('set_app_setting', { key: 'lastfm_username', value: session.username });
-      showMessage(language === 'pl' ? `Last.fm: Zalogowano pomyślnie jako @${session.username}` : `Last.fm: Successfully logged in as @${session.username}`);
+      showMessage(t.notifications.lastfmLoginSuccess.replace('{0}', session.username));
     } catch (err: any) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
     } finally {
@@ -4623,7 +4602,7 @@ export default function App() {
     setLastfmStatusMsg(null);
     await invoke('set_app_setting', { key: 'lastfm_session_key', value: '' });
     await invoke('set_app_setting', { key: 'lastfm_username', value: '' });
-    showMessage(language === 'pl' ? 'Odłączono konto Last.fm' : 'Disconnected Last.fm account');
+    showMessage(t.notifications.lastfmDisconnected);
   };
 
   const handleManualLastfmSessionKeyChange = async (key: string) => {
@@ -4643,7 +4622,7 @@ export default function App() {
       setLastfmUsername(user);
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${user}`);
       await invoke('set_app_setting', { key: 'lastfm_username', value: user });
-      showMessage(language === 'pl' ? `Last.fm: Połączono jako @${user}` : `Last.fm: Connected as @${user}`);
+      showMessage(t.notifications.lastfmConnected.replace('{0}', user));
     } catch (err: any) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
     } finally {
@@ -4657,8 +4636,8 @@ export default function App() {
       await invoke('set_app_setting', { key: 'lastfm_enabled', value: enabled ? 'true' : 'false' });
       showMessage(
         enabled
-          ? (language === 'pl' ? 'Last.fm Scrobbler włączony' : 'Last.fm Scrobbler enabled')
-          : (language === 'pl' ? 'Last.fm Scrobbler wyłączony' : 'Last.fm Scrobbler disabled')
+          ? t.notifications.lastfmOn
+          : t.notifications.lastfmOff
       );
     } catch (e) {
       console.warn('Błąd zapisu lastfm_enabled:', e);
@@ -4708,10 +4687,8 @@ export default function App() {
       }
       showMessage(
         clamped > 0
-          ? (language === 'pl'
-              ? `Włączono Bass Boost: +${clamped.toFixed(1)} dB`
-              : `Bass Boost active: +${clamped.toFixed(1)} dB`)
-          : (language === 'pl' ? 'Wyłączono Bass Boost (Bypass)' : 'Bass Boost disabled (Bypass)')
+          ? t.notifications.bassBoostOn.replace('{0}', clamped.toFixed(1))
+          : t.notifications.bassBoostOff
       );
     } catch (e) {
       console.warn('Błąd ustawiania Bass Boost:', e);
@@ -4725,10 +4702,8 @@ export default function App() {
       await invoke('set_app_setting', { key: 'stereo_widener_active', value: active ? 'true' : 'false' });
       showMessage(
         active
-          ? (language === 'pl'
-              ? `Włączono Stereo Widener (${Math.round(stereoWidenerAmount * 100)}%)`
-              : `Stereo Widener active (${Math.round(stereoWidenerAmount * 100)}%)`)
-          : (language === 'pl' ? 'Wyłączono Stereo Widener (Bypass)' : 'Stereo Widener disabled (Bypass)')
+          ? t.notifications.stereoWidenerOn.replace('{0}', Math.round(stereoWidenerAmount * 100).toString())
+          : t.notifications.stereoWidenerOff
       );
     } catch (e) {
       console.warn('Błąd przełączania stereo widenera:', e);
@@ -4755,8 +4730,8 @@ export default function App() {
       await invoke('set_app_setting', { key: 'limiter_enabled', value: enabled ? 'true' : 'false' });
       showMessage(
         enabled
-          ? (language === 'pl' ? 'True-Peak Limiter włączony' : 'True-Peak Limiter enabled')
-          : (language === 'pl' ? 'True-Peak Limiter wyłączony' : 'True-Peak Limiter disabled')
+          ? t.notifications.limiterOn
+          : t.notifications.limiterOff
       );
     } catch (e) {
       console.warn('Błąd przełączania limitera:', e);
@@ -4826,9 +4801,7 @@ export default function App() {
         value: eng,
       });
       showMessage(
-        language === 'pl'
-          ? `Zapisano domyślny silnik startowy DSP: ${eng === 'Bypass' ? 'Direct Bypass' : eng}`
-          : `Saved default DSP startup engine: ${eng === 'Bypass' ? 'Direct Bypass' : eng}`
+        t.notifications.dspStartupEngineSaved.replace('{0}', eng === 'Bypass' ? 'Direct Bypass' : eng)
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4841,9 +4814,7 @@ export default function App() {
     try {
       await invoke('set_audio_buffer_duration_ms', { bufferMs: clamped });
       showMessage(
-        language === 'pl'
-          ? `Ustawiono bufor audio: ${clamped} ms ${clamped === 600 ? '(domyślny)' : ''}`
-          : `Audio buffer set to: ${clamped} ms ${clamped === 600 ? '(default)' : ''}`
+        t.notifications.audioBufferSet.replace('{0}', String(clamped)).replace('{1}', clamped === 600 ? ' (default)' : '')
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -4856,9 +4827,7 @@ export default function App() {
     try {
       await invoke('set_dsp_block_size', { blockSize: clamped });
       showMessage(
-        language === 'pl'
-          ? `Ustawiono bufor bloku DSP: ${clamped} ramek ${clamped === 2048 ? '(domyślny)' : ''}`
-          : `DSP block buffer size set to: ${clamped} frames ${clamped === 2048 ? '(default)' : ''}`
+        t.notifications.dspBlockSizeSet.replace('{0}', String(clamped)).replace('{1}', clamped === 2048 ? ' (default)' : '')
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -5007,7 +4976,7 @@ export default function App() {
         await invoke('set_equalizer_enabled', { enabled: false });
         setStatus((prev) => ({ ...prev, equalizer_enabled: false }));
       }
-      showMessage(language === 'pl' ? 'Przywrócono czysty strumień Bit-Perfect Direct Bypass' : 'Reset to Bit-Perfect Direct Bypass');
+      showMessage(t.notifications.resetBitPerfect);
     } catch (err: any) {
       console.error('Failed to reset bit-perfect:', err);
     }
@@ -5016,9 +4985,9 @@ export default function App() {
   const handleRestoreOriginalTrack = async () => {
     try {
       await invoke('restore_original_track');
-      showMessage(language === 'pl' ? 'Przywrócono oryginalny utwór' : 'Original track restored');
+      showMessage(t.notifications.restoredOriginalTrack);
     } catch (err: any) {
-      showMessage(`${language === 'pl' ? 'Błąd przywracania utworu:' : 'Error restoring track:'} ${err}`, true);
+      showMessage(t.notifications.restoreOriginalTrackError.replace('{0}', String(err)), true);
     }
   };
 
@@ -5085,7 +5054,7 @@ export default function App() {
         newBands[bandIndex] = gainDb;
         return { ...prev, equalizer_bands: newBands, equalizer_enabled: true };
       });
-      setSelectedEqPreset(language === 'pl' ? 'Własny (Custom)' : 'Custom');
+      setSelectedEqPreset(t.notifications.eqCustom);
     } catch (e: any) {
       console.error('Błąd zmiany pasma EQ:', e);
     }
@@ -5118,7 +5087,7 @@ export default function App() {
       targetName = preset.name;
     } else if (presetName === 'Flat' || presetName === 'Płaski (Flat)') {
       targetBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      targetName = language === 'pl' ? 'Płaski (Flat)' : 'Flat';
+      targetName = t.notifications.eqFlat;
     }
 
     if (!targetBands) return;
@@ -5131,9 +5100,7 @@ export default function App() {
       await invoke('set_equalizer_bands', { bands: targetBands }).catch(() => {});
       setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands], equalizer_enabled: true }));
       showMessage(
-        language === 'pl'
-          ? `Zastosowano profil korektora: ${targetName}`
-          : `Applied EQ preset: ${getEqPresetDisplayName(targetName, false)}`
+        t.notifications.eqAppliedPreset.replace('{0}', getEqPresetDisplayName(targetName, loc))
       );
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
@@ -5146,7 +5113,7 @@ export default function App() {
       await invoke('set_equalizer_params', { enabled: true, bands: flatBands });
       await invoke('set_equalizer_bands', { bands: flatBands }).catch(() => {});
       await invoke('set_equalizer_preamp', { preampDb: 0.0 }).catch(() => {});
-      setSelectedEqPreset(language === 'pl' ? 'Płaski (Flat)' : 'Flat');
+      setSelectedEqPreset(t.notifications.eqFlat);
       setIsEqPresetMenuOpen(false);
       setStatus((prev) => ({ ...prev, equalizer_bands: flatBands, equalizer_enabled: true }));
       showMessage(t.notifications.dspPresetFlat);
@@ -6298,7 +6265,7 @@ export default function App() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff' }}>
-                {language === 'pl' ? 'Eksport w tle' : 'Background Export'}
+                {t.notifications.exportBackground}
               </span>
               <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-pink)' }}>
                 {transcodeProgress && transcodeProgress.percent > 0
@@ -6322,7 +6289,7 @@ export default function App() {
               />
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {transcodeOutput ? transcodeOutput.split('/').pop() || transcodeOutput : (language === 'pl' ? 'Przetwarzanie audio...' : 'Processing audio...')}
+              {transcodeOutput ? transcodeOutput.split('/').pop() || transcodeOutput : t.notifications.exportProcessing}
             </div>
           </div>
           <button
@@ -6342,9 +6309,9 @@ export default function App() {
               cursor: 'pointer',
               flexShrink: 0,
             }}
-            title={language === 'pl' ? 'Otwórz szczegóły eksportu' : 'Open export details'}
+            title={t.notifications.exportDetailsTooltip}
           >
-            {language === 'pl' ? 'Szczegóły' : 'Details'}
+            {t.notifications.exportDetails}
           </button>
         </div>
       )}

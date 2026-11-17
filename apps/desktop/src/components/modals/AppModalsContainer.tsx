@@ -583,9 +583,9 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               await invoke('add_next_to_queue', { item: queueItem });
               await handleNext();
               showMessage(
-                language === 'pl'
-                  ? `DJ Mix Now: Płynne przejście do "${fullTrack.title}" (${(crossfadeDuration / 1000).toFixed(1)}s)`
-                  : `DJ Mix Now: Smooth transition to "${fullTrack.title}" (${(crossfadeDuration / 1000).toFixed(1)}s)`
+                loc.notifications.djMixTransition
+                  .replace('{0}', fullTrack.title)
+                  .replace('{1}', (crossfadeDuration / 1000).toFixed(1))
               );
             } else {
               handlePlayLibraryTrack(fullTrack);
@@ -822,7 +822,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           onClose={() => setTagEditorTrack(null)}
           onSaveSuccess={() => {
             loadLibrary();
-            showMessage(language === 'pl' ? 'Tagi pliku zostały zaktualizowane pomyślnie!' : 'Tags updated successfully!');
+            showMessage(loc.tagEditor.successMsg);
           }}
         />
       )}

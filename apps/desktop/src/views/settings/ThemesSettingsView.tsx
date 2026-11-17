@@ -117,12 +117,10 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={18} color="var(--accent-pink)" /> {language === 'pl' ? 'Podświetlenie kursorowe przycisków (Hover Glow)' : 'Button Hover Glow Effect'}
+            <Sparkles size={18} color="var(--accent-pink)" /> {loc.settings.buttonHoverGlowTitle}
           </h3>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            {language === 'pl'
-              ? 'Subtelny efekt rozjaśnienia i poświaty po najechaniu kursorem myszy na przyciski w aplikacji'
-              : 'Subtle glow and brightness elevation when hovering over buttons'}
+            {loc.settings.buttonHoverGlowDesc}
           </p>
         </div>
         <button
@@ -140,8 +138,8 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           }}
         >
           {buttonGlowEnabled
-            ? (language === 'pl' ? '✓ Włączone' : '✓ Enabled')
-            : (language === 'pl' ? '○ Wyłączone' : '○ Disabled')}
+            ? loc.settings.buttonHoverGlowEnabled
+            : loc.settings.buttonHoverGlowDisabled}
         </button>
       </div>
 
@@ -150,12 +148,10 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
           <div>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Maximize2 size={18} color="var(--accent-cyan)" /> {language === 'pl' ? 'Skala interfejsu i szerokość robocza' : 'UI Scale & Layout Width'}
+              <Maximize2 size={18} color="var(--accent-cyan)" /> {loc.settings.uiScaleLayoutTitle}
             </h3>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-              {language === 'pl'
-                ? 'Dopasuj rozmiar elementów i wykorzystaj pełną szerokość ekranu (skróty: Ctrl + +, Ctrl + -, Ctrl + 0)'
-                : 'Adjust element scaling and fill wide screens (Shortcuts: Ctrl + +, Ctrl + -, Ctrl + 0)'}
+              {loc.settings.uiScaleLayoutDesc}
             </p>
           </div>
           <button
@@ -173,7 +169,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               opacity: uiScale === 1.0 ? 0.5 : 1,
             }}
           >
-            {language === 'pl' ? 'Resetuj (100%)' : 'Reset (100%)'}
+            {loc.settings.uiScaleReset}
           </button>
         </div>
 
@@ -181,23 +177,23 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           {[
             {
               scale: 1.0,
-              label: language === 'pl' ? '100% Standard' : '100% Standard',
-              desc: language === 'pl' ? 'Oryginalny rozmiar (max 1500px)' : 'Original size (max 1500px)',
+              label: loc.settings.uiScale100Label,
+              desc: loc.settings.uiScale100Desc,
             },
             {
               scale: 1.10,
-              label: language === 'pl' ? '110% Komfortowy' : '110% Comfortable',
-              desc: language === 'pl' ? 'Lekko powiększony (max 1780px)' : 'Slightly enlarged (max 1780px)',
+              label: loc.settings.uiScale110Label,
+              desc: loc.settings.uiScale110Desc,
             },
             {
               scale: 1.20,
-              label: language === 'pl' ? '120% Duży' : '120% Large',
-              desc: language === 'pl' ? 'Wyraźne elementy (max 2050px)' : 'Larger elements (max 2050px)',
+              label: loc.settings.uiScale120Label,
+              desc: loc.settings.uiScale120Desc,
             },
             {
               scale: 1.30,
-              label: language === 'pl' ? '130% Maksymalny' : '130% Ultra Wide',
-              desc: language === 'pl' ? 'Duży / monitory 2K/4K (max 2350px)' : 'Max scale for 2K/4K (max 2350px)',
+              label: loc.settings.uiScale130Label,
+              desc: loc.settings.uiScale130Desc,
             },
           ].map((item) => {
             const isSelected = Math.abs(uiScale - item.scale) < 0.03;
@@ -427,7 +423,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
                   {loc.settings.dragDropWallpaper}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  PNG, JPG, WebP • {language === 'pl' ? 'Kliknij lub przeciągnij plik tutaj' : 'Click or drop file here'}
+                  PNG, JPG, WebP • {loc.settings.customBgDropText}
                 </div>
               </div>
             </div>

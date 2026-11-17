@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Wrench, Tag, User, Calendar, History } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 interface ChangelogViewProps {
   currentLang?: Language;
@@ -1879,6 +1879,7 @@ const RELEASES: ChangelogRelease[] = [
 const LATEST_RELEASE = RELEASES.find((r) => r.isLatest) || RELEASES[0];
 
 export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl' }) => {
+  const loc = getTranslations(currentLang);
   const [visibleCount, setVisibleCount] = useState(5);
 
   const getLocText = (obj: { pl: string; en: string; de: string; fi: string; la: string }) => {
@@ -2135,9 +2136,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             }}
           >
             <History size={16} color="var(--accent-purple)" />
-            {currentLang === 'pl'
-              ? `Pokaż starsze wydania (${RELEASES.length - visibleCount} pozostało)`
-              : `Load more releases (${RELEASES.length - visibleCount} remaining)`}
+            {loc.changelog.loadMore.replace('{0}', String(RELEASES.length - visibleCount))}
           </button>
         </div>
       )}

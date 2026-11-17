@@ -97,7 +97,7 @@ export interface DspStudioViewProps {
   handleApplySignatureProfile: (profileId: string) => void | Promise<void>;
   handleToggleEqAutoStartup: () => void | Promise<void>;
   handleApplyEqPreset: (presetName: string) => void | Promise<void>;
-  getEqPresetDisplayName: (name: string, isPl: boolean) => string;
+  getEqPresetDisplayName: (name: string, locOrIsPl?: any) => string;
   handleResetEq: () => void | Promise<void>;
   handleEqToggle: () => void | Promise<void>;
   handleEqBandChange: (bandIndex: number, gainDb: number) => void | Promise<void>;
@@ -110,8 +110,8 @@ export interface DspStudioViewProps {
 export const DspStudioView: React.FC<DspStudioViewProps> = ({
   uiScale,
   loc,
-  language,
-  currentLang = language,
+  language: _language,
+  currentLang: _currentLang = _language,
   status,
   activeTrackKeyBpm,
   dspAutoStartup,
@@ -402,14 +402,14 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>
-                    {language === 'pl' ? 'Bufor bloku DSP:' : 'DSP Block Buffer:'}
+                    {loc.dsp.blockBufferLabel}
                   </span>
                   <span style={{ fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
-                    {dspBlockSize} {language === 'pl' ? 'ramek' : 'frames'}
+                    {dspBlockSize} {loc.settings.dspBlockSizeFrames}
                   </span>
                   {dspBlockSize === 2048 && (
                     <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
-                      {language === 'pl' ? 'Domyślny' : 'Default'}
+                      {loc.settings.dspBlockSizeDefault}
                     </span>
                   )}
                   {[
@@ -620,7 +620,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       {dspCombination.totalKey ? (
                         <span>
-                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                          🎯 {loc.dsp.keyLabel}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
                           {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
                           {dspCombination.hasRate && (
                             <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', marginLeft: '4px' }}>
@@ -630,9 +630,9 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>
-                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st
+                          🎯 {loc.dsp.keyLabel}: {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st
                           {dspCombination.hasRate && ` (${(status.pitch_semitones ?? 0).toFixed(2)} st + rate ${(dspCombination.rateSemitones > 0 ? '+' : '') + dspCombination.rateSemitones.toFixed(2)} st)`}
-                          {language === 'pl' ? ' (brak tonacji bazowej)' : ' (no base key)'}
+                          {loc.dsp.noBaseKey}
                         </span>
                       )}
                     </div>
@@ -826,7 +826,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       {dspCombination.totalBpm ? (
                         <span>
                           ⚡ Tempo: <strong style={{ color: '#fff' }}>{dspCombination.totalBpm.toFixed(1)} BPM</strong>
-                          {activeTrackKeyBpm?.bpm ? ` (${language === 'pl' ? 'z' : 'from'} ${activeTrackKeyBpm.bpm.toFixed(1)})` : ''}
+                          {activeTrackKeyBpm?.bpm ? ` (${loc.dsp.fromBpm} ${activeTrackKeyBpm.bpm.toFixed(1)})` : ''}
                           {dspCombination.hasRate && (
                             <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', marginLeft: '4px' }}>
                               (Σ {dspCombination.totalSpeedRatio.toFixed(2)}x)
@@ -837,7 +837,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                         <span style={{ color: 'var(--text-muted)' }}>
                           ⚡ Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
                           {dspCombination.hasRate && ` (${(status.tempo_ratio ?? 1).toFixed(2)}x × rate ${(status.rate_ratio ?? 1).toFixed(2)}x)`}
-                          {language === 'pl' ? ' (brak BPM bazowego)' : ' (no base BPM)'}
+                          {loc.dsp.noBaseBpm}
                         </span>
                       )}
                     </div>
@@ -1028,12 +1028,12 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       {dspCombination.totalKey ? (
                         <span>
-                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                          🎯 {loc.dsp.keyLabel}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
                           {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>
-                          🎯 {language === 'pl' ? 'Tonacja' : 'Key'}: {(dspCombination.totalPitchSemitones > 0 ? '+' : '') + dspCombination.totalPitchSemitones.toFixed(2)} st
+                          🎯 {loc.dsp.keyLabel}: {(dspCombination.totalPitchSemitones > 0 ? '+' : '') + dspCombination.totalPitchSemitones.toFixed(2)} st
                         </span>
                       )}
                       <span>•</span>
@@ -1098,10 +1098,10 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     <Sparkles size={20} color={reverbEnabled ? 'var(--accent-purple)' : 'var(--text-muted)'} />
                     <div>
                       <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                        {currentLang === 'pl' ? 'Przestrzenny Pogłos (Reverb Freeverb)' : 'Spatial Reverb (Freeverb DSP)'}
+                        {loc.dsp.spatialReverbTitle}
                       </h4>
                       <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                        {currentLang === 'pl' ? 'Wierne symulowanie akustyki pomieszczeń i hal' : 'Studio acoustic hall and room simulation'}
+                        {loc.dsp.spatialReverbDesc}
                       </span>
                     </div>
                   </div>
@@ -1815,7 +1815,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                         title={loc.dsp.eqPresets}
                       >
                         <Sliders size={13} color="var(--accent-pink)" />
-                        <span>{getEqPresetDisplayName(selectedEqPreset, language === 'pl')}</span>
+                        <span>{getEqPresetDisplayName(selectedEqPreset, loc)}</span>
                         <ChevronDown
                           size={12}
                           style={{
@@ -1872,7 +1872,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                                   marginBottom: '4px',
                                 }}
                               >
-                                <span>{getEqPresetDisplayName(selectedEqPreset, language === 'pl')}</span>
+                                <span>{getEqPresetDisplayName(selectedEqPreset, loc)}</span>
                                 <Check size={13} color="var(--accent-pink)" />
                               </div>
                             )}
@@ -1881,7 +1881,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                             const isSelected =
                               selectedEqPreset === preset.name ||
                               getEqPresetDisplayName(selectedEqPreset, true) === getEqPresetDisplayName(preset.name, true);
-                            const displayName = getEqPresetDisplayName(preset.name, language === 'pl');
+                            const displayName = getEqPresetDisplayName(preset.name, loc);
                             return (
                               <button
                                 key={preset.name}

@@ -21,13 +21,12 @@ export interface AboutSettingsViewProps {
 
 export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
   appIconStyle,
-  language,
+  language: _language,
   loc,
   onOpenHealthCheck,
   onOpenChangelog,
   onOpenOnboarding,
 }) => {
-  const currentLang = language;
 
   const handleOpenExternalUrl = async (url: string) => {
     try {
@@ -133,7 +132,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Music size={18} color="var(--accent-purple)" />
                 <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#fff' }}>
-                  {currentLang === 'pl' ? 'Muzyka Autorki na Bandcampie' : 'Original Music on Bandcamp'}
+                  {loc.settings.aboutBandcampTitle}
                 </h4>
               </div>
               <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.25)', color: 'var(--accent-purple)', fontWeight: 700 }}>
@@ -141,9 +140,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
               </span>
             </div>
             <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
-              {currentLang === 'pl'
-                ? 'Posłuchaj autorskich kompozycji twórczyni Auralune (Das Letzte Kemonomimi), w tym utworu testowego „Skrzydła Białe”. Sprawdź wydania i wesprzyj twórczość bezpośrednio na profilu Bandcamp!'
-                : 'Listen to original releases by Auralune’s creator (Das Letzte Kemonomimi), including our sample track "Skrzydła Białe". Support music production directly on Bandcamp!'}
+              {loc.settings.aboutBandcampDesc}
             </p>
           </div>
           <button
@@ -165,7 +162,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
             }}
           >
             <ExternalLink size={14} />
-            {currentLang === 'pl' ? 'Odwiedź Bandcamp (Skrzydła Białe)' : 'Listen on Bandcamp (Skrzydła Białe)'}
+            {loc.settings.aboutBandcampBtn}
           </button>
         </div>
 
@@ -196,9 +193,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
               </span>
             </div>
             <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
-              {currentLang === 'pl'
-                ? 'Sama żyję z AuDHD i wiem, jak ciężki potrafi być paraliż zadaniowy i chaos w głowie. Stworzyłam Sorta z myślą o neuroatypowych umysłach — rozbija zadania na mikrokroki, redukuje przytłoczenie i wspiera z empatią. Wypróbuj ją i zobacz, czy Ci pomoże!'
-                : 'As someone living with AuDHD, I know how heavy executive dysfunction and task paralysis can be. I created Sorta specifically for neurodivergent minds — breaking chaos into gentle micro-steps without overwhelm. Try it out or share with someone who might benefit!'}
+              {loc.settings.aboutSortaDesc}
             </p>
           </div>
           <button
@@ -220,7 +215,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
             }}
           >
             <ExternalLink size={14} />
-            {currentLang === 'pl' ? 'Wypróbuj Sorta (Web App dla AuDHD)' : 'Try Sorta (AuDHD Web App)'}
+            {loc.settings.aboutSortaBtn}
           </button>
         </div>
       </div>
@@ -359,10 +354,10 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
       <div className="glass-card" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem' }}>
-            {currentLang === 'pl' ? 'Kreator konfiguracji początkowej' : 'Initial Setup Wizard'}
+            {loc.settings.aboutOnboardingTitle}
           </div>
           <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            {currentLang === 'pl' ? 'Pozwala ponownie przejść wprowadzenie i przewodnik po odtwarzaczu' : 'Relaunch the welcome guide and onboarding tour'}
+            {loc.settings.aboutOnboardingDesc}
           </div>
         </div>
         <button
@@ -378,7 +373,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
             cursor: 'pointer',
           }}
         >
-          {currentLang === 'pl' ? '🚀 Uruchom Onboarding' : '🚀 Relaunch Onboarding'}
+          {loc.settings.aboutOnboardingBtn}
         </button>
       </div>
     </div>

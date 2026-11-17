@@ -69,7 +69,7 @@ export interface TranscodeSettingsViewProps {
 }
 
 export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
-  language,
+  language: _language,
   loc,
   currentPlayingTrack,
   status,
@@ -120,9 +120,9 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
     onTranscodeRangeAChange(strA);
     onTranscodeRangeBChange(strB);
     onShowMessage(
-      language === 'pl'
-        ? `Zastosowano pętlę A-B: ${strA} → ${strB || 'koniec'}`
-        : `Applied A-B loop: ${strA} → ${strB || 'end'}`
+      loc.settings.transcodeAppliedLoopMsg
+        .replace('{0}', strA)
+        .replace('{1}', strB || loc.player.timerEnd)
     );
   };
 
@@ -135,9 +135,11 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
     onTranscodeRangeAChange(strA);
     onTranscodeRangeBChange(strB);
     onShowMessage(
-      language === 'pl'
-        ? `Zastosowano znaczniki utworu: ${bmA.name} (${strA}) → ${bmB.name} (${strB})`
-        : `Applied track bookmarks: ${bmA.name} (${strA}) → ${bmB.name} (${strB})`
+      loc.settings.transcodeAppliedBookmarksMsg
+        .replace('{0}', bmA.name)
+        .replace('{1}', strA)
+        .replace('{2}', bmB.name)
+        .replace('{3}', strB)
     );
   };
 
@@ -491,7 +493,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                     border: '1px solid rgba(6, 182, 212, 0.35)',
                   }}
                 >
-                  {language === 'pl' ? 'Pętla A-B:' : 'A-B Loop:'} {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
+                  {loc.settings.transcodeLoopAB} {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
                 </span>
               )}
             </span>
@@ -554,9 +556,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                     }}
                   >
                     <Bookmark size={12} />
-                    {language === 'pl'
-                      ? `Zastosuj zapisane znaczniki A-B (${currentTrackBookmarks.length})`
-                      : `Apply saved A-B bookmarks (${currentTrackBookmarks.length})`}
+                    {loc.settings.transcodeApplySavedBookmarks.replace('{0}', String(currentTrackBookmarks.length))}
                   </button>
                 )}
               </div>
@@ -620,7 +620,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onTranscodeRangeAChange(formatTimeMs(status.position_ms))}
-                      title={language === 'pl' ? 'Ustaw na bieżącą pozycję odtwarzacza' : 'Set to current player position'}
+                      title={loc.settings.transcodeSetCurrentPos}
                       style={{
                         padding: '6px 8px',
                         borderRadius: '6px',
@@ -638,7 +638,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onTranscodeRangeAChange(formatTimeMs(loopPointA))}
-                        title={language === 'pl' ? 'Pobierz punkt A z pętli odtwarzacza' : 'Get point A from player loop'}
+                        title={loc.settings.transcodeGetLoopA}
                         style={{
                           padding: '6px 8px',
                           borderRadius: '6px',
@@ -665,13 +665,13 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       {parsedB !== null
                         ? formatTimeMs(parsedB)
-                        : (language === 'pl' ? '(Koniec utworu)' : '(End of track)')}
+                        : loc.settings.transcodeEndOfTrack}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       type="text"
-                      placeholder={language === 'pl' ? 'np. 0:40.690, 1:30.000 (lub puste)' : 'e.g. 0:40.690, 1:30.000 (or empty)'}
+                      placeholder={loc.settings.transcodeTimePlaceholder}
                       value={transcodeRangeB}
                       onChange={(e) => onTranscodeRangeBChange(e.target.value)}
                       style={{
@@ -688,7 +688,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onTranscodeRangeBChange(formatTimeMs(status.position_ms))}
-                      title={language === 'pl' ? 'Ustaw na bieżącą pozycję odtwarzacza' : 'Set to current player position'}
+                      title={loc.settings.transcodeSetCurrentPos}
                       style={{
                         padding: '6px 8px',
                         borderRadius: '6px',
@@ -706,7 +706,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onTranscodeRangeBChange(formatTimeMs(loopPointB))}
-                        title={language === 'pl' ? 'Pobierz punkt B z pętli odtwarzacza' : 'Get point B from player loop'}
+                        title={loc.settings.transcodeGetLoopB}
                         style={{
                           padding: '6px 8px',
                           borderRadius: '6px',
@@ -763,7 +763,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  <span>✂️ {language === 'pl' ? `Eksport: od ${formatTimeMs(parsedA)} do końca utworu` : `Export: from ${formatTimeMs(parsedA)} to end of track`}</span>
+                  <span>✂️ {loc.settings.transcodeExportRangeText.replace('{0}', formatTimeMs(parsedA))}</span>
                 </div>
               )}
             </div>
@@ -814,7 +814,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Loader2 size={18} className="spin" color="var(--accent-pink)" />
                 <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#fff' }}>
-                  {language === 'pl' ? 'Renderowanie potoku audio w toku...' : 'Rendering audio in background...'}
+                  {loc.settings.transcodeRendering}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -845,9 +845,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
             </div>
 
             <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {language === 'pl'
-                ? 'Potok GStreamer przetwarza dźwięk asynchronicznie w tle. Aplikacja nie ulega zamrożeniu — możesz swobodnie słuchać muzyki lub zamknąć to okno.'
-                : 'GStreamer is rendering audio asynchronously in the background. The app is never blocked — feel free to listen to music or close this window.'}
+              {loc.settings.transcodeGstreamerBgDesc}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
@@ -870,7 +868,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
                 }}
               >
                 <ArrowRight size={13} />
-                {language === 'pl' ? 'Minimalizuj do tła (Zamknij okno)' : 'Run in background (Close window)'}
+                {loc.settings.transcodeRunInBackground}
               </button>
             </div>
           </div>
@@ -901,9 +899,10 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = ({
         >
           {isTranscoding && <Loader2 size={18} className="spin" />}
           {isTranscoding
-            ? (language === 'pl'
-              ? `Renderowanie w tle (${transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0}%)...`
-              : `Rendering in background (${transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0}%)...`)
+            ? loc.settings.transcodeRenderingProgress.replace(
+                '{0}',
+                String(transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0)
+              )
             : loc.settings.exportOpus}
         </button>
 

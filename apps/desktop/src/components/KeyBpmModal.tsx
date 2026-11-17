@@ -303,10 +303,10 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                {currentLang === 'pl' ? 'Klucz i Tempo (BPM)' : 'Musical Key & Tempo (BPM)'}
+                {loc.keyBpm.title}
               </h2>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {currentTrackTitle || (currentLang === 'pl' ? 'Bieżący utwór' : 'Current Track')}
+                {currentTrackTitle || loc.keyBpm.currentTrack}
               </p>
             </div>
           </div>
@@ -344,16 +344,14 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
               <>
                 <Loader2 size={16} className="spin" color="var(--accent-cyan, #06b6d4)" />
                 <span style={{ color: 'var(--accent-cyan, #06b6d4)', fontWeight: 600 }}>
-                  {currentLang === 'pl'
-                    ? 'Analizowanie akustyczne utworu w toku...'
-                    : 'Acoustic audio analysis in progress...'}
+                  {loc.keyBpm.analyzing}
                 </span>
               </>
             ) : (
               <>
                 <Sparkles size={16} color="var(--accent-pink, #f43f5e)" />
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {currentLang === 'pl' ? 'Źródło detekcji:' : 'Detection source:'}
+                  {loc.keyBpm.detectionSource}
                 </span>
                 <span
                   style={{
@@ -381,12 +379,12 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
                   }}
                 >
                   {detectionSource === 'tag'
-                    ? (currentLang === 'pl' ? 'Tagi pliku (ID3 / Vorbis)' : 'File Metadata Tags')
+                    ? loc.keyBpm.sourceMetadata
                     : detectionSource === 'acoustic'
-                    ? (currentLang === 'pl' ? 'Detekcja Akustyczna (AI / DSP)' : 'Acoustic MIR / DSP')
+                    ? loc.keyBpm.sourceAcoustic
                     : detectionSource === 'database'
-                    ? (currentLang === 'pl' ? 'Baza SQLite' : 'SQLite Database')
-                    : (currentLang === 'pl' ? 'Ręczne / Tap Tempo' : 'Manual / Tap Tempo')}
+                    ? loc.keyBpm.sourceSqlite
+                    : loc.keyBpm.sourceManual}
                 </span>
                 {detectError && (
                   <span style={{ fontSize: '0.72rem', color: 'var(--accent-pink)', marginLeft: '6px' }}>
@@ -416,7 +414,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
             }}
           >
             <Wand2 size={13} color="var(--accent-cyan)" />
-            {currentLang === 'pl' ? 'Wykryj ponownie' : 'Auto Detect'}
+            {loc.keyBpm.autoDetect}
           </button>
         </div>
 
@@ -443,7 +441,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-                {currentLang === 'pl' ? 'ORYGINAŁ (BAZA)' : 'ORIGINAL (SOURCE)'}
+                {loc.keyBpm.originalSource}
               </span>
               <span
                 style={{
@@ -460,7 +458,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
 
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                {currentLang === 'pl' ? 'Tonacja bazowa' : 'Base Musical Key'}
+                {loc.keyBpm.baseKey}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                 <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
@@ -523,7 +521,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-pink)', letterSpacing: '0.05em' }}>
-                {currentLang === 'pl' ? 'PO PRZETWORZENIU (DSP)' : 'OUTPUT (DSP MODIFIED)'}
+                {loc.keyBpm.outputDsp}
               </span>
               <span
                 style={{
@@ -541,7 +539,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
 
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                {currentLang === 'pl' ? 'Wypadkowa tonacja' : 'Transposed Musical Key'}
+                {loc.keyBpm.transposedKey}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                 <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
@@ -566,7 +564,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
 
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '10px' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                {currentLang === 'pl' ? 'Efektywne Tempo' : 'Effective BPM'}
+                {loc.keyBpm.effectiveBpm}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                 <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-pink)' }}>
@@ -592,7 +590,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              {currentLang === 'pl' ? 'Ręczny wybór tonacji bazowej:' : 'Manual Base Key Override:'}
+              {loc.keyBpm.manualOverride}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <button
@@ -676,7 +674,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', background: 'rgba(255, 255, 255, 0.02)', padding: '12px 16px', borderRadius: '14px', border: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              {currentLang === 'pl' ? 'Bazowe BPM utworu:' : 'Base Song BPM:'}
+              {loc.keyBpm.baseBpm}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
@@ -763,7 +761,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
             }}
           >
             <Activity size={14} />
-            {currentLang === 'pl' ? 'TAP TEMPO' : 'TAP TEMPO'}
+            {loc.keyBpm.tapTempo}
           </button>
         </div>
 
@@ -771,7 +769,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {currentLang === 'pl' ? 'Szybka transpozycja:' : 'Quick Shift:'}
+              {loc.keyBpm.quickShift}
             </span>
             <button
               onClick={() => onPitchChange(pitchSemitones - 1)}
@@ -847,7 +845,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
             }}
           >
             <Check size={16} />
-            {currentLang === 'pl' ? 'Zapisz i Zamknij' : 'Save & Close'}
+            {loc.keyBpm.saveAndClose}
           </button>
         </div>
       </div>

@@ -88,7 +88,7 @@ export interface AudioDevicesSettingsViewProps {
 }
 
 export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> = ({
-  language,
+  language: _language,
   loc,
   onOpenHealthCheck,
   onRefreshDevices,
@@ -218,7 +218,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
       {/* Karta Konfiguracji Głośności, OSD i Statystyk Recap */}
       <div className="glass-card" style={{ padding: '20px', marginBottom: '14px', borderRadius: '12px' }}>
         <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Volume2 size={18} color="var(--accent-cyan)" /> {language === 'pl' ? 'Regulacja Głośności, OSD i Statystyki' : 'Volume, OSD & Recap Settings'}
+          <Volume2 size={18} color="var(--accent-cyan)" /> {loc.settings.volumeSectionTitle}
         </h4>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.84rem' }}>
@@ -226,12 +226,12 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontWeight: 600, color: '#fff' }}>
-                {language === 'pl' ? 'Szybkość reakcji suwaka głośności:' : 'Volume Slider Response:'}
+                {loc.settings.volumeSliderResponse}
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                 {instantVolume
-                  ? (language === 'pl' ? 'Natychmiastowa (Direct Zero-Latency) - brak opóźnienia' : 'Instant (Zero-Latency) - immediate change')
-                  : (language === 'pl' ? 'Płynna (Smooth Fade) - łagodne przejście' : 'Smooth Fade - subtle fade ramp')}
+                  ? loc.settings.volumeSliderInstantDesc
+                  : loc.settings.volumeSliderSmoothDesc}
               </div>
             </div>
             <button
@@ -247,7 +247,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                 cursor: 'pointer',
               }}
             >
-              {instantVolume ? (language === 'pl' ? '⚡ Natychmiast' : '⚡ Instant') : (language === 'pl' ? '🌊 Płynnie (Fade)' : '🌊 Smooth Fade')}
+              {instantVolume ? loc.settings.volumeSliderInstant : loc.settings.volumeSliderSmooth}
             </button>
           </div>
 
@@ -301,10 +301,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontWeight: 600, color: '#fff' }}>
-                {language === 'pl' ? 'Pozycja wskaźnika głośności (OSD):' : 'Volume OSD Position:'}
+                {loc.settings.volumeOsdPosTitle}
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {language === 'pl' ? 'Pływające przezroczyste powiadomienie przy zmianie głośności' : 'Translucent floating HUD when volume changes'}
+                {loc.settings.volumeOsdPosDesc}
               </div>
             </div>
             <select
@@ -326,13 +326,13 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                 backgroundPosition: 'right 10px center',
               }}
             >
-              <option value="bottom-center" style={{ background: '#121420' }}>{language === 'pl' ? 'Dół (Środek)' : 'Bottom (Center)'}</option>
-              <option value="center" style={{ background: '#121420' }}>{language === 'pl' ? 'Środek ekranu' : 'Screen Center'}</option>
-              <option value="top-right" style={{ background: '#121420' }}>{language === 'pl' ? 'Góra (Prawo)' : 'Top (Right)'}</option>
-              <option value="top-left" style={{ background: '#121420' }}>{language === 'pl' ? 'Góra (Lewo)' : 'Top (Left)'}</option>
-              <option value="bottom-right" style={{ background: '#121420' }}>{language === 'pl' ? 'Dół (Prawo)' : 'Bottom (Right)'}</option>
-              <option value="bottom-left" style={{ background: '#121420' }}>{language === 'pl' ? 'Dół (Lewo)' : 'Bottom (Left)'}</option>
-              <option value="off" style={{ background: '#121420' }}>{language === 'pl' ? 'Wyłączone (Off)' : 'Disabled (Off)'}</option>
+              <option value="bottom-center" style={{ background: '#121420' }}>{loc.settings.volumeOsdBottomCenter}</option>
+              <option value="center" style={{ background: '#121420' }}>{loc.settings.volumeOsdCenter}</option>
+              <option value="top-right" style={{ background: '#121420' }}>{loc.settings.volumeOsdTopRight}</option>
+              <option value="top-left" style={{ background: '#121420' }}>{loc.settings.volumeOsdTopLeft}</option>
+              <option value="bottom-right" style={{ background: '#121420' }}>{loc.settings.volumeOsdBottomRight}</option>
+              <option value="bottom-left" style={{ background: '#121420' }}>{loc.settings.volumeOsdBottomLeft}</option>
+              <option value="off" style={{ background: '#121420' }}>{loc.settings.volumeOsdOff}</option>
             </select>
           </div>
 
@@ -340,10 +340,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontWeight: 600, color: '#fff' }}>
-                {language === 'pl' ? 'Auralune Recap (Podsumowania Tydzień / Miesiąc / Rok):' : 'Auralune Recap (Rewind & Statistics):'}
+                {loc.settings.recapTitle}
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {language === 'pl' ? 'Lokalne zliczanie czasu słuchania i rankingów w bazie SQLite' : 'Track listening hours and top artists locally in SQLite'}
+                {loc.settings.recapDesc}
               </div>
             </div>
             <button
@@ -359,7 +359,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                 cursor: 'pointer',
               }}
             >
-              {recapOptIn ? (language === 'pl' ? '✓ Włączone' : '✓ Enabled') : (language === 'pl' ? '○ Wyłączone' : '○ Disabled')}
+              {recapOptIn ? loc.settings.recapEnabled : loc.settings.recapDisabled}
             </button>
           </div>
         </div>
@@ -458,12 +458,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
       >
         <div>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
-            {language === 'pl' ? 'Domyślny silnik DSP przy uruchomieniu' : 'Default DSP Engine on Startup'}
+            {loc.settings.dspStartupTitle}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            {language === 'pl'
-              ? 'Określa który silnik jest aktywny po starcie aplikacji (domyślnie: Direct Bypass bez procesora DSP).'
-              : 'Determines which DSP engine is active upon application launch (default: Direct Bypass without DSP processing).'}
+            {loc.settings.dspStartupDesc}
           </div>
         </div>
         <select
@@ -472,11 +470,11 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           style={{ padding: '8px 30px 8px 12px' }}
         >
           <option value="Bypass">
-            {language === 'pl' ? 'Direct Bypass (Domyślny - Czysty dźwięk)' : 'Direct Bypass (Default - Pure Sound)'}
+            {loc.settings.dspEngineDirectBypass}
           </option>
           <option value="RubberBand">Rubber Band (Hi-Fi R3)</option>
           <option value="SoundTouch">
-            {language === 'pl' ? 'SoundTouch (Szybki)' : 'SoundTouch (Fast)'}
+            {loc.settings.dspEngineSoundTouch}
           </option>
         </select>
       </div>
@@ -495,17 +493,15 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Layers size={17} color="var(--accent-cyan)" />
-              {language === 'pl' ? 'Bufor wyjściowy audio (PipeWire / ALSA)' : 'Audio Output Buffer (PipeWire / ALSA)'}
+              {loc.settings.audioBufferTitle}
               {audioBufferMs === 600 && (
                 <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
-                  {language === 'pl' ? 'Domyślny' : 'Default'}
+                  {loc.settings.audioBufferDefault}
                 </span>
               )}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
-              {language === 'pl'
-                ? 'Długość bufora kolejki przed wyjściem audio. Domyślne 600 ms zapewnia całkowicie płynne odtwarzanie bez zacięć z dysków USB i gęstych plików FLAC. Niższe wartości zmniejszają opóźnienie suwaków.'
-                : 'Queue buffer length before audio sink. Default 600 ms guarantees stutter-free playback even from USB drives and high-resolution FLAC files.'}
+              {loc.settings.audioBufferDesc}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -527,9 +523,9 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                 gap: '4px',
                 color: 'var(--accent-green)',
               }}
-              title={language === 'pl' ? 'Przywróć domyślny bufor (600 ms)' : 'Reset to default buffer (600 ms)'}
+              title={loc.settings.audioBufferReset}
             >
-              <RotateCcw size={12} /> {language === 'pl' ? 'Domyślny (600 ms)' : 'Default (600 ms)'}
+              <RotateCcw size={12} /> {loc.settings.audioBufferDefaultLabel}
             </button>
           </div>
         </div>
@@ -571,10 +567,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
           {[
             { label: '80 ms (Ultra-low)', value: 80 },
-            { label: language === 'pl' ? '250 ms (Niska latencja)' : '250 ms (Low latency)', value: 250 },
-            { label: language === 'pl' ? '600 ms (Domyślny / Hi-Fi)' : '600 ms (Default / Hi-Fi)', value: 600, isDefault: true },
-            { label: language === 'pl' ? '1000 ms (Stabilny)' : '1000 ms (Stable)', value: 1000 },
-            { label: language === 'pl' ? '2000 ms (Maksymalny bufor)' : '2000 ms (Max buffer)', value: 2000 },
+            { label: loc.settings.audioBufferPreset250, value: 250 },
+            { label: loc.settings.audioBufferPreset600, value: 600, isDefault: true },
+            { label: loc.settings.audioBufferPreset1000, value: 1000 },
+            { label: loc.settings.audioBufferPreset2000, value: 2000 },
           ].map((preset) => {
             const isActive = audioBufferMs === preset.value;
             return (
@@ -620,22 +616,20 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Activity size={17} color="var(--accent-pink)" />
-              {language === 'pl' ? 'Rozmiar bloku bufora DSP (Block Size)' : 'DSP Block Buffer Size (Block Size)'}
+              {loc.settings.dspBlockSizeTitle}
               {dspBlockSize === 2048 && (
                 <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
-                  {language === 'pl' ? 'Domyślny' : 'Default'}
+                  {loc.settings.dspBlockSizeDefault}
                 </span>
               )}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
-              {language === 'pl'
-                ? 'Liczba próbek audio przetwarzana w jednym cyklu DSP (Rubber Band / SoundTouch). Mniejszy blok (512-1024) = szybsza reakcja suwaków pitch/tempo; większy blok (2048-4096) = najwyższa jakość FFT i brak zakłóceń.'
-                : 'Audio sample chunk size per DSP processing cycle (Rubber Band / SoundTouch). Smaller block (512-1024) = instant pitch/tempo responsiveness; larger block (2048-4096) = optimal FFT quality and glitch resistance.'}
+              {loc.settings.dspBlockSizeDesc}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.05rem', fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
-              {dspBlockSize} {language === 'pl' ? 'ramek' : 'frames'}
+              {dspBlockSize} {loc.settings.dspBlockSizeFrames}
             </span>
             <button
               onClick={() => onSetDspBlockSize(2048)}
@@ -652,9 +646,9 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                 gap: '4px',
                 color: 'var(--accent-green)',
               }}
-              title={language === 'pl' ? 'Przywróć domyślny rozmiar bloku (2048 ramek)' : 'Reset to default block size (2048 frames)'}
+              title={loc.settings.dspBlockSizeReset}
             >
-              <RotateCcw size={12} /> {language === 'pl' ? 'Domyślny (2048)' : 'Default (2048)'}
+              <RotateCcw size={12} /> {loc.settings.dspBlockSizeDefaultLabel}
             </button>
           </div>
         </div>
@@ -662,11 +656,11 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         {/* Szybkie presety bloku DSP */}
         <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
-            { label: language === 'pl' ? '512 ramek (~11 ms)' : '512 frames (~11 ms)', value: 512 },
-            { label: language === 'pl' ? '1024 ramek (~23 ms)' : '1024 frames (~23 ms)', value: 1024 },
-            { label: language === 'pl' ? '2048 ramek (Domyślny / ~46 ms)' : '2048 frames (Default / ~46 ms)', value: 2048, isDefault: true },
-            { label: language === 'pl' ? '4096 ramek (~92 ms)' : '4096 frames (~92 ms)', value: 4096 },
-            { label: language === 'pl' ? '8192 ramek (~185 ms)' : '8192 frames (~185 ms)', value: 8192 },
+            { label: loc.settings.dspBlockPreset512, value: 512 },
+            { label: loc.settings.dspBlockPreset1024, value: 1024 },
+            { label: loc.settings.dspBlockPreset2048, value: 2048, isDefault: true },
+            { label: loc.settings.dspBlockPreset4096, value: 4096 },
+            { label: loc.settings.dspBlockPreset8192, value: 8192 },
           ].map((preset) => {
             const isActive = dspBlockSize === preset.value;
             return (
@@ -699,7 +693,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           {/* Pole ręcznego wpisania dowolnej wielkości */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
             <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              {language === 'pl' ? 'Własny:' : 'Custom:'}
+              {loc.settings.dspBlockCustom}
             </span>
             <input
               type="number"
@@ -738,12 +732,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
       >
         <div>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
-            {language === 'pl' ? 'Powiadomienia OSD Linuksa (libnotify)' : 'Linux Desktop OSD Notifications'}
+            {loc.settings.desktopNotificationsTitle}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            {language === 'pl'
-              ? 'Wyświetlaj baner na pulpicie przy zmianie utworu w tle (z okładką i tytułem)'
-              : 'Show desktop banner on track change in background (with cover and title)'}
+            {loc.settings.desktopNotificationsDesc}
           </div>
         </div>
         <button
@@ -761,8 +753,8 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           }}
         >
           {desktopNotificationsEnabled
-            ? (language === 'pl' ? 'Włączone' : 'Enabled')
-            : (language === 'pl' ? 'Wyłączone' : 'Disabled')}
+            ? loc.settings.desktopNotificationsEnabled
+            : loc.settings.desktopNotificationsDisabled}
         </button>
       </div>
 
@@ -795,10 +787,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
             }}
           >
             {albumPlaybackMode === 'replace'
-              ? (language === 'pl' ? 'Zastąp kolejkę' : 'Replace queue')
+              ? loc.settings.albumModeReplace
               : albumPlaybackMode === 'append'
-                ? (language === 'pl' ? 'Dopisz do kolejki' : 'Append to queue')
-                : (language === 'pl' ? 'Pojedynczy utwór' : 'Single track')}
+                ? loc.settings.albumModeAppend
+                : loc.settings.albumModeSingle}
           </span>
         </div>
 
@@ -1085,7 +1077,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
               style={{ accentColor: 'var(--accent-cyan, #06b6d4)', width: '18px', height: '18px', cursor: 'pointer' }}
             />
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: crossfeedEnabled ? 'var(--accent-cyan, #06b6d4)' : 'var(--text-muted)' }}>
-              {crossfeedEnabled ? (language === 'pl' ? 'Aktywny' : 'Active') : (language === 'pl' ? 'Wyłączony' : 'Off')}
+              {crossfeedEnabled ? loc.settings.crossfeedActive : loc.settings.crossfeedOff}
             </span>
           </label>
         </div>
@@ -1196,7 +1188,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
               style={{ accentColor: 'var(--accent-emerald, #10b981)', width: '18px', height: '18px', cursor: 'pointer' }}
             />
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: silenceTrimmingEnabled ? 'var(--accent-emerald, #10b981)' : 'var(--text-muted)' }}>
-              {silenceTrimmingEnabled ? (language === 'pl' ? 'Włączone' : 'Enabled') : (language === 'pl' ? 'Wyłączone' : 'Disabled')}
+              {silenceTrimmingEnabled ? loc.settings.desktopNotificationsEnabled : loc.settings.desktopNotificationsDisabled}
             </span>
           </label>
         </div>
@@ -1224,9 +1216,9 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
             style={{ width: '100%', accentColor: 'var(--accent-emerald, #10b981)' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            <span>-80 dB ({language === 'pl' ? 'Tylko absolutna cisza' : 'Pure silence only'})</span>
-            <span>-50 dB ({language === 'pl' ? 'Zalecane' : 'Recommended'})</span>
-            <span>-25 dB ({language === 'pl' ? 'Mocne cięcie' : 'Aggressive'})</span>
+            <span>-80 dB ({loc.settings.silenceTrimmingPure})</span>
+            <span>-50 dB ({loc.settings.silenceTrimmingRecommended})</span>
+            <span>-25 dB ({loc.settings.silenceTrimmingAggressive})</span>
           </div>
         </div>
       </div>

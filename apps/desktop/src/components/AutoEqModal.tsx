@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 import {
   AUTO_EQ_PROFILES,
   AUTO_EQ_BRANDS,
@@ -45,7 +45,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
   onResetFlat,
   currentLang = 'pl',
 }) => {
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('Wszystkie');
@@ -152,12 +152,10 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                {isPl ? 'Baza profili słuchawkowych AutoEQ' : 'AutoEQ Headphone Profiles'}
+                {loc.autoEq.title}
               </h2>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)' }}>
-                {isPl
-                  ? 'Kompensacja akustyczna krzywej Harmana dla ponad 160 modeli słuchawek i IEM-ów'
-                  : 'Harman target acoustic compensation for 160+ headphone and IEM models'}
+                {loc.autoEq.subtitle}
               </p>
             </div>
           </div>
@@ -206,11 +204,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
             <Search size={16} color="var(--text-muted, #9ca3af)" />
             <input
               type="text"
-              placeholder={
-                isPl
-                  ? 'Wpisz model (np. Chu II, HD 600, DT 770, XM4, Sundara)...'
-                  : 'Search model (e.g. Chu II, HD 600, DT 770, XM4, Sundara)...'
-              }
+              placeholder={loc.autoEq.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -249,7 +243,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                {type === 'Wszystkie' ? (isPl ? 'Wszystkie' : 'All') : type}
+                {type === 'Wszystkie' ? loc.autoEq.all : type}
               </button>
             ))}
           </div>
@@ -257,7 +251,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
           <button
             onClick={() => {
               onResetFlat();
-              setAppliedProfileName(isPl ? 'Płaski (Flat)' : 'Flat');
+              setAppliedProfileName(loc.autoEq.flatProfile);
             }}
             style={{
               padding: '6px 12px',
@@ -303,7 +297,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {brand === 'Wszystkie' ? (isPl ? 'Wszystkie' : 'All') : brand}
+              {brand === 'Wszystkie' ? loc.autoEq.all : brand}
             </button>
           ))}
         </div>
@@ -330,7 +324,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
           >
             {filteredProfiles.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af' }}>
-                {isPl ? 'Brak modeli odpowiadających kryteriom.' : 'No models match your search criteria.'}
+                {loc.autoEq.noModels}
               </div>
             ) : (
               filteredProfiles.map((profile) => {
@@ -383,7 +377,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                             gap: '2px',
                           }}
                         >
-                          <Check size={12} /> {isPl ? 'Aktywny' : 'Active'}
+                          <Check size={12} /> {loc.autoEq.active}
                         </span>
                       )}
                       <ChevronRight size={16} color={isSelected ? '#ec4899' : '#6b7280'} />
@@ -425,7 +419,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                     {activeProfile.name}
                   </h3>
                   <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>
-                    {isPl ? 'Docelowa krzywa:' : 'Target Curve:'} <strong>{activeProfile.target}</strong>
+                    {loc.autoEq.targetCurve} <strong>{activeProfile.target}</strong>
                   </div>
                 </div>
               </div>
@@ -459,8 +453,8 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                     justifyContent: 'space-between',
                   }}
                 >
-                  <span>{isPl ? 'Wzmocnienie pasm (Krzywa korekcji dB)' : 'Band Gain (EQ Curve dB)'}</span>
-                  <span>{isPl ? 'Zakres: -6 dB .. +8 dB' : 'Range: -6 dB .. +8 dB'}</span>
+                  <span>{loc.autoEq.bandGain}</span>
+                  <span>{loc.autoEq.range}</span>
                 </div>
 
                 <div
@@ -576,12 +570,10 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                   <ShieldCheck size={16} color="#10b981" />
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {isPl ? 'Kompensacja Preamp' : 'Preamp Compensation'} ({activeProfile.preampDb.toFixed(1)} dB)
+                      {loc.autoEq.preampCompensation} ({activeProfile.preampDb.toFixed(1)} dB)
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                      {isPl
-                        ? 'Zapobiega cyfrowemu przesterowaniu (clipping) przy podbiciu basu'
-                        : 'Prevents digital clipping when boosting frequencies'}
+                      {loc.autoEq.preampDesc}
                     </div>
                   </div>
                 </div>
@@ -617,7 +609,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                   transition: 'opacity 0.15s ease',
                 }}
               >
-                <Sparkles size={16} /> {isPl ? `Zastosuj profil ${activeProfile.name}` : `Apply ${activeProfile.name} Profile`}
+                <Sparkles size={16} /> {`${loc.autoEq.applyBtn} ${activeProfile.name}`}
               </button>
             </div>
           </div>

@@ -55,7 +55,7 @@ export interface BottomPlaybackDockProps {
 export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
   isVisible,
   activeTab,
-  language,
+  language: _language,
   loc,
   status,
   currentPlayingTrack,
@@ -119,13 +119,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
           maxWidth: '30%',
           cursor: 'pointer',
         }}
-        title={
-          activeTab === 'player'
-            ? language === 'pl'
-              ? 'Przewiń do góry do pełnego odtwarzacza'
-              : 'Scroll to top'
-            : loc.bottomDock.openFullPlayer
-        }
+        title={activeTab === 'player' ? loc.bottomDock.scrollToTop : loc.bottomDock.openFullPlayer}
       >
         <div
           style={{
@@ -470,11 +464,14 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
                 alignItems: 'center',
                 gap: '5px',
               }}
-              title={
-                language === 'pl'
-                  ? `Silnik DSP: ${status.engine === 'Bypass' ? 'Direct Bypass (Czysty dźwięk)' : status.engine === 'RubberBand' ? 'Rubber Band (Hi-Fi R3)' : 'SoundTouch'}. Kliknij, aby natychmiast przełączyć.`
-                  : `DSP Engine: ${status.engine}. Click to cycle immediately.`
-              }
+              title={loc.bottomDock.dspEngineCycleTooltip.replace(
+                '{0}',
+                status.engine === 'Bypass'
+                  ? `Direct Bypass (${loc.bottomDock.cleanAudio})`
+                  : status.engine === 'RubberBand'
+                    ? 'Rubber Band (Hi-Fi R3)'
+                    : status.engine
+              )}
             >
               <Zap size={13} fill={status.engine !== 'Bypass' ? 'currentColor' : 'none'} />
               <span>{status.engine === 'RubberBand' ? 'Rubber Band' : status.engine}</span>
@@ -500,7 +497,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
                 display: 'flex',
                 alignItems: 'center',
               }}
-              title={language === 'pl' ? 'Wybierz konkretny silnik DSP z listy' : 'Select specific DSP engine'}
+              title={loc.bottomDock.selectDspEngineList}
             >
               <ChevronUp
                 size={12}
@@ -532,13 +529,13 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 600 }}>
-                  {language === 'pl' ? 'Wybierz silnik DSP:' : 'Select DSP Engine:'}
+                  {loc.bottomDock.selectDspEngine}
                 </div>
                 {[
                   {
                     id: 'Bypass' as DspEngineType,
                     name: 'Direct Bypass',
-                    desc: language === 'pl' ? 'Czysty dźwięk' : 'Clean audio',
+                    desc: loc.bottomDock.cleanAudio,
                     color: 'var(--accent-green)',
                   },
                   {
@@ -550,7 +547,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
                   {
                     id: 'SoundTouch' as DspEngineType,
                     name: 'SoundTouch',
-                    desc: language === 'pl' ? 'Szybki silnik' : 'Fast engine',
+                    desc: loc.bottomDock.fastEngine,
                     color: 'var(--accent-cyan)',
                   },
                 ].map((eng) => (
@@ -660,13 +657,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
             gap: '4px',
             fontSize: '0.75rem',
           }}
-          title={
-            activeTab === 'player'
-              ? language === 'pl'
-                ? 'Przewiń do góry do odtwarzacza'
-                : 'Scroll to top'
-              : t.bottomDock.openFullPlayer
-          }
+          title={activeTab === 'player' ? t.bottomDock.scrollToTop : t.bottomDock.openFullPlayer}
         >
           {activeTab === 'player' ? <ChevronUp size={15} /> : <Maximize2 size={14} />}
         </button>

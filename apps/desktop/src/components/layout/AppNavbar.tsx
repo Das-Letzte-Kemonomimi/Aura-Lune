@@ -33,7 +33,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   onSelectTab,
   trackCount,
   playlistCount,
-  language,
+  language: _language,
   loc,
 }) => {
   const tabs: Array<{
@@ -64,7 +64,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
       id: 'stem-projects',
       label: 'Stem Projects',
       icon: <Sliders size={14} />,
-      title: language === 'pl' ? 'Projekty Stemów (Moises Studio)' : 'Stem Projects (Moises Studio)',
+      title: loc.nav.stemProjectsTitle,
     },
     {
       id: 'radio',

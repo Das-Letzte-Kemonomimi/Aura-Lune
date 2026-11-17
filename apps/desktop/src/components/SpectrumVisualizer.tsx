@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { type Language, getTranslations } from '../i18n';
 
 interface SpectrumVisualizerProps {
   spectrum?: number[];
   isPlaying: boolean;
   className?: string;
   style?: React.CSSProperties;
-  currentLang?: string;
+  currentLang?: Language;
 }
 
 export type VisualizerMode =
@@ -25,6 +26,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   style,
   currentLang = 'en',
 }) => {
+  const loc = getTranslations(currentLang);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [mode, setMode] = useState<VisualizerMode>(() => {
     try {
@@ -477,17 +479,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
         ...style,
       }}
       onClick={cycleMode}
-      title={
-        currentLang === 'pl'
-          ? 'Kliknij, aby przełączyć styl wizualizera (Słupki FFT • Retro Hi-Fi VFD • Anime Core • Oscyloskop Wektorowy • Fala Neonowa • Halo Okrągłe • Lustro Stereo)'
-          : currentLang === 'de'
-          ? 'Klicken, um Visualisierer-Stil umzuschalten (FFT-Balken • Retro Hi-Fi VFD • Anime Core • Vektor-Oszilloskop • Neonwelle • Rundes Halo • Stereo-Spiegel)'
-          : currentLang === 'fi'
-          ? 'Napsauta vaihtaaksesi visualisointityyliä (FFT-palkit • Retro Hi-Fi VFD • Anime Core • Vektorioskilloskooppi • Neonaalto • Pyöreä Halo • Stereopeili)'
-          : currentLang === 'la'
-          ? 'Preme ad stilum visualizatoris mutandum'
-          : 'Click to cycle visualizer mode (FFT Bars • Retro Hi-Fi VFD • Anime Core • Vector Oscilloscope • Neon Wave • Circular Halo • Stereo Mirror)'
-      }
+      title={loc.dsp.spectrumCycleTooltip}
     >
       <canvas
         ref={canvasRef}

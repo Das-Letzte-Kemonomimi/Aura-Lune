@@ -7,7 +7,7 @@ import {
   ListPlus,
   AlertCircle,
 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface CueTrackDto {
   number: number;
@@ -40,6 +40,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
   onPlayCueTrack,
   onAddCueTracksToQueue,
 }) => {
+  const loc = getTranslations(currentLang);
   const [cueContent, setCueContent] = useState('');
   const [parsedSheet, setParsedSheet] = useState<CueSheetDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
 
   const handleParse = async () => {
     if (!cueContent.trim()) {
-      setError(currentLang === 'pl' ? 'Wklej treść arkusza CUE lub wybierz plik' : 'Please provide CUE sheet content');
+      setError(loc.cueSheet.provideContentError);
       return;
     }
 
@@ -61,7 +62,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
         setAudioTargetOverride(sheet.file_path);
       }
     } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || (currentLang === 'pl' ? 'Błąd parsowania arkusza CUE' : 'Failed to parse CUE sheet'));
+      setError(typeof err === 'string' ? err : err?.message || loc.cueSheet.parseError);
     }
   };
 
@@ -132,12 +133,10 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
-                {currentLang === 'pl' ? 'Odtwarzacz arkuszy CUE (.cue sheet)' : 'CUE Sheet Player'}
+                {loc.cueSheet.title}
               </h2>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary, #94a3b8)' }}>
-                {currentLang === 'pl'
-                  ? 'Wirtualne utwory z pojedynczego pliku albumu (FLAC / WAV + CUE)'
-                  : 'Play single-file album rips with cue index points'}
+                {loc.cueSheet.subtitle}
               </p>
             </div>
           </div>
@@ -180,7 +179,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
           {!parsedSheet ? (
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '8px' }}>
-                {currentLang === 'pl' ? 'Wklej zawartość pliku .cue:' : 'Paste .cue file content:'}
+                {loc.cueSheet.pasteContent}
               </label>
               <textarea
                 rows={10}
@@ -216,7 +215,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                     fontSize: '0.88rem',
                   }}
                 >
-                  {currentLang === 'pl' ? 'Przetwórz i załaduj CUE' : 'Parse CUE Sheet'}
+                  {loc.cueSheet.parseBtn}
                 </button>
               </div>
             </div>
@@ -236,10 +235,10 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                   {parsedSheet.album_title || 'Album CUE'}
                 </h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                  {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} • {parsedSheet.tracks.length} {currentLang === 'pl' ? 'utworów' : 'tracks'}
+                  {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} • {loc.cueSheet.tracksCount.replace('{0}', String(parsedSheet.tracks.length))}
                 </p>
                 <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#94a3b8' }}>
-                  <span>{currentLang === 'pl' ? 'Plik audio: ' : 'Audio file: '}</span>
+                  <span>{loc.cueSheet.audioFileLabel}</span>
                   <input
                     type="text"
                     value={audioTargetOverride}
@@ -297,7 +296,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                       </span>
                       <button
                         onClick={() => onPlayCueTrack(audioTargetOverride, track)}
-                        title={currentLang === 'pl' ? 'Odtwórz od tego momentu' : 'Play from this index'}
+                        title={loc.cueSheet.playFromIndexTooltip}
                         style={{
                           background: 'rgba(168, 85, 247, 0.2)',
                           border: '1px solid rgba(168, 85, 247, 0.4)',
@@ -332,7 +331,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                     fontSize: '0.82rem',
                   }}
                 >
-                  {currentLang === 'pl' ? 'Wklej inny CUE' : 'Edit CUE'}
+                  {loc.cueSheet.editCue}
                 </button>
 
                 <button
@@ -356,7 +355,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                   }}
                 >
                   <ListPlus size={16} />
-                  <span>{currentLang === 'pl' ? 'Dodaj wszystkie do kolejki' : 'Add all to Queue'}</span>
+                  <span>{loc.cueSheet.addAllToQueue}</span>
                 </button>
               </div>
             </div>

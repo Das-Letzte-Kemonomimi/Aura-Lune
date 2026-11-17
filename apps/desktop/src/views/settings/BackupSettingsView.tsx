@@ -52,7 +52,7 @@ export interface BackupSettingsViewProps {
 }
 
 export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
-  language,
+  language: _language,
   loc,
   onExportBackup,
   onImportBackup,
@@ -89,7 +89,6 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
   onValidateLastfmSession,
   onSaveLastfmCustomKeys,
 }) => {
-  const currentLang = language;
   const [discordClientIdInput, setDiscordClientIdInput] = useState(discordClientId);
   const [isEditingDiscordClientId, setIsEditingDiscordClientId] = useState(false);
   const [lastfmShowAdvanced, setLastfmShowAdvanced] = useState(false);
@@ -314,7 +313,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                 gap: '6px',
               }}
             >
-              <span>{currentLang === 'pl' ? 'Zaawansowane (własny Client ID Discorda)' : 'Advanced (Custom Discord Client ID)'}</span>
+              <span>{loc.settings.discordAdvancedClientId}</span>
             </summary>
             <div style={{ marginTop: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -779,7 +778,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder={currentLang === 'pl' ? 'Domyślny Auralune API Key' : 'Default Auralune API Key'}
+                    placeholder={loc.settings.apiKeyDefaultPlaceholder}
                     value={lastfmCustomKey}
                     onChange={(e) => onSaveLastfmCustomKeys(e.target.value, lastfmCustomSecret)}
                     style={{
@@ -801,7 +800,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                   </label>
                   <input
                     type="password"
-                    placeholder={currentLang === 'pl' ? 'Domyślny Auralune API Secret' : 'Default Auralune API Secret'}
+                    placeholder={loc.settings.apiSecretDefaultPlaceholder}
                     value={lastfmCustomSecret}
                     onChange={(e) => onSaveLastfmCustomKeys(lastfmCustomKey, e.target.value)}
                     style={{

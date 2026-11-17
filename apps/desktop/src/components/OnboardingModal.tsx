@@ -144,9 +144,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   Auralune <span style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Kitsune Player</span>
                 </h2>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  {currentLang === 'pl'
-                    ? 'Audiofilski odtwarzacz anime dla systemu Linux'
-                    : 'Audiophile anime-themed music player for Linux'}
+                  {loc.onboarding.subtitle}
                 </p>
               </div>
             </div>
@@ -166,12 +164,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: 700, color: 'var(--accent-purple)' }}>
                 <Heart size={16} fill="var(--accent-purple)" />
-                {currentLang === 'pl' ? 'Od autorki / Why Auralune?' : 'From the author / Why Auralune?'}
+                {loc.onboarding.whyAuralune}
               </div>
               <p style={{ margin: 0, fontStyle: 'italic' }}>
-                {currentLang === 'pl'
-                  ? '„Zrobiłam ten program, bo brakowało mi na Linuksie fajnego playera, który łączy wygodę Powerampa z elastycznością foobar2000 i ma wszystkie funkcje, których potrzebuję: niezależny pitch i tempo (Rubber Band R3 & SoundTouch), teksty LRC, anime tła, korektor i estetyczny interfejs bez kompromisów.”'
-                  : '"I made this player because I sorely missed a music player on Linux that combines the feel of Poweramp with the depth of foobar2000 — having pitch/tempo DSP (Rubber Band & SoundTouch), synchronized lyrics, anime backgrounds, and graphic EQ in one clean, aesthetic desktop app."'}
+                {loc.onboarding.whyAuraluneDesc}
               </p>
             </div>
 
@@ -190,12 +186,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontWeight: 700, color: '#ef4444' }}>
                 <ShieldAlert size={16} />
-                {currentLang === 'pl' ? 'Zrzeczenie odpowiedzialności (Disclaimer / As-Is)' : 'Disclaimer of Warranty (As-Is)'}
+                {loc.onboarding.disclaimer}
               </div>
               <p style={{ margin: 0 }}>
-                {currentLang === 'pl'
-                  ? 'Aplikacja jest udostępniana w stanie „takim, w jakim jest” (as-is), na licencji GPL-3.0, bez jakiejkolwiek gwarancji. Autorka nie ponosi odpowiedzialności za jakiekolwiek szkody, utratę plików czy awarie sprzętu wynikające z korzystania z oprogramowania. Korzystasz z programu na własną odpowiedzialność.'
-                  : 'This application is provided "as-is", under the GPL-3.0 license, without warranty of any kind. The author shall not be held liable for any data loss, file deletion, or damages arising from the use of this software. You use this software at your own risk.'}
+                {loc.onboarding.disclaimerDesc}
               </p>
             </div>
           </div>
@@ -221,12 +215,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
-                  {currentLang === 'pl' ? 'Podsumowania Auralune Recap & Język' : 'Auralune Recap & Language'}
+                  {loc.onboarding.recapAndLang}
                 </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {currentLang === 'pl'
-                    ? 'Podsumowanie tygodnia, miesiąca i roku na wzór Spotify Unwrapped'
-                    : 'Weekly, monthly, and yearly stats recap like Spotify Wrapped'}
+                  {loc.onboarding.recapAndLangDesc}
                 </p>
               </div>
             </div>
@@ -248,12 +240,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             >
               <div style={{ flex: 1, paddingRight: '14px' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.92rem', marginBottom: '4px', color: recapOptIn ? 'var(--accent-cyan)' : '#fff' }}>
-                  {currentLang === 'pl' ? 'Włącz Auralune Recap (Lokalne statystyki)' : 'Enable Auralune Recap (Local Stats)'}
+                  {loc.onboarding.enableRecap}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  {currentLang === 'pl'
-                    ? 'Aplikacja będzie zliczać czas odsłuchu utworów, aby generować dla Ciebie estetyczne podsumowania tygodniowe i roczne. Dane są przechowywane wyłącznie lokalnie w bazie SQLite na Twoim dysku (100% prywatnie, brak telemetrii i chmury).'
-                    : 'The app will track track listening times to generate weekly and yearly recaps. All data is kept strictly offline in your local SQLite database (100% private, zero telemetry, zero cloud).'}
+                  {loc.onboarding.enableRecapDesc}
                 </div>
               </div>
               <div
@@ -285,7 +275,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             {/* Wybór języka */}
             <div style={{ marginBottom: '18px' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
-                {currentLang === 'pl' ? 'Język interfejsu (Language):' : 'Interface Language:'}
+                {loc.onboarding.interfaceLang}
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {[
@@ -337,10 +327,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
-                  {currentLang === 'pl' ? 'Preferencje audio i wskaźnik głośności' : 'Audio & Volume Preferences'}
+                  {loc.onboarding.audioAndVolume}
                 </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {currentLang === 'pl' ? 'Dostosuj zachowanie suwaków do swoich upodobań' : 'Customize volume controls to your taste'}
+                  {loc.onboarding.audioAndVolumeDesc}
                 </p>
               </div>
             </div>
@@ -348,7 +338,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             {/* Tryb głośności: Instant vs Fade */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
-                {currentLang === 'pl' ? 'Sposób zmiany głośności:' : 'Volume change mode:'}
+                {loc.onboarding.volumeMode}
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div
@@ -362,10 +352,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '3px' }}>
-                    {currentLang === 'pl' ? '🌊 Płynny fade (Smooth)' : '🌊 Smooth Fade'}
+                    {loc.onboarding.volumeSmooth}
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {currentLang === 'pl' ? 'Miękka interpolacja zapobiegająca trzaskom' : 'Soft ramping avoiding digital pops'}
+                    {loc.onboarding.volumeSmoothDesc}
                   </div>
                 </div>
 
@@ -380,10 +370,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '3px' }}>
-                    {currentLang === 'pl' ? '⚡ Natychmiast (Instant)' : '⚡ Instant (Immediate)'}
+                    {loc.onboarding.volumeInstant}
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {currentLang === 'pl' ? 'Natychmiastowa reakcja bez żadnego opóźnienia' : 'Immediate response with zero ramp latency'}
+                    {loc.onboarding.volumeInstantDesc}
                   </div>
                 </div>
               </div>
@@ -392,16 +382,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             {/* Pozycja wskaźnika głośności OSD */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
-                {currentLang === 'pl' ? 'Pozycja transparentnego wskaźnika głośności (HUD):' : 'Volume HUD (OSD) Placement:'}
+                {loc.onboarding.hudPlacement}
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {[
-                  { id: 'center', label: currentLang === 'pl' ? 'Środek' : 'Center' },
-                  { id: 'top-right', label: currentLang === 'pl' ? 'Prawy góra' : 'Top Right' },
-                  { id: 'bottom-center', label: currentLang === 'pl' ? 'Dół środek' : 'Bottom' },
-                  { id: 'top-left', label: currentLang === 'pl' ? 'Lewy góra' : 'Top Left' },
-                  { id: 'bottom-right', label: currentLang === 'pl' ? 'Prawy dół' : 'Bottom Right' },
-                  { id: 'off', label: currentLang === 'pl' ? 'Wyłączony' : 'Disabled' },
+                  { id: 'center', label: loc.onboarding.hudCenter },
+                  { id: 'top-right', label: loc.onboarding.hudTopRight },
+                  { id: 'bottom-center', label: loc.onboarding.hudBottom },
+                  { id: 'top-left', label: loc.onboarding.hudTopLeft },
+                  { id: 'bottom-right', label: loc.onboarding.hudBottomRight },
+                  { id: 'off', label: loc.onboarding.hudDisabled },
                 ].map((pos) => (
                   <button
                     key={pos.id}
@@ -444,7 +434,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 gap: '6px',
               }}
             >
-              <ChevronLeft size={16} /> {currentLang === 'pl' ? 'Wstecz' : 'Back'}
+              <ChevronLeft size={16} /> {loc.onboarding.back}
             </button>
           ) : (
             <div />
@@ -468,7 +458,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 boxShadow: '0 4px 16px rgba(244, 63, 94, 0.4)',
               }}
             >
-              {currentLang === 'pl' ? 'Dalej' : 'Next'} <ChevronRight size={16} />
+              {loc.onboarding.next} <ChevronRight size={16} />
             </button>
           ) : (
             <button
@@ -488,7 +478,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
               }}
             >
-              <Check size={18} /> {currentLang === 'pl' ? 'Zacznij słuchać' : 'Start listening'}
+              <Check size={18} /> {loc.onboarding.startListening}
             </button>
           )}
         </div>

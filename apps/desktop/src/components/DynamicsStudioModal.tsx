@@ -10,7 +10,7 @@ import {
   Sliders,
   Check,
 } from 'lucide-react';
-import { translations, type Language } from '../i18n';
+import { getTranslations, type Language } from '../i18n';
 
 export type SaturatorMode = 'Off' | 'TubeWarmth' | 'TapeSaturation' | 'Overdrive';
 
@@ -80,8 +80,8 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
   onClose,
   currentLang = 'pl',
 }) => {
-  const t = translations[currentLang] || translations.pl;
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
+  const t = loc;
 
   const [state, setState] = useState<DynamicsState>(DEFAULT_STATE);
   const [presets, setPresets] = useState<DynamicsPreset[]>([]);
@@ -326,9 +326,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 {t.nav.dynamicsStudio}
               </h2>
               <p style={{ margin: 0, fontSize: '0.78rem', color: '#cbd5e1' }}>
-                {isPl
-                  ? 'Kompresor dynamiki, nasycenie taśmowe, ciepło lampowe i limiter'
-                  : 'Dynamic Range Compressor, Tape & Tube Saturation, Headphone Limiter'}
+                {loc.dynamicsStudio.subtitle}
               </p>
             </div>
           </div>
@@ -336,7 +334,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={handleReset}
-              title={isPl ? 'Przywróć stan neutralny (Bypass)' : 'Reset to Bypass'}
+              title={loc.dynamicsStudio.resetToBypass}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -350,7 +348,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <RotateCcw size={14} /> {isPl ? 'Bypass' : 'Bypass'}
+              <RotateCcw size={14} /> {loc.dynamicsStudio.bypass}
             </button>
             <button
               onClick={onClose}
@@ -382,7 +380,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         >
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#a855f7', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} style={{ display: 'inline', marginRight: 4 }} />
-            {isPl ? 'Presety:' : 'Presets:'}
+            {loc.dynamicsStudio.presets}
           </span>
           {presets.map((p) => {
             const isSelected = activePresetId === p.id;
@@ -443,7 +441,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sliders size={18} color="#ec4899" />
                 <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fdf4ff' }}>
-                  {isPl ? 'Kompresor Dynamiki (DRC)' : 'Dynamic Range Compressor'}
+                  {loc.dynamicsStudio.drcTitle}
                 </span>
                 <span
                   style={{
@@ -483,7 +481,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 }}
               >
                 {state.compressor.enabled ? <Check size={13} /> : null}
-                {state.compressor.enabled ? (isPl ? 'Włączony' : 'Enabled') : isPl ? 'Wyłączony' : 'Bypass'}
+                {state.compressor.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
               </button>
             </div>
 
@@ -493,7 +491,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 {/* Threshold */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{isPl ? 'Próg (Threshold):' : 'Threshold:'}</span>
+                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.threshold}</span>
                     <span style={{ fontWeight: 700, color: '#f472b6' }}>
                       {state.compressor.threshold_db.toFixed(1)} dBFS
                     </span>
@@ -517,7 +515,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 {/* Ratio & Presets */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{isPl ? 'Stosunek (Ratio):' : 'Ratio:'}</span>
+                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.ratio}</span>
                     <span style={{ fontWeight: 700, color: '#f472b6' }}>
                       {state.compressor.ratio.toFixed(1)} : 1
                     </span>
@@ -573,7 +571,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: 4 }}>
-                      {isPl ? 'Kolano (Knee):' : 'Knee:'}
+                      {loc.dynamicsStudio.knee}
                     </span>
                     <button
                       onClick={() =>
@@ -604,7 +602,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
 
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                      <span style={{ color: '#cbd5e1' }}>{isPl ? 'Wzmocnienie (Makeup):' : 'Makeup Gain:'}</span>
+                      <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.makeup}</span>
                       <span style={{ fontWeight: 700, color: '#f472b6' }}>
                         +{state.compressor.makeup_gain_db.toFixed(1)} dB
                       </span>
@@ -640,7 +638,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: 4, width: '100%', textAlign: 'left' }}>
-                  {isPl ? 'Charakterystyka wejście/wyjście (dBFS):' : 'Input/Output curve (dBFS):'}
+                  {loc.dynamicsStudio.inputOutputCurve}
                 </div>
                 <svg width="280" height="140" style={{ overflow: 'visible' }}>
                   {/* Siatka tła */}
@@ -689,7 +687,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Flame size={18} color="#f59e0b" />
                 <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fdf4ff' }}>
-                  {isPl ? 'Saturator Analogowy & Ciepło Lampy' : 'Analog Tube & Tape Saturation'}
+                  {loc.dynamicsStudio.saturatorTitle}
                 </span>
                 <span
                   style={{
@@ -733,16 +731,16 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 }}
               >
                 {state.saturator.enabled ? <Check size={13} /> : null}
-                {state.saturator.enabled ? (isPl ? 'Włączony' : 'Enabled') : isPl ? 'Wyłączony' : 'Bypass'}
+                {state.saturator.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
               </button>
             </div>
 
             {/* Wybór trybu saturacji */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               {[
-                { id: 'TubeWarmth' as SaturatorMode, label: isPl ? 'Lampa (Trioda)' : 'Tube Warmth', desc: isPl ? 'Ciepłe parzyste harmoniczne' : 'Warm even-order harmonics' },
-                { id: 'TapeSaturation' as SaturatorMode, label: isPl ? 'Taśma Magnetofonowa' : 'Tape Deck', desc: isPl ? 'Gęsty bas, łagodna góra' : 'Dense low-end, gentle roll-off' },
-                { id: 'Overdrive' as SaturatorMode, label: isPl ? 'Overdrive Harmoniczny' : 'Overdrive', desc: isPl ? 'Mocniejsze nasycenie lo-fi' : 'Grittier lo-fi harmonic drive' },
+                { id: 'TubeWarmth' as SaturatorMode, label: loc.dynamicsStudio.modeTube, desc: loc.dynamicsStudio.modeTubeDesc },
+                { id: 'TapeSaturation' as SaturatorMode, label: loc.dynamicsStudio.modeTape, desc: loc.dynamicsStudio.modeTapeDesc },
+                { id: 'Overdrive' as SaturatorMode, label: loc.dynamicsStudio.modeOverdrive, desc: loc.dynamicsStudio.modeOverdriveDesc },
               ].map((m) => {
                 const isCurrent = state.saturator.mode === m.id && state.saturator.enabled;
                 return (
@@ -779,7 +777,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 {/* Drive */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{isPl ? 'Wysterowanie (Drive):' : 'Drive:'}</span>
+                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.drive}</span>
                     <span style={{ fontWeight: 700, color: '#fbbf24' }}>
                       {state.saturator.drive.toFixed(2)}x
                     </span>
@@ -805,7 +803,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
                       <span style={{ color: '#cbd5e1' }}>
-                        {isPl ? 'Ciepło / 2. Harmoniczna (Asymetria):' : 'Even Harmonic Warmth:'}
+                        {loc.dynamicsStudio.evenHarmonics}
                       </span>
                       <span style={{ fontWeight: 700, color: '#fbbf24' }}>
                         {Math.round(state.saturator.warmth * 100)}%
@@ -831,7 +829,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 {/* Dry/Wet Mix */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{isPl ? 'Miks nasycenia (Dry / Wet):' : 'Dry / Wet Mix:'}</span>
+                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.dryWet}</span>
                     <span style={{ fontWeight: 700, color: '#fbbf24' }}>
                       {Math.round(state.saturator.mix * 100)}% Wet
                     </span>
@@ -866,7 +864,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: 4, width: '100%', textAlign: 'left' }}>
-                  {isPl ? 'Krzywa nasycenia f(x) [-1 .. +1]:' : 'Waveshaper curve f(x):'}
+                  {loc.dynamicsStudio.waveshaperCurve}
                 </div>
                 <svg width="280" height="140" style={{ overflow: 'visible' }}>
                   {/* Osie x = 0 i y = 0 */}
@@ -924,12 +922,10 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               </div>
               <div>
                 <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fdf4ff' }}>
-                  {isPl ? 'Limiter Słuchawkowy (True-Peak Limiter)' : 'Headphone True-Peak Limiter'}
+                  {loc.dynamicsStudio.limiterTitle}
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  {isPl
-                    ? 'Blokuje przesterowanie 0 dBFS i chroni słuch przed nagłymi skokami głośności'
-                    : 'Hard ceiling protection against digital clipping and hearing fatigue'}
+                  {loc.dynamicsStudio.limiterDesc}
                 </div>
               </div>
             </div>
@@ -961,7 +957,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 }}
               >
                 {state.limiter.enabled ? <Check size={13} /> : null}
-                {state.limiter.enabled ? (isPl ? 'Aktywny' : 'Active') : isPl ? 'Wyłączony' : 'Off'}
+                {state.limiter.enabled ? loc.dynamicsStudio.active : loc.dynamicsStudio.off}
               </button>
             </div>
           </div>
@@ -979,9 +975,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           }}
         >
           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            {isPl
-              ? 'Wszystkie parametry dynamiki i nasycenia są aplikowane w czasie rzeczywistym w potoku GStreamera'
-              : 'All dynamics and saturation stages apply real-time inside GStreamer engine'}
+            {loc.dynamicsStudio.realTimeTip}
           </div>
 
           <button
@@ -998,7 +992,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               boxShadow: '0 4px 12px rgba(236, 72, 153, 0.3)',
             }}
           >
-            {isPl ? 'Gotowe' : 'Done'}
+            {loc.dynamicsStudio.done}
           </button>
         </div>
       </div>

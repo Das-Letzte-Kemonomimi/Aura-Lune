@@ -9,7 +9,7 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface TrackMetadataFullDto {
   title: string;
@@ -65,6 +65,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   onClose,
   onSaveSuccess,
 }) => {
+  const loc = getTranslations(currentLang);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,11 +114,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
       });
 
       if (!matches || matches.length === 0) {
-        setIdentifyMessage(
-          currentLang === 'pl'
-            ? 'Nie znaleziono dopasowania w bazie AcoustID / MusicBrainz.'
-            : 'No matches found in AcoustID / MusicBrainz.'
-        );
+        setIdentifyMessage(loc.tagEditor.acoustIdNotFound);
         return;
       }
 
@@ -126,19 +123,13 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
       applyCandidate(matches[0]);
 
       setIdentifyMessage(
-        currentLang === 'pl'
-          ? `Zidentyfikowano: ${matches[0].artist} – ${matches[0].title} (${matches[0].score}% zgodności)`
-          : `Identified: ${matches[0].artist} – ${matches[0].title} (${matches[0].score}% match)`
+        loc.tagEditor.acoustIdIdentified
+          .replace('{0}', matches[0].artist)
+          .replace('{1}', matches[0].title)
+          .replace('{2}', String(matches[0].score))
       );
     } catch (err: any) {
-      setError(
-        typeof err === 'string'
-          ? err
-          : err?.message ||
-              (currentLang === 'pl'
-                ? 'Błąd identyfikacji AcoustID (upewnij się, że masz pakiet chromaprint / fpcalc).'
-                : 'AcoustID identification error (check if fpcalc / chromaprint is installed).')
-      );
+      setError(typeof err === 'string' ? err : err?.message || loc.tagEditor.acoustIdError);
     } finally {
       setIdentifying(false);
     }
@@ -165,7 +156,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         setComment(meta.comment || '');
       } catch (err: any) {
         if (!isMounted) return;
-        setError(typeof err === 'string' ? err : err?.message || (currentLang === 'pl' ? 'Błąd odczytu tagów pliku' : 'Failed to read file tags'));
+        setError(typeof err === 'string' ? err : err?.message || loc.tagEditor.readError);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -180,11 +171,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !artist.trim()) {
-      setError(
-        currentLang === 'pl'
-          ? 'Tytuł i wykonawca nie mogą być puste.'
-          : 'Title and artist cannot be empty.'
-      );
+      setError(loc.tagEditor.emptyTitleArtistError);
       return;
     }
 
@@ -218,7 +205,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         onClose();
       }, 700);
     } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || (currentLang === 'pl' ? 'Błąd zapisu tagów pliku' : 'Failed to save file tags'));
+      setError(typeof err === 'string' ? err : err?.message || loc.tagEditor.saveError);
     } finally {
       setSaving(false);
     }
@@ -290,7 +277,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
-                {currentLang === 'pl' ? 'Właściwości utworu / Edytor tagów' : 'Track Properties / Tag Editor'}
+                {loc.tagEditor.title}
               </h2>
               <p
                 style={{
@@ -399,21 +386,17 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 transition: 'all 0.2s ease',
                 boxShadow: '0 2px 10px rgba(168, 85, 247, 0.2)',
               }}
-              title={
-                currentLang === 'pl'
-                  ? 'Generuje akustyczny odcisk palca Chromaprint i pobiera metadane z AcoustID / MusicBrainz'
-                  : 'Generates Chromaprint audio fingerprint and fetches metadata from AcoustID / MusicBrainz'
-              }
+              title={loc.tagEditor.acoustIdTooltip}
             >
               {identifying ? (
                 <>
                   <Loader2 size={15} style={{ animation: 'spin 1s linear infinite', color: '#c084fc' }} />
-                  <span>{currentLang === 'pl' ? 'Identyfikacja audio...' : 'Identifying audio...'}</span>
+                  <span>{loc.tagEditor.identifying}</span>
                 </>
               ) : (
                 <>
                   <Sparkles size={15} style={{ color: '#e879f9' }} />
-                  <span>{currentLang === 'pl' ? 'Wykryj z fali audio (AcoustID)' : 'Identify via Audio (AcoustID)'}</span>
+                  <span>{loc.tagEditor.identifyAcoustId}</span>
                 </>
               )}
             </button>
@@ -462,9 +445,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
               >
                 <TagIcon size={14} />
                 <span>
-                  {currentLang === 'pl'
-                    ? `Wybierz wariant wydania (${fingerprintMatches.length} znalezionych kandydatów):`
-                    : `Select release candidate (${fingerprintMatches.length} matches found):`}
+                  {loc.tagEditor.selectReleaseCandidate.replace('{0}', String(fingerprintMatches.length))}
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
@@ -538,7 +519,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#a855f7' }}>
               <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
               <p style={{ marginTop: '12px', fontSize: '0.88rem', color: '#94a3b8' }}>
-                {currentLang === 'pl' ? 'Wczytywanie tagów pliku...' : 'Reading file tags...'}
+                {loc.tagEditor.reading}
               </p>
             </div>
           ) : (
@@ -547,7 +528,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Tytuł */}
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Tytuł utworu *' : 'Track Title *'}
+                    {loc.tagEditor.trackTitle}
                   </label>
                   <input
                     type="text"
@@ -570,7 +551,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Wykonawca */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Wykonawca (Artist) *' : 'Artist *'}
+                    {loc.tagEditor.artist}
                   </label>
                   <input
                     type="text"
@@ -593,7 +574,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Album Artist */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Wykonawca albumu (Album Artist)' : 'Album Artist'}
+                    {loc.tagEditor.albumArtist}
                   </label>
                   <input
                     type="text"
@@ -616,7 +597,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Album */}
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Nazwa albumu' : 'Album Title'}
+                    {loc.tagEditor.albumTitle}
                   </label>
                   <input
                     type="text"
@@ -638,7 +619,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Rok / Rok wydania */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Rok (Year)' : 'Year'}
+                    {loc.tagEditor.year}
                   </label>
                   <input
                     type="number"
@@ -663,7 +644,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Gatunek */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Gatunek (Genre)' : 'Genre'}
+                    {loc.tagEditor.genre}
                   </label>
                   <input
                     type="text"
@@ -686,7 +667,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Numer ścieżki i suma */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Numer ścieżki (Track / Total)' : 'Track Number / Total'}
+                    {loc.tagEditor.trackNumber}
                   </label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
@@ -730,7 +711,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Numer płyty i suma */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Numer dysku (Disc / Total)' : 'Disc Number / Total'}
+                    {loc.tagEditor.discNumber}
                   </label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
@@ -774,13 +755,13 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 {/* Komentarz */}
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {currentLang === 'pl' ? 'Komentarz (Comment)' : 'Comment'}
+                    {loc.tagEditor.comment}
                   </label>
                   <textarea
                     rows={2}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder={currentLang === 'pl' ? 'Opis, źródło lub uwagi...' : 'Description, source or notes...'}
+                    placeholder={loc.tagEditor.commentPlaceholder}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -826,7 +807,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            {currentLang === 'pl' ? 'Anuluj' : 'Cancel'}
+            {loc.tagEditor.cancel}
           </button>
 
           <button
@@ -854,17 +835,17 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
             {saving ? (
               <>
                 <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                <span>{currentLang === 'pl' ? 'Zapisywanie...' : 'Saving...'}</span>
+                <span>{loc.tagEditor.saving}</span>
               </>
             ) : savedSuccess ? (
               <>
                 <Check size={16} />
-                <span>{currentLang === 'pl' ? 'Zapisano pomyślnie!' : 'Saved!'}</span>
+                <span>{loc.tagEditor.saved}</span>
               </>
             ) : (
               <>
                 <Save size={16} />
-                <span>{currentLang === 'pl' ? 'Zapisz tagi do pliku' : 'Save to File'}</span>
+                <span>{loc.tagEditor.saveToFile}</span>
               </>
             )}
           </button>

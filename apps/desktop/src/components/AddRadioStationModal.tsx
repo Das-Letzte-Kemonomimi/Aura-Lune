@@ -16,7 +16,6 @@ export const AddRadioStationModal: React.FC<AddRadioStationModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const isPl = currentLang === 'pl';
   const [name, setName] = useState<string>('');
   const [url, setUrl] = useState<string>('');
   const [genre, setGenre] = useState<string>('Anime / J-Pop');
@@ -117,13 +116,13 @@ export const AddRadioStationModal: React.FC<AddRadioStationModalProps> = ({
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              {isPl ? 'Nazwa stacji:' : 'Station Name:'}
+              {loc.radio.stationName}:
             </label>
             <input
               type="text"
               required
               autoFocus
-              placeholder={isPl ? 'np. Touhou Memories Radio' : 'e.g. Touhou Memories Radio'}
+              placeholder={loc.radio.stationNamePlaceholder}
               value={name}
               onChange={(e) => setName(e.target.value)}
               style={{
@@ -142,7 +141,7 @@ export const AddRadioStationModal: React.FC<AddRadioStationModalProps> = ({
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              {isPl ? 'URL strumienia (audio stream):' : 'Stream URL (audio stream):'}
+              {loc.radio.stationUrl}:
             </label>
             <div style={{ position: 'relative' }}>
               <input
@@ -172,19 +171,19 @@ export const AddRadioStationModal: React.FC<AddRadioStationModalProps> = ({
             </div>
             {url && !isValidUrl && (
               <span style={{ fontSize: '0.74rem', color: '#ff6b81', marginTop: '4px', display: 'block' }}>
-                {isPl ? 'Adres musi zaczynać się od http:// lub https://' : 'URL must start with http:// or https://'}
+                {loc.radio.enterValidUrl}
               </span>
             )}
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              {isPl ? 'Gatunek / Etykieta:' : 'Genre / Tag:'}
+              {loc.radio.stationGenre}:
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
-                placeholder={isPl ? 'np. Anime, J-Rock, Vocaloid, Chiptune' : 'e.g. Anime, J-Rock, Vocaloid, Chiptune'}
+                placeholder={loc.radio.stationGenrePlaceholder}
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 style={{
@@ -244,7 +243,7 @@ export const AddRadioStationModal: React.FC<AddRadioStationModalProps> = ({
               }}
             >
               <Check size={16} />
-              {isPl ? 'Dodaj stację' : 'Add Station'}
+              {loc.radio.addCustomStation}
             </button>
           </div>
         </form>

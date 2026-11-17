@@ -275,10 +275,10 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
                 fontSize: '0.85rem',
                 fontWeight: 600,
               }}
-              title={currentLang === 'pl' ? 'Utwórz projekt stemów (Moises Studio)' : 'Create Stem Project'}
+              title={t.bigScreen.createStemProject}
             >
               <Layers size={16} />
-              {currentLang === 'pl' ? 'Projekt Stemów' : 'Stem Project'}
+              {t.bigScreen.stemProject}
             </button>
           )}
 

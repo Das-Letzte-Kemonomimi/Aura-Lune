@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { FileEdit, X, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface RenamePreviewItemDto {
   track_id: number;
@@ -32,12 +32,12 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
   onRenamedSuccess,
   currentLang = 'pl',
 }) => {
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
   const presetPatterns = [
-    { label: isPl ? '01 - Wykonawca - Tytuł' : '01 - Artist - Title', pattern: '%track% - %artist% - %title%' },
-    { label: isPl ? 'Wykonawca - Tytuł' : 'Artist - Title', pattern: '%artist% - %title%' },
-    { label: isPl ? 'Wykonawca - Album - 01 - Tytuł' : 'Artist - Album - 01 - Title', pattern: '%artist% - %album% - %track% - %title%' },
-    { label: isPl ? 'Folder: Wykonawca/Album/01 - Tytuł' : 'Folder: Artist/Album/01 - Title', pattern: '%artist%/%album%/%track% - %title%' },
+    { label: loc.fileRenamer.presetTrackArtistTitle, pattern: '%track% - %artist% - %title%' },
+    { label: loc.fileRenamer.presetArtistTitle, pattern: '%artist% - %title%' },
+    { label: loc.fileRenamer.presetArtistAlbumTrackTitle, pattern: '%artist% - %album% - %track% - %title%' },
+    { label: loc.fileRenamer.presetFolderHierarchy, pattern: '%artist%/%album%/%track% - %title%' },
   ];
   const [pattern, setPattern] = useState('%track% - %artist% - %title%');
   const [previews, setPreviews] = useState<RenamePreviewItemDto[]>([]);
@@ -78,18 +78,14 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
       .map((p) => [p.track_id, p.new_path]);
 
     if (validItems.length === 0) {
-      setError(isPl ? 'Brak plików wymagających zmiany nazwy.' : 'No files require renaming.');
+      setError(loc.fileRenamer.noFilesToRename);
       return;
     }
 
     const hasOverwrites = previews.some((p) => p.will_overwrite);
     if (
       hasOverwrites &&
-      !window.confirm(
-        isPl
-          ? 'Uwaga: Niektóre pliki docelowe już istnieją i zostaną nadpisane! Czy na pewno chcesz kontynuować?'
-          : 'Warning: Some destination files already exist and will be overwritten! Do you want to continue?'
-      )
+      !window.confirm(loc.fileRenamer.confirmOverwrite)
     ) {
       return;
     }
@@ -171,12 +167,10 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
-                {isPl ? 'Masowy Auto-Renamer / Organizator Plików (foobar2000 File Ops)' : 'Batch File Renamer (foobar2000 File Ops)'}
+                {loc.fileRenamer.title}
               </h3>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary, #a1a1aa)' }}>
-                {isPl
-                  ? 'Zmienia nazwy plików na dysku według wzorca tagów i automatycznie aktualizuje bazę biblioteki.'
-                  : 'Renames files on disk according to tag pattern and updates library database.'}
+                {loc.fileRenamer.subtitle}
               </p>
             </div>
           </div>
@@ -232,11 +226,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
               }}
             >
               <CheckCircle2 size={18} />
-              {isPl ? (
-                <>Pomyślnie zmieniono nazwy <b>{successCount}</b> plików na dysku i zaktualizowano bibliotekę!</>
-              ) : (
-                <>Successfully renamed <b>{successCount}</b> files on disk and updated library!</>
-              )}
+              <span>{loc.fileRenamer.renameSuccess.replace('{0}', String(successCount))}</span>
             </div>
           )}
 
@@ -254,10 +244,10 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-                {isPl ? 'Wzorzec schematu nazw (Pattern)' : 'Filename Pattern'}
+                {loc.fileRenamer.pattern}
               </span>
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {isPl ? 'Dostępne tagi:' : 'Available tags:'} <code>%artist%</code>, <code>%title%</code>, <code>%album%</code>, <code>%track%</code>, <code>%disc%</code>, <code>%ext%</code>
+                {loc.fileRenamer.availableTags} <code>%artist%</code>, <code>%title%</code>, <code>%album%</code>, <code>%track%</code>, <code>%disc%</code>, <code>%ext%</code>
               </span>
             </div>
 
@@ -281,7 +271,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
               <button
                 type="button"
                 onClick={() => updatePreview(pattern)}
-                title={isPl ? 'Odśwież podgląd' : 'Refresh Preview'}
+                title={loc.fileRenamer.refreshPreview}
                 style={{
                   padding: '8px 12px',
                   borderRadius: '8px',
@@ -300,7 +290,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
             {/* Presety */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                {isPl ? 'Presety:' : 'Presets:'}
+                {loc.fileRenamer.presets}
               </span>
               {presetPatterns.map((p, idx) => (
                 <button
@@ -326,7 +316,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
           {/* Tabela podglądu zmian */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
-              {isPl ? `Podgląd operacji (${previews.length} plików do weryfikacji)` : `Operation Preview (${previews.length} files to review)`}
+              {loc.fileRenamer.previewCount.replace('{0}', String(previews.length))}
             </span>
 
             <div
@@ -350,9 +340,9 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
                   color: 'var(--text-muted)',
                 }}
               >
-                <span>{isPl ? 'OBECNA NAZWA' : 'CURRENT NAME'}</span>
+                <span>{loc.fileRenamer.currentName}</span>
                 <span></span>
-                <span>{isPl ? 'NOWA PROPONOWANA NAZWA' : 'NEW PROPOSED NAME'}</span>
+                <span>{loc.fileRenamer.proposedName}</span>
                 <span>STATUS</span>
               </div>
 
@@ -405,15 +395,15 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
                       <div>
                         {item.will_overwrite ? (
                           <span style={{ color: '#f87171', fontSize: '0.7rem', fontWeight: 600 }}>
-                            {isPl ? '⚠️ Nadpisze' : '⚠️ Overwrite'}
+                            {loc.fileRenamer.statusOverwrite}
                           </span>
                         ) : isUnchanged ? (
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-                            {isPl ? 'Bez zmian' : 'Unchanged'}
+                            {loc.fileRenamer.statusUnchanged}
                           </span>
                         ) : (
                           <span style={{ color: '#34d399', fontSize: '0.7rem', fontWeight: 600 }}>
-                            {isPl ? '✓ Zmiana' : '✓ Rename'}
+                            {loc.fileRenamer.statusRename}
                           </span>
                         )}
                       </div>
@@ -448,7 +438,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            {isPl ? 'Anuluj' : 'Cancel'}
+            {loc.common.cancel}
           </button>
 
           <button
@@ -472,10 +462,8 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
           >
             <CheckCircle2 size={16} />
             {isExecuting
-              ? (isPl ? 'Zmienianie nazw...' : 'Renaming...')
-              : isPl
-              ? `Zmień nazwy (${previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length} plików)`
-              : `Rename (${previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length} files)`}
+              ? loc.fileRenamer.renamingProgress
+              : loc.fileRenamer.renameBtn.replace('{0}', String(previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length))}
           </button>
         </div>
       </div>

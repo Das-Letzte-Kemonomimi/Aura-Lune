@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from 'lucide-react';
 import { formatTimeMs } from './LoopEditorModal';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface TrackBookmarkDto {
   id: number;
@@ -37,7 +37,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   onSetAsLoop,
   currentLang = 'pl',
 }) => {
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
   const [bookmarks, setBookmarks] = useState<TrackBookmarkDto[]>([]);
   const [newBookmarkName, setNewBookmarkName] = useState('');
   const [newBookmarkTime, setNewBookmarkTime] = useState(`${currentPositionMs}ms`);
@@ -189,7 +189,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
-                {isPl ? 'Znaczniki i Zakładki (Cue Points)' : 'Track Bookmarks & Cue Points'}
+                {loc.trackBookmarks.title}
               </h3>
               <p
                 style={{
@@ -252,12 +252,12 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
             }}
           >
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-              {isPl ? '➕ Dodaj nowy znacznik na osi utworu' : '➕ Add new bookmark on timeline'}
+              {loc.trackBookmarks.addNewBookmark}
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '8px' }}>
               <input
                 type="text"
-                placeholder={isPl ? 'Nazwa znacznika (np. Drop, Refren, Solo)' : 'Bookmark name (e.g. Drop, Chorus, Solo)'}
+                placeholder={loc.trackBookmarks.namePlaceholder}
                 value={newBookmarkName}
                 onChange={(e) => setNewBookmarkName(e.target.value)}
                 style={{
@@ -272,7 +272,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
               <div style={{ display: 'flex', gap: '4px' }}>
                 <input
                   type="text"
-                  placeholder={isPl ? 'Czas (np. 1:24)' : 'Time (e.g. 1:24)'}
+                  placeholder={loc.trackBookmarks.timePlaceholder}
                   value={newBookmarkTime}
                   onChange={(e) => setNewBookmarkTime(e.target.value)}
                   style={{
@@ -289,7 +289,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setNewBookmarkTime(`${currentPositionMs}ms`)}
-                  title={isPl ? 'Wstaw aktualną pozycję odtwarzacza' : 'Insert current player position'}
+                  title={loc.trackBookmarks.insertCurrentPos}
                   style={{
                     padding: '8px',
                     borderRadius: '8px',
@@ -327,7 +327,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                 }}
               >
                 <Plus size={15} />
-                {isPl ? 'Dodaj znacznik' : 'Add Bookmark'}
+                {loc.trackBookmarks.addBookmark}
               </button>
             </div>
           </div>
@@ -335,7 +335,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
           {/* Lista zakładek */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
-              {isPl ? 'Lista zapisanych punktów' : 'Saved Bookmarks'} ({bookmarks.length})
+              {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
             </span>
 
             {bookmarks.length >= 2 && onExportRange && (
@@ -353,12 +353,10 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
               >
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                    {isPl ? '✂️ Eksportuj fragment ze znacznikami' : '✂️ Export Range with Bookmarks'}
+                    {loc.trackBookmarks.exportRangeWithBookmarks}
                   </span>
                   <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {isPl
-                      ? `Zakres od pierwszego (${bookmarks[0].name}) do ostatniego (${bookmarks[bookmarks.length - 1].name})`
-                      : `Range from first (${bookmarks[0].name}) to last (${bookmarks[bookmarks.length - 1].name})`}
+                    {loc.trackBookmarks.rangeFirstToLast.replace('{0}', bookmarks[0].name).replace('{1}', bookmarks[bookmarks.length - 1].name)}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -381,7 +379,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                         fontWeight: 600,
                       }}
                     >
-                      {isPl ? 'Pętla A-B' : 'A-B Loop'}
+                      {loc.trackBookmarks.abLoop}
                     </button>
                   )}
                   <button
@@ -404,7 +402,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                       gap: '4px',
                     }}
                   >
-                    <Scissors size={13} /> {isPl ? 'Eksportuj' : 'Export'}
+                    <Scissors size={13} /> {loc.trackBookmarks.export}
                   </button>
                 </div>
               </div>
@@ -412,7 +410,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
 
             {isLoading && (
               <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
-                {isPl ? 'Ładowanie zakładek...' : 'Loading bookmarks...'}
+                {loc.trackBookmarks.loading}
               </div>
             )}
 
@@ -427,9 +425,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                   fontSize: '0.84rem',
                 }}
               >
-                {isPl
-                  ? <>Ten utwór nie ma jeszcze żadnych znaczników. Dodaj swój pierwszy znacznik powyżej lub skrótem klawiszowym <b>Shift+B</b>!</>
-                  : <>This track has no bookmarks yet. Add one above or press <b>Shift+B</b> in player!</>}
+                {loc.trackBookmarks.noBookmarksFound}
               </div>
             )}
 
@@ -450,7 +446,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
                   <button
                     onClick={() => onSeek(bm.position_ms)}
-                    title={isPl ? 'Przejdź do tego znacznika i odtwórz' : 'Seek to bookmark and play'}
+                    title={loc.trackBookmarks.seekAndPlay}
                     style={{
                       width: '30px',
                       height: '30px',
@@ -533,7 +529,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                   {onSetAsLoop && (
                     <button
                       onClick={() => onSetAsLoop(bm.position_ms, null)}
-                      title={isPl ? 'Ustaw ten znacznik jako Punkt A pętli' : 'Set as Loop Point A'}
+                      title={loc.trackBookmarks.setLoopA}
                       style={{
                         background: 'rgba(6, 182, 212, 0.15)',
                         border: '1px solid rgba(6, 182, 212, 0.35)',
@@ -551,7 +547,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                   {onSetAsLoop && (
                     <button
                       onClick={() => onSetAsLoop(null, bm.position_ms)}
-                      title={isPl ? 'Ustaw ten znacznik jako Punkt B pętli' : 'Set as Loop Point B'}
+                      title={loc.trackBookmarks.setLoopB}
                       style={{
                         background: 'rgba(236, 72, 153, 0.15)',
                         border: '1px solid rgba(236, 72, 153, 0.35)',
@@ -572,7 +568,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                         onExportRange(bm.position_ms, bookmarks[idx + 1].position_ms);
                         onClose();
                       }}
-                      title={isPl ? `Eksportuj fragment od "${bm.name}" do "${bookmarks[idx + 1].name}"` : `Export section from "${bm.name}" to "${bookmarks[idx + 1].name}"`}
+                      title={loc.trackBookmarks.exportSection.replace('{0}', bm.name).replace('{1}', bookmarks[idx + 1].name)}
                       style={{
                         background: 'rgba(255, 255, 255, 0.08)',
                         border: '1px solid var(--border-subtle)',
@@ -595,7 +591,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                         setEditingId(bm.id);
                         setEditingName(bm.name);
                       }}
-                      title={isPl ? 'Zmień nazwę' : 'Rename'}
+                      title={loc.trackBookmarks.rename}
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -610,7 +606,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                   )}
                   <button
                     onClick={() => handleDeleteBookmark(bm.id)}
-                    title={isPl ? 'Usuń znacznik' : 'Delete bookmark'}
+                    title={loc.trackBookmarks.deleteBookmark}
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -640,9 +636,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
           }}
         >
           <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            {isPl
-              ? <>Wskazówka: Naciśnij <b>Shift+B</b> w odtwarzaczu, aby szybko dodać punkt.</>
-              : <>Tip: Press <b>Shift+B</b> in player to quickly add a bookmark.</>}
+            {loc.trackBookmarks.quickAddTip}
           </span>
           <button
             onClick={onClose}
@@ -656,7 +650,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            {isPl ? 'Zamknij' : 'Close'}
+            {loc.common.close}
           </button>
         </div>
       </div>

@@ -320,7 +320,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsAudioPathModalOpen(true)}
-                      title={language === 'pl' ? 'Kliknij, aby otworzyć Audio Path & Bit-Perfect Stream Inspector' : 'Click to inspect Bit-Perfect Audio Signal Path'}
+                      title={loc.player.audioPathInspectorTooltip}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -548,7 +548,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           gap: '4px',
                         }}
                       >
-                        <Disc size={13} /> {language === 'pl' ? 'Okładka' : 'Cover'}
+                        <Disc size={13} /> {loc.player.displayCover}
                       </button>
                       <button
                         onClick={() => handleSelectNowPlayingVisualMode('turntable')}
@@ -568,7 +568,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           gap: '4px',
                         }}
                       >
-                        <Disc3 size={13} /> {language === 'pl' ? 'Winyl' : 'Vinyl'}
+                        <Disc3 size={13} /> {loc.player.displayVinyl}
                       </button>
                       <button
                         onClick={() => handleSelectNowPlayingVisualMode('tape')}
@@ -588,7 +588,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           gap: '4px',
                         }}
                       >
-                        <CassetteTape size={13} /> {language === 'pl' ? 'Taśma' : 'Tape'}
+                        <CassetteTape size={13} /> {loc.player.displayTape}
                       </button>
                       <button
                         onClick={() => handleSelectNowPlayingVisualMode('vumeter')}
@@ -835,10 +835,8 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                         >
                           <Disc3 size={11} color="var(--accent-pink)" />
                           {status.state === 'Playing'
-                            ? (language === 'pl'
-                              ? `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię opuszczone (${dspBadgeText})`
-                              : `${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Engaged (${dspBadgeText})`)
-                            : (language === 'pl' ? `Pauza • ${vinylRpm === 33 ? '33⅓' : '45'} RPM • Ramię zaparkowane` : `Paused • ${vinylRpm === 33 ? '33⅓' : '45'} RPM • Tonearm Parked`)}
+                            ? `${loc.player.vinylPlayingStatus.replace('{0}', vinylRpm === 33 ? '33⅓' : '45')} (${dspBadgeText})`
+                            : loc.player.vinylPausedStatus.replace('{0}', vinylRpm === 33 ? '33⅓' : '45')}
                         </div>
                       </div>
                     ) : nowPlayingVisualMode === 'tape' ? (
@@ -863,10 +861,8 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                         >
                           <CassetteTape size={11} color="var(--accent-pink)" />
                           {status.state === 'Playing'
-                            ? (language === 'pl'
-                              ? `${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Rolka zaciśnięta (${dspBadgeText})`
-                              : `${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Pinch Roller Engaged (${dspBadgeText})`)
-                            : (language === 'pl' ? `Pauza • ${tapeSpeed === '7.5' ? '7½' : '3¾'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Transport zatrzymany` : `Paused • ${tapeSpeed === '7.5' ? '7.5' : '3.75'} IPS • ${tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL'} • Transport Stopped`)}
+                            ? `${loc.player.tapePlayingStatus.replace('{0}', tapeSpeed === '7.5' ? '7½' : '3¾').replace('{1}', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')} (${dspBadgeText})`
+                            : loc.player.tapePausedStatus.replace('{0}', tapeSpeed === '7.5' ? '7½' : '3¾').replace('{1}', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')}
                         </div>
                       </div>
                     ) : (
@@ -903,9 +899,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                               boxShadow: status.state === 'Playing' ? '0 0 6px var(--accent-green)' : 'none',
                             }}
                           />
-                          {status.state === 'Playing'
-                            ? (language === 'pl' ? 'Miernik aktywny' : 'Meter Active')
-                            : (language === 'pl' ? 'Czuwanie' : 'Standby')}
+                          {status.state === 'Playing' ? loc.player.meterActive : loc.player.meterStandby}
                         </span>
                       </div>
                     )}
@@ -1214,7 +1208,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                                   alignItems: 'center',
                                   gap: '4px',
                                 }}
-                                title={`${loc.player.editLoop || (language === 'pl' ? 'Edytuj pętlę A-B' : 'Edit A-B loop')} (${language === 'pl' ? 'Kliknij, aby edytować milisekundy' : 'Click to edit milliseconds'})`}
+                                title={loc.player.editLoopTooltip}
                               >
                                 <span>🔁 {loc.player.loopAB}:</span>
                                 <span style={{ color: 'var(--accent-cyan)' }}>{loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000'}</span>
@@ -1230,7 +1224,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                                 onClick={() => {
                                   setLoopPointA(null);
                                   setLoopPointB(null);
-                                  showMessage(language === 'pl' ? 'Wyczyszczono pętlę A-B (Skrót: C)' : 'Cleared A-B loop (Key: C)');
+                                  showMessage(loc.player.clearedLoopMsg);
                                 }}
                                 style={{
                                   padding: '1px 5px',
@@ -1241,7 +1235,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                                   borderRadius: '3px',
                                   cursor: 'pointer',
                                 }}
-                                title={loc.player.clearLoop || (language === 'pl' ? 'Wyczyść pętlę A-B' : 'Clear A-B loop')}
+                                title={loc.player.clearLoop}
                               >
                                 ✕
                               </button>
@@ -1316,7 +1310,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               handleSeek(loopPointA);
-                              showMessage(language === 'pl' ? `Skok do Punktu A: ${formatTimeMs(loopPointA)}` : `Jump to Point A: ${formatTimeMs(loopPointA)}`);
+                              showMessage(loc.player.jumpToPointAMsg.replace('{0}', formatTimeMs(loopPointA)));
                             }}
                             onDoubleClick={(e) => {
                               e.stopPropagation();
@@ -1337,7 +1331,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                               cursor: 'pointer',
                               zIndex: 2,
                             }}
-                            title={language === 'pl' ? `Punkt A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - kliknij, aby skoczyć (podwójny klik: edytor)` : `Point A: ${formatTimeMs(loopPointA)} (${loopPointA} ms) - click to jump (double click: editor)`}
+                            title={loc.player.pointATooltip.replace('{0}', formatTimeMs(loopPointA)).replace('{1}', String(loopPointA))}
                           >
                             A
                           </div>
@@ -1347,7 +1341,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               handleSeek(loopPointB);
-                              showMessage(language === 'pl' ? `Skok do Punktu B: ${formatTimeMs(loopPointB)}` : `Jump to Point B: ${formatTimeMs(loopPointB)}`);
+                              showMessage(loc.player.jumpToPointBMsg.replace('{0}', formatTimeMs(loopPointB)));
                             }}
                             onDoubleClick={(e) => {
                               e.stopPropagation();
@@ -1368,7 +1362,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                               cursor: 'pointer',
                               zIndex: 2,
                             }}
-                            title={language === 'pl' ? `Punkt B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - kliknij, aby skoczyć (podwójny klik: edytor)` : `Point B: ${formatTimeMs(loopPointB)} (${loopPointB} ms) - click to jump (double click: editor)`}
+                            title={loc.player.pointBTooltip.replace('{0}', formatTimeMs(loopPointB)).replace('{1}', String(loopPointB))}
                           >
                             B
                           </div>
@@ -1399,7 +1393,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                               gap: '2px',
                               boxShadow: '0 0 8px rgba(251, 191, 36, 0.4)',
                             }}
-                            title={`${(loc.player.bookmarkJump || (language === 'pl' ? 'Skocz do zakładki ({0})' : 'Jump to bookmark ({0})')).replace('{0}', formatTime(currentBookmark))} (${language === 'pl' ? 'Kliknij, aby skoczyć' : 'Click to jump'})`}
+                            title={`${loc.player.bookmarkJump.replace('{0}', formatTime(currentBookmark))} (${loc.player.clickToJump})`}
                           >
                             <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
                           </div>
@@ -1429,7 +1423,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                                 cursor: 'pointer',
                                 boxShadow: '0 0 6px rgba(6, 182, 212, 0.9)',
                               }}
-                              title={`📌 ${bm.name} - ${formatTimeMs(bm.position_ms)} (${language === 'pl' ? 'Kliknij, aby skoczyć' : 'Click to jump'})`}
+                              title={`📌 ${bm.name} - ${formatTimeMs(bm.position_ms)} (${loc.player.clickToJump})`}
                             />
                           );
                         })}
@@ -1464,7 +1458,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                         {currentBookmark === null ? (
                           <button
                             onClick={handleSaveBookmark}
-                            title={loc.player.bookmarkDesc || (language === 'pl' ? 'Zapisz zakładkę odtwarzania' : 'Save playback bookmark')}
+                            title={loc.player.bookmarkDesc}
                             className="glass-card"
                             style={{
                               height: '32px',
@@ -1509,7 +1503,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             <button
                               onClick={() => handleJumpToBookmark(currentBookmark)}
                               className="glass-card"
-                              title={(loc.player.bookmarkJump || (language === 'pl' ? 'Skocz do zakładki ({0})' : 'Jump to bookmark ({0})')).replace('{0}', formatTime(currentBookmark))}
+                              title={loc.player.bookmarkJump.replace('{0}', formatTime(currentBookmark))}
                               style={{
                                 padding: '6px 6px',
                                 fontSize: '0.72rem',
@@ -1530,7 +1524,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             <button
                               onClick={handleDeleteBookmark}
                               className="glass-card"
-                              title={loc.player.bookmarkDelete || (language === 'pl' ? 'Usuń zakładkę' : 'Delete bookmark')}
+                              title={loc.player.bookmarkDelete}
                               style={{
                                 padding: '6px 6px',
                                 color: '#ff6b81',
@@ -1551,7 +1545,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={() => {
                             if (!activeTrackId && !status.current_track?.track_id) {
-                              showMessage(language === 'pl' ? 'Załaduj utwór, aby zarządzać znacznikami' : 'Load track to manage cue points', true);
+                              showMessage(loc.player.loadTrackToManageBookmarks, true);
                               return;
                             }
                             setIsBookmarksModalOpen(true);
@@ -1571,12 +1565,10 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             borderRadius: '8px',
                             cursor: 'pointer',
                           }}
-                          title={language === 'pl' 
-                            ? `Wielopunktowe znaczniki utworu (Cue Points)${currentTrackBookmarks.length > 0 ? ` [${currentTrackBookmarks.length} zapisanych]` : ''}` 
-                            : `Track Cue Points & Bookmarks${currentTrackBookmarks.length > 0 ? ` [${currentTrackBookmarks.length} saved]` : ''}`}
+                          title={loc.player.bookmarksModalTitle.replace('{0}', String(currentTrackBookmarks.length))}
                         >
                           <Bookmark size={13} color="var(--accent-cyan)" />
-                          <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : (language === 'pl' ? 'Punkty' : 'Points')}</span>
+                          <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}</span>
                         </button>
 
                         {/* 3. Przycisk Punktu A */}
@@ -1584,9 +1576,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           onClick={() => {
                             const pos = status.position_ms;
                             setLoopPointA(pos);
-                            showMessage(language === 'pl' 
-                              ? `Ustawiono Punkt A: ${formatTimeMs(pos)} (Skrót: A)` 
-                              : `Set Point A: ${formatTimeMs(pos)} (Key: A)`);
+                            showMessage(loc.player.pointAUpdatedMsg.replace('{0}', formatTimeMs(pos)));
                           }}
                           className="glass-card"
                           style={{
@@ -1606,10 +1596,8 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             transition: 'all 0.15s ease',
                           }}
                           title={loopPointA !== null
-                            ? (language === 'pl' 
-                                ? `Punkt A: ${formatTimeMs(loopPointA)} — kliknij, aby ustawić na nowo na ${formatTime(status.position_ms)} (Klawisz: A)`
-                                : `Point A: ${formatTimeMs(loopPointA)} — click to update to ${formatTime(status.position_ms)} (Key: A)`)
-                            : (language === 'pl' ? 'Ustaw Punkt A na bieżącej pozycji (Klawisz: A)' : 'Set Point A at current position (Key: A)')}
+                            ? loc.player.pointATooltip.replace('{0}', formatTimeMs(loopPointA)).replace('{1}', String(loopPointA))
+                            : loc.player.setPointAAtCurrent}
                         >
                           A
                         </button>
@@ -1619,9 +1607,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           onClick={() => {
                             const pos = status.position_ms;
                             setLoopPointB(pos);
-                            showMessage(language === 'pl' 
-                              ? `Ustawiono Punkt B: ${formatTimeMs(pos)} (Skrót: B)` 
-                              : `Set Point B: ${formatTimeMs(pos)} (Key: B)`);
+                            showMessage(loc.player.pointBUpdatedMsg.replace('{0}', formatTimeMs(pos)));
                           }}
                           className="glass-card"
                           style={{
@@ -1641,10 +1627,8 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             transition: 'all 0.15s ease',
                           }}
                           title={loopPointB !== null
-                            ? (language === 'pl' 
-                                ? `Punkt B: ${formatTimeMs(loopPointB)} — kliknij, aby ustawić na nowo na ${formatTime(status.position_ms)} (Klawisz: B)`
-                                : `Point B: ${formatTimeMs(loopPointB)} — click to update to ${formatTime(status.position_ms)} (Key: B)`)
-                            : (language === 'pl' ? 'Ustaw Punkt B na bieżącej pozycji (Klawisz: B)' : 'Set Point B at current position (Key: B)')}
+                            ? loc.player.pointBTooltip.replace('{0}', formatTimeMs(loopPointB)).replace('{1}', String(loopPointB))
+                            : loc.player.setPointBAtCurrent}
                         >
                           B
                         </button>
@@ -1667,7 +1651,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
-                            title={loc.player.editLoop || (language === 'pl' ? 'Edytuj zakres pętli A-B w milisekundach' : 'Edit loop range in milliseconds')}
+                            title={loc.player.editLoopTooltip}
                           >
                             <Sliders size={13} />
                           </button>
@@ -1676,7 +1660,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                               onClick={() => {
                                 setLoopPointA(null);
                                 setLoopPointB(null);
-                                showMessage(language === 'pl' ? 'Wyczyszczono pętlę A-B (Skrót: C)' : 'Cleared A-B loop (Key: C)');
+                                showMessage(loc.player.clearedLoopMsg);
                               }}
                               className="glass-card"
                               style={{
@@ -1735,7 +1719,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.68rem', marginLeft: '2px' }}>
                               {sleepTimerRemainingSec !== null
                                 ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
-                                : (language === 'pl' ? 'Koniec' : 'End')}
+                                : loc.player.timerEnd}
                             </span>
                           )}
                         </button>
@@ -1946,7 +1930,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           type="button"
                           onClick={handleToggleVolumeUnit}
-                          title={language === 'pl' ? 'Kliknij, aby przełączyć jednostkę: % ↔ dB' : 'Click to toggle unit: % ↔ dB'}
+                          title={loc.player.volumeToggleUnitTooltip}
                           style={{
                             background: 'rgba(255, 255, 255, 0.06)',
                             border: '1px solid var(--border-subtle)',
@@ -2025,10 +2009,10 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                         }}
                       >
                         <Sliders size={12} />
-                        <span>{language === 'pl' ? 'Miks stemów' : 'Stem Mix'}</span>
+                        <span>{loc.player.stemMix}</span>
                         <button
                           onClick={handleRestoreOriginalTrack}
-                          title={language === 'pl' ? 'Wróć do oryginalnego utworu (wyjście ze stemów)' : 'Return to original track (exit stems)'}
+                          title={loc.player.returnToOriginalTooltip}
                           style={{
                             background: 'rgba(255, 255, 255, 0.18)',
                             border: '1px solid rgba(255, 255, 255, 0.28)',
@@ -2044,7 +2028,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           }}
                         >
                           <RotateCcw size={11} />
-                          {language === 'pl' ? 'Wróć do utworu' : 'Restore original'}
+                          {loc.player.restoreOriginal}
                         </button>
                       </div>
                     )}
@@ -2274,7 +2258,7 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                     {/* Stop After Current Badge Button (foobar2000 classic) */}
                     <button
                       onClick={handleToggleStopAfterCurrent}
-                      title={language === 'pl' ? 'Zatrzymaj odtwarzanie po zakończeniu bieżącego utworu (Stop After Current Track — foobar2000)' : 'Stop playback after current track finishes (Stop After Current Track — foobar2000)'}
+                      title={loc.player.stopAfterCurrentTooltip}
                       className="glass-card"
                       style={{
                         padding: '6px 11px',

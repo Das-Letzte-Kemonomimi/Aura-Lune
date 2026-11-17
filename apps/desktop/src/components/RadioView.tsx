@@ -75,14 +75,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
   },
 ];
 
-const STATION_DESCRIPTIONS_EN: Record<string, string> = {
-  'listen-moe-jpop': 'Popular community radio streaming anime, gaming, and Japanese pop in lossless Opus/AAC.',
-  'gensokyo-radio': '24/7 licensed Touhou Project doujin music and game arrangement broadcasts.',
-  'listen-moe-kpop': 'Korean pop, K-drama soundtracks, and fresh music straight from Seoul.',
-  'nightwave-plaza': 'Nostalgic 80s/90s vibes, anime aesthetics, future funk, and vaporwave.',
-  'animenfo-radio': 'Classic and modern anime openings, endings, and Japanese animation soundtracks.',
-  'lofi-girl': 'Soothing lofi beats and chill hip-hop for studying, coding, and relaxing.',
-};
+
 
 interface RadioViewProps {
   currentLang?: Language;
@@ -108,7 +101,18 @@ export const RadioView: React.FC<RadioViewProps> = ({
   onDeleteCustomStation,
 }) => {
   const loc = getTranslations(currentLang);
-  const isPl = currentLang === 'pl';
+
+  const getStationDesc = (id: string, defaultDesc?: string): string => {
+    switch (id) {
+      case 'listen-moe-jpop': return loc.radio.stationDescListenMoeJpop || defaultDesc || '';
+      case 'gensokyo-radio': return loc.radio.stationDescGensokyo || defaultDesc || '';
+      case 'listen-moe-kpop': return loc.radio.stationDescListenMoeKpop || defaultDesc || '';
+      case 'nightwave-plaza': return loc.radio.stationDescNightwavePlaza || defaultDesc || '';
+      case 'animenfo-radio': return loc.radio.stationDescAnimenfo || defaultDesc || '';
+      case 'lofi-girl': return loc.radio.stationDescLofiGirl || defaultDesc || '';
+      default: return defaultDesc || '';
+    }
+  };
 
   return (
     <div
@@ -280,7 +284,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-pink)', fontWeight: 700 }}>
-                  {isPlaying ? (isPl ? '● TRANSMISJA NA ŻYWO' : '● LIVE BROADCAST') : (isPl ? 'ZATRZYMANO' : 'STOPPED')}
+                  {isPlaying ? loc.radio.liveBroadcast : loc.radio.stopped}
                 </span>
                 <span style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
                   {currentStation.genre}
@@ -439,7 +443,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
                   </div>
 
                   <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    {(!isPl && STATION_DESCRIPTIONS_EN[station.id]) ? STATION_DESCRIPTIONS_EN[station.id] : station.description}
+                    {getStationDesc(station.id, station.description)}
                   </p>
                 </div>
 
@@ -542,9 +546,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
               {loc.radio.noCustomStations}
             </p>
             <p style={{ margin: '4px 0 16px 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              {isPl
-                ? 'Obsługiwane są dowolne bezpośrednie strumienie Icecast, Shoutcast, AAC, MP3, Ogg Vorbis i Opus.'
-                : 'Direct Icecast, Shoutcast, AAC, MP3, Ogg Vorbis, and Opus streams are supported.'}
+              {loc.radio.supportedStreamsHint}
             </p>
             <button
               onClick={onOpenAddModal}
@@ -643,7 +645,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
                   >
                     <button
                       onClick={() => onDeleteCustomStation(station.id)}
-                      title={isPl ? 'Usuń stację' : 'Delete station'}
+                      title={loc.radio.deleteStation}
                       style={{
                         background: 'transparent',
                         border: 'none',

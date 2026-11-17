@@ -249,15 +249,15 @@ export function useTranscodeManager({
     setSettingsTab('transcode');
     setIsSettingsOpen(true);
     showMessage(
-      language === 'pl'
-        ? `Zaimportowano zakres pętli A-B do eksportu: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`
-        : `Imported A-B loop range for export: ${formatTimeMs(a ?? 0)} → ${formatTimeMs(b)}`
+      (t.notifications.loopRangeImported || 'Imported A-B loop range for export: {0} → {1}')
+        .replace('{0}', formatTimeMs(a ?? 0))
+        .replace('{1}', formatTimeMs(b))
     );
-  }, [currentPlayingTrack?.path, status.current_track?.uri, filePath, setFilePath, transcodeFormat, setSettingsTab, setIsSettingsOpen, showMessage, language]);
+  }, [currentPlayingTrack?.path, status.current_track?.uri, filePath, setFilePath, transcodeFormat, setSettingsTab, setIsSettingsOpen, showMessage, t.notifications.loopRangeImported]);
 
   const handleSaveLoopAsBookmarks = useCallback(async (a: number | null, b: number | null) => {
     if (!activeTrackId) {
-      showMessage(language === 'pl' ? 'Brak aktywnego utworu do zapisania znaczników' : 'No active track to save markers', true);
+      showMessage(t.notifications.noActiveTrackForMarkers, true);
       return;
     }
     try {
@@ -276,22 +276,18 @@ export function useTranscodeManager({
         });
       }
       await refreshTrackBookmarks();
-      showMessage(language === 'pl' ? 'Zapisano punkty A i B jako trwałe znaczniki utworu!' : 'Saved points A and B as track bookmarks!');
+      showMessage(t.notifications.savedMarkersAsBookmarks);
     } catch (e: any) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
-  }, [activeTrackId, showMessage, language, refreshTrackBookmarks, t.common.errorPrefix]);
+  }, [activeTrackId, showMessage, t.notifications.noActiveTrackForMarkers, t.notifications.savedMarkersAsBookmarks, refreshTrackBookmarks, t.common.errorPrefix]);
 
   const handleTranscode = useCallback(async () => {
     if (isTranscoding) return;
     setIsTranscoding(true);
     setTranscodeProgress({ percent: 0 });
     setTranscodeElapsedSeconds(0);
-    showMessage(
-      language === 'pl'
-        ? '🚀 Rozpoczęto renderowanie w tle! Możesz swobodnie korzystać z odtwarzacza.'
-        : '🚀 Export started in the background! You can freely continue using the player.'
-    );
+    showMessage(t.notifications.exportStartedBackground);
     try {
       let formatObj: any = { Wav: null };
       if (transcodeFormat === 'Opus') {

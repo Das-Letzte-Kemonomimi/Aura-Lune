@@ -161,8 +161,8 @@ export interface LibraryViewProps {
 
 export const LibraryView: React.FC<LibraryViewProps> = ({
   layoutMaxWidth,
-  currentLang,
-  language = currentLang,
+  currentLang: _currentLang,
+  language: _language = _currentLang,
   loc,
   tracks,
   albums,
@@ -836,9 +836,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       localStorage.setItem('auralune_hide_duplicates', String(next));
                     } catch { }
                     showMessage(
-                      next
-                        ? (language === 'pl' ? 'Włączono filtr: ukrywanie duplikatów utworów' : 'Filter enabled: hide track duplicates')
-                        : (language === 'pl' ? 'Wyłączono filtr ukrywania duplikatów (pokazuj wszystkie pliki)' : 'Filter disabled: show all duplicate files')
+                      next ? loc.library.hideDuplicatesFilterOn : loc.library.hideDuplicatesFilterOff
                     );
                   }}
                   style={{
@@ -855,10 +853,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     alignItems: 'center',
                     gap: '4px',
                   }}
-                  title={language === 'pl' ? 'Ukryj powtarzające się duplikaty utworów w widoku biblioteki' : 'Hide repeated duplicate tracks in library view'}
+                  title={loc.library.hideDuplicatesTooltip}
                 >
                   <Copy size={12} />
-                  {language === 'pl' ? (hideDuplicates ? 'Duplikaty: Ukryte' : 'Duplikaty') : (hideDuplicates ? 'Duplicates: Hidden' : 'Duplicates')}
+                  {hideDuplicates ? loc.library.duplicatesHidden : loc.library.duplicates}
                 </button>
 
                 {/* Kontrola sortowania */}
@@ -923,12 +921,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     {[
                       { id: 'all', label: loc.library.smartAll, icon: Music, color: 'var(--accent-purple)' },
                       { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, color: 'var(--accent-pink)' },
-                      { id: 'top_rated', label: currentLang === 'pl' ? 'Ocenione (★★★★+)' : 'Top Rated', icon: Star, color: 'var(--accent-amber)' },
+                      { id: 'top_rated', label: loc.library.quickVibeTopRated, icon: Star, color: 'var(--accent-amber)' },
                       { id: 'history', label: loc.library.smartHistory, icon: Clock, color: 'var(--accent-cyan)' },
                       { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, color: 'var(--accent-amber)' },
                       { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, color: 'var(--accent-purple)' },
-                      { id: 'high_bpm', label: currentLang === 'pl' ? 'Szybkie tempo (>130 BPM)' : 'Fast (>130 BPM)', icon: Zap, color: 'var(--accent-pink)' },
-                      { id: 'forgotten', label: currentLang === 'pl' ? 'Zapomniane (0 odtworzeń)' : 'Forgotten Gems', icon: Moon, color: 'var(--accent-cyan)' },
+                      { id: 'high_bpm', label: loc.library.quickVibeFastBpm, icon: Zap, color: 'var(--accent-pink)' },
+                      { id: 'forgotten', label: loc.library.quickVibeForgotten, icon: Moon, color: 'var(--accent-cyan)' },
                     ].map((item) => {
                       const isSelected = smartPlaylistFilter === item.id;
                       const Icon = item.icon;
@@ -974,10 +972,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                         cursor: 'pointer',
                         marginLeft: 'auto',
                       }}
-                      title={currentLang === 'pl' ? 'Otwórz arkusz CUE i odtwarzaj wirtualne utwory' : 'Open CUE Sheet'}
+                      title={loc.library.cueSheetOpenTooltip}
                     >
                       <FileCode size={13} />
-                      {currentLang === 'pl' ? 'Arkusz CUE' : 'CUE Sheet'}
+                      {loc.library.cueSheetBtn}
                     </button>
                   </div>
 
@@ -1091,7 +1089,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             {loc.library.playsCol} {sortField === 'plays' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                           </th>
                           <th style={{ width: '95px', padding: '10px 6px', textAlign: 'center' }}>
-                            {currentLang === 'pl' ? 'Ocena' : 'Rating'}
+                            {loc.library.rating}
                           </th>
                           <th style={{ width: '135px', padding: '10px 6px', textAlign: 'center' }}>{loc.library.actions}</th>
                         </tr>
@@ -1338,7 +1336,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                               alignItems: 'center',
                                               transition: 'transform 0.1s ease',
                                             }}
-                                            title={currentLang === 'pl' ? `Ocena: ${star}/5` : `Rating: ${star}/5`}
+                                            title={loc.library.ratingTooltip.replace('{0}', String(star))}
                                           >
                                             <Star size={12} fill={active ? '#f59e0b' : 'none'} />
                                           </button>
@@ -1377,7 +1375,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                       </button>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
-                                        title={currentLang === 'pl' ? 'Edytor tagów / Właściwości utworu' : 'Tag Editor / Track Properties'}
+                                        title={loc.library.tagEditorTooltip}
                                         style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan, #06b6d4)', cursor: 'pointer', padding: '4px' }}
                                       >
                                         <TagIcon size={15} />
@@ -1395,7 +1393,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                           setCreateStemProjectTrack(t);
                                           setIsCreateStemProjectOpen(true);
                                         }}
-                                        title={language === 'pl' ? 'Utwórz projekt stemów (Moises Studio)' : 'Create Stem Project (Moises Studio)'}
+                                        title={loc.library.createStemProjectTooltip}
                                         style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink, #f43f5e)', cursor: 'pointer', padding: '4px' }}
                                       >
                                         <Sliders size={15} />
@@ -1867,7 +1865,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                                 setCreateStemProjectTrack(t);
                                                 setIsCreateStemProjectOpen(true);
                                               }}
-                                              title={language === 'pl' ? 'Utwórz projekt stemów (Moises Studio)' : 'Create Stem Project (Moises Studio)'}
+                                              title={loc.library.createStemProjectTooltip}
                                               style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink, #f43f5e)', cursor: 'pointer', padding: '4px' }}
                                             >
                                               <Sliders size={15} />
@@ -1931,9 +1929,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             }}
                           >
                             {[
-                              { id: 'all', label: language === 'pl' ? `Wszystkie (${albums.length})` : `All (${albums.length})` },
-                              { id: 'with-cover', label: language === 'pl' ? `Z okładką (${albumsWithCoverCount})` : `With cover (${albumsWithCoverCount})` },
-                              { id: 'missing-cover', label: language === 'pl' ? `Bez okładki (${albumsWithoutCoverCount})` : `Missing (${albumsWithoutCoverCount})` },
+                              { id: 'all', label: loc.library.albumFilterAll.replace('{0}', String(albums.length)) },
+                              { id: 'with-cover', label: loc.library.albumFilterWithCover.replace('{0}', String(albumsWithCoverCount)) },
+                              { id: 'missing-cover', label: loc.library.albumFilterMissingCover.replace('{0}', String(albumsWithoutCoverCount)) },
                             ].map((f) => {
                               const isActive = albumCoverFilter === f.id;
                               return (
@@ -1987,8 +1985,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                               <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortTitle}</option>
                               <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortArtist}</option>
                               <option value="year" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortYear}</option>
-                              <option value="tracks" style={{ background: '#121424', color: '#fff' }}>{language === 'pl' ? 'Liczba utworów' : 'Track count'}</option>
-                              <option value="duration" style={{ background: '#121424', color: '#fff' }}>{language === 'pl' ? 'Czas trwania' : 'Total duration'}</option>
+                              <option value="tracks" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortTrackCount}</option>
+                              <option value="duration" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortTotalDuration}</option>
                             </select>
                             <button
                               onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
@@ -2024,12 +2022,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                               }}
                             >
                               <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginRight: '2px', paddingLeft: '4px' }}>
-                                {language === 'pl' ? 'Rozmiar:' : 'Size:'}
+                                {loc.library.albumGridSize}
                               </span>
                               {[
-                                { id: 'compact', label: 'S (160px)', title: language === 'pl' ? 'Kompaktowe kafelki' : 'Small tiles' },
-                                { id: 'medium', label: 'M (210px)', title: language === 'pl' ? 'Średnie kafelki' : 'Medium tiles' },
-                                { id: 'large', label: 'L (270px)', title: language === 'pl' ? 'Duże kafelki' : 'Large tiles' },
+                                { id: 'compact', label: 'S (160px)', title: loc.library.albumTileSmall },
+                                { id: 'medium', label: 'M (210px)', title: loc.library.albumTileMedium },
+                                { id: 'large', label: 'L (270px)', title: loc.library.albumTileLarge },
                               ].map((s) => {
                                 const isCur = albumGridSize === s.id;
                                 return (
@@ -2088,10 +2086,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                 color: albumViewMode === 'grid' ? 'var(--accent-pink)' : 'var(--text-secondary)',
                                 cursor: 'pointer',
                               }}
-                              title={language === 'pl' ? 'Widok kafelków' : 'Grid View'}
+                              title={loc.library.viewGridView}
                             >
                               <LayoutGrid size={13} />
-                              <span>{language === 'pl' ? 'Kafelki' : 'Grid'}</span>
+                              <span>{loc.library.viewGrid}</span>
                             </button>
 
                             <button
@@ -2112,10 +2110,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                 color: albumViewMode === 'list' ? 'var(--accent-pink)' : 'var(--text-secondary)',
                                 cursor: 'pointer',
                               }}
-                              title={language === 'pl' ? 'Widok listy' : 'List View'}
+                              title={loc.library.viewListView}
                             >
                               <List size={13} />
-                              <span>{language === 'pl' ? 'Lista' : 'List'}</span>
+                              <span>{loc.library.viewList}</span>
                             </button>
                           </div>
                         </div>
@@ -2374,7 +2372,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                     position: 'relative',
                                     overflow: 'hidden',
                                   }}
-                                  title={language === 'pl' ? 'Kliknij, aby otworzyć utwory albumu' : 'Click to view album tracks'}
+                                  title={loc.library.albumViewTracksTooltip}
                                 >
                                   {!album.cover_path && <Disc size={albumGridSize === 'compact' ? 36 : 46} color="rgba(255,255,255,0.25)" />}
                                   <div
@@ -2762,9 +2760,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                 gap: '5px',
                                 cursor: 'pointer',
                               }}
-                              title={currentLang === 'pl' ? 'Filtruj utwory tego wykonawcy' : 'Filter tracks by this artist'}
+                              title={loc.library.filterArtistTracksTooltip}
                             >
-                              <ListMusic size={13} /> Utwory
+                              <ListMusic size={13} /> {loc.library.artistTracksBtn}
                             </button>
                           </div>
                         </div>

@@ -201,9 +201,10 @@ export function usePlaylistManager({
 
       await refreshPlaylists();
       showMessage(
-        language === 'pl'
-          ? `Zaimportowano '${res.playlist_name}': ${res.matched_tracks}/${res.total_entries} utworów z biblioteki.`
-          : `Imported '${res.playlist_name}': ${res.matched_tracks}/${res.total_entries} tracks from library.`
+        loc.notifications.m3u8ImportSuccess
+          .replace('{0}', res.playlist_name)
+          .replace('{1}', String(res.matched_tracks))
+          .replace('{2}', String(res.total_entries))
       );
     } catch (err: any) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);

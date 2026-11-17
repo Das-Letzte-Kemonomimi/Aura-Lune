@@ -108,11 +108,11 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
     return `${mins}:${remSec < 10 ? '0' : ''}${remSec}`;
   };
 
-  const periodLabels: Record<Period, { pl: string; en: string }> = {
-    week: { pl: 'Ten tydzień', en: 'This Week' },
-    month: { pl: 'Ten miesiąc', en: 'This Month' },
-    year: { pl: 'Ten rok', en: 'This Year' },
-    all: { pl: 'Cały czas', en: 'All-Time' },
+  const periodLabels: Record<Period, string> = {
+    week: loc.recapModal.period7d,
+    month: loc.recapModal.period30d,
+    year: loc.recapModal.period365d,
+    all: loc.recapModal.periodAll,
   };
 
   return (
@@ -187,9 +187,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                 </span>
               </div>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {currentLang === 'pl'
-                  ? 'Twoje osobiste podsumowanie muzyczne'
-                  : 'Your personalized musical rewind & statistics'}
+                {loc.recapModal.subtitle}
               </p>
             </div>
           </div>
@@ -223,7 +221,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    {currentLang === 'pl' ? periodLabels[p].pl : periodLabels[p].en}
+                    {periodLabels[p]}
                   </button>
                 );
               })}
@@ -293,7 +291,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
             return (
               <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
                 <Sparkles size={28} className="animate-spin" style={{ margin: '0 auto 12px' }} />
-                <div>{currentLang === 'pl' ? 'Generowanie podsumowania...' : 'Generating your musical rewind...'}</div>
+                <div>{loc.recapModal.generating}</div>
               </div>
             );
           }
@@ -311,12 +309,10 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
               >
                 <Music size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
                 <h3 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 700 }}>
-                  {currentLang === 'pl' ? 'Brak zarejestrowanych odsłuchań' : 'No listening history yet'}
+                  {loc.recapModal.noHistory}
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '420px', marginInline: 'auto' }}>
-                  {currentLang === 'pl'
-                    ? 'Włącz swoje ulubione utwory w Auralune, a aplikacja automatycznie stworzy dla Ciebie zestawienia tygodniowe, miesięczne i roczne!'
-                    : 'Play some tunes in Auralune and your weekly, monthly, and yearly stats will appear here automatically!'}
+                  {loc.recapModal.noHistoryDesc}
                 </p>
               </div>
             );
@@ -354,7 +350,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                   </div>
                   <div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {currentLang === 'pl' ? 'CZAS SŁUCHANIA' : 'TOTAL TIME SPENT'}
+                      {loc.recapModal.totalTimeSpent}
                     </div>
                     <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
                       {formatHoursMins(totalSeconds)}
@@ -390,7 +386,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                   </div>
                   <div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {currentLang === 'pl' ? 'ODTWÓRZONE UTWORY' : 'TRACKS PLAYED'}
+                      {loc.recapModal.tracksPlayed}
                     </div>
                     <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
                       {totalTracks}
@@ -412,7 +408,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                     <Trophy size={18} color="var(--accent-amber, #f59e0b)" />
                     <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                      {currentLang === 'pl' ? 'Najczęściej odtwarzane utwory' : 'Your Top Tracks'}
+                      {loc.recapModal.topTracks}
                     </span>
                   </div>
 
@@ -481,7 +477,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
                             <div style={{ textAlign: 'right' }}>
                               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                                {track.play_count} {currentLang === 'pl' ? 'odtw.' : 'plays'}
+                                {track.play_count} {loc.recapModal.plays}
                               </div>
                               {track.total_time_ms > 0 && (
                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
@@ -530,7 +526,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <User size={18} color="var(--accent-purple, #a855f7)" />
                     <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                      {currentLang === 'pl' ? 'Ulubieni wykonawcy' : 'Top Artists'}
+                      {loc.recapModal.topArtists}
                     </span>
                   </div>
 
@@ -556,7 +552,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                         </span>
                         {artist.play_count > 0 && (
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            ({artist.play_count} {currentLang === 'pl' ? 'odtw.' : 'plays'})
+                            ({artist.play_count} {loc.recapModal.plays})
                           </span>
                         )}
                       </div>

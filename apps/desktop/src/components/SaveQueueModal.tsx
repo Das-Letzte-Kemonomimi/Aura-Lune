@@ -24,7 +24,6 @@ export const SaveQueueModal: React.FC<SaveQueueModalProps> = ({
   if (!isOpen) return null;
 
   const loc = getTranslations(currentLang);
-  const isPl = currentLang === 'pl';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +105,7 @@ export const SaveQueueModal: React.FC<SaveQueueModalProps> = ({
               {loc.queue.saveAsPlaylistTitle}
             </h3>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {queueLength} {loc.library.tracks} {isPl ? 'w bieżącej kolejce' : 'in current queue'}
+              {queueLength} {loc.library.tracks} {loc.queue.inCurrentQueue}
             </p>
           </div>
         </div>
@@ -122,7 +121,7 @@ export const SaveQueueModal: React.FC<SaveQueueModalProps> = ({
                 marginBottom: '8px',
               }}
             >
-              {isPl ? 'Nazwa nowej playlisty:' : 'New playlist name:'}
+              {loc.queue.newPlaylistName}
             </label>
             <div style={{ position: 'relative' }}>
               <input

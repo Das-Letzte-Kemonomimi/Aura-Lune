@@ -13,7 +13,7 @@ import {
   Sliders,
   ShieldCheck,
 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface AudioPathTrackInfo {
   format?: string | null;
@@ -44,7 +44,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
 }) => {
   if (!isOpen) return null;
 
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
 
   // Weryfikacja czy sygnał płynie w 100% bit-perfect bez modyfikacji próbek
   const isBypass = status.engine === 'Bypass';
@@ -127,7 +127,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
-                  {isPl ? 'Audio Path Inspector' : 'Audio Path Inspector'}
+                  {loc.audioPath.title}
                 </h2>
                 <span
                   style={{
@@ -163,9 +163,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                   color: 'var(--text-secondary, #94a3b8)',
                 }}
               >
-                {isPl
-                  ? 'Tor sygnałowy wysokiej rozdzielczości od pliku do miksera PipeWire'
-                  : 'End-to-end signal path from audio source to PipeWire hardware sink'}
+                {loc.audioPath.subtitle}
               </p>
             </div>
           </div>
@@ -203,7 +201,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Layers size={14} color="#06b6d4" />
-              <strong>{isPl ? 'Źródło' : 'Source'}</strong>
+              <strong>{loc.audioPath.source}</strong>
             </div>
             <ArrowRight size={13} color="#64748b" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -234,7 +232,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#06b6d4', fontWeight: 700, fontSize: '0.82rem' }}>
                 <Layers size={16} />
-                <span>1. {isPl ? 'Źródło Audio (Input Source)' : 'Input Audio Source'}</span>
+                <span>{loc.audioPath.inputSource}</span>
               </div>
               <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                 {status.current_track?.title || 'Brak utworu'}
@@ -274,7 +272,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isBitPerfect ? '#10b981' : '#a855f7', fontWeight: 700, fontSize: '0.82rem' }}>
                 <Cpu size={16} />
-                <span>2. {isPl ? 'Silnik DSP & Architektura Modulacji' : 'DSP Engine & Processing Chain'}</span>
+                <span>{loc.audioPath.dspProcessing}</span>
               </div>
               <span
                 style={{
@@ -327,7 +325,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 700, fontSize: '0.82rem' }}>
                 <Speaker size={16} />
-                <span>3. {isPl ? 'Wyjście Sprzętowe PipeWire (Audio Sink)' : 'PipeWire Hardware Output Sink'}</span>
+                <span>{loc.audioPath.pipewireSink}</span>
               </div>
               <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>
                 PipeWire Pro Audio Low-Latency
@@ -375,13 +373,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
               <AlertCircle size={18} color="#c084fc" style={{ flexShrink: 0 }} />
             )}
             <span>
-              {isBitPerfect
-                ? (isPl
-                    ? 'Strumień audio jest przekazywany w trybie bit-perfect bez modyfikacji próbek, resamplingu ani strat kwantyzacji.'
-                    : 'The audio stream is routed bit-perfect without sample modification, resampling, or quantization distortion.')
-                : (isPl
-                    ? 'Aktywny silnik DSP lub korekcja barwy dźwięku w czasie rzeczywistym moduluje próbki audio.'
-                    : 'An active DSP engine or EQ is actively processing and shaping the audio samples in real-time.')}
+              {isBitPerfect ? loc.audioPath.bitPerfectSummary : loc.audioPath.processedSummary}
             </span>
           </div>
         </div>
@@ -418,7 +410,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
               }}
             >
               <RotateCcw size={14} />
-              <span>{isPl ? 'Reset do Bit-Perfect Direct (1-klik)' : 'Reset to Bit-Perfect Direct'}</span>
+              <span>{loc.audioPath.resetBtn}</span>
             </button>
           ) : (
             <div />
@@ -438,7 +430,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
               boxShadow: '0 4px 15px rgba(168, 85, 247, 0.35)',
             }}
           >
-            {isPl ? 'Zamknij' : 'Close'}
+            {loc.common.close}
           </button>
         </div>
       </div>

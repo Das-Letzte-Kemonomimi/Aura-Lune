@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { BarChart2, Waves, Activity, Sliders } from 'lucide-react';
+import { type Language, getTranslations } from '../i18n';
 
 export type WaveformStyle = 'bars' | 'smooth' | 'scrolling' | 'mirror';
 
@@ -622,13 +623,13 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     onSeek(pct);
   };
 
-  const isPl = currentLang === 'pl';
+  const loc = useMemo(() => getTranslations(currentLang as Language), [currentLang]);
 
   const styleLabels: Record<WaveformStyle, { name: string; icon: React.ReactNode }> = {
-    smooth: { name: isPl ? 'Gładka Fala' : 'Smooth Wave', icon: <Waves size={13} /> },
-    bars: { name: isPl ? 'Słupki Cyber' : 'Cyber Bars', icon: <BarChart2 size={13} /> },
-    scrolling: { name: isPl ? 'Przewijana DJ' : 'Scrolling DJ', icon: <Activity size={13} /> },
-    mirror: { name: isPl ? 'Lustrzane Spektrum' : 'Mirror Spectrum', icon: <Sliders size={13} /> },
+    smooth: { name: loc.waveform.styleSmooth, icon: <Waves size={13} /> },
+    bars: { name: loc.waveform.styleBars, icon: <BarChart2 size={13} /> },
+    scrolling: { name: loc.waveform.styleScrolling, icon: <Activity size={13} /> },
+    mirror: { name: loc.waveform.styleMirror, icon: <Sliders size={13} /> },
   };
 
   const hoverTimeStr = useMemo(() => {

@@ -198,7 +198,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             transition: 'all 0.2s ease',
             flexShrink: 0,
           }}
-          title={language === 'pl' ? 'Auralune Recap (Tydzień, Miesiąc, Rok)' : 'Auralune Recap (Weekly, Monthly, Yearly)'}
+          title={loc.nav.recapTitle}
         >
           <Flame size={14} color="var(--accent-pink)" />
           <span className="header-action-text">Recap</span>
@@ -222,7 +222,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             transition: 'all 0.2s ease',
             flexShrink: 0,
           }}
-          title={language === 'pl' ? 'Klucz i Tempo utworu (BPM & Key)' : 'Musical Key & Tempo (BPM & Key)'}
+          title={loc.nav.keyBpmTitle}
         >
           <Activity size={14} color="var(--accent-cyan)" />
           <span className="header-action-text">Key & BPM</span>
@@ -246,10 +246,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             transition: 'all 0.2s ease',
             flexShrink: 0,
           }}
-          title={language === 'pl' ? 'Analiza Muzyczna (Akordy, Piano-Roll, Stemy)' : 'Music Analysis (Chords, Piano-Roll, Stems)'}
+          title={loc.nav.analysisTitle}
         >
           <BarChart2 size={14} color="var(--accent-pink)" />
-          <span className="header-action-text">{language === 'pl' ? 'Analiza' : 'Analysis'}</span>
+          <span className="header-action-text">{loc.nav.analysisBtn}</span>
         </button>
 
         {/* Sleep Timer */}
@@ -290,7 +290,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             {sleepTimerRemainingSec !== null
               ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
               : sleepTimerTargetMode === 'end_of_track'
-                ? (language === 'pl' ? 'Koniec' : 'End')
+                ? loc.player.timerEnd
                 : 'Timer'}
           </span>
         </button>
@@ -340,7 +340,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           title={loc.lyricsView?.desktopLyricsToggle || 'Pulpit HUD / Tekst (Desktop Lyrics)'}
         >
           <Tv size={14} />
-          <span className="header-action-text">{language === 'pl' ? 'Pulpit LRC' : 'Desktop LRC'}</span>
+          <span className="header-action-text">{loc.nav.desktopLrc}</span>
         </button>
 
         {/* Ambience cycle */}
@@ -370,17 +370,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               : ambienceMode === 'neon_rain'
                 ? 'Neon 🌧️'
                 : ambienceMode === 'fireflies'
-                  ? (language === 'pl' ? 'Świetliki ✨' : 'Fireflies ✨')
+                  ? loc.player.ambienceFireflies
                   : ambienceMode === 'snow'
-                    ? (language === 'pl' ? 'Śnieg ❄️' : 'Snow ❄️')
+                    ? loc.player.ambienceSnow
                     : ambienceMode === 'meteor_shower'
-                      ? (language === 'pl' ? 'Meteory 🌠' : 'Meteors 🌠')
+                      ? loc.player.ambienceMeteors
                       : ambienceMode === 'matrix_rain'
                         ? 'Matrix 🟩'
                         : ambienceMode === 'momiji'
                           ? 'Momiji 🍁'
                           : ambienceMode === 'embers'
-                            ? (language === 'pl' ? 'Iskry 🔥' : 'Embers 🔥')
+                            ? loc.player.ambienceEmbers
                             : loc.nav.effects}
           </span>
         </button>
@@ -501,11 +501,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             cursor: 'pointer',
             flexShrink: 0,
           }}
-          title={
-            language === 'pl'
-              ? `Skala interfejsu: ${Math.round(uiScale * 100)}% (LPM: powiększ, PPM: pomniejsz, Skróty: Ctrl +/-, Ctrl 0)`
-              : `UI Scale: ${Math.round(uiScale * 100)}% (Left click: zoom in, Right click: zoom out, Shortcuts: Ctrl +/-, Ctrl 0)`
-          }
+          title={loc.nav.uiScaleTooltip.replace('{0}', String(Math.round(uiScale * 100)))}
         >
           <Maximize2 size={13} />
           <span className="header-action-text">{Math.round(uiScale * 100)}%</span>
@@ -578,7 +574,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           title={loc.settings.title}
         >
           <Settings size={14} />
-          <span className="header-action-text">{language === 'pl' ? 'Ustawienia' : 'Settings'}</span>
+          <span className="header-action-text">{loc.settings.title}</span>
         </button>
 
         {/* Language Selector */}

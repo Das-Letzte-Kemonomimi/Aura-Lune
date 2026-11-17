@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Copy, Trash2, FolderOpen, Play, X, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 
 export interface TrackRecordDto {
   id: number;
@@ -38,7 +38,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
   onLibraryChanged,
   currentLang = 'pl',
 }) => {
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
   const [groups, setGroups] = useState<DuplicateGroupDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +64,8 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
 
   const handleDelete = async (trackId: number, deleteFile: boolean, title: string) => {
     const confirmText = deleteFile
-      ? (isPl
-          ? `Czy na pewno chcesz BEZPOWROTNIE usunąć plik utworu „${title}” z dysku?`
-          : `Are you sure you want to PERMANENTLY delete "${title}" from disk?`)
-      : (isPl
-          ? `Czy na pewno chcesz usunąć „${title}” z bazy biblioteki Auralune?`
-          : `Are you sure you want to remove "${title}" from Auralune library?`);
+      ? loc.duplicateFinder.confirmDelete
+      : loc.duplicateFinder.confirmRemoveDb;
 
     if (!window.confirm(confirmText)) {
       return;
@@ -77,12 +73,12 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
 
     try {
       await invoke('delete_track_record', { trackId, deleteFile });
-      setSuccessMsg(isPl ? `Pomyślnie usunięto kopię utworu: ${title}` : `Successfully removed duplicate: ${title}`);
+      setSuccessMsg(loc.duplicateFinder.removeSuccess.replace('{0}', title));
       setTimeout(() => setSuccessMsg(null), 3000);
       await loadDuplicates();
       onLibraryChanged?.();
     } catch (err) {
-      setError(isPl ? `Błąd usuwania utworu: ${err}` : `Failed to remove track: ${err}`);
+      setError(loc.duplicateFinder.removeError.replace('{0}', String(err)));
     }
   };
 
@@ -170,12 +166,10 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
-                {isPl ? 'Wyszukiwarka Duplikatów Audio (Duplicate Finder)' : 'Audio Duplicate Finder'}
+                {loc.duplicateFinder.title}
               </h3>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary, #a1a1aa)' }}>
-                {isPl
-                  ? 'Wykrywa identyczne utwory w różnych formatach (FLAC vs MP3), zdublowane pliki lub kopie zapasowe.'
-                  : 'Detects identical tracks across formats (FLAC vs MP3), duplicate files, or backups.'}
+                {loc.duplicateFinder.subtitle}
               </p>
             </div>
           </div>
@@ -183,7 +177,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
             <button
               onClick={loadDuplicates}
               disabled={isLoading}
-              title={isPl ? 'Odśwież wyszukiwanie' : 'Refresh search'}
+              title={loc.duplicateFinder.refreshSearch}
               style={{
                 background: 'rgba(255,255,255,0.06)',
                 border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
@@ -198,7 +192,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
               }}
             >
               <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-              {isPl ? 'Odśwież' : 'Refresh'}
+              {loc.duplicateFinder.refresh}
             </button>
             <button
               onClick={onClose}
@@ -262,7 +256,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
           {isLoading && (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-              {isPl ? 'Analizowanie biblioteki pod kątem duplikatów...' : 'Scanning library for duplicates...'}
+              {loc.duplicateFinder.scanning}
             </div>
           )}
 
@@ -295,12 +289,10 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                 <CheckCircle2 size={24} />
               </div>
               <span style={{ fontSize: '0.96rem', fontWeight: 600, color: '#fff' }}>
-                {isPl ? 'Brak duplikatów w Twojej bibliotece!' : 'No duplicates found in your library!'}
+                {loc.duplicateFinder.noDuplicates}
               </span>
               <span style={{ fontSize: '0.82rem', maxWidth: '400px' }}>
-                {isPl
-                  ? 'Wszystkie utwory posiadają unikalne tytuły i wykonawców. Biblioteka jest w idealnym porządku.'
-                  : 'All tracks have unique titles and artists. Your library is well organized.'}
+                {loc.duplicateFinder.noDuplicatesDesc}
               </span>
             </div>
           )}
@@ -308,8 +300,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
           {!isLoading && groups.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                {isPl ? 'Wykryto' : 'Detected'} <b>{groups.length}</b> {isPl ? 'grup potencjalnych duplikatów (łącznie' : 'groups of potential duplicates (total'}{' '}
-                <b>{groups.reduce((acc, g) => acc + g.tracks.length, 0)}</b> {isPl ? 'plików):' : 'files):'}
+                {loc.duplicateFinder.detectedGroups.replace('{0}', String(groups.length)).replace('{1}', String(groups.reduce((acc, g) => acc + g.tracks.length, 0)))}
               </div>
 
               {groups.map((group, idx) => (
@@ -339,7 +330,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                         fontWeight: 600,
                       }}
                     >
-                      {group.count} {isPl ? 'kopie' : 'copies'}
+                      {group.count} {loc.duplicateFinder.copies}
                     </span>
                   </div>
 
@@ -394,7 +385,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                               {track.path}
                             </span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                              {isPl ? 'Rozmiar:' : 'Size:'} {formatFileSize(track.file_size)} • {isPl ? 'Długość:' : 'Duration:'} {formatDuration(track.duration_ms)} • {isPl ? 'Odtworzeń:' : 'Plays:'} {track.play_count || 0}
+                              {loc.duplicateFinder.size} {formatFileSize(track.file_size)} • {loc.duplicateFinder.duration} {formatDuration(track.duration_ms)} • {loc.duplicateFinder.plays} {track.play_count || 0}
                             </span>
                           </div>
 
@@ -402,7 +393,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <button
                               onClick={() => onPlayTrack(track.path)}
-                              title={isPl ? 'Odtwórz ten plik' : 'Play this file'}
+                              title={loc.duplicateFinder.playFile}
                               style={{
                                 padding: '6px',
                                 borderRadius: '6px',
@@ -417,7 +408,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                             </button>
                             <button
                               onClick={() => handleOpenFolder(track.path)}
-                              title={isPl ? 'Pokaż w eksploratorze plików' : 'Show in file manager'}
+                              title={loc.duplicateFinder.showInFolder}
                               style={{
                                 padding: '6px',
                                 borderRadius: '6px',
@@ -432,7 +423,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                             </button>
                             <button
                               onClick={() => handleDelete(track.id, false, track.title)}
-                              title={isPl ? 'Usuń z bazy biblioteki (plik na dysku pozostanie nienaruszony)' : 'Remove from library database (file on disk remains intact)'}
+                              title={loc.duplicateFinder.removeFromDb}
                               style={{
                                 padding: '6px',
                                 borderRadius: '6px',
@@ -443,11 +434,11 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                                 fontSize: '0.72rem',
                               }}
                             >
-                              {isPl ? 'Usuń wpis' : 'Remove entry'}
+                              {loc.duplicateFinder.removeEntry}
                             </button>
                             <button
                               onClick={() => handleDelete(track.id, true, track.title)}
-                              title={isPl ? 'BEZPOWROTNIE usuń plik z dysku' : 'PERMANENTLY delete file from disk'}
+                              title={loc.duplicateFinder.deleteFromDisk}
                               style={{
                                 padding: '6px',
                                 borderRadius: '6px',

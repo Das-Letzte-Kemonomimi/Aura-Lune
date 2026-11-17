@@ -12,7 +12,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import type { Language } from '../i18n';
+import { type Language, getTranslations } from '../i18n';
 import {
   evaluateHarmonicMatch,
   parseCamelotKey,
@@ -57,7 +57,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   onTrackKeyBpmUpdated,
   currentLang = 'pl',
 }) => {
-  const isPl = currentLang === 'pl';
+  const loc = getTranslations(currentLang);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOnlyInKey, setFilterOnlyInKey] = useState(false);
@@ -281,9 +281,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 Harmonic Queue Assistant & DJ Crossfade
               </h2>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)' }}>
-                {isPl
-                  ? 'Inteligentne miksowanie harmoniczne (Camelot Wheel) i płynne przejścia beat-matched'
-                  : 'Intelligent harmonic mixing (Camelot Wheel) and smooth beat-matched transitions'}
+                {loc.harmonicSuggester.subtitle}
               </p>
             </div>
           </div>
@@ -339,19 +337,19 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 gap: '6px',
               }}
             >
-              <Music2 size={14} /> {isPl ? 'Aktualny utwór' : 'Current Track'}
+              <Music2 size={14} /> {loc.harmonicSuggester.currentTrack}
             </div>
             <div style={{ fontWeight: 700, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {effectiveCurrentTrack?.title || (isPl ? 'Brak aktywnego utworu' : 'No active track')}
+              {effectiveCurrentTrack?.title || loc.harmonicSuggester.noActiveTrack}
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', marginBottom: '8px' }}>
-              {effectiveCurrentTrack?.artist || (isPl ? 'Wybierz utwór z biblioteki' : 'Select a track from library')}
+              {effectiveCurrentTrack?.artist || loc.harmonicSuggester.selectFromLibrary}
             </div>
 
             {!currentTrack && libraryTracks.length > 0 && (
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '0.72rem', color: '#9ca3af', display: 'block', marginBottom: '3px' }}>
-                  {isPl ? 'Wybierz utwór bazowy do miksu:' : 'Select base track for mix:'}
+                  {loc.harmonicSuggester.selectBaseTrack}
                 </label>
                 <select
                   value={effectiveCurrentTrack?.id || ''}
@@ -397,7 +395,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   {currentCamelot.raw} ({currentCamelot.keyName})
                 </span>
               ) : (
-                <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{isPl ? 'Klucz nieznany' : 'Key unknown'}</span>
+                <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{loc.harmonicSuggester.keyUnknown}</span>
               )}
 
               {effectiveBpm ? (
@@ -415,7 +413,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   {effectiveBpm.toFixed(1)} BPM
                 </span>
               ) : (
-                <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{isPl ? 'BPM nieznane' : 'BPM unknown'}</span>
+                <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{loc.harmonicSuggester.bpmUnknown}</span>
               )}
 
               {(!currentCamelot || !effectiveBpm) && effectiveCurrentTrack && (
@@ -436,7 +434,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   }}
                 >
                   {isAnalyzingCurrent ? <Loader2 size={12} className="spin" /> : <Zap size={12} />}
-                  {isPl ? 'Wykryj teraz' : 'Detect now'}
+                  {loc.harmonicSuggester.detectNow}
                 </button>
               )}
             </div>
@@ -471,10 +469,10 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 <Sliders size={14} /> DJ Beat-Matched Crossfade
               </div>
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', marginBottom: '8px' }}>
-                {isPl ? 'Płynne przenikanie dopasowane do tempa:' : 'Beat-matched transition:'}{' '}
+                {loc.harmonicSuggester.beatMatchedTransition}{' '}
                 <strong style={{ color: '#fff' }}>
                   {crossfadeDurationMs === 0
-                    ? (isPl ? 'Wyłączone (0.0s)' : 'Disabled (0.0s)')
+                    ? loc.harmonicSuggester.disabled
                     : `${crossfadeDurationMs} ms (${(crossfadeDurationMs / 1000).toFixed(2)}s)`}
                 </strong>
                 {effectiveBpm ? (
@@ -506,7 +504,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <div>{isPl ? '1 Takt (4 b)' : '1 Bar (4 b)'}</div>
+                <div>{loc.harmonicSuggester.bar1}</div>
                 <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>
                   {(ms4 / 1000).toFixed(2)}s
                 </div>
@@ -527,7 +525,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <div>{isPl ? '2 Takty (8 b)' : '2 Bars (8 b)'}</div>
+                <div>{loc.harmonicSuggester.bar2}</div>
                 <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>
                   {(ms8 / 1000).toFixed(2)}s
                 </div>
@@ -548,7 +546,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <div>{isPl ? '4 Takty (16 b)' : '4 Bars (16 b)'}</div>
+                <div>{loc.harmonicSuggester.bar4}</div>
                 <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>
                   {(ms16 / 1000).toFixed(2)}s
                 </div>
@@ -567,7 +565,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   textAlign: 'center',
                   transition: 'all 0.15s ease',
                 }}
-                title={isPl ? 'Wyłącz crossfade' : 'Disable crossfade'}
+                title={loc.harmonicSuggester.disableCrossfade}
               >
                 <div>Off</div>
                 <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>0s</div>
@@ -603,7 +601,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
             <Search size={16} color="var(--text-muted, #9ca3af)" />
             <input
               type="text"
-              placeholder={isPl ? 'Filtruj utwory z biblioteki...' : 'Filter tracks from library...'}
+              placeholder={loc.harmonicSuggester.filterTracksPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -641,7 +639,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            {filterOnlyInKey && <Check size={14} />} {isPl ? 'Tylko pasujące Camelot (≥80%)' : 'Compatible Camelot only (≥80%)'}
+            {filterOnlyInKey && <Check size={14} />} {loc.harmonicSuggester.compatibleCamelotOnly}
           </button>
 
           <button
@@ -660,11 +658,11 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            {filterOnlyBpm && <Check size={14} />} {isPl ? 'Zgodne tempo BPM (±6%)' : 'Compatible BPM (±6%)'}
+            {filterOnlyBpm && <Check size={14} />} {loc.harmonicSuggester.compatibleBpmOnly}
           </button>
 
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)', marginLeft: 'auto' }}>
-            {isPl ? 'Znaleziono:' : 'Found:'} <strong>{rankedTracks.length}</strong> {isPl ? 'utworów' : 'tracks'}
+            {loc.harmonicSuggester.foundCount} <strong>{rankedTracks.length}</strong> {loc.harmonicSuggester.tracksUnit}
           </div>
         </div>
 
@@ -688,11 +686,9 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
               }}
             >
               <Disc3 size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-              <div>{isPl ? 'Brak pasujących utworów spełniających kryteria filtrów.' : 'No tracks found matching filter criteria.'}</div>
+              <div>{loc.harmonicSuggester.noFilterMatches}</div>
               <div style={{ fontSize: '0.8rem', marginTop: '6px' }}>
-                {isPl
-                  ? 'Spróbuj wyłączyć filtry restrykcyjne lub przeanalizować klucze w bibliotece.'
-                  : 'Try relaxing strict filters or analyzing keys in your library.'}
+                {loc.harmonicSuggester.noFilterMatchesDesc}
               </div>
             </div>
           ) : (
@@ -845,7 +841,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
 
                     <button
                       onClick={() => onEnqueueTrack(track, true)}
-                      title={isPl ? 'Kolejkuj jako następny utwór' : 'Enqueue as next track'}
+                      title={loc.harmonicSuggester.enqueueNext}
                       style={{
                         padding: '6px 10px',
                         borderRadius: '6px',
@@ -859,12 +855,12 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                         gap: '4px',
                       }}
                     >
-                      <ListPlus size={14} /> {isPl ? 'Następny' : 'Next'}
+                      <ListPlus size={14} /> {loc.harmonicSuggester.nextBtn}
                     </button>
 
                     <button
                       onClick={() => onPlayTrack(track)}
-                      title={isPl ? 'Odtwórz natychmiast z płynnym przenikaniem DJ Crossfade' : 'Play now with DJ Crossfade'}
+                      title={loc.harmonicSuggester.playNowCrossfade}
                       style={{
                         padding: '6px 14px',
                         borderRadius: '6px',
