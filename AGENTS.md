@@ -210,15 +210,19 @@ All stateful logic is encapsulated into custom hooks with dedicated Vitest suite
 - **`useAudioPlayer`**: Controls volume, playback state (Play/Pause/Stop), position tracking, and DSP pitch/tempo parameters.
 - **`usePlaybackQueue`**: Manages track queue items, active index, loop modes (`None`, `Track`, `Queue`), shuffling, and reordering.
 - **`useThemeEngine`**: Loads anime theme presets, handles custom wallpaper uploads, controls backdrop blur and dark overlay opacity, and supports JSON theme import/export.
-- **`useModalManager`**: Replaces dozens of scattered boolean flags with a single, typed modal router supporting `open()`, `close()`, `toggle()`, `isOpen()`, and global `Escape` key dismissal.
+- **`useModalManager`**: Typed modal router supporting `open()`, `close()`, `toggle()`, `isOpen()`, and global `Escape` key dismissal.
 - **`useVirtualScroll`**: Smooth, high-performance windowed list rendering for music libraries containing tens of thousands of tracks.
+- **`useHotkeysManager`**: Global keyboard shortcuts coordinator with text-input guard, volume step scaling, and playback shortcuts.
+- **`usePlaylistManager`**: Complete playlist lifecycle, M3U/M3U8 import/export, track addition/removal, and custom internet radio stations.
+- **`useTranscodeManager`**: Audio format transcoding (Opus/FLAC/WAV), background job progress tracking, loop/bookmark range export, and DSP application during export.
 
 ### Type Definitions (`src/types`)
 Shared TypeScript contracts live in `src/types/` rather than inline in components:
-- `queue.ts`: `QueueItem`, `PlaybackQueue`, `QueueColumnConfig`, `DEFAULT_QUEUE_COLUMNS`.
+- `queue.ts`: `QueueItem`, `PlaybackQueue`, `QueueColumnConfig`, `DEFAULT_QUEUE_COLUMNS`, `getQueueGridTemplate`.
+- `playlist.ts`: `Playlist` (id, name, track_count, created_at, modified_at).
 - `theme.ts`: `ThemeTokens`, `Theme`.
 - `equalizer.ts`: `EqualizerPreset`, `EQUALIZER_BANDS`.
-- `player.ts`: `PlaybackState`, `DspEngineType`, `PlaybackStatus`.
+- `player.ts`: `PlaybackState`, `DspEngineType`, `PlaybackStatus`, `TrackRecord`, `AlbumRecord`, `DspPresetRecord`, `ReleaseCandidateDto`, `SampleTrackDto`.
 - `analysis.ts`: `TrackKeyBpm`, `ChordSegment`, `AiModelInfo`.
 
 ### Audio & DSP Utilities (`src/utils`)
@@ -229,8 +233,31 @@ Shared TypeScript contracts live in `src/types/` rather than inline in component
 - `soundscapeAudio.ts`: Procedural ambient soundscape generator (rain, thunder, cafe, waves, night ambient).
 - `romaji.ts`: Transliterates Japanese Kanji, Hiragana, and Katakana titles into readable Latin Romaji.
 
+### Extracted Views (`src/views`)
+Decomposed from the original monolithic `App.tsx`:
+- **`PlayerView.tsx`**: Main player view with turntable, tape deck, VU meter, waveform, and transport controls.
+- **`LibraryView.tsx`**: Virtualized library view with tracks, albums, artists, facets, search, and sorting.
+- **`DspStudioView.tsx`**: Comprehensive DSP studio with equalizer, pitch/tempo/rate sliders, reverb, stereo widener, and compressor.
+- **`PlaylistsView.tsx`**: Playlist management, M3U8 import/export, and radio stations.
+- **`settings/`**: Modular settings views bundled by `AppSettingsModal.tsx`:
+  - `AudioDevicesSettingsView.tsx`: Audio cards, buffer size, DSP block size, ReplayGain, and bit-perfect settings.
+  - `BackupSettingsView.tsx`: Profile backup/restore, Discord RPC, Last.fm, and ListenBrainz scrobbling.
+  - `ThemesSettingsView.tsx`: Theme picker, custom wallpaper upload, blur/overlay sliders, and JSON theme import/export.
+  - `TranscodeSettingsView.tsx`: Audio conversion tool, format/bitrate selectors, and range export.
+  - `AboutSettingsView.tsx`: Application info, health check trigger, and onboarding.
+
 ### UI Components & Modals (`src/components`)
-- **Player & Core Views**: `App.tsx`, `WaveformCanvas.tsx`, `SpectrumVisualizer.tsx`, `VuMeterWidget.tsx`, `LyricsView.tsx`, `DesktopLyricsOverlay.tsx`, `MiniPlayerWidget.tsx`, `BigScreenView.tsx`.
+- **Layout & Shell (`src/components/layout`)**:
+  - `AppHeader.tsx`: Application top bar with navigation tabs, version info, quick tools, and scale toggles.
+  - `AppNavbar.tsx`: Main view navigation tabs (Player, Library, Playlists, DSP, Radio, etc.).
+  - `BottomPlaybackDock.tsx`: Floating mini-player dock with scrub bar and volume popover.
+  - `BackgroundLayer.tsx`: Background image/video renderer with blur and overlay controls.
+  - `DragDropOverlay.tsx`: Global drag-and-drop file overlay.
+  - `QueueDrawer.tsx`: Flyout drawer for playback queue management.
+- **Dialogs & Modals (`src/components/modals`)**:
+  - `AppModalsContainer.tsx`: Central declarative container for all 28+ modal dialogs.
+  - `PlaylistSelectModal.tsx`: Modal dialog for selecting a playlist when adding tracks.
+- **Player & Core Views**: `WaveformCanvas.tsx`, `SpectrumVisualizer.tsx`, `VuMeterWidget.tsx`, `LyricsView.tsx`, `DesktopLyricsOverlay.tsx`, `MiniPlayerWidget.tsx`, `BigScreenView.tsx`.
 - **Audiophile & DSP Modals**: `ParametricEqModal.tsx`, `AutoEqModal.tsx`, `DynamicsStudioModal.tsx`, `AnalogLoFiModal.tsx`, `TapeDeckWidget.tsx`, `VinylTurntable.tsx`, `SoundscapeModal.tsx`.
 - **Stem Studio**: `CreateStemProjectModal.tsx`, `StemProjectStudioModal.tsx`, `StemProjectsLibraryView.tsx`.
 - **Library & Metadata**: `CoverArtPickerModal.tsx`, `TagEditorModal.tsx`, `TrackBookmarksModal.tsx`, `TrackStatsModal.tsx`, `DuplicateFinderModal.tsx`, `FileRenamerModal.tsx`, `FacetsFilterPane.tsx`.
