@@ -47,6 +47,8 @@ use storage::{AlbumRecord, ArtistRecord, Database, DspPresetRecord, DuplicateGro
 use tauri::{Emitter, Manager, State};
 use tracing::{error, info, warn};
 
+pub mod commands;
+
 #[derive(Clone)]
 pub struct AppState {
     pub engine: Arc<AudioEngine>,
@@ -414,100 +416,22 @@ async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), Strin
 
 #[tauri::command]
 fn play(state: State<'_, AppState>) -> Result<(), String> {
-    info!("Tauri command: play");
-    // Zabezpieczenie: jeśli w silniku nie ma załadowanego żadnego URI, załaduj bieżący utwór z kolejki
-    if state.engine.current_uri().is_none() {
-        let q = state.engine.queue();
-        if let Some(item) = q.current_item() {
-            let _ = state.engine.load_uri(&item.uri);
-        }
-    }
-    state
-        .engine
-        .play_with_fade(true)
-        .map_err(|e| e.to_string())?;
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.update_playback_status(PlaybackState::Playing).await;
-        });
-    }
-    if let Some(discord) = &state.discord_rpc {
-        let pos = state
-            .engine
-            .position()
-            .map(|p| p.as_millis() as u64)
-            .unwrap_or(0);
-        let dur = state
-            .engine
-            .duration()
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-        discord.update_playback_status(PlaybackState::Playing, pos, dur);
-    }
-    Ok(())
+    commands::playback::play_internal(&state)
 }
 
 #[tauri::command]
 fn pause(state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .engine
-        .pause_with_fade(true)
-        .map_err(|e| e.to_string())?;
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.update_playback_status(PlaybackState::Paused).await;
-        });
-    }
-    if let Some(discord) = &state.discord_rpc {
-        let pos = state
-            .engine
-            .position()
-            .map(|p| p.as_millis() as u64)
-            .unwrap_or(0);
-        let dur = state
-            .engine
-            .duration()
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-        discord.update_playback_status(PlaybackState::Paused, pos, dur);
-    }
-    Ok(())
+    commands::playback::pause_internal(&state)
 }
 
 #[tauri::command]
 fn stop(state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.stop().map_err(|e| e.to_string())?;
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.update_playback_status(PlaybackState::Stopped).await;
-        });
-    }
-    if let Some(discord) = &state.discord_rpc {
-        discord.clear_activity();
-    }
-    Ok(())
+    commands::playback::stop_internal(&state)
 }
 
 #[tauri::command]
 fn seek(position_ms: u64, fade: Option<bool>, state: State<'_, AppState>) -> Result<(), String> {
-    let should_fade = fade.unwrap_or(true);
-    state
-        .engine
-        .seek_with_fade(Duration::from_millis(position_ms), should_fade)
-        .map_err(|e| e.to_string())?;
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.emit_seeked(position_ms).await;
-        });
-    }
-    if let Some(discord) = &state.discord_rpc {
-        discord.update_position(position_ms);
-    }
-    Ok(())
+    commands::playback::seek_internal(&state, position_ms, fade)
 }
 
 #[tauri::command]
@@ -6969,3 +6893,62 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_supported_audio_formats() {
+        assert!(is_supported_audio("song.mp3"));
+        assert!(is_supported_audio("music/track.flac"));
+        assert!(is_supported_audio("test.opus"));
+        assert!(is_supported_audio("album/track.wav"));
+        assert!(is_supported_audio("stream.ogg"));
+        assert!(is_supported_audio("audio.m4a"));
+        assert!(is_supported_audio("audio.aac"));
+        assert!(is_supported_audio("audio.alac"));
+        assert!(is_supported_audio("audio.aiff"));
+        assert!(is_supported_audio("playlist.m3u"));
+        assert!(is_supported_audio("playlist.m3u8"));
+        assert!(is_supported_audio("sheet.cue"));
+
+        // Case insensitivity
+        assert!(is_supported_audio("SONG.FLAC"));
+        assert!(is_supported_audio("track.OpUs"));
+
+        // Unsupported files
+        assert!(!is_supported_audio("document.pdf"));
+        assert!(!is_supported_audio("picture.png"));
+        assert!(!is_supported_audio("video.mp4"));
+        assert!(!is_supported_audio("archive.zip"));
+        assert!(!is_supported_audio("no_extension"));
+    }
+
+    #[test]
+    fn test_normalize_path_or_url_http() {
+        assert_eq!(
+            normalize_path_or_url("https://stream.example.com/live.opus", None),
+            Some("https://stream.example.com/live.opus".to_string())
+        );
+        assert_eq!(
+            normalize_path_or_url("http://radio.anime.org/stream", None),
+            Some("http://radio.anime.org/stream".to_string())
+        );
+        assert_eq!(normalize_path_or_url("   ", None), None);
+    }
+
+    #[test]
+    fn test_extract_audio_paths_from_args() {
+        let args = vec![
+            "auralune".to_string(),
+            "--bazzite".to_string(),
+            "-v".to_string(),
+            "https://stream.anime.fm/live".to_string(),
+        ];
+        let extracted = extract_audio_paths_from_args(&args, None);
+        assert_eq!(extracted.len(), 1);
+        assert_eq!(extracted[0], "https://stream.anime.fm/live");
+    }
+}
+

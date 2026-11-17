@@ -8,6 +8,8 @@
     "dev": "npm --prefix apps/desktop run dev",
     "build": "npm --prefix apps/desktop run build",
     "lint": "npm --prefix apps/desktop run lint",
+    "test": "npm --prefix apps/desktop test",
+    "test:all": "npm test && cargo test --workspace",
     "tauri": "npm --prefix apps/desktop exec tauri --"
   }
 }

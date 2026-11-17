@@ -3020,4 +3020,72 @@ mod tests {
         assert_eq!(updated_result.len(), 2);
         assert_eq!(updated_result[0], 0.5);
     }
+
+    #[tokio::test]
+    async fn test_playlist_lifecycle_and_track_ordering() {
+        let db = Database::new_in_memory().await.unwrap();
+
+        // 1. Create two test tracks
+        let track1 = TrackRecord {
+            id: 0,
+            path: "/music/track1.flac".to_string(),
+            title: "Track One".to_string(),
+            artist: "Artist A".to_string(),
+            album_artist: None,
+            album_id: None,
+            disc_no: None,
+            track_no: Some(1),
+            duration_ms: 200_000,
+            format: "FLAC".to_string(),
+            sample_rate: 48000,
+            channels: 2,
+            bit_depth: Some(24),
+            file_size: 20_000_000,
+            modified_time: 1000,
+            is_favorite: None,
+            play_count: None,
+            last_played_at: None,
+            total_play_time_ms: None,
+            bpm: None,
+            initial_key: None,
+            replaygain_track_gain: None,
+            replaygain_track_peak: None,
+            rating: None,
+        };
+        let mut track2 = track1.clone();
+        track2.path = "/music/track2.flac".to_string();
+        track2.title = "Track Two".to_string();
+
+        let t1_id = db.upsert_track(&track1).await.unwrap();
+        let t2_id = db.upsert_track(&track2).await.unwrap();
+
+        // 2. Create playlist
+        let pl_id = db.create_playlist("Chill Vibes").await.unwrap();
+        assert!(pl_id > 0);
+
+        let playlists = db.list_playlists().await.unwrap();
+        assert_eq!(playlists.len(), 1);
+        assert_eq!(playlists[0].name, "Chill Vibes");
+        assert_eq!(playlists[0].track_count, 0);
+
+        // 3. Add tracks to playlist in order
+        db.add_track_to_playlist(pl_id, t1_id).await.unwrap();
+        db.add_track_to_playlist(pl_id, t2_id).await.unwrap();
+
+        let pl_tracks = db.get_playlist_tracks(pl_id).await.unwrap();
+        assert_eq!(pl_tracks.len(), 2);
+        assert_eq!(pl_tracks[0].id, t1_id);
+        assert_eq!(pl_tracks[1].id, t2_id);
+
+        // 4. Remove one track
+        db.remove_track_from_playlist(pl_id, t1_id).await.unwrap();
+        let remaining = db.get_playlist_tracks(pl_id).await.unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, t2_id);
+
+        // 5. Delete playlist
+        db.delete_playlist(pl_id).await.unwrap();
+        let empty_pls = db.list_playlists().await.unwrap();
+        assert_eq!(empty_pls.len(), 0);
+    }
 }

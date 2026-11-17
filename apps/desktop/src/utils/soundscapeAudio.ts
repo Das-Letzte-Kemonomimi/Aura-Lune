@@ -135,6 +135,8 @@ class SoundscapeEngine {
   private initContext() {
     if (this.ctx) return;
     const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtxClass) return;
+
     this.ctx = new AudioCtxClass();
 
     this.masterGain = this.ctx.createGain();
@@ -503,8 +505,10 @@ class SoundscapeEngine {
       return;
     }
     this.initContext();
+    if (!this.ctx) return;
+
     this.isRunning = true;
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }
