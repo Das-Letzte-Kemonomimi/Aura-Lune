@@ -135,65 +135,14 @@ import { ParametricEqModal } from './components/ParametricEqModal';
 import { DynamicsStudioModal } from './components/DynamicsStudioModal';
 import { useVirtualScroll } from './hooks/useVirtualScroll';
 import { type Language, getTranslations } from './i18n';
+import { type EqualizerPreset, EQUALIZER_BANDS } from './types/equalizer';
+import {
+  type QueueItem,
+  type PlaybackQueue,
+  type QueueColumnConfig,
+  DEFAULT_QUEUE_COLUMNS,
+} from './types/queue';
 
-interface EqualizerPreset {
-  name: string;
-  bands: number[];
-}
-
-const EQUALIZER_BANDS = [
-  { freq: '31 Hz', label: 'Sub-bass' },
-  { freq: '62 Hz', label: 'Bass' },
-  { freq: '125 Hz', label: 'Mid-bass' },
-  { freq: '250 Hz', label: 'Low Mids' },
-  { freq: '500 Hz', label: 'Mids' },
-  { freq: '1 kHz', label: 'Upper Mids' },
-  { freq: '2 kHz', label: 'Presence' },
-  { freq: '4 kHz', label: 'Treble' },
-  { freq: '8 kHz', label: 'High Treble' },
-  { freq: '16 kHz', label: 'Air' },
-];
-
-interface QueueItem {
-  id: string;
-  track_id: number | null;
-  uri: string;
-  title: string;
-  artist: string;
-  album: string | null;
-  duration_ms: number;
-}
-
-interface PlaybackQueue {
-  items: QueueItem[];
-  current_index: number | null;
-  loop_mode: 'None' | 'Track' | 'Queue';
-  shuffle: boolean;
-  shuffle_order: number[];
-  shuffle_cursor: number;
-}
-
-interface QueueColumnConfig {
-  showIndex: boolean;
-  showCover: boolean;
-  showArtist: boolean;
-  showAlbum: boolean;
-  showFormatBadge: boolean;
-  showDuration: boolean;
-  showPath: boolean;
-  compactMode: boolean;
-}
-
-const DEFAULT_QUEUE_COLUMNS: QueueColumnConfig = {
-  showIndex: true,
-  showCover: true,
-  showArtist: true,
-  showAlbum: true,
-  showFormatBadge: true,
-  showDuration: true,
-  showPath: false,
-  compactMode: false,
-};
 
 interface Playlist {
   id: number;
@@ -212,35 +161,8 @@ interface ReleaseCandidateDto {
   score: number;
 }
 
-interface ThemeTokens {
-  bg_deep: string;
-  bg_surface: string;
-  bg_surface_hover: string;
-  bg_card: string;
-  border_subtle: string;
-  border_accent: string;
-  accent_pink: string;
-  accent_purple: string;
-  accent_cyan: string;
-  accent_green: string;
-  accent_amber: string;
-  text_primary: string;
-  text_secondary: string;
-  text_muted: string;
-  shadow_glow: string;
-  shadow_card: string;
-}
+import { type Theme } from './types/theme';
 
-interface Theme {
-  id: string;
-  name: string;
-  schema_version: number;
-  tokens: ThemeTokens;
-  background_ref: string | null;
-  overlay_opacity: number;
-  blur_radius: number;
-  attribution: string | null;
-}
 
 interface DspCapabilities {
   engine: 'Bypass' | 'RubberBand' | 'SoundTouch';

@@ -8,9 +8,8 @@ use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_replaygain, analyze_track_transcription,
     export_chords_to_chordpro, export_chords_to_json, export_chords_to_text,
     export_transcription_to_midi, get_analysis_capabilities as engine_get_analysis_capabilities,
-    get_stem_projects_cache_dir, list_available_model_packs, list_available_models,
-    remove_model_file, write_replaygain_tags_to_file, AudioEngine, DeviceManager, PlayerEvent,
-    ReplayGainAnalysisResult, StemSeparator, TrackKeyBpm, Transcoder,
+    write_replaygain_tags_to_file, AudioEngine, PlayerEvent,
+    ReplayGainAnalysisResult, TrackKeyBpm, Transcoder,
 };
 use domain::analysis::{
     AiModelInfo, AnalysisCapabilities, ChordSegment, StemMixerState, StemSeparationData,
@@ -28,9 +27,9 @@ use domain::silence::SilenceTrimmingConfig;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use domain::{
     ImportM3uResult, M3uEntry, M3uPlaylist, ModelPackInfo, PlaybackState, Playlist, StemChannel,
-    StemProject, StemProjectMix, StemProjectStatus, Theme, TrackBookmark,
+    StemProject, StemProjectMix, Theme, TrackBookmark,
 };
-use downloads::{DownloadJob, DownloadManager, DownloadProvider};
+use downloads::{DownloadJob, DownloadManager};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gstreamer as gst;
 use library::LibraryScanner;
@@ -1557,33 +1556,34 @@ fn scan_library_replaygain(
 
 #[tauri::command]
 fn list_devices() -> Result<Vec<AudioCard>, String> {
-    DeviceManager::list_cards().map_err(|e| e.to_string())
+    commands::devices::list_devices_internal()
 }
 
 #[tauri::command]
 fn set_device_profile(card_name: String, profile_name: String) -> Result<(), String> {
-    DeviceManager::set_card_profile(&card_name, &profile_name).map_err(|e| e.to_string())
+    commands::devices::set_device_profile_internal(&card_name, &profile_name)
 }
 
 #[tauri::command]
 fn set_bluetooth_codec(card_name: String, codec: BluetoothCodec) -> Result<(), String> {
-    DeviceManager::set_bluetooth_codec(&card_name, &codec).map_err(|e| e.to_string())
+    commands::devices::set_bluetooth_codec_internal(&card_name, &codec)
 }
 
 #[tauri::command]
 fn enable_pro_audio(card_name: String) -> Result<(), String> {
-    DeviceManager::enable_pro_audio(&card_name).map_err(|e| e.to_string())
+    commands::devices::enable_pro_audio_internal(&card_name)
 }
 
 #[tauri::command]
 fn disable_pro_audio(card_name: String) -> Result<String, String> {
-    DeviceManager::disable_pro_audio(&card_name).map_err(|e| e.to_string())
+    commands::devices::disable_pro_audio_internal(&card_name)
 }
 
 #[tauri::command]
 fn set_card_profile(card_name: String, profile: String) -> Result<(), String> {
-    DeviceManager::set_card_profile(&card_name, &profile).map_err(|e| e.to_string())
+    commands::devices::set_device_profile_internal(&card_name, &profile)
 }
+
 
 #[tauri::command]
 fn save_lyrics_lrc(track_path: String, lrc_content: String) -> Result<String, String> {
@@ -2365,18 +2365,7 @@ async fn identify_track_fingerprint(
     path: String,
     client_key: Option<String>,
 ) -> Result<Vec<TrackFingerprintMatchDto>, String> {
-    let client = AcoustidClient::new(client_key);
-    let path_buf = std::path::PathBuf::from(&path);
-    let (duration, fingerprint) = AcoustidClient::generate_fingerprint(&path_buf)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let matches = client
-        .lookup(duration, &fingerprint)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(matches)
+    commands::metadata::identify_track_fingerprint_internal(&path, client_key).await
 }
 
 #[tauri::command]
@@ -2911,17 +2900,11 @@ async fn search_cover_candidates(
     artist: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<CoverCandidateDto>, String> {
-    info!(
-        "Tauri command: search_cover_candidates('{}', '{}')",
-        album, artist
-    );
-    let cover_archive = state.cover_archive.clone();
-    let candidates = cover_archive.search_cover_candidates(&album, &artist).await;
-    Ok(candidates)
+    Ok(commands::metadata::search_cover_candidates_internal(&state, &album, &artist).await)
 }
 
 #[tauri::command]
-fn apply_cover_url(
+async fn apply_cover_url(
     album_id: i64,
     cover_url: String,
     album_title: Option<String>,
@@ -2929,87 +2912,19 @@ fn apply_cover_url(
     track_id: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!(
-        "Tauri command: apply_cover_url(album_id: {}, url: '{}')",
-        album_id, cover_url
-    );
-    let cover_archive = state.cover_archive.clone();
-    let db = state.db.clone();
-    let discord_cover_cache = state.discord_cover_cache.clone();
-    let discord_rpc = state.discord_rpc.clone();
-    let engine = state.engine.clone();
-
-    state.rt.block_on(async move {
-        let actual_album_id = if album_id > 0 {
-            album_id
-        } else if let Some(title) = &album_title {
-            let art = artist.as_deref().unwrap_or("Unknown");
-            db.upsert_album(title, art, None, None)
-                .await
-                .map_err(|e| e.to_string())?
-        } else {
-            return Err("Nieprawidłowe ID albumu".to_string());
-        };
-
-        let path = cover_archive
-            .download_cover_from_url(&cover_url, &format!("album_{}", actual_album_id))
-            .await
-            .map_err(|e| e.to_string())?;
-        let path_str = path.to_string_lossy().to_string();
-
-        db.update_album_cover(actual_album_id, &path_str, None)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        // Linkowanie utworów z albumem
-        if let Some(tid) = track_id {
-            let _ = db.link_track_to_album(tid, actual_album_id).await;
-        }
-        if let Some(title) = &album_title {
-            let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
-        }
-
-        if let Some(art) = &artist {
-            if let Some(alb) = &album_title {
-                let cache_key = format!(
-                    "{}---{}",
-                    art.trim().to_lowercase(),
-                    alb.trim().to_lowercase()
-                );
-                if cover_url.starts_with("http://") || cover_url.starts_with("https://") {
-                    if let Ok(mut cache) = discord_cover_cache.write() {
-                        cache.insert(cache_key, cover_url.clone());
-                    }
-                    if let Some(discord) = &discord_rpc {
-                        let dur = engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
-                        let pos = engine.position().map(|p| p.as_millis() as u64).unwrap_or(0);
-                        let current_title = engine
-                            .queue()
-                            .current_item()
-                            .map(|i| i.title.clone())
-                            .unwrap_or_default();
-                        discord.update_track(desktop_integration::DiscordTrackInfo {
-                            title: current_title,
-                            artist: art.clone(),
-                            album: alb.clone(),
-                            duration_ms: dur,
-                            art_url: Some(cover_url.clone()),
-                        });
-                        discord.update_playback_status(engine.state(), pos, dur);
-                    }
-                }
-            }
-        }
-
-        let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-        use base64::Engine;
-        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-        Ok(format!("data:image/jpeg;base64,{}", b64))
-    })
+    commands::metadata::apply_cover_url_internal(
+        &state,
+        album_id,
+        &cover_url,
+        album_title,
+        artist,
+        track_id,
+    )
+    .await
 }
 
 #[tauri::command]
-fn apply_custom_cover_file(
+async fn apply_custom_cover_file(
     album_id: i64,
     file_path: String,
     album_title: Option<String>,
@@ -3017,108 +2932,17 @@ fn apply_custom_cover_file(
     track_id: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!(
-        "Tauri command: apply_custom_cover_file(album_id: {}, path: '{}')",
-        album_id, file_path
-    );
-    let path = std::path::Path::new(&file_path);
-    if !path.exists() {
-        return Err("Wskazany plik nie istnieje".to_string());
-    }
-
-    let ext = path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("jpg")
-        .to_lowercase();
-    let mime = match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        _ => {
-            return Err(
-                "Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF".to_string(),
-            )
-        }
-    };
-
-    let bytes = std::fs::read(path).map_err(|e| format!("Błąd odczytu pliku: {}", e))?;
-    if bytes.len() > 25 * 1024 * 1024 {
-        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".to_string());
-    }
-
-    let cover_archive = state.cover_archive.clone();
-    let db = state.db.clone();
-    let discord_cover_cache = state.discord_cover_cache.clone();
-    let discord_rpc = state.discord_rpc.clone();
-    let engine = state.engine.clone();
-
-    state.rt.block_on(async move {
-        let actual_album_id = if album_id > 0 {
-            album_id
-        } else if let Some(title) = &album_title {
-            let art = artist.as_deref().unwrap_or("Unknown");
-            db.upsert_album(title, art, None, None)
-                .await
-                .map_err(|e| e.to_string())?
-        } else {
-            return Err("Nieprawidłowe ID albumu".to_string());
-        };
-
-        let saved_path = cover_archive
-            .save_custom_cover_file(actual_album_id, path)
-            .await
-            .map_err(|e| e.to_string())?;
-        let path_str = saved_path.to_string_lossy().to_string();
-
-        db.update_album_cover(actual_album_id, &path_str, None)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        // Linkowanie utworu z albumem
-        if let Some(tid) = track_id {
-            let _ = db.link_track_to_album(tid, actual_album_id).await;
-        }
-        if let Some(title) = &album_title {
-            let _ = db.link_tracks_by_album_title(title, actual_album_id).await;
-        }
-
-        if let Some(art) = &artist {
-            if let Some(alb) = &album_title {
-                let cache_key = format!(
-                    "{}---{}",
-                    art.trim().to_lowercase(),
-                    alb.trim().to_lowercase()
-                );
-                if let Ok(mut cache) = discord_cover_cache.write() {
-                    cache.remove(&cache_key);
-                }
-                if let Some(discord) = &discord_rpc {
-                    let dur = engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
-                    let pos = engine.position().map(|p| p.as_millis() as u64).unwrap_or(0);
-                    let current_title = engine
-                        .queue()
-                        .current_item()
-                        .map(|i| i.title.clone())
-                        .unwrap_or_default();
-                    discord.update_track(desktop_integration::DiscordTrackInfo {
-                        title: current_title,
-                        artist: art.clone(),
-                        album: alb.clone(),
-                        duration_ms: dur,
-                        art_url: None,
-                    });
-                    discord.update_playback_status(engine.state(), pos, dur);
-                }
-            }
-        }
-
-        use base64::Engine;
-        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-        Ok(format!("data:{};base64,{}", mime, b64))
-    })
+    commands::metadata::apply_custom_cover_file_internal(
+        &state,
+        album_id,
+        &file_path,
+        album_title,
+        artist,
+        track_id,
+    )
+    .await
 }
+
 
 #[tauri::command]
 fn apply_custom_cover_data(
@@ -3329,138 +3153,8 @@ fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), String>
     Ok(())
 }
 
-fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
-    let title = item.title.clone();
-    let artist = item.artist.clone();
-    let album = item.album.clone().unwrap_or_default();
-    let duration_ms = if item.duration_ms > 0 {
-        item.duration_ms
-    } else {
-        state
-            .engine
-            .duration()
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0)
-    };
+pub use commands::playback::sync_mpris_from_queue_item;
 
-    let is_generic_album = album.trim().is_empty()
-        || album == "Auralune Player"
-        || album == "Auralune Library"
-        || album == "Live Stream"
-        || album == "Radio internetowe";
-
-    let mut effective_artist = artist.trim().to_string();
-    let mut effective_title = title.trim().to_string();
-    if (effective_artist == "Plik lokalny" || effective_artist.is_empty())
-        && effective_title.contains(" - ")
-    {
-        if let Some((a, t)) = effective_title.split_once(" - ") {
-            effective_artist = a.trim().to_string();
-            effective_title = t.trim().to_string();
-        }
-    }
-
-    let cache_key = if !is_generic_album {
-        format!(
-            "{}---{}",
-            effective_artist.trim().to_lowercase(),
-            album.trim().to_lowercase()
-        )
-    } else {
-        format!(
-            "{}---{}",
-            effective_artist.trim().to_lowercase(),
-            effective_title.trim().to_lowercase()
-        )
-    };
-    let cached_art = state.discord_cover_cache.read().ok().and_then(|c| {
-        c.get(&cache_key).cloned().or_else(|| {
-            let title_key = format!(
-                "{}---{}",
-                effective_artist.trim().to_lowercase(),
-                effective_title.trim().to_lowercase()
-            );
-            c.get(&title_key).cloned()
-        })
-    });
-
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        let track_info = desktop_integration::MprisTrackInfo {
-            title: title.clone(),
-            artist: artist.clone(),
-            album: album.clone(),
-            duration_ms,
-            art_url: cached_art.clone(),
-        };
-        state.rt.spawn(async move {
-            m.update_track(track_info).await;
-            m.update_playback_status(PlaybackState::Playing).await;
-        });
-    }
-    if let Some(discord) = &state.discord_rpc {
-        let discord_art = cached_art
-            .as_ref()
-            .filter(|u| u.starts_with("http://") || u.starts_with("https://"))
-            .cloned();
-
-        let track_info = desktop_integration::DiscordTrackInfo {
-            title: title.clone(),
-            artist: artist.clone(),
-            album: album.clone(),
-            duration_ms,
-            art_url: discord_art.clone(),
-        };
-        discord.update_track(track_info);
-        let needs_online_search = discord_art.is_none();
-
-        if needs_online_search
-            && (!effective_artist.trim().is_empty()
-                || !album.trim().is_empty()
-                || !effective_title.trim().is_empty())
-        {
-            let discord_clone = discord.clone();
-            let cover_archive = state.cover_archive.clone();
-            let cache_clone = state.discord_cover_cache.clone();
-            let title_c = effective_title.clone();
-            let artist_c = effective_artist.clone();
-            let album_c = album.clone();
-            state.rt.spawn(async move {
-                let mut candidates = if !is_generic_album {
-                    cover_archive
-                        .search_cover_candidates(&album_c, &artist_c)
-                        .await
-                } else {
-                    Vec::new()
-                };
-                if candidates.is_empty() && !title_c.trim().is_empty() {
-                    candidates = cover_archive
-                        .search_cover_candidates(&title_c, &artist_c)
-                        .await;
-                }
-                if let Some(first) = candidates.first() {
-                    let best_url = if !first.thumbnail_url.is_empty() {
-                        first.thumbnail_url.clone()
-                    } else {
-                        first.full_url.clone()
-                    };
-                    if best_url.starts_with("http://") || best_url.starts_with("https://") {
-                        if let Ok(mut cache) = cache_clone.write() {
-                            cache.insert(cache_key, best_url.clone());
-                        }
-                        discord_clone.update_track(desktop_integration::DiscordTrackInfo {
-                            title: title_c,
-                            artist: artist_c,
-                            album: album_c,
-                            duration_ms,
-                            art_url: Some(best_url),
-                        });
-                    }
-                }
-            });
-        }
-    }
-}
 
 fn persist_queue_state(state: &AppState) {
     let queue = state.engine.queue();
@@ -4441,8 +4135,7 @@ async fn validate_listenbrainz_token(
     token: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!("Tauri command: validate_listenbrainz_token");
-    state.listenbrainz.validate_token(&token).await
+    commands::metadata::validate_listenbrainz_token_internal(&state, &token).await
 }
 
 #[tauri::command]
@@ -4454,10 +4147,15 @@ async fn submit_listenbrainz_playing_now(
     duration_ms: Option<u64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state
-        .listenbrainz
-        .submit_playing_now(&token, &artist, &title, album.as_deref(), duration_ms)
-        .await
+    commands::metadata::submit_listenbrainz_playing_now_internal(
+        &state,
+        &token,
+        &artist,
+        &title,
+        album.as_deref(),
+        duration_ms,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -4469,38 +4167,25 @@ async fn submit_listenbrainz_listen(
     duration_ms: Option<u64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-
-    state
-        .listenbrainz
-        .submit_listen(&token, &artist, &title, album.as_deref(), now, duration_ms)
-        .await
+    commands::metadata::submit_listenbrainz_listen_internal(
+        &state,
+        &token,
+        &artist,
+        &title,
+        album.as_deref(),
+        duration_ms,
+    )
+    .await
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LastFmAuthUrlResult {
-    pub token: String,
-    pub auth_url: String,
-}
+pub use commands::metadata::{LastFmAuthUrlResult, LastFmScrobbleRequest};
 
 #[tauri::command]
 async fn lastfm_get_auth_url(
     api_key: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<LastFmAuthUrlResult, String> {
-    info!("Tauri command: lastfm_get_auth_url");
-    let key = api_key
-        .as_deref()
-        .unwrap_or(metadata::DEFAULT_LASTFM_API_KEY);
-    let token = state.lastfm.get_auth_token(Some(key)).await?;
-    let auth_url = format!(
-        "https://www.last.fm/api/auth/?api_key={}&token={}",
-        key, token
-    );
-    Ok(LastFmAuthUrlResult { token, auth_url })
+    commands::metadata::lastfm_get_auth_url_internal(&state, api_key).await
 }
 
 #[tauri::command]
@@ -4510,11 +4195,13 @@ async fn lastfm_fetch_session(
     api_secret: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<LastFmSession, String> {
-    info!("Tauri command: lastfm_fetch_session");
-    state
-        .lastfm
-        .fetch_session(&token, api_key.as_deref(), api_secret.as_deref())
-        .await
+    commands::metadata::lastfm_fetch_session_internal(
+        &state,
+        &token,
+        api_key.as_deref(),
+        api_secret.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -4524,23 +4211,13 @@ async fn lastfm_validate_session(
     api_secret: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!("Tauri command: lastfm_validate_session");
-    state
-        .lastfm
-        .validate_session(&session_key, api_key.as_deref(), api_secret.as_deref())
-        .await
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LastFmScrobbleRequest {
-    pub session_key: String,
-    pub artist: String,
-    pub track: String,
-    pub album: Option<String>,
-    pub duration_sec: Option<u64>,
-    pub timestamp: Option<u64>,
-    pub api_key: Option<String>,
-    pub api_secret: Option<String>,
+    commands::metadata::lastfm_validate_session_internal(
+        &state,
+        &session_key,
+        api_key.as_deref(),
+        api_secret.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -4548,20 +4225,7 @@ async fn lastfm_update_now_playing(
     request: LastFmScrobbleRequest,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let track_info = metadata::LastFmTrackInfo {
-        artist: &request.artist,
-        track: &request.track,
-        album: request.album.as_deref(),
-        duration_sec: request.duration_sec,
-    };
-    let auth = metadata::LastFmAuthOverride {
-        api_key: request.api_key.as_deref(),
-        api_secret: request.api_secret.as_deref(),
-    };
-    state
-        .lastfm
-        .update_now_playing(&request.session_key, track_info, auth)
-        .await
+    commands::metadata::lastfm_update_now_playing_internal(&state, &request).await
 }
 
 #[tauri::command]
@@ -4569,59 +4233,20 @@ async fn lastfm_scrobble(
     request: LastFmScrobbleRequest,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let track_info = metadata::LastFmTrackInfo {
-        artist: &request.artist,
-        track: &request.track,
-        album: request.album.as_deref(),
-        duration_sec: request.duration_sec,
-    };
-    let auth = metadata::LastFmAuthOverride {
-        api_key: request.api_key.as_deref(),
-        api_secret: request.api_secret.as_deref(),
-    };
-    let ts = request.timestamp.unwrap_or_else(|| {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
-    });
-    state
-        .lastfm
-        .scrobble(&request.session_key, track_info, ts, auth)
-        .await
+    commands::metadata::lastfm_scrobble_internal(&state, &request).await
 }
+
 
 #[tauri::command]
 fn get_discord_rpc_status(
     state: State<'_, AppState>,
 ) -> Result<desktop_integration::DiscordRpcStatus, String> {
-    if let Some(discord) = &state.discord_rpc {
-        Ok(discord.get_status())
-    } else {
-        Ok(desktop_integration::DiscordRpcStatus {
-            enabled: false,
-            connected: false,
-            client_id: desktop_integration::DEFAULT_DISCORD_CLIENT_ID.to_string(),
-            current_activity: None,
-        })
-    }
+    commands::devices::get_discord_rpc_status_internal(&state)
 }
 
 #[tauri::command]
 async fn set_discord_rpc_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
-    info!("Tauri command: set_discord_rpc_enabled({})", enabled);
-    if let Some(discord) = &state.discord_rpc {
-        discord.set_enabled(enabled);
-    }
-    state
-        .db
-        .set_app_setting(
-            "discord_rpc_enabled",
-            if enabled { "true" } else { "false" },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    commands::devices::set_discord_rpc_enabled_internal(&state, enabled).await
 }
 
 #[tauri::command]
@@ -4629,38 +4254,14 @@ async fn set_discord_rpc_client_id(
     client_id: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    info!("Tauri command: set_discord_rpc_client_id('{}')", client_id);
-    let trimmed = client_id.trim().to_string();
-    if let Some(discord) = &state.discord_rpc {
-        discord.set_client_id(trimmed.clone());
-    }
-    state
-        .db
-        .set_app_setting("discord_rpc_client_id", &trimmed)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    commands::devices::set_discord_rpc_client_id_internal(&state, &client_id).await
 }
 
 #[tauri::command]
 fn notify_track_looped(position_ms: Option<u64>, state: State<'_, AppState>) -> Result<(), String> {
-    let pos = position_ms.unwrap_or(0);
-    let dur = state
-        .engine
-        .duration()
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    if let Some(discord) = &state.discord_rpc {
-        discord.update_playback_status(PlaybackState::Playing, pos, dur);
-    }
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.emit_seeked(pos).await;
-        });
-    }
-    Ok(())
+    commands::devices::notify_track_looped_internal(&state, position_ms)
 }
+
 
 #[tauri::command]
 async fn get_track_bookmarks(
@@ -4970,90 +4571,17 @@ async fn get_analysis_capabilities() -> Result<AnalysisCapabilities, String> {
 
 #[tauri::command]
 async fn list_ai_models() -> Result<Vec<AiModelInfo>, String> {
-    Ok(list_available_models())
+    Ok(commands::stems::list_ai_models_internal())
 }
 
 #[tauri::command]
 async fn delete_ai_model(model_id: String) -> Result<(), String> {
-    remove_model_file(&model_id)
-        .map(|_| ())
-        .map_err(|e| e.to_string())
-}
-
-#[derive(Clone, serde::Serialize)]
-struct ModelDownloadProgressPayload {
-    model_id: String,
-    downloaded_bytes: u64,
-    total_bytes: Option<u64>,
-    progress: f32,
-    status: String,
+    commands::stems::delete_ai_model_internal(&model_id)
 }
 
 #[tauri::command]
 async fn download_ai_model(model_id: String, app_handle: tauri::AppHandle) -> Result<(), String> {
-    let catalog = audio_engine::get_default_model_catalog();
-    let model = catalog
-        .into_iter()
-        .find(|m| m.id == model_id)
-        .ok_or_else(|| format!("Nieznany model AI: {}", model_id))?;
-
-    let url = model
-        .download_url
-        .ok_or_else(|| "Model nie posiada zdefiniowanego adresu URL do pobrania".to_string())?;
-
-    let dest_path = std::path::PathBuf::from(&model.file_path);
-    if let Some(parent) = dest_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-
-    let app_handle_clone = app_handle.clone();
-    let m_id_clone = model_id.clone();
-    let cancel_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-
-    let provider = downloads::HttpDownloadProvider::new();
-    let _ = provider
-        .download(
-            &url,
-            &dest_path,
-            Some(&model.sha256),
-            cancel_flag,
-            Some(Box::new(move |downloaded, total| {
-                let progress = if let Some(tot) = total {
-                    if tot > 0 {
-                        (downloaded as f32 / tot as f32).clamp(0.0, 1.0)
-                    } else {
-                        0.0
-                    }
-                } else {
-                    0.0
-                };
-                let _ = app_handle_clone.emit(
-                    "auralune://model-download-progress",
-                    ModelDownloadProgressPayload {
-                        model_id: m_id_clone.clone(),
-                        downloaded_bytes: downloaded,
-                        total_bytes: total,
-                        progress,
-                        status: "downloading".to_string(),
-                    },
-                );
-            })),
-        )
-        .await
-        .map_err(|e| format!("Błąd pobierania modelu: {}", e))?;
-
-    let _ = app_handle.emit(
-        "auralune://model-download-progress",
-        ModelDownloadProgressPayload {
-            model_id: model_id.clone(),
-            downloaded_bytes: model.file_size,
-            total_bytes: Some(model.file_size),
-            progress: 1.0,
-            status: "ready".to_string(),
-        },
-    );
-
-    Ok(())
+    commands::stems::download_ai_model_internal(&model_id, &app_handle).await
 }
 
 #[tauri::command]
@@ -5330,12 +4858,7 @@ async fn export_transcription_midi(
     Ok(export_transcription_to_midi(&notes, 120.0))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StemProgressPayload {
-    pub track_id: i64,
-    pub progress: f32,
-    pub message: String,
-}
+pub use commands::stems::{StemProgressPayload, StemProjectProgressPayload};
 
 #[tauri::command]
 async fn start_stem_separation(
@@ -5345,36 +4868,7 @@ async fn start_stem_separation(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<StemSeparationData, String> {
-    let m_id = model_id.unwrap_or_else(|| "htdemucs_v4".to_string());
-    let path_clone = path.clone();
-    let m_id_clone = m_id.clone();
-    let app_handle_clone = app_handle.clone();
-
-    let separation = tokio::task::spawn_blocking(move || {
-        StemSeparator::separate_track(
-            &path_clone,
-            track_id,
-            &m_id_clone,
-            Some(Box::new(move |progress, message| {
-                let _ = app_handle_clone.emit(
-                    "auralune://stem-progress",
-                    StemProgressPayload {
-                        track_id,
-                        progress,
-                        message: message.to_string(),
-                    },
-                );
-            })),
-        )
-    })
-    .await
-    .map_err(|e| format!("Błąd wątku separacji: {}", e))?
-    .map_err(|e| format!("Błąd separacji stemów: {}", e))?;
-
-    // Zapisz w SQLite
-    let _ = state.db.save_stem_tracks(&separation).await;
-
-    Ok(separation)
+    commands::stems::start_stem_separation_internal(&state, path, track_id, model_id, &app_handle).await
 }
 
 #[tauri::command]
@@ -5382,11 +4876,7 @@ async fn get_track_stems(
     track_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<StemSeparationData>, String> {
-    state
-        .db
-        .get_stem_tracks(track_id)
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::get_track_stems_internal(&state, track_id).await
 }
 
 #[tauri::command]
@@ -5396,57 +4886,7 @@ async fn load_track_stems(
     start_playing: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<StemMixerState, String> {
-    let stems = state
-        .db
-        .get_stem_tracks(track_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| {
-            "Brak rozdzielonych stemów dla tego utworu. Rozpocznij separację najpierw.".to_string()
-        })?;
-
-    let orig_track = state.db.get_track_by_id(track_id).await.ok().flatten();
-    let orig_uri = orig_track
-        .as_ref()
-        .map(|t| t.path.clone())
-        .or_else(|| state.engine.current_uri())
-        .or_else(|| state.engine.queue().current_item().map(|it| it.uri.clone()));
-
-    let cur_pos = seek_position_ms
-        .map(std::time::Duration::from_millis)
-        .or_else(|| state.engine.position());
-    let auto_play = start_playing.unwrap_or_else(|| state.engine.state() == PlaybackState::Playing);
-
-    let mixer_state = StemMixerState {
-        enabled: true,
-        ..state.engine.get_stem_mixer_state()
-    };
-
-    state
-        .engine
-        .load_stems(
-            &stems,
-            mixer_state.clone(),
-            orig_uri.clone(),
-            cur_pos,
-            auto_play,
-        )
-        .map_err(|e| e.to_string())?;
-
-    if let Some(track) = orig_track {
-        let queue_item = QueueItem {
-            id: format!("stems-track-{}", track_id),
-            track_id: Some(track.id),
-            uri: orig_uri.unwrap_or_else(|| track.path.clone()),
-            title: track.title.clone(),
-            artist: track.artist.clone(),
-            album: track.album_id.map(|aid| format!("Album #{}", aid)),
-            duration_ms: track.duration_ms.max(0) as u64,
-        };
-        state.engine.set_active_item(queue_item.clone());
-        sync_mpris_from_queue_item(&queue_item, &state);
-    }
-    Ok(mixer_state)
+    commands::stems::load_track_stems_internal(&state, track_id, seek_position_ms, start_playing).await
 }
 
 #[tauri::command]
@@ -5454,32 +4894,21 @@ async fn set_stem_mixer_state(
     state_payload: StemMixerState,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state
-        .engine
-        .set_stem_mixer_state(state_payload)
-        .map_err(|e| e.to_string())
+    commands::stems::set_stem_mixer_state_internal(&state, state_payload)
 }
 
 #[tauri::command]
 async fn get_stem_mixer_state(state: State<'_, AppState>) -> Result<StemMixerState, String> {
-    Ok(state.engine.get_stem_mixer_state())
+    Ok(commands::stems::get_stem_mixer_state_internal(&state))
 }
 
 // =========================================================================
 // KOMENDY TAURI DLA MOISES-STYLE STEM PROJECTS
 // =========================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StemProjectProgressPayload {
-    pub project_id: i64,
-    pub progress: f32,
-    pub message: String,
-    pub status: String,
-}
-
 #[tauri::command]
 async fn list_model_packs() -> Result<Vec<ModelPackInfo>, String> {
-    Ok(list_available_model_packs())
+    Ok(commands::stems::list_model_packs_internal())
 }
 
 #[tauri::command]
@@ -5490,174 +4919,12 @@ async fn create_stem_project(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<StemProject, String> {
-    let track = state
-        .db
-        .get_track_by_id(track_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
-
-    let track_path = track.path.clone();
-    let track_hash = audio_engine::calculate_file_sha256(std::path::Path::new(&track_path))
-        .map_err(|e| format!("Błąd kalkulacji SHA-256: {}", e))?;
-
-    let album_title = if let Some(a_id) = track.album_id {
-        state
-            .db
-            .get_album_by_id(a_id)
-            .await
-            .ok()
-            .flatten()
-            .map(|a| a.title)
-            .unwrap_or_else(|| "Unknown Album".to_string())
-    } else {
-        track
-            .album_artist
-            .clone()
-            .unwrap_or_else(|| "Unknown Album".to_string())
-    };
-
-    let project_title = title.unwrap_or_else(|| format!("{} (Stem Project)", track.title));
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        .to_string();
-
-    let new_project = StemProject {
-        id: 0,
-        track_id,
-        track_hash: track_hash.clone(),
-        title: project_title,
-        artist: track.artist,
-        album: album_title,
-        cover_uri: None,
-        status: StemProjectStatus::Queued,
-        progress: 0.0,
-        model_name: if requested_packs.is_empty() {
-            "pack_dsp_cascade".to_string()
-        } else {
-            requested_packs.join(", ")
-        },
-        disk_size_bytes: 0,
-        channels: Vec::new(),
-        active_mix_name: Some("Default (0 dB)".to_string()),
-        created_at: now.clone(),
-        updated_at: now,
-    };
-
-    let project_id = state
-        .db
-        .create_stem_project(&new_project)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let mut created = state
-        .db
-        .get_stem_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Błąd odczytu nowo utworzonego projektu".to_string())?;
-
-    // Asynchroniczne zadanie separacji kaskadowej w tle
-    let db_clone = state.db.clone();
-    let app_handle_clone = app_handle.clone();
-    let requested_packs_clone = requested_packs.clone();
-
-    tokio::task::spawn(async move {
-        let _ = db_clone
-            .update_stem_project_status(project_id, StemProjectStatus::Separating, 0.05, 0)
-            .await;
-
-        let sep_res = tokio::task::spawn_blocking(move || {
-            let app_emitter = app_handle_clone.clone();
-            StemSeparator::separate_stem_project(
-                &track_path,
-                project_id,
-                &track_hash,
-                &requested_packs_clone,
-                Some(Box::new(move |progress, message| {
-                    let _ = app_emitter.emit(
-                        "auralune://stem-project-progress",
-                        StemProjectProgressPayload {
-                            project_id,
-                            progress,
-                            message: message.to_string(),
-                            status: "separating".to_string(),
-                        },
-                    );
-                })),
-            )
-        })
-        .await;
-
-        match sep_res {
-            Ok(Ok(channels)) => {
-                let _ = db_clone
-                    .save_stem_project_channels(project_id, &channels)
-                    .await;
-
-                let mut total_size = 0u64;
-                for ch in &channels {
-                    if let Ok(meta) = std::fs::metadata(&ch.file_path) {
-                        total_size += meta.len();
-                    }
-                }
-
-                let _ = db_clone
-                    .update_stem_project_status(
-                        project_id,
-                        StemProjectStatus::Ready,
-                        1.0,
-                        total_size,
-                    )
-                    .await;
-
-                let _ = app_handle.emit(
-                    "auralune://stem-project-progress",
-                    StemProjectProgressPayload {
-                        project_id,
-                        progress: 1.0,
-                        message: "Projekt gotowy do miksowania".to_string(),
-                        status: "ready".to_string(),
-                    },
-                );
-            }
-            Ok(Err(e)) => {
-                error!("Błąd separacji projektu {}: {}", project_id, e);
-                let _ = db_clone
-                    .update_stem_project_status(project_id, StemProjectStatus::Failed, 0.0, 0)
-                    .await;
-                let _ = app_handle.emit(
-                    "auralune://stem-project-progress",
-                    StemProjectProgressPayload {
-                        project_id,
-                        progress: 0.0,
-                        message: format!("Błąd: {}", e),
-                        status: "failed".to_string(),
-                    },
-                );
-            }
-            Err(e) => {
-                error!("Panika wątku separacji {}: {}", project_id, e);
-                let _ = db_clone
-                    .update_stem_project_status(project_id, StemProjectStatus::Failed, 0.0, 0)
-                    .await;
-            }
-        }
-    });
-
-    created.id = project_id;
-    Ok(created)
+    commands::stems::create_stem_project_internal(&state, track_id, title, requested_packs, &app_handle).await
 }
 
 #[tauri::command]
 async fn list_stem_projects(state: State<'_, AppState>) -> Result<Vec<StemProject>, String> {
-    state
-        .db
-        .list_stem_projects()
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::list_stem_projects_internal(&state).await
 }
 
 #[tauri::command]
@@ -5665,27 +4932,12 @@ async fn get_stem_project(
     project_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<StemProject>, String> {
-    state
-        .db
-        .get_stem_project(project_id)
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::get_stem_project_internal(&state, project_id).await
 }
 
 #[tauri::command]
 async fn delete_stem_project(project_id: i64, state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .db
-        .delete_stem_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    // Czyszczenie pamięci podręcznej stemów na dysku
-    let cache_dir = get_stem_projects_cache_dir().join(project_id.to_string());
-    if cache_dir.exists() {
-        let _ = std::fs::remove_dir_all(&cache_dir);
-    }
-    Ok(())
+    commands::stems::delete_stem_project_internal(&state, project_id).await
 }
 
 #[tauri::command]
@@ -5694,11 +4946,7 @@ async fn rename_stem_project(
     title: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state
-        .db
-        .rename_stem_project(project_id, &title)
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::rename_stem_project_internal(&state, project_id, &title).await
 }
 
 #[tauri::command]
@@ -5706,11 +4954,7 @@ async fn save_stem_project_mix(
     mix: StemProjectMix,
     state: State<'_, AppState>,
 ) -> Result<i64, String> {
-    state
-        .db
-        .save_stem_project_mix(&mix)
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::save_stem_project_mix_internal(&state, &mix).await
 }
 
 #[tauri::command]
@@ -5718,20 +4962,12 @@ async fn get_stem_project_mixes(
     project_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Vec<StemProjectMix>, String> {
-    state
-        .db
-        .get_stem_project_mixes(project_id)
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::get_stem_project_mixes_internal(&state, project_id).await
 }
 
 #[tauri::command]
 async fn delete_stem_project_mix(mix_id: i64, state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .db
-        .delete_stem_project_mix(mix_id)
-        .await
-        .map_err(|e| e.to_string())
+    commands::stems::delete_stem_project_mix_internal(&state, mix_id).await
 }
 
 #[tauri::command]
@@ -5742,76 +4978,19 @@ async fn load_stem_project(
     start_playing: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let project = state
-        .db
-        .get_stem_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
-
-    if project.channels.is_empty() {
-        return Err("Projekt nie posiada wygenerowanych ścieżek audio".to_string());
-    }
-
-    let orig_track = state
-        .db
-        .get_track_by_id(project.track_id)
-        .await
-        .ok()
-        .flatten();
-
-    let orig_uri = orig_track
-        .as_ref()
-        .map(|t| t.path.clone())
-        .or_else(|| state.engine.current_uri())
-        .or_else(|| state.engine.queue().current_item().map(|it| it.uri.clone()));
-
-    let m_vol = master_volume.unwrap_or(1.0);
-    let cur_pos = seek_position_ms
-        .map(std::time::Duration::from_millis)
-        .or_else(|| state.engine.position());
-    let auto_play = start_playing.unwrap_or_else(|| state.engine.state() == PlaybackState::Playing);
-
-    state
-        .engine
-        .load_stem_project_channels(
-            project_id,
-            &project.channels,
-            m_vol,
-            orig_uri.clone(),
-            cur_pos,
-            auto_play,
-        )
-        .map_err(|e| e.to_string())?;
-
-    if let Some(track) = orig_track {
-        let queue_item = QueueItem {
-            id: format!("stem-project-{}", project_id),
-            track_id: Some(track.id),
-            uri: orig_uri.unwrap_or_else(|| track.path.clone()),
-            title: project.title.clone(),
-            artist: project.artist.clone(),
-            album: Some(project.album.clone()),
-            duration_ms: track.duration_ms.max(0) as u64,
-        };
-        state.engine.set_active_item(queue_item.clone());
-        sync_mpris_from_queue_item(&queue_item, &state);
-    }
-    Ok(())
+    commands::stems::load_stem_project_internal(
+        &state,
+        project_id,
+        master_volume,
+        seek_position_ms,
+        start_playing,
+    )
+    .await
 }
 
 #[tauri::command]
 async fn restore_original_track(state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .engine
-        .restore_original_track()
-        .map_err(|e| e.to_string())?;
-
-    let q = state.engine.queue();
-    if let Some(item) = q.current_item() {
-        sync_mpris_from_queue_item(item, &state);
-    }
-    Ok(())
+    commands::stems::restore_original_track_internal(&state)
 }
 
 #[tauri::command]
@@ -5820,10 +4999,7 @@ async fn apply_stem_project_mix(
     master_volume: f32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state
-        .engine
-        .apply_stem_project_mix(&channels, master_volume)
-        .map_err(|e| e.to_string())
+    commands::stems::apply_stem_project_mix_internal(&state, &channels, master_volume)
 }
 
 #[tauri::command]
@@ -5832,32 +5008,7 @@ async fn export_stem_project_mix(
     export_path: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let project = state
-        .db
-        .get_stem_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
-
-    tokio::task::spawn_blocking(move || {
-        let export_target = std::path::Path::new(&export_path);
-        if let Some(parent) = export_target.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-
-        // Proste zsumowanie plików kanałów
-        info!(
-            "Eksportowanie miksu projektu {} do {}",
-            project_id, export_path
-        );
-        // Gdy mamy kanały, skopiuj pierwszy lub połącz
-        if let Some(first) = project.channels.first() {
-            let _ = std::fs::copy(&first.file_path, export_target);
-        }
-        Ok(export_path)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    commands::stems::export_stem_project_mix_internal(&state, project_id, &export_path).await
 }
 
 #[tauri::command]
@@ -5866,44 +5017,9 @@ async fn export_stem_project_zip(
     export_path: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let project = state
-        .db
-        .get_stem_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
-
-    tokio::task::spawn_blocking(move || {
-        let proj_dir = get_stem_projects_cache_dir().join(project_id.to_string());
-        if !proj_dir.exists() {
-            return Err("Katalog stemów projektu nie istnieje na dysku".to_string());
-        }
-
-        // Zapisz metadata project.json
-        let json_str = serde_json::to_string_pretty(&project).unwrap_or_default();
-        let _ = std::fs::write(proj_dir.join("project.json"), json_str);
-
-        // Użyj /usr/bin/zip
-        let output = std::process::Command::new("zip")
-            .arg("-r")
-            .arg(&export_path)
-            .arg(".")
-            .current_dir(&proj_dir)
-            .output()
-            .map_err(|e| format!("Błąd uruchomienia zip: {}", e))?;
-
-        if !output.status.success() {
-            return Err(format!(
-                "Błąd pakowania ZIP: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
-        }
-
-        Ok(export_path)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    commands::stems::export_stem_project_zip_internal(&state, project_id, &export_path).await
 }
+
 
 fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
     let clean_style = if style == "classic" {

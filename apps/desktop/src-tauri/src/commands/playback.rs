@@ -82,6 +82,140 @@ pub fn seek_internal(state: &AppState, position_ms: u64, fade: Option<bool>) -> 
     Ok(())
 }
 
+/// Synchronizes currently playing track metadata to MPRIS and Discord Rich Presence.
+pub fn sync_mpris_from_queue_item(item: &domain::QueueItem, state: &AppState) {
+    let title = item.title.clone();
+    let artist = item.artist.clone();
+    let album = item.album.clone().unwrap_or_default();
+    let duration_ms = if item.duration_ms > 0 {
+        item.duration_ms
+    } else {
+        state
+            .engine
+            .duration()
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0)
+    };
+
+    let is_generic_album = album.trim().is_empty()
+        || album == "Auralune Player"
+        || album == "Auralune Library"
+        || album == "Live Stream"
+        || album == "Radio internetowe";
+
+    let mut effective_artist = artist.trim().to_string();
+    let mut effective_title = title.trim().to_string();
+    if (effective_artist == "Plik lokalny" || effective_artist.is_empty())
+        && effective_title.contains(" - ")
+    {
+        if let Some((a, t)) = effective_title.split_once(" - ") {
+            effective_artist = a.trim().to_string();
+            effective_title = t.trim().to_string();
+        }
+    }
+
+    let cache_key = if !is_generic_album {
+        format!(
+            "{}---{}",
+            effective_artist.trim().to_lowercase(),
+            album.trim().to_lowercase()
+        )
+    } else {
+        format!(
+            "{}---{}",
+            effective_artist.trim().to_lowercase(),
+            effective_title.trim().to_lowercase()
+        )
+    };
+    let cached_art = state.discord_cover_cache.read().ok().and_then(|c| {
+        c.get(&cache_key).cloned().or_else(|| {
+            let title_key = format!(
+                "{}---{}",
+                effective_artist.trim().to_lowercase(),
+                effective_title.trim().to_lowercase()
+            );
+            c.get(&title_key).cloned()
+        })
+    });
+
+    if let Some(mpris) = &state.mpris {
+        let m = mpris.clone();
+        let track_info = desktop_integration::MprisTrackInfo {
+            title: title.clone(),
+            artist: artist.clone(),
+            album: album.clone(),
+            duration_ms,
+            art_url: cached_art.clone(),
+        };
+        state.rt.spawn(async move {
+            m.update_track(track_info).await;
+            m.update_playback_status(PlaybackState::Playing).await;
+        });
+    }
+    if let Some(discord) = &state.discord_rpc {
+        let discord_art = cached_art
+            .as_ref()
+            .filter(|u| u.starts_with("http://") || u.starts_with("https://"))
+            .cloned();
+
+        let track_info = desktop_integration::DiscordTrackInfo {
+            title: title.clone(),
+            artist: artist.clone(),
+            album: album.clone(),
+            duration_ms,
+            art_url: discord_art.clone(),
+        };
+        discord.update_track(track_info);
+        let needs_online_search = discord_art.is_none();
+
+        if needs_online_search
+            && (!effective_artist.trim().is_empty()
+                || !album.trim().is_empty()
+                || !effective_title.trim().is_empty())
+        {
+            let discord_clone = discord.clone();
+            let cover_archive = state.cover_archive.clone();
+            let cache_clone = state.discord_cover_cache.clone();
+            let title_c = effective_title.clone();
+            let artist_c = effective_artist.clone();
+            let album_c = album.clone();
+            state.rt.spawn(async move {
+                let mut candidates = if !is_generic_album {
+                    cover_archive
+                        .search_cover_candidates(&album_c, &artist_c)
+                        .await
+                } else {
+                    Vec::new()
+                };
+                if candidates.is_empty() && !title_c.trim().is_empty() {
+                    candidates = cover_archive
+                        .search_cover_candidates(&title_c, &artist_c)
+                        .await;
+                }
+                if let Some(first) = candidates.first() {
+                    let best_url = if !first.thumbnail_url.is_empty() {
+                        first.thumbnail_url.clone()
+                    } else {
+                        first.full_url.clone()
+                    };
+                    if best_url.starts_with("http://") || best_url.starts_with("https://") {
+                        if let Ok(mut cache) = cache_clone.write() {
+                            cache.insert(cache_key, best_url.clone());
+                        }
+                        discord_clone.update_track(desktop_integration::DiscordTrackInfo {
+                            title: title_c,
+                            artist: artist_c,
+                            album: album_c,
+                            duration_ms,
+                            art_url: Some(best_url),
+                        });
+                    }
+                }
+            });
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
