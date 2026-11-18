@@ -264,25 +264,3 @@ pub fn default_themes() -> Vec<Theme> {
         },
     ]
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_theme_validation() {
-        let themes = default_themes();
-        assert_eq!(themes.len(), 7);
-        for t in themes {
-            assert!(t.validate().is_ok());
-        }
-
-        let mut invalid_theme = default_themes()[0].clone();
-        invalid_theme.overlay_opacity = 1.5;
-        assert!(invalid_theme.validate().is_err());
-
-        invalid_theme.overlay_opacity = 0.5;
-        invalid_theme.blur_radius = 50.0;
-        assert!(invalid_theme.validate().is_err());
-    }
-}

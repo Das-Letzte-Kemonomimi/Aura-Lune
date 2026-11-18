@@ -1,4 +1,6 @@
-use super::*;
+use desktop_integration::{
+    build_activity_payload, write_waybar_status_to_path, DiscordTrackInfo, WaybarStatus,
+};
 use domain::PlaybackState;
 use std::fs;
 
@@ -55,8 +57,8 @@ fn test_build_activity_payload_paused_omits_timestamps() {
     );
 
     assert_eq!(payload["details"], "Paused Track");
-    assert_eq!(payload["state"], "Auralune"); // fallback
-    assert_eq!(payload["assets"]["large_text"], "Auralune Player"); // fallback
+    assert_eq!(payload["state"], "Auralune");
+    assert_eq!(payload["assets"]["large_text"], "Auralune Player");
     assert!(payload.get("timestamps").is_none());
 }
 

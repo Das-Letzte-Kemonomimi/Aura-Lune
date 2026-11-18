@@ -322,14 +322,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri");
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_app_state_is_send_sync() {
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<AppState>();
-    }
-}

@@ -128,3 +128,48 @@ https://stream.example.com/live
     assert!(exported.contains("#EXTINF:180,Artist One - Song Alpha\n"));
     assert!(exported.contains("/music/track1.flac\n"));
 }
+
+#[test]
+fn test_parse_cue_sheet_additional() {
+    let sample_cue = r#"
+REM GENRE Anime
+REM DATE 2023
+PERFORMER "Yuki Kajiura"
+TITLE "FictionJunction OST"
+FILE "FictionJunction.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Prologue ~ The Beginning"
+    PERFORMER "FictionJunction"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Swordland Symphonic"
+    PERFORMER "FictionJunction"
+    INDEX 00 02:40:15
+    INDEX 01 02:42:00
+  TRACK 03 AUDIO
+    TITLE "Lapis Lazuli (Ending Theme)"
+    PERFORMER "Eir Aoi"
+    INDEX 01 06:15:37
+"#;
+
+    let sheet = CueSheet::parse(sample_cue).expect("Parsowanie CUE powinno się udać");
+    assert_eq!(sheet.file_path, "FictionJunction.flac");
+    assert_eq!(sheet.album_title.as_deref(), Some("FictionJunction OST"));
+    assert_eq!(sheet.tracks.len(), 3);
+    assert_eq!(sheet.tracks[0].duration_ms, Some(162000));
+}
+
+#[test]
+fn test_parse_m3u_simple_absolute() {
+    let content = r#"#EXTM3U
+#EXTINF:215,Das Letzte Kemonomimi - Skrzydła Białe
+/home/mimi/Music/skrzydla_biale.flac
+#EXTINF:180,Artist Name - Song Title
+/home/mimi/Music/song2.mp3
+"#;
+    let playlist = M3uPlaylist::parse(content, "Test List", None).unwrap();
+    assert_eq!(playlist.name, "Test List");
+    assert_eq!(playlist.entries.len(), 2);
+    assert_eq!(playlist.entries[0].title.as_deref(), Some("Skrzydła Białe"));
+    assert_eq!(playlist.entries[0].duration_seconds, Some(215));
+}

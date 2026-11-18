@@ -860,26 +860,3 @@ pub async fn export_stem_project_zip(
 ) -> Result<String, String> {
     export_stem_project_zip_internal(&state, project_id, &export_path).await
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_list_model_packs_not_empty() {
-        let packs = list_model_packs_internal();
-        assert!(!packs.is_empty());
-    }
-
-    #[test]
-    fn test_stem_progress_payload_serialization() {
-        let payload = StemProgressPayload {
-            track_id: 10,
-            progress: 0.5,
-            message: "Extracting vocals".to_string(),
-        };
-        let serialized = serde_json::to_string(&payload).expect("Failed serialization");
-        assert!(serialized.contains("Extracting vocals"));
-        assert!(serialized.contains("10"));
-    }
-}

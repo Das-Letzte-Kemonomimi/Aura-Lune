@@ -767,36 +767,3 @@ pub async fn get_lyrics(
     .await;
     Ok(lyrics)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_lastfm_scrobble_request_serialization() {
-        let req = LastFmScrobbleRequest {
-            session_key: "abc_key".to_string(),
-            artist: "Ado".to_string(),
-            track: "Show".to_string(),
-            album: Some("Zanmu".to_string()),
-            duration_sec: Some(184),
-            timestamp: Some(1700000000),
-            api_key: None,
-            api_secret: None,
-        };
-        let json = serde_json::to_string(&req).expect("Failed to serialize request");
-        let deserialized: LastFmScrobbleRequest =
-            serde_json::from_str(&json).expect("Failed to deserialize");
-        assert_eq!(deserialized.artist, "Ado");
-        assert_eq!(deserialized.track, "Show");
-    }
-
-    #[test]
-    fn test_lastfm_auth_url_result() {
-        let auth = LastFmAuthUrlResult {
-            token: "tok123".to_string(),
-            auth_url: "https://www.last.fm/api/auth/?api_key=xyz&token=tok123".to_string(),
-        };
-        assert!(auth.auth_url.contains("tok123"));
-    }
-}

@@ -1,0 +1,257 @@
+use domain::device::BluetoothCodec;
+use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
+use domain::renamer::{format_pattern_for_track, sanitize_filename_part, RenamerTrackInfo};
+use domain::stem_project::{
+    default_stem_color, default_stem_label, linear_gain_to_slider, slider_to_db,
+    slider_to_linear_gain,
+};
+use domain::theme::default_themes;
+use domain::transcode::{ExportFormat, TimeRange};
+
+fn sample_item(id: &str, title: &str) -> QueueItem {
+    QueueItem {
+        id: id.to_string(),
+        track_id: None,
+        uri: format!("file:///{}.flac", id),
+        title: title.to_string(),
+        artist: "Artist".to_string(),
+        album: Some("Album".to_string()),
+        duration_ms: 180000,
+    }
+}
+
+#[test]
+fn test_volume_mapping_keypoints() {
+    assert_eq!(slider_to_linear_gain(0.0), 0.0);
+    assert!(slider_to_db(0.0) <= -90.0);
+
+    let gain_75 = slider_to_linear_gain(0.75);
+    assert!((gain_75 - 1.0).abs() < 1e-5);
+    assert!(slider_to_db(0.75).abs() < 1e-4);
+
+    let gain_100 = slider_to_linear_gain(1.0);
+    assert!((gain_100 - 2.0).abs() < 1e-5);
+    assert!((slider_to_db(1.0) - 6.0206).abs() < 0.01);
+}
+
+#[test]
+fn test_volume_mapping_monotonicity_and_roundtrip() {
+    let mut prev_gain = -1.0;
+    for i in 0..=100 {
+        let slider = i as f32 / 100.0;
+        let gain = slider_to_linear_gain(slider);
+        assert!(
+            gain >= prev_gain,
+            "Monotonicity violated at slider {}",
+            slider
+        );
+        prev_gain = gain;
+
+        let recovered_slider = linear_gain_to_slider(gain);
+        assert!(
+            (recovered_slider - slider).abs() < 1e-4,
+            "Roundtrip failed for slider {}: got {}",
+            slider,
+            recovered_slider
+        );
+    }
+}
+
+#[test]
+fn test_default_stem_colors_and_labels() {
+    assert_eq!(default_stem_color("lead_vocal"), "#f43f5e");
+    assert_eq!(default_stem_color("kick"), "#ea580c");
+    assert_eq!(default_stem_color("bass"), "#0ea5e9");
+    assert_eq!(default_stem_color("piano"), "#8b5cf6");
+
+    assert_eq!(default_stem_label("lead_vocal", true), "Wokal prowadzący");
+    assert_eq!(default_stem_label("lead_vocal", false), "Lead Vocal");
+    assert_eq!(default_stem_label("kick", true), "Stopa (Kick)");
+    assert_eq!(default_stem_label("kick", false), "Kick Drum");
+}
+
+#[test]
+fn test_queue_navigation_sequential_and_loop() {
+    let mut queue = PlaybackQueue::new();
+    queue.set_items(
+        vec![
+            sample_item("1", "Song A"),
+            sample_item("2", "Song B"),
+            sample_item("3", "Song C"),
+        ],
+        Some(0),
+    );
+
+    assert_eq!(queue.current_item().unwrap().title, "Song A");
+    assert_eq!(queue.next().unwrap().title, "Song B");
+    assert_eq!(queue.next().unwrap().title, "Song C");
+    assert!(queue.next().is_none());
+
+    queue.set_loop_mode(LoopMode::Queue);
+    assert_eq!(queue.next().unwrap().title, "Song A");
+
+    assert_eq!(queue.previous().unwrap().title, "Song C");
+    assert_eq!(queue.previous().unwrap().title, "Song B");
+
+    queue.set_loop_mode(LoopMode::Track);
+    assert_eq!(queue.next().unwrap().title, "Song B");
+    assert_eq!(queue.next().unwrap().title, "Song B");
+}
+
+#[test]
+fn test_queue_add_next_and_remove() {
+    let mut queue = PlaybackQueue::new();
+    queue.set_items(
+        vec![sample_item("1", "Song 1"), sample_item("2", "Song 2")],
+        Some(0),
+    );
+
+    queue.add_next(sample_item("1.5", "Song Interlude"));
+    assert_eq!(queue.items.len(), 3);
+    assert_eq!(queue.items[1].title, "Song Interlude");
+
+    let removed = queue.remove_item("1.5");
+    assert_eq!(removed.unwrap().title, "Song Interlude");
+    assert_eq!(queue.items.len(), 2);
+}
+
+#[test]
+fn test_set_active_item_does_not_auto_add_unqueued_track() {
+    let mut queue = PlaybackQueue::new();
+    queue.set_items(
+        vec![sample_item("1", "Song 1"), sample_item("2", "Song 2")],
+        Some(0),
+    );
+
+    let unqueued = sample_item("99", "Unqueued Song");
+    queue.set_active_item(unqueued);
+
+    assert_eq!(queue.items.len(), 2);
+    assert_eq!(queue.current_index, None);
+
+    let existing = sample_item("2", "Song 2");
+    queue.set_active_item(existing);
+
+    assert_eq!(queue.items.len(), 2);
+    assert_eq!(queue.current_index, Some(1));
+    assert_eq!(queue.current_item().unwrap().title, "Song 2");
+}
+
+#[test]
+fn test_sanitize_filename() {
+    assert_eq!(sanitize_filename_part("AC/DC: Live?"), "AC_DC_ Live_");
+    assert_eq!(sanitize_filename_part("   "), "Unknown");
+    assert_eq!(sanitize_filename_part("YOASOBI"), "YOASOBI");
+}
+
+#[test]
+fn test_format_pattern_for_track() {
+    let pattern = "%track% - %artist% - %title%";
+    let info = RenamerTrackInfo {
+        title: "Sparkle",
+        artist: "RADWIMPS",
+        album_artist: Some("RADWIMPS"),
+        album: Some("Your Name."),
+        track_no: Some(8),
+        disc_no: Some(1),
+        ext: "flac",
+    };
+    let res = format_pattern_for_track(pattern, &info);
+    assert_eq!(res, "08 - RADWIMPS - Sparkle.flac");
+}
+
+#[test]
+fn test_format_pattern_with_extension_already() {
+    let pattern = "%artist% - %title%.%ext%";
+    let info = RenamerTrackInfo {
+        title: "Idol",
+        artist: "YOASOBI",
+        album_artist: None,
+        album: None,
+        track_no: Some(1),
+        disc_no: None,
+        ext: "mp3",
+    };
+    let res = format_pattern_for_track(pattern, &info);
+    assert_eq!(res, "YOASOBI - Idol.mp3");
+}
+
+#[test]
+fn test_theme_validation() {
+    let themes = default_themes();
+    assert_eq!(themes.len(), 7);
+    for t in themes {
+        assert!(t.validate().is_ok());
+    }
+
+    let mut invalid_theme = default_themes()[0].clone();
+    invalid_theme.overlay_opacity = 1.5;
+    assert!(invalid_theme.validate().is_err());
+
+    invalid_theme.overlay_opacity = 0.5;
+    invalid_theme.blur_radius = 50.0;
+    assert!(invalid_theme.validate().is_err());
+}
+
+#[test]
+fn test_codec_parsing() {
+    assert_eq!(
+        BluetoothCodec::from_profile_name("a2dp-sink-ldac"),
+        Some(BluetoothCodec::Ldac)
+    );
+    assert_eq!(
+        BluetoothCodec::from_profile_name("a2dp-sink-aptx_hd"),
+        Some(BluetoothCodec::AptxHd)
+    );
+    assert_eq!(
+        BluetoothCodec::from_profile_name("a2dp-sink-aac"),
+        Some(BluetoothCodec::Aac)
+    );
+    assert_eq!(
+        BluetoothCodec::from_profile_name("a2dp-sink-sbc_xq"),
+        Some(BluetoothCodec::SbcXq)
+    );
+    assert_eq!(
+        BluetoothCodec::from_profile_name("a2dp-sink"),
+        Some(BluetoothCodec::Sbc)
+    );
+    assert_eq!(BluetoothCodec::from_profile_name("headset-head-unit"), None);
+}
+
+#[test]
+fn test_export_format_extension() {
+    assert_eq!(ExportFormat::Opus { bitrate_kbps: 160 }.extension(), "opus");
+    assert_eq!(
+        ExportFormat::Flac {
+            compression_level: 5
+        }
+        .extension(),
+        "flac"
+    );
+    assert_eq!(ExportFormat::Wav.extension(), "wav");
+}
+
+#[test]
+fn test_time_range_validation() {
+    let valid = TimeRange::new(500, Some(1500));
+    assert!(valid.is_ok());
+    let range = valid.unwrap();
+    assert!(range.is_active());
+    assert_eq!(range.duration_ms(), Some(1000));
+
+    let invalid = TimeRange::new(1500, Some(500));
+    assert!(invalid.is_err());
+
+    let equal = TimeRange::new(1000, Some(1000));
+    assert!(equal.is_err());
+
+    let start_only = TimeRange::new(1000, None);
+    assert!(start_only.is_ok());
+    let range_start = start_only.unwrap();
+    assert!(range_start.is_active());
+    assert_eq!(range_start.duration_ms(), None);
+
+    let zero_unbounded = TimeRange::new(0, None);
+    assert!(zero_unbounded.is_ok());
+    assert!(!zero_unbounded.unwrap().is_active());
+}

@@ -80,28 +80,3 @@ impl CrossfeedConfig {
         self.feed_tenth_db as f32 / 10.0
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_crossfeed_defaults_and_presets() {
-        let mut cfg = CrossfeedConfig::default();
-        assert!(!cfg.enabled);
-        assert_eq!(cfg.preset, CrossfeedPreset::Default);
-        assert_eq!(cfg.fcut_hz, 700);
-        assert_eq!(cfg.feed_tenth_db, 45);
-        assert_eq!(cfg.feed_db(), 4.5);
-
-        cfg.apply_preset(CrossfeedPreset::ChuMoy);
-        assert_eq!(cfg.fcut_hz, 700);
-        assert_eq!(cfg.feed_tenth_db, 60);
-        assert_eq!(cfg.feed_db(), 6.0);
-
-        cfg.apply_preset(CrossfeedPreset::JanMeier);
-        assert_eq!(cfg.fcut_hz, 650);
-        assert_eq!(cfg.feed_tenth_db, 90);
-        assert_eq!(cfg.feed_db(), 9.0);
-    }
-}

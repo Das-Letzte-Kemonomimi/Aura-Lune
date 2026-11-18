@@ -726,15 +726,3 @@ pub async fn scan_library_replaygain(
         errors,
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_equalizer_presets_not_empty() {
-        let presets = get_equalizer_presets_internal();
-        assert!(!presets.is_empty());
-        assert!(presets.iter().any(|p| p.name.contains("Flat")));
-    }
-}

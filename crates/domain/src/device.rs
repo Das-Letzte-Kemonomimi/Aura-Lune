@@ -112,33 +112,3 @@ impl AudioCard {
             .collect()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_codec_parsing() {
-        assert_eq!(
-            BluetoothCodec::from_profile_name("a2dp-sink-ldac"),
-            Some(BluetoothCodec::Ldac)
-        );
-        assert_eq!(
-            BluetoothCodec::from_profile_name("a2dp-sink-aptx_hd"),
-            Some(BluetoothCodec::AptxHd)
-        );
-        assert_eq!(
-            BluetoothCodec::from_profile_name("a2dp-sink-aac"),
-            Some(BluetoothCodec::Aac)
-        );
-        assert_eq!(
-            BluetoothCodec::from_profile_name("a2dp-sink-sbc_xq"),
-            Some(BluetoothCodec::SbcXq)
-        );
-        assert_eq!(
-            BluetoothCodec::from_profile_name("a2dp-sink"),
-            Some(BluetoothCodec::Sbc)
-        );
-        assert_eq!(BluetoothCodec::from_profile_name("headset-head-unit"), None);
-    }
-}

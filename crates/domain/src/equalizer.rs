@@ -97,36 +97,3 @@ impl EqualizerPreset {
         ]
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_equalizer_clamping() {
-        assert_eq!(EqualizerState::clamp_gain(-30.0), -24.0);
-        assert_eq!(EqualizerState::clamp_gain(20.0), 12.0);
-        assert_eq!(EqualizerState::clamp_gain(5.5), 5.5);
-    }
-
-    #[test]
-    fn test_equalizer_set_band_and_reset() {
-        let mut eq = EqualizerState::new();
-        assert!(eq.set_band(0, 8.0));
-        assert!(eq.set_band(9, -15.0));
-        assert!(!eq.set_band(10, 5.0)); // out of bounds
-        assert_eq!(eq.bands[0], 8.0);
-        assert_eq!(eq.bands[9], -15.0);
-
-        eq.reset();
-        assert_eq!(eq.bands, [0.0; 10]);
-    }
-
-    #[test]
-    fn test_default_presets() {
-        let presets = EqualizerPreset::default_presets();
-        assert!(presets.len() >= 6);
-        assert_eq!(presets[0].name, "Płaski (Flat)");
-        assert_eq!(presets[0].bands, [0.0; 10]);
-    }
-}

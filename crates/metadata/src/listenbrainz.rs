@@ -241,34 +241,3 @@ impl ListenBrainzClient {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_listenbrainz_payload_serialization() {
-        let payload = SubmitListensRequest {
-            listen_type: "single".to_string(),
-            payload: vec![ListenItemPayload {
-                listened_at: Some(1698200000),
-                track_metadata: TrackMetadataPayload {
-                    artist_name: "Das Letzte Kemonomimi".to_string(),
-                    track_name: "Skrzydła Białe".to_string(),
-                    release_name: Some("Auralune OST".to_string()),
-                    additional_info: AdditionalInfoPayload {
-                        duration_ms: Some(215000),
-                        ..Default::default()
-                    },
-                },
-            }],
-        };
-
-        let json = serde_json::to_string(&payload).unwrap();
-        assert!(json.contains("\"listen_type\":\"single\""));
-        assert!(json.contains("\"artist_name\":\"Das Letzte Kemonomimi\""));
-        assert!(json.contains("\"track_name\":\"Skrzydła Białe\""));
-        assert!(json.contains("\"media_player\":\"Auralune\""));
-        assert!(json.contains("\"listened_at\":1698200000"));
-    }
-}

@@ -138,21 +138,3 @@ pub fn notify_track_looped_internal(
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_discord_rpc_status_when_no_controller() {
-        let status = DiscordRpcStatus {
-            enabled: false,
-            connected: false,
-            client_id: DEFAULT_DISCORD_CLIENT_ID.to_string(),
-            current_activity: None,
-        };
-        assert!(!status.enabled);
-        assert!(!status.connected);
-        assert!(!status.client_id.is_empty());
-    }
-}

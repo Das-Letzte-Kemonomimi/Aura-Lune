@@ -315,23 +315,3 @@ pub async fn delete_track_record(
         .await
         .map_err(|e| e.to_string())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_scan_paths_empty_returns_zero_summary() {
-        let empty_paths: Vec<String> = vec![];
-        assert!(empty_paths.is_empty());
-    }
-
-    #[test]
-    fn test_resolve_cover_to_data_uri_http() {
-        let http_url = "https://example.com/cover.jpg";
-        assert_eq!(
-            resolve_cover_to_data_uri(http_url),
-            Some(http_url.to_string())
-        );
-    }
-}

@@ -1,0 +1,108 @@
+use metadata::{
+    clean_album_title, clean_artist_name, urlencoding, CoverArtArchiveClient, MusicBrainzClient,
+};
+
+#[test]
+fn test_parse_release_candidates() {
+    let sample_json = serde_json::json!({
+        "releases": [
+            {
+                "id": "c3d4e5f6-7890-4123-8abc-def123456789",
+                "title": "Your Name.",
+                "artist-credit": [{ "name": "RADWIMPS" }],
+                "date": "2016-08-24",
+                "country": "JP",
+                "track-count": 27,
+                "score": 100
+            },
+            {
+                "id": "11223344-5566-7788-9900-aabbccddeeff",
+                "title": "Your Name. (Deluxe Edition)",
+                "artist-credit": [{ "name": "RADWIMPS" }],
+                "date": "2017-04-14",
+                "country": "US",
+                "track-count": 30,
+                "score": 85
+            }
+        ]
+    });
+
+    let candidates = MusicBrainzClient::parse_release_candidates(&sample_json);
+    assert_eq!(candidates.len(), 2);
+    assert_eq!(candidates[0].mbid, "c3d4e5f6-7890-4123-8abc-def123456789");
+    assert_eq!(candidates[0].score, 100);
+    assert_eq!(candidates[0].track_count, Some(27));
+    assert_eq!(candidates[0].artist, "RADWIMPS");
+    assert_eq!(candidates[1].score, 85);
+}
+
+#[test]
+fn test_url_encoding() {
+    let encoded = urlencoding::encode("release:\"Your Name.\" AND artist:\"RADWIMPS\"");
+    assert!(encoded.contains("%22Your%20Name.%22"));
+    assert!(encoded.contains("AND"));
+    assert!(encoded.contains("%22RADWIMPS%22"));
+}
+
+#[tokio::test]
+async fn test_cover_art_archive_cache_hit() {
+    let temp_dir = std::env::temp_dir().join("auralune_test_cover_cache");
+    let covers_dir = temp_dir.join("covers");
+    tokio::fs::create_dir_all(&covers_dir).await.unwrap();
+
+    let fake_mbid = "test-mbid-1234";
+    let fake_cover = covers_dir.join(format!("{}.jpg", fake_mbid));
+    tokio::fs::write(&fake_cover, b"FAKE_JPEG_IMAGE_DATA")
+        .await
+        .unwrap();
+
+    let client = CoverArtArchiveClient::new(&temp_dir);
+    let path = client.fetch_and_cache_cover(fake_mbid).await.unwrap();
+
+    assert_eq!(path, fake_cover);
+    assert!(path.exists());
+
+    let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+}
+
+#[test]
+fn test_clean_album_title() {
+    assert_eq!(clean_album_title("7 (2015 Remastered)"), "7");
+    assert_eq!(
+        clean_album_title("Master of Puppets [Remastered]"),
+        "Master of Puppets"
+    );
+    assert_eq!(
+        clean_album_title("OK Computer (Collector's Edition) [Disc 1]"),
+        "OK Computer"
+    );
+    assert_eq!(
+        clean_album_title("Hybrid Theory (Deluxe Edition)"),
+        "Hybrid Theory"
+    );
+    assert_eq!(clean_album_title("7"), "7");
+    assert_eq!(clean_album_title("( )"), "( )");
+}
+
+#[test]
+fn test_clean_artist_name() {
+    assert_eq!(clean_artist_name("In Extremo (Live)"), "In Extremo");
+    assert_eq!(clean_artist_name("Linkin Park"), "Linkin Park");
+}
+
+#[tokio::test]
+async fn test_search_cover_candidates_online_in_extremo() {
+    let temp_dir = std::env::temp_dir().join("auralune_test_cover_candidates");
+    let client = CoverArtArchiveClient::new(&temp_dir);
+    let candidates = client
+        .search_cover_candidates("7 (2015 Remastered)", "In Extremo")
+        .await;
+    assert!(
+        !candidates.is_empty(),
+        "Kandydaci okładek dla '7' In Extremo powinni zostać znalezieni!"
+    );
+    let first = &candidates[0];
+    assert_eq!(first.title, "7");
+    assert_eq!(first.artist, "In Extremo");
+    assert!(first.full_url.contains("1000x1000") || first.full_url.contains("1200x1200"));
+}

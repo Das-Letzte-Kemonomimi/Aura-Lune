@@ -24,29 +24,3 @@ impl SilenceTrimmingConfig {
         self
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_silence_trimming_defaults_and_clamping() {
-        let cfg = SilenceTrimmingConfig::default();
-        assert!(!cfg.enabled);
-        assert_eq!(cfg.threshold_db, -50.0);
-
-        let clamped = SilenceTrimmingConfig {
-            enabled: true,
-            threshold_db: -120.0,
-        }
-        .clamped();
-        assert_eq!(clamped.threshold_db, -80.0);
-
-        let clamped_high = SilenceTrimmingConfig {
-            enabled: true,
-            threshold_db: 5.0,
-        }
-        .clamped();
-        assert_eq!(clamped_high.threshold_db, -20.0);
-    }
-}

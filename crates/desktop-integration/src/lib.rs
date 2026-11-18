@@ -17,6 +17,3 @@ pub use waybar::{
     cleanup_waybar_status, write_waybar_status, write_waybar_status_to_path, WaybarStatus,
     DEFAULT_WAYBAR_STATUS_PATH,
 };
-
-#[cfg(test)]
-mod tests;

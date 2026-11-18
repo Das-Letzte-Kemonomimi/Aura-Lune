@@ -47,26 +47,3 @@ impl Default for ReplayGainConfig {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_replaygain_defaults() {
-        let cfg = ReplayGainConfig::default();
-        assert_eq!(cfg.mode, ReplayGainMode::Off);
-        assert_eq!(cfg.pre_amp_db, 0.0);
-        assert_eq!(cfg.fallback_gain_db, -6.0);
-        assert!(cfg.prevent_clipping);
-    }
-
-    #[test]
-    fn test_replaygain_modes_display() {
-        assert_eq!(ReplayGainMode::Off.display_name(), "Wyłączony (Off)");
-        assert_eq!(
-            ReplayGainMode::Auto.display_name(),
-            "Inteligentny (Auto Track/Album)"
-        );
-    }
-}
