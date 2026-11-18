@@ -200,15 +200,15 @@ else
 
     DOWNLOAD_URL=""
     if [[ "$CHANNEL" == "dev" ]]; then
-        # 1. Fetch release JSON from GitHub API for tag 'dev' or 'nightly'
-        RELEASE_JSON=$(curl -sSf "${GITHUB_API}/tags/dev" 2>/dev/null || curl -sSf "${GITHUB_API}/tags/nightly" 2>/dev/null || echo "")
+        # 1. Fetch release JSON from GitHub API for tag 'dev-build', 'dev' or 'nightly'
+        RELEASE_JSON=$(curl -sSf "${GITHUB_API}/tags/dev-build" 2>/dev/null || curl -sSf "${GITHUB_API}/tags/dev" 2>/dev/null || curl -sSf "${GITHUB_API}/tags/nightly" 2>/dev/null || echo "")
         if [[ -n "$RELEASE_JSON" ]]; then
             DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
         fi
 
         # 2. Canonical direct asset URL check if API is rate-limited
         if [[ -z "$DOWNLOAD_URL" ]]; then
-            DEV_DIRECT_URL="https://github.com/${REPO}/releases/download/dev/Auralune-dev-x86_64.AppImage"
+            DEV_DIRECT_URL="https://github.com/${REPO}/releases/download/dev-build/Auralune-dev-x86_64.AppImage"
             if curl -sIf "$DEV_DIRECT_URL" 2>/dev/null | grep -qiE 'HTTP/.* [23][0-9][0-9]'; then
                 DOWNLOAD_URL="$DEV_DIRECT_URL"
             fi
@@ -216,7 +216,7 @@ else
 
         # 3. If dev release asset does not exist yet on GitHub, NEVER fall back to stable!
         if [[ -z "$DOWNLOAD_URL" ]]; then
-            echo -e "${RED}❌ Error: No development AppImage found on GitHub Releases under tag 'dev'.${RESET}"
+            echo -e "${RED}❌ Error: No development AppImage found on GitHub Releases under tag 'dev-build' or 'dev'.${RESET}"
             echo -e "${YELLOW}💡 A rolling 'dev' pre-release is published automatically once the CI workflow runs on the 'dev' branch.${RESET}"
             echo -e "${YELLOW}   If you have a local build, install it directly with:${RESET}"
             echo -e "     ${BOLD}./install.sh --dev${RESET}"

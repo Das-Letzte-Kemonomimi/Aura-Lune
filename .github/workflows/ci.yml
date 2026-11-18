@@ -188,10 +188,10 @@ jobs:
           fi
           echo "Found generated AppImage: $APPIMAGE_PATH"
 
-          echo "Updating rolling 'dev' pre-release on GitHub..."
-          gh release delete dev --yes --cleanup-tag || true
+          echo "Updating rolling 'dev-build' pre-release on GitHub..."
+          gh release delete dev-build --yes --cleanup-tag || true
 
-          gh release create dev \
+          gh release create dev-build \
             "$APPIMAGE_PATH" \
             --target "${{ github.sha }}" \
             --title "Auralune (Development Build)" \
@@ -199,7 +199,7 @@ jobs:
 
           Automated development build compiled from commit [\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) on branch \`dev\`.
           
-          - **Tag**: \`dev\`
+          - **Tag**: \`dev-build\`
           - **Commit**: \`${{ github.sha }}\`
           - **Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
           - **Channel**: \`dev\` (Installs side-by-side with stable Auralune as \`auralune-dev\`)

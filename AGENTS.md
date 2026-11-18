@@ -1,6 +1,11 @@
 # 🌸 Aura-Lune — Agents & Developer Architecture Guide
 
-This document is the single source of truth for AI agents and human developers working on the **Aura-Lune** codebase. It details the complete architecture, crate responsibilities, frontend components, state hooks, testing protocols, and core engineering invariants.
+This document is the authoritative single source of truth for AI agents and human developers working on the **Aura-Lune** codebase. It details the complete architecture, crate responsibilities, modular database submodules, desktop commands, frontend hooks, state management, testing protocols, and core engineering invariants.
+
+> [!IMPORTANT]
+> **CRITICAL DIRECTIVES FOR AGENTS & DEVELOPERS:**
+> 1. **Continuous Documentation Synchronization**: Whenever adding, modifying, or refactoring crates, database submodules, Tauri commands, hooks, modals, or architecture patterns, you **must update `AGENTS.md`** within the same task. Keep this document evergreen and accurate.
+> 2. **Pragmatic Testing (No Tests for Removed Features)**: Tests must strictly verify active invariants, working functionality, and edge cases. **Never write tests asserting that deliberately removed features, deprecated endpoints, or deleted UI elements do not exist**. Obsolete tests must simply be removed or updated.
 
 ---
 
@@ -9,18 +14,31 @@ This document is the single source of truth for AI agents and human developers w
 1. [High-Level Architecture](#1-high-level-architecture)
 2. [Repository Directory Structure](#2-repository-directory-structure)
 3. [Rust Backend Crates (`crates/`)](#3-rust-backend-crates-crates)
-4. [Tauri Desktop Backend (`apps/desktop/src-tauri`)](#4-tauri-desktop-backend-appsdesktopsrc-tauri)
+   - [Domain Layer (`crates/domain`)](#cratesdomain)
+   - [DSP Abstraction (`crates/dsp-api`)](#cratesdsp-api)
+   - [DSP Implementations (`dsp-rubberband`, `dsp-soundtouch`)](#cratesdsp-rubberband--cratesdsp-soundtouch)
+   - [Audio Pipeline Engine (`crates/audio-engine`)](#cratesaudio-engine)
+   - [Modular Persistence Layer (`crates/storage`)](#cratesstorage-modular-architecture)
+   - [Library Scanner (`crates/library`)](#crateslibrary)
+   - [Metadata & Scrobbling (`crates/metadata`)](#cratesmetadata)
+   - [Asset Downloader (`crates/downloads`)](#cratesdownloads)
+   - [Linux Desktop Integration (`crates/desktop-integration`)](#cratesdesktop-integration)
+4. [Tauri Desktop Host (`apps/desktop/src-tauri`)](#4-tauri-desktop-host-appsdesktopsrc-tauri)
+   - [Setup & Lifecycle Modules (`setup/`)](#setup--lifecycle-modules-setup)
+   - [Modular Command Handlers (`commands/`)](#modular-command-handlers-commands)
 5. [Frontend Architecture (`apps/desktop/src`)](#5-frontend-architecture-appsdesktopsrc)
    - [Views & Screens (`src/views`)](#views--screens-srcviews)
    - [Domain Hooks (`src/hooks`)](#domain-hooks-srchooks)
    - [Prop Builder Hooks](#prop-builder-hooks)
-   - [UI Components (`src/components`)](#ui-components-srccomponents)
-   - [Type Definitions (`src/types`)](#type-definitions-srctypes)
-   - [Audio & DSP Utilities (`src/utils`)](#audio--dsp-utilities-srcutils)
+   - [Performance & Responsiveness Principles](#performance--responsiveness-principles)
+   - [UI Components & Lazy Loaded Modals (`src/components`)](#ui-components--lazy-loaded-modals-srccomponents)
+   - [Type Contracts (`src/types`)](#type-contracts-srctypes)
+   - [DSP & Audio Math Utilities (`src/utils`)](#dsp--audio-math-utilities-srcutils)
    - [Internationalization (`src/locales` & `src/i18n.ts`)](#internationalization-srclocales--srci18nts)
-6. [Core Engineering Invariants & Safety Rules](#6-core-engineering-invariants--safety-rules)
-7. [Mandatory Code Quality, Linting & Verification Protocol](#7-mandatory-code-quality-linting--verification-protocol)
-8. [Agent Operational Recipes](#8-agent-operational-recipes)
+6. [Modular Test Architecture (`tests/`)](#6-modular-test-architecture-tests)
+7. [Core Engineering Invariants & Safety Rules](#7-core-engineering-invariants--safety-rules)
+8. [Mandatory Verification Protocol (7-Stage CI Parity)](#8-mandatory-verification-protocol-7-stage-ci-parity)
+9. [Agent Operational Recipes](#9-agent-operational-recipes)
 
 ---
 
@@ -31,29 +49,30 @@ Aura-Lune is a Linux-first, Poweramp & foobar2000-inspired music player built wi
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   React 19 + TypeScript + Vite Frontend                │
-│ (Feature Views, Modals Container, Virtualized Queue, Audio Simulators) │
+│ (Feature Views, Lazy-Loaded Modals, Virtualized Queue, Audio Racks)   │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ IPC (Tauri v2 invoke / events)
+                                    │ IPC (Tauri v2 non-blocking async invoke)
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │              Tauri v2 Native Host (auralune-desktop)                   │
+│   setup/ (app_init, linux_env, tray)                                   │
 │   commands/ (playback, dsp, library, stems, metadata, devices, queue,  │
-│              playlists, themes, bookmarks, renamer, downloads)         │
+│              playlists, themes, bookmarks, renamer, downloads, etc.)   │
 └───────┬──────────────┬──────────────┬──────────────┬───────────┬───────┘
         │              │              │              │           │
-┌───────▼────────┐┌────▼─────┐┌───────▼────────┐┌────▼─────┐┌───▼───────┐
-│  audio-engine  ││ storage  ││    metadata    ││downloads││  desktop-  │
-│  (GStreamer)   ││ (SQLite) ││(AcoustID/Cover)││  (HTTP)  ││integration│
-└───────┬────────┘└──────────┘└────────────────┘└──────────┘└───────────┘
+┌───────▼────────┐┌────▼────────┐┌────▼─────────┐┌───▼───────┐┌───▼───────┐
+│  audio-engine  ││   storage   ││   metadata   ││ downloads ││  desktop-  │
+│  (GStreamer)   ││(SQLite/SQLx)││(AcoustID/CAA)││(HTTP HF)  ││integration│
+└───────┬────────┘└─────────────┘└──────────────┘└───────────┘└───────────┘
         │
 ┌───────▼──────────────────────────┐
 │ dsp-rubberband / dsp-soundtouch  │
 └──────────────────────────────────┘
 ```
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Lucide icons.
-- **IPC Layer**: Tauri 2.0 with type-safe commands organized modularly under `apps/desktop/src-tauri/src/commands/`.
-- **Audio Processing**: GStreamer 0.25 pipeline with bit-perfect bypass, 10-band graphic EQ, parametric EQ, RubberBand/SoundTouch time-stretch/pitch-shift, and multi-track stem playback.
-- **Persistence**: SQLite via `sqlx` (asynchronous, embedded, zero-configuration).
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Lucide icons, `React.lazy` code-splitting.
+- **IPC Layer**: Tauri 2.0 with asynchronous `pub async fn` commands in Tokio threadpools.
+- **Audio Processing**: GStreamer 0.25 pipeline with bit-perfect bypass, 10-band graphic EQ, biquad parametric EQ, RubberBand/SoundTouch time-stretch/pitch-shift, and multi-track stem playback.
+- **Persistence**: SQLite with versioned schema migrations (`PRAGMA user_version`), 64 MB cache, memory temp store, and memory-mapped I/O (`mmap`).
 
 ---
 
@@ -67,44 +86,45 @@ Aura-Lune/
 │       │   ├── assets/              # Static audio, anime icons, textures
 │       │   ├── components/          # Modular component ecosystem
 │       │   │   ├── common/          # Shared atomic widgets (LanguageSelector)
-│       │   │   ├── layout/          # AppHeader, BottomPlaybackDock, MainContentRouter, etc.
+│       │   │   ├── layout/          # AppHeader, BottomPlaybackDock, MainContentRouter
 │       │   │   ├── library/         # Library subcomponents (FacetsFilterPane)
-│       │   │   ├── modals/          # 32 specialized modal dialogs & AppModalsContainer
+│       │   │   ├── modals/          # 32 lazy-loaded modal dialogs & AppModalsContainer
 │       │   │   └── player/          # Turntable, TapeDeck, VuMeter, Spectrum, Waveform, Lyrics
-│       │   ├── hooks/               # 20+ specialized domain & controller hooks
+│       │   ├── hooks/               # Domain state & prop-builder hooks
 │       │   ├── locales/             # Extracted JSON translation dictionaries (en, pl, de, fi, la)
 │       │   ├── types/               # TypeScript domain contracts (queue, theme, equalizer, etc.)
 │       │   ├── utils/               # DSP math, AutoEQ database, Romaji, harmonic mixing
-│       │   ├── views/               # Domain feature screens
-│       │   │   ├── changelog/       # ChangelogView
-│       │   │   ├── dsp/             # DspStudioView
-│       │   │   ├── library/         # LibraryView
-│       │   │   ├── player/          # PlayerView, BigScreenView
-│       │   │   ├── playlists/       # PlaylistsView, RadioView
-│       │   │   ├── settings/        # AppSettingsModal, Audio, Themes, Backup, Transcode, About
-│       │   │   ├── stats/           # StatsDashboardView
-│       │   │   └── stems/           # StemProjectsLibraryView
+│       │   ├── views/               # Domain feature screens (player, library, dsp, playlists, stats)
 │       │   ├── App.tsx              # Slim, declarative application shell
 │       │   ├── i18n.ts              # Translation loader & helper functions
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Fully modularized Tauri command handlers
-│           │   │   ├── mod.rs       # Module exports
+│           │   ├── commands/        # Modularized Tauri command handlers (162 commands)
+│           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
-│           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, Discord RPC
+│           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
+│           │   │   ├── dialogs.rs   # File picker and folder browse dialogs
 │           │   │   ├── downloads.rs # Asynchronous file and model downloads
 │           │   │   ├── dsp.rs       # Pitch, tempo, rate, EQ bands, AutoEQ, dynamics
+│           │   │   ├── integrations.rs # Discord RPC, Waybar, MPRIS status
 │           │   │   ├── library.rs   # Scanner, tracks, albums, artists, favorites, stats
 │           │   │   ├── metadata.rs  # AcoustID, Cover Art Archive, Last.fm, ListenBrainz
-│           │   │   ├── playback.rs  # Play, pause, stop, seek, MPRIS sync
+│           │   │   ├── playback.rs  # Play, pause, stop, seek, smooth fade
 │           │   │   ├── playlists.rs # Playlist CRUD, smart playlists, M3U8, Radio streams
 │           │   │   ├── queue.rs     # Queue management, shuffling, loop modes, reordering
 │           │   │   ├── renamer.rs   # File renamer pattern preview & execution
 │           │   │   ├── stems.rs     # AI separation, stem mixer, stem projects
-│           │   │   └── themes.rs    # Themes CRUD, wallpaper uploads, system desktop icons
-│           │   ├── lib.rs           # Tauri builder, state setup, command routing
-│           │   └── main.rs          # Native binary entrypoint
+│           │   │   ├── system.rs    # Audio health check, process memory, desktop icons
+│           │   │   └── themes.rs    # Themes CRUD, wallpaper uploads, anime presets
+│           │   ├── setup/           # Application lifecycle & environment configuration
+│           │   │   ├── app_init.rs  # DB connection, state init, command-line arguments
+│           │   │   ├── linux_env.rs # GStreamer plugin paths & WebKit2GTK configuration
+│           │   │   └── tray.rs      # System tray icon, context menu, minimize-to-tray
+│           │   ├── lib.rs           # Lightweight Tauri entrypoint (< 350 lines)
+│           │   └── main.rs          # Native binary main function
+│           ├── tests/
+│           │   └── commands_dto_test.rs # Desktop command DTO & thread-safety test suite
 │           └── Cargo.toml
 ├── crates/                          # Rust Core Workspaces (11 crates)
 │   ├── audio-engine/                # GStreamer pipeline, real-time DSP, stem mixer
@@ -112,17 +132,18 @@ Aura-Lune/
 │   ├── dsp-api/                     # Abstract DSP trait definitions and math conversions
 │   ├── dsp-rubberband/              # RubberBand high-quality time/pitch stretching
 │   ├── dsp-soundtouch/              # SoundTouch low-latency time/pitch stretching
-│   ├── storage/                     # SQLite database with SQLx migrations
+│   ├── storage/                     # SQLite database with 9 domain submodules
 │   ├── library/                     # Fast directory scanner & tag extractor (Lofty)
 │   ├── metadata/                    # AcoustID, MusicBrainz, Cover Art, Last.fm, ListenBrainz
 │   ├── downloads/                   # Threaded model & asset downloader with SHA-256
 │   ├── desktop-integration/         # MPRIS D-Bus, Discord RPC, Waybar module, desktop icons
 │   └── cli-spike/                   # Headless CLI spike for rapid testing
 ├── tests/
-│   ├── run_all_tests.sh             # 4-stage native test runner (zero Python dependencies)
+│   ├── run_all_tests.sh             # 7-stage native test runner (full CI parity)
 │   └── desktop_smoke_test.rs        # End-to-end desktop backend integration test
-├── .plans/                          # Architectural plans & refactoring roadmaps
-├── AGENTS.md                        # This developer & agent guide
+├── install.sh                       # Dual-channel Linux installer (stable & dev channels)
+├── DEVELOPMENT.md                   # Environment setup & developer guidelines
+├── CHANGELOG_PENDING.md             # Unreleased staging changelog
 ├── Cargo.toml                       # Root Cargo workspace manifest
 └── package.json                     # Root NPM workspace orchestrator
 ```
@@ -132,114 +153,127 @@ Aura-Lune/
 ## 3. Rust Backend Crates (`crates/`)
 
 ### `crates/domain`
-- **Purpose**: Pure Rust domain entities, data transfer objects, and validation rules. **Has NO I/O dependencies** (no file system, network, or audio hardware access).
+- **Purpose**: Pure Rust domain entities, data transfer objects, and validation rules. **Zero I/O dependencies** (no file system, network, or audio hardware access).
 - **Key Modules**:
-  - `queue`: `QueueItem`, `PlaybackQueue`, `LoopMode`.
-  - `equalizer`: 10-band graphic EQ presets and clamping limits.
-  - `parametric_eq`: Biquad filter types (Peaking, LowShelf, HighShelf, etc.), EqualizerAPO format export/import.
+  - `queue`: `QueueItem`, `PlaybackQueue`, `LoopMode` (Sequential, Queue, Track).
+  - `equalizer`: 10-band graphic EQ presets and gain clamping (`-12.0` to `+12.0 dB`).
+  - `parametric_eq`: Biquad filter types (`Peak`, `LowShelf`, `HighShelf`, `LowPass`, `HighPass`, `BandPass`, `Notch`), EqualizerAPO format export and import.
   - `theme`: Anime aesthetic color tokens (`ThemeTokens`), background wallpaper opacity and blur properties.
-  - `replaygain`: ReplayGain 2.0 ITU-R BS.1770 modes and target loudness settings.
+  - `replaygain`: ReplayGain 2.0 ITU-R BS.1770 modes (`Off`, `Track`, `Album`, `Auto`) and target loudness settings.
   - `stem_project`: Stem channel definitions, volume mappings, and mixer presets.
   - `dynamics`: Compressor, Tape Saturator, and Stereo Widener parameters.
-  - `device`: `AudioCard`, `BluetoothCodec` (LDAC, aptX HD, AAC, SBC).
+  - `device`: `AudioCard`, `BluetoothCodec` (LDAC, aptX HD, AAC, SBC, SBC-XQ).
   - `renamer`: Pattern formatting (`%artist% - %title%`) and path sanitization.
   - `cue`: CUE sheet parser and track splitter.
+  - `transcode`: Format choices (`Opus`, `Flac`, `Wav`) and `TimeRange` clipping validation.
+- **Tests**: Located in `crates/domain/tests/`:
+  - `dsp_models_test.rs`: EQ, parametric EQ, compressor, saturator, crossfeed, silence trimming.
+  - `stem_and_library_models_test.rs`: Stem volume mappings, renamer, theme validation, bluetooth codecs.
+  - `cue_and_m3u_parsers_test.rs`: CUE pregap calculation and M3U/M3U8 roundtrip export.
 
 ### `crates/dsp-api`
-- **Purpose**: DSP abstraction layer. Defines the unified traits implemented by DSP backends.
-- **Key Traits & Functions**:
+- **Purpose**: DSP abstraction layer defining unified traits implemented by DSP backends.
+- **Key Items**:
   - `DspEngine`: Common interface for pitch, tempo, and rate manipulation.
-  - `DspCapabilities`: Reflects min/max ranges and formant preservation capabilities.
-  - Math helpers: `semitones_to_ratio()`, `cents_to_ratio()`, `ratio_to_semitones()`.
-
-### `crates/audio-engine`
-- **Purpose**: Core real-time playback engine powered by GStreamer 0.25 (`gst-plugins-base`, `gst-plugins-good`).
-- **Key Features**:
-  - Gapless playback and crossfading between queued tracks.
-  - Bit-perfect bypass mode (zero DSP overhead).
-  - Multi-track Stem Project playback: synchronizes up to 8 parallel audio stems in real time with individual volume, mute, and solo controls.
-  - Key & BPM detection, chord analysis, and offline transcription to MIDI.
-  - Device manager integration with PipeWire / ALSA.
+  - `DspCapabilities`: Formant preservation capabilities and pitch/tempo bounds.
+  - Math helpers: `semitones_to_pitch_ratio()`, `pitch_ratio_to_semitones()`, `cents_to_semitones()`.
+- **Tests**: Located in `crates/dsp-api/tests/dsp_api_test.rs`.
 
 ### `crates/dsp-rubberband` & `crates/dsp-soundtouch`
 - **Purpose**: Native implementations of `DspEngine`.
-- **`dsp-rubberband`**: High-fidelity time-stretching and pitch-shifting preserving formants using `librubberband`. Ideal for listening.
+- **`dsp-rubberband`**: High-fidelity time-stretching and pitch-shifting preserving formants using `librubberband`. Ideal for active listening.
 - **`dsp-soundtouch`**: Low-latency, CPU-efficient time-stretching using `libsoundtouch`. Ideal for real-time scrub and DJing.
 
-### `crates/storage`
-- **Purpose**: SQLite persistence layer built with `sqlx`.
-- **Data Stored**:
-  - Audio tracks, albums, artists, genres, years, bitrates, sample rates.
-  - Playlists and custom track orderings.
-  - Play statistics (play counts, skip counts, last played timestamps).
-  - Stem projects, channel file paths, and custom mixer snapshots.
-  - Bookmarks with timestamp notes.
-  - App settings (language, active theme, Discord client ID, icon style).
+### `crates/audio-engine`
+- **Purpose**: Core real-time playback engine powered by GStreamer 0.25 (`gst-plugins-base`, `gst-plugins-good`).
+- **Key Modules & Features**:
+  - `pipeline.rs`: `AudioEngine` orchestrator, atomic volume management (`atomic_volume`), non-blocking seek with smooth micro-fade (`seek_with_fade`), rapid seek cancellation (`fade_generation`).
+  - `dsp_node.rs`: Dynamic switching between Bypass, RubberBand, and SoundTouch.
+  - `analysis.rs`: Key & BPM detection, chord recognition, and transcription.
+  - `metadata_editor.rs`: Full tag reading and writing using `lofty`.
+  - `model_manager.rs`: AI model catalog and SHA-256 verification.
+  - `device.rs`: `DeviceManager` with PipeWire/ALSA card parsing.
+  - `hpss.rs`: Harmonic-Percussive Source Separation STFT algorithms with internal unit tests in `src/hpss_test.rs`.
+- **Tests**: Comprehensive integration suites under `crates/audio-engine/tests/` (`playback_test.rs`, `flac_slow_test.rs`, `metadata_editor_test.rs`, `device_and_model_manager_test.rs`, etc.).
+
+### `crates/storage` (Modular Architecture)
+- **Purpose**: SQLite persistence layer built with `sqlx`, partitioned into 9 domain submodules:
+  - [`src/models.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/models.rs): Database records (`TrackRecord`, `AlbumRecord`, `ArtistRecord`, `DspPresetRecord`, `DuplicateGroup`, `RecapSummaryDto`) and `StorageError`.
+  - [`src/schema.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -64000`, `temp_store = MEMORY`, `mmap_size = 256MB`), versioned migrations (`PRAGMA user_version`), default anime themes.
+  - [`src/library.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/library.rs): Track, album, and artist CRUD, metadata updates, duplicate detection.
+  - [`src/bookmarks.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/bookmarks.rs): Track bookmarks and multi-cue timestamp markers.
+  - [`src/settings.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/settings.rs): Key-value app settings, DSP presets, custom theme storage.
+  - [`src/playlists.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/playlists.rs): Playlists CRUD, track ordering, and playback queue persistence (`PlaybackQueue`).
+  - [`src/stats.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/stats.rs): Favorites, ratings, playback history, Recap summaries, and smart playlist queries.
+  - [`src/analysis.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/analysis.rs): Musical analysis cache (chords, beat grid, notes, waveform peaks) and AI model registry.
+  - [`src/stems.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/stems.rs): Stem tracks and multitrack project storage.
+  - [`src/lib.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/lib.rs): Slim facade (74 lines) exposing `Database`.
+- **Tests**: Fully separated in `crates/storage/tests/` (`database_crud_test.rs`, `bookmarks_and_cues_test.rs`, `settings_and_dsp_presets_test.rs`, `waveforms_and_transcription_test.rs`, `stem_projects_multitrack_test.rs`, `smart_playlists_and_stats_test.rs`, `playlist_and_queue_persistence_test.rs`).
 
 ### `crates/library`
-- **Purpose**: High-speed local music indexing and metadata extraction.
-- **Key Features**:
-  - Fast recursive directory traversal with `walkdir`.
-  - Comprehensive tag extraction using `lofty` (ID3v2, Vorbis Comments, MP4/AAC tags, FLAC metadata).
-  - Incremental scanning: skips unmodified files via timestamp and file size checks.
+- **Purpose**: High-speed local music indexing using `walkdir` and `lofty`. Incremental scanning skips unchanged files using mtime and file size checks.
 
 ### `crates/metadata`
 - **Purpose**: External online metadata enrichment and social scrobbling.
-- **Key Clients**:
-  - `AcoustidClient`: Audio fingerprinting via `fpcalc` and AcoustID lookup.
-  - `CoverArtArchiveClient`: Automatic high-resolution album cover search and local disk caching.
-  - `LastFmClient`: Session key exchange, Now Playing updates, and track scrobbling.
-  - `ListenBrainzClient`: User token validation and scrobble submission.
-  - `lyrics`: Synchronized LRC file parsing, generation, and storage.
+- **Clients**: `AcoustidClient`, `CoverArtArchiveClient`, `LastFmClient`, `ListenBrainzClient`, `lyrics`, `urlencoding`.
+- **Tests**: Located in `crates/metadata/tests/` (`acoustid_fingerprint_test.rs`, `scrobbler_test.rs`, `lyrics_parser_test.rs`, `cover_art_archive_test.rs`).
 
 ### `crates/downloads`
-- **Purpose**: Managed asynchronous HTTP asset downloads (e.g. AI separation models from Hugging Face).
-- **Key Features**:
-  - Real-time download progress callbacks.
-  - Strict SHA-256 integrity validation upon completion.
-  - Path-traversal attack prevention (guards against `../` path exploits).
+- **Purpose**: Managed asynchronous HTTP asset downloads (AI separation models) with progress reporting, path traversal protection, and SHA-256 verification.
+- **Tests**: Located in `crates/downloads/tests/download_manager_test.rs`.
 
 ### `crates/desktop-integration`
-- **Purpose**: Deep integration with modern Linux desktop environments (GNOME, KDE Plasma, Hyprland, Sway).
-- **Key Features**:
-  - **MPRIS v2 D-Bus Interface**: Native system media controls, keyboard media keys, and lock screen player widget.
-  - **Discord Rich Presence**: Displays current track, artist, album, live playback time, and album art on Discord.
-  - **Waybar Custom Module**: Real-time JSON IPC endpoint for status bars.
-  - **Desktop Icon Updater**: Dynamically switches desktop and window icons between `lineout` (anime neon) and `classic`.
+- **Purpose**: Linux desktop integration:
+  - **MPRIS v2 D-Bus Interface**: Native system media keys, lock screen integration.
+  - **Discord Rich Presence**: Live playback status, elapsed time, album art.
+  - **Waybar Custom Module**: Real-time JSON IPC endpoint (`/tmp/auralune.json`).
+  - **Desktop Icon Updater**: Switches system and window icons dynamically.
+- **Tests**: Located in `crates/desktop-integration/tests/desktop_integration_test.rs`.
 
 ---
 
-## 4. Tauri Desktop Backend (`apps/desktop/src-tauri`)
+## 4. Tauri Desktop Host (`apps/desktop/src-tauri`)
 
 The Tauri host binary orchestrates the backend crates and exposes IPC commands to the React frontend.
-All command implementations are organized into `src/commands/`:
+`apps/desktop/src-tauri/src/lib.rs` is a clean, declarative builder (< 350 lines).
 
-| Module | Responsibility | Key Commands / Functions |
+### Setup & Lifecycle Modules (`setup/`)
+- [`setup/app_init.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/app_init.rs): Opens SQLite database, restores queue state, initializes MPRIS, Discord RPC, Control IPC, registers `AppState`.
+- [`setup/linux_env.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/linux_env.rs): Configures GStreamer plugin directories, scanner path, and WebKit2GTK environment for AppImage.
+- [`setup/tray.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/tray.rs): System tray icon, context menu, and close-to-tray handling.
+
+### Modular Command Handlers (`commands/`)
+All 162 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+
+| Module | Responsibility | Key Commands |
 |---|---|---|
 | [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
-| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_stop_after_current`, `toggle_stop_after_current`, `notify_track_looped` |
+| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_stop_after_current`, `toggle_stop_after_current` |
 | [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_parametric_eq_enabled`, `set_compressor_enabled`, `set_saturator_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
-| [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Local library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `get_library_artists`, `get_favorite_tracks`, `get_recently_played_tracks`, `get_top_played_tracks`, `get_hires_tracks`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
+| [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `get_library_artists`, `get_favorite_tracks`, `get_recently_played_tracks`, `get_top_played_tracks`, `get_hires_tracks`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
 | [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `list_smart_playlist_tracks`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
 | [`themes.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/themes.rs) | Themes, wallpapers & system icons | `list_themes`, `get_active_theme`, `set_active_theme`, `save_theme`, `update_theme_background`, `export_theme_json`, `import_theme_json`, `upload_background_image`, `set_app_icon_style`, `get_app_icon_style`, `update_system_icons` |
 | [`bookmarks.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/bookmarks.rs) | Track timestamps & A-B repeat bookmarks | `save_bookmark`, `get_bookmark`, `delete_bookmark`, `get_track_bookmarks`, `add_track_bookmark`, `update_track_bookmark`, `delete_track_bookmark` |
 | [`metadata.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/metadata.rs) | Tags, MusicBrainz, Covers, Scrobbling | `get_track_metadata`, `update_track_metadata`, `search_musicbrainz_releases`, `fetch_and_apply_cover`, `search_cover_candidates`, `apply_cover_url`, `apply_custom_cover_file`, `get_track_cover`, `get_lyrics`, `validate_listenbrainz_token`, `lastfm_scrobble` |
-| [`devices.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/devices.rs) | Audio devices, Bluetooth codecs, Volume | `list_devices`, `set_audio_device`, `get_bluetooth_codecs`, `set_bluetooth_codec`, `get_master_volume`, `set_master_volume`, `set_volume_unit`, `get_discord_rpc_status`, `set_discord_rpc_enabled` |
+| [`devices.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/devices.rs) | Audio devices, Bluetooth codecs, Volume | `list_devices`, `set_audio_device`, `get_bluetooth_codecs`, `set_bluetooth_codec`, `get_master_volume`, `set_master_volume`, `set_volume_unit` |
 | [`stems.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/stems.rs) | AI models & Stem Project Studio | `start_stem_separation`, `get_track_stems`, `load_track_stems`, `set_stem_mixer_state`, `create_stem_project`, `list_stem_projects`, `get_stem_project`, `delete_stem_project`, `export_stem_project_zip` |
-| [`renamer.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/renamer.rs) | Pattern-based audio file renamer | `preview_rename_tracks`, `execute_rename_tracks` |
-| [`downloads.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/downloads.rs) | Managed async asset & model downloads | `add_download_job`, `cancel_download_job`, `list_download_jobs` |
+| [`analysis.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/analysis.rs) | Waveforms, Chords, BPM, Transcription | `get_track_waveform`, `analyze_track_key_bpm`, `analyze_track_chords`, `analyze_track_transcription`, `save_chord_override`, `export_chords`, `export_transcription` |
+| [`downloads.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/downloads.rs) | Model & asset download jobs | `add_download_job`, `cancel_download_job`, `list_download_jobs`, `remove_model_file` |
+| [`renamer.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/renamer.rs) | File renamer pattern engine | `preview_rename_tracks`, `execute_rename_tracks` |
+| [`integrations.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/integrations.rs) | Discord RPC & Waybar status | `get_discord_rpc_status`, `set_discord_rpc_enabled`, `trigger_waybar_refresh` |
+| [`dialogs.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dialogs.rs) | Native file & folder pickers | `open_file_dialog`, `open_folder_dialog`, `save_file_dialog` |
+| [`system.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/system.rs) | Diagnostics & system info | `get_system_audio_health`, `get_app_memory_stats`, `show_in_file_manager` |
 
 ---
 
 ## 5. Frontend Architecture (`apps/desktop/src`)
 
 ### Views & Screens (`src/views`)
-Each major application feature lives in its own dedicated directory and is re-exported via `src/views/index.ts`:
 - **`views/player/`**:
-  - `PlayerView.tsx`: Main playback screen with spinning vinyl, cassette tape, interactive waveform canvas, spectrum visualizer, and dual VU meters.
-  - `BigScreenView.tsx`: Cinematic full-screen player with large album art, retro turntable, and synched lyrics.
+  - `PlayerView.tsx`: Main playback screen with spinning vinyl, cassette tape, interactive waveform canvas, spectrum visualizer, and dual ballistic VU meters.
+  - `BigScreenView.tsx`: Cinematic full-screen player with large album art, retro turntable, and synchronized scrolling lyrics.
 - **`views/library/`**:
-  - `LibraryView.tsx`: Virtualized library view (tracks, albums, artists, genres, hires indicator, instant search).
+  - `LibraryView.tsx`: Virtualized library view (tracks, albums, artists, genres, Hi-Res indicator, instant search).
 - **`views/dsp/`**:
   - `DspStudioView.tsx`: Audiophile DSP rack (10-band graphic EQ, Parametric EQ, RubberBand/SoundTouch pitch/tempo, Dynamics studio, Crossfeed, ReplayGain).
 - **`views/playlists/`**:
@@ -250,28 +284,20 @@ Each major application feature lives in its own dedicated directory and is re-ex
 - **`views/stats/`**:
   - `StatsDashboardView.tsx`: Listening recap, top artists, play counts, and analytics.
 - **`views/changelog/`**:
-  - `ChangelogView.tsx`: Interactive, multi-lingual version history and release notes.
+  - `ChangelogView.tsx`: Interactive version history.
 - **`views/settings/`**:
   - `AppSettingsModal.tsx`: Tabbed settings container.
-  - `AudioDevicesSettingsView.tsx`: Audio cards, buffer size, DSP block size, and volume OSD position.
-  - `ThemesSettingsView.tsx`: Theme browser, background custom image/video picker, blur, and opacity.
-  - `BackupSettingsView.tsx`: Profile export/import, Last.fm, ListenBrainz, and Discord RPC settings.
-  - `TranscodeSettingsView.tsx`: Format conversion tool (Opus/FLAC/WAV/MP3) with A-B bookmark export.
-  - `AboutSettingsView.tsx`: Version info, licensing, audio system health check.
-
----
 
 ### Domain Hooks (`src/hooks`)
-All stateful logic is cleanly decoupled from presentation into tested domain hooks:
 - **`useAudioPlayer`**: Controls volume, playback state, position tracking, and DSP pitch/tempo parameters.
 - **`usePlaybackController`**: Coordinates higher-level play, pause, next, previous, stop, seek, and loop operations.
 - **`usePlaybackQueue`**: Queue management, reordering, shuffling, removing, and virtualized queue tracking.
-- **`useLibraryManager`**: Handles library scanning, indexing progress, track loading, and album/artist queries.
-- **`useLibraryPlaybackActions`**: Handles favorites, track ratings, play count resetting, and adding tracks to playlists.
-- **`useDspManager`**: DSP engine selection, 10-band graphic EQ, parametric EQ, compressor, saturator, and limiter.
+- **`useLibraryManager`**: Library scanning, indexing progress, track loading, and album/artist queries using `useDeferredValue`.
+- **`useLibraryPlaybackActions`**: Favorites, track ratings, play count resetting, adding tracks to playlists.
+- **`useDspManager`**: DSP engine selection, 10-band graphic EQ, parametric EQ, compressor, saturator, limiter.
 - **`useThemeEngine` & `useThemeManager`**: Theme tokens, custom wallpaper uploads, overlay opacity, and blur radius.
 - **`useModalManager`**: Central modal router supporting typed `open()`, `close()`, `isOpen()`, and `Escape` key handling.
-- **`useAudioSettings`**: Audio device selection, buffer sizes, bit-perfect toggle, and volume OSD configurations.
+- **`useAudioSettings`**: Audio device selection, buffer sizes, bit-perfect toggle, volume OSD configurations.
 - **`usePlaylistManager`**: Playlist CRUD, M3U8 import/export, and radio stations.
 - **`useTranscodeManager`**: Audio conversion jobs, background progress tracking, and range exports.
 - **`useMusicBrainzManager`**: MusicBrainz release queries, cover art fetching, and manual cover uploads.
@@ -283,83 +309,79 @@ All stateful logic is cleanly decoupled from presentation into tested domain hoo
 - **`useHotkeysManager`**: Global keyboard shortcuts coordinator with text-input guard.
 - **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for ultra-large track libraries.
 
----
-
 ### Prop Builder Hooks
-To keep UI shells concise and declarative:
-- **`useAppHeaderProps`**: Assembles props for `AppHeader` from domain hooks.
+- **`useAppHeaderProps`**: Assembles props for `AppHeader`.
 - **`useBottomPlaybackDockProps`**: Assembles props for `BottomPlaybackDock`.
 - **`useMainContentRouterProps`**: Assembles view routing parameters for `MainContentRouter`.
-- **`useMainRouterProps`**: Bundles all child view props (`playerProps`, `libraryProps`, `dspProps`, `playlistsProps`).
+- **`useMainRouterProps`**: Bundles child view props (`playerProps`, `libraryProps`, `dspProps`, `playlistsProps`).
 - **`useAppModalsProps`**: Bundles props required by the 32 modals in `AppModalsContainer`.
 - **`useAppSettingsModalProps`**: Bundles settings tabs into `AppSettingsModal`.
 
----
+### Performance & Responsiveness Principles
+1. **Two-Phase Seeking**:
+   - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging.
+   - `handleSeekCommit(pos)`: Dispatched once on pointer/mouse/key up with `seek_with_fade` (20-48ms anti-pop micro-fade).
+2. **Non-Blocking Volume Control**:
+   - Slider dragging uses trailing-edge 30ms throttling to protect Tauri IPC.
+   - Backend `set_volume` operates directly on an atomic value (`< 1 µs`), bypassing pipeline mutex contention.
+   - Toggle mute (`handleToggleMute`) executes immediately without throttling.
+3. **Interaction Guards Against Rubberbanding**:
+   - `isSeekingRef` and `isVolumeInteractingRef` protect the UI state from being overwritten by delayed backend polling responses.
+4. **Adaptive Status Polling**:
+   - 100 ms interval while playing; 350 ms interval while paused or stopped.
+5. **Background Visualizer Optimization**:
+   - `SpectrumVisualizer` and `AnimeAmbienceFX` listen for `document.hidden` and pause animation loops when minimized or hidden.
 
-### UI Components (`src/components`)
-Organized by functional subfolder and exported via barrel `index.ts` files:
-- **`components/layout/`**:
-  - `AppHeader.tsx`, `AppNavbar.tsx`, `BottomPlaybackDock.tsx`, `MainContentRouter.tsx`
-  - `BackgroundLayer.tsx`, `BackgroundExportBadge.tsx`, `DragDropOverlay.tsx`, `QueueDrawer.tsx`
-- **`components/player/`**:
-  - `VinylTurntable.tsx`: Realistic grooved vinyl record with moving tonearm.
-  - `TapeDeckWidget.tsx`: 90s vintage audio cassette with rotating spools and tape type selector.
-  - `VuMeterWidget.tsx`: Analog dual needle ballistic VU meter.
-  - `SpectrumVisualizer.tsx`: 64-band frequency spectrum visualizer with peak hold.
-  - `WaveformCanvas.tsx`: High-resolution audio waveform canvas with seek scrubbing.
-  - `PianoRollCanvas.tsx`: Interactive transcription MIDI piano roll canvas.
-  - `ChordTimelineView.tsx`: Chord progression visualization and export.
-  - `DesktopLyricsOverlay.tsx`: Floating desktop synchronized lyrics overlay.
-  - `LyricsView.tsx`: Full-height karaoke-style scrolling lyrics with Romaji transliteration.
-  - `MiniPlayerWidget.tsx`: Ultra-compact floating mini player widget.
-  - `VolumeOsd.tsx`: On-screen volume display with position options.
-  - `AnimeAmbienceFX.tsx`: Canvas particle ambience effects engine.
-- **`components/modals/`**:
-  - `AppModalsContainer.tsx`: Declarative container mounting all modal dialogs.
-  - 32 modals: `ParametricEqModal`, `AutoEqModal`, `DynamicsStudioModal`, `AnalogLoFiModal`, `SoundscapeModal`, `HarmonicSuggesterModal`, `StemMixerModal`, `StemProjectStudioModal`, `CreateStemProjectModal`, `CoverArtPickerModal`, `TagEditorModal`, `FileRenamerModal`, `DuplicateFinderModal`, `TrackBookmarksModal`, `TrackStatsModal`, `CueSheetModal`, `DownloadHubModal`, `CommandPaletteModal`, `KeyboardShortcutsModal`, `AudioHealthCheckModal`, `AudioPathInspectorModal`, `OnboardingModal`, `KeyBpmModal`, `MusicAnalysisModal`, `AuraluneRecapModal`, `UrlAudioImportModal`, `SaveQueueModal`, `AddRadioStationModal`, `PlaylistSelectModal`, `SleepTimerModal`, `ModelManagerModal`, `LoopEditorModal`.
-- **`components/library/`**:
-  - `FacetsFilterPane.tsx`: Genre, artist, year, and format multi-facet filter pane.
-- **`components/common/`**:
-  - `LanguageSelector.tsx`: Dropdown for switching application language in real time.
+### UI Components & Lazy Loaded Modals (`src/components`)
+- **Modals**: All 32 modal dialogs in `AppModalsContainer.tsx` use `React.lazy()` and `<React.Suspense fallback={null}>` to keep the initial JavaScript bundle small and fast to load.
+- **Layout & Player Components**: Extensively wrapped with `React.memo` to prevent unnecessary rerenders during playback time ticks.
 
----
-
-### Type Definitions (`src/types`)
-Shared TypeScript contracts live in `src/types/`:
-- `queue.ts`: `QueueItem`, `PlaybackQueue`, `QueueColumnConfig`, `DEFAULT_QUEUE_COLUMNS`, `getQueueGridTemplate`.
-- `playlist.ts`: `Playlist` (id, name, track_count, created_at, modified_at).
+### Type Contracts (`src/types`)
+- `queue.ts`: `QueueItem`, `PlaybackQueue`, `QueueColumnConfig`.
+- `playlist.ts`: `Playlist`.
 - `theme.ts`: `ThemeTokens`, `Theme`.
 - `equalizer.ts`: `EqualizerPreset`, `EQUALIZER_BANDS`.
-- `player.ts`: `PlaybackState`, `DspEngineType`, `PlaybackStatus`, `TrackRecord`, `AlbumRecord`, `DspPresetRecord`, `ReleaseCandidateDto`, `SampleTrackDto`.
+- `player.ts`: `PlaybackState`, `DspEngineType`, `PlaybackStatus`, `TrackRecord`, `AlbumRecord`.
 - `analysis.ts`: `TrackKeyBpm`, `ChordSegment`, `AiModelInfo`.
 
----
-
-### Audio & DSP Utilities (`src/utils`)
-- `parametricEqMath.ts`: Computes biquad filter transfer functions, frequency response curves, and safe preamp adjustments.
-- `autoEqDatabase.ts`: Curated database of AutoEQ profiles for hundreds of popular audiophile headphones.
+### DSP & Audio Math Utilities (`src/utils`)
+- `parametricEqMath.ts`: Biquad filter transfer functions, frequency response curves, safe preamp calculations.
+- `autoEqDatabase.ts`: Curated database of AutoEQ headphone profiles.
 - `harmonicMixing.ts`: Camelot wheel harmonic key matching and musical transposition algorithms.
-- `vinylSimulator.ts`: Real-time vinyl record simulation (surface noise, dust crackles, 33/45 RPM wow & flutter).
-- `soundscapeAudio.ts`: Procedural ambient soundscape generator (rain, thunder, cafe, waves, night ambient).
-- `romaji.ts`: Transliterates Japanese Kanji, Hiragana, and Katakana titles into readable Latin Romaji.
-- `timeFormat.ts`: Precise time formatting utilities (`formatTime`, `formatTimeMs`, `parseTimeToMs`).
-- `fileSizeFormat.ts`: Formats bytes into human-readable strings (`formatBytes`).
-
----
+- `vinylSimulator.ts`: Real-time vinyl record simulation (surface noise, crackles, wow & flutter).
+- `soundscapeAudio.ts`: Procedural ambient soundscapes (rain, thunder, cafe, waves, night ambient).
+- `romaji.ts`: Transliterates Japanese Kanji, Hiragana, and Katakana titles into Latin Romaji.
+- `timeFormat.ts`: Time formatters (`formatTime`, `formatTimeMs`, `parseTimeToMs`).
+- `fileSizeFormat.ts`: Human-readable byte formatting (`formatBytes`).
 
 ### Internationalization (`src/locales` & `src/i18n.ts`)
-Translations are completely extracted into standalone JSON files under `apps/desktop/src/locales/`:
+Standalone JSON translation dictionaries in `apps/desktop/src/locales/`:
 - 🇬🇧 English (`en.json`)
 - 🇵🇱 Polish (`pl.json`)
 - 🇩🇪 German (`de.json`)
 - 🇫🇮 Finnish (`fi.json`)
 - 🏛️ Latin (`la.json`)
 
-Helper functions in `src/i18n.ts` provide type-safe access to strings with automatic fallback to English.
+---
+
+## 6. Modular Test Architecture (`tests/`)
+
+All tests across the workspace are decoupled from production source files into dedicated integration test files under each crate's `tests/` directory:
+
+| Crate | Test Files | Description |
+|---|---|---|
+| `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs` | Full SQLite persistence and query test suite |
+| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs` | Domain entities, parsers, and DSP model math |
+| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`src/hpss_test.rs` | GStreamer playback, DSP switching, tag editing, FFT |
+| `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs` | Network services, LRC parsing, AcoustID |
+| `crates/downloads` | `tests/download_manager_test.rs` | Model download jobs & path traversal checks |
+| `crates/desktop-integration` | `tests/desktop_integration_test.rs`<br>`tests/discord_rpc_test.rs`<br>`tests/mpris_test.rs`<br>`tests/waybar_and_ipc_test.rs` | MPRIS, Discord RPC, Waybar atomic status |
+| `crates/dsp-api` | `tests/dsp_api_test.rs` | DSP parameters, semitone & cent math |
+| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs` | DTO validation, `AppState` Send+Sync safety |
 
 ---
 
-## 6. Core Engineering Invariants & Safety Rules
+## 7. Core Engineering Invariants & Safety Rules
 
 When writing or refactoring code in Aura-Lune, agents **must strictly adhere** to the following rules:
 
@@ -371,14 +393,21 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 3. **Zero Python Dependencies**:
    - The test infrastructure and build pipeline must strictly remain native Rust (`cargo test`) and TypeScript (`vitest run`). Do not introduce Python scripts or test harnesses.
 4. **Toolchain Baseline**:
-   - **Node.js**: Node.js 22 LTS (`.nvmrc` pinned to `22`) and npm >= 10.
-   - **Rust**: Rust stable 1.80+ / 1.99+ (`rust-toolchain.toml` pinned to `stable` with `rustfmt` and `clippy` components).
+   - **Node.js**: Node.js 22 LTS (`.nvmrc` pinned to `22`) and npm >= 10 / pnpm 10.
+   - **Rust**: Rust stable (edition 2024 / 1.85+) with `rustfmt` and `clippy`.
 5. **IPC Parity & Type Safety**:
    - When modifying a Tauri command in `commands/`, verify that both the backend handler and the corresponding frontend `invoke()` calls match signatures.
+6. **No Inline `#[cfg(test)]` in Production Sources**:
+   - Place unit and integration tests in the crate's `tests/` directory (Pattern A), or in a companion `_test.rs` file referenced via `#[cfg(test)] #[path = "..."]` (Pattern B).
+7. **Continuous Documentation Synchronization (`AGENTS.md`)**:
+   - Whenever introducing new crates, database submodules, Tauri commands, frontend hooks, modals, or architectural refactorings, agents and developers **must update this `AGENTS.md` guide as part of the task closure**. Never leave documentation out-of-sync with active code.
+8. **Pragmatic Testing & No Tests for Removed Features**:
+   - Tests must verify active invariants, functional contracts, boundary conditions, and error recovery paths.
+   - **Never write or retain tests that assert the non-existence of intentionally removed features** (e.g. testing that a deleted function does not exist or verifying that an obsolete UI element cannot be found). When a feature is deprecated or removed, delete or update its obsolete tests rather than creating tests asserting its removal. Keep the test suite clean, reasonable, and maintainable.
 
 ---
 
-## 7. Mandatory Code Quality, Linting & Pre-Commit Verification Protocol
+## 8. Mandatory Verification Protocol (7-Stage CI Parity)
 
 > [!CAUTION]
 > **MANDATORY PRE-COMMIT & COMPLETION PROTOCOL FOR ALL AGENTS**
@@ -388,73 +417,48 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 
 ### Pre-Commit Fast One-Liner (Run from Repository Root)
 ```bash
-npm --prefix apps/desktop run lint && npm --prefix apps/desktop run build && cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && ./tests/run_all_tests.sh
-```
-
----
-
-### A. React Frontend Quality & Linting
-Run all three commands from the workspace root:
-```bash
-# 1. High-speed linting across all frontend files (must pass with 0 errors)
-npm --prefix apps/desktop run lint
-
-# 2. Strict TypeScript type check and production bundling (must pass with 0 diagnostics)
-npm --prefix apps/desktop run build
-
-# 3. Unit test suite across hooks, components, and i18n parity (must be 100% green)
-npm --prefix apps/desktop test
-```
-
-### B. Rust Backend Quality & Linting
-Run all commands from the workspace root with exact CI flags:
-```bash
-# 1. Format all workspace crates to canonical style
-cargo fmt --all
-
-# 2. Verify formatting without modifying files (same as CI)
-cargo fmt --all --check
-
-# 3. Strict Clippy lint check across all targets and features (MUST use --all-features and -D warnings)
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-# 4. Compile check across all workspace crates
-cargo check --workspace
-
-# 5. Unit & integration test suite across all crates
-cargo test --workspace -- --test-threads=1
-```
-
-### C. Unified End-to-End Test Suite
-Run the 4-stage pipeline script to verify everything end-to-end:
-```bash
 ./tests/run_all_tests.sh
 ```
 
-#### The 4 Stages Verified by `run_all_tests.sh`:
-1. **Frontend Linting & Unit/Localization Tests**: `oxlint` + 39 Vitest suites (147+ tests) verifying domain hooks, state managers, and 100% key parity between PL and EN dictionaries.
-2. **Frontend TypeScript & Vite Production Build**: `tsc -b && vite build` ensuring production assets are bundled without error and `dist` is ready for Tauri.
-3. **Rust Workspace Test Suite**: Tests across `audio-engine`, `domain`, `storage`, `library`, `metadata`, `downloads`, `dsp-api`, `dsp-rubberband`, `dsp-soundtouch`, and `desktop-integration` with isolated audio threads.
-4. **Desktop Smoke Integration Test**: Verifies GStreamer pipeline instantiation, real WAV fixture playback, DSP pitch/EQ modulation, SQLite migrations, and Tauri IPC commands.
+#### The 7 Stages Verified by `run_all_tests.sh`:
+1. **Rust Formatting**: `cargo fmt --all --check`
+2. **Frontend Linting & Vitest Suite**: `oxlint` + all Vitest test suites
+3. **Frontend TypeScript & Vite Production Build**: `tsc -b && vite build`
+4. **Rust Clippy**: `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+5. **Rust Workspace Tests**: `cargo test --workspace -- --test-threads=1`
+6. **Desktop Smoke Integration Test**: `desktop_smoke_test`
+7. **Shell Scripts Syntax Validation**: `bash -n` across all `.sh` scripts
+
+#### Useful Script Flags:
+- `./tests/run_all_tests.sh --fix`: Automatically runs `cargo fmt` before checking.
+- `./tests/run_all_tests.sh --fast`: Runs checks without long-running audio playback tests.
+- `./tests/run_all_tests.sh --bundle`: Tests local AppImage bundling if dependencies are present.
 
 ---
 
-## 8. Agent Operational Recipes
+## 9. Agent Operational Recipes
 
 ### How to Add a New Tauri Command
 1. Implement the command function in the relevant module under `apps/desktop/src-tauri/src/commands/` (e.g. `commands/queue.rs`).
-2. Mark it `#[tauri::command]` and `pub fn` (or `pub async fn`).
+2. Mark it `#[tauri::command]` and `pub async fn` (or `pub fn`).
 3. Re-export it in `apps/desktop/src-tauri/src/commands/mod.rs` and `pub use commands::my_module::*;` in `lib.rs`.
 4. Register the command name in the `tauri::generate_handler![...]` macro list in `lib.rs`.
 5. Call `invoke('command_name', { ... })` in the frontend hook or component.
-6. Run `cargo fmt --all` and `./tests/run_all_tests.sh` to verify.
+6. Run `./tests/run_all_tests.sh` to verify.
 
 ### How to Add a New Modal Dialog
 1. Add the modal identifier to `ModalId` in [`apps/desktop/src/hooks/useModalManager.ts`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src/hooks/useModalManager.ts).
 2. Create your modal component under `apps/desktop/src/components/modals/MyNewModal.tsx`.
 3. Export it in `apps/desktop/src/components/modals/index.ts`.
-4. Register its rendering and visibility in [`AppModalsContainer.tsx`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src/components/modals/AppModalsContainer.tsx).
+4. Register its lazy-loaded import (`React.lazy`) and conditional render in [`AppModalsContainer.tsx`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src/components/modals/AppModalsContainer.tsx).
 5. Open the modal anywhere via `modalManager.open('my_modal', optionalPayload)`.
+
+### How to Add Database Columns or Tables
+1. Define the table DDL or new column in `crates/storage/src/schema.rs`.
+2. Add a versioned migration step in `schema.rs` bumping `PRAGMA user_version` (never run raw unversioned `ALTER TABLE` in `init_db()`).
+3. Add the struct fields and serialization in `crates/storage/src/models.rs`.
+4. Implement the query methods in the respective domain submodule (`library.rs`, `playlists.rs`, etc.).
+5. Add test coverage in `crates/storage/tests/`.
 
 ---
 *Maintained by Das Letzte Kemonomimi & Aura-Lune Core Engineering Agents.*
