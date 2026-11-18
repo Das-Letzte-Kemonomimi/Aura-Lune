@@ -23,6 +23,8 @@ export interface UseTranscodeManagerProps {
   t: ReturnType<typeof getTranslations>;
   showMessage: (msg: string, isError?: boolean) => void;
   setSettingsTab: (tab: any) => void;
+  isSettingsOpen?: boolean;
+  settingsTab?: string;
   setIsSettingsOpen: (open: boolean) => void;
   refreshTrackBookmarks: () => void;
   handleAddTrackToQueue: (track: TrackRecord) => Promise<void>;
@@ -47,6 +49,8 @@ export function useTranscodeManager({
   t,
   showMessage,
   setSettingsTab,
+  isSettingsOpen,
+  settingsTab,
   setIsSettingsOpen,
   refreshTrackBookmarks,
   handleAddTrackToQueue,
@@ -97,6 +101,49 @@ export function useTranscodeManager({
     }, 1000);
     return () => clearInterval(interval);
   }, [isTranscoding]);
+
+  // Synchronizacja aktywnej pętli A-B i bieżącej ścieżki po otwarciu zakładki transkodowania
+  useEffect(() => {
+    if (isSettingsOpen && settingsTab === 'transcode') {
+      const curPath = currentPlayingTrack?.path || status.current_track?.uri;
+      if (curPath && (!filePath || filePath === 'tests/fixtures/test_sine_440hz.wav')) {
+        let clean = curPath;
+        if (clean.startsWith('file://')) {
+          try {
+            clean = decodeURIComponent(clean.replace(/^file:\/\//, ''));
+          } catch {
+            clean = clean.replace(/^file:\/\//, '');
+          }
+        }
+        setFilePath(clean);
+      }
+
+      if (loopPointA !== null || loopPointB !== null) {
+        const strA = loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000';
+        const strB = loopPointB !== null ? formatTimeMs(loopPointB) : '';
+        setTranscodeRangeA(strA);
+        setTranscodeRangeB(strB);
+        setTranscodeApplyRange(true);
+
+        const targetSource = curPath || filePath;
+        if (targetSource) {
+          let clean = targetSource;
+          if (clean.startsWith('file://')) {
+            try {
+              clean = decodeURIComponent(clean.replace(/^file:\/\//, ''));
+            } catch {
+              clean = clean.replace(/^file:\/\//, '');
+            }
+          }
+          const lastDot = clean.lastIndexOf('.');
+          let base = lastDot > 0 ? clean.substring(0, lastDot) : clean;
+          base = base.replace(/_loop_\d+-(?:\d+|end)$/i, '');
+          const suffix = `_loop_${loopPointA !== null ? loopPointA : 0}-${loopPointB !== null ? loopPointB : 'end'}`;
+          setTranscodeOutput(`${base}${suffix}.${transcodeFormat.toLowerCase()}`);
+        }
+      }
+    }
+  }, [isSettingsOpen, settingsTab, loopPointA, loopPointB, currentPlayingTrack, status.current_track, filePath, transcodeFormat, setFilePath]);
 
   const updateTranscodeOutputFilename = useCallback(
     (

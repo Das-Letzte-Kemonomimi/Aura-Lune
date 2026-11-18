@@ -33,7 +33,7 @@ export interface AppHeaderProps {
   onOpenRecap: () => void;
   onOpenKeyBpm: () => void;
   onOpenAnalysis: () => void;
-  isSleepTimerOpen: boolean;
+  isSleepTimerOpen?: boolean;
   onOpenSleepTimer: () => void;
   sleepTimerRemainingSec: number | null;
   sleepTimerTargetMode: 'time' | 'end_of_track' | null;

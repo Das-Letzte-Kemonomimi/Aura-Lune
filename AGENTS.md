@@ -189,6 +189,8 @@ Aura-Lune/
 
 The Tauri host binary orchestrates the backend crates and exposes IPC commands to the React frontend.
 
+Before finishing work run `cargo fmt --all` to ensure formatting has no errors. 
+
 ### Command Structure (`src/commands/`)
 Commands are modularized into focused domains rather than dumped into `lib.rs`:
 

@@ -23,6 +23,7 @@ import { SpectrumVisualizer } from './SpectrumVisualizer';
 import { VuMeterWidget } from './VuMeterWidget';
 import { LyricsView } from './LyricsView';
 import { WaveformCanvas } from './WaveformCanvas';
+import { formatTime } from '../utils/timeFormat';
 import { type Language, getTranslations } from '../i18n';
 
 interface BigScreenViewProps {
@@ -136,13 +137,6 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
   }, [isPlaying]);
-
-  const formatTime = (ms: number) => {
-    const totalSec = Math.floor(ms / 1000);
-    const min = Math.floor(totalSec / 60);
-    const sec = totalSec % 60;
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  };
 
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
 

@@ -120,4 +120,80 @@ describe('usePlaybackQueue hook', () => {
     expect(res).toBeNull();
     expect(onTrackSelected).not.toHaveBeenCalled();
   });
+
+  it('manages drag and drop state correctly', async () => {
+    const { result } = renderHook(() => usePlaybackQueue());
+
+    const dragEventStart = {
+      dataTransfer: {
+        effectAllowed: '',
+        setData: vi.fn(),
+      },
+    } as unknown as React.DragEvent;
+
+    act(() => {
+      result.current.handleQueueDragStart(1, dragEventStart);
+    });
+
+    expect(result.current.draggedQueueIdx).toBe(1);
+    expect(dragEventStart.dataTransfer.setData).toHaveBeenCalledWith('text/plain', '1');
+
+    const dragEventOver = {
+      preventDefault: vi.fn(),
+      dataTransfer: { dropEffect: '' },
+    } as unknown as React.DragEvent;
+
+    act(() => {
+      result.current.handleQueueDragOver(0, dragEventOver);
+    });
+
+    expect(result.current.dragOverQueueIdx).toBe(0);
+
+    const dragEventDrop = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as React.DragEvent;
+
+    await act(async () => {
+      await result.current.handleQueueDrop(0, dragEventDrop);
+    });
+
+    expect(result.current.draggedQueueIdx).toBeNull();
+    expect(result.current.dragOverQueueIdx).toBeNull();
+  });
+
+  it('adds track to queue and dispatches notification', async () => {
+    const onNotify = vi.fn();
+    const { result } = renderHook(() =>
+      usePlaybackQueue({
+        onNotify,
+        albums: [{ id: 10, title: 'Album X', album_artist: 'Artist X', year: 2024, cover_path: null }],
+      })
+    );
+
+    const sampleTrack = {
+      id: 5,
+      path: '/path/song.mp3',
+      title: 'Song Title',
+      artist: 'Song Artist',
+      album_artist: 'Song Artist',
+      album_id: 10,
+      disc_no: 1,
+      track_no: 1,
+      duration_ms: 150000,
+      format: 'MP3',
+      sample_rate: 44100,
+      channels: 2,
+      bit_depth: 16,
+      file_size: 5000000,
+      modified_time: 1700000000,
+    };
+
+    await act(async () => {
+      await result.current.addTrackToQueue(sampleTrack);
+    });
+
+    expect(onNotify).toHaveBeenCalledWith(expect.stringContaining('Song Title'), false);
+  });
 });
+

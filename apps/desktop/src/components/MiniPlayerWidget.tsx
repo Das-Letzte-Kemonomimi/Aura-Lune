@@ -10,6 +10,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { type Language, getTranslations } from '../i18n';
+import { formatTime } from '../utils/timeFormat';
 
 interface MiniPlayerWidgetProps {
   title: string;
@@ -53,13 +54,6 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   onRestore,
 }) => {
   const t = getTranslations(currentLang);
-  const formatTime = (ms: number) => {
-    const totalSec = Math.floor(ms / 1000);
-    const min = Math.floor(totalSec / 60);
-    const sec = totalSec % 60;
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  };
-
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const isDspActive = Math.abs(pitchSemitones) > 0.05 || Math.abs(tempoRatio - 1.0) > 0.02;
 

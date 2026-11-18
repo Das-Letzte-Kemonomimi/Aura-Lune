@@ -2,6 +2,7 @@ import React from 'react';
 import { Flame, Clock, BarChart3, RefreshCw, X, RotateCcw } from 'lucide-react';
 import type { Language } from '../i18n';
 import { getTranslations } from '../i18n';
+import { formatTime } from '../utils/timeFormat';
 
 export interface TrackStatsData {
   id: number;
@@ -34,13 +35,6 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
   if (!track) return null;
 
   const loc = getTranslations(currentLang);
-
-  const formatTime = (ms: number) => {
-    const totalSecs = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
 
   const formatTotalTime = (totalMs: number) => {
     const totalSecs = Math.floor(totalMs / 1000);

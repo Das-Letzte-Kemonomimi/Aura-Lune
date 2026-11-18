@@ -2,15 +2,26 @@ import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { PlaybackQueue, QueueItem, QueueColumnConfig } from '../types/queue';
 import { DEFAULT_QUEUE_COLUMNS } from '../types/queue';
+import type { TrackRecord, AlbumRecord } from '../types/player';
+import type { Translations } from '../i18n';
 
 const QUEUE_COLUMNS_STORAGE_KEY = 'auralune_queue_columns_v1';
 
 export interface UsePlaybackQueueProps {
   onNotify?: (message: string, isError?: boolean) => void;
   onTrackSelected?: (track: { uri: string; trackId: number | null; title: string }) => void;
+  albums?: AlbumRecord[];
+  loc?: Translations;
+  onPlaylistSaved?: () => Promise<unknown> | unknown;
 }
 
-export function usePlaybackQueue({ onNotify, onTrackSelected }: UsePlaybackQueueProps = {}) {
+export function usePlaybackQueue({
+  onNotify,
+  onTrackSelected,
+  albums,
+  loc,
+  onPlaylistSaved,
+}: UsePlaybackQueueProps = {}) {
   const [queue, setQueue] = useState<PlaybackQueue>({
     items: [],
     current_index: null,
@@ -46,14 +57,12 @@ export function usePlaybackQueue({ onNotify, onTrackSelected }: UsePlaybackQueue
     [onNotify]
   );
 
-  const refreshQueue = useCallback(async () => {
+  const refreshQueue = useCallback(async (): Promise<void> => {
     try {
       const q = await invoke<PlaybackQueue>('get_queue');
       setQueue(q);
-      return q;
     } catch (e: unknown) {
       console.warn('Błąd pobierania kolejki:', e);
-      return null;
     }
   }, []);
 
@@ -187,6 +196,116 @@ export function usePlaybackQueue({ onNotify, onTrackSelected }: UsePlaybackQueue
     });
   }, []);
 
+  const resetQueueColumns = useCallback(() => {
+    setQueueColumns(DEFAULT_QUEUE_COLUMNS);
+    try {
+      localStorage.setItem(QUEUE_COLUMNS_STORAGE_KEY, JSON.stringify(DEFAULT_QUEUE_COLUMNS));
+    } catch {
+      // Ignore storage error
+    }
+  }, []);
+
+  const handleQueueDragStart = useCallback((idx: number, e: React.DragEvent) => {
+    setDraggedQueueIdx(idx);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `${idx}`);
+  }, []);
+
+  const handleQueueDragOver = useCallback((idx: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverQueueIdx(idx);
+  }, []);
+
+  const handleQueueDrop = useCallback(
+    async (toIdx: number, e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const fromIdx = draggedQueueIdx;
+      setDraggedQueueIdx(null);
+      setDragOverQueueIdx(null);
+      if (fromIdx !== null && fromIdx !== toIdx) {
+        await moveQueueItem(fromIdx, toIdx);
+      }
+    },
+    [draggedQueueIdx, moveQueueItem]
+  );
+
+  const addTrackToQueue = useCallback(
+    async (track: TrackRecord, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      const matchingAlb = track.album_id && albums ? albums.find((a) => a.id === track.album_id) : null;
+      const item: QueueItem = {
+        id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        track_id: track.id,
+        uri: track.path,
+        title: track.title,
+        artist: track.artist,
+        album: matchingAlb?.title || null,
+        duration_ms: track.duration_ms,
+      };
+      try {
+        await invoke('add_to_queue', { item });
+        await refreshQueue();
+        notify(
+          loc?.notifications?.addedToQueueEndMsg
+            ? loc.notifications.addedToQueueEndMsg.replace('{0}', track.title)
+            : `Dodano do kolejki: ${track.title}`
+        );
+      } catch (err: unknown) {
+        notify(`Błąd dodawania: ${err}`, true);
+      }
+    },
+    [albums, refreshQueue, notify, loc]
+  );
+
+  const addTrackNextToQueue = useCallback(
+    async (track: TrackRecord, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      const matchingAlb = track.album_id && albums ? albums.find((a) => a.id === track.album_id) : null;
+      const item: QueueItem = {
+        id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        track_id: track.id,
+        uri: track.path,
+        title: track.title,
+        artist: track.artist,
+        album: matchingAlb?.title || null,
+        duration_ms: track.duration_ms,
+      };
+      try {
+        await invoke('add_next_to_queue', { item });
+        await refreshQueue();
+        notify(
+          loc?.notifications?.setAsNextMsg
+            ? loc.notifications.setAsNextMsg.replace('{0}', track.title)
+            : `Ustawiono jako następny: ${track.title}`
+        );
+      } catch (err: unknown) {
+        notify(`Błąd dodawania jako następny: ${err}`, true);
+      }
+    },
+    [albums, refreshQueue, notify, loc]
+  );
+
+  const confirmSaveQueueAsPlaylist = useCallback(
+    async (name: string) => {
+      try {
+        await invoke('save_queue_as_playlist', { name });
+        if (onPlaylistSaved) {
+          await onPlaylistSaved();
+        }
+        notify(
+          loc?.queue?.savedToPlaylist
+            ? loc.queue.savedToPlaylist.replace('{0}', name)
+            : `Zapisano kolejkę jako playlistę: ${name}`
+        );
+      } catch (err: unknown) {
+        notify(`Błąd zapisu playlisty: ${err}`, true);
+      }
+    },
+    [onPlaylistSaved, notify, loc]
+  );
+
   return {
     queue,
     setQueue,
@@ -210,5 +329,12 @@ export function usePlaybackQueue({ onNotify, onTrackSelected }: UsePlaybackQueue
     setEntireQueue,
     addUrisToQueue,
     toggleColumn,
+    resetQueueColumns,
+    handleQueueDragStart,
+    handleQueueDragOver,
+    handleQueueDrop,
+    addTrackToQueue,
+    addTrackNextToQueue,
+    confirmSaveQueueAsPlaylist,
   };
 }

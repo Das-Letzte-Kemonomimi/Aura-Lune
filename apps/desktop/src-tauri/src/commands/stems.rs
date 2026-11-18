@@ -169,7 +169,11 @@ pub async fn get_track_stems_internal(
     state: &AppState,
     track_id: i64,
 ) -> Result<Option<StemSeparationData>, String> {
-    state.db.get_stem_tracks(track_id).await.map_err(|e| e.to_string())
+    state
+        .db
+        .get_stem_tracks(track_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Loads multi-track stem audio into the real-time audio pipeline.
@@ -237,7 +241,10 @@ pub fn set_stem_mixer_state_internal(
     state: &AppState,
     state_payload: StemMixerState,
 ) -> Result<(), String> {
-    state.engine.set_stem_mixer_state(state_payload).map_err(|e| e.to_string())
+    state
+        .engine
+        .set_stem_mixer_state(state_payload)
+        .map_err(|e| e.to_string())
 }
 
 /// Returns current stem mixer volume levels and channel routing.
@@ -426,7 +433,11 @@ pub async fn create_stem_project_internal(
 
 /// Retrieves all saved stem projects.
 pub async fn list_stem_projects_internal(state: &AppState) -> Result<Vec<StemProject>, String> {
-    state.db.list_stem_projects().await.map_err(|e| e.to_string())
+    state
+        .db
+        .list_stem_projects()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Retrieves a single stem project by ID.
@@ -434,12 +445,20 @@ pub async fn get_stem_project_internal(
     state: &AppState,
     project_id: i64,
 ) -> Result<Option<StemProject>, String> {
-    state.db.get_stem_project(project_id).await.map_err(|e| e.to_string())
+    state
+        .db
+        .get_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Deletes a stem project and cleans up cached audio files on disk.
 pub async fn delete_stem_project_internal(state: &AppState, project_id: i64) -> Result<(), String> {
-    state.db.delete_stem_project(project_id).await.map_err(|e| e.to_string())?;
+    state
+        .db
+        .delete_stem_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let cache_dir = get_stem_projects_cache_dir().join(project_id.to_string());
     if cache_dir.exists() {
@@ -454,7 +473,11 @@ pub async fn rename_stem_project_internal(
     project_id: i64,
     title: &str,
 ) -> Result<(), String> {
-    state.db.rename_stem_project(project_id, title).await.map_err(|e| e.to_string())
+    state
+        .db
+        .rename_stem_project(project_id, title)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Saves a custom mixer preset snapshot for a stem project.
@@ -462,7 +485,11 @@ pub async fn save_stem_project_mix_internal(
     state: &AppState,
     mix: &StemProjectMix,
 ) -> Result<i64, String> {
-    state.db.save_stem_project_mix(mix).await.map_err(|e| e.to_string())
+    state
+        .db
+        .save_stem_project_mix(mix)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Retrieves all mixer presets saved for a stem project.
@@ -470,12 +497,20 @@ pub async fn get_stem_project_mixes_internal(
     state: &AppState,
     project_id: i64,
 ) -> Result<Vec<StemProjectMix>, String> {
-    state.db.get_stem_project_mixes(project_id).await.map_err(|e| e.to_string())
+    state
+        .db
+        .get_stem_project_mixes(project_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Deletes a saved mixer preset from a stem project.
 pub async fn delete_stem_project_mix_internal(state: &AppState, mix_id: i64) -> Result<(), String> {
-    state.db.delete_stem_project_mix(mix_id).await.map_err(|e| e.to_string())
+    state
+        .db
+        .delete_stem_project_mix(mix_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Loads a stem project into the audio pipeline for playback.
@@ -546,7 +581,10 @@ pub async fn load_stem_project_internal(
 
 /// Restores regular stereo single-track playback from multi-track stems.
 pub fn restore_original_track_internal(state: &AppState) -> Result<(), String> {
-    state.engine.restore_original_track().map_err(|e| e.to_string())?;
+    state
+        .engine
+        .restore_original_track()
+        .map_err(|e| e.to_string())?;
 
     let q = state.engine.queue();
     if let Some(item) = q.current_item() {
@@ -587,10 +625,7 @@ pub async fn export_stem_project_mix_internal(
             let _ = std::fs::create_dir_all(parent);
         }
 
-        info!(
-            "Eksportowanie miksu projektu {} do {}",
-            project_id, target
-        );
+        info!("Eksportowanie miksu projektu {} do {}", project_id, target);
         if let Some(first) = project.channels.first() {
             let _ = std::fs::copy(&first.file_path, export_target);
         }

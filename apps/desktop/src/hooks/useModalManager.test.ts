@@ -1,72 +1,123 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useModalManager } from './useModalManager';
+import type { TrackRecord } from '../types/player';
 
-describe('useModalManager hook', () => {
-  it('initializes with no active modal', () => {
-    const { result } = renderHook(() => useModalManager());
+describe('useModalManager', () => {
+  const sampleTrack: TrackRecord = {
+    id: 42,
+    path: '/music/sample.flac',
+    title: 'Sample Track',
+    artist: 'Sample Artist',
+    album_artist: 'Sample Artist',
+    album_id: 1,
+    disc_no: 1,
+    track_no: 1,
+    duration_ms: 210000,
+    format: 'FLAC',
+    sample_rate: 44100,
+    channels: 2,
+    bit_depth: 16,
+    file_size: 25000000,
+    modified_time: 1700000000,
+  };
 
-    expect(result.current.activeModal).toBeNull();
-    expect(result.current.isOpen('equalizer')).toBe(false);
-    expect(result.current.modalPayload).toBeNull();
+  beforeEach(() => {
+    localStorage.clear();
   });
 
-  it('opens a specified modal with optional payload', () => {
+  it('initializes default states correctly', () => {
     const { result } = renderHook(() => useModalManager());
 
-    act(() => {
-      result.current.openModal('tag_editor', { trackId: 42 });
-    });
-
-    expect(result.current.activeModal).toBe('tag_editor');
-    expect(result.current.isOpen('tag_editor')).toBe(true);
-    expect(result.current.isOpen('equalizer')).toBe(false);
-    expect(result.current.modalPayload).toEqual({ trackId: 42 });
+    expect(result.current.isSettingsOpen).toBe(false);
+    expect(result.current.settingsTab).toBe('themes');
+    expect(result.current.isShortcutsModalOpen).toBe(false);
+    expect(result.current.tagEditorTrack).toBeNull();
+    expect(result.current.coverPickerState).toBeNull();
+    expect(result.current.isCommandPaletteOpen).toBe(false);
   });
 
-  it('closes active modal and clears payload', () => {
+  it('opens and closes tag editor with track payload', () => {
     const { result } = renderHook(() => useModalManager());
 
     act(() => {
-      result.current.openModal('lyrics');
+      result.current.openTagEditor(sampleTrack);
     });
-    expect(result.current.isOpen('lyrics')).toBe(true);
+
+    expect(result.current.tagEditorTrack).toEqual(sampleTrack);
 
     act(() => {
-      result.current.closeModal();
+      result.current.closeTagEditor();
     });
-    expect(result.current.activeModal).toBeNull();
-    expect(result.current.isOpen('lyrics')).toBe(false);
-    expect(result.current.modalPayload).toBeNull();
+
+    expect(result.current.tagEditorTrack).toBeNull();
   });
 
-  it('toggles modal open and closed', () => {
+  it('opens and closes cover picker state', () => {
     const { result } = renderHook(() => useModalManager());
 
     act(() => {
-      result.current.toggleModal('soundscape');
+      result.current.openCoverPicker(7, 'Album Title', 'Artist Name');
     });
-    expect(result.current.isOpen('soundscape')).toBe(true);
+
+    expect(result.current.coverPickerState).toEqual({
+      isOpen: true,
+      albumId: 7,
+      title: 'Album Title',
+      artist: 'Artist Name',
+    });
 
     act(() => {
-      result.current.toggleModal('soundscape');
+      result.current.closeCoverPicker();
     });
-    expect(result.current.isOpen('soundscape')).toBe(false);
-    expect(result.current.activeModal).toBeNull();
+
+    expect(result.current.coverPickerState).toBeNull();
   });
 
-  it('dismisses modal when Escape key is pressed', () => {
+  it('opens settings with specific tab', () => {
     const { result } = renderHook(() => useModalManager());
 
     act(() => {
-      result.current.openModal('command_palette');
+      result.current.openSettings('transcode');
     });
-    expect(result.current.isOpen('command_palette')).toBe(true);
+
+    expect(result.current.isSettingsOpen).toBe(true);
+    expect(result.current.settingsTab).toBe('transcode');
+  });
+
+  it('opens analysis with specified tab', () => {
+    const { result } = renderHook(() => useModalManager());
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      result.current.openAnalysis('stems');
     });
-    expect(result.current.isOpen('command_palette')).toBe(false);
-    expect(result.current.activeModal).toBeNull();
+
+    expect(result.current.isAnalysisModalOpen).toBe(true);
+    expect(result.current.analysisInitialTab).toBe('stems');
+  });
+
+  it('closeAllModals resets all active modal states', () => {
+    const { result } = renderHook(() => useModalManager());
+
+    act(() => {
+      result.current.setIsShortcutsModalOpen(true);
+      result.current.setIsSoundscapeOpen(true);
+      result.current.openTagEditor(sampleTrack);
+      result.current.openSettings('devices');
+    });
+
+    expect(result.current.isShortcutsModalOpen).toBe(true);
+    expect(result.current.isSoundscapeOpen).toBe(true);
+    expect(result.current.tagEditorTrack).not.toBeNull();
+    expect(result.current.isSettingsOpen).toBe(true);
+
+    act(() => {
+      result.current.closeAllModals();
+    });
+
+    expect(result.current.isShortcutsModalOpen).toBe(false);
+    expect(result.current.isSoundscapeOpen).toBe(false);
+    expect(result.current.tagEditorTrack).toBeNull();
+    expect(result.current.isSettingsOpen).toBe(false);
   });
 });

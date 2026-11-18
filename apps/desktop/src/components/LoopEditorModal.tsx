@@ -2,65 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } from 'lucide-react';
 import { type Language, getTranslations } from '../i18n';
 
-export function parseTimeToMs(input: string): number | null {
-  if (!input) return null;
-  let str = input.trim().toLowerCase();
-  if (!str) return null;
-
-  // Usuń prefiksy typu 'a:', 'b:', 'punkt a:', 'punkt b:' (np. gdy ktoś wklei "A: 0:22.449")
-  str = str.replace(/^(?:punkt\s*)?[ab]\s*:\s*/i, '').trim();
-  // Zamień przecinki dziesiętne na kropki (np. "0:22,449" -> "0:22.449", "22,449" -> "22.449")
-  str = str.replace(',', '.');
-
-  // 1. Jawny sufiks 'ms': np. "860ms", "860 ms"
-  if (str.endsWith('ms')) {
-    const val = parseFloat(str.slice(0, -2).trim());
-    return isNaN(val) ? null : Math.max(0, Math.round(val));
-  }
-
-  // 2. Jawny sufiks 's': np. "1.5s", "12s"
-  if (str.endsWith('s')) {
-    const val = parseFloat(str.slice(0, -1).trim());
-    return isNaN(val) ? null : Math.max(0, Math.round(val * 1000));
-  }
-
-  // 3. Format z dwukropkiem: [HH:]MM:SS[.mmm] lub MM:SS[.mmm]
-  if (str.includes(':')) {
-    const parts = str.split(':');
-    if (parts.length === 2) {
-      const minutes = parseFloat(parts[0]);
-      const seconds = parseFloat(parts[1]);
-      if (isNaN(minutes) || isNaN(seconds)) return null;
-      return Math.max(0, Math.round((minutes * 60 + seconds) * 1000));
-    } else if (parts.length === 3) {
-      const hours = parseFloat(parts[0]);
-      const minutes = parseFloat(parts[1]);
-      const seconds = parseFloat(parts[2]);
-      if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
-      return Math.max(0, Math.round((hours * 3600 + minutes * 60 + seconds) * 1000));
-    }
-    return null;
-  }
-
-  // 4. Format z kropką bez dwukropka: np. "0.860" lub "12.5" -> traktowane jako sekundy
-  if (str.includes('.')) {
-    const val = parseFloat(str);
-    return isNaN(val) ? null : Math.max(0, Math.round(val * 1000));
-  }
-
-  // 5. Czyste cyfry całkowite -> traktowane bezpośrednio jako milisekundy (np. "860" -> 860ms, "1500" -> 1500ms)
-  const val = parseInt(str, 10);
-  return isNaN(val) ? null : Math.max(0, val);
-}
-
-export function formatTimeMs(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined || ms < 0 || isNaN(ms)) return '0:00.000';
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  const remMs = Math.floor(ms % 1000);
-  return `${m}:${s < 10 ? '0' : ''}${s}.${remMs.toString().padStart(3, '0')}`;
-}
+import { parseTimeToMs, formatTimeMs } from '../utils/timeFormat';
+export { parseTimeToMs, formatTimeMs };
 
 export interface LoopEditorModalProps {
   isOpen: boolean;

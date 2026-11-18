@@ -41,7 +41,10 @@ pub async fn identify_track_fingerprint_internal(
         .await
         .map_err(|e| e.to_string())?;
 
-    client.lookup(duration, &fingerprint).await.map_err(|e| e.to_string())
+    client
+        .lookup(duration, &fingerprint)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Searches for album cover candidates using Cover Art Archive and MusicBrainz.
@@ -54,7 +57,10 @@ pub async fn search_cover_candidates_internal(
         "Tauri command: search_cover_candidates('{}', '{}')",
         album, artist
     );
-    state.cover_archive.search_cover_candidates(album, artist).await
+    state
+        .cover_archive
+        .search_cover_candidates(album, artist)
+        .await
 }
 
 /// Helper function to update discord rpc and cover cache when a cover is applied.
@@ -68,15 +74,27 @@ pub fn sync_cover_to_discord_cache(
         return;
     };
 
-    let cache_key = format!("{}---{}", art.trim().to_lowercase(), alb.trim().to_lowercase());
+    let cache_key = format!(
+        "{}---{}",
+        art.trim().to_lowercase(),
+        alb.trim().to_lowercase()
+    );
 
     if cover_url_or_data.starts_with("http://") || cover_url_or_data.starts_with("https://") {
         if let Ok(mut cache) = state.discord_cover_cache.write() {
             cache.insert(cache_key, cover_url_or_data.to_string());
         }
         if let Some(discord) = &state.discord_rpc {
-            let dur = state.engine.duration().map(|d| d.as_millis() as u64).unwrap_or(0);
-            let pos = state.engine.position().map(|p| p.as_millis() as u64).unwrap_or(0);
+            let dur = state
+                .engine
+                .duration()
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            let pos = state
+                .engine
+                .position()
+                .map(|p| p.as_millis() as u64)
+                .unwrap_or(0);
             let current_title = state
                 .engine
                 .queue()
@@ -139,7 +157,10 @@ pub async fn apply_cover_url_internal(
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
     if let Some(title) = &album_title {
-        let _ = state.db.link_tracks_by_album_title(title, actual_album_id).await;
+        let _ = state
+            .db
+            .link_tracks_by_album_title(title, actual_album_id)
+            .await;
     }
 
     sync_cover_to_discord_cache(state, artist.as_deref(), album_title.as_deref(), cover_url);
@@ -178,7 +199,9 @@ pub async fn apply_custom_cover_file_internal(
         "webp" => "image/webp",
         "gif" => "image/gif",
         _ => {
-            return Err("Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF".to_string())
+            return Err(
+                "Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF".to_string(),
+            )
         }
     };
 
@@ -217,7 +240,10 @@ pub async fn apply_custom_cover_file_internal(
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
     if let Some(title) = &album_title {
-        let _ = state.db.link_tracks_by_album_title(title, actual_album_id).await;
+        let _ = state
+            .db
+            .link_tracks_by_album_title(title, actual_album_id)
+            .await;
     }
 
     let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
@@ -304,7 +330,10 @@ pub async fn lastfm_validate_session_internal(
     api_secret: Option<&str>,
 ) -> Result<String, String> {
     info!("Tauri command: lastfm_validate_session");
-    state.lastfm.validate_session(session_key, api_key, api_secret).await
+    state
+        .lastfm
+        .validate_session(session_key, api_key, api_secret)
+        .await
 }
 
 /// Updates Last.fm Now Playing status.

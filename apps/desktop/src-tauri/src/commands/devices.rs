@@ -83,7 +83,10 @@ pub async fn set_discord_rpc_client_id_internal(
 }
 
 /// Notifies desktop integrations (Discord RPC & MPRIS) when track looping occurs.
-pub fn notify_track_looped_internal(state: &AppState, position_ms: Option<u64>) -> Result<(), String> {
+pub fn notify_track_looped_internal(
+    state: &AppState,
+    position_ms: Option<u64>,
+) -> Result<(), String> {
     let pos = position_ms.unwrap_or(0);
     let dur = state
         .engine

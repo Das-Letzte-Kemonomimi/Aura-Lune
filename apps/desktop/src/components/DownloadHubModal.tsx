@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { type Language, getTranslations } from '../i18n';
+import { formatBytes } from '../utils/fileSizeFormat';
 
 export interface DownloadJobDto {
   id: string;
@@ -165,14 +166,6 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     } catch (err) {
       console.error('Błąd anulowania zadania:', err);
     }
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
   if (!isOpen) return null;

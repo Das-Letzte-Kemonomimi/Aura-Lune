@@ -41,14 +41,20 @@ pub fn play_internal(state: &AppState) -> Result<(), String> {
             let _ = state.engine.load_uri(&item.uri);
         }
     }
-    state.engine.play_with_fade(true).map_err(|e| e.to_string())?;
+    state
+        .engine
+        .play_with_fade(true)
+        .map_err(|e| e.to_string())?;
     sync_desktop_playback_state(state, PlaybackState::Playing);
     Ok(())
 }
 
 /// Pauses audio with a gentle fade-out and updates desktop status.
 pub fn pause_internal(state: &AppState) -> Result<(), String> {
-    state.engine.pause_with_fade(true).map_err(|e| e.to_string())?;
+    state
+        .engine
+        .pause_with_fade(true)
+        .map_err(|e| e.to_string())?;
     sync_desktop_playback_state(state, PlaybackState::Paused);
     Ok(())
 }

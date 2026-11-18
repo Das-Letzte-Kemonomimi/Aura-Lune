@@ -12,13 +12,22 @@ fn test_build_activity_payload_playing_with_timestamps() {
         art_url: Some("https://example.com/cover.jpg".to_string()),
     };
 
-    let payload = build_activity_payload(&track, PlaybackState::Playing, 30_000, 180_000, 1_700_000_000);
+    let payload = build_activity_payload(
+        &track,
+        PlaybackState::Playing,
+        30_000,
+        180_000,
+        1_700_000_000,
+    );
 
     assert_eq!(payload["name"], "Auralune");
     assert_eq!(payload["type"], 2);
     assert_eq!(payload["details"], "Kitsune Dream");
     assert_eq!(payload["state"], "Auralune");
-    assert_eq!(payload["assets"]["large_image"], "https://example.com/cover.jpg");
+    assert_eq!(
+        payload["assets"]["large_image"],
+        "https://example.com/cover.jpg"
+    );
     assert_eq!(payload["assets"]["large_text"], "Lofi Beats");
 
     let ts = &payload["timestamps"];
@@ -37,7 +46,13 @@ fn test_build_activity_payload_paused_omits_timestamps() {
         art_url: None,
     };
 
-    let payload = build_activity_payload(&track, PlaybackState::Paused, 10_000, 200_000, 1_700_000_000);
+    let payload = build_activity_payload(
+        &track,
+        PlaybackState::Paused,
+        10_000,
+        200_000,
+        1_700_000_000,
+    );
 
     assert_eq!(payload["details"], "Paused Track");
     assert_eq!(payload["state"], "Auralune"); // fallback

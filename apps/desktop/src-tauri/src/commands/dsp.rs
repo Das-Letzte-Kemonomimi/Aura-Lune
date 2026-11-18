@@ -39,13 +39,23 @@ pub fn set_dsp_engine_internal(state: &AppState, engine_str: &str) -> Result<(),
         "SoundTouch" => DspEngine::SoundTouch,
         _ => DspEngine::Bypass,
     };
-    state.engine.set_dsp_engine(engine).map_err(|e| e.to_string())
+    state
+        .engine
+        .set_dsp_engine(engine)
+        .map_err(|e| e.to_string())
 }
 
 /// Sets a single band of the 10-band graphic equalizer.
-pub fn set_equalizer_band_internal(state: &AppState, band: usize, gain_db: f64) -> Result<(), String> {
+pub fn set_equalizer_band_internal(
+    state: &AppState,
+    band: usize,
+    gain_db: f64,
+) -> Result<(), String> {
     if band >= 10 {
-        return Err(format!("Numer pasma {} jest nieprawidłowy (dozwolone 0-9)", band));
+        return Err(format!(
+            "Numer pasma {} jest nieprawidłowy (dozwolone 0-9)",
+            band
+        ));
     }
     let clamped = gain_db.clamp(-24.0, 24.0);
     state

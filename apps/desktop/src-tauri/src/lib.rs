@@ -8,8 +8,8 @@ use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_replaygain, analyze_track_transcription,
     export_chords_to_chordpro, export_chords_to_json, export_chords_to_text,
     export_transcription_to_midi, get_analysis_capabilities as engine_get_analysis_capabilities,
-    write_replaygain_tags_to_file, AudioEngine, PlayerEvent,
-    ReplayGainAnalysisResult, TrackKeyBpm, Transcoder,
+    write_replaygain_tags_to_file, AudioEngine, PlayerEvent, ReplayGainAnalysisResult, TrackKeyBpm,
+    Transcoder,
 };
 use domain::analysis::{
     AiModelInfo, AnalysisCapabilities, ChordSegment, StemMixerState, StemSeparationData,
@@ -1584,7 +1584,6 @@ fn set_card_profile(card_name: String, profile: String) -> Result<(), String> {
     commands::devices::set_device_profile_internal(&card_name, &profile)
 }
 
-
 #[tauri::command]
 fn save_lyrics_lrc(track_path: String, lrc_content: String) -> Result<String, String> {
     metadata::save_lrc_file(&track_path, &lrc_content)
@@ -2943,7 +2942,6 @@ async fn apply_custom_cover_file(
     .await
 }
 
-
 #[tauri::command]
 fn apply_custom_cover_data(
     album_id: i64,
@@ -3154,7 +3152,6 @@ fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), String>
 }
 
 pub use commands::playback::sync_mpris_from_queue_item;
-
 
 fn persist_queue_state(state: &AppState) {
     let queue = state.engine.queue();
@@ -4236,7 +4233,6 @@ async fn lastfm_scrobble(
     commands::metadata::lastfm_scrobble_internal(&state, &request).await
 }
 
-
 #[tauri::command]
 fn get_discord_rpc_status(
     state: State<'_, AppState>,
@@ -4261,7 +4257,6 @@ async fn set_discord_rpc_client_id(
 fn notify_track_looped(position_ms: Option<u64>, state: State<'_, AppState>) -> Result<(), String> {
     commands::devices::notify_track_looped_internal(&state, position_ms)
 }
-
 
 #[tauri::command]
 async fn get_track_bookmarks(
@@ -4868,7 +4863,8 @@ async fn start_stem_separation(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<StemSeparationData, String> {
-    commands::stems::start_stem_separation_internal(&state, path, track_id, model_id, &app_handle).await
+    commands::stems::start_stem_separation_internal(&state, path, track_id, model_id, &app_handle)
+        .await
 }
 
 #[tauri::command]
@@ -4886,7 +4882,8 @@ async fn load_track_stems(
     start_playing: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<StemMixerState, String> {
-    commands::stems::load_track_stems_internal(&state, track_id, seek_position_ms, start_playing).await
+    commands::stems::load_track_stems_internal(&state, track_id, seek_position_ms, start_playing)
+        .await
 }
 
 #[tauri::command]
@@ -4919,7 +4916,14 @@ async fn create_stem_project(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<StemProject, String> {
-    commands::stems::create_stem_project_internal(&state, track_id, title, requested_packs, &app_handle).await
+    commands::stems::create_stem_project_internal(
+        &state,
+        track_id,
+        title,
+        requested_packs,
+        &app_handle,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -5019,7 +5023,6 @@ async fn export_stem_project_zip(
 ) -> Result<String, String> {
     commands::stems::export_stem_project_zip_internal(&state, project_id, &export_path).await
 }
-
 
 fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
     let clean_style = if style == "classic" {
@@ -5991,4 +5994,3 @@ mod tests {
         assert_eq!(extracted[0], "https://stream.anime.fm/live");
     }
 }
-
