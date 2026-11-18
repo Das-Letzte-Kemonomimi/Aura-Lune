@@ -26,8 +26,12 @@
   - Wprowadzono architekturę równoległych kanałów (`stable` oraz `dev`), pozwalającą na niezależną instalację wersji deweloperskiej (`~/.local/share/auralune-dev`, binarka `auralune-dev`, skrót pulpitu `auralune-dev.desktop`) obok wersji stabilnej (`auralune`) bez konfliktów plików.
   - Zaimplementowano automatyczną detekcję kanału w oparciu o oznaczenie wersji (np. `1.1.6-dev`), gałąź Gita lub przełączniki `--dev` / `--stable`, umożliwiając bezobsługowy merge gałęzi `dev` do `main` (wystarczy standardowe podbicie wersji release).
   - Wbudowano w launcher automatyczne wykrywanie ścieżek wtyczek GStreamera w systemie hosta (`/usr/lib/gstreamer-1.0`), eliminujące problem braku dźwięku na dystrybucjach Arch Linux i instalacjach minimalnych.
+- **Automatyczne budowanie i publikowanie wydań deweloperskich w GitHub Actions (`ci.yml`)**:
+  - Dodano zadanie `publish-dev-release`, które po przejściu testów na gałęzi `dev` automatycznie kompiluje paczkę AppImage i publikuje rotujące wydanie przedpremierowe (rolling pre-release) z tagiem `dev`, zapewniając stałą dostępność najnowszych wersji dla instalatora.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Rozwiązanie problemu instalacji starej wersji 1.1.5 przy wyborze kanału deweloperskiego**:
+  - Wyeliminowano w `install.sh` ciche cofanie się do wydań stabilnych (`/releases/latest`) w kanale deweloperskim w przypadku braku lub opóźnienia paczki GitHub Releases. Wprowadzono dedykowane zapytania do taga `dev` oraz bezpośrednią ścieżkę do AppImage deweloperskiego wraz z czytelnym komunikatem błędu i instrukcją kompilacji lokalnej zamiast instalacji nieprawidłowej wersji.
 - **Wyeliminowanie wielosekundowych opóźnień i zatorów przy zmianie głośności oraz przewijaniu utworu**:
   - Zastąpiono blokującą sekwencję uśpień (`thread::sleep`) w `seek_with_fade` w skrzynce `audio-engine` (dawniej ~120 ms w 10 krokach) zoptymalizowanym, 20-milisekundowym wygaszaniem anty-trzaskowym (2x4 ms ramp down, 4 ms seek settle, 2x4 ms ramp up). Wprowadzono atomowy token generacji (`fade_generation`), który natychmiast anuluje poprzednie uśpienia, gdy nadejdzie nowsze żądanie. Przy przewijaniu z suwaka (`fade: false`) skok wykonywany jest natychmiast z zerowym uśpieniem.
   - Wyeliminowano blokowanie mutexa potoku audio (`inner: Arc<Mutex<PipelineInner>>`) przy zmianie poziomu głośności. Dodano bezpośrednie odwołania do elementu GStreamera oraz atomowej zmiennej `atomic_volume: Arc<AtomicU64>`, dzięki czemu `set_volume` wykonuje się bezpośrednio w czasie submikrosekundowym (`< 1 µs`).

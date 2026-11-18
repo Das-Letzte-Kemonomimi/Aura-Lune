@@ -160,24 +160,30 @@ SOURCE_APPIMAGE=""
 if [[ "$CHANNEL" == "dev" ]]; then
     if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
         SOURCE_APPIMAGE="$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+    elif [[ -n "$SCRIPT_DIR" ]] && ls "$SCRIPT_DIR"/target/release/bundle/appimage/*.AppImage 1>/dev/null 2>&1; then
+        SOURCE_APPIMAGE=$(ls -t "$SCRIPT_DIR"/target/release/bundle/appimage/*.AppImage | head -n 1)
+    elif ls ./target/release/bundle/appimage/*.AppImage 1>/dev/null 2>&1; then
+        SOURCE_APPIMAGE=$(ls -t ./target/release/bundle/appimage/*.AppImage | head -n 1)
+    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/target/dist/Auralune-dev-x86_64.AppImage" ]]; then
+        SOURCE_APPIMAGE="$SCRIPT_DIR/target/dist/Auralune-dev-x86_64.AppImage"
+    elif [[ -f "./target/dist/Auralune-dev-x86_64.AppImage" ]]; then
+        SOURCE_APPIMAGE="./target/dist/Auralune-dev-x86_64.AppImage"
     elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune-dev.AppImage" ]]; then
         SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune-dev.AppImage"
     elif [[ -f "./Auralune-dev.AppImage" ]]; then
         SOURCE_APPIMAGE="./Auralune-dev.AppImage"
-    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune.AppImage" ]]; then
-        SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune.AppImage"
-    elif [[ -f "./Auralune.AppImage" ]]; then
-        SOURCE_APPIMAGE="./Auralune.AppImage"
     fi
 else
     if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
         SOURCE_APPIMAGE="$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+    elif [[ -n "$SCRIPT_DIR" ]] && ls "$SCRIPT_DIR"/target/release/bundle/appimage/*.AppImage 1>/dev/null 2>&1; then
+        SOURCE_APPIMAGE=$(ls -t "$SCRIPT_DIR"/target/release/bundle/appimage/*.AppImage | head -n 1)
+    elif ls ./target/release/bundle/appimage/*.AppImage 1>/dev/null 2>&1; then
+        SOURCE_APPIMAGE=$(ls -t ./target/release/bundle/appimage/*.AppImage | head -n 1)
     elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune.AppImage" ]]; then
         SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune.AppImage"
     elif [[ -f "./Auralune.AppImage" ]]; then
         SOURCE_APPIMAGE="./Auralune.AppImage"
-    elif [[ -f "./target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
-        SOURCE_APPIMAGE="./target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
     fi
 fi
 
@@ -199,19 +205,37 @@ else
 
     DOWNLOAD_URL=""
     if [[ "$CHANNEL" == "dev" ]]; then
-        # Check dev tag, nightly tag, or latest prerelease
-        RELEASE_JSON=$(curl -sSf "${GITHUB_API}/tags/dev" 2>/dev/null || curl -sSf "${GITHUB_API}/tags/nightly" 2>/dev/null || curl -sSf "${GITHUB_API}" 2>/dev/null || echo "")
+        # 1. Fetch release JSON from GitHub API for tag 'dev' or 'nightly'
+        RELEASE_JSON=$(curl -sSf "${GITHUB_API}/tags/dev" 2>/dev/null || curl -sSf "${GITHUB_API}/tags/nightly" 2>/dev/null || echo "")
         if [[ -n "$RELEASE_JSON" ]]; then
             DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
         fi
-    fi
 
-    if [[ -z "$DOWNLOAD_URL" ]]; then
+        # 2. Canonical direct asset URL check if API is rate-limited
+        if [[ -z "$DOWNLOAD_URL" ]]; then
+            DEV_DIRECT_URL="https://github.com/${REPO}/releases/download/dev/Auralune-dev-x86_64.AppImage"
+            if curl -sIf "$DEV_DIRECT_URL" 2>/dev/null | grep -qiE 'HTTP/.* [23][0-9][0-9]'; then
+                DOWNLOAD_URL="$DEV_DIRECT_URL"
+            fi
+        fi
+
+        # 3. If dev release asset does not exist yet on GitHub, NEVER fall back to stable!
+        if [[ -z "$DOWNLOAD_URL" ]]; then
+            echo -e "${RED}❌ Error: No development AppImage found on GitHub Releases under tag 'dev'.${RESET}"
+            echo -e "${YELLOW}💡 A rolling 'dev' pre-release is published automatically once the CI workflow runs on the 'dev' branch.${RESET}"
+            echo -e "${YELLOW}   If you have a local build, install it directly with:${RESET}"
+            echo -e "     ${BOLD}./install.sh --dev${RESET}"
+            echo -e "${YELLOW}   Or compile locally using Tauri:${RESET}"
+            echo -e "     ${BOLD}npm --prefix apps/desktop run tauri build -- --bundles appimage${RESET}"
+            echo -e "     ${BOLD}./install.sh --dev${RESET}"
+            exit 1
+        fi
+    else
         LATEST_JSON=$(curl -sSf "${GITHUB_API}/latest" 2>/dev/null || echo "")
         if [[ -n "$LATEST_JSON" ]]; then
             TAG_NAME=$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4 || echo "v${VERSION}")
             DETECTED_TAG_VER="${TAG_NAME#v}"
-            if [[ -n "$DETECTED_TAG_VER" && "$CHANNEL" == "stable" ]]; then
+            if [[ -n "$DETECTED_TAG_VER" ]]; then
                 VERSION="$DETECTED_TAG_VER"
             fi
 
@@ -224,13 +248,13 @@ else
                 DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | grep -vi "bazzite" | head -n 1 | cut -d '"' -f 4 || echo "")
             fi
         fi
-    fi
 
-    if [[ -z "$DOWNLOAD_URL" ]]; then
-        if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
-            DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_bazzite_amd64.AppImage"
-        else
-            DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"
+        if [[ -z "$DOWNLOAD_URL" ]]; then
+            if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
+                DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_bazzite_amd64.AppImage"
+            else
+                DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"
+            fi
         fi
     fi
 
@@ -238,16 +262,27 @@ else
     echo -e "${CYAN}   URL: ${DOWNLOAD_URL}${RESET}"
     
     TMP_APPIMAGE=$(mktemp "${DATA_DIR}/${APP_ID}.download.XXXXXX")
+    DOWNLOAD_SUCCESS=false
     if command -v curl &>/dev/null; then
-        curl -fLC - --progress-bar -o "$TMP_APPIMAGE" "$DOWNLOAD_URL"
+        if curl -fLC - --progress-bar -o "$TMP_APPIMAGE" "$DOWNLOAD_URL"; then
+            DOWNLOAD_SUCCESS=true
+        fi
     elif command -v wget &>/dev/null; then
-        wget --show-progress -q -O "$TMP_APPIMAGE" "$DOWNLOAD_URL"
+        if wget --show-progress -q -O "$TMP_APPIMAGE" "$DOWNLOAD_URL"; then
+            DOWNLOAD_SUCCESS=true
+        fi
     else
         echo -e "${RED}❌ Error: 'curl' or 'wget' is required to download.${RESET}"
         rm -f "$TMP_APPIMAGE"
         exit 1
     fi
     
+    if [[ "$DOWNLOAD_SUCCESS" != true || ! -s "$TMP_APPIMAGE" ]]; then
+        echo -e "${RED}❌ Error: Failed to download AppImage from: ${DOWNLOAD_URL}${RESET}"
+        rm -f "$TMP_APPIMAGE"
+        exit 1
+    fi
+
     mv "$TMP_APPIMAGE" "$APPIMAGE_DEST"
     chmod +x "$APPIMAGE_DEST"
 fi
