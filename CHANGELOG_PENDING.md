@@ -28,6 +28,16 @@
   - Wbudowano w launcher automatyczne wykrywanie ścieżek wtyczek GStreamera w systemie hosta (`/usr/lib/gstreamer-1.0`), eliminujące problem braku dźwięku na dystrybucjach Arch Linux i instalacjach minimalnych.
 - **Automatyczne budowanie i publikowanie wydań deweloperskich w GitHub Actions (`ci.yml`)**:
   - Dodano zadanie `publish-dev-release`, które po przejściu testów na gałęzi `dev` automatycznie kompiluje paczkę AppImage i publikuje rotujące wydanie przedpremierowe (rolling pre-release) z tagiem `dev`, zapewniając stałą dostępność najnowszych wersji dla instalatora.
+- **Rozbudowany skrypt weryfikacji lokalnej o pełną zgodność z potokiem CI/CD (`tests/run_all_tests.sh`)**:
+  - Przekształcono dotychczasowy skrypt testowy w 7-etapowy pakiet precyzyjnie odzwierciedlający wszystkie testy i obostrzenia z GitHub Actions:
+    1. Sprawdzanie formatowania Rusta (`cargo fmt --all --check`),
+    2. Linting frontendu (`oxlint`) oraz pełen zestaw testów jednostkowych i parytetu i18n (`vitest`),
+    3. Weryfikacja typów TypeScript i produkcyjny build Vite (`tsc -b && vite build`),
+    4. Rygorystyczna analiza Clippy w całym workspace bez żadnych ostrzeżeń (`cargo clippy --workspace --all-targets --all-features -- -D warnings`),
+    5. Testy jednostkowe i integracyjne 12 skrzynek Rusta z izolacją wątkową (`cargo test --workspace -- --test-threads=1`),
+    6. Test dymny backendu desktopowego (`desktop_smoke_test`),
+    7. Weryfikacja składni wszystkich skryptów powłoki (`bash -n` dla `install.sh`, `packaging/*.sh`, `tests/*.sh`).
+  - Dodano przełączniki CLI: `--fix` (automatyczne formatowanie `cargo fmt`), `--fast` (szybki tryb z pominięciem testów silnika audio), `--bundle` (opcjonalny lokalny test pakowania AppImage) oraz `--help`.
 
 ### 🛠️ Poprawiono (Fixed)
 - **Obsługa opcji płynnego wyciszenia (Smooth Seek Fade) we wszystkich paskach postępu utworu**:
