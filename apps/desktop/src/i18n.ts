@@ -24,6 +24,6 @@ export const supportedLanguages: { code: Language; label: string; flag: string }
   { code: 'la', label: 'Latina', flag: '🏛️' },
 ];
 
-export function getTranslations(lang: Language): Translations {
-  return translations[lang] || translations.en;
+export function getTranslations(lang?: Language): Translations {
+  return (lang && translations[lang]) || translations.en;
 }

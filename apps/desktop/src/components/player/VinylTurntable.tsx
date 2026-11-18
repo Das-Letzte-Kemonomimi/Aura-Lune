@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Disc, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
+import { getTranslations, type Language } from '../../i18n';
 
 const AnalogLoFiModal = React.lazy(() =>
   import('../modals/AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal }))
 );
 
 interface VinylTurntableProps {
+  currentLang?: Language;
   coverUrl?: string | null;
   isPlaying: boolean;
   tempo?: number; // mnożnik tempa DSP (np. 0.35x - 3.00x)
@@ -26,6 +28,7 @@ interface VinylTurntableProps {
 }
 
 export const VinylTurntable: React.FC<VinylTurntableProps> = ({
+  currentLang,
   coverUrl,
   isPlaying,
   tempo = 1.0,
@@ -33,8 +36,8 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   engine = 'Bypass',
   isDspActive,
   bpm,
-  trackTitle = 'Nieznany utwór',
-  artistName = 'Auralune Player',
+  trackTitle,
+  artistName,
   onTogglePlayPause,
   rpm: controlledRpm,
   onRpmChange,
@@ -43,6 +46,9 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   className,
   size = 265,
 }) => {
+  const t = getTranslations(currentLang);
+  const displayTitle = trackTitle || t.stems.modalTrackDefault || 'Track';
+  const displayArtist = artistName || 'Auralune Player';
   const [localRpm, setLocalRpm] = useState<33 | 45>(33);
   const rpm = controlledRpm !== undefined ? controlledRpm : localRpm;
   const setRpm = (newRpm: 33 | 45) => {
@@ -173,7 +179,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
       {/* Talerz gramofonowy (Platter) z płytą winylową */}
       <div
         onClick={onTogglePlayPause}
-        title={`${isPlaying ? 'Pauza' : 'Odtwarzaj'} • ${artistName} - ${trackTitle}`}
+        title={`${isPlaying ? t.player.pause : t.player.play} • ${displayArtist} - ${displayTitle}`}
         style={{
           width: `${size - 56}px`,
           height: `${size - 56}px`,
@@ -290,7 +296,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 
         {/* Uchwyt spoczynkowy ramienia (Tonearm Rest / Arm Cradle) */}
         <div
-          title="Uchwyt spoczynkowy ramienia gramofonowego"
+          title={t.player.tonearmRest}
           style={{
             position: 'absolute',
             top: `${size - 130}px`,
@@ -374,7 +380,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               e.stopPropagation();
               setRpm(33);
             }}
-            title="Prędkość nominalna 33⅓ RPM (Standardowy 12″ LP)"
+            title={t.player.vinylSpeed33}
             style={{
               padding: '2px 6px',
               borderRadius: '4px',
@@ -394,7 +400,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               e.stopPropagation();
               setRpm(45);
             }}
-            title="Prędkość nominalna 45 RPM (Singiel 7″, szybszy obrót fizyczny)"
+            title={t.player.vinylSpeed45}
             style={{
               padding: '2px 6px',
               borderRadius: '4px',
@@ -416,7 +422,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               e.stopPropagation();
               handleOpenLoFi();
             }}
-            title="Otwórz studio analogowego szumu winylu i taśmy (Lo-Fi Analog FX Popup)"
+            title={t.player.vinylLoFiTooltip}
             style={{
               padding: '2px 7px',
               borderRadius: '4px',
@@ -454,7 +460,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
             }}
           />
           <span
-            title={bpm ? `Tempo utworu: ${bpm} BPM (wypadkowo: ${Math.round(bpm * effectiveSpeed)} BPM)` : undefined}
+            title={bpm ? `${t.dsp?.tempo || 'Tempo'}: ${bpm} BPM (${Math.round(bpm * effectiveSpeed)} BPM)` : undefined}
             style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', whiteSpace: 'nowrap' }}
           >
             {isPlaying
@@ -471,6 +477,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
             isOpen={internalLoFiModalOpen}
             onClose={() => setInternalLoFiModalOpen(false)}
             isPlaying={isPlaying}
+            currentLang={currentLang}
           />
         </React.Suspense>
       )}

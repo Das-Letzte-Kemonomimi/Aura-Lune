@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ModelPackInfo, AnalysisCapabilities } from '../../types/analysis';
+import { getTranslations, type Language } from '../../i18n';
 
 interface CreateStemProjectModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ interface CreateStemProjectModalProps {
   trackArtist?: string;
   trackDurationMs?: number;
   onProjectCreated: (projectId: number) => void;
+  currentLang?: Language;
 }
 
 export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
@@ -39,10 +41,12 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
   trackArtist,
   trackDurationMs = 180000,
   onProjectCreated,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const effectiveTrackId = track?.id ?? trackId ?? 0;
-  const effectiveTrackTitle = track?.title ?? trackTitle ?? 'Utwór';
-  const effectiveTrackArtist = track?.artist ?? trackArtist ?? 'Wykonawca';
+  const effectiveTrackTitle = track?.title ?? trackTitle ?? t.stems.modalTrackDefault;
+  const effectiveTrackArtist = track?.artist ?? trackArtist ?? t.stems.artistDefault;
   const effectiveDurationMs = track?.duration_ms ?? trackDurationMs ?? 180000;
 
   const [modelPacks, setModelPacks] = useState<ModelPackInfo[]>([]);
@@ -52,14 +56,14 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
     'pack_vocal_harmonies',
   ]);
   const [capabilities, setCapabilities] = useState<AnalysisCapabilities | null>(null);
-  const [projectTitle, setProjectTitle] = useState<string>(`${effectiveTrackTitle} (Stem Project)`);
+  const [projectTitle, setProjectTitle] = useState<string>(`${effectiveTrackTitle} (${t.stems.title})`);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    setProjectTitle(`${effectiveTrackTitle} (Stem Project)`);
+    setProjectTitle(`${effectiveTrackTitle} (${t.stems.title})`);
     setError(null);
 
     const loadData = async () => {
@@ -76,7 +80,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
     };
 
     loadData();
-  }, [isOpen, effectiveTrackTitle]);
+  }, [isOpen, effectiveTrackTitle, t.stems.title]);
 
   if (!isOpen) return null;
 
@@ -180,7 +184,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc' }}>
-                Utwórz Projekt Stemów (Moises Studio)
+                {t.stems.title}
               </h2>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
                 {effectiveTrackTitle} • {effectiveTrackArtist}
@@ -223,7 +227,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           {/* Nazwa projektu */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
-              Nazwa projektu
+              {t.stems.projectName}
             </label>
             <input
               type="text"
@@ -256,7 +260,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Cpu size={18} color="#38bdf8" />
-              <span style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>Akcelerator obliczeń:</span>
+              <span style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>{t.stems.computeAccelerator}</span>
             </div>
             <span
               style={{
@@ -269,14 +273,14 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
               }}
             >
               <Zap size={14} />
-              {capabilities?.accelerator_device || 'Wykrywanie sprzętu...'}
+              {capabilities?.accelerator_device || t.stems.detectingHardware}
             </span>
           </div>
 
           {/* Wybór pakietów modeli */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '10px' }}>
-              Wybierz pakiety instrumentów (Kaskadowe etapy)
+              {t.stems.selectPacks}
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {modelPacks.map((pack) => {
@@ -313,7 +317,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
                               fontWeight: 700,
                             }}
                           >
-                            ⚡ HPSS & Panning (Wbudowany STFT)
+                            {t.stems.builtInStft}
                           </span>
                         ) : pack.is_installed ? (
                           <span
@@ -326,7 +330,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
                               fontWeight: 700,
                             }}
                           >
-                            ✨ Sieć AI Gotowa
+                            {t.stems.aiReady}
                           </span>
                         ) : (
                           <span
@@ -339,7 +343,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
                               fontWeight: 600,
                             }}
                           >
-                            📦 Pobierz model w Menedżerze
+                            {t.stems.downloadInManager}
                           </span>
                         )}
                       </div>
@@ -372,7 +376,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           {/* Podgląd wynikowych stemów */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
-              Ścieżki, które powstaną w mikserze ({calculatedStems.length} instrumentów):
+              {t.stems.outputTracks.replace('{0}', String(calculatedStems.length))}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {calculatedStems.map((stem) => (
@@ -411,11 +415,11 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           >
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
               <Clock size={16} color="#f59e0b" />
-              <span>Szacowany czas: ~{estimatedTimeSec}s</span>
+              <span>{t.stems.estimatedTime.replace('{0}', String(estimatedTimeSec))}</span>
             </div>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
               <HardDrive size={16} color="#38bdf8" />
-              <span>Miejsce na dysku: ~{Math.round(calculatedStems.length * 8.5)} MB</span>
+              <span>{t.stems.diskSpace.replace('{0}', String(Math.round(calculatedStems.length * 8.5)))}</span>
             </div>
           </div>
         </div>
@@ -443,7 +447,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
               fontWeight: 600,
             }}
           >
-            Anuluj
+            {t.common.cancel}
           </button>
 
           <button
@@ -466,12 +470,12 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
             {isSubmitting ? (
               <>
                 <Sparkles size={16} className="animate-spin" />
-                Tworzenie projektu...
+                {t.stems.creatingProject}
               </>
             ) : (
               <>
                 <Play size={16} fill="#ffffff" />
-                Utwórz i Rozpocznij Miks
+                {t.stems.createAndMix}
               </>
             )}
           </button>

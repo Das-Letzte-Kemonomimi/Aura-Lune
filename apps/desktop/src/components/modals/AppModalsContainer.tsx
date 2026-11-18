@@ -491,12 +491,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         isOpen={isLoFiModalOpen}
         onClose={() => setIsLoFiModalOpen(false)}
         isPlaying={status.state === 'Playing'}
+        currentLang={language}
       />
 
       {/* Modal Testu Środowiska Audio (Health Check 1.0) */}
       <AudioHealthCheckModal
         isOpen={isHealthCheckModalOpen}
         onClose={() => setIsHealthCheckModalOpen(false)}
+        currentLang={language}
       />
 
       {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
@@ -610,9 +612,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           if (curBpm && curBpm > 0) {
             const ratio = Math.min(3.0, Math.max(0.25, Math.round((targetBpm / curBpm) * 100) / 100));
             handleTempoChange(ratio);
-            showMessage(`Dopasowano tempo DSP: ${ratio}x (${curBpm.toFixed(1)} → ${targetBpm.toFixed(1)} BPM)`);
+            showMessage(
+              loc.notifications.tempoMatched
+                .replace('{0}', String(ratio))
+                .replace('{1}', curBpm.toFixed(1))
+                .replace('{2}', targetBpm.toFixed(1))
+            );
           } else {
-            showMessage(`Bieżący utwór nie posiada wykrytego BPM do synchronizacji`, true);
+            showMessage(loc.notifications.noBpmDetected, true);
           }
         }}
         crossfadeDurationMs={crossfadeDuration}
@@ -641,9 +648,11 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             setSelectedEqPreset(autoEqLabel);
             setStatus((prev: PlaybackStatus) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
             showMessage(
-              `Zastosowano profil słuchawek AutoEQ: ${profileName}${
-                preampDb !== 0 ? ` (Preamp: ${preampDb.toFixed(1)} dB)` : ''
-              }`
+              preampDb !== 0
+                ? loc.notifications.autoEqAppliedWithPreamp
+                    .replace('{0}', profileName)
+                    .replace('{1}', preampDb.toFixed(1))
+                : loc.notifications.autoEqApplied.replace('{0}', profileName)
             );
             setIsAutoEqOpen(false);
           } catch (e: any) {
@@ -690,7 +699,12 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           setLoopPointA(a);
           setLoopPointB(b);
           if (a !== null && b !== null) {
-            showMessage(`Ustawiono pętlę A-B: ${formatTimeMs(a)} → ${formatTimeMs(b)} (${b - a} ms)`);
+            showMessage(
+              loc.notifications.loopSetRange
+                .replace('{0}', formatTimeMs(a))
+                .replace('{1}', formatTimeMs(b))
+                .replace('{2}', String(b - a))
+            );
           } else {
             showMessage(loc.shortcuts.loopClear || 'Wyczyszczono pętlę A-B');
           }
@@ -773,6 +787,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           setCreateStemProjectTrack(currentPlayingTrack || null);
           setIsCreateStemProjectOpen(true);
         }}
+        currentLang={language}
       />
 
       {/* Moises-Style Stem Project Studio Modal */}
@@ -786,6 +801,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           isPlaying={status.state === 'Playing'}
           onPlayPause={handlePlayPause}
           onSeek={handleSeek}
+          currentLang={language}
         />
       )}
 
@@ -798,6 +814,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           setActiveStemProjectId(newProjectId);
           setIsStemStudioOpen(true);
         }}
+        currentLang={language}
       />
 
       {/* Podsumowanie Tygodnia, Miesiąca i Roku (Auralune Recap / Wrapped) */}
@@ -900,7 +917,11 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               await invoke('play');
               handleSeek(cueTrack.start_offset_ms);
             });
-            showMessage(`Odtwarzanie CUE: ${cueTrack.title} (${cueTrack.number})`);
+            showMessage(
+              loc.notifications.cuePlaybackStarted
+                .replace('{0}', cueTrack.title)
+                .replace('{1}', String(cueTrack.number))
+            );
           }}
           onAddCueTracksToQueue={async (audioFile, cueTracks) => {
             let targetPath = audioFile;
@@ -922,7 +943,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               await invoke('add_to_queue', { item });
             }
             await refreshQueue();
-            showMessage(`Dodano ${cueTracks.length} utworów z CUE do kolejki`);
+            showMessage(loc.notifications.cueTracksAdded.replace('{0}', String(cueTracks.length)));
           }}
         />
       )}
@@ -937,6 +958,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             await invoke('play');
           });
         }}
+        currentLang={language}
       />
 
       {/* Modal Wielopunktowych Zakładek (Cue Points) */}
@@ -958,9 +980,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             if (startMs !== null) setLoopPointA(startMs);
             if (endMs !== null) setLoopPointB(endMs);
             if (startMs !== null && endMs !== null) {
-              showMessage(`Ustawiono pętlę A-B ze znaczników: ${formatTimeMs(startMs)} → ${formatTimeMs(endMs)}`);
+              showMessage(
+                loc.notifications.loopSetMarkers
+                  .replace('{0}', formatTimeMs(startMs))
+                  .replace('{1}', formatTimeMs(endMs))
+              );
             }
           }}
+          currentLang={language}
         />
       )}
 
@@ -974,6 +1001,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             });
           }}
           onLibraryChanged={loadLibrary}
+          currentLang={language}
         />
       )}
 
@@ -989,8 +1017,9 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           onClose={() => setIsFileRenamerOpen(false)}
           onRenamedSuccess={() => {
             loadLibrary();
-            showMessage('Pomyślnie zaktualizowano nazwy plików w bibliotece!');
+            showMessage(loc.fileRenamer.renameSuccess.replace('{0}', '').replace('  ', ' ').trim());
           }}
+          currentLang={language}
         />
       )}
 

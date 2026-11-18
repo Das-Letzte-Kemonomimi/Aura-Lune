@@ -13,6 +13,7 @@ import { PianoRollCanvas } from '../player/PianoRollCanvas';
 import { StemMixerModal } from './StemMixerModal';
 import { ModelManagerModal } from './ModelManagerModal';
 import { StemProjectsLibraryView } from '../../views/stems/StemProjectsLibraryView';
+import { type Language, getTranslations } from '../../i18n';
 
 export interface MusicAnalysisModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export interface MusicAnalysisModalProps {
   initialTab?: 'chords' | 'pianoroll' | 'stems' | 'projects' | 'models';
   onOpenStemProject?: (projectId: number) => void;
   onOpenCreateProject?: () => void;
+  currentLang?: Language;
 }
 
 export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
@@ -36,8 +38,8 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   onClose,
   trackId,
   trackPath,
-  trackTitle = 'Utwór',
-  trackArtist = 'Wykonawca',
+  trackTitle,
+  trackArtist,
   currentTimeMs,
   durationMs = 180000,
   pitchSemitones = 0,
@@ -46,7 +48,11 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   initialTab = 'chords',
   onOpenStemProject,
   onOpenCreateProject,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
+  const displayTitle = trackTitle || t.player.track;
+  const displayArtist = trackArtist || t.player.artist;
   const [activeTab, setActiveTab] = useState<'chords' | 'pianoroll' | 'stems' | 'projects' | 'models'>(
     initialTab
   );
@@ -78,7 +84,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   }> = [
       {
         id: 'chords',
-        label: 'Akordy & Harmonia',
+        label: t.analysis.tabChords,
         icon: <Music size={14} />,
         color: '#f43f5e',
         activeBg: 'rgba(244, 63, 94, 0.18)',
@@ -86,7 +92,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
       },
       {
         id: 'pianoroll',
-        label: 'Piano-Roll & MIDI',
+        label: t.analysis.tabPianoRoll,
         icon: <Piano size={14} />,
         color: '#c084fc',
         activeBg: 'rgba(192, 132, 252, 0.18)',
@@ -94,7 +100,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
       },
       {
         id: 'stems',
-        label: 'Stemy & Karaoke',
+        label: t.analysis.tabStems,
         icon: <Layers size={14} />,
         color: '#38bdf8',
         activeBg: 'rgba(56, 189, 248, 0.18)',
@@ -102,7 +108,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
       },
       {
         id: 'projects',
-        label: 'Projekty Stemów',
+        label: t.analysis.tabProjects,
         icon: <Sliders size={14} />,
         color: '#10b981',
         activeBg: 'rgba(16, 185, 129, 0.18)',
@@ -110,7 +116,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
       },
       {
         id: 'models',
-        label: 'Modele AI',
+        label: t.analysis.tabModels,
         icon: <Cpu size={14} />,
         color: '#f59e0b',
         activeBg: 'rgba(245, 158, 11, 0.18)',
@@ -197,7 +203,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
                   letterSpacing: '-0.01em',
                 }}
               >
-                Music Analysis Studio
+                {t.analysis.title}
               </h2>
               <p
                 style={{
@@ -210,7 +216,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
                   maxWidth: '380px',
                 }}
               >
-                {trackTitle} • {trackArtist}
+                {displayTitle} • {displayArtist}
               </p>
             </div>
           </div>
@@ -277,7 +283,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
               transition: 'all 0.2s',
               flexShrink: 0,
             }}
-            title="Zamknij (Esc)"
+            title={t.common.close}
           >
             <X size={18} />
           </button>
@@ -289,13 +295,14 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
             <ChordTimelineView
               trackId={trackId}
               trackPath={trackPath}
-              trackTitle={trackTitle}
-              trackArtist={trackArtist}
+              trackTitle={displayTitle}
+              trackArtist={displayArtist}
               currentTimeMs={currentTimeMs}
               durationMs={durationMs}
               pitchSemitones={pitchSemitones}
               onSeek={onSeek}
               onSetLoop={onSetLoop}
+              currentLang={currentLang}
             />
           )}
 
@@ -303,10 +310,11 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
             <PianoRollCanvas
               trackId={trackId}
               trackPath={trackPath}
-              trackTitle={trackTitle}
+              trackTitle={displayTitle}
               currentTimeMs={currentTimeMs}
               durationMs={durationMs}
               onSeek={onSeek}
+              currentLang={currentLang}
             />
           )}
 
@@ -316,14 +324,16 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
               onClose={onClose}
               trackId={trackId}
               trackPath={trackPath}
-              trackTitle={trackTitle}
+              trackTitle={displayTitle}
               embedded={true}
+              currentLang={currentLang}
             />
           )}
 
           {activeTab === 'projects' && (
             <div style={{ height: '100%', overflowY: 'auto' }}>
               <StemProjectsLibraryView
+                currentLang={currentLang}
                 onOpenProject={(pid) => {
                   onClose();
                   onOpenStemProject?.(pid);
@@ -341,6 +351,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
               isOpen={true}
               onClose={onClose}
               embedded={true}
+              currentLang={currentLang}
             />
           )}
         </div>

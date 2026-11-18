@@ -9,8 +9,10 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import type { TrackTranscriptionData } from '../../types/analysis';
+import { getTranslations, type Language } from '../../i18n';
 
 export interface PianoRollCanvasProps {
+  currentLang?: Language;
   trackId?: number;
   trackPath?: string;
   trackTitle?: string;
@@ -30,14 +32,17 @@ function isBlackKey(midi: number): boolean {
 }
 
 export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
+  currentLang,
   trackId,
   trackPath,
-  trackTitle = 'Transkrypcja',
+  trackTitle,
   currentTimeMs,
   durationMs = 180000,
   onSeek,
   onClose,
 }) => {
+  const t = getTranslations(currentLang);
+  const displayTitle = trackTitle || t.analysis.transcriptionDefault;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [data, setData] = useState<TrackTranscriptionData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -232,11 +237,11 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${trackTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}_transcription.mid`;
+      a.download = `${(displayTitle || 'track').replace(/[^a-zA-Z0-9_-]/g, '_')}_transcription.mid`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert(`Błąd eksportu MIDI: ${err}`);
+      alert(`${t.common.errorPrefix} ${err}`);
     }
   };
 
@@ -288,10 +293,10 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
           </div>
           <div>
             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
-              Piano-Roll & Transkrypcja Polifoniczna
+              {t.analysis.pianoRollTitle}
             </span>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-              {data ? `Wykryto ${data.notes.length} nut • Tempo: ${data.bpm.toFixed(1)} BPM` : 'Analiza nutowa...'}
+              {data ? t.analysis.detectedNotes.replace('{0}', String(data.notes.length)).replace('{1}', data.bpm.toFixed(1)) : t.analysis.analyzingNotes}
             </p>
           </div>
         </div>
@@ -318,7 +323,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
                 cursor: 'pointer',
                 display: 'flex',
               }}
-              title="Oddal czas"
+              title={t.analysis.zoomOut}
             >
               <ZoomOut size={14} />
             </button>
@@ -335,7 +340,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
                 cursor: 'pointer',
                 display: 'flex',
               }}
-              title="Przybliż czas"
+              title={t.analysis.zoomIn}
             >
               <ZoomIn size={14} />
             </button>
@@ -358,10 +363,10 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
               cursor: data && data.notes.length ? 'pointer' : 'not-allowed',
               opacity: data && data.notes.length ? 1 : 0.5,
             }}
-            title="Eksportuj do standardowego pliku MIDI (.mid)"
+            title={t.analysis.exportMidiTooltip}
           >
             <Download size={14} />
-            <span>Pobierz MIDI (.mid)</span>
+            <span>{t.analysis.downloadMidi}</span>
           </button>
 
           {onClose && (

@@ -11,16 +11,20 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { StemProject, StemProjectProgressPayload } from '../../types/analysis';
 import { formatBytes } from '../../utils/fileSizeFormat';
+import { getTranslations, type Language } from '../../i18n';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
   onOpenCreateProject?: () => void;
+  currentLang?: Language;
 }
 
 export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = ({
   onOpenProject,
   onOpenCreateProject,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const [projects, setProjects] = useState<StemProject[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,14 +75,14 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
   }, [loadProjects]);
 
   const handleDelete = async (projectId: number, title: string) => {
-    if (!window.confirm(`Czy na pewno chcesz usunąć projekt "${title}" wraz z plikami stemów z dysku?`)) {
+    if (!window.confirm(t.stems.deleteConfirm.replace('{0}', title))) {
       return;
     }
     try {
       await invoke('delete_stem_project', { projectId });
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
     } catch (err: any) {
-      alert(`Błąd usuwania: ${err}`);
+      alert(t.stems.deleteError.replace('{0}', String(err)));
     }
   };
 
@@ -99,7 +103,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       );
       setEditingProjectId(null);
     } catch (err: any) {
-      alert(`Błąd zmiany nazwy: ${err}`);
+      alert(t.stems.renameError.replace('{0}', String(err)));
     }
   };
 
@@ -116,10 +120,10 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       >
         <div>
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#f8fafc' }}>
-            Projekty Stemów (Stem Projects)
+            {t.stems.title}
           </h2>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
-            Twoje wielościeżkowe projekty mikserskie z rozbiciem na instrumenty (Moises-style)
+            {t.stems.subtitle}
           </p>
         </div>
 
@@ -142,7 +146,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
             }}
           >
             <Layers size={16} />
-            Nowy projekt ze ścieżki
+            {t.stems.newProject}
           </button>
         )}
       </div>
@@ -166,7 +170,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       {loading && projects.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
           <Sparkles size={28} className="animate-spin" style={{ margin: '0 auto 12px auto' }} />
-          <div>Ładowanie projektów...</div>
+          <div>{t.stems.loadingProjects}</div>
         </div>
       ) : projects.length === 0 ? (
         <div
@@ -194,11 +198,10 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
             <Layers size={32} />
           </div>
           <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#f8fafc' }}>
-            Brak projektów stemów
+            {t.stems.noProjects}
           </h3>
           <p style={{ margin: '0 0 20px 0', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '480px', marginInline: 'auto' }}>
-            Możesz utworzyć projekt mikserski z dowolnego utworu! Kliknij prawym przyciskiem myszy
-            na utwór w bibliotece, w odtwarzaczu lub w trybie kinowym i wybierz „Utwórz projekt stemów”.
+            {t.stems.noProjectsDesc}
           </p>
         </div>
       ) : (
@@ -309,7 +312,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                         fontWeight: 700,
                       }}
                     >
-                      Gotowy
+                      {t.stems.statusReady}
                     </span>
                   ) : project.status === 'separating' ? (
                     <span
@@ -327,7 +330,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                       }}
                     >
                       <Sparkles size={10} className="animate-spin" />
-                      {Math.round(project.progress * 100)}%
+                      {t.stems.statusSeparating.replace('{0}', String(Math.round(project.progress * 100)))}
                     </span>
                   ) : project.status === 'failed' ? (
                     <span
@@ -341,7 +344,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                         fontWeight: 700,
                       }}
                     >
-                      Błąd
+                      {t.stems.statusFailed}
                     </span>
                   ) : (
                     <span
@@ -355,7 +358,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                         fontWeight: 700,
                       }}
                     >
-                      W kolejce
+                      {t.stems.statusQueued}
                     </span>
                   )}
                 </div>
@@ -374,7 +377,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Layers size={13} /> {project.channels.length} ścieżek
+                  <Layers size={13} /> {t.stems.tracksCount.replace('{0}', String(project.channels.length))}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <HardDrive size={13} /> {formatBytes(project.disk_size_bytes)}
@@ -408,13 +411,13 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                   }}
                 >
                   <Play size={14} fill="#ffffff" />
-                  Otwórz Studio Miksera
+                  {t.stems.openStudio}
                 </button>
 
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <button
                     onClick={() => handleStartRename(project)}
-                    title="Zmień nazwę projektu"
+                    title={t.stems.renameProject}
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -428,7 +431,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                   </button>
                   <button
                     onClick={() => handleDelete(project.id, project.title)}
-                    title="Usuń projekt z bazy i dysku"
+                    title={t.stems.deleteProject}
                     style={{
                       background: 'transparent',
                       border: 'none',

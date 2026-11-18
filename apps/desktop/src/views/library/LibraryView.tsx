@@ -324,9 +324,9 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                       boxShadow: '0 2px 12px rgba(236, 72, 153, 0.4)',
                       transition: 'all 0.15s ease',
                     }}
-                    title="Wymieszaj i odtwórz wszystkie utwory z bieżącego widoku (Shuffle All)"
+                    title={loc.library.shuffleAllTooltip}
                   >
-                    <Shuffle size={15} /> {(loc.library as any)?.shuffleAll || 'Wymieszaj wszystko'}
+                    <Shuffle size={15} /> {loc.library.shuffleAll}
                   </button>
 
                   <button
@@ -368,9 +368,9 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                       borderRadius: '8px',
                       boxShadow: '0 2px 10px rgba(168, 85, 247, 0.25)',
                     }}
-                    title="Wklejenie linku (YouTube, SoundCloud itp.), pobranie audio przez yt-dlp z okładką i natychmiastowe zindeksowanie"
+                    title={loc.library.importUrlTooltip}
                   >
-                    <Globe size={15} color="#d8b4fe" /> Importuj z URL (yt-dlp)
+                    <Globe size={15} color="#d8b4fe" /> {loc.library.importUrlBtn}
                   </button>
 
                   <button
@@ -1661,7 +1661,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                     boxShadow: '0 4px 14px rgba(236, 72, 153, 0.4)',
                                   }}
                                 >
-                                  <Play size={16} fill="#fff" /> {loc.player.play} od początku
+                                  <Play size={16} fill="#fff" /> {loc.library.playFromStart}
                                 </button>
                                 <button
                                   onClick={() => handleShuffleAll(albumTracks)}
@@ -1679,9 +1679,9 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                     cursor: albumTracks.length === 0 ? 'default' : 'pointer',
                                     border: '1px solid rgba(236, 72, 153, 0.45)',
                                   }}
-                                  title="Wymieszaj i odtwórz ten album"
+                                  title={loc.library.shuffleAlbumTooltip}
                                 >
-                                  <Shuffle size={15} color="var(--accent-pink)" /> Wymieszaj album
+                                  <Shuffle size={15} color="var(--accent-pink)" /> {loc.library.shuffleAlbum}
                                 </button>
                                 <button
                                   onClick={async () => {
@@ -1708,7 +1708,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                   }}
                                   title={loc.library.addToQueue}
                                 >
-                                  <Plus size={16} /> Dodaj cały album do kolejki
+                                  <Plus size={16} /> {loc.library.addAlbumToQueue}
                                 </button>
                                 <button
                                   onClick={() => handleOpenCoverPicker(selectedAlbumDetail)}
@@ -1761,16 +1761,16 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                   <th style={{ padding: '10px 12px', width: '45px' }}>#</th>
                                   <th style={{ padding: '10px 12px' }}>{loc.library.sortTitle}</th>
                                   <th style={{ padding: '10px 12px' }}>{loc.library.sortArtist}</th>
-                                  <th style={{ padding: '10px 12px' }}>Format</th>
+                                  <th style={{ padding: '10px 12px' }}>{loc.library.sortFormat}</th>
                                   <th style={{ padding: '10px 12px', textAlign: 'right' }}>{loc.queue.duration}</th>
-                                  <th style={{ padding: '10px 12px', textAlign: 'center', width: '160px' }}>Akcje</th>
+                                  <th style={{ padding: '10px 12px', textAlign: 'center', width: '160px' }}>{loc.library.actions}</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {albumTracks.length === 0 ? (
                                   <tr>
                                     <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                      Brak utworów przypisanych do tego albumu w bibliotece.
+                                      {loc.library.noAlbumTracks}
                                     </td>
                                   </tr>
                                 ) : (
@@ -1854,7 +1854,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                             </button>
                                             <button
                                               onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
-                                              title="Edytor tagów"
+                                              title={loc.library.tagEditorTooltip}
                                               style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
                                             >
                                               <TagIcon size={15} />

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import type { TrackChordsData } from '../../types/analysis';
+import { getTranslations, type Language } from '../../i18n';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -23,6 +24,7 @@ export interface ChordTimelineViewProps {
   onSeek: (positionMs: number) => void;
   onSetLoop?: (startMs: number, endMs: number) => void;
   onClose?: () => void;
+  currentLang?: Language;
 }
 
 const CHROMATIC = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -52,15 +54,17 @@ function transposeChordName(chord: string, semitones: number): string {
 export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   trackId,
   trackPath,
-  trackTitle = 'Nieznany utwór',
-  trackArtist = 'Nieznany wykonawca',
+  trackTitle,
+  trackArtist,
   currentTimeMs,
   durationMs: _durationMs,
   pitchSemitones = 0,
   onSeek,
   onSetLoop,
   onClose,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const [data, setData] = useState<TrackChordsData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,10 +236,10 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           </div>
           <div>
             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
-              Oś Czasu Harmonii i Akordów
+              {t.player.chordTimelineTitle}
             </span>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-              {data ? `Tonacja: ${data.key} (${data.camelot}) • ${data.bpm.toFixed(1)} BPM` : 'Analiza harmoniczna...'}
+              {data ? `${t.dsp.keyLabel}: ${data.key} (${data.camelot}) • ${data.bpm.toFixed(1)} BPM` : t.player.harmonicAnalysis}
             </p>
           </div>
         </div>
@@ -254,9 +258,11 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
                 background: showTransposed ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255, 255, 255, 0.04)',
                 color: showTransposed ? '#fbbf24' : '#94a3b8',
               }}
-              title="Przełącz wyświetlanie transponowanych akordów dla aktywnego Pitch Shift"
+              title={t.player.transposeToggleTooltip}
             >
-              Transpozycja: {pitchSemitones > 0 ? `+${pitchSemitones}` : pitchSemitones} st ({showTransposed ? 'Włączona' : 'Oryginalna'})
+              {t.player.transposition
+                .replace('{0}', pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones))
+                .replace('{1}', showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
             </button>
           )}
 
@@ -274,7 +280,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            title="Przelicz akordy ponownie"
+            title={t.player.recomputeChordsTooltip}
           >
             <RotateCcw size={16} style={loading ? { animation: 'spin 1.5s linear infinite' } : undefined} />
           </button>
@@ -292,7 +298,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            title="Eksportuj akordy"
+            title={t.player.exportChords.replace('{0}', exportFormat.toUpperCase())}
           >
             <Download size={16} />
           </button>
@@ -331,7 +337,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px' }}>
           <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', fontWeight: 700 }}>
-            Aktualny akord:
+            {t.player.currentChord}
           </span>
           <span
             style={{
@@ -347,7 +353,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           </span>
           {pitchSemitones !== 0 && showTransposed && activeChord && (
             <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
-              (oryg. {activeChord.chord})
+              ({t.player.transposedOrig.toLowerCase()} {activeChord.chord})
             </span>
           )}
         </div>
@@ -370,7 +376,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
             }}
           >
             <Repeat size={14} />
-            <span>Zapętl ten akord (A-B)</span>
+            <span>{t.player.loopChord}</span>
           </button>
         )}
       </div>
@@ -381,7 +387,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px', gap: '12px' }}>
             <Sparkles size={28} color="#f43f5e" style={{ animation: 'spin 1.5s linear infinite' }} />
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1' }}>
-              Wykrywanie siatki rytmicznej i progresji akordów...
+              {t.player.detectingChords}
             </p>
           </div>
         ) : error ? (
@@ -514,7 +520,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
                           display: 'flex',
                           alignItems: 'center',
                         }}
-                        title="Edytuj akord"
+                        title={t.common.edit}
                       >
                         <Edit3 size={11} />
                       </button>
@@ -615,7 +621,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Kopiuj do schowka
+                {t.common.copyToClipboard}
               </button>
             </div>
           </div>

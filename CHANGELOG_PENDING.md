@@ -58,6 +58,11 @@
 - **Bezpieczeństwo pobierania instalatora**:
   - Zabezpieczono instalator uruchamiany z gałęzi stabilnej przed przypadkowym pobraniem wersji testowych.
   - Naprawiono obsługę kanału deweloperskiego, aby w razie opóźnienia wydań na GitHubie nie pobierał po cichu przestarzałych wersji stabilnych.
+- **Pełna lokalizacja interfejsu (i18n) i eliminacja nieprzetłumaczonych tekstów**:
+  - Wyeliminowano wszystkie pozostałe statyczne i twardo zakodowane napisy w całym frontendzie (`apps/desktop`), wprowadzając pełne tłumaczenia dla 5 obsługiwanych języków (angielski, polski, niemiecki, fiński, łacina).
+  - Przetłumaczono etykiety, opisy, dymki podpowiedzi (tooltips) i powiadomienia toast m.in. w: studiu miksera stemów (`StemMixerModal`, `StemProjectStudioModal`), kreatorze projektów wielościeżkowych (`CreateStemProjectModal`), menedżerze modeli AI (`ModelManagerModal`), bibliotece projektów stemów (`StemProjectsLibraryView`), studiu analizy harmonicznej i osi akordów (`ChordTimelineView`, `MusicAnalysisModal`), widoku transkrypcji nutowej (`PianoRollCanvas`), widżetach nośników analogowych (`TapeDeckWidget`, `VinylTurntable`), studiu DSP (`DspStudioView`), widoku biblioteki utworów i albumów (`LibraryView`) oraz dolnym doku odtwarzacza (`BottomPlaybackDock`).
+  - Naprawiono błąd gubienia właściwości języka w kontenerze modali (`AppModalsContainer.tsx`) – wyeliminowano sytuację, w której domyślny język polski był wymuszany w oknach dialogowych (`DownloadHubModal`, `TrackBookmarksModal`, `DuplicateFinderModal`, `FileRenamerModal`, `AnalogLoFiModal`, `AudioHealthCheckModal`, `MusicAnalysisModal`, `StemProjectStudioModal`, `CreateStemProjectModal`) niezależnie od wybranego języka w ustawieniach.
+  - Zapewniono 100% zgodności i symetrii kluczy we wszystkich 5 plikach lokalizacyjnych (`src/locales/{en,pl,de,fi,la}.json`), zweryfikowane automatycznym testem jednostkowym `i18n.test.ts`.
 
 ### 🔄 Zmieniono (Changed)
 - **Błyskawiczne wyszukiwanie i sortowanie w bibliotece**:

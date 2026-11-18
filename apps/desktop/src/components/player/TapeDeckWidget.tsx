@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CassetteTape, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
+import { getTranslations, type Language } from '../../i18n';
 
 const AnalogLoFiModal = React.lazy(() =>
   import('../modals/AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal }))
@@ -9,6 +10,7 @@ const AnalogLoFiModal = React.lazy(() =>
 export type TapeType = 'TYPE_I' | 'TYPE_II' | 'METAL';
 
 interface TapeDeckWidgetProps {
+  currentLang?: Language;
   isPlaying: boolean;
   positionMs?: number;
   durationMs?: number;
@@ -29,6 +31,7 @@ interface TapeDeckWidgetProps {
 }
 
 export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
+  currentLang,
   isPlaying,
   positionMs = 0,
   durationMs = 180000,
@@ -36,8 +39,8 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   rate = 1.0,
   engine = 'Bypass',
   isDspActive,
-  trackTitle = 'Nieznany utwór',
-  artistName = 'Auralune Master Tape',
+  trackTitle,
+  artistName,
   tapeType: controlledTapeType,
   onTapeTypeChange,
   tapeSpeed: controlledTapeSpeed,
@@ -47,6 +50,9 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   className,
   size = 265,
 }) => {
+  const t = getTranslations(currentLang);
+  const displayTitle = trackTitle || t.stems.modalTrackDefault || 'Track';
+  const displayArtist = artistName || 'Auralune Master Tape';
   const [localTapeType, setLocalTapeType] = useState<TapeType>('TYPE_II');
   const tapeType = controlledTapeType !== undefined ? controlledTapeType : localTapeType;
   const setTapeType = (type: TapeType) => {
@@ -278,7 +284,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             letterSpacing: '0.12em',
             boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.8)',
           }}
-          title="Licznik taśmy magnetycznej"
+          title={t.player.tapeCounter}
         >
           {counterFormatted}
         </div>
@@ -322,10 +328,10 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           />
           <line x1="86" y1="42" x2="154" y2="42" stroke={currentTheme.badgeBorder} strokeWidth="0.5" strokeOpacity="0.5" />
           <text x="120" y="38" textAnchor="middle" fill={currentTheme.badgeText} fontSize="5.2" fontWeight="bold" fontFamily="var(--font-mono, monospace)">
-            {artistName.length > 14 ? `${artistName.slice(0, 12)}...` : artistName}
+            {displayArtist.length > 14 ? `${displayArtist.slice(0, 12)}...` : displayArtist}
           </text>
           <text x="120" y="48" textAnchor="middle" fill="#f8fafc" fontSize="5.8" fontWeight="bold" fontFamily="var(--font-mono, monospace)">
-            {trackTitle.length > 13 ? `${trackTitle.slice(0, 11)}...` : trackTitle}
+            {displayTitle.length > 13 ? `${displayTitle.slice(0, 11)}...` : displayTitle}
           </text>
           <text x="120" y="54" textAnchor="middle" fill={currentTheme.accentColor} fontSize="4.2" fontWeight="bold" fontFamily="var(--font-mono, monospace)">
             {currentTheme.biasLabel}
@@ -397,7 +403,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           <button
             type="button"
             onClick={() => setTapeSpeed('7.5')}
-            title="Prędkość studyjna 7½ IPS (19 cm/s — 2x szybszy obrót szpul)"
+            title={t.player.tapeSpeedStudio}
             style={{
               padding: '2px 5px',
               borderRadius: '3px',
@@ -415,7 +421,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           <button
             type="button"
             onClick={() => setTapeSpeed('3.75')}
-            title="Prędkość standardowa 3¾ IPS (9.5 cm/s — połowa prędkości)"
+            title={t.player.tapeSpeedStandard}
             style={{
               padding: '2px 5px',
               borderRadius: '3px',
@@ -438,7 +444,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
               e.stopPropagation();
               handleOpenLoFi();
             }}
-            title="Otwórz studio analogowego szumu taśmy (Tape Lo-Fi Studio Popup)"
+            title={t.player.tapeLoFiTooltip}
             style={{
               padding: '2px 6px',
               borderRadius: '3px',
@@ -466,7 +472,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           <button
             type="button"
             onClick={() => setTapeType('TYPE_I')}
-            title="Taśma żelazowa (Type I / Ferric Oxide — ciepły analogowy szum, brązowa taśma, srebrne szpule)"
+            title={t.player.tapeTypeFerric}
             style={{
               padding: '2px 4px',
               borderRadius: '3px',
@@ -484,7 +490,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           <button
             type="button"
             onClick={() => setTapeType('TYPE_II')}
-            title="Taśma chromowa (Type II / Chrome Dioxide — czysta taśma węglowa, tytanowe szpule)"
+            title={t.player.tapeTypeChrome}
             style={{
               padding: '2px 4px',
               borderRadius: '3px',
@@ -502,7 +508,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           <button
             type="button"
             onClick={() => setTapeType('METAL')}
-            title="Taśma metalowa (Type IV / Pure Metal Particle — luksusowe złote szpule NAB, minimalny szum)"
+            title={t.player.tapeTypeMetal}
             style={{
               padding: '2px 4px',
               borderRadius: '3px',
@@ -544,6 +550,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             isOpen={internalLoFiModalOpen}
             onClose={() => setInternalLoFiModalOpen(false)}
             isPlaying={isPlaying}
+            currentLang={currentLang}
           />
         </React.Suspense>
       )}

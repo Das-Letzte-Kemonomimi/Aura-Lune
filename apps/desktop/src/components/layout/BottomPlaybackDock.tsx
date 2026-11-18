@@ -363,8 +363,8 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             }}
             title={
               status.stop_after_current
-                ? 'Zatrzymaj po bieżącym utworze: WŁĄCZONE (Stop After Current Track — foobar2000)'
-                : 'Zatrzymaj po bieżącym utworze: Wyłączone (Stop After Current Track)'
+                ? loc.bottomDock.stopAfterCurrentOn
+                : loc.bottomDock.stopAfterCurrentOff
             }
           >
             <Square size={13} style={{ fill: status.stop_after_current ? '#eab308' : 'none' }} />

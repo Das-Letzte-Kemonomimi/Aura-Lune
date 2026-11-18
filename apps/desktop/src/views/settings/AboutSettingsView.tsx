@@ -67,7 +67,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
           </p>
           <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', fontWeight: 600 }}>
-              Oficjalne Wydanie Stabilne 1.0.0
+              {loc.settings.officialRelease || 'Official Stable Release 1.0.0'}
             </span>
             <button
               onClick={onOpenHealthCheck}
@@ -86,7 +86,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
               }}
             >
               <Activity size={13} />
-              Test Środowiska Audio (Health Check)
+              {loc.healthCheck.title}
             </button>
             <button
               onClick={onOpenChangelog}

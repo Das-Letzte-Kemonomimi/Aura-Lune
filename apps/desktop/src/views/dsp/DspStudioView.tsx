@@ -253,7 +253,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       alignItems: 'center',
                       gap: '5px',
                     }}
-                    title="Domyślny silnik DSP ładowany przy starcie programu"
+                    title={loc.dsp.defaultEngineStartup}
                   >
                     Start: <strong style={{ color: dspDefaultEngine === 'Bypass' ? 'var(--accent-green)' : 'var(--accent-pink)' }}>{dspDefaultEngine}</strong>
                   </span>
@@ -596,7 +596,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                           }
                         }}
                         placeholder="0.00"
-                        title="Wpisz wartość i naciśnij Enter (lub użyj strzałek góra/dół)"
+                        title={loc.dsp.enterValuePitch}
                         style={{
                           width: '60px',
                           padding: '2px 6px',
@@ -801,7 +801,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                           }
                         }}
                         placeholder="1.00"
-                        title="Wpisz tempo (np. 1.25 lub 1,25) i naciśnij Enter (lub użyj strzałek góra/dół)"
+                        title={loc.dsp.enterValueTempo}
                         style={{
                           width: '60px',
                           padding: '2px 6px',
@@ -1004,7 +1004,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                           }
                         }}
                         placeholder="1.00"
-                        title="Wpisz prędkość (np. 1.15 lub 1,15) i naciśnij Enter (lub użyj strzałek góra/dół)"
+                        title={loc.dsp.enterValueSpeed}
                         style={{
                           width: '60px',
                           padding: '2px 6px',
@@ -1146,7 +1146,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                   {/* Tłumienie (Damping) */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Damping (Tłumienie):</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{loc.dsp.dampingLabel}</span>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbDamping * 100)}%</span>
                     </div>
                     <input
@@ -1164,7 +1164,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                   {/* Szerokość stereo (Width) */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Stereo Width (Szerokość):</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{loc.dsp.stereoWidthLabel}</span>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbWidth * 100)}%</span>
                     </div>
                     <input
@@ -1340,7 +1340,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       }}
                     >
                       <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🌸 Anime Vocal Air</span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Czysty wokal, ochrona formantów</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.vocalPreserveDesc}</span>
                     </button>
 
                     <button
@@ -1360,7 +1360,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       }}
                     >
                       <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>☕ Midnight Lo-Fi Tape</span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Szum taśmy, crossfeed, ciepło</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.tapeWarmthDesc}</span>
                     </button>
 
                     <button
@@ -1380,7 +1380,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       }}
                     >
                       <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🎧 Bit-Perfect Direct</span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>100% czysty passthrough bez DSP</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.bitPerfectDesc}</span>
                     </button>
 
                     <button
@@ -1400,7 +1400,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       }}
                     >
                       <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>⚡ Nightcore Club Anthem</span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Tempo 1.25x, Pitch +2 st, Limiter</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.nightcoreProfileDesc}</span>
                     </button>
 
                     <button
@@ -1420,7 +1420,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                       }}
                     >
                       <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🌌 Ambient Slowed & Space</span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Tempo 0.84x, Pitch -1.5 st, Wide</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.slowedProfileDesc}</span>
                     </button>
                   </div>
                 </div>
@@ -1661,8 +1661,8 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     <CheckCircle size={14} />
                     <span>
                       {limiterEnabled
-                        ? 'Automatyczna ochrona przed przesterowaniem (GStreamer RgLimiter)'
-                        : 'Limiter wyłączony — możliwe przesterowanie przy podbitym EQ'}
+                        ? loc.dsp.limiterDesc
+                        : loc.dsp.limiterOffWarning}
                     </span>
                   </div>
                 </div>
@@ -1939,7 +1939,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     {/* Przycisk Bazy Profili Słuchawkowych AutoEQ */}
                     <button
                       onClick={() => setIsAutoEqOpen(true)}
-                      title="Baza profili słuchawkowych AutoEQ (Harman Target dla 160+ modeli)"
+                      title={loc.dsp.autoEqHarmanTooltip}
                       style={{
                         padding: '6px 12px',
                         borderRadius: '8px',
@@ -1960,7 +1960,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     {/* Przycisk Wielopasmowego Korektora Parametrycznego PEQ */}
                     <button
                       onClick={() => setIsParametricEqOpen(true)}
-                      title="Wielopasmowy korektor parametryczny (PEQ) — filtry Peak/Shelf, biquad, import EqualizerAPO"
+                      title={loc.parametricEq.subtitle}
                       style={{
                         padding: '6px 12px',
                         borderRadius: '8px',

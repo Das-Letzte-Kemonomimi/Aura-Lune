@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { type Language, getTranslations } from '../../i18n';
 
 export interface AudioCodecStatus {
   format: string;
@@ -43,12 +44,15 @@ export interface AudioSystemHealth {
 interface AudioHealthCheckModalProps {
   isOpen: boolean;
   onClose: () => void;
+  currentLang?: Language;
 }
 
 export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
   isOpen,
   onClose,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const [loading, setLoading] = useState<boolean>(true);
   const [health, setHealth] = useState<AudioSystemHealth | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -161,16 +165,17 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                Test Środowiska Audio <span style={{ color: 'var(--accent-pink)', fontSize: '0.9rem' }}>v1.0 Health Check</span>
+                {t.healthCheck.title} <span style={{ color: 'var(--accent-pink)', fontSize: '0.9rem' }}>v1.0</span>
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Audyt niskopoziomowego toru PipeWire, silników DSP, dekoderów GStreamera i bazy danych
+                {t.healthCheck.subtitle}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
+            aria-label={t.common.close}
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
@@ -194,13 +199,13 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
               <RefreshCw size={28} className="spin" color="var(--accent-pink)" />
-              <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Trwa audyt toru audio...</p>
+              <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t.healthCheck.auditing}</p>
             </div>
           )}
 
           {error && (
             <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '0.85rem' }}>
-              Błąd testu: {error}
+              {t.healthCheck.testError.replace('{0}', error)}
             </div>
           )}
 
@@ -218,36 +223,36 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Volume2 size={16} color="var(--accent-pink)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Serwer Audio & Bufor Wyjściowy</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.healthCheck.audioServerBuffer}</span>
                   </div>
                   {health.pipewire_active ? (
                     <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                      <CheckCircle2 size={12} /> PipeWire Direct
+                      <CheckCircle2 size={12} /> {t.healthCheck.pipewireDirect}
                     </span>
                   ) : (
                     <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-                      Fallback ALSA/Pulse
+                      {t.healthCheck.fallbackAlsa}
                     </span>
                   )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                   <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>PipeWire Wersja</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.pipewireServer}</div>
                     <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', marginTop: '2px' }}>
-                      {health.pipewire_version ? `v${health.pipewire_version}` : 'Aktywny daemon'}
+                      {health.pipewire_version ? `v${health.pipewire_version}` : t.healthCheck.activeDaemon}
                     </div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Latencja bufora</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.bufferLatency}</div>
                     <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-pink)', marginTop: '2px' }}>
                       {health.audio_buffer_ms} ms
                     </div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Blok DSP</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.dspBlock}</div>
                     <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', marginTop: '2px' }}>
-                      {health.dsp_block_size} ramek
+                      {health.dsp_block_size} {t.healthCheck.frames}
                     </div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
@@ -270,20 +275,20 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                   <Cpu size={16} color="var(--accent-purple)" />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Silniki DSP Czasu Rzeczywistego</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.healthCheck.realtimeDsp}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>Rubber Band v3</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Phase-vocoder, formanty głosu</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.rubberbandDesc}</div>
                     </div>
                     <CheckCircle2 size={16} color="#4ade80" />
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>SoundTouch WSOLA</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Niskie zużycie CPU, natychmiastowy czas</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.soundtouchDesc}</div>
                     </div>
                     <CheckCircle2 size={16} color="#4ade80" />
                   </div>
@@ -302,7 +307,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Layers size={16} color="var(--accent-pink)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Formaty Dekodowania Audio</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.healthCheck.gstreamerCodecs}</span>
                   </div>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>GStreamer Plugins</span>
                 </div>
@@ -356,10 +361,10 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                     <Database size={15} color="var(--accent-purple)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Baza SQLite</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{t.healthCheck.databaseIntegrity}</span>
                   </div>
                   <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#4ade80' }}>
-                    {health.tracks_count} utworów • {health.albums_count} albumów
+                    {health.tracks_count} {t.stats.tracksUnit} • {health.albums_count} {t.library.albums.toLowerCase()}
                   </div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                     {health.db_status}
@@ -376,7 +381,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                     <Radio size={15} color="var(--accent-pink)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Pulpit & IPC</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{t.healthCheck.desktopIpc}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
                     <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: health.mpris_active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)', color: health.mpris_active ? '#4ade80' : 'var(--text-muted)' }}>
@@ -424,7 +429,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
             }}
           >
             <RefreshCw size={13} className={loading ? 'spin' : ''} />
-            Odśwież test
+            {t.healthCheck.recheckBtn}
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -449,7 +454,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
               }}
             >
               {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
-              {copied ? 'Skopiowano raport do schowka!' : 'Kopiuj raport diagnostyczny'}
+              {copied ? t.healthCheck.copiedReport : t.healthCheck.copyReport}
             </button>
           </div>
         </div>

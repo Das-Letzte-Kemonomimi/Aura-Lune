@@ -618,6 +618,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
 
                     {nowPlayingVisualMode === 'turntable' ? (
                       <VinylTurntable
+                        currentLang={language}
                         coverUrl={currentCover}
                         isPlaying={status.state === 'Playing'}
                         tempo={status.tempo_ratio ?? 1.0}
@@ -643,6 +644,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
                       />
                     ) : nowPlayingVisualMode === 'tape' ? (
                       <TapeDeckWidget
+                        currentLang={language}
                         isPlaying={status.state === 'Playing'}
                         positionMs={status.position_ms ?? 0}
                         durationMs={status.current_track?.duration_ms ?? 180000}

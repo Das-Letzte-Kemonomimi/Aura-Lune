@@ -434,7 +434,7 @@ export function useLibraryPlaybackActions({
           equalizer_enabled: true,
           equalizer_bands: tapeBands,
         }));
-        showMessage('☕ Zastosowano profil: Midnight Lo-Fi Tape (Szum taśmy, ciepło analogu, crossfeed)');
+        showMessage(loc.notifications.lofiPresetApplied);
       } else if (profileId === 'bit_perfect') {
         await invoke('set_dsp_params', {
           engine: 'Bypass',

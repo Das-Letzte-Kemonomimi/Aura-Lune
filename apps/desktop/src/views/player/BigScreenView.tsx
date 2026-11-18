@@ -245,7 +245,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
                 gap: '6px',
                 boxShadow: '0 0 12px rgba(236, 72, 153, 0.4)',
               }}
-              title="Aktualny akord (Music Analysis)"
+              title={t.player.currentChord}
             >
               <Music size={14} /> {currentChord}
             </span>

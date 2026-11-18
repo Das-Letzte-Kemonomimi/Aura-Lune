@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Disc, CassetteTape, Volume2, Check, Radio } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
+import { type Language, getTranslations } from '../../i18n';
 
 export interface AnalogLoFiModalProps {
   isOpen: boolean;
   onClose: () => void;
   isPlaying?: boolean;
+  currentLang?: Language;
 }
 
 export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
   isOpen,
   onClose,
   isPlaying = false,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const [config, setConfig] = useState<VinylSimConfig>(() => vinylSimulator.getConfig());
   const [previewActive, setPreviewActive] = useState<boolean>(false);
 
@@ -49,10 +53,10 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
   if (!isOpen) return null;
 
   const presets = [
-    { label: 'Subtelny', value: 0.12 },
-    { label: 'Vintage Hi-Fi', value: 0.25 },
-    { label: 'Lo-Fi Chill', value: 0.50 },
-    { label: 'Głęboki Retro', value: 0.80 },
+    { label: t.analogLoFi.presetSubtle, value: 0.12 },
+    { label: t.analogLoFi.presetVintage, value: 0.25 },
+    { label: t.analogLoFi.presetLofi, value: 0.50 },
+    { label: t.analogLoFi.presetDeep, value: 0.80 },
   ];
 
   const isActuallyAudible = config.enabled && (isPlaying || previewActive || !config.autoSync);
@@ -119,17 +123,17 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.02em' }}>
-                Analog Lo-Fi FX Studio
+                {t.analogLoFi.title}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '0.80rem', color: '#94a3b8' }}>
-                Generator organicznego szumu winylu i ciepłej taśmy magnetycznej
+                {t.analogLoFi.subtitle}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Zamknij"
+            aria-label={t.common.close}
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -181,11 +185,11 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                   }}
                 />
                 <span style={{ fontSize: '0.98rem', fontWeight: 700, color: '#f8fafc' }}>
-                  {config.enabled ? 'Efekt analogowy jest AKTYWNY' : 'Efekt analogowy jest WYŁĄCZONY'}
+                  {config.enabled ? t.analogLoFi.active : t.analogLoFi.disabled}
                 </span>
               </div>
               <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                Generuje fizyczny szum mechaniczny w tle odtwarzanego dźwięku
+                {t.analogLoFi.desc}
               </p>
             </div>
 
@@ -206,14 +210,14 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                 transition: 'all 0.2s ease',
               }}
             >
-              {config.enabled ? 'WŁĄCZONY' : 'WYŁĄCZONY'}
+              {config.enabled ? t.analogLoFi.enabledBtn : t.analogLoFi.disabledBtn}
             </button>
           </div>
 
           {/* Wybór nośnika: Winyl vs Taśma */}
           <div>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '10px' }}>
-              Wybierz charakter analogowy (nośnik):
+              {t.analogLoFi.mediumLabel}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               
@@ -241,7 +245,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: config.mode === 'vinyl' ? 'var(--accent-pink)' : '#cbd5e1' }}>
                     <Disc size={20} />
-                    <span style={{ fontWeight: 800, fontSize: '0.92rem' }}>Płyta Winylowa</span>
+                    <span style={{ fontWeight: 800, fontSize: '0.92rem' }}>{t.analogLoFi.vinyl}</span>
                   </div>
                   {config.mode === 'vinyl' && (
                     <span style={{ background: 'var(--accent-pink)', color: '#fff', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -250,7 +254,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                   )}
                 </div>
                 <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                  Mikrorowki, rotacyjny sweep 33⅓/45 RPM, trzaski kurzu i dudnienie igły (rumble).
+                  {t.analogLoFi.vinylDesc}
                 </p>
               </button>
 
@@ -278,7 +282,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: config.mode === 'tape' ? 'var(--accent-cyan)' : '#cbd5e1' }}>
                     <CassetteTape size={20} />
-                    <span style={{ fontWeight: 800, fontSize: '0.92rem' }}>Taśma Magnetyczna</span>
+                    <span style={{ fontWeight: 800, fontSize: '0.92rem' }}>{t.analogLoFi.tape}</span>
                   </div>
                   {config.mode === 'tape' && (
                     <span style={{ background: 'var(--accent-cyan)', color: '#000', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -287,7 +291,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                   )}
                 </div>
                 <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                  Ciepły szum nośnika ferrytowego/chromowego (Tape Hiss) i nasycenie taśmy.
+                  {t.analogLoFi.tapeDesc}
                 </p>
               </button>
 
@@ -310,7 +314,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Volume2 size={18} color="var(--accent-purple)" />
                 <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9' }}>
-                  Intensywność szumu i trzasków:
+                  {t.analogLoFi.noiseIntensity}
                 </span>
               </div>
               <strong style={{ fontSize: '1.15rem', color: 'var(--accent-pink)', fontFamily: 'var(--font-mono)' }}>
@@ -376,10 +380,10 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
           >
             <div>
               <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#e2e8f0' }}>
-                Wyciszaj szum przy wstrzymaniu (Auto-Sync)
+                {t.analogLoFi.autoSyncLabel}
               </span>
               <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-                Szum analogowy brzmi tylko wtedy, gdy muzyka jest aktywnie odtwarzana
+                {t.analogLoFi.autoSyncDesc}
               </p>
             </div>
 
@@ -411,9 +415,9 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Radio size={14} color={isActuallyAudible ? '#22c55e' : '#94a3b8'} />
               <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                Status generatora audio:{' '}
+                {t.analogLoFi.generatorStatus}{' '}
                 <strong style={{ color: isActuallyAudible ? '#22c55e' : '#cbd5e1' }}>
-                  {isActuallyAudible ? 'Emisja szumu aktywna (Audible)' : 'Wyciszony (Muted / Standby)'}
+                  {isActuallyAudible ? t.analogLoFi.statusAudible : t.analogLoFi.statusStandby}
                 </strong>
               </span>
             </div>
@@ -431,7 +435,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {previewActive ? 'Zatrzymaj odsłuch' : 'Przetestuj brzmienie'}
+              {previewActive ? t.analogLoFi.stopPreview : t.analogLoFi.testPreview}
             </button>
           </div>
 
@@ -461,7 +465,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
               boxShadow: '0 4px 16px rgba(168, 85, 247, 0.35)',
             }}
           >
-            Zatwierdź i zamknij
+            {t.analogLoFi.applyAndClose}
           </button>
         </div>
 

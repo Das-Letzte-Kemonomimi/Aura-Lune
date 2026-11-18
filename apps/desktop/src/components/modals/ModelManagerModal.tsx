@@ -11,18 +11,22 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { AiModelInfo, AnalysisCapabilities } from '../../types/analysis';
+import { getTranslations, type Language } from '../../i18n';
 
 export interface ModelManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   embedded?: boolean;
+  currentLang?: Language;
 }
 
 export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   isOpen,
   onClose,
   embedded = false,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const [capabilities, setCapabilities] = useState<AnalysisCapabilities | null>(null);
   const [models, setModels] = useState<AiModelInfo[]>([]);
   const [downloading, setDownloading] = useState<{ [id: string]: number }>({});
@@ -97,7 +101,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
       setDownloading((prev) => ({ ...prev, [id]: 0.01 }));
       await invoke('download_ai_model', { modelId: id });
     } catch (err: any) {
-      setError(`Błąd pobierania modelu: ${err}`);
+      setError(t.aiModels.downloadError.replace('{0}', String(err)));
       setDownloading((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -107,7 +111,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Czy na pewno chcesz usunąć wagi tego modelu z dysku?')) return;
+    if (!window.confirm(t.aiModels.deleteConfirm)) return;
     setError(null);
     try {
       await invoke('delete_ai_model', { modelId: id });
@@ -115,7 +119,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
         prev.map((m) => (m.id === id ? { ...m, is_installed: false } : m))
       );
     } catch (err: any) {
-      setError(`Błąd usuwania modelu: ${err}`);
+      setError(t.aiModels.deleteError.replace('{0}', String(err)));
     }
   };
 
@@ -173,15 +177,15 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
             </div>
             <div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>Urządzenie wykonawcze:</span>
+                <span>{t.aiModels.device}</span>
                 <span style={{ color: '#ec4899', fontFamily: 'var(--font-mono)' }}>
                   {capabilities.accelerator_device}
                 </span>
               </div>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
                 {capabilities.hardware_acceleration
-                  ? 'Wykryto akcelerację sprzętową GPU (Vulkan/ROCm/CUDA).'
-                  : 'Przetwarzanie na procesorze (AVX2/AVX-512) bez ryzyka xrunów audio.'}
+                  ? t.aiModels.gpuDetected
+                  : t.aiModels.cpuDetected}
               </p>
             </div>
           </div>
@@ -200,7 +204,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
             letterSpacing: '0.05em',
           }}
         >
-          Dostępne i zainstalowane modele
+          {t.aiModels.availableModels}
         </h3>
 
         {loading ? (
@@ -249,8 +253,8 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                     {model.description}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.72rem', color: '#64748b' }}>
-                    <span>Rozmiar: {(model.file_size / (1024 * 1024)).toFixed(0)} MB</span>
-                    <span>Format: ONNX</span>
+                    <span>{t.aiModels.sizeLabel.replace('{0}', (model.file_size / (1024 * 1024)).toFixed(0))}</span>
+                    <span>{t.aiModels.formatLabel}</span>
                   </div>
                 </div>
 
@@ -264,7 +268,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                           gap: '6px',
                           padding: '6px 12px',
                           borderRadius: '10px',
-                          background: 'rgba(16, 185, 129, 0.15)',
+                          background: 'rgba(168, 185, 129, 0.15)',
                           border: '1px solid rgba(16, 185, 129, 0.35)',
                           color: '#34d399',
                           fontSize: '0.78rem',
@@ -272,7 +276,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                         }}
                       >
                         <CheckCircle2 size={14} />
-                        Zainstalowany
+                        {t.aiModels.installed}
                       </span>
                       <button
                         onClick={() => handleDelete(model.id)}
@@ -287,7 +291,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                           alignItems: 'center',
                           gap: '4px',
                         }}
-                        title="Usuń wagi modelu z dysku"
+                        title={t.aiModels.deleteWeightsTooltip}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -313,7 +317,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                         />
                       </div>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
-                        Pobieranie {Math.round(progress * 100)}%
+                        {t.aiModels.downloading.replace('{0}', String(Math.round(progress * 100)))}
                       </span>
                     </div>
                   ) : (
@@ -335,7 +339,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                       }}
                     >
                       <Download size={14} />
-                      <span>Pobierz ({(model.file_size / (1024 * 1024)).toFixed(0)} MB)</span>
+                      <span>{t.aiModels.downloadBtn.replace('{0}', (model.file_size / (1024 * 1024)).toFixed(0))}</span>
                     </button>
                   )}
                 </div>
@@ -426,10 +430,10 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                Menedżer Modeli AI & Akceleracji
+                {t.aiModels.title}
               </h2>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
-                Lokalne modele uczenia maszynowego (Music Analysis & Stems)
+                {t.aiModels.subtitle}
               </p>
             </div>
           </div>

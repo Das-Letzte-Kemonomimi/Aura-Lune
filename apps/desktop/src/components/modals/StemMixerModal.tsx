@@ -13,6 +13,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { StemSeparationData, StemMixerState } from '../../types/analysis';
+import { getTranslations, type Language } from '../../i18n';
 
 export interface StemMixerModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export interface StemMixerModalProps {
   trackPath?: string;
   trackTitle?: string;
   embedded?: boolean;
+  currentLang?: Language;
 }
 
 interface StemProgressPayload {
@@ -34,9 +36,12 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
   onClose,
   trackId,
   trackPath,
-  trackTitle = 'Utwór',
+  trackTitle,
   embedded = false,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
+  const displayTrackTitle = trackTitle || t.stems.modalTrackDefault;
   const [stems, setStems] = useState<StemSeparationData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [progressMsg, setProgressMsg] = useState<string>('');
@@ -110,7 +115,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     setLoading(true);
     setError(null);
     setProgressVal(0.05);
-    setProgressMsg('Inicjalizacja separacji STFT HPSS...');
+    setProgressMsg(t.stems.initSeparation);
 
     try {
       const res = await invoke<StemSeparationData>('start_stem_separation', {
@@ -120,7 +125,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       });
       setStems(res);
       setProgressVal(1.0);
-      setProgressMsg('Separacja zakończona sukcesem!');
+      setProgressMsg(t.stems.separationSuccess);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -177,7 +182,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
   }> = [
       {
         id: 'vocals',
-        label: 'Wokal (Vocals)',
+        label: t.stems.channelVocals,
         icon: <Mic size={16} />,
         color: '#ec4899',
         volume: mixerState.vocals_volume,
@@ -187,7 +192,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       },
       {
         id: 'drums',
-        label: 'Perkusja (Drums)',
+        label: t.stems.channelDrums,
         icon: <Disc size={16} />,
         color: '#f59e0b',
         volume: mixerState.drums_volume,
@@ -197,7 +202,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       },
       {
         id: 'bass',
-        label: 'Bas (Bass)',
+        label: t.stems.channelBass,
         icon: <Radio size={16} />,
         color: '#06b6d4',
         volume: mixerState.bass_volume,
@@ -207,7 +212,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       },
       {
         id: 'other',
-        label: 'Pozostałe (Other)',
+        label: t.stems.channelOther,
         icon: <Sliders size={16} />,
         color: '#a855f7',
         volume: mixerState.other_volume,
@@ -245,7 +250,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
               fontWeight: 700,
             }}
           >
-            ⚡ Spektralna Separacja STFT HPSS & Azimuth
+            {t.stems.spectralSeparation}
           </span>
           {mixerState.enabled && (
             <span
@@ -259,7 +264,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                 fontWeight: 700,
               }}
             >
-              ● AKTYWNY W TORZE AUDIO
+              {t.stems.activeInAudioPath}
             </span>
           )}
         </div>
@@ -286,7 +291,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
             }}
           >
             <Mic size={14} />
-            <span>Tryb Karaoke (Wycisz wokal)</span>
+            <span>{t.stems.karaokeMode}</span>
           </button>
 
           {!mixerState.enabled ? (
@@ -309,7 +314,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
               }}
             >
               <Play size={14} />
-              <span>Włącz stemy w odtwarzaczu</span>
+              <span>{t.stems.loadStemsBtn}</span>
             </button>
           ) : (
             <button
@@ -328,10 +333,10 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                 color: '#67e8f9',
                 boxShadow: '0 0 14px rgba(6, 182, 212, 0.3)',
               }}
-              title="Przywróć natychmiastowe odtwarzanie oryginalnego pliku audio"
+              title={t.stems.restoreOriginalTooltip}
             >
               <RotateCcw size={14} />
-              <span>Wróć do oryginalnego utworu</span>
+              <span>{t.stems.returnToTrackBtn}</span>
             </button>
           )}
         </div>
@@ -386,11 +391,10 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
 
           <div style={{ maxWidth: '480px' }}>
             <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc' }}>
-              Rozdziel utwór na niezależne instrumenty
+              {t.stems.separateStemsTitle}
             </h3>
             <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5 }}>
-              Wydobądź wokal, perkusję, bas oraz instrumenty harmoniczne z zachowaniem pełnego pasma stereo 44.1 kHz.
-              Możesz wyciszać wokal (Karaoke), badać pojedyncze instrumenty w trybie solo oraz płynnie zmieniać proporcje głośności.
+              {t.stems.separationDesc}
             </p>
           </div>
 
@@ -438,7 +442,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
               }}
             >
               <Sparkles size={18} />
-              <span>Rozpocznij separację ścieżek (STFT HPSS)</span>
+              <span>{t.stems.startSeparation}</span>
             </button>
           )}
         </div>
@@ -628,9 +632,9 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                Mikser Stemów (Separacja Ścieżek)
+                {t.stems.modalTitle}
               </h2>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>{trackTitle}</p>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>{displayTrackTitle}</p>
             </div>
           </div>
 

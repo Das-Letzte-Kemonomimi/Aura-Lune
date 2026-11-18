@@ -20,6 +20,7 @@ import type {
   StemProjectProgressPayload,
 } from '../../types/analysis';
 import { sliderToDb } from '../../types/analysis';
+import { getTranslations, type Language } from '../../i18n';
 
 interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface StemProjectStudioModalProps {
   onSetLoop?: (startMs: number, endMs: number) => void;
   onOpenPianoRoll?: () => void;
   onOpenChords?: () => void;
+  currentLang?: Language;
 }
 
 export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
@@ -47,7 +49,9 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   onSetLoop: _onSetLoop,
   onOpenPianoRoll,
   onOpenChords,
+  currentLang = 'en',
 }) => {
+  const t = getTranslations(currentLang);
   const [project, setProject] = useState<StemProject | null>(null);
   const [channels, setChannels] = useState<StemChannel[]>([]);
   const [masterVolume, setMasterVolume] = useState<number>(1.0);
@@ -511,7 +515,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
           >
             <button
               onClick={handleSwitchToOriginal}
-              title="Przełącz na oryginalny utwór (Master)"
+              title={t.stems.originalMaster}
               style={{
                 padding: '6px 13px',
                 borderRadius: '9px',
@@ -529,11 +533,11 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
               }}
             >
               <Music size={13} />
-              Oryginał (Master)
+              {t.stems.originalMaster}
             </button>
             <button
               onClick={() => handleSwitchToStems()}
-              title="Przełącz na odsłuch miksu stemów na żywo"
+              title={t.stems.switchToStemsTooltip}
               style={{
                 padding: '6px 13px',
                 borderRadius: '9px',
@@ -551,14 +555,14 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
               }}
             >
               <Sliders size={13} />
-              Miks stemów (Na żywo)
+              {t.stems.liveStemMix}
             </button>
           </div>
 
           {/* Przycisk powrotu do oryginalnego utworu i zamknięcia studia */}
           <button
             onClick={handleReturnToOriginalAndClose}
-            title="Przywróć oryginalny utwór i wyjdź ze studia stemów"
+            title={t.stems.returnToOriginalCloseTooltip}
             style={{
               padding: '7px 14px',
               borderRadius: '10px',
@@ -575,7 +579,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
             }}
           >
             <RotateCcw size={14} />
-            Wróć do utworu
+            {t.stems.returnToTrack}
           </button>
 
           {/* Selektor miksu */}
@@ -597,7 +601,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            <option value="Default (0 dB)">Miks Domyślny (0 dB)</option>
+            <option value="Default (0 dB)">{t.stems.defaultMix}</option>
             {mixes.map((m) => (
               <option key={m.name} value={m.name}>
                 {m.name}
@@ -607,7 +611,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
 
           <button
             onClick={() => setIsSavingMix(true)}
-            title="Zapisz bieżący miks jako preset"
+            title={t.stems.saveMixTooltip}
             style={{
               padding: '8px 12px',
               borderRadius: '10px',
@@ -622,12 +626,12 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
             }}
           >
             <Save size={14} />
-            Zapisz miks
+            {t.stems.saveMix}
           </button>
 
           <button
             onClick={handleExportZip}
-            title="Eksportuj cały projekt do spakowanego archiwum ZIP"
+            title={t.stems.exportZipTooltip}
             style={{
               padding: '8px 12px',
               borderRadius: '10px',
@@ -642,12 +646,12 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
             }}
           >
             <Download size={14} />
-            Eksport ZIP
+            {t.stems.exportZip}
           </button>
 
           <button
             onClick={handleClose}
-            title="Zamknij studio i wróć do utworu"
+            title={t.stems.closeStudio}
             style={{
               background: 'transparent',
               border: 'none',
@@ -789,7 +793,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                       fontSize: '0.75rem',
                       cursor: 'pointer',
                     }}
-                    title="Solo (skrót S)"
+                    title={t.stems.soloTooltip}
                   >
                     S
                   </button>
@@ -806,7 +810,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                       fontSize: '0.75rem',
                       cursor: 'pointer',
                     }}
-                    title="Mute (skrót M)"
+                    title={t.stems.muteTooltip}
                   >
                     M
                   </button>
@@ -827,7 +831,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                     <span
                       style={{ cursor: 'pointer' }}
                       onClick={() => handlePanChange(ch.id, 0.0)}
-                      title="Kliknij dwukrotnie, aby zresetować do centrum"
+                      title={t.stems.panResetTooltip}
                     >
                       {ch.pan === 0
                         ? 'C'
@@ -875,7 +879,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                       accentColor: ch.color_hex,
                       cursor: 'pointer',
                     }}
-                    title="Podwójne kliknięcie resetuje do 75% (0 dB unity gain)"
+                    title={t.stems.volumeResetTooltip}
                   />
                 </div>
 
@@ -919,7 +923,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
         >
           <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
-              Master & Szybkie Presety
+              {t.stems.masterAndPresets}
             </span>
           </div>
 
@@ -927,7 +931,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
               <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 600 }}>
-                Głośność Master:
+                {t.stems.masterVolume}
               </span>
               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-pink)' }}>
                 {Math.round(masterVolume * 100)}%
@@ -967,13 +971,13 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
             }}
           >
             <RotateCcw size={14} />
-            Reset wszystkich (75% / 0 dB)
+            {t.stems.resetAllUnity}
           </button>
 
           {/* Szybkie presety */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Szybkie tryby:
+              {t.stems.quickModes}
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
               <button
@@ -989,7 +993,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Karaoke (Bez wokalu)
+                {t.stems.karaokeMode}
               </button>
               <button
                 onClick={() => handleApplyPreset('acapella')}
@@ -1004,7 +1008,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Acapella (Solo)
+                {t.stems.acapellaSolo}
               </button>
               <button
                 onClick={() => handleApplyPreset('drums_only')}
@@ -1019,7 +1023,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Tylko Perkusja
+                {t.stems.drumsOnly}
               </button>
               <button
                 onClick={() => handleApplyPreset('rhythm_section')}
@@ -1034,7 +1038,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Rhythm (Drums+Bass)
+                {t.stems.rhythmDrumsBass}
               </button>
               <button
                 onClick={() => handleApplyPreset('instrumental')}
@@ -1049,7 +1053,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Instrumental
+                {t.stems.instrumental}
               </button>
               <button
                 onClick={() => handleApplyPreset('practice_guitar')}
@@ -1064,7 +1068,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Practice (Bez gitar)
+                {t.stems.practiceNoGuitar}
               </button>
             </div>
           </div>
@@ -1072,7 +1076,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
           {/* Narzędzia analityczne powiązane ze stemami */}
           <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px' }}>
             <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-              Analiza na ścieżkach:
+              {t.stems.trackAnalysis}
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {onOpenChords && (
@@ -1093,7 +1097,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   }}
                 >
                   <Music size={14} />
-                  Akordy z wyizolowanego basu
+                  {t.stems.chordsFromBass}
                 </button>
               )}
               {onOpenPianoRoll && (
@@ -1114,7 +1118,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   }}
                 >
                   <Piano size={14} />
-                  Piano-Roll wyodrębnionego wokalu
+                  {t.stems.vocalPianoRollBtn}
                 </button>
               )}
             </div>
@@ -1192,7 +1196,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem', color: '#94a3b8' }}>
-          <span>Skróty: <b>M</b> Mute • <b>S</b> Solo • <b>0</b> Reset 0 dB</span>
+          <span>{t.stems.shortcutsHint}</span>
         </div>
       </div>
 
@@ -1220,11 +1224,11 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
             }}
           >
             <h3 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#f8fafc' }}>
-              Zapisz miks projektu
+              {t.stems.saveMixTitle}
             </h3>
             <input
               type="text"
-              placeholder="np. Mój miks koncertowy..."
+              placeholder={t.stems.mixNamePlaceholder}
               value={newMixName}
               onChange={(e) => setNewMixName(e.target.value)}
               style={{
@@ -1250,7 +1254,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Anuluj
+                {t.common.cancel}
               </button>
               <button
                 onClick={handleSaveMix}
@@ -1265,7 +1269,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                Zapisz
+                {t.common.save}
               </button>
             </div>
           </div>
