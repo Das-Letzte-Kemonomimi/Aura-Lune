@@ -355,6 +355,37 @@ chmod +x apps/desktop/src-tauri/target/release/bundle/appimage/Auralune_*.AppIma
 ./apps/desktop/src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
 ```
 
+### Universal Linux Installer (`install.sh`)
+
+Aura-Lune provides an intelligent, rootless installer script that supports dual parallel channels (**Stable** and **Dev**) so that development builds never conflict with stable installations:
+
+#### Installing Stable Version
+```bash
+curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/install.sh | bash
+```
+- Installs binary launcher to `~/.local/bin/auralune`
+- Stores AppImage in `~/.local/share/auralune/auralune.AppImage`
+- Registers desktop shortcut `~/.local/share/applications/auralune.desktop` (`Auralune`)
+
+#### Installing Development Version (Parallel, Non-Conflicting)
+To install the development build directly from the `dev` branch:
+```bash
+curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash
+```
+*(Or explicitly pass `--dev`: `curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/install.sh | bash -s -- --dev`)*
+- Installs binary launcher to `~/.local/bin/auralune-dev`
+- Stores AppImage in `~/.local/share/auralune-dev/auralune-dev.AppImage`
+- Registers separate desktop shortcut `~/.local/share/applications/auralune-dev.desktop` (`Auralune (Dev)`)
+- Both stable and dev versions can be installed and run simultaneously without collision.
+- Built-in GStreamer host plugin path auto-detection prevents missing audio sinks on minimal systems like Arch Linux.
+
+#### Zero-Maintenance Merge Architecture
+The installer automatically determines the target channel based on the following precedence:
+1. Explicit CLI flags: `--dev` or `--stable`
+2. Environment variables: `CHANNEL=dev` or `AURALUNE_CHANNEL=dev`
+3. Git branch name: if cloned on `dev` or `develop` branch
+4. Version naming: if version contains `dev`, `alpha`, `beta`, `rc`, or `nightly` (e.g. `1.1.6-dev`), it defaults to `dev`. When merging `dev` into `main` for a release, simply bumping the version number to a release version (e.g. `1.1.6`) automatically switches the installer to `stable` without modifying any installer logic.
+
 ---
 
 ## 8. Troubleshooting & FAQs

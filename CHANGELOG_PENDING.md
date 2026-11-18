@@ -22,6 +22,10 @@
   - Zaktualizowano [`AGENTS.md`](./AGENTS.md) oraz wszystkie powiązane skille agentowe (`skills/quality/i18n-sync`, `skills/backend/tauri2-architecture`, `skills/audio/audio-dsp-safety`, `skills/frontend/react-monolith-refactor`) o bezwzględny protokół sprawdzania kodu przed commitem (`cargo fmt`, `cargo clippy -D warnings`, `eslint`, `build`, `./tests/run_all_tests.sh`).
 - **Rozszerzone testy jednostkowe kontrolera odtwarzacza**:
   - Dodano do `src/hooks/usePlaybackController.test.ts` dedykowane testy weryfikujące optymistyczny podgląd przewijania bez wywołań IPC oraz poprawne przekazywanie skoku bez zbędnego wygaszania.
+- **Dwu-kanałowy instalator Linuksa z pełną izolacją wersji deweloperskiej (`install.sh`)**:
+  - Wprowadzono architekturę równoległych kanałów (`stable` oraz `dev`), pozwalającą na niezależną instalację wersji deweloperskiej (`~/.local/share/auralune-dev`, binarka `auralune-dev`, skrót pulpitu `auralune-dev.desktop`) obok wersji stabilnej (`auralune`) bez konfliktów plików.
+  - Zaimplementowano automatyczną detekcję kanału w oparciu o oznaczenie wersji (np. `1.1.6-dev`), gałąź Gita lub przełączniki `--dev` / `--stable`, umożliwiając bezobsługowy merge gałęzi `dev` do `main` (wystarczy standardowe podbicie wersji release).
+  - Wbudowano w launcher automatyczne wykrywanie ścieżek wtyczek GStreamera w systemie hosta (`/usr/lib/gstreamer-1.0`), eliminujące problem braku dźwięku na dystrybucjach Arch Linux i instalacjach minimalnych.
 
 ### 🛠️ Poprawiono (Fixed)
 - **Wyeliminowanie wielosekundowych opóźnień i zatorów przy zmianie głośności oraz przewijaniu utworu**:

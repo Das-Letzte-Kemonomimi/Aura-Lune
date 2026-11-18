@@ -91,6 +91,16 @@ curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/mai
 ```
 The installer downloads the latest AppImage, installs icons, desktop entry (`auralune.desktop`), and a smart launcher with automatic FUSE 2 fallback.
 
+<details>
+<summary>🧪 <sub>Optional: Install Bleeding-Edge Development Build</sub></summary>
+
+> [!NOTE]
+> Development builds are installed separately into `~/.local/bin/auralune-dev` alongside the stable version without overwriting it. Intended for testers and contributors.
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash
+> ```
+</details>
+
 ### 2. Standalone AppImage (Manual)
 Download the appropriate package from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
 - **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:

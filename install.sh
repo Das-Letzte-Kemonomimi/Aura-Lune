@@ -1,23 +1,64 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Auralune (Kitsune Player) 🌸🎧 — Universal Linux Installer
-# Działa na każdej dystrybucji Linuksa (Arch, Ubuntu, Debian, Fedora, openSUSE, etc.)
+# Supports dual installation channels: Stable (auralune) and Dev (auralune-dev)
+# Works across all Linux distributions (Arch, Ubuntu, Debian, Fedora, openSUSE, etc.)
 # ==============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
-VERSION="1.1.5"
+REPO="Das-Letzte-Kemonomimi/Aura-Lune"
+GITHUB_API="https://api.github.com/repos/${REPO}/releases"
+
+# Default base version for this branch (when on dev: 1.1.6-dev, on release: 1.1.6)
+VERSION="1.1.6-dev"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" ]]; then
     DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
     if [[ -n "$DETECTED_VER" ]]; then
         VERSION="$DETECTED_VER"
     fi
 fi
-REPO="Das-Letzte-Kemonomimi/Aura-Lune"
-GITHUB_API="https://api.github.com/repos/${REPO}/releases"
 
-# Kolory i ikony
+# Determine channel: 'dev' or 'stable'
+# Priority order:
+# 1. Version string containing 'dev', 'alpha', 'beta', 'rc', or 'nightly' defaults to 'dev'
+# 2. Local git branch ('dev' or 'develop' defaults to 'dev', 'main' or 'master' to 'stable')
+# 3. Environment variable override (CHANNEL / AURALUNE_CHANNEL)
+# 4. Command-line flags override (--dev or --stable)
+
+CHANNEL="stable"
+if [[ "$VERSION" =~ (dev|alpha|beta|rc|nightly) ]]; then
+    CHANNEL="dev"
+fi
+
+if [[ -n "$SCRIPT_DIR" ]] && command -v git &>/dev/null; then
+    CURRENT_GIT_BRANCH=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    if [[ "$CURRENT_GIT_BRANCH" == "dev" || "$CURRENT_GIT_BRANCH" == "develop" ]]; then
+        CHANNEL="dev"
+    elif [[ "$CURRENT_GIT_BRANCH" == "main" || "$CURRENT_GIT_BRANCH" == "master" ]]; then
+        CHANNEL="stable"
+    fi
+fi
+
+if [[ "${AURALUNE_CHANNEL:-}" == "dev" || "${CHANNEL:-}" == "dev" ]]; then
+    CHANNEL="dev"
+elif [[ "${AURALUNE_CHANNEL:-}" == "stable" || "${CHANNEL:-}" == "stable" ]]; then
+    CHANNEL="stable"
+fi
+
+for arg in "$@"; do
+    case "$arg" in
+        --dev)
+            CHANNEL="dev"
+            ;;
+        --stable)
+            CHANNEL="stable"
+            ;;
+    esac
+done
+
+# Colors and styling
 BOLD="\033[1m"
 GREEN="\033[1;32m"
 BLUE="\033[1;34m"
@@ -27,35 +68,59 @@ YELLOW="\033[1;33m"
 RED="\033[1;31m"
 RESET="\033[0m"
 
-# Ścieżki instalacji w przestrzeni użytkownika (~/.local) - bez potrzeby uprawnień roota!
+# Installation paths in user space (~/.local) — completely rootless!
 INSTALL_DIR="${HOME}/.local/bin"
-DATA_DIR="${HOME}/.local/share/auralune"
 APPS_DIR="${HOME}/.local/share/applications"
 ICONS_128_DIR="${HOME}/.local/share/icons/hicolor/128x128/apps"
 ICONS_512_DIR="${HOME}/.local/share/icons/hicolor/512x512/apps"
-APPIMAGE_DEST="${DATA_DIR}/auralune.AppImage"
-LAUNCHER_DEST="${INSTALL_DIR}/auralune"
-DESKTOP_DEST="${APPS_DIR}/auralune.desktop"
 
-# Funkcja pomocy
+if [[ "$CHANNEL" == "dev" ]]; then
+    APP_NAME="Auralune (Dev)"
+    APP_ID="auralune-dev"
+    BIN_NAME="auralune-dev"
+    DATA_DIR="${HOME}/.local/share/auralune-dev"
+    APPIMAGE_DEST="${DATA_DIR}/auralune-dev.AppImage"
+    LAUNCHER_DEST="${INSTALL_DIR}/auralune-dev"
+    DESKTOP_DEST="${APPS_DIR}/auralune-dev.desktop"
+    ICON_NAME="auralune-dev"
+    GITHUB_BRANCH="dev"
+    WM_CLASS="auralune-dev"
+else
+    APP_NAME="Auralune"
+    APP_ID="auralune"
+    BIN_NAME="auralune"
+    DATA_DIR="${HOME}/.local/share/auralune"
+    APPIMAGE_DEST="${DATA_DIR}/auralune.AppImage"
+    LAUNCHER_DEST="${INSTALL_DIR}/auralune"
+    DESKTOP_DEST="${APPS_DIR}/auralune.desktop"
+    ICON_NAME="auralune"
+    GITHUB_BRANCH="main"
+    WM_CLASS="auralune"
+fi
+
+# Help function
 show_help() {
     echo -e "${PURPLE}🌸 Auralune — Universal Linux Installer${RESET}"
     echo ""
-    echo "Użycie:"
-    echo "  ./install.sh                Zainstaluj lub zaktualizuj Auralune dla bieżącego użytkownika"
-    echo "  ./install.sh --uninstall    Odinstaluj Auralune i usuń powiązane skróty"
-    echo "  ./install.sh --help         Wyświetl tę pomoc"
+    echo "Usage:"
+    echo "  ./install.sh                Install or update Auralune (auto-selects channel based on branch/version)"
+    echo "  ./install.sh --dev          Install Auralune Development version (installed alongside stable)"
+    echo "  ./install.sh --stable       Force install Stable version"
+    echo "  ./install.sh --uninstall    Uninstall current channel"
+    echo "  ./install.sh --uninstall --dev     Uninstall only Development version"
+    echo "  ./install.sh --uninstall --stable  Uninstall only Stable version"
+    echo "  ./install.sh --help         Show this help"
     echo ""
 }
 
-# Obsługa odinstalowania
-if [[ "${1:-}" == "--uninstall" || "${1:-}" == "-u" ]]; then
-    echo -e "${PURPLE}🌸 === Odinstalowywanie Auralune (Kitsune Player) === 🌸${RESET}"
+# Handle uninstallation
+if [[ "${1:-}" == "--uninstall" || "${1:-}" == "-u" || "${2:-}" == "--uninstall" || "${2:-}" == "-u" ]]; then
+    echo -e "${PURPLE}🌸 === Uninstalling ${APP_NAME} (${APP_ID}) === 🌸${RESET}"
     rm -rf "$DATA_DIR"
     rm -f "$LAUNCHER_DEST"
     rm -f "$DESKTOP_DEST"
-    rm -f "$ICONS_128_DIR/auralune.png"
-    rm -f "$ICONS_512_DIR/auralune.png"
+    rm -f "$ICONS_128_DIR/${ICON_NAME}.png"
+    rm -f "$ICONS_512_DIR/${ICON_NAME}.png"
     
     if command -v update-desktop-database &>/dev/null; then
         update-desktop-database "$APPS_DIR" 2>/dev/null || true
@@ -64,7 +129,7 @@ if [[ "${1:-}" == "--uninstall" || "${1:-}" == "-u" ]]; then
         gtk-update-icon-cache -f -t "${HOME}/.local/share/icons/hicolor" 2>/dev/null || true
     fi
     
-    echo -e "${GREEN}✅ Auralune zostało pomyślnie usunięte z systemu.${RESET}"
+    echo -e "${GREEN}✅ ${APP_NAME} has been successfully removed from your system.${RESET}"
     exit 0
 fi
 
@@ -75,68 +140,89 @@ fi
 
 echo -e ""
 echo -e "${PURPLE}🌸 ========================================================== 🌸${RESET}"
-echo -e "${BOLD}      Auralune (Kitsune Player) — Universal Linux Installer     ${RESET}"
-echo -e "${CYAN}   Hi-Res Audio • Real-Time DSP • PipeWire • Anime Aesthetic    ${RESET}"
+echo -e "${BOLD}      ${APP_NAME} — Universal Linux Installer      ${RESET}"
+echo -e "${CYAN}   Channel: ${BOLD}${CHANNEL^^}${RESET}${CYAN} • Version: ${BOLD}v${VERSION}${RESET}${CYAN} • Hi-Res Audio • DSP    ${RESET}"
 echo -e "${PURPLE}🌸 ========================================================== 🌸${RESET}"
 echo -e ""
 
-# 1. Weryfikacja architektury CPU
+# 1. CPU Architecture check
 ARCH=$(uname -m)
 if [[ "$ARCH" != "x86_64" && "$ARCH" != "amd64" ]]; then
-    echo -e "${RED}❌ Błąd: Architektura $ARCH nie jest obecnie wspierana. Wymagane x86_64 / amd64.${RESET}"
+    echo -e "${RED}❌ Error: CPU architecture $ARCH is not supported. Required: x86_64 / amd64.${RESET}"
     exit 1
 fi
 
-# 2. Utworzenie wymaganych katalogów
+# 2. Create required directories
 mkdir -p "$INSTALL_DIR" "$DATA_DIR" "$APPS_DIR" "$ICONS_128_DIR" "$ICONS_512_DIR"
 
-# 3. Sprawdzenie czy lokalny AppImage jest już dostępny (np. w bieżącym katalogu lub target/)
+# 3. Check if local AppImage is available
 SOURCE_APPIMAGE=""
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
-
-if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
-    SOURCE_APPIMAGE="$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
-elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune.AppImage" ]]; then
-    SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune.AppImage"
-elif [[ -f "./Auralune.AppImage" ]]; then
-    SOURCE_APPIMAGE="./Auralune.AppImage"
-elif [[ -f "./target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
-    SOURCE_APPIMAGE="./target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+if [[ "$CHANNEL" == "dev" ]]; then
+    if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
+        SOURCE_APPIMAGE="$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune-dev.AppImage" ]]; then
+        SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune-dev.AppImage"
+    elif [[ -f "./Auralune-dev.AppImage" ]]; then
+        SOURCE_APPIMAGE="./Auralune-dev.AppImage"
+    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune.AppImage" ]]; then
+        SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune.AppImage"
+    elif [[ -f "./Auralune.AppImage" ]]; then
+        SOURCE_APPIMAGE="./Auralune.AppImage"
+    fi
+else
+    if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
+        SOURCE_APPIMAGE="$SCRIPT_DIR/target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+    elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Auralune.AppImage" ]]; then
+        SOURCE_APPIMAGE="$SCRIPT_DIR/Auralune.AppImage"
+    elif [[ -f "./Auralune.AppImage" ]]; then
+        SOURCE_APPIMAGE="./Auralune.AppImage"
+    elif [[ -f "./target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage" ]]; then
+        SOURCE_APPIMAGE="./target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+    fi
 fi
 
 if [[ -n "$SOURCE_APPIMAGE" ]]; then
-    echo -e "${GREEN}📦 Wykryto lokalną paczkę AppImage:${RESET} $SOURCE_APPIMAGE"
+    echo -e "${GREEN}📦 Found local AppImage package:${RESET} $SOURCE_APPIMAGE"
     cp "$SOURCE_APPIMAGE" "$APPIMAGE_DEST"
     chmod +x "$APPIMAGE_DEST"
 else
-    # 4. Pobieranie najnowszego AppImage z GitHub Releases
-    echo -e "${BLUE}🔍 Sprawdzanie najnowszego wydania na GitHubie (${REPO})...${RESET}"
+    # 4. Download AppImage from GitHub Releases
+    echo -e "${BLUE}🔍 Fetching release assets from GitHub (${REPO})...${RESET}"
     
-    # Wykrywanie Bazzite / Fedora w celu pobrania wariantu o optymalnej kompatybilności GLIBC
+    # Detect Bazzite / Fedora for GLIBC 2.40 compatibility package
     IS_BAZZITE_OR_FEDORA=false
-    if [[ "${1:-}" == "--bazzite" || "${2:-}" == "--bazzite" ]]; then
+    if [[ "${1:-}" == "--bazzite" || "${2:-}" == "--bazzite" || "${3:-}" == "--bazzite" ]]; then
         IS_BAZZITE_OR_FEDORA=true
     elif [[ -f /etc/os-release ]] && grep -qiE 'ID=bazzite|ID=fedora|ID_LIKE=.*fedora|ID_LIKE=.*bazzite' /etc/os-release; then
         IS_BAZZITE_OR_FEDORA=true
     fi
 
     DOWNLOAD_URL=""
-    LATEST_JSON=$(curl -sSf "${GITHUB_API}/latest" 2>/dev/null || echo "")
-    if [[ -n "$LATEST_JSON" ]]; then
-        TAG_NAME=$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4 || echo "v${VERSION}")
-        DETECTED_TAG_VER="${TAG_NAME#v}"
-        if [[ -n "$DETECTED_TAG_VER" ]]; then
-            VERSION="$DETECTED_TAG_VER"
+    if [[ "$CHANNEL" == "dev" ]]; then
+        # Check dev tag, nightly tag, or latest prerelease
+        RELEASE_JSON=$(curl -sSf "${GITHUB_API}/tags/dev" 2>/dev/null || curl -sSf "${GITHUB_API}/tags/nightly" 2>/dev/null || curl -sSf "${GITHUB_API}" 2>/dev/null || echo "")
+        if [[ -n "$RELEASE_JSON" ]]; then
+            DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
         fi
-        echo -e "${CYAN}✨ Wykryto wydanie: ${TAG_NAME}${RESET}"
+    fi
 
-        if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
-            echo -e "${GREEN}🎮 Wykryto system Bazzite / Fedora — wybieram dedykowany pakiet zgodny wstecznie z GLIBC 2.40!${RESET}"
-            DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "bazzite.*\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
-        fi
+    if [[ -z "$DOWNLOAD_URL" ]]; then
+        LATEST_JSON=$(curl -sSf "${GITHUB_API}/latest" 2>/dev/null || echo "")
+        if [[ -n "$LATEST_JSON" ]]; then
+            TAG_NAME=$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4 || echo "v${VERSION}")
+            DETECTED_TAG_VER="${TAG_NAME#v}"
+            if [[ -n "$DETECTED_TAG_VER" && "$CHANNEL" == "stable" ]]; then
+                VERSION="$DETECTED_TAG_VER"
+            fi
 
-        if [[ -z "$DOWNLOAD_URL" ]]; then
-            DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | grep -vi "bazzite" | head -n 1 | cut -d '"' -f 4 || echo "")
+            if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
+                echo -e "${GREEN}🎮 Detected Bazzite / Fedora system — selecting GLIBC 2.40 compatible package!${RESET}"
+                DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "bazzite.*\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
+            fi
+
+            if [[ -z "$DOWNLOAD_URL" ]]; then
+                DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | grep -vi "bazzite" | head -n 1 | cut -d '"' -f 4 || echo "")
+            fi
         fi
     fi
 
@@ -148,16 +234,16 @@ else
         fi
     fi
 
-    echo -e "${BLUE}⬇️  Pobieranie Auralune AppImage...${RESET}"
+    echo -e "${BLUE}⬇️  Downloading ${APP_NAME} AppImage...${RESET}"
     echo -e "${CYAN}   URL: ${DOWNLOAD_URL}${RESET}"
     
-    TMP_APPIMAGE=$(mktemp "${DATA_DIR}/auralune.download.XXXXXX")
+    TMP_APPIMAGE=$(mktemp "${DATA_DIR}/${APP_ID}.download.XXXXXX")
     if command -v curl &>/dev/null; then
         curl -fLC - --progress-bar -o "$TMP_APPIMAGE" "$DOWNLOAD_URL"
     elif command -v wget &>/dev/null; then
         wget --show-progress -q -O "$TMP_APPIMAGE" "$DOWNLOAD_URL"
     else
-        echo -e "${RED}❌ Błąd: Wymagany jest program 'curl' lub 'wget'.${RESET}"
+        echo -e "${RED}❌ Error: 'curl' or 'wget' is required to download.${RESET}"
         rm -f "$TMP_APPIMAGE"
         exit 1
     fi
@@ -166,73 +252,81 @@ else
     chmod +x "$APPIMAGE_DEST"
 fi
 
-# 5. Instalacja inteligentnego launchera z obsługą FUSE fallback
-echo -e "${BLUE}⚙️  Konfiguracja launchera Auralune (${LAUNCHER_DEST})...${RESET}"
-cat > "$LAUNCHER_DEST" <<'EOF'
+# 5. Install smart launcher with FUSE fallback and GStreamer plugin auto-detection
+echo -e "${BLUE}⚙️  Configuring ${APP_NAME} launcher (${LAUNCHER_DEST})...${RESET}"
+cat > "$LAUNCHER_DEST" <<EOF
 #!/usr/bin/env bash
-# Auralune smart launcher with automatic FUSE 2 fallback
-APPIMAGE="$HOME/.local/share/auralune/auralune.AppImage"
+# ${APP_NAME} smart launcher with automatic FUSE 2 fallback and GStreamer plugin detection
+APPIMAGE="${APPIMAGE_DEST}"
 
-if [ ! -f "$APPIMAGE" ]; then
-    echo "Błąd: Nie znaleziono pliku Auralune AppImage w $APPIMAGE" >&2
+if [ ! -f "\$APPIMAGE" ]; then
+    echo "Error: Could not find ${APP_NAME} AppImage at \$APPIMAGE" >&2
     exit 1
 fi
 
+# Ensure host GStreamer plugins are loaded correctly (fixes PipeWire/ALSA on Arch Linux & minimal distros)
+if [ -z "\${GST_PLUGIN_SYSTEM_PATH_1_0:-}" ]; then
+    for gp in /usr/lib/gstreamer-1.0 /usr/lib64/gstreamer-1.0 /usr/lib/x86_64-linux-gnu/gstreamer-1.0; do
+        if [ -d "\$gp" ]; then
+            export GST_PLUGIN_SYSTEM_PATH_1_0="\$gp"
+            break
+        fi
+    done
+fi
 
-# Sprawdź czy system posiada bibliotekę FUSE 2
+# Check FUSE 2 library
 HAS_FUSE=0
 if command -v fusermount &>/dev/null && (ldconfig -p 2>/dev/null | grep -q "libfuse\.so\.2" || [ -e /usr/lib/libfuse.so.2 ] || [ -e /usr/lib64/libfuse.so.2 ] || [ -e /usr/lib/x86_64-linux-gnu/libfuse.so.2 ]); then
     HAS_FUSE=1
 fi
 
-if [ "$HAS_FUSE" -eq 1 ]; then
-    exec "$APPIMAGE" "$@"
+if [ "\$HAS_FUSE" -eq 1 ]; then
+    exec "\$APPIMAGE" "\$@"
 else
-    # Jeśli FUSE nie jest obecny lub zgłasza błąd, uruchom z transparentną ekstrakcją
-    if "$APPIMAGE" --appimage-version &>/dev/null 2>&1; then
-        exec "$APPIMAGE" "$@"
+    if "\$APPIMAGE" --appimage-version &>/dev/null 2>&1; then
+        exec "\$APPIMAGE" "\$@"
     else
-        exec "$APPIMAGE" --appimage-extract-and-run "$@"
+        exec "\$APPIMAGE" --appimage-extract-and-run "\$@"
     fi
 fi
 EOF
 chmod +x "$LAUNCHER_DEST"
 
-# 6. Instalacja ikon
-echo -e "${BLUE}🎨 Kopiowanie ikon hicolor (128x128 oraz 512x512)...${RESET}"
+# 6. Install hicolor icons
+echo -e "${BLUE}🎨 Installing application icons (128x128 and 512x512)...${RESET}"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/icons/128x128.png" ]]; then
-    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/128x128.png" "$ICONS_128_DIR/auralune.png"
-    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon.png" "$ICONS_512_DIR/auralune.png"
+    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/128x128.png" "$ICONS_128_DIR/${ICON_NAME}.png"
+    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon.png" "$ICONS_512_DIR/${ICON_NAME}.png"
 else
-    curl -sSf -o "$ICONS_128_DIR/auralune.png" "https://raw.githubusercontent.com/${REPO}/main/apps/desktop/src-tauri/icons/128x128.png" 2>/dev/null || true
-    curl -sSf -o "$ICONS_512_DIR/auralune.png" "https://raw.githubusercontent.com/${REPO}/main/apps/desktop/src-tauri/icons/icon.png" 2>/dev/null || true
+    curl -sSf -o "$ICONS_128_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/apps/desktop/src-tauri/icons/128x128.png" 2>/dev/null || true
+    curl -sSf -o "$ICONS_512_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/apps/desktop/src-tauri/icons/icon.png" 2>/dev/null || true
 fi
 
-# 7. Konfiguracja skrótu pulpitu (.desktop)
-echo -e "${BLUE}📑 Tworzenie wpisu w menu programów (${DESKTOP_DEST})...${RESET}"
+# 7. Configure desktop entry (.desktop)
+echo -e "${BLUE}📑 Creating desktop application shortcut (${DESKTOP_DEST})...${RESET}"
 cat > "$DESKTOP_DEST" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Auralune
-GenericName=Odtwarzacz Muzyki
+Name=${APP_NAME}
+GenericName=Music Player
 GenericName[en]=Music Player
 GenericName[pl]=Odtwarzacz Muzyki
 GenericName[de]=Musik-Player
 GenericName[fi]=Musiikkisoitin
 GenericName[la]=Concentus Lusor
-Comment=Kitsune Music Player (Hi-Res Audio, DSP, Anime Aesthetic, PipeWire)
-Comment[pl]=Natywny odtwarzacz muzyki z silnikiem DSP, anime aesthetic i obsługą PipeWire
+Comment=Kitsune Music Player (Hi-Res Audio, DSP, Anime Aesthetic, PipeWire) [${CHANNEL^^}]
+Comment[pl]=Natywny odtwarzacz muzyki z silnikiem DSP, anime aesthetic i obsługą PipeWire [${CHANNEL^^}]
 Exec=$LAUNCHER_DEST %U
-Icon=auralune
+Icon=${ICON_NAME}
 Terminal=false
-StartupWMClass=auralune
+StartupWMClass=${WM_CLASS}
 Categories=AudioVideo;Audio;Player;Music;
 MimeType=audio/flac;audio/x-flac;audio/mpeg;audio/ogg;audio/wav;audio/x-wav;audio/aac;audio/mp4;audio/x-m4a;audio/opus;
 Keywords=music;player;audio;kitsune;soundtouch;rubberband;pipewire;anime;radio;
 EOF
 chmod +x "$DESKTOP_DEST"
 
-# 8. Aktualizacja bazy pulpitu i pamięci podręcznej ikon
+# 8. Update desktop database and icon cache
 if command -v update-desktop-database &>/dev/null; then
     update-desktop-database "$APPS_DIR" 2>/dev/null || true
 fi
@@ -242,15 +336,15 @@ fi
 
 echo -e ""
 echo -e "${GREEN}✨ ========================================================== ✨${RESET}"
-echo -e "${BOLD}${GREEN}🎉 Auralune (Kitsune Player) v${VERSION} zainstalowane pomyślnie!${RESET}"
-echo -e "${CYAN}🎧 Możesz uruchomić aplikację z menu programów (skrót Auralune)${RESET}"
-echo -e "${CYAN}   lub z konsoli poleceniem:${RESET} ${BOLD}auralune${RESET}"
+echo -e "${BOLD}${GREEN}🎉 ${APP_NAME} v${VERSION} installed successfully!${RESET}"
+echo -e "${CYAN}🎧 You can launch the app from your application launcher (${APP_NAME})${RESET}"
+echo -e "${CYAN}   or from the terminal with:${RESET} ${BOLD}${BIN_NAME}${RESET}"
 
-# Ostrzeżenie jeśli ~/.local/bin nie znajduje się w $PATH
+# Warning if ~/.local/bin is not in $PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* && ":$PATH:" != *":$HOME/.local/bin"* ]]; then
     echo -e ""
-    echo -e "${YELLOW}💡 Wskazówka: Katalog ~/.local/bin nie znajduje się w Twojej zmiennej PATH.${RESET}"
-    echo -e "${YELLOW}   Aby uruchamiać polecenie 'auralune' wprost z terminala, dodaj do ~/.bashrc lub ~/.zshrc:${RESET}"
+    echo -e "${YELLOW}💡 Note: ~/.local/bin is not in your PATH.${RESET}"
+    echo -e "${YELLOW}   To run '${BIN_NAME}' directly from the terminal, add to ~/.bashrc or ~/.zshrc:${RESET}"
     echo -e "   ${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}"
 fi
 echo -e "${GREEN}✨ ========================================================== ✨${RESET}"
