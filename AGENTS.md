@@ -378,52 +378,64 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 
 ---
 
-## 7. Mandatory Code Quality, Linting & Verification Protocol
+## 7. Mandatory Code Quality, Linting & Pre-Commit Verification Protocol
 
-> [!IMPORTANT]
-> **MANDATORY AGENT COMPLETION PROTOCOL**
-> Before completing ANY task and reporting to the user, the agent **MUST** run the code quality, linting, and verification commands below for both React and Rust. No task is considered complete until all checks pass with 0 errors and 0 warnings.
+> [!CAUTION]
+> **MANDATORY PRE-COMMIT & COMPLETION PROTOCOL FOR ALL AGENTS**
+> Before committing any changes or declaring a task complete, every agent **MUST** run the code quality, linting, and verification commands below.
+> 
+> **CI enforces `-D warnings` and `--all-features`**. Any clippy warning, formatting mismatch, Vitest failure, or TypeScript error will cause GitHub Actions to fail. No task is done until all checks pass with **0 errors and 0 warnings**.
+
+### Pre-Commit Fast One-Liner (Run from Repository Root)
+```bash
+npm --prefix apps/desktop run lint && npm --prefix apps/desktop run build && cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && ./tests/run_all_tests.sh
+```
+
+---
 
 ### A. React Frontend Quality & Linting
 Run all three commands from the workspace root:
 ```bash
-# 1. High-speed linting across all frontend files
+# 1. High-speed linting across all frontend files (must pass with 0 errors)
 npm --prefix apps/desktop run lint
 
 # 2. Strict TypeScript type check and production bundling (must pass with 0 diagnostics)
 npm --prefix apps/desktop run build
 
 # 3. Unit test suite across hooks, components, and i18n parity (must be 100% green)
-npm --prefix apps/desktop test -- --run
+npm --prefix apps/desktop test
 ```
 
 ### B. Rust Backend Quality & Linting
-Run all four commands from the workspace root:
+Run all commands from the workspace root with exact CI flags:
 ```bash
 # 1. Format all workspace crates to canonical style
 cargo fmt --all
 
-# 2. Strict Clippy lint check with all warnings treated as errors
-cargo clippy --workspace --all-targets -- -D warnings
+# 2. Verify formatting without modifying files (same as CI)
+cargo fmt --all --check
 
-# 3. Compile check across all workspace crates
+# 3. Strict Clippy lint check across all targets and features (MUST use --all-features and -D warnings)
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# 4. Compile check across all workspace crates
 cargo check --workspace
 
-# 4. Unit & integration test suite across all 11 crates
-cargo test --workspace
+# 5. Unit & integration test suite across all crates
+cargo test --workspace -- --test-threads=1
 ```
 
 ### C. Unified End-to-End Test Suite
-Run the 4-stage pipeline script to verify everything simultaneously:
+Run the 4-stage pipeline script to verify everything end-to-end:
 ```bash
 ./tests/run_all_tests.sh
 ```
 
 #### The 4 Stages Verified by `run_all_tests.sh`:
-1. **Frontend Unit & Localization Tests**: 39 Vitest suites (147+ tests) testing all domain hooks, state managers, and translations.
-2. **Frontend TypeScript & Vite Production Build**: `tsc -b && vite build` ensuring production assets are bundled without error.
-3. **Rust Workspace Test Suite**: Tests across `audio-engine`, `domain`, `storage`, `library`, `metadata`, `downloads`, `dsp-api`, `dsp-rubberband`, `dsp-soundtouch`, and `desktop-integration`.
-4. **Desktop Smoke Integration Test**: Verifies GStreamer pipeline instantiation, SQLite migrations, and Tauri IPC commands end-to-end.
+1. **Frontend Linting & Unit/Localization Tests**: `oxlint` + 39 Vitest suites (147+ tests) verifying domain hooks, state managers, and 100% key parity between PL and EN dictionaries.
+2. **Frontend TypeScript & Vite Production Build**: `tsc -b && vite build` ensuring production assets are bundled without error and `dist` is ready for Tauri.
+3. **Rust Workspace Test Suite**: Tests across `audio-engine`, `domain`, `storage`, `library`, `metadata`, `downloads`, `dsp-api`, `dsp-rubberband`, `dsp-soundtouch`, and `desktop-integration` with isolated audio threads.
+4. **Desktop Smoke Integration Test**: Verifies GStreamer pipeline instantiation, real WAV fixture playback, DSP pitch/EQ modulation, SQLite migrations, and Tauri IPC commands.
 
 ---
 

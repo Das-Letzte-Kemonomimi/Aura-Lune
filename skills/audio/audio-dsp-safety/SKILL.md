@@ -26,3 +26,12 @@ This skill guides agents working with `crates/audio-engine`, `crates/dsp-rubberb
 4. **Underrun Resilience**:
    - Set adaptive ring buffer sizes for low-latency PipeWire output with fallback headroom for ALSA/PulseAudio.
    - Handle audio format conversions explicitly (sample rate, channel layout, float32 vs int16) before feeding DSP algorithms.
+
+5. **Mandatory Pre-Commit DSP Verification**:
+   - Never commit DSP or audio changes without running strict formatting, Clippy with all features, and single-threaded tests:
+     ```bash
+     cargo fmt --all --check
+     cargo clippy --workspace --all-targets --all-features -- -D warnings
+     cargo test --workspace -- --test-threads=1
+     ./tests/run_all_tests.sh
+     ```

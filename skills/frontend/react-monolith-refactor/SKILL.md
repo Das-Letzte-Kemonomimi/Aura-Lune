@@ -28,3 +28,11 @@ This skill guides agents when reading, modifying, or refactoring `apps/desktop/s
 
 4. **Localization Requirement**:
    - Every user-visible string must use the `t(...)` translation function from `apps/desktop/src/i18n.ts`. Never hardcode UI strings in JSX.
+
+5. **Mandatory Pre-Commit Frontend Verification**:
+   - Before committing any frontend modifications, always execute:
+     ```bash
+     npm --prefix apps/desktop run lint
+     npm --prefix apps/desktop test
+     npm --prefix apps/desktop run build
+     ```

@@ -17,5 +17,6 @@ This skill guides agents when modifying UI text, adding new features, or touchin
 2. **Technical Audio Nomenclature**:
    - Standard audio terminology (e.g., *Gain*, *Q-factor*, *HPSS*, *Stem Separation*, *BPM*, *Camelot Wheel*, *PipeWire*, *Buffer Size*) should remain consistent across languages or be accompanied by recognizable standard terms.
 
-3. **Validation**:
-   - Run `npm --prefix apps/desktop run build` to ensure TypeScript verifies that all language dictionaries strictly satisfy the `Translations` type interface.
+3. **Mandatory Pre-Commit Validation**:
+   - Run `npm --prefix apps/desktop test` to verify 100% key parity between language dictionaries (`i18n.test.ts`).
+   - Run `npm --prefix apps/desktop run lint` and `npm --prefix apps/desktop run build` before declaring the task complete or committing.

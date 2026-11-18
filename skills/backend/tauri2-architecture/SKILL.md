@@ -35,3 +35,12 @@ This skill guides agents working on the desktop integration and backend IPC laye
    - Backend-to-frontend updates (playback time, spectrum FFT data, scan progress) use `app_handle.emit("event_name", payload)`.
    - Throttle high-frequency events (e.g. playback progress should emit at 20-30 Hz, not on every audio buffer).
    - Ensure the React frontend unregisters listeners in `useEffect` cleanup routines.
+
+5. **Mandatory Pre-Commit Quality Checks**:
+   - Before committing any backend changes, run:
+     ```bash
+     cargo fmt --all --check
+     cargo clippy --workspace --all-targets --all-features -- -D warnings
+     cargo test --workspace -- --test-threads=1
+     ./tests/run_all_tests.sh
+     ```
