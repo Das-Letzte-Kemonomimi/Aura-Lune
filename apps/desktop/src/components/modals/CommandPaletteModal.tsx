@@ -539,7 +539,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     }
 
     return results;
-  }, [query, systemActions, tracks, albums]);
+  }, [query, systemActions, tracks, albums, onClose, onPlayTrack, onSelectTab]);
 
   useEffect(() => {
     setSelectedIndex(0);

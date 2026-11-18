@@ -86,9 +86,17 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   }, [projectId]);
 
   useEffect(() => {
+    let active = true;
     if (isOpen && projectId) {
-      fetchProjectData();
+      queueMicrotask(() => {
+        if (active) {
+          void fetchProjectData();
+        }
+      });
     }
+    return () => {
+      active = false;
+    };
   }, [isOpen, projectId, fetchProjectData]);
 
   // Nasłuchiwanie na postęp separacji projektu
@@ -384,6 +392,11 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
     }
   };
 
+  const handlersRef = useRef({ handleToggleMute, handleToggleSolo, handleVolumeChange });
+  useEffect(() => {
+    handlersRef.current = { handleToggleMute, handleToggleSolo, handleVolumeChange };
+  });
+
   // Skróty klawiszowe (Mute, Solo, 0 dla resetu)
   useEffect(() => {
     if (!isOpen) return;
@@ -393,13 +406,13 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
 
       if (e.code === 'KeyM' && hoveredChannelId) {
         e.preventDefault();
-        handleToggleMute(hoveredChannelId);
+        handlersRef.current.handleToggleMute(hoveredChannelId);
       } else if (e.code === 'KeyS' && hoveredChannelId) {
         e.preventDefault();
-        handleToggleSolo(hoveredChannelId);
+        handlersRef.current.handleToggleSolo(hoveredChannelId);
       } else if (e.code === 'Digit0' && hoveredChannelId) {
         e.preventDefault();
-        handleVolumeChange(hoveredChannelId, 0.75);
+        handlersRef.current.handleVolumeChange(hoveredChannelId, 0.75);
       }
     };
 

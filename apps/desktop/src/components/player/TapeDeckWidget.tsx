@@ -154,7 +154,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   const rightAngleRef = useRef<number>(0);
   const leftSpeedRef = useRef<number>(0);
   const rightSpeedRef = useRef<number>(0);
-  const lastTimeRef = useRef<number>(performance.now());
+  const lastTimeRef = useRef<number>(0);
 
   const leftSpoolRef = useRef<SVGGElement | null>(null);
   const rightSpoolRef = useRef<SVGGElement | null>(null);

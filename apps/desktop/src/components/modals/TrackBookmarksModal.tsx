@@ -56,7 +56,15 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   }, [trackId]);
 
   useEffect(() => {
-    loadBookmarks();
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        void loadBookmarks();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [loadBookmarks]);
 
   const handleAddBookmark = async () => {

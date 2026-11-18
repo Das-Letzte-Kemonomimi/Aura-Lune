@@ -166,7 +166,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [filePath]);
+  }, [filePath, loc.tagEditor.readError]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

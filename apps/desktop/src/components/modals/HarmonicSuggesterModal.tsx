@@ -208,7 +208,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
       .sort((a, b) => b.match.score - a.match.score);
   }, [
     isOpen,
-    currentTrack,
+    effectiveCurrentTrack,
     libraryTracks,
     effectiveKey,
     effectiveBpm,

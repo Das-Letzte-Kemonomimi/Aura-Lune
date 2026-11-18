@@ -132,13 +132,18 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
   // Pobieranie tekstów po zmianie utworu
   useEffect(() => {
+    let active = true;
+
     if (!isOpen || (!trackTitle && !trackPath)) {
-      setLyrics(null);
+      queueMicrotask(() => {
+        if (active) setLyrics(null);
+      });
       return;
     }
 
-    let active = true;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (active) setLoading(true);
+    });
 
     invoke<LyricsDto | null>('get_lyrics', {
       trackPath: trackPath || null,
@@ -164,7 +169,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
     return () => {
       active = false;
     };
-  }, [isOpen, trackTitle, trackArtist, trackPath, durationMs]);
+  }, [isOpen, trackTitle, trackArtist, trackAlbum, trackPath, durationMs]);
 
   // Efektywne linie zsynchronizowanego tekstu
   const lines = useMemo(() => {

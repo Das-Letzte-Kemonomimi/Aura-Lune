@@ -28,11 +28,11 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
     }
 
     if (position === 'off') {
-      setVisible(false);
+      queueMicrotask(() => setVisible(false));
       return;
     }
 
-    setVisible(true);
+    queueMicrotask(() => setVisible(true));
 
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);

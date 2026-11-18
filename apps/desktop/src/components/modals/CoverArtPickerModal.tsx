@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { X, Search, Image as ImageIcon, Check, Loader2, Sparkles, Upload, FolderOpen } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
@@ -49,22 +49,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
 
   const t = getTranslations(currentLang);
 
-  useEffect(() => {
-    if (isOpen) {
-      setAlbumQuery(initialAlbum);
-      setArtistQuery(initialArtist);
-      const cacheKey = `${initialAlbum.trim().toLowerCase()}---${initialArtist.trim().toLowerCase()}`;
-      if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
-        setCandidates(localCoverCache.get(cacheKey)!);
-        setIsSearching(false);
-        setErrorMsg(null);
-      } else {
-        performSearch(initialAlbum, initialArtist);
-      }
-    }
-  }, [isOpen, initialAlbum, initialArtist]);
-
-  const performSearch = async (album: string, artist: string) => {
+  const performSearch = useCallback(async (album: string, artist: string) => {
     if (!album.trim() && !artist.trim()) return;
     const cacheKey = `${album.trim().toLowerCase()}---${artist.trim().toLowerCase()}`;
     if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
@@ -91,7 +76,22 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [t.covers.noCoversFound, t.covers.searchError]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAlbumQuery(initialAlbum);
+      setArtistQuery(initialArtist);
+      const cacheKey = `${initialAlbum.trim().toLowerCase()}---${initialArtist.trim().toLowerCase()}`;
+      if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
+        setCandidates(localCoverCache.get(cacheKey)!);
+        setIsSearching(false);
+        setErrorMsg(null);
+      } else {
+        performSearch(initialAlbum, initialArtist);
+      }
+    }
+  }, [isOpen, initialAlbum, initialArtist, performSearch]);
 
   const handleApply = async (candidate: CoverCandidate) => {
     setIsApplying(candidate.full_url);

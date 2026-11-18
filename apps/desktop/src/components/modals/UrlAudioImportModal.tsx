@@ -70,14 +70,24 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = ({
   const loc = getTranslations(currentLang);
 
   useEffect(() => {
+    let active = true;
     if (isOpen) {
-      setErrorMessage(null);
-      setResult(null);
+      queueMicrotask(() => {
+        if (active) {
+          setErrorMessage(null);
+          setResult(null);
+        }
+      });
       // Pobierz domyślny folder muzyki
       invoke<string>('get_default_music_dir')
-        .then((dir) => setTargetDir(dir))
+        .then((dir) => {
+          if (active) setTargetDir(dir);
+        })
         .catch(() => {});
     }
+    return () => {
+      active = false;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;

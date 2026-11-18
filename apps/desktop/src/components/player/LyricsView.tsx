@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Mic2,
@@ -90,7 +90,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   const activeLineRef = useRef<HTMLDivElement>(null);
 
   // Pobieranie tekstów piosenek
-  const loadLyrics = async () => {
+  const loadLyrics = useCallback(async () => {
     if (!trackTitle && !trackPath) {
       setLyrics(null);
       setLoading(false);
@@ -122,11 +122,19 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [trackTitle, trackArtist, trackAlbum, trackPath, durationSec]);
 
   useEffect(() => {
-    loadLyrics();
-  }, [trackTitle, trackArtist, trackPath]);
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        void loadLyrics();
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [loadLyrics]);
 
   // Efektywne linie z uwzględnieniem przesunięcia (offsetMs)
   const effectiveLines = useMemo(() => {

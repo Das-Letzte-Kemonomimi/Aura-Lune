@@ -60,7 +60,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     if (isOpen) {
       invoke<string>('get_default_music_dir')
         .then((dir) => {
-          if (!destinationFolder) setDestinationFolder(dir);
+          setDestinationFolder((prev) => prev || dir);
         })
         .catch(() => {});
       fetchJobs();
@@ -76,8 +76,8 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       const lastSegment = pathname.substring(pathname.lastIndexOf('/') + 1);
       if (lastSegment && (lastSegment.endsWith('.mp3') || lastSegment.endsWith('.flac') || lastSegment.endsWith('.ogg') || lastSegment.endsWith('.wav') || lastSegment.endsWith('.m4a') || lastSegment.endsWith('.opus'))) {
         setFilename(decodeURIComponent(lastSegment));
-      } else if (!filename) {
-        setFilename('audio_download.mp3');
+      } else {
+        setFilename((prev) => prev || 'audio_download.mp3');
       }
     } catch {
       // Ignoruj niepełny URL podczas pisania
