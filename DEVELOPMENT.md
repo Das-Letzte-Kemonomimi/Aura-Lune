@@ -384,7 +384,8 @@ The installer automatically determines the target channel based on the following
 1. Explicit CLI flags: `--dev` or `--stable`
 2. Environment variables: `CHANNEL=dev` or `AURALUNE_CHANNEL=dev`
 3. Git branch name: if cloned on `dev` or `develop` branch
-4. Version naming: if version contains `dev`, `alpha`, `beta`, `rc`, or `nightly` (e.g. `1.1.6-dev`), it defaults to `dev`. When merging `dev` into `main` for a release, simply bumping the version number to a release version (e.g. `1.1.6`) automatically switches the installer to `stable` without modifying any installer logic.
+4. Safe default: Remote curl invocations without flags strictly default to `stable`, guaranteeing that merging `dev` into `main` will never cause `main` to install development packages.
+5. GitHub Pre-releases: Bleeding-edge AppImages are published automatically under tag `dev` and can be downloaded standalone from GitHub Releases or installed via `curl .../dev/install.sh | bash -s -- --dev`.
 
 ---
 

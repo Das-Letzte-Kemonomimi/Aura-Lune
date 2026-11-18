@@ -170,8 +170,17 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).not.toHaveBeenCalledWith('seek', expect.anything());
   });
 
-  it('handleSeekCommit invokes seek without fade on slider drag completion', async () => {
-    const { result } = setupHook();
+  it('handleSeekCommit respects seekFadeEnabled by default on progress bar release', async () => {
+    const { result } = setupHook({ seekFadeEnabled: true });
+    await act(async () => {
+      await result.current.handleSeekCommit(42000);
+    });
+    expect(setStatus).toHaveBeenCalled();
+    expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 42000, fade: true });
+  });
+
+  it('handleSeekCommit honors explicit fade override', async () => {
+    const { result } = setupHook({ seekFadeEnabled: true });
     await act(async () => {
       await result.current.handleSeekCommit(42000, false);
     });

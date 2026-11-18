@@ -206,7 +206,7 @@ jobs:
           
           #### Quick One-Liner Install:
           \`\`\`bash
-          curl -sSf https://raw.githubusercontent.com/${{ github.repository }}/dev/install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/dev/install.sh | bash -s -- --dev
           \`\`\`" \
             --prerelease
 

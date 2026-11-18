@@ -92,26 +92,27 @@ curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/mai
 Instalator automatycznie konfiguruje najnowszy AppImage, ikonę i skrót w menu programów (`auralune.desktop`) oraz launcher z automatycznym fallbackiem FUSE.
 
 <details>
-<summary>🧪 <sub>Opcjonalnie: Instalacja wersji deweloperskiej (Bleeding-Edge)</sub></summary>
+<summary>🧪 <sub>Opcjonalnie: Wersje deweloperskie i testowe (Pre-releases)</sub></summary>
 
 > [!NOTE]
-> Wersja deweloperska instaluje się jako osobna aplikacja `~/.local/bin/auralune-dev` obok wersji stabilnej, nie nadpisując jej. Przeznaczona dla testerów i deweloperów.
+> Wersja deweloperska instaluje się jako osobna aplikacja `~/.local/bin/auralune-dev` obok wersji stabilnej, nie nadpisując profilu ani konfiguracji. Przeznaczona dla testerów i deweloperów.
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash -s -- --dev
 > ```
+> Samodzielne paczki deweloperskie AppImage są również dostępne w sekcji **[GitHub Pre-releases (tag: dev)](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/dev)**.
 </details>
 
 ### 2. Gotowa paczka AppImage (Ręcznie)
-Pobierz odpowiedni plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
+Pobierz odpowiedni plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)** (lub wersje przedpremierowe z **[GitHub Pre-releases (tag: dev)](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/dev)**):
 - **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
   ```bash
-  chmod +x Auralune_1.0.0_bazzite_amd64.AppImage
-  ./Auralune_1.0.0_bazzite_amd64.AppImage
+  chmod +x Auralune_*_bazzite_amd64.AppImage
+  ./Auralune_*_bazzite_amd64.AppImage
   ```
 - **Arch / CachyOS / EndeavourOS / inne dystrybucje**:
   ```bash
-  chmod +x Auralune_1.0.0_amd64.AppImage
-  ./Auralune_1.0.0_amd64.AppImage
+  chmod +x Auralune_*_amd64.AppImage
+  ./Auralune_*_amd64.AppImage
   ```
 
 ### 3. Arch Linux / EndeavourOS / CachyOS (AUR)

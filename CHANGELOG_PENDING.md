@@ -30,6 +30,10 @@
   - Dodano zadanie `publish-dev-release`, które po przejściu testów na gałęzi `dev` automatycznie kompiluje paczkę AppImage i publikuje rotujące wydanie przedpremierowe (rolling pre-release) z tagiem `dev`, zapewniając stałą dostępność najnowszych wersji dla instalatora.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Obsługa opcji płynnego wyciszenia (Smooth Seek Fade) we wszystkich paskach postępu utworu**:
+  - Poprawiono funkcję `handleSeekCommit` w `usePlaybackController.ts`, aby domyślnie uwzględniała aktywny stan opcji `seekFadeEnabled`. Wcześniej zwolnienie paska postępu zawsze wymuszało `fade: false`, ignorując włączoną opcję Seek Fade.
+  - Zapewniono pełną obsługę płynnego, studyjnego mikro-fade'u we wszystkich paskach postępu i kontrolerach w aplikacji: głównym pasku doku (`BottomPlaybackDock`), widoku odtwarzacza (`PlayerView`), trybie pełnoekranowym (`BigScreenView`), widżecie Mini Playera (`MiniPlayerWidget`), nakładce tekstu (`DesktopLyricsOverlay`), widoku fali dźwiękowej (`WaveformCanvas`), widoku nut (`PianoRollCanvas`) oraz osi akordów (`ChordTimelineView`).
+  - Udoskonalono krzywą wygaszania w `audio-engine` (`seek_with_fade`): wprowadzono łagodne, naturalne wygaszanie kwadratowe (32 ms) oraz płynne wejście sinusoidalne (48 ms) ze stabilizacją bufora (10 ms), eliminujące wszelkie trzaski audio przy zachowaniu pełnej responsywności i natychmiastowego anulowania wcześniejszych operacji (`seek_seq`).
 - **Błąd kompilacji AppImage w CI („Can't detect any appindicator library”)**:
   - Dodano brakujące pakiety `libayatana-appindicator3-dev` oraz `librsvg2-dev` do konfiguracji środowiska GitHub Actions (`ci.yml`), umożliwiając pomyślne budowanie i pakowanie bundli AppImage przez Tauri CLI na systemie Linux.
 - **Zabezpieczenie instalatora w gałęzi `main`/`master` przed przypadkową instalacją wersji deweloperskiej**:

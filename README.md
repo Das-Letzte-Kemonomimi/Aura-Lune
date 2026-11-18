@@ -92,26 +92,27 @@ curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/mai
 The installer downloads the latest AppImage, installs icons, desktop entry (`auralune.desktop`), and a smart launcher with automatic FUSE 2 fallback.
 
 <details>
-<summary>🧪 <sub>Optional: Install Bleeding-Edge Development Build</sub></summary>
+<summary>🧪 <sub>Optional: Bleeding-Edge Development Build (Pre-releases)</sub></summary>
 
 > [!NOTE]
-> Development builds are installed separately into `~/.local/bin/auralune-dev` alongside the stable version without overwriting it. Intended for testers and contributors.
+> Development builds are installed separately into `~/.local/bin/auralune-dev` alongside the stable version without overwriting your stable profile or config. Intended for testers and contributors.
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash -s -- --dev
 > ```
+> Standalone development packages are also available under **[GitHub Pre-releases (tag: dev)](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/dev)**.
 </details>
 
 ### 2. Standalone AppImage (Manual)
-Download the appropriate package from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)**:
+Download the appropriate package from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)** (or pre-release builds from **[GitHub Pre-releases (tag: dev)](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/dev)**):
 - **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
   ```bash
-  chmod +x Auralune_1.0.0_bazzite_amd64.AppImage
-  ./Auralune_1.0.0_bazzite_amd64.AppImage
+  chmod +x Auralune_*_bazzite_amd64.AppImage
+  ./Auralune_*_bazzite_amd64.AppImage
   ```
 - **Arch / CachyOS / EndeavourOS / other distros**:
   ```bash
-  chmod +x Auralune_1.0.0_amd64.AppImage
-  ./Auralune_1.0.0_amd64.AppImage
+  chmod +x Auralune_*_amd64.AppImage
+  ./Auralune_*_amd64.AppImage
   ```
 
 ### 3. Arch Linux / EndeavourOS / CachyOS (AUR)

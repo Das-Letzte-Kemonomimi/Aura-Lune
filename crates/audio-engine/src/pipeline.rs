@@ -1493,18 +1493,19 @@ impl AudioEngine {
             return self.seek(position);
         }
 
-        let step_delay = Duration::from_millis(4);
+        let step_delay = Duration::from_millis(8);
 
-        // 1. Szybki, lekki mikro-fade-out (2 kroki po 4ms = 8ms)
-        let fade_out_steps = 2;
+        // 1. Łagodny, miękki mikro-fade-out (4 kroki po 8ms = 32ms)
+        let fade_out_steps = 4;
         for i in (0..fade_out_steps).rev() {
             let factor = (i as f64) / (fade_out_steps as f64);
+            let curve = factor * factor; // Naturalna kwadratowa krzywa wygaszania
             {
                 let inner = self.inner.lock().unwrap();
                 if inner.seek_seq != current_seq {
                     return Ok(());
                 }
-                inner.volume.set_property("volume", target_vol * factor);
+                inner.volume.set_property("volume", target_vol * curve);
             }
             std::thread::sleep(step_delay);
         }
@@ -1520,19 +1521,20 @@ impl AudioEngine {
         // 2. Właściwy skok czasowy w potoku GStreamer
         self.seek(position)?;
 
-        // 3. Krótka stabilizacja bufora po skoku
-        std::thread::sleep(Duration::from_millis(4));
+        // 3. Krótka stabilizacja bufora po skoku (10ms)
+        std::thread::sleep(Duration::from_millis(10));
 
-        // 4. Miękki powrót głośności (2 kroki po 4ms = 8ms)
-        let fade_in_steps = 2;
+        // 4. Płynny powrót głośności (6 kroków po 8ms = 48ms)
+        let fade_in_steps = 6;
         for i in 1..=fade_in_steps {
             let factor = (i as f64) / (fade_in_steps as f64);
+            let curve = (factor * std::f64::consts::FRAC_PI_2).sin(); // Płynne wejście sinusa
             {
                 let inner = self.inner.lock().unwrap();
                 if inner.seek_seq != current_seq {
                     return Ok(());
                 }
-                inner.volume.set_property("volume", target_vol * factor);
+                inner.volume.set_property("volume", target_vol * curve);
             }
             std::thread::sleep(step_delay);
         }

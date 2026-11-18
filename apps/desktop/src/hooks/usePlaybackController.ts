@@ -327,14 +327,15 @@ export function usePlaybackController({
   );
 
   const handleSeekCommit = useCallback(
-    async (val: number, fade = false) => {
+    async (val: number, fade?: boolean) => {
       isSeekingRef.current = true;
       if (seekReleaseTimerRef.current) {
         clearTimeout(seekReleaseTimerRef.current);
       }
       setStatus((prev) => ({ ...prev, position_ms: val }));
       try {
-        await invoke('seek', { positionMs: val, fade });
+        const shouldFade = typeof fade === 'boolean' ? fade : seekFadeEnabled;
+        await invoke('seek', { positionMs: val, fade: shouldFade });
       } catch (e: any) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       } finally {
@@ -344,7 +345,7 @@ export function usePlaybackController({
         }, 200);
       }
     },
-    [setStatus, showMessage, loc]
+    [setStatus, showMessage, loc, seekFadeEnabled]
   );
 
   const handleSeek = useCallback(
