@@ -3,118 +3,117 @@ use domain::Theme;
 use tauri::{Manager, State};
 
 #[tauri::command]
-pub fn list_themes(state: State<'_, AppState>) -> Result<Vec<Theme>, String> {
-    let db = state.db.clone();
-    state
-        .rt
-        .block_on(async move { db.list_themes().await })
-        .map_err(|e| e.to_string())
+pub async fn list_themes(state: State<'_, AppState>) -> Result<Vec<Theme>, String> {
+    state.db.list_themes().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, String> {
-    let db = state.db.clone();
-    state
-        .rt
-        .block_on(async move {
-            let active_id = db
-                .get_app_setting("active_theme_id")
-                .await?
-                .unwrap_or_else(|| "cyber-kitsune".to_string());
-            if let Some(theme) = db.get_theme(&active_id).await? {
-                Ok(theme)
-            } else {
-                db.get_theme("cyber-kitsune").await?.ok_or_else(|| {
-                    storage::StorageError::Migration("Nie znaleziono domyślnego motywu".to_string())
-                })
-            }
-        })
-        .map_err(|e: storage::StorageError| e.to_string())
+pub async fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, String> {
+    let active_id = state
+        .db
+        .get_app_setting("active_theme_id")
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?
+        .unwrap_or_else(|| "cyber-kitsune".to_string());
+    if let Some(theme) = state
+        .db
+        .get_theme(&active_id)
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?
+    {
+        Ok(theme)
+    } else {
+        state
+            .db
+            .get_theme("cyber-kitsune")
+            .await
+            .map_err(|e: storage::StorageError| e.to_string())?
+            .ok_or_else(|| "Nie znaleziono domyślnego motywu".to_string())
+    }
 }
 
 #[tauri::command]
-pub fn set_active_theme(theme_id: String, state: State<'_, AppState>) -> Result<Theme, String> {
-    let db = state.db.clone();
+pub async fn set_active_theme(
+    theme_id: String,
+    state: State<'_, AppState>,
+) -> Result<Theme, String> {
+    let theme = state
+        .db
+        .get_theme(&theme_id)
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?
+        .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
     state
-        .rt
-        .block_on(async move {
-            let theme = db.get_theme(&theme_id).await?.ok_or_else(|| {
-                storage::StorageError::Migration(format!("Motyw '{}' nie istnieje", theme_id))
-            })?;
-            db.set_app_setting("active_theme_id", &theme_id).await?;
-            Ok(theme)
-        })
-        .map_err(|e: storage::StorageError| e.to_string())
+        .db
+        .set_app_setting("active_theme_id", &theme_id)
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?;
+    Ok(theme)
 }
 
 #[tauri::command]
-pub fn save_theme(theme: Theme, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn save_theme(theme: Theme, state: State<'_, AppState>) -> Result<(), String> {
     theme.validate()?;
-    let db = state.db.clone();
-    state
-        .rt
-        .block_on(async move { db.save_theme(&theme).await })
-        .map_err(|e| e.to_string())
+    state.db.save_theme(&theme).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn update_theme_background(
+pub async fn update_theme_background(
     theme_id: String,
     background_ref: Option<String>,
     overlay_opacity: f32,
     blur_radius: f32,
     state: State<'_, AppState>,
 ) -> Result<Theme, String> {
-    let db = state.db.clone();
+    let mut theme = state
+        .db
+        .get_theme(&theme_id)
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?
+        .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
+    theme.background_ref = background_ref;
+    theme.overlay_opacity = overlay_opacity;
+    theme.blur_radius = blur_radius;
+    theme.validate()?;
     state
-        .rt
-        .block_on(async move {
-            let mut theme = db.get_theme(&theme_id).await?.ok_or_else(|| {
-                storage::StorageError::Migration(format!("Motyw '{}' nie istnieje", theme_id))
-            })?;
-            theme.background_ref = background_ref;
-            theme.overlay_opacity = overlay_opacity;
-            theme.blur_radius = blur_radius;
-            theme.validate().map_err(storage::StorageError::Migration)?;
-            db.save_theme(&theme).await?;
-            Ok(theme)
-        })
-        .map_err(|e: storage::StorageError| e.to_string())
+        .db
+        .save_theme(&theme)
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?;
+    Ok(theme)
 }
 
 #[tauri::command]
-pub fn export_theme_json(theme_id: String, state: State<'_, AppState>) -> Result<String, String> {
-    let db = state.db.clone();
-    state
-        .rt
-        .block_on(async move {
-            let theme = db.get_theme(&theme_id).await?.ok_or_else(|| {
-                storage::StorageError::Migration(format!("Motyw '{}' nie istnieje", theme_id))
-            })?;
-            serde_json::to_string_pretty(&theme)
-                .map_err(|e| storage::StorageError::Migration(e.to_string()))
-        })
-        .map_err(|e: storage::StorageError| e.to_string())
+pub async fn export_theme_json(
+    theme_id: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let theme = state
+        .db
+        .get_theme(&theme_id)
+        .await
+        .map_err(|e: storage::StorageError| e.to_string())?
+        .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
+    serde_json::to_string_pretty(&theme).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn import_theme_json(
+pub async fn import_theme_json(
     json_content: String,
     state: State<'_, AppState>,
 ) -> Result<Theme, String> {
     let theme: Theme =
         serde_json::from_str(&json_content).map_err(|e| format!("Błąd parsowania JSON: {}", e))?;
     theme.validate()?;
-    let db = state.db.clone();
-    let theme_clone = theme.clone();
     state
-        .rt
-        .block_on(async move {
-            db.save_theme(&theme_clone).await?;
-            db.set_app_setting("active_theme_id", &theme_clone.id)
-                .await?;
-            Ok::<(), storage::StorageError>(())
-        })
+        .db
+        .save_theme(&theme)
+        .await
+        .map_err(|e| e.to_string())?;
+    state
+        .db
+        .set_app_setting("active_theme_id", &theme.id)
+        .await
         .map_err(|e| e.to_string())?;
     Ok(theme)
 }

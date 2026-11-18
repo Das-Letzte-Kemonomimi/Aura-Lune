@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Disc, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
-import { AnalogLoFiModal } from '../modals/AnalogLoFiModal';
+
+const AnalogLoFiModal = React.lazy(() =>
+  import('../modals/AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal }))
+);
 
 interface VinylTurntableProps {
   coverUrl?: string | null;
@@ -463,11 +466,13 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 
       {/* Samodzielny modal Pop-up (jeśli brak nadrzędnego handlera) */}
       {internalLoFiModalOpen && (
-        <AnalogLoFiModal
-          isOpen={internalLoFiModalOpen}
-          onClose={() => setInternalLoFiModalOpen(false)}
-          isPlaying={isPlaying}
-        />
+        <React.Suspense fallback={null}>
+          <AnalogLoFiModal
+            isOpen={internalLoFiModalOpen}
+            onClose={() => setInternalLoFiModalOpen(false)}
+            isPlaying={isPlaying}
+          />
+        </React.Suspense>
       )}
     </div>
   );

@@ -54,7 +54,7 @@ export interface BottomPlaybackDockProps {
   onToggleMiniPlayer: () => void;
 }
 
-export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
+export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(({
   isVisible,
   activeTab,
   language: _language,
@@ -699,4 +699,4 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
       </div>
     </div>
   );
-};
+});

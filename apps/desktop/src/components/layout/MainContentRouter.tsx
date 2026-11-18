@@ -43,7 +43,7 @@ export interface MainContentRouterProps {
   radioProps: RadioRouterProps;
 }
 
-export const MainContentRouter: React.FC<MainContentRouterProps> = ({
+export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
   mainContentRef,
   activeTab,
   isPlayerScrolledDown,
@@ -91,4 +91,4 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = ({
       {activeTab === 'radio' && <RadioView {...radioProps} />}
     </main>
   );
-};
+});

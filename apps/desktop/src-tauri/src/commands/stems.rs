@@ -10,7 +10,7 @@ use domain::{
 use downloads::DownloadProvider;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use tauri::Emitter;
+use tauri::{Emitter, State};
 use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -675,6 +675,190 @@ pub async fn export_stem_project_zip_internal(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+// =========================================================================
+// TAURI COMMAND WRAPPERS FOR STEMS
+// =========================================================================
+
+#[tauri::command]
+pub fn list_ai_models() -> Result<Vec<AiModelInfo>, String> {
+    Ok(list_ai_models_internal())
+}
+
+#[tauri::command]
+pub fn delete_ai_model(model_id: String) -> Result<(), String> {
+    delete_ai_model_internal(&model_id)
+}
+
+#[tauri::command]
+pub async fn download_ai_model(
+    model_id: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    download_ai_model_internal(&model_id, &app_handle).await
+}
+
+#[tauri::command]
+pub async fn start_stem_separation(
+    path: String,
+    track_id: i64,
+    model_id: Option<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<StemSeparationData, String> {
+    start_stem_separation_internal(&state, path, track_id, model_id, &app_handle).await
+}
+
+#[tauri::command]
+pub async fn get_track_stems(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<StemSeparationData>, String> {
+    get_track_stems_internal(&state, track_id).await
+}
+
+#[tauri::command]
+pub async fn load_track_stems(
+    track_id: i64,
+    seek_position_ms: Option<u64>,
+    start_playing: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<StemMixerState, String> {
+    load_track_stems_internal(&state, track_id, seek_position_ms, start_playing).await
+}
+
+#[tauri::command]
+pub async fn set_stem_mixer_state(
+    state_payload: StemMixerState,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    set_stem_mixer_state_internal(&state, state_payload)
+}
+
+#[tauri::command]
+pub async fn get_stem_mixer_state(state: State<'_, AppState>) -> Result<StemMixerState, String> {
+    Ok(get_stem_mixer_state_internal(&state))
+}
+
+#[tauri::command]
+pub async fn list_model_packs() -> Result<Vec<ModelPackInfo>, String> {
+    Ok(list_model_packs_internal())
+}
+
+#[tauri::command]
+pub async fn create_stem_project(
+    track_id: i64,
+    title: Option<String>,
+    requested_packs: Vec<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<StemProject, String> {
+    create_stem_project_internal(&state, track_id, title, requested_packs, &app_handle).await
+}
+
+#[tauri::command]
+pub async fn list_stem_projects(state: State<'_, AppState>) -> Result<Vec<StemProject>, String> {
+    list_stem_projects_internal(&state).await
+}
+
+#[tauri::command]
+pub async fn get_stem_project(
+    project_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<StemProject>, String> {
+    get_stem_project_internal(&state, project_id).await
+}
+
+#[tauri::command]
+pub async fn delete_stem_project(
+    project_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    delete_stem_project_internal(&state, project_id).await
+}
+
+#[tauri::command]
+pub async fn rename_stem_project(
+    project_id: i64,
+    title: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    rename_stem_project_internal(&state, project_id, &title).await
+}
+
+#[tauri::command]
+pub async fn save_stem_project_mix(
+    mix: StemProjectMix,
+    state: State<'_, AppState>,
+) -> Result<i64, String> {
+    save_stem_project_mix_internal(&state, &mix).await
+}
+
+#[tauri::command]
+pub async fn get_stem_project_mixes(
+    project_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<StemProjectMix>, String> {
+    get_stem_project_mixes_internal(&state, project_id).await
+}
+
+#[tauri::command]
+pub async fn delete_stem_project_mix(
+    mix_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    delete_stem_project_mix_internal(&state, mix_id).await
+}
+
+#[tauri::command]
+pub async fn load_stem_project(
+    project_id: i64,
+    master_volume: Option<f32>,
+    seek_position_ms: Option<u64>,
+    start_playing: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    load_stem_project_internal(
+        &state,
+        project_id,
+        master_volume,
+        seek_position_ms,
+        start_playing,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn restore_original_track(state: State<'_, AppState>) -> Result<(), String> {
+    restore_original_track_internal(&state)
+}
+
+#[tauri::command]
+pub async fn apply_stem_project_mix(
+    channels: Vec<StemChannel>,
+    master_volume: f32,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    apply_stem_project_mix_internal(&state, &channels, master_volume)
+}
+
+#[tauri::command]
+pub async fn export_stem_project_mix(
+    project_id: i64,
+    export_path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    export_stem_project_mix_internal(&state, project_id, &export_path).await
+}
+
+#[tauri::command]
+pub async fn export_stem_project_zip(
+    project_id: i64,
+    export_path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    export_stem_project_zip_internal(&state, project_id, &export_path).await
 }
 
 #[cfg(test)]

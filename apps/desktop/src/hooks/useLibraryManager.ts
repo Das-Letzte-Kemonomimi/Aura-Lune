@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect, useDeferredValue } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { TrackRecord, AlbumRecord, ScanSummaryDto, SampleTrackDto } from '../types/library';
 import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
 import { normalizeStr } from '../utils/textNormalize';
 import { useVirtualScroll } from './useVirtualScroll';
+
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
 export interface UseLibraryManagerOptions {
   mainContentRef: React.RefObject<HTMLElement | null>;
@@ -126,8 +128,10 @@ export function useLibraryManager({
   }, [mainContentRef, selectedAlbumDetail]);
 
   // 6. Filtered & Sorted Memos
+  const deferredSearch = useDeferredValue(librarySearch);
+
   const filteredTracks = useMemo(() => {
-    const rawQ = librarySearch.trim();
+    const rawQ = deferredSearch.trim();
     const q = normalizeStr(rawQ);
     const seenTrackKeys = new Set<string>();
 
@@ -240,13 +244,13 @@ export function useLibraryManager({
     });
   }, [
     albums,
+    deferredSearch,
     facetSelectedAlbumId,
     facetSelectedArtist,
     facetSelectedFormat,
     hideDuplicates,
     isFacetsFilterEnabled,
     libraryFormatFilter,
-    librarySearch,
     smartPlaylistFilter,
     tracks,
   ]);
@@ -272,16 +276,16 @@ export function useLibraryManager({
       let cmp = 0;
       switch (sortField) {
         case 'title':
-          cmp = a.title.localeCompare(b.title);
+          cmp = collator.compare(a.title || '', b.title || '');
           break;
         case 'artist':
-          cmp = a.artist.localeCompare(b.artist);
+          cmp = collator.compare(a.artist || '', b.artist || '');
           break;
         case 'duration':
           cmp = a.duration_ms - b.duration_ms;
           break;
         case 'format':
-          cmp = a.format.localeCompare(b.format);
+          cmp = collator.compare(a.format || '', b.format || '');
           break;
         case 'date':
           cmp = (a.modified_time || 0) - (b.modified_time || 0);
@@ -296,14 +300,14 @@ export function useLibraryManager({
   }, [filteredTracks, smartPlaylistFilter, sortField, sortOrder]);
 
   const filteredAlbums = useMemo(() => {
-    const q = normalizeStr(librarySearch.trim());
+    const q = normalizeStr(deferredSearch.trim());
     if (!q) return albums;
     return albums.filter((a) => {
       const title = normalizeStr(a.title);
       const artist = normalizeStr(a.album_artist);
       return title.includes(q) || artist.includes(q);
     });
-  }, [albums, librarySearch]);
+  }, [albums, deferredSearch]);
 
   const albumsWithCoverCount = useMemo(() => albums.filter((a) => !!a.cover_path).length, [albums]);
   const albumsWithoutCoverCount = useMemo(() => albums.length - albumsWithCoverCount, [albums, albumsWithCoverCount]);
@@ -312,7 +316,7 @@ export function useLibraryManager({
     const list = albums.filter((a) => {
       if (albumCoverFilter === 'with-cover' && !a.cover_path) return false;
       if (albumCoverFilter === 'missing-cover' && a.cover_path) return false;
-      const q = normalizeStr(librarySearch.trim());
+      const q = normalizeStr(deferredSearch.trim());
       if (!q) return true;
       const title = normalizeStr(a.title);
       const artist = normalizeStr(a.album_artist);
@@ -334,9 +338,9 @@ export function useLibraryManager({
     list.sort((a, b) => {
       let cmp = 0;
       if (albumSortField === 'title') {
-        cmp = a.title.localeCompare(b.title);
+        cmp = collator.compare(a.title || '', b.title || '');
       } else if (albumSortField === 'artist') {
-        cmp = a.album_artist.localeCompare(b.album_artist);
+        cmp = collator.compare(a.album_artist || '', b.album_artist || '');
       } else if (albumSortField === 'year') {
         cmp = (a.year || 0) - (b.year || 0);
       } else if (albumSortField === 'tracks') {
@@ -351,7 +355,7 @@ export function useLibraryManager({
       return albumSortOrder === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [albumCoverFilter, albumSortField, albumSortOrder, albums, librarySearch, tracks]);
+  }, [albumCoverFilter, albumSortField, albumSortOrder, albums, deferredSearch, tracks]);
 
   const filteredArtists = useMemo(() => {
     const map = new Map<string, {
@@ -385,13 +389,13 @@ export function useLibraryManager({
     });
 
     let list = Array.from(map.values());
-    if (librarySearch.trim()) {
-      const q = normalizeStr(librarySearch);
+    if (deferredSearch.trim()) {
+      const q = normalizeStr(deferredSearch);
       list = list.filter((a) => normalizeStr(a.name).includes(q));
     }
-    list.sort((a, b) => a.name.localeCompare(b.name));
+    list.sort((a, b) => collator.compare(a.name, b.name));
     return list;
-  }, [albums, librarySearch, tracks]);
+  }, [albums, deferredSearch, tracks]);
 
   // 7. Virtual Scroll for Tracks Table
   const libraryTableRef = useRef<HTMLTableElement | null>(null);

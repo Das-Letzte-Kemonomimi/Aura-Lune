@@ -3,33 +3,36 @@ use domain::TrackBookmark;
 use tauri::State;
 
 #[tauri::command]
-pub fn save_bookmark(
+pub async fn save_bookmark(
     track_id: i64,
     position_ms: u64,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = state.db.clone();
     state
-        .rt
-        .block_on(async move { db.save_bookmark(track_id, position_ms).await })
+        .db
+        .save_bookmark(track_id, position_ms)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
-    let db = state.db.clone();
+pub async fn get_bookmark(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<u64>, String> {
     state
-        .rt
-        .block_on(async move { db.get_bookmark(track_id).await })
+        .db
+        .get_bookmark(track_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn delete_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
-    let db = state.db.clone();
+pub async fn delete_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
     state
-        .rt
-        .block_on(async move { db.delete_bookmark(track_id).await })
+        .db
+        .delete_bookmark(track_id)
+        .await
         .map_err(|e| e.to_string())
 }
 

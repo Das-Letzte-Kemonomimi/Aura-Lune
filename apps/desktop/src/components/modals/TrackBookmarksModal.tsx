@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from 'lucide-react';
-import { formatTimeMs } from './LoopEditorModal';
+import { formatTimeMs } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';
+import { type TrackBookmarkDto } from '../../types/player';
 
-export interface TrackBookmarkDto {
-  id: number;
-  track_id: number;
-  name: string;
-  position_ms: number;
-  created_at: number;
-}
+export type { TrackBookmarkDto };
 
 interface TrackBookmarksModalProps {
   trackId: number;

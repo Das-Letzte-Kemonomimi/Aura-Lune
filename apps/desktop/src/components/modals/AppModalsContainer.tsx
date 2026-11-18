@@ -9,37 +9,40 @@ import {
 import { type EqualizerPreset } from '../../types/equalizer';
 import { type QueueItem, type PlaybackQueue } from '../../types/queue';
 import { type VolumeOsdPosition } from '../player/VolumeOsd';
-import { PlaylistSelectModal } from './PlaylistSelectModal';
-import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
-import { CoverArtPickerModal } from './CoverArtPickerModal';
 import { DesktopLyricsOverlay } from '../player/DesktopLyricsOverlay';
-import { SleepTimerModal } from './SleepTimerModal';
-import { AudioPathInspectorModal } from './AudioPathInspectorModal';
-import { AnalogLoFiModal } from './AnalogLoFiModal';
-import { AudioHealthCheckModal } from './AudioHealthCheckModal';
-import { SoundscapeModal } from './SoundscapeModal';
-import { HarmonicSuggesterModal } from './HarmonicSuggesterModal';
-import { AutoEqModal } from './AutoEqModal';
-import { ParametricEqModal } from './ParametricEqModal';
-import { DynamicsStudioModal } from './DynamicsStudioModal';
-import { TrackStatsModal, type TrackStatsData } from './TrackStatsModal';
-import { LoopEditorModal, formatTimeMs } from './LoopEditorModal';
-import { OnboardingModal } from './OnboardingModal';
-import { KeyBpmModal } from './KeyBpmModal';
-import { MusicAnalysisModal } from './MusicAnalysisModal';
-import { StemProjectStudioModal } from './StemProjectStudioModal';
-import { CreateStemProjectModal } from './CreateStemProjectModal';
-import { AuraluneRecapModal } from './AuraluneRecapModal';
-import { TagEditorModal } from './TagEditorModal';
-import { CommandPaletteModal } from './CommandPaletteModal';
-import { UrlAudioImportModal } from './UrlAudioImportModal';
-import { CueSheetModal } from './CueSheetModal';
-import { DownloadHubModal } from './DownloadHubModal';
-import { TrackBookmarksModal } from './TrackBookmarksModal';
-import { DuplicateFinderModal } from './DuplicateFinderModal';
-import { FileRenamerModal } from './FileRenamerModal';
-import { SaveQueueModal } from './SaveQueueModal';
-import { AddRadioStationModal } from './AddRadioStationModal';
+import { formatTimeMs } from '../../utils/timeFormat';
+import type { TrackStatsData } from './TrackStatsModal';
+
+const PlaylistSelectModal = React.lazy(() => import('./PlaylistSelectModal').then((m) => ({ default: m.PlaylistSelectModal })));
+const KeyboardShortcutsModal = React.lazy(() => import('./KeyboardShortcutsModal').then((m) => ({ default: m.KeyboardShortcutsModal })));
+const CoverArtPickerModal = React.lazy(() => import('./CoverArtPickerModal').then((m) => ({ default: m.CoverArtPickerModal })));
+const SleepTimerModal = React.lazy(() => import('./SleepTimerModal').then((m) => ({ default: m.SleepTimerModal })));
+const AudioPathInspectorModal = React.lazy(() => import('./AudioPathInspectorModal').then((m) => ({ default: m.AudioPathInspectorModal })));
+const AnalogLoFiModal = React.lazy(() => import('./AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal })));
+const AudioHealthCheckModal = React.lazy(() => import('./AudioHealthCheckModal').then((m) => ({ default: m.AudioHealthCheckModal })));
+const SoundscapeModal = React.lazy(() => import('./SoundscapeModal').then((m) => ({ default: m.SoundscapeModal })));
+const HarmonicSuggesterModal = React.lazy(() => import('./HarmonicSuggesterModal').then((m) => ({ default: m.HarmonicSuggesterModal })));
+const AutoEqModal = React.lazy(() => import('./AutoEqModal').then((m) => ({ default: m.AutoEqModal })));
+const ParametricEqModal = React.lazy(() => import('./ParametricEqModal').then((m) => ({ default: m.ParametricEqModal })));
+const DynamicsStudioModal = React.lazy(() => import('./DynamicsStudioModal').then((m) => ({ default: m.DynamicsStudioModal })));
+const TrackStatsModal = React.lazy(() => import('./TrackStatsModal').then((m) => ({ default: m.TrackStatsModal })));
+const LoopEditorModal = React.lazy(() => import('./LoopEditorModal').then((m) => ({ default: m.LoopEditorModal })));
+const OnboardingModal = React.lazy(() => import('./OnboardingModal').then((m) => ({ default: m.OnboardingModal })));
+const KeyBpmModal = React.lazy(() => import('./KeyBpmModal').then((m) => ({ default: m.KeyBpmModal })));
+const MusicAnalysisModal = React.lazy(() => import('./MusicAnalysisModal').then((m) => ({ default: m.MusicAnalysisModal })));
+const StemProjectStudioModal = React.lazy(() => import('./StemProjectStudioModal').then((m) => ({ default: m.StemProjectStudioModal })));
+const CreateStemProjectModal = React.lazy(() => import('./CreateStemProjectModal').then((m) => ({ default: m.CreateStemProjectModal })));
+const AuraluneRecapModal = React.lazy(() => import('./AuraluneRecapModal').then((m) => ({ default: m.AuraluneRecapModal })));
+const TagEditorModal = React.lazy(() => import('./TagEditorModal').then((m) => ({ default: m.TagEditorModal })));
+const CommandPaletteModal = React.lazy(() => import('./CommandPaletteModal').then((m) => ({ default: m.CommandPaletteModal })));
+const UrlAudioImportModal = React.lazy(() => import('./UrlAudioImportModal').then((m) => ({ default: m.UrlAudioImportModal })));
+const CueSheetModal = React.lazy(() => import('./CueSheetModal').then((m) => ({ default: m.CueSheetModal })));
+const DownloadHubModal = React.lazy(() => import('./DownloadHubModal').then((m) => ({ default: m.DownloadHubModal })));
+const TrackBookmarksModal = React.lazy(() => import('./TrackBookmarksModal').then((m) => ({ default: m.TrackBookmarksModal })));
+const DuplicateFinderModal = React.lazy(() => import('./DuplicateFinderModal').then((m) => ({ default: m.DuplicateFinderModal })));
+const FileRenamerModal = React.lazy(() => import('./FileRenamerModal').then((m) => ({ default: m.FileRenamerModal })));
+const SaveQueueModal = React.lazy(() => import('./SaveQueueModal').then((m) => ({ default: m.SaveQueueModal })));
+const AddRadioStationModal = React.lazy(() => import('./AddRadioStationModal').then((m) => ({ default: m.AddRadioStationModal })));
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
 
 export interface AppModalsContainerProps {
@@ -391,7 +394,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   showMessage,
 }) => {
   return (
-    <>
+    <React.Suspense fallback={null}>
       {/* Modal dodawania utworu do playlisty */}
       <PlaylistSelectModal
         isOpen={showPlaylistModal}
@@ -1007,6 +1010,6 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onClose={() => setIsAddStationModalOpen(false)}
         onSave={handleSaveCustomStation}
       />
-    </>
+    </React.Suspense>
   );
 };

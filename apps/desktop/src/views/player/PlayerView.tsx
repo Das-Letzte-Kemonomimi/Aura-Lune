@@ -56,7 +56,7 @@ import {
   type QueueColumnConfig,
   getQueueGridTemplate,
 } from '../../types/queue';
-import type { TrackBookmarkDto } from '../../components/modals/TrackBookmarksModal';
+import type { TrackBookmarkDto } from '../../types/player';
 import type { DspCombinationInfo } from '../dsp/DspStudioView';
 import { type Language, getTranslations } from '../../i18n';
 
@@ -176,7 +176,7 @@ export interface PlayerViewProps {
   showMessage: (msg: string, isError?: boolean) => void;
 }
 
-export const PlayerView: React.FC<PlayerViewProps> = ({
+export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
   layoutMaxWidth,
   language,
   loc,
@@ -3008,4 +3008,4 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
               </div>
             </div>
   );
-};
+});

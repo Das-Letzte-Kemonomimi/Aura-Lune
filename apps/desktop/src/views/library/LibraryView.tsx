@@ -159,7 +159,7 @@ export interface LibraryViewProps {
   formatTime: (ms: number) => string;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({
+export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
   layoutMaxWidth,
   currentLang: _currentLang,
   language: _language = _currentLang,
@@ -2945,4 +2945,4 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               )}
             </div>
   );
-};
+});

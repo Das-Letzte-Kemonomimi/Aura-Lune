@@ -6,26 +6,57 @@ use domain::PlaybackState;
 use tracing::info;
 
 /// Lists all audio cards and endpoints detected on the host system via PipeWire / ALSA.
-pub fn list_devices_internal() -> Result<Vec<AudioCard>, String> {
+#[tauri::command]
+pub fn list_devices() -> Result<Vec<AudioCard>, String> {
     DeviceManager::list_cards().map_err(|e| e.to_string())
 }
 
 /// Sets audio card profile (e.g. Pro Audio, Stereo Output).
+#[tauri::command]
+pub fn set_device_profile(card_name: String, profile_name: String) -> Result<(), String> {
+    DeviceManager::set_card_profile(&card_name, &profile_name).map_err(|e| e.to_string())
+}
+
+/// Sets Bluetooth audio codec (LDAC, aptX HD, AAC, SBC).
+#[tauri::command]
+pub fn set_bluetooth_codec(card_name: String, codec: BluetoothCodec) -> Result<(), String> {
+    DeviceManager::set_bluetooth_codec(&card_name, &codec).map_err(|e| e.to_string())
+}
+
+/// Enables Pro Audio mode on the given audio card.
+#[tauri::command]
+pub fn enable_pro_audio(card_name: String) -> Result<(), String> {
+    DeviceManager::enable_pro_audio(&card_name).map_err(|e| e.to_string())
+}
+
+/// Disables Pro Audio mode and restores previous profile.
+#[tauri::command]
+pub fn disable_pro_audio(card_name: String) -> Result<String, String> {
+    DeviceManager::disable_pro_audio(&card_name).map_err(|e| e.to_string())
+}
+
+/// Alias for set_device_profile.
+#[tauri::command]
+pub fn set_card_profile(card_name: String, profile: String) -> Result<(), String> {
+    DeviceManager::set_card_profile(&card_name, &profile).map_err(|e| e.to_string())
+}
+
+pub fn list_devices_internal() -> Result<Vec<AudioCard>, String> {
+    list_devices()
+}
+
 pub fn set_device_profile_internal(card_name: &str, profile_name: &str) -> Result<(), String> {
     DeviceManager::set_card_profile(card_name, profile_name).map_err(|e| e.to_string())
 }
 
-/// Sets Bluetooth audio codec (LDAC, aptX HD, AAC, SBC).
 pub fn set_bluetooth_codec_internal(card_name: &str, codec: &BluetoothCodec) -> Result<(), String> {
     DeviceManager::set_bluetooth_codec(card_name, codec).map_err(|e| e.to_string())
 }
 
-/// Enables Pro Audio mode on the given audio card.
 pub fn enable_pro_audio_internal(card_name: &str) -> Result<(), String> {
     DeviceManager::enable_pro_audio(card_name).map_err(|e| e.to_string())
 }
 
-/// Disables Pro Audio mode and restores previous profile.
 pub fn disable_pro_audio_internal(card_name: &str) -> Result<String, String> {
     DeviceManager::disable_pro_audio(card_name).map_err(|e| e.to_string())
 }

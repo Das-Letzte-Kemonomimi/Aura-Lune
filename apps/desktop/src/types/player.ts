@@ -155,4 +155,12 @@ export interface SampleTrackDto {
   duration_ms: number;
 }
 
+export interface TrackBookmarkDto {
+  id: number;
+  track_id: number;
+  name: string;
+  position_ms: number;
+  created_at: number;
+}
+
 

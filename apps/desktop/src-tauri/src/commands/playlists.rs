@@ -102,65 +102,65 @@ pub fn load_radio_stream(
 }
 
 #[tauri::command]
-pub fn save_queue_as_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+pub async fn save_queue_as_playlist(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<i64, String> {
     info!("Tauri command: save_queue_as_playlist('{}')", name);
     let queue = state.engine.queue();
     if queue.items.is_empty() {
         return Err("Kolejka odtwarzania jest pusta".to_string());
     }
 
-    state.rt.block_on(async {
-        let pl_id = state
-            .db
-            .create_playlist(&name)
-            .await
-            .map_err(|e| e.to_string())?;
+    let pl_id = state
+        .db
+        .create_playlist(&name)
+        .await
+        .map_err(|e| e.to_string())?;
 
-        for item in &queue.items {
-            let track_id = if let Some(tid) = item.track_id {
-                Some(tid)
-            } else if let Ok(Some(track)) = state.db.get_track_by_path(&item.uri).await {
-                Some(track.id)
-            } else {
-                None
-            };
+    for item in &queue.items {
+        let track_id = if let Some(tid) = item.track_id {
+            Some(tid)
+        } else if let Ok(Some(track)) = state.db.get_track_by_path(&item.uri).await {
+            Some(track.id)
+        } else {
+            None
+        };
 
-            if let Some(tid) = track_id {
-                let _ = state.db.add_track_to_playlist(pl_id, tid).await;
-            }
+        if let Some(tid) = track_id {
+            let _ = state.db.add_track_to_playlist(pl_id, tid).await;
         }
-        Ok(pl_id)
-    })
+    }
+    Ok(pl_id)
 }
 
 #[tauri::command]
-pub fn create_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+pub async fn create_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
     info!("Tauri command: create_playlist('{}')", name);
     state
-        .rt
-        .block_on(async { state.db.create_playlist(&name).await })
+        .db
+        .create_playlist(&name)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn delete_playlist(playlist_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn delete_playlist(playlist_id: i64, state: State<'_, AppState>) -> Result<(), String> {
     info!("Tauri command: delete_playlist({})", playlist_id);
     state
-        .rt
-        .block_on(async { state.db.delete_playlist(playlist_id).await })
+        .db
+        .delete_playlist(playlist_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn list_playlists(state: State<'_, AppState>) -> Result<Vec<Playlist>, String> {
-    state
-        .rt
-        .block_on(async { state.db.list_playlists().await })
-        .map_err(|e| e.to_string())
+pub async fn list_playlists(state: State<'_, AppState>) -> Result<Vec<Playlist>, String> {
+    state.db.list_playlists().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn add_track_to_playlist(
+pub async fn add_track_to_playlist(
     playlist_id: i64,
     track_id: i64,
     state: State<'_, AppState>,
@@ -170,13 +170,14 @@ pub fn add_track_to_playlist(
         playlist_id, track_id
     );
     state
-        .rt
-        .block_on(async { state.db.add_track_to_playlist(playlist_id, track_id).await })
+        .db
+        .add_track_to_playlist(playlist_id, track_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn remove_track_from_playlist(
+pub async fn remove_track_from_playlist(
     playlist_id: i64,
     track_id: i64,
     state: State<'_, AppState>,
@@ -186,29 +187,26 @@ pub fn remove_track_from_playlist(
         playlist_id, track_id
     );
     state
-        .rt
-        .block_on(async {
-            state
-                .db
-                .remove_track_from_playlist(playlist_id, track_id)
-                .await
-        })
+        .db
+        .remove_track_from_playlist(playlist_id, track_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_playlist_tracks(
+pub async fn get_playlist_tracks(
     playlist_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Vec<TrackRecord>, String> {
     state
-        .rt
-        .block_on(async { state.db.get_playlist_tracks(playlist_id).await })
+        .db
+        .get_playlist_tracks(playlist_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn export_playlist_m3u8(
+pub async fn export_playlist_m3u8(
     playlist_id: i64,
     export_path: String,
     use_relative_paths: bool,
@@ -219,13 +217,15 @@ pub fn export_playlist_m3u8(
         playlist_id, export_path, use_relative_paths
     );
     let tracks = state
-        .rt
-        .block_on(async { state.db.get_playlist_tracks(playlist_id).await })
+        .db
+        .get_playlist_tracks(playlist_id)
+        .await
         .map_err(|e| format!("Błąd pobierania utworów playlisty: {}", e))?;
 
     let playlists = state
-        .rt
-        .block_on(async { state.db.list_playlists().await })
+        .db
+        .list_playlists()
+        .await
         .map_err(|e| format!("Błąd pobierania listy playlist: {}", e))?;
 
     let playlist_name = playlists
@@ -259,7 +259,7 @@ pub fn export_playlist_m3u8(
 }
 
 #[tauri::command]
-pub fn import_playlist_m3u8(
+pub async fn import_playlist_m3u8(
     file_path: String,
     custom_name: Option<String>,
     state: State<'_, AppState>,
@@ -283,39 +283,37 @@ pub fn import_playlist_m3u8(
 
     let m3u = M3uPlaylist::parse(&content, &playlist_name, base_dir)?;
 
-    state.rt.block_on(async {
-        let playlist_id = state
+    let playlist_id = state
+        .db
+        .create_playlist(&m3u.name)
+        .await
+        .map_err(|e| format!("Błąd tworzenia playlisty w bazie: {}", e))?;
+
+    let mut matched_tracks = 0;
+    let mut missing_tracks = Vec::new();
+
+    for entry in &m3u.entries {
+        if let Some(track) = state
             .db
-            .create_playlist(&m3u.name)
+            .find_track_by_path_or_uri(&entry.path_or_uri)
             .await
-            .map_err(|e| format!("Błąd tworzenia playlisty w bazie: {}", e))?;
-
-        let mut matched_tracks = 0;
-        let mut missing_tracks = Vec::new();
-
-        for entry in &m3u.entries {
-            if let Some(track) = state
-                .db
-                .find_track_by_path_or_uri(&entry.path_or_uri)
-                .await
-                .unwrap_or(None)
-            {
-                if let Err(e) = state.db.add_track_to_playlist(playlist_id, track.id).await {
-                    error!("Błąd dodawania utworu {} do playlisty: {}", track.id, e);
-                } else {
-                    matched_tracks += 1;
-                }
+            .unwrap_or(None)
+        {
+            if let Err(e) = state.db.add_track_to_playlist(playlist_id, track.id).await {
+                error!("Błąd dodawania utworu {} do playlisty: {}", track.id, e);
             } else {
-                missing_tracks.push(entry.path_or_uri.clone());
+                matched_tracks += 1;
             }
+        } else {
+            missing_tracks.push(entry.path_or_uri.clone());
         }
+    }
 
-        Ok(ImportM3uResult {
-            playlist_id,
-            playlist_name: m3u.name,
-            total_entries: m3u.entries.len(),
-            matched_tracks,
-            missing_tracks,
-        })
+    Ok(ImportM3uResult {
+        playlist_id,
+        playlist_name: m3u.name,
+        total_entries: m3u.entries.len(),
+        matched_tracks,
+        missing_tracks,
     })
 }

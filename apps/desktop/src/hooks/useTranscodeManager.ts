@@ -1,10 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { PlaybackStatus } from '../types/player';
-import type { TrackRecord, AlbumRecord } from '../types/player';
-import type { TrackBookmarkDto } from '../components/modals/TrackBookmarksModal';
-import { formatTimeMs, parseTimeToMs } from '../components/modals/LoopEditorModal';
+import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from '../types/player';
+import { formatTimeMs, parseTimeToMs } from '../utils/timeFormat';
 import type { Language, Translations, getTranslations } from '../i18n';
 
 export interface UseTranscodeManagerProps {

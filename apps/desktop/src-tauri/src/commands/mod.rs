@@ -1,7 +1,10 @@
+pub mod analysis;
 pub mod bookmarks;
 pub mod devices;
+pub mod dialogs;
 pub mod downloads;
 pub mod dsp;
+pub mod integrations;
 pub mod library;
 pub mod metadata;
 pub mod playback;
@@ -9,4 +12,5 @@ pub mod playlists;
 pub mod queue;
 pub mod renamer;
 pub mod stems;
+pub mod system;
 pub mod themes;
