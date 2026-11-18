@@ -125,6 +125,8 @@ pub struct AudioEngine {
     stop_after_current: Arc<AtomicBool>,
     fade_generation: Arc<AtomicU64>,
     is_fading_in: Arc<AtomicBool>,
+    volume_element: gst::Element,
+    atomic_volume: Arc<AtomicU64>,
 }
 
 impl AudioEngine {
@@ -603,6 +605,9 @@ impl AudioEngine {
             )
         })?;
 
+        let volume_element = volume.clone();
+        let atomic_volume = Arc::new(AtomicU64::new(1.0f64.to_bits()));
+
         let inner = Arc::new(Mutex::new(PipelineInner {
             pipeline,
             uri_decoder: None,
@@ -670,6 +675,8 @@ impl AudioEngine {
             stop_after_current,
             fade_generation,
             is_fading_in,
+            volume_element,
+            atomic_volume,
         })
     }
 
@@ -1486,10 +1493,10 @@ impl AudioEngine {
             return self.seek(position);
         }
 
-        let step_delay = Duration::from_millis(8);
+        let step_delay = Duration::from_millis(4);
 
-        // 1. Szybki, miękki mikro-fade-out (ok. 30ms)
-        let fade_out_steps = 4;
+        // 1. Szybki, lekki mikro-fade-out (2 kroki po 4ms = 8ms)
+        let fade_out_steps = 2;
         for i in (0..fade_out_steps).rev() {
             let factor = (i as f64) / (fade_out_steps as f64);
             {
@@ -1514,10 +1521,10 @@ impl AudioEngine {
         self.seek(position)?;
 
         // 3. Krótka stabilizacja bufora po skoku
-        std::thread::sleep(Duration::from_millis(15));
+        std::thread::sleep(Duration::from_millis(4));
 
-        // 4. Miękki powrót głośności (mikro-fade-in ok. 50ms)
-        let fade_in_steps = 6;
+        // 4. Miękki powrót głośności (2 kroki po 4ms = 8ms)
+        let fade_in_steps = 2;
         for i in 1..=fade_in_steps {
             let factor = (i as f64) / (fade_in_steps as f64);
             {
@@ -1553,22 +1560,24 @@ impl AudioEngine {
         Self::query_raw_duration(&inner)
     }
 
-    /// Ustawia głośność (zakres 0.0 do 1.0+).
+    /// Ustawia głośność (zakres 0.0 do 1.0+) w sposób bezzwłoczny bez blokowania na głównym mutexie potoku.
     pub fn set_volume(&self, volume: f64) -> Result<(), AudioEngineError> {
         self.fade_generation.fetch_add(1, Ordering::SeqCst);
         self.is_fading_in.store(false, Ordering::SeqCst);
-        let mut inner = self.inner.lock().unwrap();
         let clamped = volume.clamp(0.0, 2.0);
-        inner.user_volume = clamped;
-        inner.volume.set_property("volume", clamped);
+        self.atomic_volume
+            .store(clamped.to_bits(), Ordering::Relaxed);
+        self.volume_element.set_property("volume", clamped);
+        if let Ok(mut inner) = self.inner.try_lock() {
+            inner.user_volume = clamped;
+        }
         debug!("Ustawiono głośność na: {:.2}", clamped);
         Ok(())
     }
 
-    /// Pobiera aktualną głośność zadaną przez użytkownika.
+    /// Pobiera aktualną głośność zadaną przez użytkownika (zmienna atomowa bez blokowania).
     pub fn volume(&self) -> f64 {
-        let inner = self.inner.lock().unwrap();
-        inner.user_volume
+        f64::from_bits(self.atomic_volume.load(Ordering::Relaxed))
     }
 
     /// Aktualizuje parametry DSP w locie.

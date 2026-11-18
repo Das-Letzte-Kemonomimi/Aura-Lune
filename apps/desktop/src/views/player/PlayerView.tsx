@@ -150,6 +150,8 @@ export interface PlayerViewProps {
   queueTopSpacer: number;
   queueBottomSpacer: number;
   handleSeek: (ms: number) => void;
+  handleSeekPreview?: (ms: number) => void;
+  handleSeekCommit?: (ms: number) => void;
   handlePlayPause: () => void;
   handleStop: () => void;
   handlePrevious: () => void;
@@ -264,6 +266,8 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
   queueTopSpacer,
   queueBottomSpacer,
   handleSeek,
+  handleSeekPreview,
+  handleSeekCommit,
   handlePlayPause,
   handleStop,
   handlePrevious,
@@ -1432,9 +1436,28 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                           min={0}
                           max={status.duration_ms || 100}
                           value={status.position_ms}
-                          onChange={(e) => handleSeek(Number(e.target.value))}
-                          onPointerUp={(e) => e.currentTarget.blur()}
-                          onMouseUp={(e) => e.currentTarget.blur()}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            if (handleSeekPreview) handleSeekPreview(val);
+                            else handleSeek(val);
+                          }}
+                          onPointerUp={(e) => {
+                            handleSeekCommit?.(Number(e.currentTarget.value));
+                            e.currentTarget.blur();
+                          }}
+                          onMouseUp={(e) => {
+                            handleSeekCommit?.(Number(e.currentTarget.value));
+                            e.currentTarget.blur();
+                          }}
+                          onTouchEnd={(e) => {
+                            handleSeekCommit?.(Number(e.currentTarget.value));
+                            e.currentTarget.blur();
+                          }}
+                          onKeyUp={(e) => {
+                            if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+                              handleSeekCommit?.(Number(e.currentTarget.value));
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
                               e.currentTarget.blur();

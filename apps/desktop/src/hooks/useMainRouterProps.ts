@@ -109,6 +109,8 @@ export interface UseMainRouterPropsParams {
   queueTopSpacer?: number;
   queueBottomSpacer?: number;
   handleSeek?: any;
+  handleSeekPreview?: any;
+  handleSeekCommit?: any;
   handlePlayPause?: any;
   handleStop?: any;
   handlePrevious?: any;
@@ -409,6 +411,8 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     queueTopSpacer: p.queueTopSpacer,
     queueBottomSpacer: p.queueBottomSpacer,
     handleSeek: p.handleSeek,
+    handleSeekPreview: p.handleSeekPreview,
+    handleSeekCommit: p.handleSeekCommit,
     handlePlayPause: p.handlePlayPause,
     handleStop: p.handleStop,
     handlePrevious: p.handlePrevious,

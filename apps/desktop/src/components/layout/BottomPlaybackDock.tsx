@@ -45,6 +45,8 @@ export interface BottomPlaybackDockProps {
   onCycleLoopMode: () => void;
   onToggleStopAfterCurrent: () => void;
   onSeek: (ms: number) => void;
+  onSeekPreview?: (ms: number) => void;
+  onSeekCommit?: (ms: number) => void;
   onCycleDspEngine: () => void;
   onSelectDspEngine: (engine: DspEngineType) => void;
   onToggleMute: () => void;
@@ -76,6 +78,8 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
   onCycleLoopMode,
   onToggleStopAfterCurrent,
   onSeek,
+  onSeekPreview,
+  onSeekCommit,
   onCycleDspEngine,
   onSelectDspEngine,
   onToggleMute,
@@ -385,7 +389,19 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = ({
             min={0}
             max={status.duration_ms || 100}
             value={status.position_ms}
-            onChange={(e) => onSeek(Number(e.target.value))}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (onSeekPreview) onSeekPreview(val);
+              else onSeek(val);
+            }}
+            onPointerUp={(e) => onSeekCommit?.(Number(e.currentTarget.value))}
+            onMouseUp={(e) => onSeekCommit?.(Number(e.currentTarget.value))}
+            onTouchEnd={(e) => onSeekCommit?.(Number(e.currentTarget.value))}
+            onKeyUp={(e) => {
+              if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+                onSeekCommit?.(Number(e.currentTarget.value));
+              }
+            }}
             style={{
               flex: 1,
               height: '4px',

@@ -161,6 +161,24 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 55000, fade: true });
   });
 
+  it('handleSeekPreview updates status optimistically without firing IPC seek', () => {
+    const { result } = setupHook();
+    act(() => {
+      result.current.handleSeekPreview(12000);
+    });
+    expect(setStatus).toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalledWith('seek', expect.anything());
+  });
+
+  it('handleSeekCommit invokes seek without fade on slider drag completion', async () => {
+    const { result } = setupHook();
+    await act(async () => {
+      await result.current.handleSeekCommit(42000, false);
+    });
+    expect(setStatus).toHaveBeenCalled();
+    expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 42000, fade: false });
+  });
+
   it('handleVolumeChange clamps volume and sends set_volume', async () => {
     const { result } = setupHook();
     act(() => {

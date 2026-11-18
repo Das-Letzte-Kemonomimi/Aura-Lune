@@ -66,6 +66,14 @@ export function usePlaybackController({
   // Volume reference for mute/unmute
   const lastNonZeroVolRef = useRef<number>(1.0);
 
+  // User gesture interaction guards to eliminate UI lag & rubberbanding
+  const isSeekingRef = useRef<boolean>(false);
+  const seekReleaseTimerRef = useRef<any>(null);
+  const isVolumeInteractingRef = useRef<boolean>(false);
+  const volumeInteractionTimerRef = useRef<any>(null);
+  const volumeThrottleTimerRef = useRef<any>(null);
+  const pendingVolumeRef = useRef<number | null>(null);
+
   // A-B Repeat Loop State
   const [loopPointA, setLoopPointA] = useState<number | null>(null);
   const [loopPointB, setLoopPointB] = useState<number | null>(null);
@@ -83,7 +91,7 @@ export function usePlaybackController({
   const statusRef = useRef(status);
   statusRef.current = status;
 
-  // 1. Status Polling Loop (Dynamic: 40ms when Playing for FFT spectrum, 250ms when idle)
+  // 1. Status Polling Loop (Adaptive: 100ms when Playing, 350ms when idle/paused)
   useEffect(() => {
     let timeoutId: any;
     let isMounted = true;
@@ -92,20 +100,26 @@ export function usePlaybackController({
       try {
         const res = await invoke<PlaybackStatus>('get_status');
         setStatus((prev) => {
+          // If the user is actively dragging the seek slider, preserve local position
+          const targetPosition = isSeekingRef.current ? prev.position_ms : res.position_ms;
+          // If the user is actively sliding volume, preserve local volume
+          const targetVolume = isVolumeInteractingRef.current ? prev.volume : res.volume;
+
           if (res.state === 'Stopped' && initialStartupPositionRef.current !== null && prev.current_track) {
             return {
               ...res,
               position_ms: initialStartupPositionRef.current,
               duration_ms: prev.duration_ms || res.duration_ms,
               current_track: prev.current_track,
+              volume: targetVolume,
             };
           }
           if (
             prev.state === res.state &&
             res.state !== 'Playing' &&
             prev.current_track?.track_id === res.current_track?.track_id &&
-            prev.position_ms === res.position_ms &&
-            prev.volume === res.volume &&
+            prev.position_ms === targetPosition &&
+            prev.volume === targetVolume &&
             prev.tempo_ratio === res.tempo_ratio &&
             prev.pitch_semitones === res.pitch_semitones &&
             prev.equalizer_enabled === res.equalizer_enabled &&
@@ -113,7 +127,11 @@ export function usePlaybackController({
           ) {
             return prev;
           }
-          return res;
+          return {
+            ...res,
+            position_ms: targetPosition,
+            volume: targetVolume,
+          };
         });
 
         if (res.replaygain_status) {
@@ -254,7 +272,7 @@ export function usePlaybackController({
         // Ignore backend initialisation errors
       } finally {
         if (isMounted) {
-          const delay = statusRef.current?.state === 'Playing' ? 40 : 250;
+          const delay = statusRef.current?.state === 'Playing' ? 100 : 350;
           timeoutId = setTimeout(fetchStatus, delay);
         }
       }
@@ -265,6 +283,9 @@ export function usePlaybackController({
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
+      if (seekReleaseTimerRef.current) clearTimeout(seekReleaseTimerRef.current);
+      if (volumeInteractionTimerRef.current) clearTimeout(volumeInteractionTimerRef.current);
+      if (volumeThrottleTimerRef.current) clearTimeout(volumeThrottleTimerRef.current);
     };
   }, []);
 
@@ -292,17 +313,45 @@ export function usePlaybackController({
     }
   }, [activeTrackId]);
 
-  // 3. A-B Repeat Loop enforcement
-  const handleSeek = useCallback(
-    async (val: number) => {
+  // 3. A-B Repeat Loop enforcement & Responsive Seeking
+  const handleSeekPreview = useCallback(
+    (val: number) => {
+      isSeekingRef.current = true;
+      if (seekReleaseTimerRef.current) {
+        clearTimeout(seekReleaseTimerRef.current);
+        seekReleaseTimerRef.current = null;
+      }
+      setStatus((prev) => ({ ...prev, position_ms: val }));
+    },
+    [setStatus]
+  );
+
+  const handleSeekCommit = useCallback(
+    async (val: number, fade = false) => {
+      isSeekingRef.current = true;
+      if (seekReleaseTimerRef.current) {
+        clearTimeout(seekReleaseTimerRef.current);
+      }
+      setStatus((prev) => ({ ...prev, position_ms: val }));
       try {
-        setStatus((prev) => ({ ...prev, position_ms: val }));
-        await invoke('seek', { positionMs: val, fade: seekFadeEnabled });
+        await invoke('seek', { positionMs: val, fade });
       } catch (e: any) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
+      } finally {
+        seekReleaseTimerRef.current = setTimeout(() => {
+          isSeekingRef.current = false;
+          seekReleaseTimerRef.current = null;
+        }, 200);
       }
     },
-    [seekFadeEnabled, setStatus, showMessage, loc]
+    [setStatus, showMessage, loc]
+  );
+
+  const handleSeek = useCallback(
+    async (val: number) => {
+      return handleSeekCommit(val, seekFadeEnabled);
+    },
+    [handleSeekCommit, seekFadeEnabled]
   );
 
   useEffect(() => {
@@ -361,12 +410,49 @@ export function usePlaybackController({
   }, [showMessage, loc]);
 
   const handleVolumeChange = useCallback(
-    (volume: number) => {
+    (volume: number, immediate = false) => {
       const clamped = Math.max(0, Math.min(1.0, volume));
+      isVolumeInteractingRef.current = true;
+      if (volumeInteractionTimerRef.current) {
+        clearTimeout(volumeInteractionTimerRef.current);
+      }
+      volumeInteractionTimerRef.current = setTimeout(() => {
+        isVolumeInteractingRef.current = false;
+        volumeInteractionTimerRef.current = null;
+      }, 400);
+
+      // Instant optimistic UI update
       setStatus((prev) => ({ ...prev, volume: clamped }));
-      invoke('set_volume', { volume: clamped }).catch((e: any) => {
-        showMessage(`${loc.common.errorPrefix} ${e}`, true);
-      });
+
+      if (immediate) {
+        if (volumeThrottleTimerRef.current) {
+          clearTimeout(volumeThrottleTimerRef.current);
+          volumeThrottleTimerRef.current = null;
+        }
+        pendingVolumeRef.current = null;
+        invoke('set_volume', { volume: clamped }).catch((e: any) => {
+          showMessage(`${loc.common.errorPrefix} ${e}`, true);
+        });
+        return;
+      }
+
+      // Non-blocking trailing-edge throttled IPC to prevent queue saturation
+      pendingVolumeRef.current = clamped;
+      if (!volumeThrottleTimerRef.current) {
+        invoke('set_volume', { volume: clamped }).catch((e: any) => {
+          showMessage(`${loc.common.errorPrefix} ${e}`, true);
+        });
+        volumeThrottleTimerRef.current = setTimeout(() => {
+          volumeThrottleTimerRef.current = null;
+          if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
+            const latestVol = pendingVolumeRef.current;
+            pendingVolumeRef.current = null;
+            invoke('set_volume', { volume: latestVol }).catch((e: any) => {
+              showMessage(`${loc.common.errorPrefix} ${e}`, true);
+            });
+          }
+        }, 30);
+      }
     },
     [setStatus, showMessage, loc]
   );
@@ -375,9 +461,9 @@ export function usePlaybackController({
     const currentVol = statusRef.current.volume;
     if (currentVol > 0) {
       lastNonZeroVolRef.current = currentVol;
-      handleVolumeChange(0);
+      handleVolumeChange(0, true);
     } else {
-      handleVolumeChange(lastNonZeroVolRef.current || 1.0);
+      handleVolumeChange(lastNonZeroVolRef.current || 1.0, true);
     }
   }, [handleVolumeChange]);
 
@@ -458,6 +544,8 @@ export function usePlaybackController({
     handlePlayPause,
     handleStop,
     handleSeek,
+    handleSeekPreview,
+    handleSeekCommit,
     handleVolumeChange,
     handleToggleMute,
     handleNext,
