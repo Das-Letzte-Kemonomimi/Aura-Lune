@@ -1,0 +1,85 @@
+use crate::AppState;
+use domain::TrackBookmark;
+use tauri::State;
+
+#[tauri::command]
+pub fn save_bookmark(
+    track_id: i64,
+    position_ms: u64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.save_bookmark(track_id, position_ms).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.get_bookmark(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_bookmark(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.clone();
+    state
+        .rt
+        .block_on(async move { db.delete_bookmark(track_id).await })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_track_bookmarks(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackBookmark>, String> {
+    state
+        .db
+        .get_track_bookmarks(track_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn add_track_bookmark(
+    track_id: i64,
+    name: String,
+    position_ms: u64,
+    state: State<'_, AppState>,
+) -> Result<TrackBookmark, String> {
+    state
+        .db
+        .add_track_bookmark(track_id, &name, position_ms)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn update_track_bookmark(
+    bookmark_id: i64,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .update_track_bookmark(bookmark_id, &name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_track_bookmark(
+    bookmark_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .delete_track_bookmark(bookmark_id)
+        .await
+        .map_err(|e| e.to_string())
+}

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Playlist } from '../types/playlist';
 import type { TrackRecord } from '../types/player';
-import type { RadioStation } from '../components/RadioView';
+import type { RadioStation } from '../views/playlists/RadioView';
 import type { Language, Translations, getTranslations } from '../i18n';
 
 export interface UsePlaylistManagerProps {

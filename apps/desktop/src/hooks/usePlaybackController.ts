@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/library';
-import type { TrackBookmarkDto } from '../components/TrackBookmarksModal';
+import type { TrackBookmarkDto } from '../components/modals/TrackBookmarksModal';
 import type { Translations } from '../i18n';
 
 export interface UsePlaybackControllerOptions {

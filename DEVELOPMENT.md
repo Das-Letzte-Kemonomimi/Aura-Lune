@@ -1,0 +1,404 @@
+# 🛠️ Aura-Lune — Development, Testing & Release Guide
+
+This document provides complete instructions for setting up the development environment, running tests, and compiling production release artifacts for **Aura-Lune (Kitsune Music Player)** on Linux.
+
+---
+
+## 📑 Table of Contents
+
+1. [System Prerequisites](#1-system-prerequisites)
+   - [Ubuntu / Debian / Linux Mint / Pop!_OS](#ubuntu--debian--linux-mint--pop_os)
+   - [Arch Linux / Manjaro / EndeavourOS](#arch-linux--manjaro--endeavouros)
+   - [Fedora / RHEL](#fedora--rhel)
+   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
+2. [Toolchain Setup](#2-toolchain-setup)
+   - [Node.js & npm](#nodejs--npm)
+   - [Rust Toolchain](#rust-toolchain)
+3. [Repository Setup & Initialization](#3-repository-setup--initialization)
+4. [Development Workflow](#4-development-workflow)
+   - [Running Frontend in Browser Dev Mode](#running-frontend-in-browser-dev-mode)
+   - [Running Full Desktop App in Dev Mode (Tauri)](#running-full-desktop-app-in-dev-mode-tauri)
+5. [Code Quality & Linting](#5-code-quality--linting)
+   - [Rust Code Formatting & Clippy](#rust-code-formatting--clippy)
+   - [Frontend Linting (oxlint & TypeScript)](#frontend-linting-oxlint--typescript)
+6. [Testing Protocols](#6-testing-protocols)
+   - [Unified 4-Stage Test Runner](#unified-4-stage-test-runner)
+   - [Frontend Unit Tests (Vitest)](#frontend-unit-tests-vitest)
+   - [Rust Workspace Unit & Integration Tests](#rust-workspace-unit--integration-tests)
+   - [Desktop Smoke Test](#desktop-smoke-test)
+7. [Building for Release](#7-building-for-release)
+   - [Standard Release Build (AppImage & .deb)](#standard-release-build-appimage--deb)
+   - [Optimized Standalone Binary](#optimized-standalone-binary)
+   - [Release Artifact Outputs](#release-artifact-outputs)
+8. [Troubleshooting & FAQs](#8-troubleshooting--faqs)
+
+---
+
+## 1. System Prerequisites
+
+Aura-Lune relies on modern Linux audio and GUI frameworks:
+- **Audio**: GStreamer 1.0 (with `base`, `good`, `bad`, `ugly`, and `libav` plugins), PipeWire / ALSA.
+- **DSP**: `librubberband` (high-fidelity formant-preserving stretch) and `libsoundtouch` (low-latency time/pitch).
+- **GUI**: WebKit2GTK 4.1 (`libsoup-3.0`), GTK 3, and D-Bus (for MPRIS).
+- **Database**: SQLite 3 (bundled/managed via `sqlx`).
+
+Install the required system development headers for your distribution:
+
+### Ubuntu / Debian / Linux Mint / Pop!_OS
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  pkg-config \
+  libssl-dev \
+  libglib2.0-dev \
+  libgtk-3-dev \
+  libwebkit2gtk-4.1-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev \
+  libgstreamer1.0-dev \
+  libgstreamer-plugins-base1.0-dev \
+  libgstreamer-plugins-good1.0-dev \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad \
+  gstreamer1.0-plugins-ugly \
+  gstreamer1.0-libav \
+  gstreamer1.0-pipewire \
+  gstreamer1.0-alsa \
+  librubberband-dev \
+  libsoundtouch-dev \
+  libasound2-dev
+```
+
+### Arch Linux / Manjaro / EndeavourOS
+```bash
+sudo pacman -Syu --needed \
+  base-devel \
+  pkgconf \
+  openssl \
+  glib2 \
+  gtk3 \
+  webkit2gtk-4.1 \
+  libappindicator-gtk3 \
+  librsvg \
+  gstreamer \
+  gst-plugins-base \
+  gst-plugins-good \
+  gst-plugins-bad \
+  gst-plugins-ugly \
+  gst-libav \
+  gst-plugin-pipewire \
+  rubberband \
+  soundtouch \
+  alsa-lib
+```
+
+### Fedora / RHEL
+```bash
+sudo dnf install -y \
+  @development-tools \
+  pkgconfig \
+  openssl-devel \
+  glib2-devel \
+  gtk3-devel \
+  webkit2gtk4.1-devel \
+  libappindicator-gtk3-devel \
+  librsvg2-devel \
+  gstreamer1-devel \
+  gstreamer1-plugins-base-devel \
+  gstreamer1-plugins-good \
+  gstreamer1-plugins-bad-free \
+  gstreamer1-plugins-ugly-free \
+  gstreamer1-libav \
+  pipewire-gstreamer \
+  rubberband-devel \
+  soundtouch-devel \
+  alsa-lib-devel
+```
+
+### openSUSE Tumbleweed
+```bash
+sudo zypper install -y \
+  patterns-devel-base-devel_basis \
+  pkg-config \
+  libopenssl-devel \
+  glib2-devel \
+  gtk3-devel \
+  webkit2gtk3-soup3-devel \
+  libappindicator3-devel \
+  librsvg-devel \
+  gstreamer-devel \
+  gstreamer-plugins-base-devel \
+  gstreamer-plugins-good \
+  gstreamer-plugins-bad \
+  gstreamer-plugins-ugly \
+  gstreamer-plugins-libav \
+  rubberband-devel \
+  libsoundtouch-devel \
+  alsa-devel
+```
+
+---
+
+## 2. Toolchain Setup
+
+### Node.js & npm
+Aura-Lune targets **Node.js 22 (Active LTS)** and **npm >= 10**. A `.nvmrc` file is provided in the repository root.
+
+Check your installation:
+```bash
+node -v
+npm -v
+```
+
+If you use [nvm](https://github.com/nvm-sh/nvm), load the configured version automatically:
+```bash
+nvm use
+# or install it if not already present:
+nvm install 22
+```
+
+### Rust Toolchain
+Aura-Lune uses modern **Rust stable (1.80+ / 1.99+)**. A [`rust-toolchain.toml`](file:///home/kamu/Projects/Aura-Lune/rust-toolchain.toml) file is pinned at the repository root with `rustfmt` and `clippy` components enabled.
+
+Check your installation:
+```bash
+rustc --version
+cargo --version
+```
+
+If needed, install or update via `rustup`:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+rustup update stable
+rustup component add rustfmt clippy
+```
+
+---
+
+## 3. Repository Setup & Initialization
+
+Clone the repository and install Node workspace dependencies:
+
+```bash
+git clone https://github.com/Auralune/Auralune.git
+cd Auralune
+
+# Install root & desktop frontend dependencies
+npm install --prefix apps/desktop
+```
+
+Verify that the Rust workspace compiles:
+```bash
+cargo check --workspace
+```
+
+---
+
+## 4. Development Workflow
+
+### Running Frontend in Browser Dev Mode
+You can develop UI components, layout, and theme styles in a regular browser window with hot-module reloading (HMR):
+
+```bash
+npm --prefix apps/desktop run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+*(Note: Native audio playback, GStreamer, and database features require the Tauri desktop shell).*
+
+### Running Full Desktop App in Dev Mode (Tauri)
+To launch the complete native desktop application with live frontend HMR and native Rust audio backend:
+
+```bash
+npm run tauri dev
+```
+*Or equivalently from the root directory:*
+```bash
+npm --prefix apps/desktop exec tauri dev
+```
+
+During development:
+- Edits in `apps/desktop/src/**` automatically hot-reload in the desktop window.
+- Edits in `apps/desktop/src-tauri/**` or `crates/**` automatically trigger a Rust recompile and app restart.
+
+---
+
+## 5. Code Quality & Linting
+
+### Rust Code Formatting & Clippy
+Always maintain strict formatting and clippy compliance:
+
+```bash
+# Format all crates in the workspace
+cargo fmt --all
+
+# Check formatting without modifying files
+cargo fmt --all -- --check
+
+# Run Clippy linter across all workspace crates
+cargo clippy --workspace --all-targets -- -D warnings
+```
+
+### Frontend Linting (oxlint & TypeScript)
+Aura-Lune uses `oxlint` for high-speed JS/TS linting and TypeScript compiler (`tsc`) for strict type checks:
+
+```bash
+# Run oxlint on frontend code
+npm --prefix apps/desktop run lint
+
+# Run strict TypeScript compilation check
+npm --prefix apps/desktop run build
+```
+
+---
+
+## 6. Testing Protocols
+
+### Unified 4-Stage Test Runner
+The repository provides a single, zero-Python bash script that executes the complete test suite across both frontend and backend:
+
+```bash
+./tests/run_all_tests.sh
+```
+
+This script executes four sequential validation stages:
+1. **Frontend Unit & i18n Tests**: Runs all 39 Vitest suites (147+ unit tests).
+2. **Frontend Type Check & Build**: Executes `tsc -b && vite build`.
+3. **Rust Workspace Tests**: Runs all unit and integration tests across 11 workspace crates (`--test-threads=1`).
+4. **Desktop Smoke Test**: Executes `tests/desktop_smoke_test.rs` to verify that the audio engine boots, storage migrations run, and desktop commands respond.
+
+### Frontend Unit Tests (Vitest)
+To run frontend tests independently:
+
+```bash
+# Single run
+npm --prefix apps/desktop test
+
+# Watch mode for interactive TDD
+npm --prefix apps/desktop run test:watch
+```
+
+### Rust Workspace Unit & Integration Tests
+To run Rust tests across all crates:
+
+```bash
+cargo test --workspace
+```
+
+To run tests for a specific crate:
+```bash
+cargo test -p audio-engine
+cargo test -p domain
+cargo test -p storage
+cargo test -p metadata
+cargo test -p downloads
+```
+
+### Desktop Smoke Test
+To test the end-to-end desktop integration:
+
+```bash
+cargo test -p auralune-desktop --test desktop_smoke_test -- --nocapture
+```
+
+---
+
+## 7. Building for Release
+
+### Standard Release Build (AppImage & .deb)
+To produce production-ready Linux distribution packages (AppImage and Debian package):
+
+```bash
+npm run tauri build
+```
+*Or from the desktop directory:*
+```bash
+cd apps/desktop
+npm run tauri build
+```
+
+Tauri bundles the application using settings defined in [`apps/desktop/src-tauri/tauri.conf.json`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/tauri.conf.json):
+- Executes `beforeBuildCommand` (`npm run build`) to generate the optimized web bundle.
+- Compiles the Rust backend with `--release` optimizations.
+- Packages desktop entries, system icons, and dependencies into `.AppImage` and `.deb`.
+
+### Optimized Standalone Binary
+To compile only the optimized binary without building package bundles:
+
+```bash
+# Build frontend
+npm --prefix apps/desktop run build
+
+# Build release backend
+cargo build --release -p auralune-desktop
+```
+The compiled binary will be located at:
+```
+target/release/auralune-desktop
+```
+
+### Release Artifact Outputs
+After running `npm run tauri build`, the distribution artifacts are placed in:
+```
+apps/desktop/src-tauri/target/release/bundle/
+├── appimage/
+│   └── Auralune_1.1.5_amd64.AppImage
+└── deb/
+    └── auralune_1.1.5_amd64.deb
+```
+
+To test the generated AppImage:
+```bash
+chmod +x apps/desktop/src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
+./apps/desktop/src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
+```
+
+---
+
+## 8. Troubleshooting & FAQs
+
+### Missing GStreamer Plugins at Runtime
+**Symptom**: Audio files fail to play or decode with errors like `no element "playbin"`, `flacparse missing`, or `pulsesink missing`.  
+**Fix**: Ensure all plugin packages (`gst-plugins-good`, `gst-plugins-bad`, `gst-plugins-ugly`, `gst-libav`) are installed. Aura-Lune's AppImage setup automatically scans `/usr/lib/gstreamer-1.0` and `/usr/lib64/gstreamer-1.0` and populates `GST_PLUGIN_SYSTEM_PATH_1_0`.
+
+### WebKit2GTK ABI Mismatches
+**Symptom**: Compilation errors referring to `webkit2gtk-4.0` vs `webkit2gtk-4.1`.  
+**Fix**: Aura-Lune targets modern `webkit2gtk-4.1` (using libsoup3). Ensure `libwebkit2gtk-4.1-dev` (or `webkit2gtk4.1-devel`) is installed, rather than the legacy 4.0 (libsoup2) package.
+
+### Audio Pipeline Safety Violations
+**Rule**: The audio callback thread in `audio-engine` and `dsp-*` **must never perform heap allocations, file I/O, network requests, or mutex locks**.  
+**Verification**: When modifying DSP or GStreamer buffer callbacks, ensure data structures are pre-allocated and communicate with the main thread via atomic counters or lock-free channels.
+
+### Wayland & Desktop Icons
+Aura-Lune installs themed icons into `~/.local/share/icons/hicolor` and triggers `gtk-update-icon-cache` automatically when toggling between `lineout` and `classic` styles in the Settings view.
+
+---
+
+## 9. Continuous Integration (CI/CD)
+
+The GitHub Actions workflow is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and runs on all pushes, pull requests to `main`, `dev`, `develop`, and manual triggers (`workflow_dispatch`).
+
+The pipeline is split into two specialized, concurrent jobs:
+
+1. **`frontend` (Frontend Quality & Tests)**:
+   - Sets up Node.js 22 LTS with `npm` caching.
+   - Runs `npm --prefix apps/desktop ci`.
+   - Runs `npm --prefix apps/desktop run lint` (`oxlint` code quality and React linting).
+   - Runs `npm --prefix apps/desktop test` (Vitest unit and localization parity tests).
+   - Runs `npm --prefix apps/desktop run build` (`tsc -b && vite build` TypeScript compilation and asset bundling).
+
+2. **`backend-desktop` (Rust Backend & Desktop Quality)**:
+   - Sets up Node.js 22 LTS and Rust stable with `rustfmt` and `clippy`.
+   - Caches Rust dependencies and build targets using `Swatinem/rust-cache@v2`.
+   - Installs system libraries (GStreamer 1.0 plugins, PipeWire, WebKit2GTK 4.1, Rubber Band, SoundTouch, PulseAudio).
+   - Pre-builds frontend bundle to satisfy Tauri's `frontendDist` build requirement.
+   - Verifies formatting via `cargo fmt --all --check`.
+   - Enforces zero-warning lints via `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+   - Configures headless audio daemon (`pulseaudio -D` with `module-null-sink`) to support real pipeline execution in headless VMs.
+   - Runs the Rust workspace test suite (`cargo test --workspace -- --test-threads=1`).
+   - Runs the desktop smoke test (`cargo test -p auralune-desktop --test desktop_smoke_test`).
+
+---
+*Maintained by Das Letzte Kemonomimi & Aura-Lune Core Engineering Agents.*

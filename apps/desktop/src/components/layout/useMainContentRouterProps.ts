@@ -1,7 +1,9 @@
-import type { PlayerViewProps } from '../../views/PlayerView';
-import type { LibraryViewProps } from '../../views/LibraryView';
-import type { DspStudioViewProps } from '../../views/DspStudioView';
-import type { PlaylistsViewProps } from '../../views/PlaylistsView';
+import type {
+  PlayerViewProps,
+  LibraryViewProps,
+  DspStudioViewProps,
+  PlaylistsViewProps,
+} from '../../views';
 import type { StemProjectsRouterProps, RadioRouterProps } from './MainContentRouter';
 
 export interface UseMainContentRouterPropsOptions {

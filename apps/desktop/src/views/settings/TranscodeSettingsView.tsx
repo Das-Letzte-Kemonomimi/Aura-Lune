@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord } from '../../types/player';
-import { type TrackBookmarkDto } from '../../components/TrackBookmarksModal';
-import { formatTimeMs, parseTimeToMs } from '../../components/LoopEditorModal';
+import { type TrackBookmarkDto } from '../../components/modals/TrackBookmarksModal';
+import { formatTimeMs, parseTimeToMs } from '../../components/modals/LoopEditorModal';
 
 export interface TranscodeSettingsViewProps {
   language: Language;

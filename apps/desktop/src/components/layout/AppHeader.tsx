@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
 import { AppNavbar, type MainTabType } from './AppNavbar';
-import { LanguageSelector } from '../LanguageSelector';
-import { type AmbienceMode } from '../AnimeAmbienceFX';
+import { LanguageSelector } from '../common/LanguageSelector';
+import { type AmbienceMode } from '../player/AnimeAmbienceFX';
 
 export interface AppHeaderProps {
   appVersion: string;

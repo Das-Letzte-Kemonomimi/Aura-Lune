@@ -15,7 +15,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
-import { LanguageSelector } from '../../components/LanguageSelector';
+import { LanguageSelector } from '../../components/common/LanguageSelector';
 import { type Theme } from '../../types/theme';
 
 export interface ThemesSettingsViewProps {

@@ -20,10 +20,11 @@ echo -e "${BOLD}       Aura-Lune — Comprehensive Application Test Runner      
 echo -e "${PURPLE}🌸 ========================================================== 🌸${RESET}"
 echo ""
 
-# Stage 1: Frontend Unit & Localization Tests (Vitest)
-echo -e "${BLUE}[1/4] Running Frontend Unit & Localization Tests (Vitest)...${RESET}"
+# Stage 1: Frontend Linting (oxlint) & Unit/Localization Tests (Vitest)
+echo -e "${BLUE}[1/4] Running Frontend Linting (oxlint) & Tests (Vitest)...${RESET}"
+npm --prefix "${ROOT_DIR}/apps/desktop" run lint
 npm --prefix "${ROOT_DIR}/apps/desktop" test
-echo -e "${GREEN}✓ Frontend and i18n parity tests passed.${RESET}"
+echo -e "${GREEN}✓ Frontend lint, unit, and i18n parity tests passed.${RESET}"
 echo ""
 
 # Stage 2: Frontend TypeScript Check & Production Build

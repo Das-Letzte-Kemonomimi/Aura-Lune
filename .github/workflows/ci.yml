@@ -11,9 +11,40 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    name: Tests & Quality Checks
+  frontend:
+    name: Frontend Quality & Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix apps/desktop ci
+
+      - name: Lint frontend codebase (oxlint)
+        run: npm --prefix apps/desktop run lint
+
+      - name: Run unit & localization tests (vitest)
+        run: npm --prefix apps/desktop test
+
+      - name: Typecheck and build frontend (tsc -b && vite build)
+        run: npm --prefix apps/desktop run build
+
+  backend-desktop:
+    name: Rust Backend & Desktop Quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -21,7 +52,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -56,25 +87,30 @@ jobs:
             libsoundtouch-dev \
             pkg-config \
             build-essential \
-            pulseaudio
+            pulseaudio \
+            pulseaudio-utils \
+            libasound2-plugins
 
-      - name: Install frontend dependencies
+      - name: Install frontend dependencies & build bundle
         run: |
-          cd apps/desktop
-          npm ci
-
-      - name: Build frontend & verify TypeScript types (Vite + tsc)
-        run: |
-          cd apps/desktop
-          npm run build
+          npm --prefix apps/desktop ci
+          npm --prefix apps/desktop run build
 
       - name: Check Rust formatting (cargo fmt)
-        run: cargo fmt --check
+        run: cargo fmt --all --check
 
       - name: Lint Rust codebase (cargo clippy)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run all Rust tests (cargo test)
+      - name: Setup headless audio daemon (PulseAudio + Null Sink)
         run: |
-          pulseaudio -D --exit-idle-time=-1 || true
-          cargo test --all-targets
+          pulseaudio -D --exit-idle-time=-1 || pulseaudio --start || true
+          pactl load-module module-null-sink sink_name=DummyOutput || true
+
+      - name: Run Rust workspace test suite (cargo test)
+        env:
+          GST_DEBUG: 2
+        run: cargo test --workspace -- --test-threads=1
+
+      - name: Run Desktop backend smoke test
+        run: cargo test -p auralune-desktop --test desktop_smoke_test -- --nocapture

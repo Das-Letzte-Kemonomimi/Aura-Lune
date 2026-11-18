@@ -4,27 +4,12 @@ import React from 'react';
 import { MainContentRouter, type MainContentRouterProps } from './MainContentRouter';
 
 // Mock child views
-vi.mock('../../views/PlayerView', () => ({
+vi.mock('../../views', () => ({
   PlayerView: () => <div data-testid="player-view">Player View</div>,
-}));
-
-vi.mock('../../views/LibraryView', () => ({
   LibraryView: () => <div data-testid="library-view">Library View</div>,
-}));
-
-vi.mock('../../views/DspStudioView', () => ({
   DspStudioView: () => <div data-testid="dsp-view">DSP View</div>,
-}));
-
-vi.mock('../../views/PlaylistsView', () => ({
   PlaylistsView: () => <div data-testid="playlists-view">Playlists View</div>,
-}));
-
-vi.mock('../StemProjectsLibraryView', () => ({
   StemProjectsLibraryView: () => <div data-testid="stem-projects-view">Stem Projects View</div>,
-}));
-
-vi.mock('../RadioView', () => ({
   RadioView: () => <div data-testid="radio-view">Radio View</div>,
 }));
 

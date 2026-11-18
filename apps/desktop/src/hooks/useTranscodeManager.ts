@@ -3,8 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { PlaybackStatus } from '../types/player';
 import type { TrackRecord, AlbumRecord } from '../types/player';
-import type { TrackBookmarkDto } from '../components/TrackBookmarksModal';
-import { formatTimeMs, parseTimeToMs } from '../components/LoopEditorModal';
+import type { TrackBookmarkDto } from '../components/modals/TrackBookmarksModal';
+import { formatTimeMs, parseTimeToMs } from '../components/modals/LoopEditorModal';
 import type { Language, Translations, getTranslations } from '../i18n';
 
 export interface UseTranscodeManagerProps {

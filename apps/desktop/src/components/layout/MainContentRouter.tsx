@@ -1,10 +1,17 @@
 import React from 'react';
-import { PlayerView, type PlayerViewProps } from '../../views/PlayerView';
-import { LibraryView, type LibraryViewProps } from '../../views/LibraryView';
-import { DspStudioView, type DspStudioViewProps } from '../../views/DspStudioView';
-import { PlaylistsView, type PlaylistsViewProps } from '../../views/PlaylistsView';
-import { StemProjectsLibraryView } from '../StemProjectsLibraryView';
-import { RadioView, type RadioStation } from '../RadioView';
+import {
+  PlayerView,
+  type PlayerViewProps,
+  LibraryView,
+  type LibraryViewProps,
+  DspStudioView,
+  type DspStudioViewProps,
+  PlaylistsView,
+  type PlaylistsViewProps,
+  StemProjectsLibraryView,
+  RadioView,
+  type RadioStation,
+} from '../../views';
 
 export interface StemProjectsRouterProps {
   onOpenProject: (pid: number) => void;

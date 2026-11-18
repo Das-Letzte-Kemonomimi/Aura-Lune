@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { TrackRecord } from '../types/player';
-import type { TrackStatsData } from '../components/TrackStatsModal';
+import type { TrackStatsData } from '../components/modals/TrackStatsModal';
 
 export type SettingsTab = 'themes' | 'devices' | 'transcode' | 'about' | 'changelog' | 'backup';
 export type AnalysisTab = 'chords' | 'pianoroll' | 'stems' | 'projects' | 'models';

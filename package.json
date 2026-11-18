@@ -11,5 +11,9 @@
     "test": "npm --prefix apps/desktop test",
     "test:all": "npm test && cargo test --workspace",
     "tauri": "npm --prefix apps/desktop exec tauri --"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   }
 }

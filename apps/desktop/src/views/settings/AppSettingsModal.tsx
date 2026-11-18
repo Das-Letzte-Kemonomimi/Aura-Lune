@@ -5,7 +5,7 @@ import { TranscodeSettingsView, type TranscodeSettingsViewProps } from './Transc
 import { ThemesSettingsView, type ThemesSettingsViewProps } from './ThemesSettingsView';
 import { AboutSettingsView, type AboutSettingsViewProps } from './AboutSettingsView';
 import { BackupSettingsView, type BackupSettingsViewProps } from './BackupSettingsView';
-import { ChangelogView } from '../../components/ChangelogView';
+import { ChangelogView } from '../changelog/ChangelogView';
 import { type Language, type Translations } from '../../i18n';
 
 export interface AppSettingsModalProps {

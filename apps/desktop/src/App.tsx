@@ -32,11 +32,14 @@ import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { type TapeType } from './components/TapeDeckWidget';
-import { MiniPlayerWidget } from './components/MiniPlayerWidget';
-import { AnimeAmbienceFX } from './components/AnimeAmbienceFX';
-import { BigScreenView } from './components/BigScreenView';
-import { VolumeOsd, type VolumeOsdPosition } from './components/VolumeOsd';
+import {
+  type TapeType,
+  MiniPlayerWidget,
+  AnimeAmbienceFX,
+  VolumeOsd,
+  type VolumeOsdPosition,
+} from './components/player';
+import { BigScreenView } from './views/player/BigScreenView';
 
 import { useQueueVirtualScroll } from './hooks/useQueueVirtualScroll';
 import { useAmbienceMode } from './hooks/useAmbienceMode';

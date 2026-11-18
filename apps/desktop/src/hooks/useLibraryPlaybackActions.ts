@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { AlbumPlaybackBehavior } from '../types/playback';
-import type { TrackStatsData } from '../components/TrackStatsModal';
+import type { TrackStatsData } from '../components/modals/TrackStatsModal';
 import type { Translations } from '../i18n';
 import { formatTime, formatTimeMs } from '../utils/timeFormat';
 import { vinylSimulator } from '../utils/vinylSimulator';
@@ -557,7 +557,7 @@ export function useLibraryPlaybackActions({
         )
       );
       if (statsModalTrack && statsModalTrack.id === trackId) {
-        setStatsModalTrack((prev) => (prev ? { ...prev, play_count: 0, last_played_at: null } : null));
+        setStatsModalTrack((prev: TrackStatsData | null) => (prev ? { ...prev, play_count: 0, last_played_at: null } : null));
       }
       showMessage(loc.notifications.trackStatsReset);
     } catch (e: any) {

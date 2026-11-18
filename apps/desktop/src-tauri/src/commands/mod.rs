@@ -1,6 +1,12 @@
+pub mod bookmarks;
 pub mod devices;
+pub mod downloads;
 pub mod dsp;
 pub mod library;
 pub mod metadata;
 pub mod playback;
+pub mod playlists;
+pub mod queue;
+pub mod renamer;
 pub mod stems;
+pub mod themes;

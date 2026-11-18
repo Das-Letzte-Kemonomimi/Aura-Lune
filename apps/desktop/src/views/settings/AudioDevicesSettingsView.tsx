@@ -21,7 +21,7 @@ import {
   type DspEngineType,
   type AlbumPlaybackBehavior,
 } from '../../types/player';
-import { type VolumeOsdPosition } from '../../components/VolumeOsd';
+import { type VolumeOsdPosition } from '../../components/player/VolumeOsd';
 
 export interface AudioDevicesSettingsViewProps {
   language: Language;

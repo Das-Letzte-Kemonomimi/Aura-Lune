@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { AmbienceMode } from '../components/AnimeAmbienceFX';
+import type { AmbienceMode } from '../components/player/AnimeAmbienceFX';
 import type { Translations } from '../i18n';
 import { soundscapeEngine } from '../utils/soundscapeAudio';
 
@@ -30,7 +30,7 @@ export function useAmbienceMode({ loc, showMessage }: UseAmbienceModeOptions) {
   });
 
   const cycleAmbienceMode = useCallback(() => {
-    setAmbienceMode((prev) => {
+    setAmbienceMode((prev: AmbienceMode) => {
       const next: AmbienceMode =
         prev === 'off'
           ? 'sakura'
