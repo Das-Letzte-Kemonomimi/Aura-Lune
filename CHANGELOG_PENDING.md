@@ -38,6 +38,21 @@
     6. Test dymny backendu desktopowego (`desktop_smoke_test`),
     7. Weryfikacja składni wszystkich skryptów powłoki (`bash -n` dla `install.sh`, `packaging/*.sh`, `tests/*.sh`).
   - Dodano przełączniki CLI: `--fix` (automatyczne formatowanie `cargo fmt`), `--fast` (szybki tryb z pominięciem testów silnika audio), `--bundle` (opcjonalny lokalny test pakowania AppImage) oraz `--help`.
+- **Wielopoziomowe rozszerzenie pokrycia testowego w architekturze backendu i frontendu**:
+  - **Pamięć trwała i baza SQLite (`crates/storage`)**:
+    - Utworzono testy integracyjne `smart_playlists_and_stats_test.rs` weryfikujące poprawność progów ocen (rating $\ge 4$), ulubionych, filtrowania Hi-Res ($\ge 24$-bit lub $\ge 88.2\text{ kHz}$), selekcji wysokiego tempa BPM ($\ge 120\text{ BPM}$) oraz naliczania statystyk i podsumowań odsłuchów Recap.
+    - Utworzono pakiet `playlist_and_queue_persistence_test.rs` testujący trwałość stanu kolejki (tryby pętli, shuffle order), operacje CRUD na zakładkach utworów (`track_bookmarks`), magazyn ustawień klucz-wartość oraz algorytm wykrywania duplikatów.
+  - **Silnik audio i DSP (`crates/audio-engine`)**:
+    - Dodano `metadata_editor_test.rs` sprawdzający bezstratny, pełny odczyt i zapis tagów audio (tytuł, wykonawca, album, rok, gatunek, numery ścieżek z polskimi znakami diakrytycznymi) oraz odporność na pliki uszkodzone i nieistniejące.
+    - Dodano `dsp_boundary_and_concurrency_test.rs` testujący graniczne wartości głośności (clamping $[-1.0, 10.0] \to [0.0, 2.0]$), odporność na gwałtowne serie przewijania (rapid seeks) oraz przewijanie poza czas trwania utworu.
+  - **Domenowe parsery i integracja systemowa (`crates/domain`, `crates/desktop-integration`)**:
+    - Dodano `cue_and_m3u_parsers_test.rs` testujący parsowanie arkuszy CUE z przerwami pregap (`INDEX 00` i `INDEX 01`), kalkulację czasów trwania utworów oraz import/eksport playlist M3U/M3U8 z relatywnymi ścieżkami i strumieniami sieciowymi.
+    - Rozszerzono `waybar_and_ipc_test.rs` o walidację komend przewijania ze skokami względnymi, obsługę błędów argumentów oraz limity głośności sterowania przez IPC.
+  - **Frontendowe moduły narzędziowe, hooki i komponenty interfejsu (Vitest)**:
+    - Dodano testy jednostkowe formatowania i parsowania czasu `timeFormat.test.ts` (obsługa sufiksów `ms`, `s`, formatów `MM:SS.mmm`, polskich prefiksów i przecinków dziesiętnych).
+    - Dodano `fileSizeFormat.test.ts` oraz `textNormalize.test.ts` (w tym wsparcie dla znaków przekreślonych `ł` $\to$ `l` i `ø` $\to$ `o` dla polskiego indeksowania wyszukiwania).
+    - Dodano `useSleepTimer.test.ts` weryfikujący odliczanie, płynne wygaszanie głośności w ostatnich 30 sekundach, zatrzymanie utworu oraz tryb końca utworu.
+    - Dodano testy renderowania i interakcji użytkownika `SleepTimerModal.test.tsx` oraz `BottomPlaybackDock.test.tsx` (obsługa zdarzeń `pointerUp`, skrótów klawiaturowych i przełączania wyciszenia).
 
 ### 🛠️ Poprawiono (Fixed)
 - **Obsługa opcji płynnego wyciszenia (Smooth Seek Fade) we wszystkich paskach postępu utworu**:

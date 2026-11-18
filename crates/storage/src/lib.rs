@@ -1586,10 +1586,12 @@ impl Database {
 
     /// Resetuje licznik odtworzeń dla danego utworu.
     pub async fn reset_track_plays(&self, track_id: i64) -> Result<(), StorageError> {
-        sqlx::query("UPDATE tracks SET play_count = 0, last_played_at = NULL WHERE id = ?1;")
-            .bind(track_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE tracks SET play_count = 0, total_play_time_ms = 0, last_played_at = NULL WHERE id = ?1;",
+        )
+        .bind(track_id)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 

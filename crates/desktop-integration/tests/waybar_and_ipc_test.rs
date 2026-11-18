@@ -55,6 +55,30 @@ fn test_control_ipc_command_parsing() {
     let resp = ControlIpcServer::execute_command(&engine, "mute");
     assert!(resp.starts_with("OK:"));
 
+    // Test seek variations
+    let resp_seek_pos = ControlIpcServer::execute_command(&engine, "seek 15");
+    assert_eq!(resp_seek_pos, "OK: SEEK");
+
+    let resp_seek_neg = ControlIpcServer::execute_command(&engine, "seek -10");
+    assert_eq!(resp_seek_neg, "OK: SEEK");
+
+    let resp_seek_missing = ControlIpcServer::execute_command(&engine, "seek");
+    assert_eq!(resp_seek_missing, "ERR: MISSING_SEEK_ARG");
+
+    let resp_seek_invalid = ControlIpcServer::execute_command(&engine, "seek not_a_number");
+    assert_eq!(resp_seek_invalid, "ERR: INVALID_SEEK_ARG");
+
+    // Test volume boundaries via IPC
+    for _ in 0..25 {
+        ControlIpcServer::execute_command(&engine, "vol_up");
+    }
+    assert!(engine.volume() <= 1.0, "Volume should clamp at 1.0 via IPC");
+
+    for _ in 0..25 {
+        ControlIpcServer::execute_command(&engine, "vol_down");
+    }
+    assert!(engine.volume() >= 0.0, "Volume should clamp at 0.0 via IPC");
+
     // Test unknown command
     let resp = ControlIpcServer::execute_command(&engine, "unknown_cmd_xyz");
     assert!(resp.starts_with("ERR: UNKNOWN_COMMAND"));
