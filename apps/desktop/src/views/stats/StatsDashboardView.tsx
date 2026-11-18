@@ -42,12 +42,13 @@ interface AlbumRecord {
   cover_path?: string | null;
 }
 
-interface StatsDashboardViewProps {
+export interface StatsDashboardViewProps {
   tracks: TrackRecord[];
   albums: AlbumRecord[];
   currentLang?: Language;
   onPlayTrack: (track: TrackRecord) => void;
   onOpenStatsModal: (track: TrackRecord) => void;
+  onOpenRecapModal?: () => void;
 }
 
 export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
@@ -56,6 +57,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
   currentLang = 'pl',
   onPlayTrack,
   onOpenStatsModal,
+  onOpenRecapModal,
 }) => {
   const loc = getTranslations(currentLang);
 
@@ -190,6 +192,27 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onOpenRecapModal && (
+            <button
+              onClick={onOpenRecapModal}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(168, 85, 247, 0.25))',
+                border: '1px solid var(--accent-pink)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+              }}
+              title={loc.nav.recapTitle || loc.nav.recap}
+            >
+              <Sparkles size={14} color="var(--accent-pink)" /> {loc.nav.recap}
+            </button>
+          )}
           <span
             style={{
               padding: '6px 14px',

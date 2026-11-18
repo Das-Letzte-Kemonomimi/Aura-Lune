@@ -1259,7 +1259,23 @@
     "createStemProject": "Crea Proiectum Stem (Moises Studio)"
   },
   "changelog": {
-    "loadMore": "Onde plures versiones ({0} reliquae)"
+    "title": "Actorum Diarium & Notae Editionis",
+    "subtitle": "Ratio SemVer • Novae facultates, emendationes et correctiones",
+    "version": "Editio",
+    "codename": "Nomen",
+    "author": "Auctrix",
+    "date": "Dies editionis",
+    "added": "Novae facultates (Added)",
+    "fixed": "Emendationes (Fixed)",
+    "latestBadge": "RECENTISSIMA EDITIO",
+    "loadMore": "Onde plures versiones ({0} reliquae)",
+    "page": "Pagina {0} ex {1}",
+    "prev": "Prior",
+    "next": "Sequens",
+    "first": "Prima",
+    "last": "Ultima",
+    "totalReleases": "Summa: {0} editiones",
+    "perPage": "In pagina:"
   },
   "commandPalette": {
     "noResults": "Nullus eventus inventus",

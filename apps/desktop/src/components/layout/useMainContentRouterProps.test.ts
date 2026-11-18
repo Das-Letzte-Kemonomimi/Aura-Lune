@@ -9,6 +9,7 @@ describe('useMainContentRouterProps', () => {
     const mockPlaylists = {} as any;
     const mockStemProjects = {} as any;
     const mockRadio = {} as any;
+    const mockStats = {} as any;
 
     const result = useMainContentRouterProps({
       playerProps: mockPlayer,
@@ -17,6 +18,7 @@ describe('useMainContentRouterProps', () => {
       playlistsProps: mockPlaylists,
       stemProjectsProps: mockStemProjects,
       radioProps: mockRadio,
+      statsProps: mockStats,
     });
 
     expect(result.playerProps).toBe(mockPlayer);
@@ -25,5 +27,6 @@ describe('useMainContentRouterProps', () => {
     expect(result.playlistsProps).toBe(mockPlaylists);
     expect(result.stemProjectsProps).toBe(mockStemProjects);
     expect(result.radioProps).toBe(mockRadio);
+    expect(result.statsProps).toBe(mockStats);
   });
 });

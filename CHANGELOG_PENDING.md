@@ -5,8 +5,7 @@
 > 2. Nie czekaj do momentu wydania — rejestruj zmiany na bieżąco zwięzłym, przejrzystym opisem.
 > 3. Podczas przygotowywania nowego wydania (np. bumpu wersji do kolejnego numeru):
 >    - Wszystkie zebrane poniżej punkty są weryfikowane i przenoszone do pliku [`CHANGELOG.md`](./CHANGELOG.md) pod nowym nagłówkiem wersji `## [X.Y.Z] — „Kryptonim” - YYYY-MM-DD`.
->    - Poniższe sekcje są czyszczone do stanu początkowego na kolejny cykl deweloperski.
->    - Nowa wersja jest również dodawana do komponentu [`ChangelogView.tsx`](./apps/desktop/src/components/ChangelogView.tsx).
+>    - Nowa wersja jest również dodawana do pliku danych [`apps/desktop/src/data/changelog.json`](./apps/desktop/src/data/changelog.json) (nie modyfikuj bezpośrednio kodu [`ChangelogView.tsx`](./apps/desktop/src/views/changelog/ChangelogView.tsx)).
 
 ---
 
@@ -75,6 +74,16 @@
     - Studiu DSP (`DspStudioView`): etykiety szerokości sceny stereo, podpowiedź studia dynamiki i lampy oraz jednostki półtonów.
   - Naprawiono błąd gubienia właściwości języka w kontenerze modali (`AppModalsContainer.tsx`) – wyeliminowano sytuację, w której domyślny język polski był wymuszany w oknach dialogowych (`DownloadHubModal`, `TrackBookmarksModal`, `DuplicateFinderModal`, `FileRenamerModal`, `AnalogLoFiModal`, `AudioHealthCheckModal`, `MusicAnalysisModal`, `StemProjectStudioModal`, `CreateStemProjectModal`) niezależnie od wybranego języka w ustawieniach.
   - Zapewniono 100% zgodności i symetrii kluczy we wszystkich 5 plikach lokalizacyjnych (`src/locales/{en,pl,de,fi,la}.json`), zweryfikowane automatycznym testem jednostkowym `i18n.test.ts`.
+- **Naprawa wyświetlania zakładki podsumowań i statystyk (Recap & Stats)**:
+  - Przywrócono brakujące trasowanie dla aktywnej zakładki `'stats'` w routerze głównej zawartości (`MainContentRouter.tsx`), podłączając dedykowany widok `StatsDashboardView.tsx`.
+  - Przekazano właściwości statystyk (`statsProps`) w hookach nawigacyjnych (`useMainRouterProps.ts` oraz `useMainContentRouterProps.ts`).
+  - W nagłówku panelu statystyk dodano przycisk szybkiego wywołania modalu rocznego podsumowania Recap.
+  - Pokryto router i hooki nawigacyjne dedykowanymi testami jednostkowymi (`MainContentRouter.test.tsx`, `useMainContentRouterProps.test.ts`, `useMainRouterProps.test.ts`).
+- **Przebudowa i paginacja widoku historii wydań (Changelog)**:
+  - Wyodrębniono całą historię 38 wydań z monolitycznego pliku widoku do ustrukturyzowanego pliku danych [`apps/desktop/src/data/changelog.json`](./apps/desktop/src/data/changelog.json).
+  - Wprowadzono pełną paginację wydań z konfigurowalną liczbą elementów na stronę (3, 5, 10), przyciskami pierwszej/ostatniej strony, poprzedniej/następnej oraz inteligentnym wielokropkiem (`...`) przy dużej liczbie stron.
+  - Dodano pełne tłumaczenia elementów sterujących paginacją we wszystkich 5 językach oraz zabezpieczono przewijanie widoku w środowiskach testowych.
+  - Dodano dedykowany test jednostkowy `ChangelogView.test.tsx` weryfikujący nagłówek, paginację i przełączanie liczby wydań.
 
 ### 🔄 Zmieniono (Changed)
 - **Błyskawiczne wyszukiwanie i sortowanie w bibliotece**:

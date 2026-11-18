@@ -335,6 +335,8 @@ describe('useMainRouterProps', () => {
     expect(result.playerProps.currentBookmark).toBe(42);
     expect(result.dspProps.dspBlockSize).toBe(512);
     expect(result.playlistsProps.playlists).toHaveLength(1);
+    expect(result.statsProps).toBeDefined();
+    expect(result.statsProps.currentLang).toBe('en');
   });
 });
 

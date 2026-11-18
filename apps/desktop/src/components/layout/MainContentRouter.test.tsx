@@ -11,6 +11,7 @@ vi.mock('../../views', () => ({
   PlaylistsView: () => <div data-testid="playlists-view">Playlists View</div>,
   StemProjectsLibraryView: () => <div data-testid="stem-projects-view">Stem Projects View</div>,
   RadioView: () => <div data-testid="radio-view">Radio View</div>,
+  StatsDashboardView: () => <div data-testid="stats-view">Stats View</div>,
 }));
 
 describe('MainContentRouter component', () => {
@@ -36,6 +37,13 @@ describe('MainContentRouter component', () => {
       onStop: vi.fn(),
       onOpenAddModal: vi.fn(),
       onDeleteCustomStation: vi.fn(),
+    },
+    statsProps: {
+      tracks: [],
+      albums: [],
+      currentLang: 'en',
+      onPlayTrack: vi.fn(),
+      onOpenStatsModal: vi.fn(),
     },
   };
 
@@ -73,5 +81,10 @@ describe('MainContentRouter component', () => {
   it('renders RadioView when activeTab is radio', () => {
     render(<MainContentRouter {...dummyProps} activeTab="radio" />);
     expect(screen.getByTestId('radio-view')).toBeTruthy();
+  });
+
+  it('renders StatsDashboardView when activeTab is stats', () => {
+    render(<MainContentRouter {...dummyProps} activeTab="stats" />);
+    expect(screen.getByTestId('stats-view')).toBeTruthy();
   });
 });

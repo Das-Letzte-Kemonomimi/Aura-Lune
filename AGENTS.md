@@ -282,9 +282,9 @@ All 162 commands are organized by domain under `apps/desktop/src-tauri/src/comma
 - **`views/stems/`**:
   - `StemProjectsLibraryView.tsx`: Stem project manager and multi-track separation hub.
 - **`views/stats/`**:
-  - `StatsDashboardView.tsx`: Listening recap, top artists, play counts, and analytics.
+  - `StatsDashboardView.tsx`: Listening recap, top artists, play counts, analytics, and direct Recap modal launcher. Routed via `MainContentRouter` when `activeTab === 'stats'`.
 - **`views/changelog/`**:
-  - `ChangelogView.tsx`: Interactive version history.
+  - `ChangelogView.tsx`: Paginated version history driven by [`src/data/changelog.json`](apps/desktop/src/data/changelog.json) with configurable page sizes (3, 5, 10), first/last, prev/next, and smart ellipsis page navigation.
 - **`views/settings/`**:
   - `AppSettingsModal.tsx`: Tabbed settings container.
 
@@ -312,8 +312,8 @@ All 162 commands are organized by domain under `apps/desktop/src-tauri/src/comma
 ### Prop Builder Hooks
 - **`useAppHeaderProps`**: Assembles props for `AppHeader`.
 - **`useBottomPlaybackDockProps`**: Assembles props for `BottomPlaybackDock`.
-- **`useMainContentRouterProps`**: Assembles view routing parameters for `MainContentRouter`.
-- **`useMainRouterProps`**: Bundles child view props (`playerProps`, `libraryProps`, `dspProps`, `playlistsProps`).
+- **`useMainContentRouterProps`**: Assembles view routing parameters for `MainContentRouter` (including `statsProps`).
+- **`useMainRouterProps`**: Bundles child view props (`playerProps`, `libraryProps`, `dspProps`, `playlistsProps`, `statsProps`).
 - **`useAppModalsProps`**: Bundles props required by the 32 modals in `AppModalsContainer`.
 - **`useAppSettingsModalProps`**: Bundles settings tabs into `AppSettingsModal`.
 
@@ -466,6 +466,36 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 3. Add the struct fields and serialization in `crates/storage/src/models.rs`.
 4. Implement the query methods in the respective domain submodule (`library.rs`, `playlists.rs`, etc.).
 5. Add test coverage in `crates/storage/tests/`.
+
+### How to Record & Update Changelog Entries
+1. **During Active Development**:
+   - Record every user-facing change, fix, and refactor in [`CHANGELOG_PENDING.md`](./CHANGELOG_PENDING.md) under Polish headings (`Dodano`, `Poprawiono`, `Zmieniono`).
+2. **On Release (Version Bump)**:
+   - Move entries from `CHANGELOG_PENDING.md` into [`CHANGELOG.md`](./CHANGELOG.md) under a new version heading (`## [X.Y.Z] — „Kryptonim” - YYYY-MM-DD`).
+   - Add the structured release object at the beginning of the array in [`apps/desktop/src/data/changelog.json`](./apps/desktop/src/data/changelog.json).
+   - Ensure the structure matches `ChangelogRelease`:
+     ```json
+     {
+       "version": "1.1.6",
+       "codename": "Release Codename",
+       "date": "YYYY-MM-DD",
+       "author": "Author Name",
+       "added": [
+         {
+           "title": { "en": "Feature title", "pl": "Tytuł funkcji" },
+           "desc": { "en": "Description", "pl": "Opis" }
+         }
+       ],
+       "fixed": [
+         {
+           "title": { "en": "Fix title", "pl": "Tytuł poprawki" },
+           "desc": { "en": "Description", "pl": "Opis" }
+         }
+       ]
+     }
+     ```
+   - **Never hardcode entries into `ChangelogView.tsx`**: `ChangelogView.tsx` automatically consumes `changelog.json`, manages pagination, and provides multi-language support.
+   - Run `vitest run src/views/changelog/ChangelogView.test.tsx` and `vitest run src/i18n.test.ts`.
 
 ---
 *Maintained by Das Letzte Kemonomimi & Aura-Lune Core Engineering Agents.*

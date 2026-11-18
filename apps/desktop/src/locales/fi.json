@@ -1259,7 +1259,23 @@
     "createStemProject": "Luo Stem-projekti (Moises Studio)"
   },
   "changelog": {
-    "loadMore": "Näytä vanhempia julkaisuja ({0} jäljellä)"
+    "title": "Muutosloki & Julkaisutiedot",
+    "subtitle": "Semanttinen versiointi (SemVer) • Ominaisuudet, parannukset ja korjaukset",
+    "version": "Versio",
+    "codename": "Koodinimi",
+    "author": "Tekijä",
+    "date": "Julkaisupäivämäärä",
+    "added": "Uudet ominaisuudet (Added)",
+    "fixed": "Korjaukset ja optimoinnit (Fixed)",
+    "latestBadge": "UUSIN JULKAISU",
+    "loadMore": "Näytä vanhempia julkaisuja ({0} jäljellä)",
+    "page": "Sivu {0} / {1}",
+    "prev": "Edellinen",
+    "next": "Seuraava",
+    "first": "Ensimmäinen",
+    "last": "Viimeinen",
+    "totalReleases": "Yhteensä: {0} julkaisua",
+    "perPage": "Sivulla:"
   },
   "commandPalette": {
     "noResults": "Ei tuloksia haulle",

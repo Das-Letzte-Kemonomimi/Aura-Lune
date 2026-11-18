@@ -3,6 +3,7 @@ import type {
   LibraryViewProps,
   DspStudioViewProps,
   PlaylistsViewProps,
+  StatsDashboardViewProps,
 } from '../../views';
 import type { StemProjectsRouterProps, RadioRouterProps } from './MainContentRouter';
 
@@ -13,6 +14,7 @@ export interface UseMainContentRouterPropsOptions {
   playlistsProps: PlaylistsViewProps;
   stemProjectsProps: StemProjectsRouterProps;
   radioProps: RadioRouterProps;
+  statsProps?: StatsDashboardViewProps;
 }
 
 export function useMainContentRouterProps(options: UseMainContentRouterPropsOptions) {
@@ -23,5 +25,6 @@ export function useMainContentRouterProps(options: UseMainContentRouterPropsOpti
     playlistsProps: options.playlistsProps,
     stemProjectsProps: options.stemProjectsProps,
     radioProps: options.radioProps,
+    statsProps: options.statsProps,
   };
 }

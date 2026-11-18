@@ -3,6 +3,7 @@ import type {
   LibraryViewProps,
   DspStudioViewProps,
   PlaylistsViewProps,
+  StatsDashboardViewProps,
 } from '../views';
 import type { StemProjectsRouterProps, RadioRouterProps } from '../components/layout/MainContentRouter';
 import type { PlaybackStatus } from '../types/playback';
@@ -652,6 +653,31 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     onDeleteCustomStation: p.handleDeleteCustomStation,
   };
 
+  const statsProps: StatsDashboardViewProps = {
+    tracks: p.tracks || [],
+    albums: p.albums || [],
+    currentLang: p.language,
+    onPlayTrack: (track: any) => {
+      if (p.handlePlayLibraryTrack) {
+        p.handlePlayLibraryTrack(track);
+      }
+    },
+    onOpenStatsModal: (track: any) => {
+      if (p.setStatsModalTrack) {
+        p.setStatsModalTrack(track);
+      } else if (p.modals?.setStatsModalTrack) {
+        p.modals.setStatsModalTrack(track);
+      }
+    },
+    onOpenRecapModal: () => {
+      if (p.setIsRecapModalOpen) {
+        p.setIsRecapModalOpen(true);
+      } else if (p.modals?.setIsRecapModalOpen) {
+        p.modals.setIsRecapModalOpen(true);
+      }
+    },
+  };
+
   return {
     playerProps,
     libraryProps,
@@ -659,5 +685,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     playlistsProps,
     stemProjectsProps,
     radioProps,
+    statsProps,
   };
 }

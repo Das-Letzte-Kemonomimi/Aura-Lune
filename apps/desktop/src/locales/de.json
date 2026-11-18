@@ -1259,7 +1259,23 @@
     "createStemProject": "Stem-Projekt erstellen (Moises Studio)"
   },
   "changelog": {
-    "loadMore": "Ältere Versionen laden ({0} verbleibend)"
+    "title": "Änderungsprotokoll & Versionshinweise",
+    "subtitle": "Semantische Versionierung (SemVer) • Neue Funktionen, Verbesserungen und Fixes",
+    "version": "Version",
+    "codename": "Codename",
+    "author": "Autorin",
+    "date": "Veröffentlichungsdatum",
+    "added": "Neue Funktionen (Added)",
+    "fixed": "Fehlerbehebungen (Fixed)",
+    "latestBadge": "NEUESTE VERSION",
+    "loadMore": "Ältere Versionen laden ({0} verbleibend)",
+    "page": "Seite {0} von {1}",
+    "prev": "Vorherige",
+    "next": "Nächste",
+    "first": "Erste",
+    "last": "Letzte",
+    "totalReleases": "Insgesamt: {0} Versionen",
+    "perPage": "Pro Seite:"
   },
   "commandPalette": {
     "noResults": "Keine Ergebnisse gefunden",

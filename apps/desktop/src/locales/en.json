@@ -1259,7 +1259,23 @@
     "createStemProject": "Create Stem Project (Moises Studio)"
   },
   "changelog": {
-    "loadMore": "Load more releases ({0} remaining)"
+    "title": "Changelog & Release Notes",
+    "subtitle": "Semantic Versioning (SemVer) • Features, improvements, and bug fixes",
+    "version": "Version",
+    "codename": "Codename",
+    "author": "Author",
+    "date": "Release Date",
+    "added": "New Features & Enhancements (Added)",
+    "fixed": "Bug Fixes & Optimizations (Fixed)",
+    "latestBadge": "LATEST RELEASE",
+    "loadMore": "Load more releases ({0} remaining)",
+    "page": "Page {0} of {1}",
+    "prev": "Previous",
+    "next": "Next",
+    "first": "First",
+    "last": "Last",
+    "totalReleases": "Total: {0} releases",
+    "perPage": "Per page:"
   },
   "commandPalette": {
     "noResults": "No results found",

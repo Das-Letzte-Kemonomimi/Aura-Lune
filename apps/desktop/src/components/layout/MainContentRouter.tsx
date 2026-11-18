@@ -11,6 +11,8 @@ import {
   StemProjectsLibraryView,
   RadioView,
   type RadioStation,
+  StatsDashboardView,
+  type StatsDashboardViewProps,
 } from '../../views';
 
 export interface StemProjectsRouterProps {
@@ -41,6 +43,7 @@ export interface MainContentRouterProps {
   playlistsProps: PlaylistsViewProps;
   stemProjectsProps: StemProjectsRouterProps;
   radioProps: RadioRouterProps;
+  statsProps?: StatsDashboardViewProps;
 }
 
 export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
@@ -54,6 +57,7 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
   playlistsProps,
   stemProjectsProps,
   radioProps,
+  statsProps,
 }) => {
   return (
     <main
@@ -89,6 +93,13 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
 
       {/* Tab 6: Anime Web Radio */}
       {activeTab === 'radio' && <RadioView {...radioProps} />}
+
+      {/* Tab 7: Recap & Stats Dashboard */}
+      {activeTab === 'stats' && statsProps && (
+        <div style={{ padding: '24px 16px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
+          <StatsDashboardView {...statsProps} />
+        </div>
+      )}
     </main>
   );
 });

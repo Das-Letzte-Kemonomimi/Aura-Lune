@@ -1259,7 +1259,23 @@
     "createStemProject": "Utwórz projekt stemów (Moises Studio)"
   },
   "changelog": {
-    "loadMore": "Pokaż starsze wydania ({0} pozostało)"
+    "title": "Dziennik Zmian & Historia Wydań",
+    "subtitle": "Semantyczne wersjonowanie SemVer • Nowości, ulepszenia i eliminacja błędów",
+    "version": "Wersja",
+    "codename": "Kryptonim",
+    "author": "Autorka",
+    "date": "Data wydania",
+    "added": "Nowości i rozszerzenia (Added)",
+    "fixed": "Poprawki i optymalizacje (Fixed)",
+    "latestBadge": "NAJNOWSZE WYDANIE",
+    "loadMore": "Pokaż starsze wydania ({0} pozostało)",
+    "page": "Strona {0} z {1}",
+    "prev": "Poprzednia",
+    "next": "Następna",
+    "first": "Pierwsza",
+    "last": "Ostatnia",
+    "totalReleases": "Łącznie: {0} wydań",
+    "perPage": "Na stronę:"
   },
   "commandPalette": {
     "noResults": "Brak wyników dla zapytania",
