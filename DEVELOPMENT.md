@@ -370,9 +370,9 @@ curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/mai
 #### Installing Development Version (Parallel, Non-Conflicting)
 To install the development build directly from the `dev` branch:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash -s -- --dev
 ```
-*(Or explicitly pass `--dev`: `curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/install.sh | bash -s -- --dev`)*
+*(Or in a local git repository on branch `dev`: `./install.sh`)*
 - Installs binary launcher to `~/.local/bin/auralune-dev`
 - Stores AppImage in `~/.local/share/auralune-dev/auralune-dev.AppImage`
 - Registers separate desktop shortcut `~/.local/share/applications/auralune-dev.desktop` (`Auralune (Dev)`)

@@ -11,8 +11,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")
 REPO="Das-Letzte-Kemonomimi/Aura-Lune"
 GITHUB_API="https://api.github.com/repos/${REPO}/releases"
 
-# Default base version for this branch (when on dev: 1.1.6-dev, on release: 1.1.6)
-VERSION="1.1.6-dev"
+# Default base version for fallback
+VERSION="1.1.5"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" ]]; then
     DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
     if [[ -n "$DETECTED_VER" ]]; then
@@ -21,17 +21,10 @@ if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json
 fi
 
 # Determine channel: 'dev' or 'stable'
-# Priority order:
-# 1. Version string containing 'dev', 'alpha', 'beta', 'rc', or 'nightly' defaults to 'dev'
-# 2. Local git branch ('dev' or 'develop' defaults to 'dev', 'main' or 'master' to 'stable')
-# 3. Environment variable override (CHANNEL / AURALUNE_CHANNEL)
-# 4. Command-line flags override (--dev or --stable)
-
+# Default: 'stable' — Guaranteed safe default for all remote curl invocations on main/master!
 CHANNEL="stable"
-if [[ "$VERSION" =~ (dev|alpha|beta|rc|nightly) ]]; then
-    CHANNEL="dev"
-fi
 
+# 1. Local git repository branch auto-detection (when run from a local clone)
 if [[ -n "$SCRIPT_DIR" ]] && command -v git &>/dev/null; then
     CURRENT_GIT_BRANCH=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
     if [[ "$CURRENT_GIT_BRANCH" == "dev" || "$CURRENT_GIT_BRANCH" == "develop" ]]; then
@@ -41,12 +34,14 @@ if [[ -n "$SCRIPT_DIR" ]] && command -v git &>/dev/null; then
     fi
 fi
 
+# 2. Environment variable override (CHANNEL / AURALUNE_CHANNEL)
 if [[ "${AURALUNE_CHANNEL:-}" == "dev" || "${CHANNEL:-}" == "dev" ]]; then
     CHANNEL="dev"
 elif [[ "${AURALUNE_CHANNEL:-}" == "stable" || "${CHANNEL:-}" == "stable" ]]; then
     CHANNEL="stable"
 fi
 
+# 3. Command-line flags override (--dev or --stable)
 for arg in "$@"; do
     case "$arg" in
         --dev)

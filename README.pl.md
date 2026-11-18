@@ -97,7 +97,7 @@ Instalator automatycznie konfiguruje najnowszy AppImage, ikonę i skrót w menu 
 > [!NOTE]
 > Wersja deweloperska instaluje się jako osobna aplikacja `~/.local/bin/auralune-dev` obok wersji stabilnej, nie nadpisując jej. Przeznaczona dla testerów i deweloperów.
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash
+> curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash -s -- --dev
 > ```
 </details>
 

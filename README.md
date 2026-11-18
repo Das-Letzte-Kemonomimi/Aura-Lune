@@ -97,7 +97,7 @@ The installer downloads the latest AppImage, installs icons, desktop entry (`aur
 > [!NOTE]
 > Development builds are installed separately into `~/.local/bin/auralune-dev` alongside the stable version without overwriting it. Intended for testers and contributors.
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash
+> curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/dev/install.sh | bash -s -- --dev
 > ```
 </details>
 

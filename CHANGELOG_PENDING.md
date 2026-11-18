@@ -30,6 +30,10 @@
   - Dodano zadanie `publish-dev-release`, które po przejściu testów na gałęzi `dev` automatycznie kompiluje paczkę AppImage i publikuje rotujące wydanie przedpremierowe (rolling pre-release) z tagiem `dev`, zapewniając stałą dostępność najnowszych wersji dla instalatora.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Błąd kompilacji AppImage w CI („Can't detect any appindicator library”)**:
+  - Dodano brakujące pakiety `libayatana-appindicator3-dev` oraz `librsvg2-dev` do konfiguracji środowiska GitHub Actions (`ci.yml`), umożliwiając pomyślne budowanie i pakowanie bundli AppImage przez Tauri CLI na systemie Linux.
+- **Zabezpieczenie instalatora w gałęzi `main`/`master` przed przypadkową instalacją wersji deweloperskiej**:
+  - Ustawiono sztywny, bezpieczny domyślny kanał `stable` dla wszystkich zdalnych wywołań przez `curl | bash`, usuwając automatyczne przełączanie kanału na podstawie ciągu wersji. Wywołanie instalatora z gałęzi `main` pobiera wyłącznie oficjalne stabilne wydania z `/releases/latest` (które w GitHub API wyklucza pre-release'y), gwarantując pełne bezpieczeństwo po zmergowaniu gałęzi `dev` do `main`.
 - **Rozwiązanie problemu instalacji starej wersji 1.1.5 przy wyborze kanału deweloperskiego**:
   - Wyeliminowano w `install.sh` ciche cofanie się do wydań stabilnych (`/releases/latest`) w kanale deweloperskim w przypadku braku lub opóźnienia paczki GitHub Releases. Wprowadzono dedykowane zapytania do taga `dev` oraz bezpośrednią ścieżkę do AppImage deweloperskiego wraz z czytelnym komunikatem błędu i instrukcją kompilacji lokalnej zamiast instalacji nieprawidłowej wersji.
 - **Wyeliminowanie wielosekundowych opóźnień i zatorów przy zmianie głośności oraz przewijaniu utworu**:
