@@ -450,6 +450,7 @@ export default function App() {
     queue,
     refreshQueue,
     seekFadeEnabled,
+    instantVolume,
     initialStartupPositionRef,
     tracks,
     setTracks,

@@ -42,8 +42,12 @@
   - Naprawiono błąd, przez który puszczenie suwaka pozycji ignorowało włączoną opcję łagodnego wyciszania.
   - Opcja działa teraz spójnie we wszystkich widokach aplikacji: głównym pasku doku, widoku odtwarzacza, trybie pełnoekranowym, Mini Playerze, nakładce tekstu piosenki, widoku fali dźwiękowej oraz osi akordów.
   - Zastosowano delikatne, studyjne mikro-wygaszenie (20–48 ms), które skutecznie usuwa wszelkie trzaski i stuki w głośnikach lub słuchawkach podczas skoków w utworze.
-- **Natychmiastowa reakcja suwaka głośności**:
-  - Usunięto sztuczne opóźnienia w wątku audio przy zmianie głośności. Regulacja poziomu działa teraz w ułamku mikrosekundy, a nowe ruchy suwaka natychmiast przerywają poprzednie operacje.
+- **Prawdziwie natychmiastowa reakcja i płynny fade suwaka głośności (Instant vs Smooth Fade)**:
+  - Przeniesiono element `volume` w potoku GStreamera za kolejkę bufora wyjściowego (`queue_sink -> volume -> sink`). Wyeliminowało to do zera opóźnienie bufora wyjściowego (wcześniej wynoszące 600 ms), dzięki czemu każda zmiana głośności trafia do karty dźwiękowej w czasie poniżej 15 ms.
+  - Podłączono wybór trybu głośności z ustawień (`instantVolume`) do kontrolera odtwarzacza (`usePlaybackController`):
+    - **Tryb natychmiastowy (Instant Response)**: natychmiastowe wysyłanie polecenia IPC (0 ms opóźnienia) z płynnym scalaniem kolejnych ruchów suwaka zsynchronizowanym z odświeżaniem ekranu (`requestAnimationFrame`).
+    - **Tryb płynnego przejścia (Smooth Fade)**: studyjna, miękka interpolacja krzywą S (krzywa cosinusowa) po stronie silnika audio w Rust (`set_volume_smooth`, 60–120 ms) oraz zsynchronizowana animacja suwaka w interfejsie, całkowicie eliminująca trzaski cyfrowe i szum schodkowy.
+    - **Wyciszanie/odciszanie (Mute/Unmute)**: w trybie płynnym łagodnie wygasza dźwięk do zera i płynnie przywraca go w 120 ms; w trybie natychmiastowym odcina/przywraca dźwięk bezzwłocznie.
 - **Koniec z cofaniem i szarpaniem suwaków (rubberbanding)**:
   - Zabezpieczono suwaki czasu i głośności tak, aby regularne odpytywanie stanu z backendu nie nadpisywało pozycji w trakcie trwania gestu użytkownika.
 - **Płynna regulacja głośności bez zatykania komunikacji**:

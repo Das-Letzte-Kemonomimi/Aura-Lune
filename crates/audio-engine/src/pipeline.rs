@@ -587,21 +587,22 @@ impl AudioEngine {
             })?;
         }
 
-        // rgvolume -> rglimiter -> spectrum -> volume -> audioconvert_sink -> audioresample_sink -> queue_sink -> sink
-        // Umieszczenie queue_sink bezpośrednio przed zlewem odciąża wątek audio z format/sample-rate conversion
+        // rgvolume -> rglimiter -> spectrum -> audioconvert_sink -> audioresample_sink -> queue_sink -> volume -> sink
+        // Umieszczenie volume bezpośrednio przed zlewem (po queue_sink) gwarantuje zerowe opóźnienie
+        // bufora przy zmianie głośności suwakiem (natychmiastowa reakcja sprzętowa bez opóźnienia bufora kolejki).
         gst::Element::link_many([
             &rgvolume,
             &rglimiter,
             &spectrum,
-            &volume,
             &audioconvert_sink,
             &audioresample_sink,
             &queue_sink,
+            &volume,
             &sink,
         ])
         .map_err(|_| {
             AudioEngineError::ElementLink(
-                "Nie udało się połączyć wyjściowego łańcucha audio ze spectrum, volume, kolejką i zlewem".into(),
+                "Nie udało się połączyć wyjściowego łańcucha audio ze spectrum, kolejką, volume i zlewem".into(),
             )
         })?;
 
@@ -1574,6 +1575,64 @@ impl AudioEngine {
             inner.user_volume = clamped;
         }
         debug!("Ustawiono głośność na: {:.2}", clamped);
+        Ok(())
+    }
+
+    /// Ustawia głośność z płynną interpolacją (Smooth Fade / S-curve ramp), zapobiegając trzaskom cyfrowym.
+    pub fn set_volume_smooth(
+        &self,
+        volume: f64,
+        duration: Duration,
+    ) -> Result<(), AudioEngineError> {
+        let current_gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        self.is_fading_in.store(false, Ordering::SeqCst);
+        let clamped = volume.clamp(0.0, 2.0);
+        let current_vol = self.volume();
+        self.atomic_volume
+            .store(clamped.to_bits(), Ordering::Relaxed);
+        if let Ok(mut inner) = self.inner.try_lock() {
+            inner.user_volume = clamped;
+        }
+
+        if duration.is_zero() || (current_vol - clamped).abs() < 0.005 {
+            self.volume_element.set_property("volume", clamped);
+            debug!("Ustawiono głośność natychmiastowo na: {:.2}", clamped);
+            return Ok(());
+        }
+
+        let volume_el = self.volume_element.clone();
+        let fade_gen = Arc::clone(&self.fade_generation);
+
+        let _ = std::thread::Builder::new()
+            .name("aura-volume-smooth".into())
+            .spawn(move || {
+                let total_ms = duration.as_millis().clamp(20, 500) as u64;
+                let step_ms = 8u64;
+                let steps = (total_ms / step_ms).clamp(4, 40) as usize;
+                let step_time = Duration::from_millis((total_ms / steps as u64).max(1));
+
+                for i in 1..=steps {
+                    if fade_gen.load(Ordering::Relaxed) != current_gen {
+                        return;
+                    }
+                    let t = (i as f64) / (steps as f64);
+                    // Płynna krzywa S (cosinusowa): łagodne przyspieszenie i wyhamowanie bez skoków
+                    let factor = (1.0 - (t * std::f64::consts::PI).cos()) * 0.5;
+                    let interpolated = current_vol + (clamped - current_vol) * factor;
+                    volume_el.set_property("volume", interpolated);
+                    std::thread::sleep(step_time);
+                }
+
+                if fade_gen.load(Ordering::Relaxed) == current_gen {
+                    volume_el.set_property("volume", clamped);
+                }
+            });
+
+        debug!(
+            "Uruchomiono płynne przejście głośności do: {:.2} ({} ms)",
+            clamped,
+            duration.as_millis()
+        );
         Ok(())
     }
 

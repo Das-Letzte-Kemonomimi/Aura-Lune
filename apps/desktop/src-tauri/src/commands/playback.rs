@@ -927,8 +927,22 @@ pub fn seek(
 }
 
 #[tauri::command]
-pub fn set_volume(volume: f64, state: State<'_, AppState>) -> Result<(), String> {
-    state.engine.set_volume(volume).map_err(|e| e.to_string())?;
+pub fn set_volume(
+    volume: f64,
+    smooth: Option<bool>,
+    fade_ms: Option<u64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let is_smooth = smooth.unwrap_or(false);
+    if is_smooth {
+        let duration = std::time::Duration::from_millis(fade_ms.unwrap_or(90));
+        state
+            .engine
+            .set_volume_smooth(volume, duration)
+            .map_err(|e| e.to_string())?;
+    } else {
+        state.engine.set_volume(volume).map_err(|e| e.to_string())?;
+    }
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
         state.rt.spawn(async move {

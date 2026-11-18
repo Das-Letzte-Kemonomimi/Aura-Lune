@@ -16,6 +16,7 @@ export interface UsePlaybackControllerOptions {
   queue: PlaybackQueue;
   refreshQueue: () => Promise<void>;
   seekFadeEnabled: boolean;
+  instantVolume?: boolean;
   initialStartupPositionRef: React.MutableRefObject<number | null>;
   tracks: TrackRecord[];
   setTracks: React.Dispatch<React.SetStateAction<TrackRecord[]>>;
@@ -45,6 +46,7 @@ export function usePlaybackController({
   queue,
   refreshQueue,
   seekFadeEnabled,
+  instantVolume = true,
   initialStartupPositionRef,
   tracks,
   setTracks,
@@ -65,6 +67,9 @@ export function usePlaybackController({
 }: UsePlaybackControllerOptions) {
   // Volume reference for mute/unmute
   const lastNonZeroVolRef = useRef<number>(1.0);
+  const instantVolumeRef = useRef<boolean>(instantVolume);
+  instantVolumeRef.current = instantVolume;
+  const smoothVolumeAnimRef = useRef<any>(null);
 
   // User gesture interaction guards to eliminate UI lag & rubberbanding
   const isSeekingRef = useRef<boolean>(false);
@@ -90,6 +95,29 @@ export function usePlaybackController({
   const lastListeningTickRef = useRef<number>(Date.now());
   const statusRef = useRef(status);
   statusRef.current = status;
+
+  // Clean up volume animation & timers on unmount
+  useEffect(() => {
+    return () => {
+      if (smoothVolumeAnimRef.current) {
+        if (typeof cancelAnimationFrame !== 'undefined') {
+          cancelAnimationFrame(smoothVolumeAnimRef.current);
+        } else {
+          clearTimeout(smoothVolumeAnimRef.current);
+        }
+      }
+      if (volumeThrottleTimerRef.current) {
+        if (typeof cancelAnimationFrame !== 'undefined') {
+          cancelAnimationFrame(volumeThrottleTimerRef.current);
+        } else {
+          clearTimeout(volumeThrottleTimerRef.current);
+        }
+      }
+      if (volumeInteractionTimerRef.current) {
+        clearTimeout(volumeInteractionTimerRef.current);
+      }
+    };
+  }, []);
 
   // 1. Status Polling Loop (Adaptive: 100ms when Playing, 350ms when idle/paused)
   useEffect(() => {
@@ -413,6 +441,8 @@ export function usePlaybackController({
   const handleVolumeChange = useCallback(
     (volume: number, immediate = false) => {
       const clamped = Math.max(0, Math.min(1.0, volume));
+      const isInstant = instantVolumeRef.current;
+
       isVolumeInteractingRef.current = true;
       if (volumeInteractionTimerRef.current) {
         clearTimeout(volumeInteractionTimerRef.current);
@@ -422,37 +452,124 @@ export function usePlaybackController({
         volumeInteractionTimerRef.current = null;
       }, 400);
 
-      // Instant optimistic UI update
-      setStatus((prev) => ({ ...prev, volume: clamped }));
-
-      if (immediate) {
-        if (volumeThrottleTimerRef.current) {
-          clearTimeout(volumeThrottleTimerRef.current);
-          volumeThrottleTimerRef.current = null;
+      // Cancel any ongoing smooth animation to prevent jitter
+      if (smoothVolumeAnimRef.current) {
+        if (typeof cancelAnimationFrame !== 'undefined') {
+          cancelAnimationFrame(smoothVolumeAnimRef.current);
+        } else {
+          clearTimeout(smoothVolumeAnimRef.current);
         }
-        pendingVolumeRef.current = null;
-        invoke('set_volume', { volume: clamped }).catch((e: any) => {
-          showMessage(`${loc.common.errorPrefix} ${e}`, true);
-        });
-        return;
+        smoothVolumeAnimRef.current = null;
       }
 
-      // Non-blocking trailing-edge throttled IPC to prevent queue saturation
-      pendingVolumeRef.current = clamped;
-      if (!volumeThrottleTimerRef.current) {
-        invoke('set_volume', { volume: clamped }).catch((e: any) => {
-          showMessage(`${loc.common.errorPrefix} ${e}`, true);
-        });
-        volumeThrottleTimerRef.current = setTimeout(() => {
-          volumeThrottleTimerRef.current = null;
-          if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
-            const latestVol = pendingVolumeRef.current;
-            pendingVolumeRef.current = null;
-            invoke('set_volume', { volume: latestVol }).catch((e: any) => {
-              showMessage(`${loc.common.errorPrefix} ${e}`, true);
-            });
+      if (isInstant) {
+        // Mode 1: Instant Response (direct, zero-delay IPC & optimistic UI update)
+        setStatus((prev) => ({ ...prev, volume: clamped }));
+
+        if (immediate) {
+          if (volumeThrottleTimerRef.current) {
+            if (typeof cancelAnimationFrame !== 'undefined') {
+              cancelAnimationFrame(volumeThrottleTimerRef.current);
+            } else {
+              clearTimeout(volumeThrottleTimerRef.current);
+            }
+            volumeThrottleTimerRef.current = null;
           }
-        }, 30);
+          pendingVolumeRef.current = null;
+          invoke('set_volume', { volume: clamped }).catch((e: any) => {
+            showMessage(`${loc.common.errorPrefix} ${e}`, true);
+          });
+          return;
+        }
+
+        // Display-synced high-frequency dispatch (0ms initial, coalesced intermediate moves)
+        pendingVolumeRef.current = clamped;
+        if (!volumeThrottleTimerRef.current) {
+          invoke('set_volume', { volume: clamped }).catch((e: any) => {
+            showMessage(`${loc.common.errorPrefix} ${e}`, true);
+          });
+          const scheduleNext = typeof requestAnimationFrame !== 'undefined'
+            ? requestAnimationFrame
+            : (cb: () => void) => setTimeout(cb, 16);
+
+          volumeThrottleTimerRef.current = scheduleNext(() => {
+            volumeThrottleTimerRef.current = null;
+            if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
+              const latestVol = pendingVolumeRef.current;
+              pendingVolumeRef.current = null;
+              invoke('set_volume', { volume: latestVol }).catch((e: any) => {
+                showMessage(`${loc.common.errorPrefix} ${e}`, true);
+              });
+            }
+          });
+        }
+      } else {
+        // Mode 2: Smooth Fade (soft S-curve ramping avoiding digital pops and zipper noise)
+        if (immediate) {
+          if (volumeThrottleTimerRef.current) {
+            if (typeof cancelAnimationFrame !== 'undefined') {
+              cancelAnimationFrame(volumeThrottleTimerRef.current);
+            } else {
+              clearTimeout(volumeThrottleTimerRef.current);
+            }
+            volumeThrottleTimerRef.current = null;
+          }
+          pendingVolumeRef.current = null;
+
+          // Backend smoothly ramps over 120ms
+          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 120 }).catch((e: any) => {
+            showMessage(`${loc.common.errorPrefix} ${e}`, true);
+          });
+
+          // Frontend smoothly animates the visual slider position
+          const startVol = statusRef.current.volume;
+          const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const duration = 120;
+
+          if (Math.abs(startVol - clamped) > 0.01 && typeof requestAnimationFrame !== 'undefined') {
+            const animate = (now: number) => {
+              const elapsed = now - startTime;
+              const progress = Math.min(1, elapsed / duration);
+              // Cosine S-curve easing
+              const factor = 0.5 * (1 - Math.cos(Math.PI * progress));
+              const currentVal = startVol + (clamped - startVol) * factor;
+              setStatus((prev) => ({ ...prev, volume: currentVal }));
+              if (progress < 1) {
+                smoothVolumeAnimRef.current = requestAnimationFrame(animate);
+              } else {
+                setStatus((prev) => ({ ...prev, volume: clamped }));
+                smoothVolumeAnimRef.current = null;
+              }
+            };
+            smoothVolumeAnimRef.current = requestAnimationFrame(animate);
+          } else {
+            setStatus((prev) => ({ ...prev, volume: clamped }));
+          }
+          return;
+        }
+
+        // When dragging in smooth mode, UI tracks cursor directly while engine micro-eases
+        setStatus((prev) => ({ ...prev, volume: clamped }));
+        pendingVolumeRef.current = clamped;
+        if (!volumeThrottleTimerRef.current) {
+          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 60 }).catch((e: any) => {
+            showMessage(`${loc.common.errorPrefix} ${e}`, true);
+          });
+          const scheduleNext = typeof requestAnimationFrame !== 'undefined'
+            ? requestAnimationFrame
+            : (cb: () => void) => setTimeout(cb, 20);
+
+          volumeThrottleTimerRef.current = scheduleNext(() => {
+            volumeThrottleTimerRef.current = null;
+            if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
+              const latestVol = pendingVolumeRef.current;
+              pendingVolumeRef.current = null;
+              invoke('set_volume', { volume: latestVol, smooth: true, fadeMs: 60 }).catch((e: any) => {
+                showMessage(`${loc.common.errorPrefix} ${e}`, true);
+              });
+            }
+          });
+        }
       }
     },
     [setStatus, showMessage, loc]

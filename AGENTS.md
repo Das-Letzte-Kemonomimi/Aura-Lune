@@ -187,7 +187,7 @@ Aura-Lune/
 ### `crates/audio-engine`
 - **Purpose**: Core real-time playback engine powered by GStreamer 0.25 (`gst-plugins-base`, `gst-plugins-good`).
 - **Key Modules & Features**:
-  - `pipeline.rs`: `AudioEngine` orchestrator, atomic volume management (`atomic_volume`), non-blocking seek with smooth micro-fade (`seek_with_fade`), rapid seek cancellation (`fade_generation`).
+  - `pipeline.rs`: `AudioEngine` orchestrator, atomic volume management (`atomic_volume`), instant zero-latency volume control via post-`queue_sink` element placement, smooth S-curve volume fading (`set_volume_smooth`), non-blocking seek with smooth micro-fade (`seek_with_fade`), rapid seek/fade cancellation (`fade_generation`).
   - `dsp_node.rs`: Dynamic switching between Bypass, RubberBand, and SoundTouch.
   - `analysis.rs`: Key & BPM detection, chord recognition, and transcription.
   - `metadata_editor.rs`: Full tag reading and writing using `lofty`.
@@ -321,10 +321,17 @@ All 162 commands are organized by domain under `apps/desktop/src-tauri/src/comma
 1. **Two-Phase Seeking**:
    - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging.
    - `handleSeekCommit(pos)`: Dispatched once on pointer/mouse/key up with `seek_with_fade` (20-48ms anti-pop micro-fade).
-2. **Non-Blocking Volume Control**:
-   - Slider dragging uses trailing-edge 30ms throttling to protect Tauri IPC.
-   - Backend `set_volume` operates directly on an atomic value (`< 1 µs`), bypassing pipeline mutex contention.
-   - Toggle mute (`handleToggleMute`) executes immediately without throttling.
+2. **Dual-Mode Zero-Latency & Smooth Fade Volume Control**:
+   - **Post-Queue Pipeline Placement**: In GStreamer, the `volume` element is linked downstream of `queue_sink` (`... -> queue_sink -> volume -> sink`), eliminating 600ms buffer latency so volume adjustments take effect at the hardware sink within < 15ms.
+   - **Instant Response Mode (`instantVolume: true`)**:
+     - Slider dragging dispatches immediate 0ms initial IPC followed by display-synchronized `requestAnimationFrame` coalesced updates with trailing-edge delivery.
+     - Backend `set_volume` operates directly on an atomic value (`< 1 µs`) and sets GStreamer property immediately.
+   - **Smooth Fade Mode (`instantVolume: false`)**:
+     - Backend `set_volume_smooth` runs an 8ms micro-step S-curve cosine interpolation ramp (default 120ms for jumps/mute, 60ms for slider drag) on a dedicated lightweight thread with instant generation-based cancellation.
+     - Frontend animates the visual slider thumb synchronously via `requestAnimationFrame` for silky smooth, click-free audio and UI transitions.
+   - **Toggle Mute (`handleToggleMute`)**:
+     - In instant mode: snaps immediately to 0 or restores previous level.
+     - In smooth mode: smoothly eases out to 0 or eases in from 0 over 120ms.
 3. **Interaction Guards Against Rubberbanding**:
    - `isSeekingRef` and `isVolumeInteractingRef` protect the UI state from being overwritten by delayed backend polling responses.
 4. **Adaptive Status Polling**:

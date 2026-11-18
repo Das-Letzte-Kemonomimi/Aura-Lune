@@ -236,6 +236,23 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.8 });
   });
 
+  it('handleVolumeChange in smooth fade mode sends smooth flag and fadeMs', async () => {
+    const { result } = setupHook({ instantVolume: false });
+    act(() => {
+      result.current.handleVolumeChange(0.45);
+    });
+    expect(setStatus).toHaveBeenCalled();
+    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.45, smooth: true, fadeMs: 60 });
+  });
+
+  it('handleToggleMute in smooth fade mode uses smooth transition', async () => {
+    const { result } = setupHook({ instantVolume: false, status: { ...mockStatus, volume: 0.75 } });
+    act(() => {
+      result.current.handleToggleMute();
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0, smooth: true, fadeMs: 120 });
+  });
+
   it('handleCycleLoopMode cycles through loop modes', async () => {
     const { result } = setupHook({ queue: { ...mockQueue, loop_mode: 'None' } });
     await act(async () => {

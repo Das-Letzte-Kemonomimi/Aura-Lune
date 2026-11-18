@@ -202,6 +202,25 @@ fn test_audio_engine_seek_with_fade() {
 }
 
 #[test]
+fn test_audio_engine_set_volume_smooth() {
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    engine.set_volume(1.0).expect("Set initial volume");
+    assert!((engine.volume() - 1.0).abs() < 1e-4);
+
+    // Smooth transition from 1.0 to 0.40 over 60ms
+    engine
+        .set_volume_smooth(0.40, Duration::from_millis(60))
+        .expect("Smooth volume transition started");
+    assert!((engine.volume() - 0.40).abs() < 1e-4);
+
+    sleep(Duration::from_millis(80));
+
+    // Instant volume override cancels any active fade
+    engine.set_volume(0.75).expect("Instant volume change");
+    assert!((engine.volume() - 0.75).abs() < 1e-4);
+}
+
+#[test]
 fn test_dsp_bypass_preserves_custom_parameters_on_return() {
     let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
 
