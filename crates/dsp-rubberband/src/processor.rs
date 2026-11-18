@@ -140,6 +140,7 @@ impl AudioProcessor for RubberBandProcessor {
         Ok(())
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn process(&mut self, input: &[f32], output: &mut Vec<f32>) -> Result<ProcessStatus, DspError> {
         let state = self.state.ok_or_else(|| DspError::Internal {
             engine: "RubberBand",
@@ -163,8 +164,8 @@ impl AudioProcessor for RubberBandProcessor {
             let cur_frames = chunk.len() / channels;
 
             // 1. De-interleave do buforów kanałowych
-            for c in 0..channels {
-                self.in_channels[c].clear();
+            for ch in &mut self.in_channels[..channels] {
+                ch.clear();
             }
             for frame in chunk.chunks_exact(channels) {
                 for (c, &sample) in frame.iter().enumerate() {
@@ -242,6 +243,7 @@ impl AudioProcessor for RubberBandProcessor {
         Ok(())
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn drain(&mut self, output: &mut Vec<f32>) -> Result<ProcessStatus, DspError> {
         let state = match self.state {
             Some(s) => s,

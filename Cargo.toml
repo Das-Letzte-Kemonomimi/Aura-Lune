@@ -19,10 +19,8 @@ members = [
 version = "1.1.5"
 
 edition = "2021"
-rust-version = "1.80"
 license = "GPL-3.0-or-later"
 authors = ["Das Letzte Kemonomimi"]
-repository = "https://github.com/Auralune/Auralune"
 
 [workspace.dependencies]
 gstreamer = "0.25"
