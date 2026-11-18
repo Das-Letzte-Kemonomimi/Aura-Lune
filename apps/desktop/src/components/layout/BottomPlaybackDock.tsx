@@ -250,8 +250,8 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             }}
             title={
               queue.shuffle
-                ? loc.player?.shuffleOn || 'Odtwarzanie losowe: Włączone'
-                : loc.player?.shuffleOff || 'Odtwarzanie losowe: Wyłączone'
+                ? loc.player.shuffleOn
+                : loc.player.shuffleOff
             }
           >
             <Shuffle size={16} />
@@ -335,10 +335,10 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             }}
             title={
               queue.loop_mode === 'Track'
-                ? loc.player?.loopTrack || 'Pętla: Bieżący utwór'
+                ? loc.player.loopTrack
                 : queue.loop_mode === 'Queue'
-                  ? loc.player?.loopQueue || 'Pętla: Cała kolejka'
-                  : loc.player?.loopOff || 'Pętla: Wyłączona'
+                  ? loc.player.loopQueue
+                  : loc.player.loopOff
             }
           >
             {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}

@@ -24,7 +24,9 @@
     "analysisBtn": "Analiza",
     "desktopLrc": "Pulpit LRC",
     "stemProjectsTitle": "Projekty Stemów (Moises Studio)",
-    "uiScaleTooltip": "Skala interfejsu: {0}% (LPM: powiększ, PPM: pomniejsz, Skróty: Ctrl +/-, Ctrl 0)"
+    "uiScaleTooltip": "Skala interfejsu: {0}% (LPM: powiększ, PPM: pomniejsz, Skróty: Ctrl +/-, Ctrl 0)",
+    "recap": "Podsumowanie",
+    "harmonicDj": "DJ Harmoniczny"
   },
   "player": {
     "track": "Utwór",
@@ -152,7 +154,8 @@
     "vinylLoFiTooltip": "Otwórz studio analogowego szumu winylu i taśmy (Lo-Fi Analog FX Popup)",
     "tonearmRest": "Uchwyt spoczynkowy ramienia gramofonowego",
     "currentChord": "Aktualny akord:",
-    "recomputeChordsTooltip": "Przelicz akordy ponownie"
+    "recomputeChordsTooltip": "Przelicz akordy ponownie",
+    "tapeDeckTitle": "STUDYJNY MAGNETOFON SZPULOWY"
   },
   "waveform": {
     "title": "Przebieg utworu",
@@ -224,7 +227,8 @@
     "playlistNamePlaceholder": "Nazwa nowej playlisty...",
     "savedToPlaylist": "Zapisano kolejkę jako playlistę „{0}”!",
     "inCurrentQueue": "w bieżącej kolejce",
-    "newPlaylistName": "Nazwa nowej playlisty:"
+    "newPlaylistName": "Nazwa nowej playlisty:",
+    "autoDj": "Auto-DJ"
   },
   "dsp": {
     "title": "Studio DSP & Wymienne Silniki",
@@ -429,7 +433,8 @@
     "importUrlBtn": "Importuj z URL (yt-dlp)",
     "importUrlTooltip": "Wklejenie linku (YouTube, SoundCloud itp.), pobranie audio przez yt-dlp z okładką i natychmiastowe zindeksowanie",
     "shuffleAll": "Wymieszaj wszystko",
-    "shuffleAllTooltip": "Wymieszaj i odtwórz wszystkie utwory z bieżącego widoku (Shuffle All)"
+    "shuffleAllTooltip": "Wymieszaj i odtwórz wszystkie utwory z bieżącego widoku (Shuffle All)",
+    "format": "Format"
   },
   "playlists": {
     "title": "Twoje Playlisty",
@@ -1216,7 +1221,8 @@
     "tapTempo": "TAP TEMPO",
     "quickShift": "Szybka transpozycja:",
     "saveAndClose": "Zapisz i Zamknij",
-    "analyzing": "Analizowanie akustyczne utworu w toku..."
+    "analyzing": "Analizowanie akustyczne utworu w toku...",
+    "camelotNotation": "Notacja Koła Camelota"
   },
   "cueSheet": {
     "title": "Odtwarzacz arkuszy CUE (.cue sheet)",
@@ -1330,7 +1336,25 @@
     "pipewireSink": "3. Wyjście Sprzętowe PipeWire (Audio Sink)",
     "bitPerfectSummary": "Strumień audio jest przekazywany w trybie bit-perfect bez modyfikacji próbek, resamplingu ani strat kwantyzacji.",
     "processedSummary": "Aktywny silnik DSP lub korekcja barwy dźwięku w czasie rzeczywistym moduluje próbki audio.",
-    "resetBtn": "Reset do Bit-Perfect Direct (1-klik)"
+    "resetBtn": "Reset do Bit-Perfect Direct (1-klik)",
+    "directBypass": "Bezpośrednie obejście (Direct Bypass)",
+    "directBypassZeroCpu": "Bezpośrednie obejście (Zero CPU)",
+    "noTrack": "Brak utworu",
+    "format": "Format",
+    "sampleRate": "Częstotliwość próbkowania",
+    "bitDepth": "Głębia bitowa",
+    "channels": "Kanały",
+    "tempo": "Tempo",
+    "pitch": "Tonacja",
+    "equalizer": "Korektor (EQ)",
+    "dspLatency": "Latencja DSP",
+    "outputFormat": "Format wyjściowy",
+    "sinkClockRate": "Zegar wyjścia audio",
+    "playerBuffer": "Bufor odtwarzacza",
+    "xruns": "XRun / Przycięcia",
+    "stereo": "Stereo (2.0)",
+    "activeBands": "Aktywny (10 pasm)",
+    "offFlat": "Wyłączony (Płaski)"
   },
   "autoEq": {
     "title": "Baza profili słuchawkowych AutoEQ",
@@ -1590,7 +1614,9 @@
     "errorSpecifyDest": "Wskaż katalog docelowy zapisu.",
     "jobAdded": "Zadanie pobierania dodane do kolejki!",
     "errorStartDownload": "Błąd uruchamiania pobierania: {0}",
-    "securityBanner": "Auralune pobiera pliki do chronionego bufora tymczasowego (.tmp), weryfikuje sumę SHA-256 i dokonuje atomowego przeniesienia do biblioteki. Brak obchodzenia DRM."
+    "securityBanner": "Auralune pobiera pliki do chronionego bufora tymczasowego (.tmp), weryfikuje sumę SHA-256 i dokonuje atomowego przeniesienia do biblioteki. Brak obchodzenia DRM.",
+    "filenamePlaceholder": "nazwa_utworu.flac",
+    "shaPlaceholder": "np. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "urlImport": {
     "title": "Importer audio URL (foobar2000 / Poweramp)",
@@ -1729,7 +1755,15 @@
     "builtInStft": "⚡ HPSS & Panning (Wbudowany STFT)",
     "aiReady": "✨ Sieć AI Gotowa",
     "downloadInManager": "📦 Pobierz model w Menedżerze",
-    "artistDefault": "Wykonawca"
+    "artistDefault": "Wykonawca",
+    "loadingProject": "Ładowanie projektu...",
+    "instrumentTracksCount": "{0} ścieżek instrumentów",
+    "errLoadStems": "Błąd załadowania stemów na żywo: {0}",
+    "errRestoreTrack": "Błąd przywracania oryginalnego utworu: {0}",
+    "errSaveMix": "Błąd zapisu miksu: {0}",
+    "errExportZip": "Błąd eksportu ZIP: {0}",
+    "creatingZip": "Tworzenie archiwum ZIP...",
+    "exportedZipTo": "Projekt wyeksportowano do: {0}"
   },
   "analogLoFi": {
     "title": "Analog Lo-Fi FX Studio",

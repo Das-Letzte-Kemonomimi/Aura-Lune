@@ -98,12 +98,12 @@ export function usePlaybackQueue({
       try {
         await invoke('remove_from_queue', { id });
         await refreshQueue();
-        notify('Usunięto utwór z kolejki');
+        notify(loc?.notifications.trackRemovedFromQueue || 'Removed track from queue');
       } catch (err: unknown) {
         notify(`Błąd usuwania: ${err}`, true);
       }
     },
-    [refreshQueue, notify]
+    [refreshQueue, notify, loc]
   );
 
   const moveQueueItem = useCallback(
@@ -126,23 +126,27 @@ export function usePlaybackQueue({
     try {
       await invoke('clear_queue');
       await refreshQueue();
-      notify('Wyczyszczono kolejkę');
+      notify(loc?.notifications.queueCleared || 'Cleared playback queue');
     } catch (e: unknown) {
       notify(`Błąd czyszczenia kolejki: ${e}`, true);
     }
-  }, [refreshQueue, notify]);
+  }, [refreshQueue, notify, loc]);
 
   const addToQueue = useCallback(
     async (item: QueueItem) => {
       try {
         await invoke('add_to_queue', { item });
         await refreshQueue();
-        notify(`Dodano do kolejki: ${item.title}`);
+        notify(
+          loc?.notifications.addedToQueueEndMsg
+            ? loc.notifications.addedToQueueEndMsg.replace('{0}', item.title)
+            : `Added '${item.title}' to queue`
+        );
       } catch (err: unknown) {
         notify(`Błąd dodawania do kolejki: ${err}`, true);
       }
     },
-    [refreshQueue, notify]
+    [refreshQueue, notify, loc]
   );
 
   const addNextToQueue = useCallback(
@@ -150,12 +154,16 @@ export function usePlaybackQueue({
       try {
         await invoke('add_next_to_queue', { item });
         await refreshQueue();
-        notify(`Ustawiono jako następny: ${item.title}`);
+        notify(
+          loc?.notifications.setAsNextTrack
+            ? loc.notifications.setAsNextTrack.replace('{0}', item.title)
+            : `Set '${item.title}' as next track`
+        );
       } catch (err: unknown) {
         notify(`Błąd dodawania jako następny: ${err}`, true);
       }
     },
-    [refreshQueue, notify]
+    [refreshQueue, notify, loc]
   );
 
   const setEntireQueue = useCallback(
@@ -176,12 +184,16 @@ export function usePlaybackQueue({
       try {
         await invoke('add_uris_to_queue', { uris });
         await refreshQueue();
-        notify(`Dodano ${uris.length} utworów do kolejki`);
+        notify(
+          loc?.notifications.loadedTracksToQueueMsg
+            ? loc.notifications.loadedTracksToQueueMsg.replace('{0}', String(uris.length))
+            : `Added ${uris.length} tracks to queue`
+        );
       } catch (err: unknown) {
         notify(`Błąd dodawania utworów: ${err}`, true);
       }
     },
-    [refreshQueue, notify]
+    [refreshQueue, notify, loc]
   );
 
   const toggleColumn = useCallback((key: keyof QueueColumnConfig) => {

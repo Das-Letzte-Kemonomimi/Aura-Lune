@@ -265,7 +265,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <CassetteTape size={14} style={{ color: currentTheme.accentColor }} />
-          <span style={{ letterSpacing: '0.08em', color: '#f8fafc' }}>STUDIO TAPE DECK</span>
+          <span style={{ letterSpacing: '0.08em', color: '#f8fafc' }}>{t.player.tapeDeckTitle}</span>
           <span style={{ fontSize: '0.60rem', color: currentTheme.accentColor, fontWeight: 800 }}>
             {currentTheme.name}
           </span>

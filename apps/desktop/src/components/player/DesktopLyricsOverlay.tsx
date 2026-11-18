@@ -321,7 +321,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           cursor: 'pointer',
           position: 'relative',
         }}
-        title="Seek"
+        title={loc.waveform.hint}
       >
         <div
           style={{

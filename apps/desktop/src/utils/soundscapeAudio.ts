@@ -20,7 +20,7 @@ export interface SoundscapeVolumes {
 
 export interface SoundscapePreset {
   id: string;
-  name: { pl: string; en: string };
+  name: Record<string, string>;
   icon: string;
   volumes: Partial<SoundscapeVolumes>;
 }
@@ -28,31 +28,31 @@ export interface SoundscapePreset {
 export const SOUNDSCAPE_PRESETS: SoundscapePreset[] = [
   {
     id: 'lofi_study',
-    name: { pl: 'Lofi Study ☕', en: 'Lofi Study ☕' },
+    name: { pl: 'Lofi Study ☕', en: 'Lofi Study ☕', de: 'Lofi Lernen ☕', fi: 'Lofi-opiskelu ☕', la: 'Studium Lofi ☕' },
     icon: '☕',
     volumes: { master: 0.5, vinyl: 0.55, cafe_brown: 0.35, rain: 0.2, campfire: 0, wind_chimes: 0 },
   },
   {
     id: 'rainy_tokyo',
-    name: { pl: 'Deszczowe Tokio 🌧️', en: 'Rainy Tokyo 🌧️' },
+    name: { pl: 'Deszczowe Tokio 🌧️', en: 'Rainy Tokyo 🌧️', de: 'Regnerisches Tokio 🌧️', fi: 'Sateinen Tokio 🌧️', la: 'Tokyo pluviosa 🌧️' },
     icon: '🌧️',
     volumes: { master: 0.55, rain: 0.75, vinyl: 0.25, wind_chimes: 0.15, campfire: 0, cafe_brown: 0 },
   },
   {
     id: 'sakura_garden',
-    name: { pl: 'Ogród Sakury 🌸', en: 'Sakura Garden 🌸' },
+    name: { pl: 'Ogród Sakury 🌸', en: 'Sakura Garden 🌸', de: 'Sakura-Garten 🌸', fi: 'Kirsikkapuutarha 🌸', la: 'Hortus Sakura 🌸' },
     icon: '🌸',
     volumes: { master: 0.5, wind_chimes: 0.7, rain: 0.15, vinyl: 0, campfire: 0, cafe_brown: 0 },
   },
   {
     id: 'warm_hearth',
-    name: { pl: 'Ciepłe Ognisko 🔥', en: 'Warm Hearth 🔥' },
+    name: { pl: 'Ciepłe Ognisko 🔥', en: 'Warm Hearth 🔥', de: 'Warmes Lagerfeuer 🔥', fi: 'Lämmin nuotio 🔥', la: 'Focus calidus 🔥' },
     icon: '🔥',
     volumes: { master: 0.55, campfire: 0.8, vinyl: 0.35, rain: 0, wind_chimes: 0, cafe_brown: 0 },
   },
   {
     id: 'deep_focus',
-    name: { pl: 'Głęboki Focus 🎧', en: 'Deep Focus 🎧' },
+    name: { pl: 'Głęboki Focus 🎧', en: 'Deep Focus 🎧', de: 'Tiefer Fokus 🎧', fi: 'Syvä keskittyminen 🎧', la: 'Intentio profunda 🎧' },
     icon: '🎧',
     volumes: { master: 0.45, cafe_brown: 0.65, rain: 0.3, vinyl: 0.15, campfire: 0, wind_chimes: 0 },
   },

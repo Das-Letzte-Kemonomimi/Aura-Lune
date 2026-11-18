@@ -59,8 +59,16 @@
   - Zabezpieczono instalator uruchamiany z gałęzi stabilnej przed przypadkowym pobraniem wersji testowych.
   - Naprawiono obsługę kanału deweloperskiego, aby w razie opóźnienia wydań na GitHubie nie pobierał po cichu przestarzałych wersji stabilnych.
 - **Pełna lokalizacja interfejsu (i18n) i eliminacja nieprzetłumaczonych tekstów**:
-  - Wyeliminowano wszystkie pozostałe statyczne i twardo zakodowane napisy w całym frontendzie (`apps/desktop`), wprowadzając pełne tłumaczenia dla 5 obsługiwanych języków (angielski, polski, niemiecki, fiński, łacina).
-  - Przetłumaczono etykiety, opisy, dymki podpowiedzi (tooltips) i powiadomienia toast m.in. w: studiu miksera stemów (`StemMixerModal`, `StemProjectStudioModal`), kreatorze projektów wielościeżkowych (`CreateStemProjectModal`), menedżerze modeli AI (`ModelManagerModal`), bibliotece projektów stemów (`StemProjectsLibraryView`), studiu analizy harmonicznej i osi akordów (`ChordTimelineView`, `MusicAnalysisModal`), widoku transkrypcji nutowej (`PianoRollCanvas`), widżetach nośników analogowych (`TapeDeckWidget`, `VinylTurntable`), studiu DSP (`DspStudioView`), widoku biblioteki utworów i albumów (`LibraryView`) oraz dolnym doku odtwarzacza (`BottomPlaybackDock`).
+  - Przeprowadzono całościowy audyt kodu frontendu (`apps/desktop`), usuwając wszelkie twardo zakodowane napisy i zastępując je dynamicznymi tłumaczeniami w 5 językach (angielski, polski, niemiecki, fiński, łacina).
+  - Przetłumaczono etykiety, opisy, dymki podpowiedzi (tooltips) i powiadomienia toast m.in. w:
+    - Inspektorze toru audio (`AudioPathInspectorModal`): formaty, częstotliwości próbkowania, głębia bitowa, kanały stereo, parametry tempo/pitch, latencja DSP, bufor odtwarzacza, stany bit-perfect i direct bypass;
+    - Centrum pobierania audio (`DownloadHubModal`): zlokalizowane placeholdery nazw plików oraz sum kontrolnych SHA-256;
+    - Szpuli magnetofonowej i gramofonie (`TapeDeckWidget`, `VinylTurntable`): tytuły nagłówka ("STUDIO TAPE DECK"), prędkości, typy taśm i ramiona gramofonowe;
+    - Panelu kolejki i nagłówku aplikacji (`QueueDrawer`, `AppHeader`, `BottomPlaybackDock`): przyciski Auto-DJ, Recap, Harmonic DJ oraz tryby odtwarzania losowego i pętli bez polskich fallbacków;
+    - Widokach biblioteki, playlist i radia (`LibraryView`, `PlaylistsView`, `RadioView`): nagłówki kolumn formatu, przycisk powrotu do albumów oraz zlokalizowane opisy stacji radiowych;
+    - Generatorze dźwięków tła (`SoundscapeModal` i `soundscapeAudio.ts`): wielojęzyczne nazwy wszystkich gotowych presetów relaksacyjnych;
+    - Oknie miksera stemów (`StemProjectStudioModal`): komunikaty o błędach, powiadomienia o tworzeniu i eksporcie archiwum ZIP, licznik ścieżek instrumentów oraz status separacji na żywo;
+    - Studiu DSP (`DspStudioView`): etykiety szerokości sceny stereo, podpowiedź studia dynamiki i lampy oraz jednostki półtonów.
   - Naprawiono błąd gubienia właściwości języka w kontenerze modali (`AppModalsContainer.tsx`) – wyeliminowano sytuację, w której domyślny język polski był wymuszany w oknach dialogowych (`DownloadHubModal`, `TrackBookmarksModal`, `DuplicateFinderModal`, `FileRenamerModal`, `AnalogLoFiModal`, `AudioHealthCheckModal`, `MusicAnalysisModal`, `StemProjectStudioModal`, `CreateStemProjectModal`) niezależnie od wybranego języka w ustawieniach.
   - Zapewniono 100% zgodności i symetrii kluczy we wszystkich 5 plikach lokalizacyjnych (`src/locales/{en,pl,de,fi,la}.json`), zweryfikowane automatycznym testem jednostkowym `i18n.test.ts`.
 

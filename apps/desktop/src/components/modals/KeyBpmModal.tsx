@@ -474,7 +474,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
                     color: 'var(--accent-pink)',
                     fontFamily: 'var(--font-mono)',
                   }}
-                  title="Camelot Wheel Notation"
+                  title={loc.keyBpm.camelotNotation}
                 >
                   {originalCamelot}
                 </span>
@@ -555,7 +555,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
                     color: 'var(--accent-cyan)',
                     fontFamily: 'var(--font-mono)',
                   }}
-                  title="Camelot Wheel Notation"
+                  title={loc.keyBpm.camelotNotation}
                 >
                   {transposedCamelot}
                 </span>

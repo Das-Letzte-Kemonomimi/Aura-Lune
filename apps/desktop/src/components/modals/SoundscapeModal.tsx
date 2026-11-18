@@ -358,7 +358,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
                 }}
               >
                 <span>{preset.icon}</span>
-                <span>{preset.name.en}</span>
+                <span>{preset.name[currentLang] || preset.name.en}</span>
               </button>
             ))}
           </div>

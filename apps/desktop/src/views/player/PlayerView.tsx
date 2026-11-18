@@ -470,7 +470,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
                                     handleLoadFile(sample.path);
                                   }
                                 } catch (e) {
-                                  console.warn('Błąd ładowania próbki Skrzydła Białe:', e);
+                                  console.warn('Failed to load sample track Skrzydła Białe:', e);
                                 }
                                 setIsQuickLoadOpen(false);
                               }}

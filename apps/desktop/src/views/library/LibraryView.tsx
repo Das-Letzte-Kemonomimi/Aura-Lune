@@ -1469,7 +1469,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                         }}
                       >
                         <ArrowLeft size={16} />
-                        {loc.library.backToAlbums || '← Wróć do wszystkich albumów'}
+                        {loc.library.backToAlbums}
                       </button>
 
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>

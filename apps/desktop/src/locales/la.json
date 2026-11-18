@@ -24,7 +24,9 @@
     "analysisBtn": "Analysis",
     "desktopLrc": "LRC Scrinium",
     "stemProjectsTitle": "Incepta Stem (Moises Studio)",
-    "uiScaleTooltip": "Modus UI: {0}% (Sinister: ampliare, Dexter: minuere, Compendia: Ctrl +/-, Ctrl 0)"
+    "uiScaleTooltip": "Modus UI: {0}% (Sinister: ampliare, Dexter: minuere, Compendia: Ctrl +/-, Ctrl 0)",
+    "recap": "Recapitulatio",
+    "harmonicDj": "DJ Harmonicus"
   },
   "player": {
     "track": "Cantus",
@@ -152,7 +154,8 @@
     "vinylLoFiTooltip": "Aperi Vinyli & Taeniae Lo-Fi Officinam",
     "tonearmRest": "Statio requietis brachii phonographici",
     "currentChord": "Harmonia praesens:",
-    "recomputeChordsTooltip": "Harmonias denuo computare"
+    "recomputeChordsTooltip": "Harmonias denuo computare",
+    "tapeDeckTitle": "MAGNETOPHONUM STUDII"
   },
   "waveform": {
     "title": "Unda Cantus",
@@ -224,7 +227,8 @@
     "playlistNamePlaceholder": "Nomen indicis...",
     "savedToPlaylist": "Ordo ut index \"{0}\" servatus est!",
     "inCurrentQueue": "in linea currente",
-    "newPlaylistName": "Nomen novi indicis:"
+    "newPlaylistName": "Nomen novi indicis:",
+    "autoDj": "Auto-DJ"
   },
   "dsp": {
     "title": "Officina DSP & Machinae Mutabiles",
@@ -429,7 +433,8 @@
     "importUrlBtn": "Importa ex URL (yt-dlp)",
     "importUrlTooltip": "Extrahe sonum ex URL cum pictura per yt-dlp",
     "shuffleAll": "Omnia miscere",
-    "shuffleAllTooltip": "Omnes tractus in conspectu currente miscere et canere"
+    "shuffleAllTooltip": "Omnes tractus in conspectu currente miscere et canere",
+    "format": "Forma"
   },
   "playlists": {
     "title": "Indices Cantuum Tui",
@@ -1216,7 +1221,8 @@
     "tapTempo": "TAP TEMPO",
     "quickShift": "Transpositio Celeris:",
     "saveAndClose": "Serva & Claude",
-    "analyzing": "Tractatio acustica soni agitur..."
+    "analyzing": "Tractatio acustica soni agitur...",
+    "camelotNotation": "Notatio rotae Camelot"
   },
   "cueSheet": {
     "title": "Lector Chartarum CUE (.cue sheet)",
@@ -1330,7 +1336,25 @@
     "pipewireSink": "3. Emissarium PipeWire",
     "bitPerfectSummary": "Fluctus audio sine ulla mutatione, refictione aut vitio bit-perfect dirigitur.",
     "processedSummary": "Machina DSP vel aequator actuosus sonos in tempore reali tractat et fingit.",
-    "resetBtn": "Redintegra in Bit-Perfect Direct"
+    "resetBtn": "Redintegra in Bit-Perfect Direct",
+    "directBypass": "Transitus directus (Bypass)",
+    "directBypassZeroCpu": "Transitus directus (Sine usu CPU)",
+    "noTrack": "Nullum carmen",
+    "format": "Forma",
+    "sampleRate": "Frequentia exemplorum",
+    "bitDepth": "Profunditas bit",
+    "channels": "Canales",
+    "tempo": "Tempus",
+    "pitch": "Sonus / Tonus",
+    "equalizer": "Aequator",
+    "dspLatency": "Latentia DSP",
+    "outputFormat": "Forma exitus",
+    "sinkClockRate": "Frequentia horologii",
+    "playerBuffer": "Receptaculum cantoris",
+    "xruns": "XRun / Interruptiones",
+    "stereo": "Stereophonia (2.0)",
+    "activeBands": "Activum (10 fascias)",
+    "offFlat": "Inactivum (Planum)"
   },
   "autoEq": {
     "title": "Profila Auricularium AutoEQ",
@@ -1590,7 +1614,9 @@
     "errorSpecifyDest": "Rogo capsam destinatam indica.",
     "jobAdded": "Munus demptionis ad seriem additum est!",
     "errorStartDownload": "Demptionem incipere non contigit: {0}",
-    "securityBanner": "Auralune in receptaculum temporarium (.tmp) trahit, summam SHA-256 comprobat, et atomice in bibliothecam transfert. Sine circumscriptione DRM."
+    "securityBanner": "Auralune in receptaculum temporarium (.tmp) trahit, summam SHA-256 comprobat, et atomice in bibliothecam transfert. Sine circumscriptione DRM.",
+    "filenamePlaceholder": "nomen_carminis.flac",
+    "shaPlaceholder": "ex. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "urlImport": {
     "title": "Importator soni ex URL (foobar2000 / Poweramp)",
@@ -1729,7 +1755,15 @@
     "builtInStft": "⚡ HPSS & Panning (STFT insertum)",
     "aiReady": "✨ Retis AI Parata",
     "downloadInManager": "📦 Deprome exemplar in Curatore",
-    "artistDefault": "Artifex"
+    "artistDefault": "Artifex",
+    "loadingProject": "Inceptum oneratur...",
+    "instrumentTracksCount": "{0} semitae instrumentorum",
+    "errLoadStems": "Error in onerandis stem vivis: {0}",
+    "errRestoreTrack": "Error in restituendo carmine originali: {0}",
+    "errSaveMix": "Error in servando mixto: {0}",
+    "errExportZip": "Error in exportatione ZIP: {0}",
+    "creatingZip": "Archivum ZIP creatur...",
+    "exportedZipTo": "Inceptum exportatum ad: {0}"
   },
   "analogLoFi": {
     "title": "Analog Lo-Fi FX Studio",

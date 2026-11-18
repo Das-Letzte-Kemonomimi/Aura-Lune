@@ -52,6 +52,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   currentLang = 'en',
 }) => {
   const t = getTranslations(currentLang);
+  const loc = t;
   const [project, setProject] = useState<StemProject | null>(null);
   const [channels, setChannels] = useState<StemChannel[]>([]);
   const [masterVolume, setMasterVolume] = useState<number>(1.0);
@@ -155,10 +156,10 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
         });
         setIsOriginalMode(false);
       } catch (err: any) {
-        setError(`Błąd załadowania stemów na żywo: ${err}`);
+        setError(loc.stems.errLoadStems.replace('{0}', String(err)));
       }
     },
-    [projectId, masterVolume, currentTimeMs, isPlaying]
+    [projectId, masterVolume, currentTimeMs, isPlaying, loc]
   );
 
   // Przełączanie w czasie rzeczywistym na oryginalny utwór (A/B)
@@ -167,9 +168,9 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
       await invoke('restore_original_track');
       setIsOriginalMode(true);
     } catch (err: any) {
-      setError(`Błąd przywracania oryginalnego utworu: ${err}`);
+      setError(loc.stems.errRestoreTrack.replace('{0}', String(err)));
     }
-  }, []);
+  }, [loc]);
 
   // Wróć do oryginalnego utworu i zamknij okno studia
   const handleReturnToOriginalAndClose = async () => {
@@ -347,7 +348,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
       setNewMixName('');
       fetchProjectData();
     } catch (err: any) {
-      setError(`Błąd zapisu miksu: ${err}`);
+      setError(loc.stems.errSaveMix.replace('{0}', String(err)));
     }
   };
 
@@ -384,15 +385,15 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
       });
       if (!dest) return;
 
-      setExportNotice('Tworzenie archiwum ZIP...');
+      setExportNotice(loc.stems.creatingZip);
       await invoke('export_stem_project_zip', {
         projectId,
         exportPath: dest,
       });
-      setExportNotice(`Projekt wyeksportowano do: ${dest}`);
+      setExportNotice(loc.stems.exportedZipTo.replace('{0}', dest));
       setTimeout(() => setExportNotice(null), 5000);
     } catch (err: any) {
-      setError(`Błąd eksportu ZIP: ${err}`);
+      setError(loc.stems.errExportZip.replace('{0}', String(err)));
     }
   };
 
@@ -473,7 +474,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc' }}>
-                {project ? project.title : 'Ładowanie projektu...'}
+                {project ? project.title : loc.stems.loadingProject}
               </h2>
               {project?.status === 'separating' && (
                 <span
@@ -490,12 +491,12 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
                   }}
                 >
                   <Sparkles size={12} className="animate-spin" />
-                  Separacja w toku ({Math.round(project.progress * 100)}%)
+                  {loc.stems.statusSeparating.replace('{0}', String(Math.round(project.progress * 100)))}
                 </span>
               )}
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
-              {project?.artist} • {project?.album} • {channels.length} ścieżek instrumentów
+              {project?.artist} • {project?.album} • {loc.stems.instrumentTracksCount.replace('{0}', String(channels.length))}
             </p>
           </div>
         </div>

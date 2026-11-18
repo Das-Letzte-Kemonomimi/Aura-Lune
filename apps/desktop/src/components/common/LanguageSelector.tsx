@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Globe, ChevronDown, Check } from 'lucide-react';
-import { type Language, supportedLanguages } from '../../i18n';
+import { type Language, supportedLanguages, getTranslations } from '../../i18n';
 
 interface LanguageSelectorProps {
   currentLang: Language;
@@ -15,6 +15,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const loc = getTranslations(currentLang);
 
   const activeOption =
     supportedLanguages.find((l) => l.code === currentLang) || supportedLanguages[0];
@@ -55,7 +56,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           cursor: 'pointer',
           transition: 'all 0.2s ease',
         }}
-        title={`Język / Language: ${activeOption.label} (${activeOption.code})`}
+        title={`${loc.settings.language}: ${activeOption.label} (${activeOption.code})`}
       >
         <Globe size={14} color="var(--accent-cyan)" />
         <span style={{ fontSize: '1rem', lineHeight: 1 }}>{activeOption.flag}</span>

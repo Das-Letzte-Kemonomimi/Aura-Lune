@@ -393,7 +393,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="nazwa_utworu.flac"
+                  placeholder={loc.downloadHub.filenamePlaceholder}
                   value={filename}
                   onChange={(e) => setFilename(e.target.value)}
                   style={{
@@ -420,7 +420,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="np. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                placeholder={loc.downloadHub.shaPlaceholder}
                 value={expectedSha}
                 onChange={(e) => setExpectedSha(e.target.value)}
                 style={{

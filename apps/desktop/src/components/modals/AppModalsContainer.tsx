@@ -706,7 +706,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
                 .replace('{2}', String(b - a))
             );
           } else {
-            showMessage(loc.shortcuts.loopClear || 'Wyczyszczono pętlę A-B');
+            showMessage(loc.shortcuts.loopClear);
           }
         }}
         onSeek={handleSeek}
@@ -965,7 +965,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       {isBookmarksModalOpen && activeTrackId && (
         <TrackBookmarksModal
           trackId={activeTrackId}
-          trackTitle={status.current_track?.title || filePath || 'Utwór'}
+          trackTitle={status.current_track?.title || filePath || loc.player.track}
           currentPositionMs={status.position_ms}
           durationMs={status.duration_ms}
           onSeek={(posMs) => handleSeek(posMs)}

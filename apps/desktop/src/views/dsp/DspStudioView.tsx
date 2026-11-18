@@ -1585,7 +1585,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
 
                   <div style={{ opacity: stereoWidenerActive ? 1 : 0.45 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Szerokość sceny stereo:</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{loc.dsp.stereoStageWidth}</span>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                         {Math.round(stereoWidenerAmount * 100)}%
                       </span>
@@ -1994,7 +1994,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                     {/* Przycisk Studia Dynamiki & Lampy (Kompresor / Saturator / Limiter) */}
                     <button
                       onClick={() => setIsDynamicsStudioOpen(true)}
-                      title="Studio Dynamiki & Lampy — kompresor dynamiki, nasycenie taśmowe, ciepło lampowe i limiter słuchawkowy"
+                      title={loc.dsp.dynamicsStudioTooltip}
                       style={{
                         padding: '6px 12px',
                         borderRadius: '8px',

@@ -24,7 +24,9 @@
     "analysisBtn": "Analysis",
     "desktopLrc": "Desktop LRC",
     "stemProjectsTitle": "Stem Projects (Moises Studio)",
-    "uiScaleTooltip": "UI Scale: {0}% (Left click: zoom in, Right click: zoom out, Shortcuts: Ctrl +/-, Ctrl 0)"
+    "uiScaleTooltip": "UI Scale: {0}% (Left click: zoom in, Right click: zoom out, Shortcuts: Ctrl +/-, Ctrl 0)",
+    "recap": "Recap",
+    "harmonicDj": "Harmonic DJ"
   },
   "player": {
     "track": "Track",
@@ -152,7 +154,8 @@
     "vinylLoFiTooltip": "Open Vinyl & Tape Lo-Fi Studio (Analog FX Popup)",
     "tonearmRest": "Turntable tonearm rest (cradle)",
     "currentChord": "Current chord:",
-    "recomputeChordsTooltip": "Recompute chords"
+    "recomputeChordsTooltip": "Recompute chords",
+    "tapeDeckTitle": "STUDIO TAPE DECK"
   },
   "waveform": {
     "title": "Track Waveform",
@@ -224,7 +227,8 @@
     "playlistNamePlaceholder": "Playlist name...",
     "savedToPlaylist": "Saved queue as playlist \"{0}\"!",
     "inCurrentQueue": "in current queue",
-    "newPlaylistName": "New playlist name:"
+    "newPlaylistName": "New playlist name:",
+    "autoDj": "Auto-DJ"
   },
   "dsp": {
     "title": "DSP Studio & Replaceable Engines",
@@ -429,7 +433,8 @@
     "importUrlBtn": "Import from URL (yt-dlp)",
     "importUrlTooltip": "Download track from URL with cover art and tags via yt-dlp",
     "shuffleAll": "Shuffle All",
-    "shuffleAllTooltip": "Shuffle and play all tracks in the current view"
+    "shuffleAllTooltip": "Shuffle and play all tracks in the current view",
+    "format": "Format"
   },
   "playlists": {
     "title": "Your Playlists",
@@ -1216,7 +1221,8 @@
     "tapTempo": "TAP TEMPO",
     "quickShift": "Quick Shift:",
     "saveAndClose": "Save & Close",
-    "analyzing": "Acoustic audio analysis in progress..."
+    "analyzing": "Acoustic audio analysis in progress...",
+    "camelotNotation": "Camelot Wheel Notation"
   },
   "cueSheet": {
     "title": "CUE Sheet Player",
@@ -1330,7 +1336,25 @@
     "pipewireSink": "3. PipeWire Hardware Output Sink",
     "bitPerfectSummary": "The audio stream is routed bit-perfect without sample modification, resampling, or quantization distortion.",
     "processedSummary": "An active DSP engine or EQ is actively processing and shaping the audio samples in real-time.",
-    "resetBtn": "Reset to Bit-Perfect Direct"
+    "resetBtn": "Reset to Bit-Perfect Direct",
+    "directBypass": "Direct Bypass",
+    "directBypassZeroCpu": "Direct Bypass (Zero CPU)",
+    "noTrack": "No track",
+    "format": "Format",
+    "sampleRate": "Sample Rate",
+    "bitDepth": "Bit Depth",
+    "channels": "Channels",
+    "tempo": "Tempo",
+    "pitch": "Pitch",
+    "equalizer": "Equalizer",
+    "dspLatency": "DSP Latency",
+    "outputFormat": "Output Format",
+    "sinkClockRate": "Sink Clock Rate",
+    "playerBuffer": "Player Buffer",
+    "xruns": "XRun / Dropouts",
+    "stereo": "Stereo (2.0)",
+    "activeBands": "Active (10-Band)",
+    "offFlat": "Off (Flat)"
   },
   "autoEq": {
     "title": "AutoEQ Headphone Profiles",
@@ -1590,7 +1614,9 @@
     "errorSpecifyDest": "Please specify a destination folder.",
     "jobAdded": "Download job added to queue!",
     "errorStartDownload": "Failed to start download: {0}",
-    "securityBanner": "Auralune downloads to an isolated temporary (.tmp) buffer, verifies SHA-256 checksums, and performs atomic move into library. No DRM circumvention."
+    "securityBanner": "Auralune downloads to an isolated temporary (.tmp) buffer, verifies SHA-256 checksums, and performs atomic move into library. No DRM circumvention.",
+    "filenamePlaceholder": "track_name.flac",
+    "shaPlaceholder": "e.g. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "urlImport": {
     "title": "URL Audio Importer (foobar2000 / Poweramp)",
@@ -1729,7 +1755,15 @@
     "builtInStft": "⚡ HPSS & Panning (Built-in STFT)",
     "aiReady": "✨ AI Network Ready",
     "downloadInManager": "📦 Download model in Manager",
-    "artistDefault": "Artist"
+    "artistDefault": "Artist",
+    "loadingProject": "Loading project...",
+    "instrumentTracksCount": "{0} instrument tracks",
+    "errLoadStems": "Error loading live stems: {0}",
+    "errRestoreTrack": "Error restoring original track: {0}",
+    "errSaveMix": "Error saving mix: {0}",
+    "errExportZip": "Error exporting ZIP: {0}",
+    "creatingZip": "Creating ZIP archive...",
+    "exportedZipTo": "Project exported to: {0}"
   },
   "analogLoFi": {
     "title": "Analog Lo-Fi FX Studio",

@@ -352,7 +352,7 @@ export function useLibraryPlaybackActions({
       : (filteredTracks.length > 0 ? filteredTracks : tracks);
 
     if (pool.length === 0) {
-      showMessage((loc.common as any)?.noResults || 'Brak utworów do odtworzenia', true);
+      showMessage(loc.library.empty || 'No tracks to play', true);
       return;
     }
 
@@ -379,7 +379,11 @@ export function useLibraryPlaybackActions({
       await refreshQueue();
       setActiveTrackId(shuffled[0].id);
       setFilePath(shuffled[0].path);
-      showMessage(`🔀 Wymieszano i uruchomiono ${shuffled.length} utworów!`);
+      showMessage(
+        loc.notifications.shuffledTracksCount
+          ? loc.notifications.shuffledTracksCount.replace('{0}', String(shuffled.length))
+          : `🔀 Shuffled and started ${shuffled.length} tracks!`
+      );
     } catch (e: any) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }

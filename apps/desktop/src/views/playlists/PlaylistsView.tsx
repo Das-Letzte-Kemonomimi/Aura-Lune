@@ -275,7 +275,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
                     <th style={{ padding: '10px 12px' }}>#</th>
                     <th style={{ padding: '10px 12px' }}>{loc.player.track}</th>
                     <th style={{ padding: '10px 12px' }}>{loc.player.artist}</th>
-                    <th style={{ padding: '10px 12px' }}>Format</th>
+                    <th style={{ padding: '10px 12px' }}>{loc.library.format}</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right' }}>{loc.queue.duration}</th>
                     <th style={{ padding: '10px 12px', textAlign: 'center' }}>{loc.common.edit}</th>
                   </tr>

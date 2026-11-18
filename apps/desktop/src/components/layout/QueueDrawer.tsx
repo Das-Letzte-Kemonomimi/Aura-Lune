@@ -102,7 +102,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
             }}
           >
             <InfinityIcon size={14} />
-            <span>Auto-DJ</span>
+            <span>{loc.queue.autoDj}</span>
           </button>
 
           {queue.items.length > 0 && (

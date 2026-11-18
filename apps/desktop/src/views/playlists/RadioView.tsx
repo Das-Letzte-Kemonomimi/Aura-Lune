@@ -30,7 +30,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
     name: 'LISTEN.moe J-Pop',
     url: 'https://listen.moe/stream',
     genre: 'J-Pop / Anime',
-    description: 'Najpopularniejsze radio z muzyką z anime, gier i japońskiego popu w bezstratnej jakości Opus/AAC.',
+    description: 'Popular community radio streaming anime, gaming, and Japanese pop in lossless Opus/AAC.',
     homepage: 'https://listen.moe',
   },
   {
@@ -38,7 +38,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
     name: 'Gensokyo Radio',
     url: 'https://stream.gensokyoradio.net/1/',
     genre: 'Touhou Project / Doujin',
-    description: '24/7 licencjonowane aranżacje muzyki z legendarnego uniwersum Touhou Project.',
+    description: '24/7 licensed Touhou Project doujin music and game arrangement broadcasts.',
     homepage: 'https://gensokyoradio.net',
   },
   {
@@ -46,7 +46,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
     name: 'LISTEN.moe K-Pop',
     url: 'https://listen.moe/kpop/stream',
     genre: 'K-Pop / OST',
-    description: 'Koreański pop, OST-y z dram i nowości muzyczne prosto z Seulu.',
+    description: 'Korean pop, K-drama soundtracks, and fresh music straight from Seoul.',
     homepage: 'https://listen.moe',
   },
   {
@@ -54,7 +54,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
     name: 'Nightwave Plaza',
     url: 'https://radio.plaza.one/mp3',
     genre: 'Vaporwave / Future Funk / CityPop',
-    description: 'Nostalgiczne brzmienia lat 80./90., anime aesthetics, future funk i vaporwave.',
+    description: 'Nostalgic 80s/90s vibes, anime aesthetics, future funk, and vaporwave.',
     homepage: 'https://plaza.one',
   },
   {
@@ -62,7 +62,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
     name: 'AnimeNfo Radio',
     url: 'https://stream.zeno.fm/xwa8ckz7mzzuv',
     genre: 'Anime OST / Classics',
-    description: 'Klasyczne i najnowsze openingi, endingi oraz ścieżki dźwiękowe z japońskich animacji.',
+    description: 'Classic and modern anime openings, endings, and Japanese animation soundtracks.',
     homepage: 'https://animenfo.com',
   },
   {
@@ -70,7 +70,7 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
     name: 'Lofi Beats Radio',
     url: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
     genre: 'Lofi / Chill / Study',
-    description: 'Kojące bity lofi i lo-fi hip hop idealne do kodowania, nauki i relaksu.',
+    description: 'Soothing lofi beats and chill hip-hop for studying, coding, and relaxing.',
     homepage: 'https://lofigirl.com',
   },
 ];

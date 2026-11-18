@@ -24,7 +24,9 @@
     "analysisBtn": "Analyysi",
     "desktopLrc": "Työpöytä-LRC",
     "stemProjectsTitle": "Raitaprojektit (Moises Studio)",
-    "uiScaleTooltip": "Käyttöliittymän mittakaava: {0}% (Vasen: lähennä, Oikea: loitonna, Pikanäppäimet: Ctrl +/-, Ctrl 0)"
+    "uiScaleTooltip": "Käyttöliittymän mittakaava: {0}% (Vasen: lähennä, Oikea: loitonna, Pikanäppäimet: Ctrl +/-, Ctrl 0)",
+    "recap": "Katsaus",
+    "harmonicDj": "Harmoninen DJ"
   },
   "player": {
     "track": "Kappale",
@@ -152,7 +154,8 @@
     "vinylLoFiTooltip": "Avaa Vinyl & Tape Lo-Fi Studio (Analog FX)",
     "tonearmRest": "Äänivarren lepoteline",
     "currentChord": "Nykyinen sointu:",
-    "recomputeChordsTooltip": "Laske soinnut uudelleen"
+    "recomputeChordsTooltip": "Laske soinnut uudelleen",
+    "tapeDeckTitle": "STUDIONAUHURI"
   },
   "waveform": {
     "title": "Aaltomuoto",
@@ -224,7 +227,8 @@
     "playlistNamePlaceholder": "Soittolistan nimi...",
     "savedToPlaylist": "Jono tallennettu soittolistaksi \"{0}\"!",
     "inCurrentQueue": "nykyisessä jonossa",
-    "newPlaylistName": "Uuden soittolistan nimi:"
+    "newPlaylistName": "Uuden soittolistan nimi:",
+    "autoDj": "Auto-DJ"
   },
   "dsp": {
     "title": "DSP-Studio & Vaihdettavat Moottorit",
@@ -429,7 +433,8 @@
     "importUrlBtn": "Tuo URL-osoitteesta (yt-dlp)",
     "importUrlTooltip": "Lataa kappale URL-osoitteesta kansikuvan ja tagien kera yt-dlp:llä",
     "shuffleAll": "Sekoita kaikki",
-    "shuffleAllTooltip": "Sekoita ja toista kaikki nykyisen näkymän kappaleet"
+    "shuffleAllTooltip": "Sekoita ja toista kaikki nykyisen näkymän kappaleet",
+    "format": "Formaatti"
   },
   "playlists": {
     "title": "Omat Soittolistat",
@@ -1216,7 +1221,8 @@
     "tapTempo": "TAP TEMPO",
     "quickShift": "Pikasiirto:",
     "saveAndClose": "Tallenna ja sulje",
-    "analyzing": "Akustinen äänianalyysi käynnissä..."
+    "analyzing": "Akustinen äänianalyysi käynnissä...",
+    "camelotNotation": "Camelot-pyörän merkintätapa"
   },
   "cueSheet": {
     "title": "CUE-soitin",
@@ -1330,7 +1336,25 @@
     "pipewireSink": "3. PipeWire-laitelähtö (Sink)",
     "bitPerfectSummary": "Äänivirta reititetään bit-perfectinä ilman näytemuokkauksia, uudelleennäytteistystä tai kvantisointivirheitä.",
     "processedSummary": "Aktiivinen DSP-moottori tai taajuuskorjain muokkaa ääninäytteitä reaaliajassa.",
-    "resetBtn": "Palauta Bit-Perfect Direct -tilaan"
+    "resetBtn": "Palauta Bit-Perfect Direct -tilaan",
+    "directBypass": "Suora ohitus (Direct Bypass)",
+    "directBypassZeroCpu": "Suora ohitus (Ei CPU-kuormaa)",
+    "noTrack": "Ei kappaletta",
+    "format": "Formaatti",
+    "sampleRate": "Näytetaajuus",
+    "bitDepth": "Bittisyvyys",
+    "channels": "Kanavat",
+    "tempo": "Tempo",
+    "pitch": "Sävelkorkeus",
+    "equalizer": "Taajuuskorjain",
+    "dspLatency": "DSP-viive",
+    "outputFormat": "Lähtöformaatti",
+    "sinkClockRate": "Lähdön kellotaajuus",
+    "playerBuffer": "Soittimen puskuri",
+    "xruns": "XRun / Katkokset",
+    "stereo": "Stereo (2.0)",
+    "activeBands": "Aktiivinen (10-kaistainen)",
+    "offFlat": "Pois (Tasainen)"
   },
   "autoEq": {
     "title": "AutoEQ-kuulokeprofiilit",
@@ -1590,7 +1614,9 @@
     "errorSpecifyDest": "Määritä kohdekansio.",
     "jobAdded": "Lataustehtävä lisätty jonoon!",
     "errorStartDownload": "Latauksen aloittaminen epäonnistui: {0}",
-    "securityBanner": "Auralune lataa suojattuun väliaikaiseen puskuriin (.tmp), varmentaa SHA-256-tarkistussummat ja siirtää tiedostot atomisesti kirjastoon. Ei DRM:n kiertämistä."
+    "securityBanner": "Auralune lataa suojattuun väliaikaiseen puskuriin (.tmp), varmentaa SHA-256-tarkistussummat ja siirtää tiedostot atomisesti kirjastoon. Ei DRM:n kiertämistä.",
+    "filenamePlaceholder": "kappaleen_nimi.flac",
+    "shaPlaceholder": "esim. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "urlImport": {
     "title": "URL-äänituoja (foobar2000 / Poweramp)",
@@ -1729,7 +1755,15 @@
     "builtInStft": "⚡ HPSS & Panning (Sisäänrakennettu STFT)",
     "aiReady": "✨ Tekoälyverkko valmis",
     "downloadInManager": "📦 Lataa malli hallinnassa",
-    "artistDefault": "Artisti"
+    "artistDefault": "Artisti",
+    "loadingProject": "Ladataan projektia...",
+    "instrumentTracksCount": "{0} instrumenttiraitaa",
+    "errLoadStems": "Virhe ladattaessa live-raitoja: {0}",
+    "errRestoreTrack": "Virhe palautettaessa alkuperäistä kappaletta: {0}",
+    "errSaveMix": "Virhe tallennettaessa miksausta: {0}",
+    "errExportZip": "Virhe ZIP-viennissä: {0}",
+    "creatingZip": "Luodaan ZIP-arkistoa...",
+    "exportedZipTo": "Projekti viety kohteeseen: {0}"
   },
   "analogLoFi": {
     "title": "Analog Lo-Fi FX Studio",

@@ -201,7 +201,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           title={loc.nav.recapTitle}
         >
           <Flame size={14} color="var(--accent-pink)" />
-          <span className="header-action-text">Recap</span>
+          <span className="header-action-text">{loc.nav.recap}</span>
         </button>
 
         {/* Key & BPM */}
@@ -430,7 +430,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}
         >
           <Disc3 size={14} />
-          <span className="header-action-text">Harmonic DJ</span>
+          <span className="header-action-text">{loc.nav.harmonicDj}</span>
         </button>
 
         {/* Command Palette */}

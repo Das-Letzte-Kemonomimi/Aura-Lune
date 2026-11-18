@@ -211,7 +211,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             <ArrowRight size={13} color="#64748b" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Sliders size={14} color={isBitPerfect ? '#10b981' : '#ec4899'} />
-              <strong>{isBypass ? 'Direct Bypass' : status.engine}</strong>
+              <strong>{isBypass ? loc.audioPath.directBypass : status.engine}</strong>
             </div>
             <ArrowRight size={13} color="#64748b" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -235,25 +235,25 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                 <span>{loc.audioPath.inputSource}</span>
               </div>
               <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                {status.current_track?.title || 'Brak utworu'}
+                {status.current_track?.title || loc.audioPath.noTrack}
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Format</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.format}</span>
                 <strong style={{ color: '#f8fafc' }}>{format}</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Sample Rate</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.sampleRate}</span>
                 <strong style={{ color: '#f8fafc' }}>{(sampleRate / 1000).toFixed(1)} kHz</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Bit Depth</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.bitDepth}</span>
                 <strong style={{ color: '#f8fafc' }}>{bitDepth}-bit {bitDepth >= 24 ? 'Hi-Res' : 'CD'}</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Channels</span>
-                <strong style={{ color: '#f8fafc' }}>{channels === 2 ? 'Stereo (2.0)' : `${channels} ch`}</strong>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.channels}</span>
+                <strong style={{ color: '#f8fafc' }}>{channels === 2 ? loc.audioPath.stereo : `${channels} ch`}</strong>
               </div>
             </div>
           </div>
@@ -281,31 +281,31 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                   fontWeight: 600,
                 }}
               >
-                {isBypass ? 'Direct Bypass (Zero CPU)' : `${status.engine} Engine`}
+                {isBypass ? loc.audioPath.directBypassZeroCpu : `${status.engine} Engine`}
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Tempo</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.tempo}</span>
                 <strong style={{ color: isDefaultTempo ? '#f8fafc' : '#ec4899' }}>
                   {(status.tempo_ratio ?? 1.0).toFixed(2)}x
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Pitch</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.pitch}</span>
                 <strong style={{ color: isDefaultPitch ? '#f8fafc' : '#ec4899' }}>
                   {(status.pitch_semitones ?? 0.0) >= 0 ? '+' : ''}
                   {(status.pitch_semitones ?? 0.0).toFixed(1)} st
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Equalizer</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.equalizer}</span>
                 <strong style={{ color: status.equalizer_enabled ? '#ec4899' : '#94a3b8' }}>
-                  {status.equalizer_enabled ? 'Active (10-Band)' : 'Off (Flat)'}
+                  {status.equalizer_enabled ? loc.audioPath.activeBands : loc.audioPath.offFlat}
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Latencja DSP</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.dspLatency}</span>
                 <strong style={{ color: isBitPerfect ? '#34d399' : '#f8fafc' }}>
                   {isBitPerfect ? '0.0 ms (Direct)' : '~12 ms (Vocoder)'}
                 </strong>
@@ -333,21 +333,21 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Format wyjściowy</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.outputFormat}</span>
                 <strong style={{ color: '#f8fafc' }}>F32LE (Float32)</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Sink Clock Rate</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.sinkClockRate}</span>
                 <strong style={{ color: '#f8fafc' }}>
                   {sampleRate >= 88200 ? `${(sampleRate / 1000).toFixed(1)} kHz (Direct)` : '48.0 kHz Native'}
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>Bufor odtwarzacza</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.playerBuffer}</span>
                 <strong style={{ color: '#f8fafc' }}>40 ms deadline</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>XRun / Dropouts</span>
+                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.xruns}</span>
                 <strong style={{ color: '#34d399' }}>0 (Jitter-Free)</strong>
               </div>
             </div>

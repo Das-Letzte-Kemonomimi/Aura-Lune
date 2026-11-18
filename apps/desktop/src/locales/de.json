@@ -24,7 +24,9 @@
     "analysisBtn": "Analyse",
     "desktopLrc": "Desktop-LRC",
     "stemProjectsTitle": "Stem-Projekte (Moises Studio)",
-    "uiScaleTooltip": "UI-Skalierung: {0}% (Linksklick: vergrößern, Rechtsklick: verkleinern, Kürzel: Strg +/-, Strg 0)"
+    "uiScaleTooltip": "UI-Skalierung: {0}% (Linksklick: vergrößern, Rechtsklick: verkleinern, Kürzel: Strg +/-, Strg 0)",
+    "recap": "Rückblick",
+    "harmonicDj": "Harmonischer DJ"
   },
   "player": {
     "track": "Titel",
@@ -152,7 +154,8 @@
     "vinylLoFiTooltip": "Vinyl & Tape Lo-Fi Studio öffnen (Analog FX)",
     "tonearmRest": "Tonarm-Ablage (Halterung)",
     "currentChord": "Aktueller Akkord:",
-    "recomputeChordsTooltip": "Akkorde neu berechnen"
+    "recomputeChordsTooltip": "Akkorde neu berechnen",
+    "tapeDeckTitle": "STUDIO-TONBANDGERÄT"
   },
   "waveform": {
     "title": "Wellenform",
@@ -224,7 +227,8 @@
     "playlistNamePlaceholder": "Playlist-Name...",
     "savedToPlaylist": "Warteschlange als Playlist „{0}“ gespeichert!",
     "inCurrentQueue": "in der aktuellen Warteschlange",
-    "newPlaylistName": "Neuer Playlist-Name:"
+    "newPlaylistName": "Neuer Playlist-Name:",
+    "autoDj": "Auto-DJ"
   },
   "dsp": {
     "title": "DSP-Studio & Austauschbare Engines",
@@ -429,7 +433,8 @@
     "importUrlBtn": "Von URL importieren (yt-dlp)",
     "importUrlTooltip": "Titel von URL mit Cover und Tags über yt-dlp herunterladen",
     "shuffleAll": "Alle mischen",
-    "shuffleAllTooltip": "Alle Titel in der aktuellen Ansicht mischen und abspielen"
+    "shuffleAllTooltip": "Alle Titel in der aktuellen Ansicht mischen und abspielen",
+    "format": "Format"
   },
   "playlists": {
     "title": "Deine Wiedergabelisten",
@@ -1216,7 +1221,8 @@
     "tapTempo": "TAP TEMPO",
     "quickShift": "Schnell-Transposition:",
     "saveAndClose": "Speichern & Schließen",
-    "analyzing": "Akustische Audioanalyse läuft..."
+    "analyzing": "Akustische Audioanalyse läuft...",
+    "camelotNotation": "Camelot-Rad-Notation"
   },
   "cueSheet": {
     "title": "CUE-Sheet-Player",
@@ -1330,7 +1336,25 @@
     "pipewireSink": "3. PipeWire-Hardwareausgang (Sink)",
     "bitPerfectSummary": "Der Audiostrom wird bitgenau ohne Abtastmodifikation, Resampling oder Quantisierungsverzerrung übertragen.",
     "processedSummary": "Eine aktive DSP-Engine oder EQ verarbeitet und formt die Audiodaten in Echtzeit.",
-    "resetBtn": "Auf Bit-Perfect Direct zurücksetzen"
+    "resetBtn": "Auf Bit-Perfect Direct zurücksetzen",
+    "directBypass": "Direkter Bypass",
+    "directBypassZeroCpu": "Direkter Bypass (Keine CPU-Last)",
+    "noTrack": "Kein Titel",
+    "format": "Format",
+    "sampleRate": "Abtastrate",
+    "bitDepth": "Bittiefe",
+    "channels": "Kanäle",
+    "tempo": "Tempo",
+    "pitch": "Tonhöhe",
+    "equalizer": "Equalizer",
+    "dspLatency": "DSP-Latenz",
+    "outputFormat": "Ausgabeformat",
+    "sinkClockRate": "Ausgangs-Taktrate",
+    "playerBuffer": "Player-Puffer",
+    "xruns": "XRun / Aussetzer",
+    "stereo": "Stereo (2.0)",
+    "activeBands": "Aktiv (10 Bänder)",
+    "offFlat": "Aus (Linear)"
   },
   "autoEq": {
     "title": "AutoEQ-Kopfhörerprofile",
@@ -1590,7 +1614,9 @@
     "errorSpecifyDest": "Bitte einen Zielordner angeben.",
     "jobAdded": "Download-Auftrag zur Warteschlange hinzugefügt!",
     "errorStartDownload": "Fehler beim Starten des Downloads: {0}",
-    "securityBanner": "Auralune lädt in einen isolierten temporären Puffer (.tmp), verifiziert SHA-256-Prüfsummen und verschiebt die Dateien atomar in die Bibliothek. Keine DRM-Umgehung."
+    "securityBanner": "Auralune lädt in einen isolierten temporären Puffer (.tmp), verifiziert SHA-256-Prüfsummen und verschiebt die Dateien atomar in die Bibliothek. Keine DRM-Umgehung.",
+    "filenamePlaceholder": "titel_name.flac",
+    "shaPlaceholder": "z.B. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "urlImport": {
     "title": "URL-Audio-Importer (foobar2000 / Poweramp)",
@@ -1729,7 +1755,15 @@
     "builtInStft": "⚡ HPSS & Panning (Integriertes STFT)",
     "aiReady": "✨ KI-Netzwerk bereit",
     "downloadInManager": "📦 Modell im Manager herunterladen",
-    "artistDefault": "Künstler"
+    "artistDefault": "Künstler",
+    "loadingProject": "Projekt wird geladen...",
+    "instrumentTracksCount": "{0} Instrumentenspuren",
+    "errLoadStems": "Fehler beim Laden der Live-Stems: {0}",
+    "errRestoreTrack": "Fehler beim Wiederherstellen des Originaltitels: {0}",
+    "errSaveMix": "Fehler beim Speichern des Mixes: {0}",
+    "errExportZip": "Fehler beim ZIP-Export: {0}",
+    "creatingZip": "ZIP-Archiv wird erstellt...",
+    "exportedZipTo": "Projekt exportiert nach: {0}"
   },
   "analogLoFi": {
     "title": "Analog Lo-Fi FX Studio",
