@@ -19,6 +19,8 @@ export interface WaveformCanvasProps {
   colorPlayedEnd?: string;
   colorUnplayed?: string;
   onSeek?: (pct: number) => void;
+  onSeekPreview?: (pct: number) => void;
+  onSeekCommit?: (pct: number) => void;
   title?: string;
   initialStyle?: WaveformStyle;
   onStyleChange?: (style: WaveformStyle) => void;
@@ -63,6 +65,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   colorPlayedEnd = '#a855f7',
   colorUnplayed = 'rgba(255, 255, 255, 0.16)',
   onSeek,
+  onSeekPreview,
+  onSeekCommit,
   title,
   initialStyle,
   onStyleChange,
@@ -74,6 +78,12 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 800, height });
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [hoverPct, setHoverPct] = useState<number | null>(null);
+
+  // Stan przeciągania fali (drag-to-seek)
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragProgressRef = useRef<number | null>(null);
 
   // Styl fali (zapamiętywany w localStorage)
   const [activeStyle, setActiveStyle] = useState<WaveformStyle>(() => {
@@ -174,7 +184,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       verticalPlayedGrad.addColorStop(1, '#a855f7');
     }
 
-    const currentX = (progress / 100) * width;
+    const effectiveProgress = isDragging && dragProgress !== null ? dragProgress : progress;
+    const currentX = (effectiveProgress / 100) * width;
 
     // ==========================================
     // STYL 1: GŁADKA CIĄGŁA FALA (SMOOTH ANALOG WAVE)
@@ -345,7 +356,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       const totalWaveWidth = count * waveUnitWidth;
 
       // Przesunięcie fali w zależności od postępu odtwarzania
-      const scrollOffset = (progress / 100) * totalWaveWidth;
+      const scrollOffset = (effectiveProgress / 100) * totalWaveWidth;
 
       // Siatka tła (DJ Beat Grid)
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -402,12 +413,15 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.stroke();
 
       // Wyświetlanie aktualnego czasu na igle DJ
-      if (durationMs > 0 && positionMs > 0) {
+      const effectivePosMs = isDragging && dragProgress !== null && durationMs > 0
+        ? (dragProgress / 100) * durationMs
+        : positionMs;
+      if (durationMs > 0 && effectivePosMs > 0) {
         ctx.fillStyle = 'rgba(15, 20, 32, 0.85)';
         ctx.fillRect(playheadX + 4, 4, 38, 14);
         ctx.fillStyle = '#fff';
         ctx.font = '9px monospace';
-        ctx.fillText(formatTimeSec(positionMs / 1000), playheadX + 7, 14);
+        ctx.fillText(formatTimeSec(effectivePosMs / 1000), playheadX + 7, 14);
       }
 
       // Znacznik głowicy na górze i dole
@@ -586,6 +600,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     dimensions,
     normalizedPeaks,
     progress,
+    isDragging,
+    dragProgress,
     activeStyle,
     colorPlayedStart,
     colorPlayedEnd,
@@ -598,30 +614,132 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     isPlaying,
   ]);
 
-  // Obsługa kliknięcia i najechania myszką
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const getPctFromClientX = (clientX: number): { pct: number; x: number } => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) return { pct: 0, x: 0 };
     const rect = container.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const pct = x / rect.width;
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const pct = rect.width > 0 ? x / rect.width : 0;
+    return { pct, x };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if (!onSeek && !onSeekCommit && !onSeekPreview) return;
+    const { pct, x } = getPctFromClientX(e.clientX);
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    dragProgressRef.current = pct * 100;
+    setDragProgress(pct * 100);
     setHoverX(x);
     setHoverPct(pct);
+
+    onSeekPreview?.(pct);
   };
 
-  const handleMouseLeave = () => {
-    setHoverX(null);
-    setHoverPct(null);
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const { pct, x } = getPctFromClientX(e.clientX);
+    setHoverX(x);
+    setHoverPct(pct);
+
+    if (isDraggingRef.current) {
+      dragProgressRef.current = pct * 100;
+      setDragProgress(pct * 100);
+      onSeekPreview?.(pct);
+    }
   };
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onSeek) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    onSeek(pct);
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setIsDragging(false);
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+
+    const { pct } = getPctFromClientX(e.clientX);
+    const finalPct = typeof e.clientX === 'number' && !isNaN(e.clientX)
+      ? pct
+      : (dragProgressRef.current !== null ? dragProgressRef.current / 100 : pct);
+
+    dragProgressRef.current = null;
+    setDragProgress(null);
+
+    if (onSeekCommit) {
+      onSeekCommit(finalPct);
+    } else if (onSeek) {
+      onSeek(finalPct);
+    }
   };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      dragProgressRef.current = null;
+      setDragProgress(null);
+    }
+  };
+
+  const handlePointerLeave = () => {
+    if (!isDraggingRef.current) {
+      setHoverX(null);
+      setHoverPct(null);
+    }
+  };
+
+  // Obsługa przeciągania na poziomie okna, gdyby kursor opuścił kontener
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      const { pct, x } = getPctFromClientX(e.clientX);
+      dragProgressRef.current = pct * 100;
+      setDragProgress(pct * 100);
+      setHoverX(x);
+      setHoverPct(pct);
+      onSeekPreview?.(pct);
+    };
+
+    const handleWindowPointerUp = (e: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDragging(false);
+
+      const { pct } = getPctFromClientX(e.clientX);
+      const finalPct = typeof e.clientX === 'number' && !isNaN(e.clientX)
+        ? pct
+        : (dragProgressRef.current !== null ? dragProgressRef.current / 100 : pct);
+
+      dragProgressRef.current = null;
+      setDragProgress(null);
+
+      if (onSeekCommit) {
+        onSeekCommit(finalPct);
+      } else if (onSeek) {
+        onSeek(finalPct);
+      }
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
+    };
+  }, [isDragging, onSeek, onSeekCommit, onSeekPreview]);
 
   const loc = useMemo(() => getTranslations(currentLang as Language), [currentLang]);
 
@@ -633,10 +751,11 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   };
 
   const hoverTimeStr = useMemo(() => {
-    if (hoverPct === null || !durationMs || durationMs <= 0) return null;
-    const timeSec = (hoverPct * durationMs) / 1000;
+    const activePct = isDragging && dragProgress !== null ? dragProgress / 100 : hoverPct;
+    if (activePct === null || !durationMs || durationMs <= 0) return null;
+    const timeSec = (activePct * durationMs) / 1000;
     return formatTimeSec(timeSec);
-  }, [hoverPct, durationMs]);
+  }, [isDragging, dragProgress, hoverPct, durationMs]);
 
   return (
     <div
@@ -709,7 +828,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         </div>
       )}
 
-      {/* Kontener płótna fali */}
+      {/* Kontener płótna fali (obsługa przeciągania myszą i dotykiem) */}
       <div
         ref={containerRef}
         className="waveform-container"
@@ -717,21 +836,26 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           position: 'relative',
           width: '100%',
           height: `${height}px`,
-          cursor: onSeek ? 'pointer' : 'default',
+          cursor: isDragging ? 'grabbing' : onSeek || onSeekCommit ? 'pointer' : 'default',
           borderRadius: '12px',
           overflow: 'hidden',
           background: 'rgba(10, 12, 22, 0.55)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)',
+          border: isDragging ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+          boxShadow: isDragging
+            ? '0 0 16px rgba(244, 63, 94, 0.35), inset 0 2px 8px rgba(0,0,0,0.4)'
+            : 'inset 0 2px 8px rgba(0,0,0,0.4)',
           userSelect: 'none',
+          touchAction: 'none',
           isolation: 'isolate',
           contain: 'paint layout',
-          transition: 'border-color 0.2s ease',
+          transition: isDragging ? 'none' : 'border-color 0.2s ease, box-shadow 0.2s ease',
         }}
-        onClick={handleClick}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onPointerLeave={handlePointerLeave}
         title={title}
       >
         <canvas
@@ -744,8 +868,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           }}
         />
 
-        {/* Pływający wskaźnik czasu przy najechaniu myszą */}
-        {hoverX !== null && hoverTimeStr && (
+        {/* Pływający wskaźnik czasu przy najechaniu myszą lub przeciąganiu */}
+        {(isDragging || hoverX !== null) && hoverX !== null && hoverTimeStr && (
           <div
             style={{
               position: 'absolute',
@@ -753,7 +877,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
               left: `${Math.max(30, Math.min(dimensions.width - 30, hoverX))}px`,
               transform: 'translateX(-50%) translateZ(0)',
               background: 'rgba(15, 20, 32, 0.95)',
-              border: '1px solid var(--accent-cyan)',
+              border: isDragging ? '1px solid var(--accent-pink)' : '1px solid var(--accent-cyan)',
               color: '#fff',
               fontSize: '0.68rem',
               fontFamily: 'var(--font-mono)',
@@ -761,7 +885,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
               padding: '2px 6px',
               borderRadius: '4px',
               pointerEvents: 'none',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+              boxShadow: isDragging ? '0 4px 14px rgba(244, 63, 94, 0.55)' : '0 4px 12px rgba(0,0,0,0.6)',
               zIndex: 10,
             }}
           >

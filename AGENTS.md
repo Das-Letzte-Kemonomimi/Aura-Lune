@@ -319,7 +319,7 @@ All 162 commands are organized by domain under `apps/desktop/src-tauri/src/comma
 
 ### Performance & Responsiveness Principles
 1. **Two-Phase Seeking**:
-   - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging.
+   - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging. Supported across all progress sliders (`<input type="range">`) and animated `WaveformCanvas` visual styles (`smooth`, `bars`, `scrolling`, `mirror`) with pointer capture (`setPointerCapture`) and real-time hover/drag timestamp badges.
    - `handleSeekCommit(pos)`: Dispatched once on pointer/mouse/key up with `seek_with_fade` (20-48ms anti-pop micro-fade).
 2. **Dual-Mode Zero-Latency & Smooth Fade Volume Control**:
    - **Post-Queue Pipeline Placement**: In GStreamer, the `volume` element is linked downstream of `queue_sink` (`... -> queue_sink -> volume -> sink`), eliminating 600ms buffer latency so volume adjustments take effect at the hardware sink within < 15ms.

@@ -1288,6 +1288,20 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
                             handleSeek(Math.floor(pct * status.duration_ms));
                           }
                         }}
+                        onSeekPreview={(pct) => {
+                          if (status.duration_ms && status.duration_ms > 0) {
+                            handleSeekPreview?.(Math.floor(pct * status.duration_ms));
+                          }
+                        }}
+                        onSeekCommit={(pct) => {
+                          if (status.duration_ms && status.duration_ms > 0) {
+                            if (handleSeekCommit) {
+                              handleSeekCommit(Math.floor(pct * status.duration_ms));
+                            } else {
+                              handleSeek(Math.floor(pct * status.duration_ms));
+                            }
+                          }
+                        }}
                         title={`${loc.waveform.title} (${loc.waveform.hint})`}
                         style={{ marginBottom: '10px' }}
                       />

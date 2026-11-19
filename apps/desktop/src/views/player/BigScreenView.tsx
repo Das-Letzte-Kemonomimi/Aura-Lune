@@ -48,6 +48,8 @@ interface BigScreenViewProps {
   onPrev: () => void;
   onNext: () => void;
   onSeek: (positionMs: number) => void;
+  onSeekPreview?: (positionMs: number) => void;
+  onSeekCommit?: (positionMs: number) => void;
   onVolumeChange: (volume: number) => void;
   onToggleVolumeUnit?: () => void;
   onClose: () => void;
@@ -77,6 +79,8 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   onPrev,
   onNext,
   onSeek,
+  onSeekPreview,
+  onSeekCommit,
   onVolumeChange,
   onToggleVolumeUnit,
   onClose,
@@ -1082,6 +1086,20 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
             onSeek={(pct) => {
               if (durationMs && durationMs > 0) {
                 onSeek(Math.floor(pct * durationMs));
+              }
+            }}
+            onSeekPreview={(pct) => {
+              if (durationMs && durationMs > 0) {
+                onSeekPreview?.(Math.floor(pct * durationMs));
+              }
+            }}
+            onSeekCommit={(pct) => {
+              if (durationMs && durationMs > 0) {
+                if (onSeekCommit) {
+                  onSeekCommit(Math.floor(pct * durationMs));
+                } else {
+                  onSeek(Math.floor(pct * durationMs));
+                }
               }
             }}
             title={t.waveform.hint}

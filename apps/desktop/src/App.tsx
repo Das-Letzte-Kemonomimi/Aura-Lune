@@ -472,6 +472,8 @@ export default function App() {
   const {
     handlePlayPause,
     handleSeek,
+    handleSeekPreview,
+    handleSeekCommit,
     handleVolumeChange,
     handleNext,
     handlePrevious,
@@ -1266,6 +1268,8 @@ export default function App() {
           onPrev={handlePrevious}
           onNext={handleNext}
           onSeek={handleSeek}
+          onSeekPreview={handleSeekPreview}
+          onSeekCommit={handleSeekCommit}
           onVolumeChange={handleVolumeChange}
           onClose={() => setIsBigScreen(false)}
           onFetchCover={handleFetchCurrentTrackCover}

@@ -37,6 +37,12 @@
   - **Interfejs użytkownika**: przetestowano wyłącznik czasowy (Sleep Timer z łagodnym wyciszaniem), formatowanie czasu, normalizację tekstu oraz dok odtwarzacza.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Interaktywne przeciąganie animowanej fali dźwiękowej (Drag-to-Seek na falogramie WaveformCanvas)**:
+  - Rozwiązano problem braku reakcji animowanych pasków postępu (Smooth Wave, Cyber Bars, Scrolling DJ Wave, Mirror Spectrum) na przeciąganie myszą i dotykiem.
+  - Zaimplementowano płynne przeciąganie wskaźnika pozycji z wykorzystaniem Pointer Events, przechwytywania wskaźnika (`setPointerCapture`) oraz asekuracyjnego śledzenia zdarzeń na poziomie okna (`window`).
+  - Podczas przeciągania interfejs na żywo odświeża oświetloną część fali, igłę DJ-a oraz pływający wskaźnik czasu (60/120 FPS), a właściwy skok odtwarzania utworu (`seek_with_fade`) następuje w momencie zwolnienia przycisku myszy (`handleSeekCommit` / `onSeekCommit`).
+  - Zapewniono pełne wsparcie dwufazowego przewijania zarówno w głównym widoku odtwarzacza (`PlayerView`), jak i w trybie pełnoekranowym (`BigScreenView`).
+  - Dodano dedykowany zestaw testów jednostkowych w `WaveformCanvas.test.tsx`.
 - **Płynne wyciszanie przy przewijaniu (Smooth Seek Fade)**:
   - Naprawiono błąd, przez który puszczenie suwaka pozycji ignorowało włączoną opcję łagodnego wyciszania.
   - Opcja działa teraz spójnie we wszystkich widokach aplikacji: głównym pasku doku, widoku odtwarzacza, trybie pełnoekranowym, Mini Playerze, nakładce tekstu piosenki, widoku fali dźwiękowej oraz osi akordów.
