@@ -56,6 +56,9 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Poprawka uprawnień buforowania pakietów APT w potoku CI (GitHub Actions)**:
+  - Rozwiązano problem niepowodzenia zapisu pamięci podręcznej (`/usr/bin/tar failed with error: exit code 2: Permission denied`) w kroku `Post job cleanup` dla ścieżki `/var/cache/apt/archives`.
+  - Wprowadzono automatyczne usuwanie systemowych plików blokad roota (`lock` oraz katalogu `partial`) oraz nadawanie uprawnień odczytu dla użytkownika `runner` zaraz po instalacji pakietów, co zapewnia w 100% bezbłędne tworzenie archiwum `.tzst` w akcji `actions/cache`.
 - **Czysty tryb Bit-Perfect (True Passthrough Bypass) dla korektora graficznego i parametrycznego**:
   - Wprowadzono automatyczne włączanie natywnego trybu passthrough (`transform.set_passthrough(true)`) na elementach GStreamera `equalizer-10bands` oraz `equalizer-nbands`, gdy korektory są wyłączone lub nie posiadają aktywnych pasm. Zapobiega to zbędnemu przetwarzaniu próbek przez filtry IIR przy wyłączonym EQ, gwarantując 100% bit-exact bypass bez podbarwień i przesunięć fazowych.
   - Naprawiono warunek wyświetlania stanu przycisku EQ w `DspStudioView.tsx`, usuwając błąd fałszywego wskazywania włączonego korektora przy wartości `undefined`.

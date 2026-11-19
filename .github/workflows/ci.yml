@@ -96,6 +96,8 @@ jobs:
             pulseaudio \
             pulseaudio-utils \
             libasound2-plugins
+          sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
+          sudo chmod -R 777 /var/cache/apt/archives
 
       - name: Install frontend dependencies & build bundle
         run: |
@@ -174,6 +176,8 @@ jobs:
             librubberband-dev \
             libsoundtouch-dev
           sudo apt-get install -y --no-install-recommends libfuse2t64 2>/dev/null || sudo apt-get install -y --no-install-recommends libfuse2 || true
+          sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
+          sudo chmod -R 777 /var/cache/apt/archives
 
       - name: Install frontend dependencies & build bundle
         run: |
