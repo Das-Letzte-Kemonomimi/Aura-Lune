@@ -182,6 +182,9 @@ impl AudioEngine {
             .name("equalizer_10bands")
             .build()
             .map_err(|_| AudioEngineError::MissingElement("equalizer-10bands"))?;
+        if let Ok(transform) = equalizer.clone().dynamic_cast::<gst_base::BaseTransform>() {
+            transform.set_passthrough(true); // Domyślnie wyłączony (Bypass bit-perfect)
+        }
 
         let peq_preamp = gst::ElementFactory::make("volume")
             .name("peq_preamp")
@@ -194,6 +197,12 @@ impl AudioEngine {
             .property("num-bands", 1u32)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("equalizer-nbands"))?;
+        if let Ok(transform) = peq_equalizer
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(true); // Domyślnie wyłączony (Bypass bit-perfect)
+        }
 
         // Moduły Studia Dynamiki:
         // 1. Kompresor dynamiki (audiodynamic)
@@ -2253,6 +2262,13 @@ impl AudioEngine {
     pub fn set_equalizer_enabled(&self, enabled: bool) {
         let mut inner = self.inner.lock().unwrap();
         inner.equalizer_state.enabled = enabled;
+        if let Ok(transform) = inner
+            .equalizer
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(!enabled);
+        }
         for i in 0..10 {
             let val = if enabled {
                 inner.equalizer_state.bands[i]
@@ -2269,6 +2285,13 @@ impl AudioEngine {
     pub fn set_equalizer_band(&self, band: usize, gain_db: f64) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
         inner.equalizer_state.enabled = true;
+        if let Ok(transform) = inner
+            .equalizer
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(false);
+        }
         if inner.equalizer_state.set_band(band, gain_db) {
             for i in 0..10 {
                 let val = inner.equalizer_state.bands[i];
@@ -2284,6 +2307,13 @@ impl AudioEngine {
     pub fn set_equalizer_bands(&self, bands: &[f64; 10]) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock().unwrap();
         inner.equalizer_state.enabled = true;
+        if let Ok(transform) = inner
+            .equalizer
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(false);
+        }
         for (i, &gain) in bands.iter().enumerate() {
             inner.equalizer_state.set_band(i, gain);
             inner
@@ -2378,6 +2408,14 @@ impl AudioEngine {
                     child.set_property("gain", 0.0f64);
                 }
             }
+        }
+
+        if let Ok(transform) = inner
+            .peq_equalizer
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(!enabled || state.bands.is_empty());
         }
 
         Ok(())

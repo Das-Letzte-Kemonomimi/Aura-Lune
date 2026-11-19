@@ -56,6 +56,9 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Czysty tryb Bit-Perfect (True Passthrough Bypass) dla korektora graficznego i parametrycznego**:
+  - Wprowadzono automatyczne włączanie natywnego trybu passthrough (`transform.set_passthrough(true)`) na elementach GStreamera `equalizer-10bands` oraz `equalizer-nbands`, gdy korektory są wyłączone lub nie posiadają aktywnych pasm. Zapobiega to zbędnemu przetwarzaniu próbek przez filtry IIR przy wyłączonym EQ, gwarantując 100% bit-exact bypass bez podbarwień i przesunięć fazowych.
+  - Naprawiono warunek wyświetlania stanu przycisku EQ w `DspStudioView.tsx`, usuwając błąd fałszywego wskazywania włączonego korektora przy wartości `undefined`.
 - **Podział paczek (Code-Splitting) w Vite i redukcja rozmiaru początkowego**:
   - Skonfigurowano precyzyjny podział kodu (`manualChunks`) w pliku `apps/desktop/vite.config.ts`, wyodrębniając biblioteki dostawców (`react-vendor`, `icons-vendor`, `tauri-vendor`), bazę historii wydań (`changelog-data`), słowniki lokalizacyjne (`locales-data`) oraz duże widoki (`view-dsp`, `view-library`, `view-settings`).
   - Zredukowano główny plik startowy JavaScript z ponad 1,57 MB do zaledwie 465 kB (110 kB po kompresji gzip), całkowicie usuwając ostrzeżenia minifikacji bundlera o przekroczeniu limitu 500 kB na paczkę i przyspieszając ładowanie interfejsu.

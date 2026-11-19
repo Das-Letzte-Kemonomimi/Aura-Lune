@@ -2043,13 +2043,13 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
                         borderRadius: '8px',
                         fontSize: '0.75rem',
                         fontWeight: 700,
-                        background: status.equalizer_enabled !== false ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
-                        border: status.equalizer_enabled !== false ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                        color: status.equalizer_enabled !== false ? 'var(--accent-pink)' : 'var(--text-muted)',
+                        background: Boolean(status.equalizer_enabled) ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
+                        border: Boolean(status.equalizer_enabled) ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                        color: Boolean(status.equalizer_enabled) ? 'var(--accent-pink)' : 'var(--text-muted)',
                         cursor: 'pointer',
                       }}
                     >
-                      {status.equalizer_enabled !== false ? `● ${loc.dsp.eqEnabled}` : `○ ${loc.dsp.eqBypass}`}
+                      {Boolean(status.equalizer_enabled) ? `● ${loc.dsp.eqEnabled}` : `○ ${loc.dsp.eqBypass}`}
                     </button>
 
                     {/* Przełącznik autostartu EQ */}
