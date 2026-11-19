@@ -56,6 +56,11 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Podział paczek (Code-Splitting) w Vite i redukcja rozmiaru początkowego**:
+  - Skonfigurowano precyzyjny podział kodu (`manualChunks`) w pliku `apps/desktop/vite.config.ts`, wyodrębniając biblioteki dostawców (`react-vendor`, `icons-vendor`, `tauri-vendor`), bazę historii wydań (`changelog-data`), słowniki lokalizacyjne (`locales-data`) oraz duże widoki (`view-dsp`, `view-library`, `view-settings`).
+  - Zredukowano główny plik startowy JavaScript z ponad 1,57 MB do zaledwie 465 kB (110 kB po kompresji gzip), całkowicie usuwając ostrzeżenia minifikacji bundlera o przekroczeniu limitu 500 kB na paczkę i przyspieszając ładowanie interfejsu.
+- **Poprawka celów paczkowania w `tauri.conf.json` i zgodność wersji deweloperskiej**:
+  - Skonfigurowano jawne cele paczkowania na Linuksie jako `["appimage", "deb"]` zamiast domyślnego `"all"`, co wyeliminowało błąd bundlera RPM (`invalid version "1.1.6-dev": contains invalid character '-'`) pojawiający się na dystrybucjach z zainstalowanym narzędziem `rpmbuild` (np. Arch Linux / CachyOS, Fedora).
 - **Przywrócenie działania zakładki statystyk i podsumowań (Recap & Stats Dashboard)**:
   - Naprawiono błąd trasowania w routerze głównej zawartości (`MainContentRouter.tsx`), przywracając brakującą gałąź dla aktywnej zakładki `'stats'` i podłączając komponent `StatsDashboardView.tsx`.
   - Przekazano właściwości statystyk (`statsProps`) w hookach nawigacyjnych (`useMainRouterProps.ts` oraz `useMainContentRouterProps.ts`).
