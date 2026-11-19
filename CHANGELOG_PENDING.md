@@ -56,8 +56,9 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
-- **Dwukierunkowe sortowanie i wskaźniki kierunku dla domyślnej kolejności utworów (`#`) w bibliotece**:
+- **Dwukierunkowe sortowanie i numeracja porządkowa w tabeli utworów (`#`) w bibliotece**:
   - Rozwiązano problem braku reakcji na ponowne kliknięcie nagłówka kolumny `#` (`default`) oraz braku możliwości odwrócenia domyślnej kolejności utworów.
+  - Wyeliminowano powtarzające się wartości `#1` na każdym wierszu tabeli utworów: dotychczas kolumna `#` wyświetlała metadane numeru ścieżki z pliku (`t.track_no`), przez co wszystkie single cyfrowe oraz pierwsze utwory z albumów pokazywały tę samą wartość `1`. Zastąpiono ją sekwencyjnym numerem pozycji w widoku (`idx + 1`), a oryginalny numer ścieżki z tagów przeniesiono do dymku podpowiedzi (tooltip).
   - W hooku `useLibraryManager.ts` obsłużono kierunek sortowania (`sortOrder === 'asc' ? baseList : [...baseList].reverse()`) w gałęzi `sortField === 'default'`, dzięki czemu ponowne kliknięcie nagłówka `#` lub użycie przycisku zmiany kierunku na pasku narzędzi natychmiast odwraca listę utworów (z zachowaniem aktywnych filtrów inteligentnych playlist).
   - W nagłówku kolumny `#` w `LibraryView.tsx` zastąpiono statyczną kropkę aktywnym wskaźnikiem kierunku (`▲` dla rosnącego, `▼` dla malejącego), włączono widoczność przycisku przełączania kierunku w toolbarze przy wybranym domyślnym sortowaniu oraz zaktualizowano pasek stanu i akcję odtwarzania posortowanej kolejki.
   - Dodano dedykowane testy jednostkowe weryfikujące przełączanie kierunku sortowania domyślnego w `useLibraryManager.test.ts`.

@@ -1212,7 +1212,11 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                     boxSizing: 'border-box',
                                   }}
                                 >
-                                  <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                                  <td
+                                    className="library-track-cell"
+                                    style={{ padding: '0 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
+                                    title={t.track_no ? `#${idx + 1} (Track ${t.track_no})` : `#${idx + 1}`}
+                                  >
                                     {isCurrent ? (
                                       status.state === 'Playing' ? (
                                         <Zap size={14} color="var(--accent-pink)" />
@@ -1220,7 +1224,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                                         <Play size={13} color="var(--accent-pink)" fill="var(--accent-pink)" />
                                       )
                                     ) : (
-                                      t.track_no || idx + 1
+                                      idx + 1
                                     )}
                                   </td>
                                   <td className="library-track-cell" style={{ padding: '0 10px', fontWeight: 600, color: isCurrent ? 'var(--accent-pink)' : '#fff' }}>
