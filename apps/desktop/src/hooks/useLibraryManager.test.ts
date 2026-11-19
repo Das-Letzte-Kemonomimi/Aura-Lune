@@ -222,4 +222,89 @@ describe('useLibraryManager hook', () => {
     });
     expect(result.current.sortOrder).toBe('desc');
   });
+
+  it('supports ascending and descending sort on default (#) field', () => {
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+
+    const sampleTracks: TrackRecord[] = [
+      {
+        id: 1,
+        title: 'Alpha',
+        artist: 'Band',
+        album_artist: 'Band',
+        album_id: null,
+        disc_no: 1,
+        track_no: 1,
+        path: '/music/alpha.flac',
+        duration_ms: 100000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 1000000,
+        bpm: 120,
+        initial_key: '5A',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: false,
+        rating: 0,
+        play_count: 0,
+        last_played_at: null,
+        modified_time: 1000,
+      },
+      {
+        id: 2,
+        title: 'Beta',
+        artist: 'Band',
+        album_artist: 'Band',
+        album_id: null,
+        disc_no: 1,
+        track_no: 2,
+        path: '/music/beta.flac',
+        duration_ms: 200000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 2000000,
+        bpm: 130,
+        initial_key: '6A',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: false,
+        rating: 0,
+        play_count: 0,
+        last_played_at: null,
+        modified_time: 2000,
+      },
+    ];
+
+    act(() => {
+      result.current.setTracks(sampleTracks);
+    });
+
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('asc');
+    expect(result.current.sortedTracks[0].title).toBe('Alpha');
+    expect(result.current.sortedTracks[1].title).toBe('Beta');
+
+    // Clicking '#' while already in default toggles to descending
+    act(() => {
+      result.current.handleSort('default');
+    });
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('desc');
+    expect(result.current.sortedTracks[0].title).toBe('Beta');
+    expect(result.current.sortedTracks[1].title).toBe('Alpha');
+
+    // Clicking '#' again toggles back to ascending
+    act(() => {
+      result.current.handleSort('default');
+    });
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('asc');
+    expect(result.current.sortedTracks[0].title).toBe('Alpha');
+    expect(result.current.sortedTracks[1].title).toBe('Beta');
+  });
 });
+

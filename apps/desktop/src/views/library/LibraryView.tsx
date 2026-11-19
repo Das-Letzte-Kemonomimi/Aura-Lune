@@ -891,24 +891,22 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                     <option value="date" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortDate}</option>
                     <option value="plays" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortPlays}</option>
                   </select>
-                  {sortField !== 'default' && (
-                    <button
-                      onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                      title={sortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
-                    >
-                      {sortOrder === 'asc' ? '▲' : '▼'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      color: 'var(--accent-cyan)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                    title={sortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
+                  >
+                    {sortOrder === 'asc' ? '▲' : '▼'}
+                  </button>
                 </div>
               </div>
 
@@ -984,11 +982,11 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                       {sortedTracks.length !== tracks.length
                         ? loc.library.resultsCount.replace('{0}', String(sortedTracks.length)).replace('{1}', String(tracks.length))
                         : loc.library.totalTracksCount.replace('{0}', String(tracks.length))}
-                      {sortField !== 'default' && ` • ${loc.library.sortedBy.replace('{0}', sortField).replace('{1}', sortOrder === 'asc' ? loc.library.sortedAsc : loc.library.sortedDesc)}`}
+                      {(sortField !== 'default' || sortOrder !== 'asc') && ` • ${loc.library.sortedBy.replace('{0}', sortField === 'default' ? '#' : sortField).replace('{1}', sortOrder === 'asc' ? loc.library.sortedAsc : loc.library.sortedDesc)}`}
                       {smartPlaylistFilter === 'history' && ` • ${loc.library.sortedNewest}`}
                       {smartPlaylistFilter === 'top_played' && ` • ${loc.library.sortedPlays}`}
                     </span>
-                    {sortedTracks.length > 0 && (sortField !== 'default' || librarySearch.trim() !== '' || smartPlaylistFilter !== 'all') && (
+                    {sortedTracks.length > 0 && (sortField !== 'default' || sortOrder !== 'asc' || librarySearch.trim() !== '' || smartPlaylistFilter !== 'all') && (
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => {
@@ -1050,7 +1048,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo(({
                             style={{ width: '46px', padding: '10px 6px', cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
                             title={loc.library.sortDefaultTooltip}
                           >
-                            # {sortField === 'default' && '•'}
+                            # {sortField === 'default' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                           </th>
                           <th
                             onClick={() => handleSort('title')}

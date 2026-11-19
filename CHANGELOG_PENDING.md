@@ -56,6 +56,11 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Dwukierunkowe sortowanie i wskaźniki kierunku dla domyślnej kolejności utworów (`#`) w bibliotece**:
+  - Rozwiązano problem braku reakcji na ponowne kliknięcie nagłówka kolumny `#` (`default`) oraz braku możliwości odwrócenia domyślnej kolejności utworów.
+  - W hooku `useLibraryManager.ts` obsłużono kierunek sortowania (`sortOrder === 'asc' ? baseList : [...baseList].reverse()`) w gałęzi `sortField === 'default'`, dzięki czemu ponowne kliknięcie nagłówka `#` lub użycie przycisku zmiany kierunku na pasku narzędzi natychmiast odwraca listę utworów (z zachowaniem aktywnych filtrów inteligentnych playlist).
+  - W nagłówku kolumny `#` w `LibraryView.tsx` zastąpiono statyczną kropkę aktywnym wskaźnikiem kierunku (`▲` dla rosnącego, `▼` dla malejącego), włączono widoczność przycisku przełączania kierunku w toolbarze przy wybranym domyślnym sortowaniu oraz zaktualizowano pasek stanu i akcję odtwarzania posortowanej kolejki.
+  - Dodano dedykowane testy jednostkowe weryfikujące przełączanie kierunku sortowania domyślnego w `useLibraryManager.test.ts`.
 - **Kompleksowe oczyszczenie adnotacji lintera React 19 i ESLint/Oxlint w CI/CD**:
   - Wyeliminowano ostrzeżenia `react(refs)` oraz `react(purity)` w `usePlaybackController.ts` poprzez przeniesienie synchronizacji referencji do hooków `useEffect` oraz wyeliminowanie nieczystych wywołań czasu (`Date.now()`, `performance.now()`) w trakcie fazy renderowania komponentów (`TrackStatsModal.tsx`, `VinylTurntable.tsx`).
   - Zastosowano bezpieczny wzorzec `pollingDepsRef` w pętli odpytywania stanu backendu, usuwając ostrzeżenie `react-hooks(exhaustive-deps)` i gwarantując przekazywanie najświeższych tokenów i danych bez efektu przestarzałych domknięć (stale closures) w scrobblerach Last.fm i ListenBrainz.

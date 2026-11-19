@@ -257,19 +257,17 @@ export function useLibraryManager({
 
   const sortedTracks = useMemo(() => {
     if (sortField === 'default') {
+      let baseList = filteredTracks;
       if (smartPlaylistFilter === 'history') {
-        return [...filteredTracks].sort((a, b) => (b.last_played_at || 0) - (a.last_played_at || 0));
+        baseList = [...filteredTracks].sort((a, b) => (b.last_played_at || 0) - (a.last_played_at || 0));
+      } else if (smartPlaylistFilter === 'top_played') {
+        baseList = [...filteredTracks].sort((a, b) => (b.play_count || 0) - (a.play_count || 0));
+      } else if (smartPlaylistFilter === 'top_rated') {
+        baseList = [...filteredTracks].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      } else if (smartPlaylistFilter === 'high_bpm') {
+        baseList = [...filteredTracks].sort((a, b) => (b.bpm || 0) - (a.bpm || 0));
       }
-      if (smartPlaylistFilter === 'top_played') {
-        return [...filteredTracks].sort((a, b) => (b.play_count || 0) - (a.play_count || 0));
-      }
-      if (smartPlaylistFilter === 'top_rated') {
-        return [...filteredTracks].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-      }
-      if (smartPlaylistFilter === 'high_bpm') {
-        return [...filteredTracks].sort((a, b) => (b.bpm || 0) - (a.bpm || 0));
-      }
-      return filteredTracks;
+      return sortOrder === 'asc' ? baseList : [...baseList].reverse();
     }
     const list = [...filteredTracks];
     list.sort((a, b) => {
