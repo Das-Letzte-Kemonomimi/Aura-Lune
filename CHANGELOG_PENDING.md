@@ -56,6 +56,11 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Kompleksowe oczyszczenie adnotacji lintera React 19 i ESLint/Oxlint w CI/CD**:
+  - Wyeliminowano ostrzeżenia `react(refs)` oraz `react(purity)` w `usePlaybackController.ts` poprzez przeniesienie synchronizacji referencji do hooków `useEffect` oraz wyeliminowanie nieczystych wywołań czasu (`Date.now()`, `performance.now()`) w trakcie fazy renderowania komponentów (`TrackStatsModal.tsx`, `VinylTurntable.tsx`).
+  - Zastosowano bezpieczny wzorzec `pollingDepsRef` w pętli odpytywania stanu backendu, usuwając ostrzeżenie `react-hooks(exhaustive-deps)` i gwarantując przekazywanie najświeższych tokenów i danych bez efektu przestarzałych domknięć (stale closures) w scrobblerach Last.fm i ListenBrainz.
+  - Poprawiono tablice zależności w hookach `useCallback` i `useEffect` w `useTranscodeManager.ts`, `KeyBpmModal.tsx`, `HarmonicSuggesterModal.tsx` oraz `BigScreenView.tsx`.
+  - Zastąpiono nieużywane parametry błędów `catch (_)` nowoczesną składnią `catch {}` w `useAmbienceMode.ts`, `usePlaybackController.ts`, `useAudioSettings.ts`, `VuMeterWidget.tsx` oraz `SpectrumVisualizer.tsx`.
 - **Poprawka uprawnień buforowania pakietów APT w potoku CI (GitHub Actions)**:
   - Rozwiązano problem niepowodzenia zapisu pamięci podręcznej (`/usr/bin/tar failed with error: exit code 2: Permission denied`) w kroku `Post job cleanup` dla ścieżki `/var/cache/apt/archives`.
   - Wprowadzono automatyczne usuwanie systemowych plików blokad roota (`lock` oraz katalogu `partial`) oraz nadawanie uprawnień odczytu dla użytkownika `runner` zaraz po instalacji pakietów, co zapewnia w 100% bezbłędne tworzenie archiwum `.tzst` w akcji `actions/cache`.

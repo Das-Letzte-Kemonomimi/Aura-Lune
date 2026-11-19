@@ -98,7 +98,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
   const platterRef = useRef<HTMLDivElement | null>(null);
   const angleRef = useRef<number>(0);
   const currentSpeedRef = useRef<number>(0); // w stopniach na sekundę
-  const lastTimeRef = useRef<number>(performance.now());
+  const lastTimeRef = useRef<number>(0);
   const [displayRpm, setDisplayRpm] = useState<string>(currentRpm);
 
   // Docelowa prędkość w stopniach na sekundę:

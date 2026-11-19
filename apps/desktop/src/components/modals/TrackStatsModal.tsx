@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Flame, Clock, BarChart3, RefreshCw, X, RotateCcw } from 'lucide-react';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
@@ -32,6 +32,8 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
   onClose,
   onResetPlays,
 }) => {
+  const [currentTimestamp] = useState(() => Math.floor(Date.now() / 1000));
+
   if (!track) return null;
 
   const loc = getTranslations(currentLang);
@@ -56,8 +58,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
 
   const formatRelativeTime = (timestamp?: number | null) => {
     if (!timestamp) return loc.player.neverPlayed;
-    const now = Math.floor(Date.now() / 1000);
-    const diff = now - timestamp;
+    const diff = currentTimestamp - timestamp;
     if (diff < 60) return loc.stats.relativeJustNow;
     if (diff < 3600) return loc.stats.relativeMinutesAgo.replace('{m}', String(Math.floor(diff / 60)));
     if (diff < 86400) return loc.stats.relativeHoursAgo.replace('{h}', String(Math.floor(diff / 3600)));

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   X,
   Disc3,
@@ -108,7 +108,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         }
       } catch {}
     }
-  }, [isOpen, effectiveCurrentTrack?.id, effectiveCurrentTrack?.uri]);
+  }, [isOpen, effectiveCurrentTrack, onTrackKeyBpmUpdated]);
 
   const effectiveKey = analyzedCurrentKey || effectiveCurrentTrack?.initial_key || null;
   const effectiveBpm = analyzedCurrentBpm || effectiveCurrentTrack?.bpm || null;
@@ -137,7 +137,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   };
 
   // Analiza klucza i BPM dla utworu bazowego, jeśli nie ma w bazie
-  const handleAnalyzeCurrent = async () => {
+  const handleAnalyzeCurrent = useCallback(async () => {
     if (!effectiveCurrentTrack) return;
     setIsAnalyzingCurrent(true);
     try {
@@ -163,14 +163,17 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
     } finally {
       setIsAnalyzingCurrent(false);
     }
-  };
+  }, [effectiveCurrentTrack, onTrackKeyBpmUpdated]);
+
+  const hasCamelot = Boolean(currentCamelot);
+  const hasBpm = Boolean(effectiveBpm);
 
   // Automatyczna próba wykrycia klucza i BPM po otwarciu okna dla utworu, który ich nie posiada
   useEffect(() => {
     if (isOpen && effectiveCurrentTrack && (!currentCamelot || !effectiveBpm) && !isAnalyzingCurrent) {
       handleAnalyzeCurrent();
     }
-  }, [isOpen, effectiveCurrentTrack?.id, Boolean(currentCamelot), Boolean(effectiveBpm)]);
+  }, [isOpen, effectiveCurrentTrack, currentCamelot, effectiveBpm, hasCamelot, hasBpm, isAnalyzingCurrent, handleAnalyzeCurrent]);
 
   // Ranking utworów z biblioteki
   const rankedTracks = useMemo(() => {

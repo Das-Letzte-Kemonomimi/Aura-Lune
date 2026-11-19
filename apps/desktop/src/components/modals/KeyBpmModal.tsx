@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Activity,
@@ -87,7 +87,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   const [tapActive, setTapActive] = useState<boolean>(false);
 
   // Funkcja automatycznej detekcji tonacji i BPM w tle
-  const handleAutoDetect = async (path?: string, trackId?: number, forceRecompute: boolean = false) => {
+  const handleAutoDetect = useCallback(async (path?: string, trackId?: number, forceRecompute: boolean = false) => {
     const targetPath = path || currentTrackPath;
     if (!targetPath) return;
 
@@ -140,7 +140,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
     } finally {
       setIsDetecting(false);
     }
-  };
+  }, [currentTrackPath, currentTrackId, onTrackKeyBpmUpdated]);
 
   // Wczytaj zapamiętane metadane dla utworu lub automatycznie wykryj jeśli brak
   useEffect(() => {
@@ -175,7 +175,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
     if (!hasStored && currentTrackPath) {
       handleAutoDetect(currentTrackPath, currentTrackId);
     }
-  }, [isOpen, currentTrackId, currentTrackPath]);
+  }, [isOpen, currentTrackId, currentTrackPath, handleAutoDetect]);
 
   if (!isOpen) return null;
 

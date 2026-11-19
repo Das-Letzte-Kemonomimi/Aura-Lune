@@ -42,7 +42,6 @@ export function useTranscodeManager({
   activeTrackId,
   reverbEnabled,
   reverbLevel,
-  language,
   loc,
   t,
   showMessage,
@@ -462,7 +461,6 @@ export function useTranscodeManager({
   }, [
     isTranscoding,
     showMessage,
-    language,
     transcodeFormat,
     transcodeBitrate,
     transcodeApplyDsp,
@@ -487,6 +485,7 @@ export function useTranscodeManager({
     currentPlayingTrack,
     transcodeAutoEnqueue,
     handleAddTrackToQueue,
+    t.notifications.exportStartedBackground,
     t.notifications.transcodeSuccessMsg,
     t.common.errorPrefix,
     loadLibrary,

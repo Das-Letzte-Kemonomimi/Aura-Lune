@@ -22,7 +22,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     try {
       const saved = localStorage.getItem('auralune_vumeter_theme');
       if (saved === 'amber' || saved === 'sakura' || saved === 'cyber') return saved;
-    } catch (_) {}
+    } catch {}
     return initialTheme;
   });
 
@@ -36,7 +36,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     setTheme(newTheme);
     try {
       localStorage.setItem('auralune_vumeter_theme', newTheme);
-    } catch (_) {}
+    } catch {}
   };
 
   useEffect(() => {

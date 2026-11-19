@@ -74,7 +74,7 @@ export function useAudioSettings({
     try {
       const saved = localStorage.getItem('auralune_replaygain_mode');
       if (saved === 'Off' || saved === 'Track' || saved === 'Album' || saved === 'Auto') return saved;
-    } catch (_) {}
+    } catch {}
     return 'Off';
   });
 
@@ -85,7 +85,7 @@ export function useAudioSettings({
         const val = parseFloat(saved);
         if (!isNaN(val)) return val;
       }
-    } catch (_) {}
+    } catch {}
     return 0.0;
   });
 
@@ -96,7 +96,7 @@ export function useAudioSettings({
         const val = parseFloat(saved);
         if (!isNaN(val)) return val;
       }
-    } catch (_) {}
+    } catch {}
     return -6.0;
   });
 
@@ -104,7 +104,7 @@ export function useAudioSettings({
     try {
       const saved = localStorage.getItem('auralune_replaygain_prevent_clipping');
       if (saved !== null) return saved === 'true';
-    } catch (_) {}
+    } catch {}
     return true;
   });
 
@@ -136,7 +136,7 @@ export function useAudioSettings({
         localStorage.setItem('auralune_replaygain_preamp', preAmp.toString());
         localStorage.setItem('auralune_replaygain_fallback', fallbackGain.toString());
         localStorage.setItem('auralune_replaygain_prevent_clipping', preventClipping.toString());
-      } catch (_) {}
+      } catch {}
     } catch (e: unknown) {
       console.error('Błąd aktualizacji ReplayGain:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
@@ -203,7 +203,7 @@ export function useAudioSettings({
   const [crossfeedEnabled, setCrossfeedEnabled] = useState<boolean>(() => {
     try {
       return localStorage.getItem('auralune_crossfeed_enabled') === 'true';
-    } catch (_) {
+    } catch {
       return false;
     }
   });
@@ -212,7 +212,7 @@ export function useAudioSettings({
     try {
       const saved = localStorage.getItem('auralune_crossfeed_preset');
       if (saved === 'Default' || saved === 'ChuMoy' || saved === 'JanMeier' || saved === 'Custom') return saved;
-    } catch (_) {}
+    } catch {}
     return 'Default';
   });
 
@@ -220,7 +220,7 @@ export function useAudioSettings({
     try {
       const saved = localStorage.getItem('auralune_crossfeed_fcut');
       if (saved) return parseInt(saved, 10) || 700;
-    } catch (_) {}
+    } catch {}
     return 700;
   });
 
@@ -228,7 +228,7 @@ export function useAudioSettings({
     try {
       const saved = localStorage.getItem('auralune_crossfeed_feed');
       if (saved) return parseInt(saved, 10) || 45;
-    } catch (_) {}
+    } catch {}
     return 45;
   });
 
@@ -268,7 +268,7 @@ export function useAudioSettings({
         localStorage.setItem('auralune_crossfeed_preset', preset);
         localStorage.setItem('auralune_crossfeed_fcut', targetFcut.toString());
         localStorage.setItem('auralune_crossfeed_feed', targetFeed.toString());
-      } catch (_) {}
+      } catch {}
       showMessage(
         enabled
           ? loc.notifications.crossfeedOn.replace('{0}', `${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`)
@@ -284,7 +284,7 @@ export function useAudioSettings({
   const [silenceTrimmingEnabled, setSilenceTrimmingEnabled] = useState<boolean>(() => {
     try {
       return localStorage.getItem('auralune_silence_trimming_enabled') === 'true';
-    } catch (_) {
+    } catch {
       return false;
     }
   });
@@ -293,7 +293,7 @@ export function useAudioSettings({
     try {
       const saved = localStorage.getItem('auralune_silence_trimming_threshold');
       if (saved) return parseFloat(saved) || -50.0;
-    } catch (_) {}
+    } catch {}
     return -50.0;
   });
 
@@ -310,7 +310,7 @@ export function useAudioSettings({
       try {
         localStorage.setItem('auralune_silence_trimming_enabled', enabled.toString());
         localStorage.setItem('auralune_silence_trimming_threshold', threshold.toString());
-      } catch (_) {}
+      } catch {}
     } catch (e: unknown) {
       console.error('Błąd aktualizacji Silence Trimming:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);

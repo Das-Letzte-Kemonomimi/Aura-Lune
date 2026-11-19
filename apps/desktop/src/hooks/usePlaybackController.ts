@@ -68,7 +68,9 @@ export function usePlaybackController({
   // Volume reference for mute/unmute
   const lastNonZeroVolRef = useRef<number>(1.0);
   const instantVolumeRef = useRef<boolean>(instantVolume);
-  instantVolumeRef.current = instantVolume;
+  useEffect(() => {
+    instantVolumeRef.current = instantVolume;
+  }, [instantVolume]);
   const smoothVolumeAnimRef = useRef<any>(null);
 
   // User gesture interaction guards to eliminate UI lag & rubberbanding
@@ -92,9 +94,59 @@ export function usePlaybackController({
   // Stats / Recap tracking refs
   const lastRecordedTrackRef = useRef<{ id: number; recorded: boolean }>({ id: -1, recorded: false });
   const lastTrackPositionMsRef = useRef<number>(0);
-  const lastListeningTickRef = useRef<number>(Date.now());
+  const lastListeningTickRef = useRef<number>(0);
   const statusRef = useRef(status);
-  statusRef.current = status;
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  const pollingDepsRef = useRef({
+    tracks,
+    albums,
+    listenbrainzEnabled,
+    listenbrainzToken,
+    scrobbledTrackId,
+    setScrobbledTrackId,
+    lastfmEnabled,
+    lastfmSessionKey,
+    lastfmCustomKey,
+    lastfmCustomSecret,
+    lastfmScrobbledTrackId,
+    setLastfmScrobbledTrackId,
+    showMessage,
+    loc,
+    setStatus,
+    setFilePath,
+    setActiveTrackId,
+    setReplaygainStatus,
+    setTracks,
+    initialStartupPositionRef,
+  });
+
+  useEffect(() => {
+    pollingDepsRef.current = {
+      tracks,
+      albums,
+      listenbrainzEnabled,
+      listenbrainzToken,
+      scrobbledTrackId,
+      setScrobbledTrackId,
+      lastfmEnabled,
+      lastfmSessionKey,
+      lastfmCustomKey,
+      lastfmCustomSecret,
+      lastfmScrobbledTrackId,
+      setLastfmScrobbledTrackId,
+      showMessage,
+      loc,
+      setStatus,
+      setFilePath,
+      setActiveTrackId,
+      setReplaygainStatus,
+      setTracks,
+      initialStartupPositionRef,
+    };
+  });
 
   // Clean up volume animation & timers on unmount
   useEffect(() => {
@@ -126,17 +178,40 @@ export function usePlaybackController({
 
     const fetchStatus = async () => {
       try {
+        const {
+          tracks: currentTracks,
+          albums: currentAlbums,
+          listenbrainzEnabled: lbEnabled,
+          listenbrainzToken: lbToken,
+          scrobbledTrackId: curScrobbledTrackId,
+          setScrobbledTrackId: curSetScrobbledTrackId,
+          lastfmEnabled: lfEnabled,
+          lastfmSessionKey: lfSessionKey,
+          lastfmCustomKey: lfCustomKey,
+          lastfmCustomSecret: lfCustomSecret,
+          lastfmScrobbledTrackId: curLastfmScrobbledTrackId,
+          setLastfmScrobbledTrackId: curSetLastfmScrobbledTrackId,
+          showMessage: curShowMessage,
+          loc: curLoc,
+          setStatus: curSetStatus,
+          setFilePath: curSetFilePath,
+          setActiveTrackId: curSetActiveTrackId,
+          setReplaygainStatus: curSetReplaygainStatus,
+          setTracks: curSetTracks,
+          initialStartupPositionRef: curInitialStartupPositionRef,
+        } = pollingDepsRef.current;
+
         const res = await invoke<PlaybackStatus>('get_status');
-        setStatus((prev) => {
+        curSetStatus((prev) => {
           // If the user is actively dragging the seek slider, preserve local position
           const targetPosition = isSeekingRef.current ? prev.position_ms : res.position_ms;
           // If the user is actively sliding volume, preserve local volume
           const targetVolume = isVolumeInteractingRef.current ? prev.volume : res.volume;
 
-          if (res.state === 'Stopped' && initialStartupPositionRef.current !== null && prev.current_track) {
+          if (res.state === 'Stopped' && curInitialStartupPositionRef.current !== null && prev.current_track) {
             return {
               ...res,
-              position_ms: initialStartupPositionRef.current,
+              position_ms: curInitialStartupPositionRef.current,
               duration_ms: prev.duration_ms || res.duration_ms,
               current_track: prev.current_track,
               volume: targetVolume,
@@ -163,17 +238,17 @@ export function usePlaybackController({
         });
 
         if (res.replaygain_status) {
-          setReplaygainStatus(res.replaygain_status);
+          curSetReplaygainStatus(res.replaygain_status);
         }
 
         if (res.current_track) {
           if (res.current_track.uri) {
             const trackUri = res.current_track.uri;
-            setFilePath(trackUri);
+            curSetFilePath(trackUri);
           }
           if (res.current_track.track_id) {
             const trackId = res.current_track.track_id;
-            setActiveTrackId(trackId);
+            curSetActiveTrackId(trackId);
 
             // Record actual listening time (Recap & Stats)
             if (res.state === 'Playing') {
@@ -192,8 +267,8 @@ export function usePlaybackController({
             // Loop detection
             if (res.position_ms < 3000 && lastTrackPositionMsRef.current > 5000) {
               lastRecordedTrackRef.current.recorded = false;
-              if (setScrobbledTrackId) setScrobbledTrackId(null);
-              if (setLastfmScrobbledTrackId) setLastfmScrobbledTrackId(null);
+              if (curSetScrobbledTrackId) curSetScrobbledTrackId(null);
+              if (curSetLastfmScrobbledTrackId) curSetLastfmScrobbledTrackId(null);
               invoke('notify_track_looped', { positionMs: res.position_ms }).catch(() => { });
             }
             lastTrackPositionMsRef.current = res.position_ms;
@@ -214,7 +289,7 @@ export function usePlaybackController({
               invoke('record_track_play', { trackId }).catch((e) =>
                 console.warn('Błąd zapisu odtworzenia:', e)
               );
-              setTracks((prev) =>
+              curSetTracks((prev) =>
                 prev.map((t) =>
                   t.id === trackId
                     ? {
@@ -230,21 +305,21 @@ export function usePlaybackController({
             // ListenBrainz scrobbler
             if (
               res.state === 'Playing' &&
-              listenbrainzEnabled &&
-              listenbrainzToken &&
-              scrobbledTrackId !== trackId &&
+              lbEnabled &&
+              lbToken &&
+              curScrobbledTrackId !== trackId &&
               res.duration_ms &&
               res.duration_ms >= 30000 &&
               res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
             ) {
-              if (setScrobbledTrackId) setScrobbledTrackId(trackId);
-              const currentTrackObj = tracks.find((t) => t.id === trackId);
+              if (curSetScrobbledTrackId) curSetScrobbledTrackId(trackId);
+              const currentTrackObj = currentTracks.find((t) => t.id === trackId);
               if (currentTrackObj) {
                 const trackAlb = currentTrackObj.album_id
-                  ? albums.find((a) => a.id === currentTrackObj.album_id)?.title
+                  ? currentAlbums.find((a) => a.id === currentTrackObj.album_id)?.title
                   : null;
                 invoke('submit_listenbrainz_listen', {
-                  token: listenbrainzToken,
+                  token: lbToken,
                   artist: currentTrackObj.artist,
                   title: currentTrackObj.title,
                   album: trackAlb || null,
@@ -252,7 +327,7 @@ export function usePlaybackController({
                   listenedAt: Math.floor(Date.now() / 1000),
                 })
                   .then(() => {
-                    showMessage(loc.notifications.scrobbledListenbrainz.replace('{0}', currentTrackObj.title));
+                    curShowMessage(curLoc.notifications.scrobbledListenbrainz.replace('{0}', currentTrackObj.title));
                   })
                   .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
               }
@@ -261,22 +336,22 @@ export function usePlaybackController({
             // Last.fm scrobbler
             if (
               res.state === 'Playing' &&
-              lastfmEnabled &&
-              lastfmSessionKey &&
-              lastfmScrobbledTrackId !== trackId &&
+              lfEnabled &&
+              lfSessionKey &&
+              curLastfmScrobbledTrackId !== trackId &&
               res.duration_ms &&
               res.duration_ms >= 30000 &&
               res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
             ) {
-              if (setLastfmScrobbledTrackId) setLastfmScrobbledTrackId(trackId);
-              const currentTrackObj = tracks.find((t) => t.id === trackId);
+              if (curSetLastfmScrobbledTrackId) curSetLastfmScrobbledTrackId(trackId);
+              const currentTrackObj = currentTracks.find((t) => t.id === trackId);
               if (currentTrackObj) {
                 const trackAlb = currentTrackObj.album_id
-                  ? albums.find((a) => a.id === currentTrackObj.album_id)?.title
+                  ? currentAlbums.find((a) => a.id === currentTrackObj.album_id)?.title
                   : null;
                 invoke('lastfm_scrobble', {
                   request: {
-                    session_key: lastfmSessionKey,
+                    session_key: lfSessionKey,
                     artist: currentTrackObj.artist,
                     track: currentTrackObj.title,
                     album: trackAlb || null,
@@ -284,19 +359,19 @@ export function usePlaybackController({
                     duration_sec: currentTrackObj.duration_ms
                       ? Math.round(currentTrackObj.duration_ms / 1000)
                       : null,
-                    api_key: lastfmCustomKey.trim() || null,
-                    api_secret: lastfmCustomSecret.trim() || null,
+                    api_key: lfCustomKey.trim() || null,
+                    api_secret: lfCustomSecret.trim() || null,
                   },
                 })
                   .then(() => {
-                    showMessage(loc.notifications.scrobbledLastfm.replace('{0}', currentTrackObj.title));
+                    curShowMessage(curLoc.notifications.scrobbledLastfm.replace('{0}', currentTrackObj.title));
                   })
                   .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
               }
             }
           }
         }
-      } catch (_) {
+      } catch {
         // Ignore backend initialisation errors
       } finally {
         if (isMounted) {

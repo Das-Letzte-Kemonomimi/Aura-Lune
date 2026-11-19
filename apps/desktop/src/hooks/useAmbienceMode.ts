@@ -25,7 +25,7 @@ export function useAmbienceMode({ loc, showMessage }: UseAmbienceModeOptions) {
       ) {
         return saved as AmbienceMode;
       }
-    } catch (_) { }
+    } catch {}
     return 'off';
   });
 
@@ -51,7 +51,7 @@ export function useAmbienceMode({ loc, showMessage }: UseAmbienceModeOptions) {
                         : 'off';
       try {
         localStorage.setItem('auralune_ambience_mode', next);
-      } catch (_) { }
+      } catch {}
 
       const notif = loc.notifications;
       showMessage(

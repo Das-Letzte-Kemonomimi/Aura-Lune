@@ -42,7 +42,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       ) {
         return saved;
       }
-    } catch (_) {}
+    } catch {}
     return 'bars';
   });
   const peaksRef = useRef<number[]>([]);
@@ -472,7 +472,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
     setMode(next);
     try {
       localStorage.setItem('auralune_visualizer_mode', next);
-    } catch (_) {}
+    } catch {}
   };
 
   return (

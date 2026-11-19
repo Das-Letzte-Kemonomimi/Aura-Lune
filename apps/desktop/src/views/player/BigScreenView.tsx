@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Play,
   Pause,
@@ -107,7 +107,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   };
   const hideTimerRef = useRef<number | null>(null);
 
-  const resetHideTimer = () => {
+  const resetHideTimer = useCallback(() => {
     setShowHud(true);
     if (hideTimerRef.current) {
       window.clearTimeout(hideTimerRef.current);
@@ -117,7 +117,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
         setShowHud(false);
       }
     }, 3500);
-  };
+  }, [isPlaying]);
 
   useEffect(() => {
     resetHideTimer();
@@ -140,7 +140,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
-  }, [isPlaying]);
+  }, [isPlaying, onClose, onPlayPause, resetHideTimer]);
 
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
 
