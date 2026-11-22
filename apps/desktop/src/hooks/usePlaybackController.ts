@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/library';

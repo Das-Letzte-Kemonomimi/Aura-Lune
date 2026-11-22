@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { PlaybackStatus, DspPresetRecord } from '../types/playback';
 import type { EqualizerPreset } from '../types/equalizer';
 import type { Translations } from '../i18n';

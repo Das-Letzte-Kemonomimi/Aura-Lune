@@ -12,7 +12,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import {
   generateFrequencyResponseCurve,

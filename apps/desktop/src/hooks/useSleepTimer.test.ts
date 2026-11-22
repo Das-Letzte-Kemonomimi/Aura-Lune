@@ -4,11 +4,8 @@ import { useSleepTimer } from './useSleepTimer';
 import type { PlaybackStatus } from '../types/playback';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
 import { getTranslations } from '../i18n';
+import { invokeMock as mockInvoke } from '../test/ipcMock';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: any[]) => mockInvoke(...args),
-}));
 
 describe('useSleepTimer hook', () => {
   const loc = getTranslations('en');

@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAppBootstrap, type UseAppBootstrapOptions } from './useAppBootstrap';
+import { invokeMock } from '../test/ipcMock';
 
-const invokeMock = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args),
-}));
 
 type DragDropHandler = (event: { payload: { type: string; paths?: string[] } }) => void;
 type EventHandler = (event: { payload: { paths?: string[] } }) => void;

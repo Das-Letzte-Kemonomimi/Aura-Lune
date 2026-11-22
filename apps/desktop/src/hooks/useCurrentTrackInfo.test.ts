@@ -1,13 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCurrentTrackInfo } from './useCurrentTrackInfo';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import { getTranslations } from '../i18n';
+import { invokeMock } from '../test/ipcMock';
 
-// Mock Tauri invoke API
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockResolvedValue(null),
-}));
+beforeEach(() => {
+  invokeMock.mockResolvedValue(null);
+});
+
 
 describe('useCurrentTrackInfo', () => {
   const loc = getTranslations('en');

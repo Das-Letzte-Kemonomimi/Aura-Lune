@@ -37,7 +37,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../api/ipc";
 import { FacetsFilterPane } from '../../components/library/FacetsFilterPane';
 import type { AlbumRecord, TrackRecord, PlaybackStatus, ReleaseCandidateDto } from '../../types/player';
 import { type Language, getTranslations } from '../../i18n';

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { Playlist } from '../types/playlist';
 import type { TrackRecord } from '../types/player';
 import type { RadioStation } from '../views/playlists/RadioView';

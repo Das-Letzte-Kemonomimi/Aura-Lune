@@ -3,9 +3,6 @@ import { renderHook, act } from '@testing-library/react';
 import { useScrobblerManager } from './useScrobblerManager';
 import { getTranslations } from '../i18n';
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockResolvedValue(undefined),
-}));
 
 describe('useScrobblerManager hook', () => {
   const loc = getTranslations('en');

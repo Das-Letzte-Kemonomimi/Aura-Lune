@@ -6,6 +6,24 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "react/set-state-in-effect": "off",
     "react/preserve-manual-memoization": "off",
-    "react/immutability": "off"
-  }
+    "react/immutability": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@tauri-apps/api/core",
+            "importNames": ["invoke"],
+            "message": "Use `invoke` from src/api/ipc — it type-checks command names and normalizes backend errors to IpcError."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/api/**", "src/test/**", "**/*.test.ts", "**/*.test.tsx"],
+      "rules": { "no-restricted-imports": "off" }
+    }
+  ]
 }

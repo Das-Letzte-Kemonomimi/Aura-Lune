@@ -7,7 +7,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import type { TrackTranscriptionData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 

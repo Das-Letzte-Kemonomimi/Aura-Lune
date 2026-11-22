@@ -4,9 +4,6 @@ import { useThemeManager } from './useThemeManager';
 import { getTranslations } from '../i18n';
 import type { Theme } from '../types/theme';
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}));
 
 describe('useThemeManager hook', () => {
   const loc = getTranslations('en');

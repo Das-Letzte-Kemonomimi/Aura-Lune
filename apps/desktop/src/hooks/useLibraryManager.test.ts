@@ -5,11 +5,8 @@ import { useLibraryManager } from './useLibraryManager';
 import { getTranslations } from '../i18n';
 import type { PlaybackStatus } from '../types/playback';
 import type { TrackRecord, AlbumRecord } from '../types/library';
+import { invokeMock as mockInvoke } from '../test/ipcMock';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: any[]) => mockInvoke(...args),
-}));
 
 describe('useLibraryManager hook', () => {
   const loc = getTranslations('en');

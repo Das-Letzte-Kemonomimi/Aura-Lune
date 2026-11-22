@@ -3,11 +3,8 @@ import { renderHook, act } from '@testing-library/react';
 import { useSessionManager } from './useSessionManager';
 import { getTranslations } from '../i18n';
 import type { PlaybackStatus } from '../types/playback';
+import { invokeMock as mockInvoke } from '../test/ipcMock';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: any[]) => mockInvoke(...args),
-}));
 
 describe('useSessionManager hook', () => {
   const loc = getTranslations('en');

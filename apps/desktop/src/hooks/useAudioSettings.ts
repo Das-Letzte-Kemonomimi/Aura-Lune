@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { AudioCard } from '../types/audioDevices';
 import type { TrackRecord } from '../types/library';
 import type { Translations } from '../i18n';

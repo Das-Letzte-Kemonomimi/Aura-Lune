@@ -153,3 +153,25 @@ fn test_every_frontend_invoke_targets_a_registered_command() {
         missing.into_iter().collect::<Vec<_>>().join("\n  ")
     );
 }
+
+/// `src/api/commands.generated.ts` (typ `CommandName` używany przez `invoke` we frontendzie)
+/// musi zawierać dokładnie zarejestrowane komendy. Po zmianie listy uruchom `npm run gen:commands`.
+#[test]
+fn test_generated_frontend_command_names_match_registered_commands() {
+    let generated =
+        fs::read_to_string(manifest_dir().join("../src/api/commands.generated.ts")).unwrap();
+    let in_ts: BTreeSet<String> = generated
+        .lines()
+        .map(str::trim)
+        .filter_map(|l| l.strip_prefix('\'').and_then(|l| l.strip_suffix("',")))
+        .map(str::to_string)
+        .collect();
+    let registered = registered_commands();
+
+    let missing: Vec<_> = registered.difference(&in_ts).collect();
+    let stale: Vec<_> = in_ts.difference(&registered).collect();
+    assert!(
+        missing.is_empty() && stale.is_empty(),
+        "src/api/commands.generated.ts jest nieaktualny — uruchom `npm run gen:commands` w apps/desktop.\n  brakujące: {missing:?}\n  nadmiarowe: {stale:?}"
+    );
+}

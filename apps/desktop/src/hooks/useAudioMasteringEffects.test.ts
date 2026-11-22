@@ -3,11 +3,8 @@ import { renderHook, act } from '@testing-library/react';
 import { useAudioMasteringEffects } from './useAudioMasteringEffects';
 import type { PlaybackStatus } from '../types/player';
 import { getTranslations } from '../i18n';
+import { invokeMock } from '../test/ipcMock';
 
-const invokeMock = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args),
-}));
 
 describe('useAudioMasteringEffects', () => {
   const loc = getTranslations('en');

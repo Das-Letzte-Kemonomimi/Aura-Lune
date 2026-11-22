@@ -11,7 +11,7 @@ import {
   Sparkles,
   Loader2,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 

@@ -42,7 +42,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../api/ipc";
 import { LyricsView } from '../../components/player/LyricsView';
 import { TapeDeckWidget, type TapeType } from '../../components/player/TapeDeckWidget';
 import { VinylTurntable } from '../../components/player/VinylTurntable';

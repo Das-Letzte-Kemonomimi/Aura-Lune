@@ -4,11 +4,8 @@ import { usePlaybackController } from './usePlaybackController';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue } from '../types/queue';
 import { getTranslations } from '../i18n';
+import { invokeMock as mockInvoke } from '../test/ipcMock';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: any[]) => mockInvoke(...args),
-}));
 
 describe('usePlaybackController', () => {
   const loc = getTranslations('en');

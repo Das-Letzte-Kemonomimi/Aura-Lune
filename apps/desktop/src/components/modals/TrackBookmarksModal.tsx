@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from 'lucide-react';
 import { formatTimeMs } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';

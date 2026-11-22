@@ -14,7 +14,7 @@ import {
   ListMusic,
   SlidersHorizontal,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 
 export interface ImportedItem {

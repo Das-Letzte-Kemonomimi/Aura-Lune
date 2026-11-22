@@ -10,7 +10,7 @@ import {
   Play,
   RotateCcw,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import { listen } from '@tauri-apps/api/event';
 import type { StemSeparationData, StemMixerState } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';

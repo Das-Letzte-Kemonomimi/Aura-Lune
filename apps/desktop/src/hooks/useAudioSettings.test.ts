@@ -3,11 +3,8 @@ import { renderHook, act } from '@testing-library/react';
 import { useAudioSettings } from './useAudioSettings';
 import { getTranslations } from '../i18n';
 import type { AudioCard } from '../types/audioDevices';
+import { invokeMock as mockInvoke } from '../test/ipcMock';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: any[]) => mockInvoke(...args),
-}));
 
 describe('useAudioSettings hook', () => {
   const loc = getTranslations('en');

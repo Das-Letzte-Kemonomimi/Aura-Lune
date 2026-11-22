@@ -5,9 +5,6 @@ import { getTranslations } from '../i18n';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue } from '../types/queue';
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockResolvedValue(undefined),
-}));
 
 describe('useInfinityQueue hook', () => {
   const loc = getTranslations('en');

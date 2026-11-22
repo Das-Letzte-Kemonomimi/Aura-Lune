@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from '../types/player';
 import { formatTimeMs, parseTimeToMs } from '../utils/timeFormat';
 import type { Language, Translations, getTranslations } from '../i18n';

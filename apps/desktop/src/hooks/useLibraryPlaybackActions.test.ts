@@ -4,11 +4,8 @@ import { useLibraryPlaybackActions } from './useLibraryPlaybackActions';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import type { PlaybackQueue } from '../types/queue';
 import { getTranslations } from '../i18n';
+import { invokeMock } from '../test/ipcMock';
 
-const invokeMock = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args),
-}));
 
 describe('useLibraryPlaybackActions', () => {
   const loc = getTranslations('en');

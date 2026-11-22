@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
 import { getTransposedKey } from '../utils/harmonicMixing';

@@ -7,7 +7,7 @@ import {
   HardDrive,
   Sparkles,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../api/ipc';
 import type { StemProject, StemProjectProgressPayload } from '../../types/analysis';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';

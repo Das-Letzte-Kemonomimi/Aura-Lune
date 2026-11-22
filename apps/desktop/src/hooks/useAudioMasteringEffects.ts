@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../api/ipc';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
 

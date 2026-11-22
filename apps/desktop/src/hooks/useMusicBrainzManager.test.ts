@@ -4,9 +4,6 @@ import { useMusicBrainzManager } from './useMusicBrainzManager';
 import { getTranslations } from '../i18n';
 import type { AlbumRecord } from '../types/library';
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}));
 
 describe('useMusicBrainzManager hook', () => {
   const loc = getTranslations('en');

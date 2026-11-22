@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { usePlaybackQueue } from './usePlaybackQueue';
 import { DEFAULT_QUEUE_COLUMNS } from '../types/queue';
+import { invokeMock } from '../test/ipcMock';
 
-// Mock Tauri invoke API
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(async (cmd: string, args?: unknown) => {
+// Domyślne odpowiedzi backendu dla testów kolejki.
+beforeEach(() => {
+  invokeMock.mockImplementation(async (cmd: string, args?: unknown) => {
     if (cmd === 'get_queue') {
       return {
         items: [
@@ -48,8 +49,9 @@ vi.mock('@tauri-apps/api/core', () => ({
       };
     }
     return null;
-  }),
-}));
+  });
+});
+
 
 describe('usePlaybackQueue hook', () => {
   beforeEach(() => {
