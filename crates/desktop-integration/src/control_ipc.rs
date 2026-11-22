@@ -153,7 +153,14 @@ impl ControlIpcServer {
                                 continue;
                             }
                             debug!("Odebrano polecenie z Socket: '{}'", trimmed);
-                            let response = Self::execute_command(&engine_clone, trimmed);
+                            // Polecenia transportu blokują (mikro-fade'y) — poza wątkiem Tokio.
+                            let engine = engine_clone.clone();
+                            let cmd = trimmed.to_string();
+                            let response = tokio::task::spawn_blocking(move || {
+                                Self::execute_command(&engine, &cmd)
+                            })
+                            .await
+                            .unwrap_or("ERR");
                             let _ = write_half
                                 .write_all(format!("{}\n", response).as_bytes())
                                 .await;

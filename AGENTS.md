@@ -246,7 +246,7 @@ Aura-Lune/
 
 ### `crates/desktop-integration`
 - **Purpose**: Linux desktop integration:
-  - **MPRIS v2 D-Bus Interface**: Native system media keys, lock screen integration.
+  - **MPRIS v2 D-Bus Interface**: Native system media keys, lock screen integration. Handlers run engine calls through `spawn_blocking` (transport methods sleep for micro-fades and must not block the Tokio D-Bus executor); the control socket does the same.
   - **Discord Rich Presence**: Live playback status, elapsed time, album art.
   - **Waybar Custom Module**: Real-time JSON IPC endpoint (`/tmp/auralune.json`).
   - **Desktop Icon Updater**: Switches system and window icons dynamically.

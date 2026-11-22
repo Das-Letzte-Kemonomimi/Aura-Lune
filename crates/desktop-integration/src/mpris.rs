@@ -103,10 +103,25 @@ impl RootInterface for AuraluneMprisHandler {
     }
 }
 
+impl AuraluneMprisHandler {
+    /// Wykonuje operację na silniku poza wątkiem wykonawcy D-Bus.
+    ///
+    /// Metody przełączające utwory i przewijające śpią na czas mikro-fade'ów (do ~150 ms) —
+    /// wywołane bezpośrednio blokowałyby wątek Tokio obsługujący zapytania MPRIS.
+    async fn on_engine<T, F>(&self, f: F) -> Option<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(&AudioEngine) -> T + Send + 'static,
+    {
+        let engine = Arc::clone(&self.engine);
+        tokio::task::spawn_blocking(move || f(&engine)).await.ok()
+    }
+}
+
 impl PlayerInterface for AuraluneMprisHandler {
     async fn next(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Next()");
-        if let Ok(Some(item)) = self.engine.play_next() {
+        if let Some(Ok(Some(item))) = self.on_engine(|e| e.play_next()).await {
             self.set_track_info(MprisTrackInfo {
                 title: item.title,
                 artist: item.artist,
@@ -120,7 +135,7 @@ impl PlayerInterface for AuraluneMprisHandler {
 
     async fn previous(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Previous()");
-        if let Ok(Some(item)) = self.engine.play_previous() {
+        if let Some(Ok(Some(item))) = self.on_engine(|e| e.play_previous()).await {
             self.set_track_info(MprisTrackInfo {
                 title: item.title,
                 artist: item.artist,
@@ -134,56 +149,59 @@ impl PlayerInterface for AuraluneMprisHandler {
 
     async fn pause(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Pause()");
-        let _ = self.engine.pause();
+        self.on_engine(|e| e.pause()).await;
         Ok(())
     }
 
     async fn play_pause(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: PlayPause()");
-        if self.engine.state() == PlaybackState::Playing {
-            let _ = self.engine.pause();
-        } else {
-            let _ = self.engine.play();
-        }
+        self.on_engine(|e| {
+            if e.state() == PlaybackState::Playing {
+                e.pause()
+            } else {
+                e.play()
+            }
+        })
+        .await;
         Ok(())
     }
 
     async fn stop(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Stop()");
-        let _ = self.engine.stop();
+        self.on_engine(|e| e.stop()).await;
         Ok(())
     }
 
     async fn play(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Play()");
-        let _ = self.engine.play();
+        self.on_engine(|e| e.play()).await;
         Ok(())
     }
 
     async fn seek(&self, offset: Time) -> fdo::Result<()> {
         let offset_ms = offset.as_millis();
         info!("MPRIS D-Bus: Seek({} ms)", offset_ms);
-        let cur = self
-            .engine
-            .position()
-            .map(|d| d.as_millis() as i64)
-            .unwrap_or(0);
-        let target = (cur + offset_ms).max(0) as u64;
-        let _ = self.engine.seek(Duration::from_millis(target));
+        self.on_engine(move |e| {
+            let cur = e.position().map(|d| d.as_millis() as i64).unwrap_or(0);
+            let target = (cur + offset_ms).max(0) as u64;
+            e.seek(Duration::from_millis(target))
+        })
+        .await;
         Ok(())
     }
 
     async fn set_position(&self, _track_id: TrackId, position: Time) -> fdo::Result<()> {
         let pos_ms = position.as_millis().max(0) as u64;
         info!("MPRIS D-Bus: SetPosition({} ms)", pos_ms);
-        let _ = self.engine.seek(Duration::from_millis(pos_ms));
+        self.on_engine(move |e| e.seek(Duration::from_millis(pos_ms)))
+            .await;
         Ok(())
     }
 
     async fn open_uri(&self, uri: String) -> fdo::Result<()> {
         info!("MPRIS D-Bus: OpenUri({})", uri);
-        let _ = self.engine.load_uri(&uri);
-        let _ = self.engine.play();
+        self.on_engine(move |e| e.load_uri(&uri).and_then(|_| e.play()))
+            .await;
         Ok(())
     }
 

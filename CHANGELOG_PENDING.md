@@ -56,6 +56,7 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Klawisze multimedialne (MPRIS) i gniazdo sterowania nie blokują już wątków asynchronicznych**: polecenia następny/poprzedni/przewiń (z mikro-wyciszeniami do ~150 ms) wykonywane są w puli wątków blokujących.
 - **Wizualizacja widma nie może już spowodować paniki** dla analizatora zwracającego od 16 do 63 pasm (wcześniej indeks wychodził poza zakres).
 - **Utwory przechodzą dalej także przy ukrytym oknie**: magistrala silnika audio (koniec utworu, następny utwór, zapętlenie) była obsługiwana tylko wtedy, gdy interfejs odpytywał `get_status`. Nowy backendowy ticker odtwarzania (`setup/playback_ticker.rs`) działa niezależnie od okna — odtwarzanie z zasobnika systemowego, zminimalizowane lub zdławione przez WebKit nie zatrzymuje się już po bieżącym utworze. Po automatycznej zmianie utworu aktualizowane są też metadane MPRIS.
 - **Pomijanie ciszy (Silence Trimming) wreszcie działa**: element GStreamera `cutter` nigdy nie był podłączony do potoku (i wymusiłby 16-bitowy dźwięk). Cisza na początku i końcu utworu jest teraz wykrywana w tle, zapamiętywana w bazie (migracja v3) i pomijana: odtwarzanie startuje od pierwszego dźwięku, a po ostatnim przechodzi dalej — z zachowaniem trybów powtarzania, „stop po bieżącym” i crossfade. Koniec utworu nigdy nie jest ucinany, jeśli analiza nie objęła całego pliku.
