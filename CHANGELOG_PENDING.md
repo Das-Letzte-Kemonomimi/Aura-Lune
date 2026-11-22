@@ -56,6 +56,23 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Losowe odtwarzanie całej biblioteki (Shuffle All) znów działa**: frontend wywoływał nieistniejącą komendę `set_shuffle`, przez co odtwarzanie nigdy się nie rozpoczynało. Dodano idempotentną komendę backendu `set_shuffle(enabled)`.
+- **Zastępowanie utworu demonstracyjnego pierwszym utworem z biblioteki**: dodano brakującą komendę `set_active_track`, dzięki czemu po pierwszym skanowaniu backend faktycznie ładuje wybrany utwór (wcześniej wywołanie trafiało w próżnię).
+- **Wyłącznik czasowy (Sleep Timer) odlicza podczas odtwarzania**: interwał był restartowany przy każdym renderze (~10×/s), więc odliczanie nie postępowało. `showMessage` ma teraz stabilną referencję, a efekty uboczne (`pause`, `set_volume`) nie są już wykonywane wewnątrz aktualizatora stanu.
+- **Skróty klawiaturowe używają aktualnego języka, formatu głośności i handlerów** (wcześniej zamrożone wartości z pierwszego renderu).
+- **Jedno upuszczenie pliku (Drag & Drop) jest obsługiwane jednokrotnie** — zdarzenia z kilku kanałów (webview, okno, `tauri://drag-drop`, HTML5) są deduplikowane. Usunięto też podwójne wczytywanie presetów DSP i playlist przy starcie.
+- **Brak wycieków nasłuchów zdarzeń Tauri**: nowy hook `useTauriEvent` wyrejestrowuje nasłuch również wtedy, gdy komponent zostanie odmontowany przed rozwiązaniem `listen()`.
+- **Skaner biblioteki zapisuje prawdziwego wykonawcę albumu** (tag `ALBUMARTIST`, z rezerwą na wykonawcę utworu) zamiast tytułu albumu; kompilacje nie rozpadają się już na osobne albumy dla każdego artysty. Migracja v2 naprawia istniejące rekordy.
+- **Usunięte z dysku pliki znikają z biblioteki po ponownym skanowaniu** — tylko w obrębie skanowanego folderu i tylko po kompletnym przejściu istniejącego katalogu (odmontowany dysk nie wyczyści biblioteki).
+- **Usuwanie utworu z zapisaną zakładką odtwarzania** nie kończy się już błędem klucza obcego (`ON DELETE CASCADE`, migracja v2).
+- **Bezpieczna zmiana nazw plików**: wzorce nie mogą tworzyć ścieżek absolutnych ani wychodzić poza katalog pliku (`..`), wartości tagów `.`/`..` są neutralizowane, długość składników jest ograniczona, a istniejące pliki są nadpisywane wyłącznie po potwierdzeniu.
+- **Analiza akordów i transkrypcja z pamięci podręcznej zwracają zapisane tempo, tonację i kod Camelot** zamiast stałych `120 BPM` / `"Detected"`; eksport MIDI używa rzeczywistego tempa.
+- **ReplayGain w trybie Auto** zaczyna od Track Gain zamiast dziedziczyć tryb Album z poprzedniego ustawienia.
+- **Ścieżki ze spacjami i znakami spoza ASCII** (np. japońskie tytuły) w stemach, separacji i analizie są poprawnie kodowane jako URI (nowy moduł `audio_engine::uri`).
+- **Kolejność losowa (Shuffle) zmienia się między kolejkami** — ziarno nie zależy już wyłącznie od długości kolejki.
+- **Wyeliminowano możliwe zakleszczenie** silnika przy jednoczesnym `play()` i `play_index()` z różnych wątków (np. klawisze multimedialne MPRIS i kliknięcie w kolejce).
+- **Elementy kolejki dodawane przez upuszczenie plików** pokazują tytuł albumu zamiast wykonawcy albumu.
+
 - **Dwukierunkowe sortowanie i numeracja porządkowa w tabeli utworów (`#`) w bibliotece**:
   - Rozwiązano problem braku reakcji na ponowne kliknięcie nagłówka kolumny `#` (`default`) oraz braku możliwości odwrócenia domyślnej kolejności utworów.
   - Wyeliminowano powtarzające się wartości `#1` na każdym wierszu tabeli utworów: dotychczas kolumna `#` wyświetlała metadane numeru ścieżki z pliku (`t.track_no`), przez co wszystkie single cyfrowe oraz pierwsze utwory z albumów pokazywały tę samą wartość `1`. Zastąpiono ją sekwencyjnym numerem pozycji w widoku (`idx + 1`), a oryginalny numer ścieżki z tagów przeniesiono do dymku podpowiedzi (tooltip).
@@ -126,6 +143,8 @@
 ---
 
 ### 🔄 Zmieniono (Changed)
+- Usunięto nieużywane hooki `useAudioPlayer`, `useThemeEngine` i `useMainContentRouterProps` wraz z testami.
+- Dodano test kontraktu IPC (`apps/desktop/src-tauri/tests/ipc_contract_test.rs`), który wykrywa wywołania `invoke('…')` z frontendu do niezarejestrowanych komend Tauri.
 - **Kompleksowa dekompozycja monolitycznego pliku `App.tsx`**:
   - Skrócono monolityczny plik `App.tsx` z ponad 3700 linii do zwięzłej, czytelnej powłoki aplikacji (około 1300 linii).
   - Całą logikę biznesową wyodrębniono do ponad 20 dedykowanych hooków domenowych (`useAudioPlayer`, `usePlaybackController`, `usePlaybackQueue`, `useLibraryManager`, `useDspManager`, `useThemeEngine`, `useModalManager`, `useAudioSettings`, `usePlaylistManager`, `useTranscodeManager`, `useMusicBrainzManager`, `useScrobblerManager`, itp.).

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -8,10 +8,8 @@ import type { Language } from '../i18n';
 export interface UseAppBootstrapOptions {
   refreshDevices: () => Promise<unknown> | unknown;
   loadLibrary: () => Promise<unknown> | unknown;
-  loadPresets: () => Promise<unknown> | unknown;
   loadThemes: () => Promise<unknown> | unknown;
   refreshQueue: () => Promise<unknown> | unknown;
-  refreshPlaylists: () => Promise<unknown> | unknown;
   setAppVersion: (ver: string) => void;
   setLanguage: (lang: Language) => void;
   setSeekFadeEnabled: (enabled: boolean) => void;
@@ -27,13 +25,14 @@ export interface UseAppBootstrapOptions {
   stereoWidenerAmount: number;
 }
 
+/** Okno czasowe, w którym identyczne upuszczenie z innego kanału zdarzeń jest ignorowane. */
+const DUPLICATE_DROP_WINDOW_MS = 1000;
+
 export function useAppBootstrap({
   refreshDevices,
   loadLibrary,
-  loadPresets,
   loadThemes,
   refreshQueue,
-  refreshPlaylists,
   setAppVersion,
   setLanguage,
   setSeekFadeEnabled,
@@ -49,6 +48,12 @@ export function useAppBootstrap({
   stereoWidenerAmount,
 }: UseAppBootstrapOptions) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  // Najnowszy handler upuszczenia — rejestracja nasłuchów odbywa się raz, przy montowaniu.
+  const handleDropPathsRef = useRef(handleDropPaths);
+  useEffect(() => {
+    handleDropPathsRef.current = handleDropPaths;
+  }, [handleDropPaths]);
 
   // 1. Wczytanie początkowych ustawień aplikacji z SQLite
   useEffect(() => {
@@ -130,12 +135,11 @@ export function useAppBootstrap({
 
   // 2. Inicjalizacja usług, biblioteki, motywów, kolejki i rejestracja zdarzeń drag & drop
   useEffect(() => {
+    // Presety DSP i playlisty wczytują własne hooki (useDspManager / usePlaylistManager).
     refreshDevices();
     loadLibrary();
-    loadPresets();
     loadThemes();
     refreshQueue();
-    refreshPlaylists();
 
     invoke<string>('get_app_version')
       .then((ver) => {
@@ -144,6 +148,24 @@ export function useAppBootstrap({
       .catch(() => {});
 
     let isInternalDragging = false;
+
+    // To samo upuszczenie może dotrzeć kilkoma kanałami (zdarzenie webview, okna, surowe
+    // `tauri://drag-drop` oraz HTML5 `drop` — zależnie od platformy/WebKitGTK). Identyczny
+    // zestaw ścieżek w krótkim oknie czasowym jest obsługiwany tylko raz.
+    const createDropDispatcher = () => {
+      let lastKey = '';
+      let lastAt = 0;
+      return (paths: string[]) => {
+        if (!paths || paths.length === 0) return;
+        const key = [...paths].sort().join('\n');
+        const now = Date.now();
+        if (key === lastKey && now - lastAt < DUPLICATE_DROP_WINDOW_MS) return;
+        lastKey = key;
+        lastAt = now;
+        handleDropPathsRef.current(paths);
+      };
+    };
+    const dispatchDrop = createDropDispatcher();
     const handleDragStart = () => {
       isInternalDragging = true;
     };
@@ -211,9 +233,7 @@ export function useAppBootstrap({
         }
       }
 
-      if (paths.length > 0) {
-        handleDropPaths(paths);
-      }
+      dispatchDrop(paths);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -229,6 +249,8 @@ export function useAppBootstrap({
     window.addEventListener('drop', handleWindowDrop);
     window.addEventListener('keydown', handleKeyDown);
 
+    // Cleanup może nastąpić, zanim rejestracje się rozwiążą — wtedy wyrejestrowujemy od razu.
+    let disposed = false;
     let unlistenWebview: (() => void) | null = null;
     let unlistenWindow: (() => void) | null = null;
     let unlistenTauriEvent: (() => void) | null = null;
@@ -238,7 +260,8 @@ export function useAppBootstrap({
       refreshQueue();
     })
       .then((unlisten) => {
-        unlistenQueueEvent = unlisten;
+        if (disposed) unlisten();
+        else unlistenQueueEvent = unlisten;
       })
       .catch(() => {});
 
@@ -257,14 +280,15 @@ export function useAppBootstrap({
           } else if (event.payload.type === 'drop') {
             setIsDraggingOver(false);
             if (event.payload.paths && event.payload.paths.length > 0) {
-              handleDropPaths(event.payload.paths);
+              dispatchDrop(event.payload.paths);
             }
           } else if (event.payload.type === 'leave') {
             setIsDraggingOver(false);
           }
         })
         .then((unlisten) => {
-          unlistenWebview = unlisten;
+          if (disposed) unlisten();
+          else unlistenWebview = unlisten;
         })
         .catch((err) => {
           console.warn('getCurrentWebview.onDragDropEvent niedostępne:', err);
@@ -283,14 +307,15 @@ export function useAppBootstrap({
           } else if (event.payload.type === 'drop') {
             setIsDraggingOver(false);
             if (event.payload.paths && event.payload.paths.length > 0) {
-              handleDropPaths(event.payload.paths);
+              dispatchDrop(event.payload.paths);
             }
           } else if (event.payload.type === 'leave') {
             setIsDraggingOver(false);
           }
         })
         .then((unlisten) => {
-          unlistenWindow = unlisten;
+          if (disposed) unlisten();
+          else unlistenWindow = unlisten;
         })
         .catch((err) => {
           console.warn('getCurrentWindow.onDragDropEvent niedostępne:', err);
@@ -302,15 +327,17 @@ export function useAppBootstrap({
     listen<{ paths: string[] }>('tauri://drag-drop', (event) => {
       setIsDraggingOver(false);
       if (event.payload?.paths && event.payload.paths.length > 0) {
-        handleDropPaths(event.payload.paths);
+        dispatchDrop(event.payload.paths);
       }
     })
       .then((unlisten) => {
-        unlistenTauriEvent = unlisten;
+        if (disposed) unlisten();
+        else unlistenTauriEvent = unlisten;
       })
       .catch(() => {});
 
     return () => {
+      disposed = true;
       window.removeEventListener('dragstart', handleDragStart);
       window.removeEventListener('dragend', handleDragEnd);
       window.removeEventListener('dragover', handleWindowDragOver);

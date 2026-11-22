@@ -193,22 +193,6 @@ impl Database {
         Ok(())
     }
 
-    /// Powiązuje nieprzypisane utwory o danej nazwie albumu z albumem.
-    pub async fn link_tracks_by_album_title(
-        &self,
-        album_title: &str,
-        album_id: i64,
-    ) -> Result<(), StorageError> {
-        sqlx::query(
-            "UPDATE tracks SET album_id = ?1 WHERE (album_id IS NULL OR album_id = 0) AND (album_artist = ?2 OR artist = ?2);",
-        )
-        .bind(album_id)
-        .bind(album_title)
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
     /// Pobiera utwór po ścieżce na dysku.
     pub async fn get_track_by_path(&self, path: &str) -> Result<Option<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>("SELECT * FROM tracks WHERE path = ?1 LIMIT 1;")
@@ -296,6 +280,20 @@ impl Database {
         Ok(res)
     }
 
+    /// Buduje element kolejki dla utworu, uzupełniając tytuł albumu z tabeli `albums`.
+    pub async fn queue_item_for_track(&self, track: &TrackRecord) -> domain::queue::QueueItem {
+        let album_title = match track.album_id {
+            Some(id) => self
+                .get_album_by_id(id)
+                .await
+                .ok()
+                .flatten()
+                .map(|a| a.title),
+            None => None,
+        };
+        track.to_queue_item(album_title)
+    }
+
     /// Pobiera listę wszystkich wykonawców.
     pub async fn list_artists(&self) -> Result<Vec<ArtistRecord>, StorageError> {
         let res = sqlx::query_as::<_, ArtistRecord>("SELECT * FROM artists ORDER BY name;")
@@ -380,27 +378,41 @@ impl Database {
         Ok(())
     }
 
-    /// Usuwa z bazy utwory, których ścieżek nie ma już na liście aktywnych plików.
+    /// Usuwa z bazy utwory leżące w katalogu `root`, których ścieżek nie ma już na liście
+    /// aktywnych plików. Utwory spoza `root` (inne foldery biblioteki) nie są dotykane.
+    /// Wszystkie usunięcia wykonywane są w jednej transakcji.
     pub async fn delete_stale_tracks(
         &self,
+        root: &str,
         active_paths: &[String],
     ) -> Result<usize, StorageError> {
-        let all_tracks = self.list_tracks().await?;
+        let prefix = format!("{}/", root.trim_end_matches('/'));
+        let candidates: Vec<(i64, String)> =
+            sqlx::query_as("SELECT id, path FROM tracks WHERE substr(path, 1, length(?1)) = ?1;")
+                .bind(&prefix)
+                .fetch_all(&self.pool)
+                .await?;
+
         let active_set: std::collections::HashSet<&str> =
             active_paths.iter().map(|s| s.as_str()).collect();
-
-        let mut deleted_count = 0;
-        for t in all_tracks {
-            if !active_set.contains(t.path.as_str()) {
-                sqlx::query("DELETE FROM tracks WHERE id = ?1;")
-                    .bind(t.id)
-                    .execute(&self.pool)
-                    .await?;
-                deleted_count += 1;
-            }
+        let stale: Vec<i64> = candidates
+            .into_iter()
+            .filter(|(_, path)| !active_set.contains(path.as_str()))
+            .map(|(id, _)| id)
+            .collect();
+        if stale.is_empty() {
+            return Ok(0);
         }
 
-        Ok(deleted_count)
+        let mut tx = self.pool.begin().await?;
+        for id in &stale {
+            sqlx::query("DELETE FROM tracks WHERE id = ?1;")
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(stale.len())
     }
 
     /// Aktualizuje metadane utworu w bazie SQLite.

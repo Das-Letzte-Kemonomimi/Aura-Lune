@@ -9,9 +9,9 @@ import {
   Download,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import type { AiModelInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
+import { useTauriEvent } from '../../hooks/useTauriEvent';
 
 export interface ModelManagerModalProps {
   isOpen: boolean;
@@ -60,38 +60,29 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    const setupListener = async () => {
-      unlisten = await listen<{
-        model_id: string;
-        downloaded_bytes: number;
-        total_bytes: number | null;
-        progress: number;
-        status: string;
-      }>('auralune://model-download-progress', (event) => {
-        const { model_id, progress, status } = event.payload;
-        setDownloading((prev) => ({
-          ...prev,
-          [model_id]: progress,
-        }));
-        if (progress >= 1.0 || status === 'ready') {
-          setModels((prev) =>
-            prev.map((m) => (m.id === model_id ? { ...m, is_installed: true } : m))
-          );
-          setDownloading((prev) => {
-            const next = { ...prev };
-            delete next[model_id];
-            return next;
-          });
-        }
+  useTauriEvent<{
+    model_id: string;
+    downloaded_bytes: number;
+    total_bytes: number | null;
+    progress: number;
+    status: string;
+  }>('auralune://model-download-progress', (payload) => {
+    const { model_id, progress, status } = payload;
+    setDownloading((prev) => ({
+      ...prev,
+      [model_id]: progress,
+    }));
+    if (progress >= 1.0 || status === 'ready') {
+      setModels((prev) =>
+        prev.map((m) => (m.id === model_id ? { ...m, is_installed: true } : m))
+      );
+      setDownloading((prev) => {
+        const next = { ...prev };
+        delete next[model_id];
+        return next;
       });
-    };
-    setupListener();
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, []);
+    }
+  });
 
   if (!isOpen) return null;
 

@@ -27,6 +27,8 @@ pub struct ScanSummary {
     pub new_or_updated_tracks: usize,
     pub skipped_unchanged: usize,
     pub errors: usize,
+    /// Liczba rekordów usuniętych z bazy, bo pliki zniknęły z dysku.
+    pub removed_stale: usize,
 }
 
 /// Skaner biblioteki z obsługą przyrostowego indeksowania i wykrywania okładek.
@@ -69,12 +71,17 @@ impl LibraryScanner {
 
         let mut summary = ScanSummary::default();
         let mut active_paths = Vec::new();
+        let mut walk_errors = 0usize;
 
-        for entry in WalkDir::new(root)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(root).follow_links(true) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    warn!("Błąd przeglądania katalogu {}: {}", root.display(), e);
+                    walk_errors += 1;
+                    continue;
+                }
+            };
             let path = entry.path();
             if !path.is_file() || !Self::is_supported_audio_extension(path) {
                 continue;
@@ -128,6 +135,21 @@ impl LibraryScanner {
                 }
             }
         }
+        summary.errors += walk_errors;
+
+        // Usunięcie z bazy plików, które zniknęły z dysku. Tylko po kompletnym przejściu
+        // istniejącego katalogu — niedostępny dysk lub błędy uprawnień nie mogą wyczyścić biblioteki.
+        if walk_errors == 0 && root.is_dir() {
+            let root_str = match root.canonicalize() {
+                Ok(p) => p.display().to_string(),
+                Err(_) => root.display().to_string(),
+            };
+            let removed = db.delete_stale_tracks(&root_str, &active_paths).await?;
+            summary.removed_stale = removed;
+            if removed > 0 {
+                info!("Usunięto {} nieistniejących utworów z bazy", removed);
+            }
+        }
 
         info!(
             "Zakończono skanowanie. Znaleziono: {}, Zindeksowano: {}, Pominięto (bez zmian): {}, Błędy: {}",
@@ -155,6 +177,7 @@ impl LibraryScanner {
                 summary.new_or_updated_tracks += s.new_or_updated_tracks;
                 summary.skipped_unchanged += s.skipped_unchanged;
                 summary.errors += s.errors;
+                summary.removed_stale += s.removed_stale;
             } else if path.is_file() {
                 if !Self::is_supported_audio_extension(path) {
                     continue;
@@ -257,6 +280,15 @@ impl LibraryScanner {
             .map(|s| s.to_string())
             .unwrap_or_else(|| "Nieznany album".to_string());
 
+        // Wykonawca albumu (tag ALBUMARTIST) — dla kompilacji różni się od wykonawcy utworu.
+        // Gdy tagu brak, album grupowany jest po wykonawcy utworu.
+        let album_artist = tag
+            .as_ref()
+            .and_then(|t| t.get_string(lofty::tag::ItemKey::AlbumArtist))
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| artist.clone());
+
         let track_no = tag.as_ref().and_then(|t| t.track()).map(|t| t as i64);
         let disc_no = tag.as_ref().and_then(|t| t.disk()).map(|d| d as i64);
         let year = tag.as_ref().and_then(|t| t.date()).map(|d| d.year as i64);
@@ -267,7 +299,7 @@ impl LibraryScanner {
         // Zapis w bazie SQLite:
         let _artist_id = db.upsert_artist(&artist).await?;
         let album_id = db
-            .upsert_album(&album_name, &artist, year, cover_path.as_deref())
+            .upsert_album(&album_name, &album_artist, year, cover_path.as_deref())
             .await?;
 
         let bpm = tag
@@ -303,7 +335,7 @@ impl LibraryScanner {
             path: canonical_path.to_string(),
             title,
             artist,
-            album_artist: Some(album_name),
+            album_artist: Some(album_artist),
             album_id: Some(album_id),
             disc_no,
             track_no,

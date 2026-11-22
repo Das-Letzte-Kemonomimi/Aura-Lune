@@ -50,6 +50,22 @@ pub struct TrackRecord {
     pub rating: Option<i64>,
 }
 
+impl TrackRecord {
+    /// Buduje element kolejki odtwarzania z rekordu biblioteki.
+    /// `album_title` to tytuł albumu (z tabeli `albums`), a nie wykonawca albumu.
+    pub fn to_queue_item(&self, album_title: Option<String>) -> domain::queue::QueueItem {
+        domain::queue::QueueItem {
+            id: format!("track-{}", self.id),
+            track_id: Some(self.id),
+            uri: self.path.clone(),
+            title: self.title.clone(),
+            artist: self.artist.clone(),
+            album: album_title,
+            duration_ms: self.duration_ms.max(0) as u64,
+        }
+    }
+}
+
 /// Pojedynczy utwór w podsumowaniu Recap.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct RecapTopTrackDto {
@@ -117,4 +133,41 @@ pub struct DspPresetRecord {
     pub pitch_semitones: f64,
     pub tempo_ratio: f64,
     pub rate_ratio: f64,
+}
+
+/// Dane wejściowe do zapisu wyniku analizy akordów w pamięci podręcznej.
+#[derive(Debug, Clone)]
+pub struct NewTrackChords<'a> {
+    pub track_id: i64,
+    pub file_hash: &'a str,
+    pub analyzer_version: &'a str,
+    pub beat_grid_json: &'a str,
+    pub chords_json: &'a str,
+    pub bpm: Option<f64>,
+    pub musical_key: Option<&'a str>,
+    pub camelot: Option<&'a str>,
+}
+
+/// Zapisany w pamięci podręcznej wynik analizy akordów.
+/// Pola `bpm`, `musical_key` i `camelot` są puste dla wpisów sprzed migracji v2.
+#[derive(Debug, Clone, FromRow, PartialEq)]
+pub struct CachedTrackChords {
+    pub file_hash: String,
+    pub analyzer_version: String,
+    pub beat_grid_json: String,
+    pub chords_json: String,
+    pub user_overrides_json: Option<String>,
+    pub bpm: Option<f64>,
+    pub musical_key: Option<String>,
+    pub camelot: Option<String>,
+}
+
+/// Zapisana w pamięci podręcznej transkrypcja nutowa.
+/// `bpm` jest puste dla wpisów sprzed migracji v2.
+#[derive(Debug, Clone, FromRow, PartialEq)]
+pub struct CachedTrackTranscription {
+    pub file_hash: String,
+    pub analyzer_version: String,
+    pub notes_json: String,
+    pub bpm: Option<f64>,
 }

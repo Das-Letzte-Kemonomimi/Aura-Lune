@@ -255,3 +255,75 @@ fn test_time_range_validation() {
     assert!(zero_unbounded.is_ok());
     assert!(!zero_unbounded.unwrap().is_active());
 }
+
+#[test]
+fn test_sanitize_filename_rejects_dot_navigation_and_caps_length() {
+    assert_eq!(sanitize_filename_part(".."), "__");
+    assert_eq!(sanitize_filename_part("."), "_");
+    assert_eq!(sanitize_filename_part("..."), "___");
+    assert_eq!(sanitize_filename_part("Mr. Children"), "Mr. Children");
+
+    let long = "あ".repeat(200); // 600 bajtów UTF-8
+    let out = sanitize_filename_part(&long);
+    assert!(out.len() <= 200);
+    assert!(
+        out.chars().all(|c| c == 'あ'),
+        "Przycięcie na granicy znaku"
+    );
+}
+
+#[test]
+fn test_resolve_renamed_path_stays_inside_source_directory() {
+    use domain::renamer::resolve_renamed_path;
+    use std::path::PathBuf;
+
+    let old = "/music/lib/song.flac";
+    assert_eq!(
+        resolve_renamed_path(old, "Artist/Album/01 - Title.flac").unwrap(),
+        PathBuf::from("/music/lib/Artist/Album/01 - Title.flac")
+    );
+    assert!(
+        resolve_renamed_path(old, "/etc/passwd").is_err(),
+        "Ścieżka absolutna"
+    );
+    assert!(
+        resolve_renamed_path(old, "../escape.flac").is_err(),
+        "Składnik .."
+    );
+    assert!(resolve_renamed_path(old, "a/../../escape.flac").is_err());
+    assert!(resolve_renamed_path(old, "").is_err());
+    assert!(
+        resolve_renamed_path(old, &format!("{}.flac", "x".repeat(300))).is_err(),
+        "Składnik dłuższy niż 255 bajtów"
+    );
+}
+
+#[test]
+fn test_tag_values_cannot_escape_via_pattern() {
+    use domain::renamer::resolve_renamed_path;
+
+    let info = RenamerTrackInfo {
+        title: "..",
+        artist: "../../etc",
+        album_artist: None,
+        album: Some(".."),
+        track_no: Some(1),
+        disc_no: None,
+        ext: "flac",
+    };
+    let formatted = format_pattern_for_track("%artist%/%album%/%title%", &info);
+    let resolved = resolve_renamed_path("/music/lib/song.flac", &formatted).unwrap();
+    assert!(resolved.starts_with("/music/lib/"));
+    assert!(!resolved.to_string_lossy().contains("/../"));
+}
+
+#[test]
+fn test_validate_rename_target() {
+    use domain::renamer::validate_rename_target;
+
+    let old = "/music/lib/song.flac";
+    assert!(validate_rename_target(old, "/music/lib/Artist/new.flac").is_ok());
+    assert!(validate_rename_target(old, "/music/other/new.flac").is_err());
+    assert!(validate_rename_target(old, "/music/lib/../other/new.flac").is_err());
+    assert!(validate_rename_target(old, "/home/user/.bashrc").is_err());
+}

@@ -8,6 +8,7 @@ pub mod model_manager;
 pub mod pipeline;
 pub mod stem_separator;
 pub mod transcoder;
+pub mod uri;
 
 pub use analysis::{
     analyze_track_chords_and_grid, analyze_track_key_bpm, analyze_track_replaygain,

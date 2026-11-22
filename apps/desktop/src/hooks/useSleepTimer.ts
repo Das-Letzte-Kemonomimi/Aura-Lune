@@ -56,53 +56,77 @@ export function useSleepTimer({
 
   const hasActiveTimer = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
 
+  // Najnowsze wartości dla interwału. Interwał nie może zależeć od nich bezpośrednio —
+  // `showMessage`/`filePath` zmieniały się przy renderach (10×/s podczas odtwarzania),
+  // co restartowało interwał, zanim zdążył odliczyć choćby sekundę.
+  const remainingRef = useRef(sleepTimerRemainingSec);
+  const latestRef = useRef({ filePath, showMessage, loc, sleepTimerFadeOut });
+  useEffect(() => {
+    remainingRef.current = sleepTimerRemainingSec;
+  }, [sleepTimerRemainingSec]);
+  useEffect(() => {
+    latestRef.current = { filePath, showMessage, loc, sleepTimerFadeOut };
+  }, [filePath, showMessage, loc, sleepTimerFadeOut]);
+
   useEffect(() => {
     if (!hasActiveTimer) return;
 
-    const interval = setInterval(async () => {
+    const restorePreFadeVolume = () => {
+      if (preFadeVolumeRef.current !== null) {
+        invoke('set_volume', { volume: preFadeVolumeRef.current }).catch(() => {});
+        preFadeVolumeRef.current = null;
+      }
+    };
+
+    const interval = setInterval(() => {
       const currentStatus = statusRef.current;
+      const latest = latestRef.current;
 
       if (sleepTimerTargetMode === 'end_of_track') {
-        const currentUri = currentStatus.current_track?.uri || filePath;
-        if (
-          (lastTrackUriRef.current && currentUri && lastTrackUriRef.current !== currentUri) ||
-          (currentStatus.duration_ms && currentStatus.duration_ms > 0 && currentStatus.position_ms >= currentStatus.duration_ms - 800)
-        ) {
-          await invoke('pause').catch(() => {});
+        const currentUri = currentStatus.current_track?.uri || latest.filePath;
+        const trackChanged =
+          !!lastTrackUriRef.current && !!currentUri && lastTrackUriRef.current !== currentUri;
+        const nearEnd =
+          !!currentStatus.duration_ms &&
+          currentStatus.duration_ms > 0 &&
+          currentStatus.position_ms >= currentStatus.duration_ms - 800;
+        if (trackChanged || nearEnd) {
+          invoke('pause').catch(() => {});
           setSleepTimerTargetMode(null);
-          showMessage(loc.notifications.sleepTimerTrackEnded);
+          latest.showMessage(latest.loc.notifications.sleepTimerTrackEnded);
         }
         return;
       }
 
-      setSleepTimerRemainingSec((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          invoke('pause').catch(() => {});
-          if (preFadeVolumeRef.current !== null) {
-            invoke('set_volume', { volume: preFadeVolumeRef.current }).catch(() => {});
-            preFadeVolumeRef.current = null;
-          }
-          setSleepTimerTargetMode(null);
-          showMessage(loc.notifications.sleepTimerPaused);
-          return null;
-        }
+      const prev = remainingRef.current;
+      if (prev === null) return;
 
-        const nextSec = prev - 1;
-        if (sleepTimerFadeOut && nextSec <= 30) {
-          if (preFadeVolumeRef.current === null) {
-            preFadeVolumeRef.current = currentStatus.volume;
-          }
-          const factor = Math.max(0.02, nextSec / 30);
-          const fadeVol = (preFadeVolumeRef.current || 1.0) * factor;
-          invoke('set_volume', { volume: fadeVol }).catch(() => {});
+      if (prev <= 1) {
+        remainingRef.current = null;
+        invoke('pause').catch(() => {});
+        restorePreFadeVolume();
+        setSleepTimerRemainingSec(null);
+        setSleepTimerTargetMode(null);
+        latest.showMessage(latest.loc.notifications.sleepTimerPaused);
+        return;
+      }
+
+      const nextSec = prev - 1;
+      remainingRef.current = nextSec;
+      setSleepTimerRemainingSec(nextSec);
+
+      if (latest.sleepTimerFadeOut && nextSec <= 30) {
+        if (preFadeVolumeRef.current === null) {
+          preFadeVolumeRef.current = currentStatus.volume;
         }
-        return nextSec;
-      });
+        const factor = Math.max(0.02, nextSec / 30);
+        const fadeVol = (preFadeVolumeRef.current || 1.0) * factor;
+        invoke('set_volume', { volume: fadeVol }).catch(() => {});
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [filePath, hasActiveTimer, loc.notifications.sleepTimerPaused, loc.notifications.sleepTimerTrackEnded, showMessage, sleepTimerFadeOut, sleepTimerTargetMode, statusRef]);
+  }, [hasActiveTimer, sleepTimerTargetMode, statusRef]);
 
   return {
     sleepTimerRemainingSec,

@@ -8,10 +8,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import type { StemProject, StemProjectProgressPayload } from '../../types/analysis';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';
+import { useTauriEvent } from '../../hooks/useTauriEvent';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
@@ -46,33 +46,20 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
 
   useEffect(() => {
     loadProjects();
-
-    let unlisten: (() => void) | undefined;
-    listen<StemProjectProgressPayload>('auralune://stem-project-progress', (event) => {
-      setProjects((prev) =>
-        prev.map((p) => {
-          if (p.id === event.payload.project_id) {
-            return {
-              ...p,
-              status: event.payload.status as any,
-              progress: event.payload.progress,
-            };
-          }
-          return p;
-        })
-      );
-
-      if (event.payload.status === 'ready') {
-        loadProjects();
-      }
-    }).then((fn) => {
-      unlisten = fn;
-    });
-
-    return () => {
-      if (unlisten) unlisten();
-    };
   }, [loadProjects]);
+
+  useTauriEvent<StemProjectProgressPayload>('auralune://stem-project-progress', (payload) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === payload.project_id
+          ? { ...p, status: payload.status as any, progress: payload.progress }
+          : p
+      )
+    );
+    if (payload.status === 'ready') {
+      loadProjects();
+    }
+  });
 
   const handleDelete = async (projectId: number, title: string) => {
     if (!window.confirm(t.stems.deleteConfirm.replace('{0}', title))) {

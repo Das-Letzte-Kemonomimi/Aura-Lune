@@ -200,4 +200,44 @@ describe('useSleepTimer hook', () => {
     expect(result.current.sleepTimerTargetMode).toBeNull();
     expect(showMessage).toHaveBeenCalledWith(loc.notifications.sleepTimerTrackEnded);
   });
+
+  it('keeps counting down when the host re-renders with a new showMessage every 100 ms', () => {
+    // Regresja: podczas odtwarzania App renderuje się ~10×/s, a `showMessage` było nową funkcją
+    // w każdym renderze. Interwał 1 s był restartowany, zanim zdążył się wykonać.
+    const { result, rerender } = renderHook(
+      ({ notify }) =>
+        useSleepTimer({
+          statusRef,
+          filePath: 'file:///music/test.flac',
+          showMessage: notify,
+          loc,
+        }),
+      { initialProps: { notify: vi.fn() as (msg: string) => void } }
+    );
+
+    act(() => {
+      result.current.handleSetSleepTimer(3 / 60, false);
+    });
+    expect(result.current.sleepTimerRemainingSec).toBe(3);
+
+    for (let i = 0; i < 25; i++) {
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      rerender({ notify: vi.fn() as (msg: string) => void });
+    }
+
+    expect(result.current.sleepTimerRemainingSec).toBe(1);
+
+    for (let i = 0; i < 10; i++) {
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      rerender({ notify: vi.fn() as (msg: string) => void });
+    }
+
+    expect(result.current.sleepTimerRemainingSec).toBeNull();
+    const pauseCalls = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'pause');
+    expect(pauseCalls).toHaveLength(1);
+  });
 });

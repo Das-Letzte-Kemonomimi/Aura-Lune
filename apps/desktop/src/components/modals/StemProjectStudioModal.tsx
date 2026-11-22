@@ -12,7 +12,6 @@ import {
   Piano,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import type {
   StemProject,
   StemChannel,
@@ -21,6 +20,7 @@ import type {
 } from '../../types/analysis';
 import { sliderToDb } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
+import { useTauriEvent } from '../../hooks/useTauriEvent';
 
 interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -105,28 +105,18 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   }, [isOpen, projectId, fetchProjectData]);
 
   // Nasłuchiwanie na postęp separacji projektu
-  useEffect(() => {
-    if (!isOpen || !projectId) return;
-
-    let unlisten: (() => void) | undefined;
-    listen<StemProjectProgressPayload>('auralune://stem-project-progress', (event) => {
-      if (event.payload.project_id === projectId) {
-        if (event.payload.status === 'ready') {
-          fetchProjectData();
-        } else {
-          setProject((prev) =>
-            prev ? { ...prev, progress: event.payload.progress } : null
-          );
-        }
+  useTauriEvent<StemProjectProgressPayload>(
+    'auralune://stem-project-progress',
+    (payload) => {
+      if (payload.project_id !== projectId) return;
+      if (payload.status === 'ready') {
+        fetchProjectData();
+      } else {
+        setProject((prev) => (prev ? { ...prev, progress: payload.progress } : null));
       }
-    }).then((fn) => {
-      unlisten = fn;
-    });
-
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, [isOpen, projectId, fetchProjectData]);
+    },
+    isOpen && !!projectId,
+  );
 
   // Synchronizacja miksu do potoku audio
   const applyMixToEngine = useCallback(

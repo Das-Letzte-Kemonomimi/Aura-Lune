@@ -95,15 +95,7 @@ pub async fn add_uris_to_queue(
         let track_opt = db.get_track_by_path(uri).await.ok().flatten();
 
         let item = if let Some(t) = track_opt {
-            QueueItem {
-                id: format!("track-{}", t.id),
-                track_id: Some(t.id),
-                uri: t.path.clone(),
-                title: t.title.clone(),
-                artist: t.artist.clone(),
-                album: t.album_artist.clone(),
-                duration_ms: t.duration_ms as u64,
-            }
+            db.queue_item_for_track(&t).await
         } else {
             let title = std::path::Path::new(uri)
                 .file_stem()
@@ -263,6 +255,17 @@ pub fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, String> {
     Ok(new_val)
 }
 
+/// Ustawia tryb losowy na konkretną wartość (idempotentnie, w przeciwieństwie do `toggle_shuffle`).
+#[tauri::command]
+pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, String> {
+    info!("Tauri command: set_shuffle({})", enabled);
+    if state.engine.shuffle() != enabled {
+        state.engine.set_shuffle(enabled);
+        persist_queue_state(&state);
+    }
+    Ok(enabled)
+}
+
 #[tauri::command]
 pub fn set_stop_after_current(enabled: bool, state: State<'_, AppState>) -> Result<bool, String> {
     info!("Tauri command: set_stop_after_current({})", enabled);
@@ -293,4 +296,29 @@ pub fn notify_track_looped(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     crate::commands::devices::notify_track_looped_internal(&state, position_ms)
+}
+
+/// Ustawia utwór z biblioteki jako aktywny (załadowany, ale nieodtwarzany) — np. gdy po pierwszym
+/// skanowaniu domyślny utwór demonstracyjny zastępowany jest pierwszym utworem użytkownika.
+/// Nie przerywa trwającego odtwarzania.
+#[tauri::command]
+pub async fn set_active_track(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    info!("Tauri command: set_active_track({})", track_id);
+    if state.engine.state() == domain::PlaybackState::Playing {
+        return Ok(());
+    }
+    let track = state
+        .db
+        .get_track_by_id(track_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
+    let item = state.db.queue_item_for_track(&track).await;
+    state.engine.set_active_item(item);
+    state
+        .engine
+        .load_uri(&track.path)
+        .map_err(|e| e.to_string())?;
+    persist_queue_state(&state);
+    Ok(())
 }

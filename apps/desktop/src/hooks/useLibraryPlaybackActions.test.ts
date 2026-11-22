@@ -337,4 +337,59 @@ describe('useLibraryPlaybackActions', () => {
     expect(setTracks).toHaveBeenCalled();
     expect(showMessage).toHaveBeenCalledWith(loc.notifications.addedFavorite);
   });
+
+  it('shuffle-all replaces the queue, enables backend shuffle and starts playback in order', async () => {
+    const mockTrack2: TrackRecord = { ...mockTrack1, id: 2, path: '/music/track2.flac', title: 'Track Two' };
+    const showMessage = vi.fn();
+
+    const { result } = renderHook(() =>
+      useLibraryPlaybackActions({
+        tracks: [mockTrack1, mockTrack2],
+        setTracks: vi.fn(),
+        albums: [mockAlbum1],
+        queue: mockQueue,
+        refreshQueue: vi.fn().mockResolvedValue(undefined),
+        albumPlaybackMode: 'replace',
+        activeTrackId: null,
+        setActiveTrackId: vi.fn(),
+        setFilePath: vi.fn(),
+        status: mockStatus,
+        setStatus: vi.fn(),
+        trackDirectCover: null,
+        desktopNotificationsEnabled: false,
+        replaygainMode: 'Off',
+        listenbrainzEnabled: false,
+        listenbrainzToken: '',
+        setScrobbledTrackId: vi.fn(),
+        lastfmEnabled: false,
+        lastfmSessionKey: '',
+        lastfmCustomKey: '',
+        lastfmCustomSecret: '',
+        setLastfmScrobbledTrackId: vi.fn(),
+        setCurrentBookmark: vi.fn(),
+        handleSeek: vi.fn().mockResolvedValue(undefined),
+        handleScanPaths: vi.fn().mockResolvedValue(undefined),
+        filteredTracks: [mockTrack1, mockTrack2],
+        statsModalTrack: null,
+        setStatsModalTrack: vi.fn(),
+        initialStartupPositionRef: { current: null },
+        showMessage,
+        loc,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShuffleAll();
+    });
+
+    const commands = invokeMock.mock.calls.map(([cmd]) => cmd);
+    const setQueueAt = commands.indexOf('set_queue');
+    const setShuffleAt = commands.indexOf('set_shuffle');
+    const playAt = commands.indexOf('play');
+    expect(setQueueAt).toBeGreaterThanOrEqual(0);
+    expect(setShuffleAt).toBeGreaterThan(setQueueAt);
+    expect(playAt).toBeGreaterThan(setShuffleAt);
+    expect(invokeMock).toHaveBeenCalledWith('set_shuffle', { enabled: true });
+    expect(showMessage).not.toHaveBeenCalledWith(expect.anything(), true);
+  });
 });

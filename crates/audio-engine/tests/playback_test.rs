@@ -397,6 +397,17 @@ fn test_smart_replaygain_auto_mode() {
 
     let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
 
+    // Najpierw tryb Album — Auto nie może odziedziczyć jego album-mode.
+    engine
+        .set_replaygain(ReplayGainConfig {
+            mode: ReplayGainMode::Album,
+            pre_amp_db: 0.0,
+            fallback_gain_db: 0.0,
+            prevent_clipping: true,
+        })
+        .expect("Ustawienie ReplayGain Album");
+    assert!(engine.replaygain_album_mode());
+
     let auto_cfg = ReplayGainConfig {
         mode: ReplayGainMode::Auto,
         pre_amp_db: 2.5,
@@ -412,12 +423,18 @@ fn test_smart_replaygain_auto_mode() {
     assert_eq!(engine.replaygain_config().fallback_gain_db, -4.0);
     assert!(engine.replaygain_config().prevent_clipping);
 
+    // Auto zaczyna od Track Gain, nawet jeśli wcześniej aktywny był tryb Album.
+    assert!(!engine.replaygain_album_mode());
+
     // Dynamiczna adaptacja: ten sam album bez shuffle -> Album Gain
     engine.apply_auto_replaygain(true, false);
+    assert!(engine.replaygain_album_mode());
 
     // Inny album lub shuffle -> Track Gain
     engine.apply_auto_replaygain(false, false);
+    assert!(!engine.replaygain_album_mode());
     engine.apply_auto_replaygain(true, true);
+    assert!(!engine.replaygain_album_mode());
 }
 
 #[test]

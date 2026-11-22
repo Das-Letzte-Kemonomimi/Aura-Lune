@@ -77,7 +77,7 @@ impl StemSeparator {
             cb(0.10, "Dekodowanie utworu źródłowego (Stereo 44.1 kHz)...");
         }
 
-        let uri = format!("file://{}", input_path.display());
+        let uri = crate::uri::media_uri(&input_path.to_string_lossy());
         let (left, right, sample_rate) = match decode_stereo_for_stems(&uri, 360.0) {
             Ok(res) => res,
             Err(e) => {
@@ -164,7 +164,7 @@ impl StemSeparator {
             cb(0.05, "Dekodowanie utworu źródłowego (Stereo 44.1 kHz)...");
         }
 
-        let uri = format!("file://{}", input_path.display());
+        let uri = crate::uri::media_uri(&input_path.to_string_lossy());
         let (left, right, sample_rate) = match decode_stereo_for_stems(&uri, 360.0) {
             Ok(res) => res,
             Err(e) => {

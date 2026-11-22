@@ -193,32 +193,9 @@ pub fn extract_audio_paths_from_args(args: &[String], cwd: Option<&str>) -> Vec<
 
 pub async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
     let track_opt = state.db.get_track_by_path(path).await.ok().flatten();
-    let album_title = if let Some(ref tr) = track_opt {
-        if let Some(album_id) = tr.album_id {
-            state
-                .db
-                .get_album_by_id(album_id)
-                .await
-                .ok()
-                .flatten()
-                .map(|a| a.title)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
 
     if let Some(tr) = track_opt {
-        QueueItem {
-            id: format!("track-{}", tr.id),
-            track_id: Some(tr.id),
-            uri: tr.path,
-            title: tr.title,
-            artist: tr.artist,
-            album: album_title,
-            duration_ms: tr.duration_ms as u64,
-        }
+        state.db.queue_item_for_track(&tr).await
     } else {
         let fallback_stem = Path::new(path)
             .file_stem()

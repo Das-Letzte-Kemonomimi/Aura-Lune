@@ -9,6 +9,7 @@ use audio_engine::{
 use domain::analysis::{
     AnalysisCapabilities, ChordSegment, TrackChordsData, TrackTranscriptionData,
 };
+use storage::{CachedTrackChords, CachedTrackTranscription, NewTrackChords};
 use tauri::State;
 
 #[tauri::command]
@@ -127,6 +128,60 @@ pub async fn get_or_extract_track_waveform(
     Ok(peaks)
 }
 
+/// Nakłada ręczne poprawki akordów (dopasowane po `start_ms`) na wynik analizy.
+fn apply_chord_overrides(chords: &mut [ChordSegment], overrides: &[ChordSegment]) {
+    for ov in overrides {
+        for ch in chords.iter_mut().filter(|ch| ch.start_ms == ov.start_ms) {
+            ch.chord = ov.chord.clone();
+        }
+    }
+}
+
+/// Uzupełnia tempo/tonację dla wpisów pamięci podręcznej sprzed migracji v2 z tagów utworu.
+async fn track_bpm_and_key(state: &AppState, track_id: i64) -> (Option<f64>, Option<String>) {
+    match state.db.get_track_by_id(track_id).await {
+        Ok(Some(t)) => (t.bpm, t.initial_key),
+        _ => (None, None),
+    }
+}
+
+/// Odtwarza `TrackChordsData` z pamięci podręcznej. Zwraca `None` przy uszkodzonym JSON.
+async fn chords_from_cache(
+    state: &AppState,
+    track_id: i64,
+    cached: CachedTrackChords,
+) -> Option<TrackChordsData> {
+    let beat_grid =
+        serde_json::from_str::<Vec<domain::analysis::BeatPoint>>(&cached.beat_grid_json).ok()?;
+    let mut chords = serde_json::from_str::<Vec<ChordSegment>>(&cached.chords_json).ok()?;
+    if let Some(overrides) = cached
+        .user_overrides_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str::<Vec<ChordSegment>>(json).ok())
+    {
+        apply_chord_overrides(&mut chords, &overrides);
+    }
+
+    let (bpm, key) = match (cached.bpm, cached.musical_key) {
+        (Some(bpm), Some(key)) => (Some(bpm), Some(key)),
+        (bpm, key) => {
+            let (tag_bpm, tag_key) = track_bpm_and_key(state, track_id).await;
+            (bpm.or(tag_bpm), key.or(tag_key))
+        }
+    };
+
+    Some(TrackChordsData {
+        track_id,
+        file_hash: cached.file_hash,
+        bpm: bpm.unwrap_or(0.0),
+        key: key.unwrap_or_default(),
+        camelot: cached.camelot.unwrap_or_default(),
+        beat_grid,
+        chords,
+        analyzer_version: cached.analyzer_version,
+    })
+}
+
 #[tauri::command]
 pub async fn detect_track_chords(
     path: String,
@@ -136,39 +191,10 @@ pub async fn detect_track_chords(
 ) -> Result<TrackChordsData, String> {
     let recompute = force_recompute.unwrap_or(false);
 
-    if !recompute {
-        if let Some(id) = track_id {
-            if let Ok(Some((beat_json, chords_json, overrides_json))) =
-                state.db.get_track_chords(id).await
-            {
-                if let (Ok(beat_grid), Ok(mut chords)) = (
-                    serde_json::from_str::<Vec<domain::analysis::BeatPoint>>(&beat_json),
-                    serde_json::from_str::<Vec<ChordSegment>>(&chords_json),
-                ) {
-                    if let Some(ref overrides) = overrides_json {
-                        if let Ok(override_list) =
-                            serde_json::from_str::<Vec<ChordSegment>>(overrides)
-                        {
-                            for ov in override_list {
-                                for ch in chords.iter_mut() {
-                                    if ch.start_ms == ov.start_ms {
-                                        ch.chord = ov.chord.clone();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return Ok(TrackChordsData {
-                        track_id: id,
-                        file_hash: "cached".to_string(),
-                        bpm: 120.0,
-                        key: "Detected".to_string(),
-                        camelot: "".to_string(),
-                        beat_grid,
-                        chords,
-                        analyzer_version: "1.0.8-classic".to_string(),
-                    });
-                }
+    if let (false, Some(id)) = (recompute, track_id) {
+        if let Ok(Some(cached)) = state.db.get_track_chords(id).await {
+            if let Some(data) = chords_from_cache(&state, id, cached).await {
+                return Ok(data);
             }
         }
     }
@@ -182,13 +208,20 @@ pub async fn detect_track_chords(
             .map_err(|e| format!("Błąd analizy akordów: {}", e))?;
 
     if let Some(id) = track_id {
-        let db = state.db.clone();
-        let hash = analysis_res.file_hash.clone();
-        let ver = analysis_res.analyzer_version.clone();
         let beat_json = serde_json::to_string(&analysis_res.beat_grid).unwrap_or_default();
         let chords_json = serde_json::to_string(&analysis_res.chords).unwrap_or_default();
-        let _ = db
-            .save_track_chords(id, &hash, &ver, &beat_json, &chords_json)
+        let _ = state
+            .db
+            .save_track_chords(&NewTrackChords {
+                track_id: id,
+                file_hash: &analysis_res.file_hash,
+                analyzer_version: &analysis_res.analyzer_version,
+                beat_grid_json: &beat_json,
+                chords_json: &chords_json,
+                bpm: Some(analysis_res.bpm),
+                musical_key: Some(&analysis_res.key),
+                camelot: Some(&analysis_res.camelot),
+            })
             .await;
     }
 
@@ -200,40 +233,14 @@ pub async fn get_cached_chords(
     track_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<TrackChordsData>, String> {
-    match state.db.get_track_chords(track_id).await {
-        Ok(Some((beat_json, chords_json, overrides_json))) => {
-            if let (Ok(beat_grid), Ok(mut chords)) = (
-                serde_json::from_str::<Vec<domain::analysis::BeatPoint>>(&beat_json),
-                serde_json::from_str::<Vec<ChordSegment>>(&chords_json),
-            ) {
-                if let Some(ref overrides) = overrides_json {
-                    if let Ok(override_list) = serde_json::from_str::<Vec<ChordSegment>>(overrides)
-                    {
-                        for ov in override_list {
-                            for ch in chords.iter_mut() {
-                                if ch.start_ms == ov.start_ms {
-                                    ch.chord = ov.chord.clone();
-                                }
-                            }
-                        }
-                    }
-                }
-                Ok(Some(TrackChordsData {
-                    track_id,
-                    file_hash: "cached".to_string(),
-                    bpm: 120.0,
-                    key: "Detected".to_string(),
-                    camelot: "".to_string(),
-                    beat_grid,
-                    chords,
-                    analyzer_version: "1.0.8-classic".to_string(),
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-        Ok(None) => Ok(None),
-        Err(e) => Err(e.to_string()),
+    let cached = state
+        .db
+        .get_track_chords(track_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    match cached {
+        Some(cached) => Ok(chords_from_cache(&state, track_id, cached).await),
+        None => Ok(None),
     }
 }
 
@@ -269,6 +276,33 @@ pub async fn export_chords_file(
     }
 }
 
+/// Domyślne tempo MIDI, gdy ani analiza, ani tagi utworu go nie znają.
+const DEFAULT_MIDI_BPM: f64 = 120.0;
+
+/// Odtwarza `TrackTranscriptionData` z pamięci podręcznej. Zwraca `None` przy uszkodzonym JSON.
+async fn transcription_from_cache(
+    state: &AppState,
+    track_id: i64,
+    cached: CachedTrackTranscription,
+) -> Option<TrackTranscriptionData> {
+    let notes =
+        serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&cached.notes_json).ok()?;
+    let bpm = match cached.bpm {
+        Some(bpm) => bpm,
+        None => track_bpm_and_key(state, track_id)
+            .await
+            .0
+            .unwrap_or(DEFAULT_MIDI_BPM),
+    };
+    Some(TrackTranscriptionData {
+        track_id,
+        file_hash: cached.file_hash,
+        notes,
+        bpm,
+        analyzer_version: cached.analyzer_version,
+    })
+}
+
 #[tauri::command]
 pub async fn detect_track_transcription(
     path: String,
@@ -278,20 +312,10 @@ pub async fn detect_track_transcription(
 ) -> Result<TrackTranscriptionData, String> {
     let recompute = force_recompute.unwrap_or(false);
 
-    if !recompute {
-        if let Some(id) = track_id {
-            if let Ok(Some(notes_json)) = state.db.get_track_transcription(id).await {
-                if let Ok(notes) =
-                    serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&notes_json)
-                {
-                    return Ok(TrackTranscriptionData {
-                        track_id: id,
-                        file_hash: "cached".to_string(),
-                        notes,
-                        bpm: 120.0,
-                        analyzer_version: "1.0.8-salience".to_string(),
-                    });
-                }
+    if let (false, Some(id)) = (recompute, track_id) {
+        if let Ok(Some(cached)) = state.db.get_track_transcription(id).await {
+            if let Some(data) = transcription_from_cache(&state, id, cached).await {
+                return Ok(data);
             }
         }
     }
@@ -305,11 +329,17 @@ pub async fn detect_track_transcription(
             .map_err(|e| format!("Błąd transkrypcji nutowej: {}", e))?;
 
     if let Some(id) = track_id {
-        let db = state.db.clone();
-        let hash = analysis_res.file_hash.clone();
-        let ver = analysis_res.analyzer_version.clone();
         if let Ok(json) = serde_json::to_string(&analysis_res.notes) {
-            let _ = db.save_track_transcription(id, &hash, &ver, &json).await;
+            let _ = state
+                .db
+                .save_track_transcription(
+                    id,
+                    &analysis_res.file_hash,
+                    &analysis_res.analyzer_version,
+                    &json,
+                    Some(analysis_res.bpm),
+                )
+                .await;
         }
     }
 
@@ -321,24 +351,14 @@ pub async fn get_cached_transcription(
     track_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<TrackTranscriptionData>, String> {
-    match state.db.get_track_transcription(track_id).await {
-        Ok(Some(notes_json)) => {
-            if let Ok(notes) =
-                serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&notes_json)
-            {
-                Ok(Some(TrackTranscriptionData {
-                    track_id,
-                    file_hash: "cached".to_string(),
-                    notes,
-                    bpm: 120.0,
-                    analyzer_version: "1.0.8-salience".to_string(),
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-        Ok(None) => Ok(None),
-        Err(e) => Err(e.to_string()),
+    let cached = state
+        .db
+        .get_track_transcription(track_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    match cached {
+        Some(cached) => Ok(transcription_from_cache(&state, track_id, cached).await),
+        None => Ok(None),
     }
 }
 
@@ -347,12 +367,15 @@ pub async fn export_transcription_midi(
     track_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Vec<u8>, String> {
-    let notes_opt = match state.db.get_track_transcription(track_id).await {
-        Ok(Some(json)) => serde_json::from_str::<Vec<domain::analysis::DetectedNote>>(&json).ok(),
-        _ => None,
-    };
-
-    let notes =
-        notes_opt.ok_or_else(|| "Brak zapisanej transkrypcji dla tego utworu".to_string())?;
-    Ok(export_transcription_to_midi(&notes, 120.0))
+    let cached = state
+        .db
+        .get_track_transcription(track_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let data = match cached {
+        Some(cached) => transcription_from_cache(&state, track_id, cached).await,
+        None => None,
+    }
+    .ok_or_else(|| "Brak zapisanej transkrypcji dla tego utworu".to_string())?;
+    Ok(export_transcription_to_midi(&data.notes, data.bpm))
 }

@@ -30,7 +30,7 @@ import { useBottomPlaybackDockProps } from './components/layout/useBottomPlaybac
 import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   type TapeType,
@@ -101,11 +101,19 @@ export default function App() {
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
 
-  const showMessage = (msg: string, isError = false) => {
+  // Stabilna referencja: wiele hooków ma `showMessage` w zależnościach efektów/callbacków —
+  // nowa funkcja w każdym renderze (10× na sekundę podczas odtwarzania) restartowała ich efekty.
+  // Komunikaty informacyjne są celowo pomijane; wyświetlane są tylko błędy.
+  const infoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showMessage = useCallback((msg: string, isError = false) => {
     if (!isError) return;
     setInfoMessage(`⚠️ ${msg}`);
-    setTimeout(() => setInfoMessage(null), 4000);
-  };
+    if (infoTimeoutRef.current) clearTimeout(infoTimeoutRef.current);
+    infoTimeoutRef.current = setTimeout(() => setInfoMessage(null), 4000);
+  }, []);
+  useEffect(() => () => {
+    if (infoTimeoutRef.current) clearTimeout(infoTimeoutRef.current);
+  }, []);
 
   const mainContentRef = useRef<HTMLElement | null>(null);
 
@@ -184,7 +192,6 @@ export default function App() {
     loc,
   });
   const {
-    loadPresets,
     reverbEnabled,
     reverbLevel,
     handlePitchChange,
@@ -652,10 +659,8 @@ export default function App() {
   const { isDraggingOver, setIsDraggingOver } = useAppBootstrap({
     refreshDevices,
     loadLibrary,
-    loadPresets,
     loadThemes,
     refreshQueue,
-    refreshPlaylists,
     setAppVersion,
     setLanguage,
     setSeekFadeEnabled,

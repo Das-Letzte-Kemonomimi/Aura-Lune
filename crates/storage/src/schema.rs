@@ -61,7 +61,7 @@ impl Database {
             );
 
             CREATE TABLE IF NOT EXISTS playback_bookmarks (
-                track_id INTEGER PRIMARY KEY REFERENCES tracks(id),
+                track_id INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
                 position_ms INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
@@ -133,7 +133,10 @@ impl Database {
                 beat_grid_json TEXT NOT NULL,
                 chords_json TEXT NOT NULL,
                 user_overrides_json TEXT,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                bpm REAL,
+                musical_key TEXT,
+                camelot TEXT
             );
 
             CREATE TABLE IF NOT EXISTS track_transcriptions (
@@ -142,7 +145,8 @@ impl Database {
                 file_hash TEXT NOT NULL,
                 analyzer_version TEXT NOT NULL,
                 notes_json TEXT NOT NULL,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                bpm REAL
             );
 
             CREATE TABLE IF NOT EXISTS stem_tracks (
@@ -326,6 +330,10 @@ impl Database {
                 .await;
         }
 
+        if user_version < 2 {
+            self.migrate_v2().await?;
+        }
+
         // Inicjalizacja domyślnych motywów anime (upewniamy się, że każdy motyw istnieje)
         for theme in domain::default_themes() {
             if self.get_theme(&theme.id).await?.is_none() {
@@ -337,6 +345,68 @@ impl Database {
                 .await?;
         }
 
+        Ok(())
+    }
+
+    /// Migracja v2:
+    /// - `playback_bookmarks.track_id` otrzymuje `ON DELETE CASCADE` (wcześniej usunięcie utworu
+    ///   z zakładką kończyło się błędem klucza obcego),
+    /// - naprawa kolumny `tracks.album_artist`, do której starszy skaner zapisywał tytuł albumu,
+    /// - kolumny `bpm` / `musical_key` / `camelot` w pamięci podręcznej analiz akordów i transkrypcji.
+    async fn migrate_v2(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE playback_bookmarks_v2 (
+                track_id INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+                position_ms INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            INSERT INTO playback_bookmarks_v2 (track_id, position_ms, updated_at)
+                SELECT track_id, position_ms, updated_at FROM playback_bookmarks
+                WHERE track_id IN (SELECT id FROM tracks);
+            DROP TABLE playback_bookmarks;
+            ALTER TABLE playback_bookmarks_v2 RENAME TO playback_bookmarks;
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            r#"
+            UPDATE tracks
+            SET album_artist = (SELECT a.album_artist FROM albums a WHERE a.id = tracks.album_id)
+            WHERE album_id IS NOT NULL
+              AND album_artist = (SELECT a.title FROM albums a WHERE a.id = tracks.album_id);
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Metadane harmoniczne w pamięci podręcznej analiz (wcześniej zwracano stałe 120 BPM / "Detected").
+        let new_columns = [
+            ("track_chords", "bpm", "REAL"),
+            ("track_chords", "musical_key", "TEXT"),
+            ("track_chords", "camelot", "TEXT"),
+            ("track_transcriptions", "bpm", "REAL"),
+        ];
+        for (table, column, ty) in new_columns {
+            let existing: Vec<String> =
+                sqlx::query_scalar(&format!("SELECT name FROM pragma_table_info('{table}');"))
+                    .fetch_all(&mut *tx)
+                    .await?;
+            if !existing.iter().any(|c| c == column) {
+                sqlx::query(&format!("ALTER TABLE {table} ADD COLUMN {column} {ty};"))
+                    .execute(&mut *tx)
+                    .await?;
+            }
+        }
+
+        sqlx::query("PRAGMA user_version = 2;")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
         Ok(())
     }
 }

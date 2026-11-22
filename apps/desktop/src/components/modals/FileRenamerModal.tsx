@@ -93,7 +93,10 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
     try {
       setIsExecuting(true);
       setError(null);
-      const count = await invoke<number>('execute_rename_tracks', { items: validItems });
+      const count = await invoke<number>('execute_rename_tracks', {
+        items: validItems,
+        allowOverwrite: hasOverwrites,
+      });
       setSuccessCount(count);
       onRenamedSuccess?.();
     } catch (err) {

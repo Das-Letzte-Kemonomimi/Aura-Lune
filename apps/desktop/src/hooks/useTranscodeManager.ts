@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from '../types/player';
 import { formatTimeMs, parseTimeToMs } from '../utils/timeFormat';
 import type { Language, Translations, getTranslations } from '../i18n';
+import { useTauriEvent } from './useTauriEvent';
 
 export interface UseTranscodeManagerProps {
   filePath: string;
@@ -75,20 +75,10 @@ export function useTranscodeManager({
   const [isPickingDestination, setIsPickingDestination] = useState(false);
 
   // Nasłuchiwanie postępu transkodowania z backendu
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<{ percent: number; position_ms?: number; duration_ms?: number }>('transcode_progress', (e) => {
-      setTranscodeProgress(e.payload);
-    }).then((unsub) => {
-      unlisten = unsub;
-    }).catch(() => {
-      // Ignoruj błąd rejestracji w środowisku mock
-    });
-
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, []);
+  useTauriEvent<{ percent: number; position_ms?: number; duration_ms?: number }>(
+    'transcode_progress',
+    setTranscodeProgress,
+  );
 
   // Timer mierzący czas trwania transkodowania
   useEffect(() => {

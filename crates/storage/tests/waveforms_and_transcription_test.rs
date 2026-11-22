@@ -43,22 +43,28 @@ async fn test_track_chords_and_overrides() {
     let track = make_dummy_track("/music/chords_track.flac", "Chords Track", "Artist");
     let track_id = db.upsert_track(&track).await.unwrap();
 
-    db.save_track_chords(
+    db.save_track_chords(&storage::NewTrackChords {
         track_id,
-        "hash123",
-        "1.0.0",
-        r#"[{"time_ms":0,"beat_number":1,"is_downbeat":true}]"#,
-        r#"[{"start_ms":0,"end_ms":2000,"chord":"C","confidence":0.95}]"#,
-    )
+        file_hash: "hash123",
+        analyzer_version: "1.0.0",
+        beat_grid_json: r#"[{"time_ms":0,"beat_number":1,"is_downbeat":true}]"#,
+        chords_json: r#"[{"start_ms":0,"end_ms":2000,"chord":"C","confidence":0.95}]"#,
+        bpm: Some(128.5),
+        musical_key: Some("A min"),
+        camelot: Some("8A"),
+    })
     .await
     .unwrap();
 
-    let chords = db.get_track_chords(track_id).await.unwrap();
-    assert!(chords.is_some());
-    let (beat_json, chords_json, overrides) = chords.unwrap();
-    assert!(beat_json.contains("beat_number"));
-    assert!(chords_json.contains("\"chord\":\"C\""));
-    assert!(overrides.is_none());
+    let cached = db.get_track_chords(track_id).await.unwrap().unwrap();
+    assert!(cached.beat_grid_json.contains("beat_number"));
+    assert!(cached.chords_json.contains("\"chord\":\"C\""));
+    assert!(cached.user_overrides_json.is_none());
+    assert_eq!(cached.file_hash, "hash123");
+    assert_eq!(cached.analyzer_version, "1.0.0");
+    assert_eq!(cached.bpm, Some(128.5));
+    assert_eq!(cached.musical_key.as_deref(), Some("A min"));
+    assert_eq!(cached.camelot.as_deref(), Some("8A"));
 
     db.save_chord_overrides(
         track_id,
@@ -68,7 +74,7 @@ async fn test_track_chords_and_overrides() {
     .unwrap();
     let chords2 = db.get_track_chords(track_id).await.unwrap().unwrap();
     assert_eq!(
-        chords2.2,
+        chords2.user_overrides_json,
         Some(r#"[{"start_ms":0,"end_ms":2000,"chord":"Cmaj7"}]"#.to_string())
     );
 }
@@ -84,12 +90,14 @@ async fn test_track_transcription() {
         "hash123",
         "1.0.0",
         r#"[{"onset_ms":100,"duration_ms":500,"midi_pitch":60,"velocity":80}]"#,
+        Some(96.0),
     )
     .await
     .unwrap();
-    let trans = db.get_track_transcription(track_id).await.unwrap();
-    assert!(trans.is_some());
-    assert!(trans.unwrap().contains("\"midi_pitch\":60"));
+    let trans = db.get_track_transcription(track_id).await.unwrap().unwrap();
+    assert!(trans.notes_json.contains("\"midi_pitch\":60"));
+    assert_eq!(trans.bpm, Some(96.0));
+    assert_eq!(trans.file_hash, "hash123");
 }
 
 #[tokio::test]

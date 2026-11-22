@@ -46,3 +46,60 @@ fn test_dsp_boundary_clamping_and_rapid_seeks() {
     // 5. Clean stop
     engine.stop().expect("stop");
 }
+
+/// Regresja: `play_index` (queue → inner) i `play()` (inner → queue) wywoływane z różnych wątków
+/// nie mogą się zakleszczyć. Test kończy się porażką, jeśli wątki nie zakończą pracy w limicie czasu.
+#[test]
+fn test_concurrent_play_and_play_index_do_not_deadlock() {
+    use domain::queue::QueueItem;
+    use std::sync::mpsc;
+    use std::sync::Arc;
+
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap().parent().unwrap();
+    let fixture_wav = root.join("tests/fixtures/test_sine_440hz.wav");
+    let uri = format!("file://{}", fixture_wav.canonicalize().unwrap().display());
+
+    let engine = Arc::new(AudioEngine::new().expect("AudioEngine should initialize"));
+    engine.set_volume(0.0).expect("mute for test");
+    let items: Vec<QueueItem> = (0..3)
+        .map(|i| QueueItem {
+            id: format!("dl-{i}"),
+            track_id: None,
+            uri: uri.clone(),
+            title: format!("Sine {i}"),
+            artist: "Test".into(),
+            album: None,
+            duration_ms: 1000,
+        })
+        .collect();
+    engine.restore_queue(items, Some(0));
+
+    let (tx, rx) = mpsc::channel();
+    let mut handles = Vec::new();
+    for worker in 0..2 {
+        let engine = Arc::clone(&engine);
+        let tx = tx.clone();
+        handles.push(std::thread::spawn(move || {
+            for i in 0..25 {
+                if worker == 0 {
+                    let _ = engine.play_index(i % 3);
+                } else {
+                    let _ = engine.play();
+                    let _ = engine.current_queue_item();
+                }
+            }
+            tx.send(()).unwrap();
+        }));
+    }
+    drop(tx);
+
+    for _ in 0..2 {
+        rx.recv_timeout(Duration::from_secs(30))
+            .expect("play()/play_index() deadlocked");
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+    engine.stop().expect("stop");
+}

@@ -1,6 +1,6 @@
 use sqlx::Row;
 
-use crate::{Database, StorageError};
+use crate::{CachedTrackChords, CachedTrackTranscription, Database, NewTrackChords, StorageError};
 
 impl Database {
     // =========================================================================
@@ -8,53 +8,48 @@ impl Database {
     // =========================================================================
 
     /// Zapisuje wynik detekcji akordów i siatki taktowej dla utworu.
-    pub async fn save_track_chords(
-        &self,
-        track_id: i64,
-        file_hash: &str,
-        analyzer_version: &str,
-        beat_grid_json: &str,
-        chords_json: &str,
-    ) -> Result<(), StorageError> {
+    pub async fn save_track_chords(&self, entry: &NewTrackChords<'_>) -> Result<(), StorageError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
         sqlx::query(
             r#"
-            INSERT INTO track_chords (track_id, file_hash, analyzer_version, beat_grid_json, chords_json, created_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6);
+            INSERT INTO track_chords (track_id, file_hash, analyzer_version, beat_grid_json, chords_json,
+                                      created_at, bpm, musical_key, camelot)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9);
             "#,
         )
-        .bind(track_id)
-        .bind(file_hash)
-        .bind(analyzer_version)
-        .bind(beat_grid_json)
-        .bind(chords_json)
+        .bind(entry.track_id)
+        .bind(entry.file_hash)
+        .bind(entry.analyzer_version)
+        .bind(entry.beat_grid_json)
+        .bind(entry.chords_json)
         .bind(now)
+        .bind(entry.bpm)
+        .bind(entry.musical_key)
+        .bind(entry.camelot)
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    /// Pobiera zapisane dane akordów i siatki taktów dla danego utworu.
+    /// Pobiera najnowsze zapisane dane akordów i siatki taktów dla danego utworu.
     pub async fn get_track_chords(
         &self,
         track_id: i64,
-    ) -> Result<Option<(String, String, Option<String>)>, StorageError> {
-        let row = sqlx::query(
-            "SELECT beat_grid_json, chords_json, user_overrides_json FROM track_chords WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;",
+    ) -> Result<Option<CachedTrackChords>, StorageError> {
+        let row = sqlx::query_as::<_, CachedTrackChords>(
+            r#"
+            SELECT file_hash, analyzer_version, beat_grid_json, chords_json, user_overrides_json,
+                   bpm, musical_key, camelot
+            FROM track_chords WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;
+            "#,
         )
         .bind(track_id)
         .fetch_optional(&self.pool)
         .await?;
-
-        Ok(row.map(|r| {
-            let beat: String = r.get(0);
-            let chords: String = r.get(1);
-            let overrides: Option<String> = r.get(2);
-            (beat, chords, overrides)
-        }))
+        Ok(row)
     }
 
     /// Zapisuje ręczne poprawki akordów wprowadzone przez użytkowniczkę.
@@ -71,13 +66,14 @@ impl Database {
         Ok(())
     }
 
-    /// Zapisuje wynik polifonicznej transkrypcji nutowej.
+    /// Zapisuje wynik polifonicznej transkrypcji nutowej (wraz z wykrytym tempem).
     pub async fn save_track_transcription(
         &self,
         track_id: i64,
         file_hash: &str,
         analyzer_version: &str,
         notes_json: &str,
+        bpm: Option<f64>,
     ) -> Result<(), StorageError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -85,8 +81,8 @@ impl Database {
             .as_secs() as i64;
         sqlx::query(
             r#"
-            INSERT INTO track_transcriptions (track_id, file_hash, analyzer_version, notes_json, created_at)
-            VALUES (?1, ?2, ?3, ?4, ?5);
+            INSERT INTO track_transcriptions (track_id, file_hash, analyzer_version, notes_json, created_at, bpm)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6);
             "#,
         )
         .bind(track_id)
@@ -94,23 +90,27 @@ impl Database {
         .bind(analyzer_version)
         .bind(notes_json)
         .bind(now)
+        .bind(bpm)
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    /// Pobiera zapisaną transkrypcję nutową utworu.
+    /// Pobiera najnowszą zapisaną transkrypcję nutową utworu.
     pub async fn get_track_transcription(
         &self,
         track_id: i64,
-    ) -> Result<Option<String>, StorageError> {
-        let row = sqlx::query(
-            "SELECT notes_json FROM track_transcriptions WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;",
+    ) -> Result<Option<CachedTrackTranscription>, StorageError> {
+        let row = sqlx::query_as::<_, CachedTrackTranscription>(
+            r#"
+            SELECT file_hash, analyzer_version, notes_json, bpm
+            FROM track_transcriptions WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;
+            "#,
         )
         .bind(track_id)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(|r| r.get(0)))
+        Ok(row)
     }
 
     /// Zapisuje wyekstrahowane punkty szczytowe fali (waveform peaks) dla utworu.

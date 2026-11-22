@@ -160,12 +160,6 @@ pub async fn apply_cover_url_internal(
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
-    if let Some(title) = &album_title {
-        let _ = state
-            .db
-            .link_tracks_by_album_title(title, actual_album_id)
-            .await;
-    }
 
     sync_cover_to_discord_cache(state, artist.as_deref(), album_title.as_deref(), cover_url);
 
@@ -242,12 +236,6 @@ pub async fn apply_custom_cover_file_internal(
 
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
-    }
-    if let Some(title) = &album_title {
-        let _ = state
-            .db
-            .link_tracks_by_album_title(title, actual_album_id)
-            .await;
     }
 
     let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
@@ -641,12 +629,6 @@ pub async fn apply_custom_cover_data(
     // Linkowanie utworu z albumem
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
-    }
-    if let Some(title) = &album_title {
-        let _ = state
-            .db
-            .link_tracks_by_album_title(title, actual_album_id)
-            .await;
     }
 
     if let Some(art) = &artist {

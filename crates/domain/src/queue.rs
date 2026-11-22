@@ -83,12 +83,13 @@ impl PlaybackQueue {
 
     /// Wstawia utwór bezpośrednio po aktualnie odtwarzanym ("Odtwórz jako następny").
     pub fn add_next(&mut self, item: QueueItem) {
-        if let Some(idx) = self.current_index {
-            self.items.insert(idx + 1, item);
-        } else {
-            self.add_item(item);
+        match self.current_index {
+            Some(idx) => {
+                self.items.insert(idx + 1, item);
+                self.rebuild_shuffle_order();
+            }
+            None => self.add_item(item),
         }
-        self.rebuild_shuffle_order();
     }
 
     /// Usuwa element z kolejki po unikalnym ID.
@@ -254,13 +255,12 @@ impl PlaybackQueue {
             return;
         }
 
+        // Tasowanie Fishera-Yatesa. Ziarno zmienia się przy każdej przebudowie, więc dwie kolejki
+        // tej samej długości nie dostają identycznej kolejności.
         let mut order: Vec<usize> = (0..count).collect();
-        let mut seed = (count as u64)
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
+        let mut rng = SplitMix64::new(fresh_shuffle_seed());
         for i in (1..count).rev() {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
-            let j = (seed % (i as u64 + 1)) as usize;
+            let j = (rng.next_u64() % (i as u64 + 1)) as usize;
             order.swap(i, j);
         }
 
@@ -272,5 +272,37 @@ impl PlaybackQueue {
 
         self.shuffle_order = order;
         self.shuffle_cursor = 0;
+    }
+}
+
+/// Zwraca nowe ziarno tasowania: zegar systemowy wymieszany z licznikiem wywołań
+/// (dwa wywołania w tej samej nanosekundzie nadal dają różne ziarna).
+fn fresh_shuffle_seed() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    nanos
+        ^ COUNTER
+            .fetch_add(1, Ordering::Relaxed)
+            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+}
+
+/// Mały, szybki generator pseudolosowy (SplitMix64) — wystarczający do tasowania kolejki.
+struct SplitMix64(u64);
+
+impl SplitMix64 {
+    fn new(seed: u64) -> Self {
+        Self(seed)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
     }
 }

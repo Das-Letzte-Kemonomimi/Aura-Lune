@@ -1,9 +1,11 @@
 use crate::AppState;
 use domain::renamer::{
-    format_pattern_for_track, resolve_renamed_path, RenamePreviewItem, RenamerTrackInfo,
+    format_pattern_for_track, resolve_renamed_path, validate_rename_target, RenamePreviewItem,
+    RenamerTrackInfo,
 };
 use std::fs;
 use tauri::State;
+use tracing::warn;
 
 #[tauri::command]
 pub async fn preview_rename_tracks(
@@ -72,29 +74,64 @@ pub async fn preview_rename_tracks(
     Ok(items)
 }
 
+/// Wykonuje zmianę nazw plików.
+///
+/// Każda ścieżka docelowa jest ponownie walidowana (musi leżeć w katalogu pliku źródłowego,
+/// bez `..` i ścieżek absolutnych). Istniejące pliki są nadpisywane wyłącznie przy
+/// `allow_overwrite = true` (użytkownik potwierdził nadpisanie w podglądzie).
+/// Zwraca liczbę plików, którym zmieniono nazwę.
 #[tauri::command]
 pub async fn execute_rename_tracks(
     items: Vec<(i64, String)>,
+    allow_overwrite: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<usize, String> {
+    let allow_overwrite = allow_overwrite.unwrap_or(false);
     let mut renamed_count = 0;
     for (track_id, target_path) in items {
-        if let Ok(Some(track)) = state.db.get_track_by_id(track_id).await {
-            let old_p = std::path::Path::new(&track.path);
-            let new_p = std::path::Path::new(&target_path);
-
-            if old_p == new_p {
+        let Ok(Some(track)) = state.db.get_track_by_id(track_id).await else {
+            continue;
+        };
+        if track.path == target_path {
+            continue;
+        }
+        let new_p = match validate_rename_target(&track.path, &target_path) {
+            Ok(p) => p,
+            Err(e) => {
+                warn!(
+                    "Odrzucono zmianę nazwy {} -> {}: {}",
+                    track.path, target_path, e
+                );
                 continue;
             }
+        };
+        if new_p.exists() && !allow_overwrite {
+            warn!("Pominięto {}: plik docelowy już istnieje", new_p.display());
+            continue;
+        }
 
+        let old_p = std::path::PathBuf::from(&track.path);
+        let renamed = tokio::task::spawn_blocking(move || {
             if let Some(parent) = new_p.parent() {
-                let _ = fs::create_dir_all(parent);
+                fs::create_dir_all(parent)?;
             }
+            fs::rename(&old_p, &new_p).map(|_| new_p)
+        })
+        .await
+        .map_err(|e| e.to_string())?;
 
-            if fs::rename(old_p, new_p).is_ok() {
-                let _ = state.db.update_track_path(track_id, &target_path).await;
+        match renamed {
+            Ok(new_p) => {
+                let new_path_str = new_p.to_string_lossy().to_string();
+                if let Err(e) = state.db.update_track_path(track_id, &new_path_str).await {
+                    warn!(
+                        "Nie udało się zaktualizować ścieżki utworu {}: {}",
+                        track_id, e
+                    );
+                }
                 renamed_count += 1;
             }
+            Err(e) => warn!("Błąd zmiany nazwy {}: {}", track.path, e),
         }
     }
     Ok(renamed_count)

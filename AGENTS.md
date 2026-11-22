@@ -100,7 +100,7 @@ Aura-Lune/
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Modularized Tauri command handlers (162 commands)
+│           │   ├── commands/        # Modularized Tauri command handlers (215 commands)
 │           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
 │           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
@@ -124,7 +124,8 @@ Aura-Lune/
 │           │   ├── lib.rs           # Lightweight Tauri entrypoint (< 350 lines)
 │           │   └── main.rs          # Native binary main function
 │           ├── tests/
-│           │   └── commands_dto_test.rs # Desktop command DTO & thread-safety test suite
+│           │   ├── commands_dto_test.rs # Desktop command DTO & thread-safety test suite
+│           │   └── ipc_contract_test.rs # Every frontend invoke() must target a registered command
 │           └── Cargo.toml
 ├── crates/                          # Rust Core Workspaces (11 crates)
 │   ├── audio-engine/                # GStreamer pipeline, real-time DSP, stem mixer
@@ -194,12 +195,13 @@ Aura-Lune/
   - `model_manager.rs`: AI model catalog and SHA-256 verification.
   - `device.rs`: `DeviceManager` with PipeWire/ALSA card parsing.
   - `hpss.rs`: Harmonic-Percussive Source Separation STFT algorithms with internal unit tests in `src/hpss_test.rs`.
+  - `uri.rs`: Single source of truth for path → GStreamer URI conversion (`media_uri`, `media_uri_checked`, `local_path`) with percent-encoding of spaces/non-ASCII and no double encoding. Never build `file://` URIs with `format!`.
 - **Tests**: Comprehensive integration suites under `crates/audio-engine/tests/` (`playback_test.rs`, `flac_slow_test.rs`, `metadata_editor_test.rs`, `device_and_model_manager_test.rs`, etc.).
 
 ### `crates/storage` (Modular Architecture)
 - **Purpose**: SQLite persistence layer built with `sqlx`, partitioned into 9 domain submodules:
   - [`src/models.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/models.rs): Database records (`TrackRecord`, `AlbumRecord`, `ArtistRecord`, `DspPresetRecord`, `DuplicateGroup`, `RecapSummaryDto`) and `StorageError`.
-  - [`src/schema.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -64000`, `temp_store = MEMORY`, `mmap_size = 256MB`), versioned migrations (`PRAGMA user_version`), default anime themes.
+  - [`src/schema.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -64000`, `temp_store = MEMORY`, `mmap_size = 256MB`), versioned migrations (`PRAGMA user_version`, currently **v2**: bookmark `ON DELETE CASCADE`, `album_artist` repair, cached chord/transcription `bpm`/`musical_key`/`camelot`), default anime themes.
   - [`src/library.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/library.rs): Track, album, and artist CRUD, metadata updates, duplicate detection.
   - [`src/bookmarks.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/bookmarks.rs): Track bookmarks and multi-cue timestamp markers.
   - [`src/settings.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/settings.rs): Key-value app settings, DSP presets, custom theme storage.
@@ -208,10 +210,13 @@ Aura-Lune/
   - [`src/analysis.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/analysis.rs): Musical analysis cache (chords, beat grid, notes, waveform peaks) and AI model registry.
   - [`src/stems.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/stems.rs): Stem tracks and multitrack project storage.
   - [`src/lib.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/lib.rs): Slim facade (74 lines) exposing `Database`.
-- **Tests**: Fully separated in `crates/storage/tests/` (`database_crud_test.rs`, `bookmarks_and_cues_test.rs`, `settings_and_dsp_presets_test.rs`, `waveforms_and_transcription_test.rs`, `stem_projects_multitrack_test.rs`, `smart_playlists_and_stats_test.rs`, `playlist_and_queue_persistence_test.rs`).
+- **Tests**: Fully separated in `crates/storage/tests/` (`database_crud_test.rs`, `bookmarks_and_cues_test.rs`, `settings_and_dsp_presets_test.rs`, `waveforms_and_transcription_test.rs`, `stem_projects_multitrack_test.rs`, `smart_playlists_and_stats_test.rs`, `playlist_and_queue_persistence_test.rs`, `schema_migrations_test.rs`).
 
 ### `crates/library`
 - **Purpose**: High-speed local music indexing using `walkdir` and `lofty`. Incremental scanning skips unchanged files using mtime and file size checks.
+- **Album grouping**: albums are keyed by the `ALBUMARTIST` tag (falling back to the track artist), so compilations stay a single album.
+- **Stale cleanup**: after a complete walk of an existing root, `Database::delete_stale_tracks(root, active_paths)` removes records for files that vanished — scoped to that root only and skipped on walk errors (unmounted drives never wipe the library).
+- **Tests**: `crates/library/tests/scanner_test.rs`.
 
 ### `crates/metadata`
 - **Purpose**: External online metadata enrichment and social scrobbling.
@@ -243,12 +248,12 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 - [`setup/tray.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/tray.rs): System tray icon, context menu, and close-to-tray handling.
 
 ### Modular Command Handlers (`commands/`)
-All 162 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+All 215 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
 
 | Module | Responsibility | Key Commands |
 |---|---|---|
 | [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
-| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_stop_after_current`, `toggle_stop_after_current` |
+| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `set_stop_after_current`, `toggle_stop_after_current` |
 | [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_parametric_eq_enabled`, `set_compressor_enabled`, `set_saturator_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
 | [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `get_library_artists`, `get_favorite_tracks`, `get_recently_played_tracks`, `get_top_played_tracks`, `get_hires_tracks`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
 | [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `list_smart_playlist_tracks`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
@@ -289,13 +294,12 @@ All 162 commands are organized by domain under `apps/desktop/src-tauri/src/comma
   - `AppSettingsModal.tsx`: Tabbed settings container.
 
 ### Domain Hooks (`src/hooks`)
-- **`useAudioPlayer`**: Controls volume, playback state, position tracking, and DSP pitch/tempo parameters.
 - **`usePlaybackController`**: Coordinates higher-level play, pause, next, previous, stop, seek, and loop operations.
 - **`usePlaybackQueue`**: Queue management, reordering, shuffling, removing, and virtualized queue tracking.
 - **`useLibraryManager`**: Library scanning, indexing progress, track loading, and album/artist queries using `useDeferredValue`.
 - **`useLibraryPlaybackActions`**: Favorites, track ratings, play count resetting, adding tracks to playlists.
 - **`useDspManager`**: DSP engine selection, 10-band graphic EQ, parametric EQ, compressor, saturator, limiter.
-- **`useThemeEngine` & `useThemeManager`**: Theme tokens, custom wallpaper uploads, overlay opacity, and blur radius.
+- **`useThemeManager`**: Theme tokens, custom wallpaper uploads, overlay opacity, and blur radius.
 - **`useModalManager`**: Central modal router supporting typed `open()`, `close()`, `isOpen()`, and `Escape` key handling.
 - **`useAudioSettings`**: Audio device selection, buffer sizes, bit-perfect toggle, volume OSD configurations.
 - **`usePlaylistManager`**: Playlist CRUD, M3U8 import/export, and radio stations.
@@ -306,7 +310,9 @@ All 162 commands are organized by domain under `apps/desktop/src-tauri/src/comma
 - **`useAmbienceMode`**: Ambient anime particle visualizers (Sakura, Neon Rain, Fireflies, Snow, Matrix Rain, Momiji, Embers).
 - **`useVolumeUnit`**: Toggle volume display between percent (`%`) and decibels (`dBFS`).
 - **`useInfinityQueue`**: Auto-recommendation queue continuation based on genre and artist similarity.
-- **`useHotkeysManager`**: Global keyboard shortcuts coordinator with text-input guard.
+- **`useHotkeysManager`**: Global keyboard shortcuts coordinator with text-input guard. Registers one `keydown` listener and reads the latest props through a ref.
+- **`useTauriEvent`**: Subscribe to a backend event (`useTauriEvent(name, handler, enabled?)`). Always use it instead of raw `listen()` in components/hooks — it keeps the latest handler and unsubscribes even when unmounted before `listen()` resolves.
+- **`useSleepTimer`**: Sleep timer countdown/fade-out; interval reads latest values via refs so frequent host re-renders do not reset it.
 - **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for ultra-large track libraries.
 
 ### Prop Builder Hooks
@@ -377,14 +383,15 @@ All tests across the workspace are decoupled from production source files into d
 
 | Crate | Test Files | Description |
 |---|---|---|
-| `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs` | Full SQLite persistence and query test suite |
-| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs` | Domain entities, parsers, and DSP model math |
-| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`src/hpss_test.rs` | GStreamer playback, DSP switching, tag editing, FFT |
+| `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs`<br>`tests/schema_migrations_test.rs` | Full SQLite persistence and query test suite |
+| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs` | Domain entities, parsers, and DSP model math |
+| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`src/hpss_test.rs` | GStreamer playback, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
 | `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs` | Network services, LRC parsing, AcoustID |
 | `crates/downloads` | `tests/download_manager_test.rs` | Model download jobs & path traversal checks |
 | `crates/desktop-integration` | `tests/desktop_integration_test.rs`<br>`tests/discord_rpc_test.rs`<br>`tests/mpris_test.rs`<br>`tests/waybar_and_ipc_test.rs` | MPRIS, Discord RPC, Waybar atomic status |
 | `crates/dsp-api` | `tests/dsp_api_test.rs` | DSP parameters, semitone & cent math |
-| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs` | DTO validation, `AppState` Send+Sync safety |
+| `crates/library` | `tests/scanner_test.rs` | Incremental scan, album-artist grouping, scoped stale-track cleanup |
+| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs`<br>`tests/ipc_contract_test.rs` | DTO validation, `AppState` Send+Sync safety, frontend `invoke()` ↔ `generate_handler!` contract |
 
 ---
 
@@ -401,7 +408,7 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
    - The test infrastructure and build pipeline must strictly remain native Rust (`cargo test`) and TypeScript (`vitest run`). Do not introduce Python scripts or test harnesses.
 4. **Toolchain Baseline**:
    - **Node.js**: Node.js 22 LTS (`.nvmrc` pinned to `22`) and npm >= 10 / pnpm 10.
-   - **Rust**: Rust stable (edition 2024 / 1.85+) with `rustfmt` and `clippy`.
+   - **Rust**: Rust stable (edition 2021, toolchain 1.85+) with `rustfmt` and `clippy`.
 5. **IPC Parity & Type Safety**:
    - When modifying a Tauri command in `commands/`, verify that both the backend handler and the corresponding frontend `invoke()` calls match signatures.
 6. **No Inline `#[cfg(test)]` in Production Sources**:

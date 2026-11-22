@@ -15,7 +15,6 @@ use gst::prelude::*;
 use gst_base::prelude::BaseTransformExt;
 use gstreamer as gst;
 use gstreamer_base as gst_base;
-use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
@@ -692,31 +691,7 @@ impl AudioEngine {
 
     /// Ładuje plik lokalny lub URI do odtwarzania z pełną obsługą znaków japońskich i spacji w URI.
     pub fn load_uri(&self, uri_or_path: &str) -> Result<(), AudioEngineError> {
-        let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
-            uri_or_path.to_string()
-        } else if uri_or_path.starts_with("file://") {
-            // Bezpieczna obsługa URI z prefiksem file:// (ochrona przed podwójnym kodowaniem %20 -> %2520)
-            if let Ok((path, _)) = glib::filename_from_uri(uri_or_path) {
-                if path.exists() {
-                    glib::filename_to_uri(&path, None)
-                        .map(|u| u.to_string())
-                        .unwrap_or_else(|_| uri_or_path.to_string())
-                } else {
-                    uri_or_path.to_string()
-                }
-            } else {
-                uri_or_path.to_string()
-            }
-        } else {
-            let path = Path::new(uri_or_path);
-            if !path.exists() {
-                return Err(AudioEngineError::FileNotFound(uri_or_path.to_string()));
-            }
-            let canonical = path.canonicalize()?;
-            glib::filename_to_uri(&canonical, None)
-                .map(|u| u.to_string())
-                .unwrap_or_else(|_| format!("file://{}", canonical.display()))
-        };
+        let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
         let mut inner = self.inner.lock().unwrap();
 
@@ -866,11 +841,7 @@ impl AudioEngine {
         let mut stem_elements = Vec::new();
 
         for (name, path_str) in stem_list {
-            let uri = if path_str.starts_with("file://") {
-                path_str.to_string()
-            } else {
-                format!("file://{}", path_str)
-            };
+            let uri = crate::uri::media_uri(path_str);
 
             let decoder = gst::ElementFactory::make("uridecodebin")
                 .property("uri", &uri)
@@ -1043,11 +1014,7 @@ impl AudioEngine {
         let mut stem_elements = Vec::new();
 
         for ch in channels {
-            let uri = if ch.file_path.starts_with("file://") {
-                ch.file_path.clone()
-            } else {
-                format!("file://{}", ch.file_path)
-            };
+            let uri = crate::uri::media_uri(&ch.file_path);
 
             let decoder = gst::ElementFactory::make("uridecodebin")
                 .property("uri", &uri)
@@ -2623,11 +2590,19 @@ impl AudioEngine {
 
     /// Odtwarza utwór ze wskazanego indeksu w kolejce.
     pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (item, user_vol, is_playing, volume, is_same_track) = {
-            let mut q = self.queue.lock().unwrap();
+        // Kolejność blokad: `inner` może być trzymany podczas pobierania `queue`, ale nigdy odwrotnie.
+        // Najpierw migawka stanu silnika (blokada zwalniana), dopiero potem modyfikacja kolejki.
+        let (user_vol, is_playing, volume, current_uri) = {
             let inner = self.inner.lock().unwrap();
-            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            let current_uri = inner.current_uri.clone();
+            (
+                inner.user_volume,
+                inner.pipeline.current_state() == gst::State::Playing,
+                inner.volume.clone(),
+                inner.current_uri.clone(),
+            )
+        };
+        let (item, is_same_track) = {
+            let mut q = self.queue.lock().unwrap();
             let item = if index < q.items.len() {
                 q.current_index = Some(index);
                 if q.shuffle && !q.shuffle_order.is_empty() {
@@ -2643,13 +2618,7 @@ impl AudioEngine {
                 (Some(it), Some(cur)) => &it.uri == cur,
                 _ => false,
             };
-            (
-                item,
-                inner.user_volume,
-                is_playing,
-                inner.volume.clone(),
-                is_same,
-            )
+            (item, is_same)
         };
 
         if let Some(item) = &item {
@@ -2832,36 +2801,14 @@ impl AudioEngine {
                 inner.rgvolume.set_property("fallback-gain", 0.0f64);
                 inner.rglimiter.set_property("enabled", false);
             }
-            ReplayGainMode::Track => {
+            ReplayGainMode::Track | ReplayGainMode::Album | ReplayGainMode::Auto => {
                 if let Some(ref child) = inner.rgvolume_child {
                     child.set_passthrough(false);
                 }
-                inner.rgvolume.set_property("album-mode", false);
-                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
-                inner
-                    .rgvolume
-                    .set_property("fallback-gain", config.fallback_gain_db);
-                inner
-                    .rglimiter
-                    .set_property("enabled", config.prevent_clipping);
-            }
-            ReplayGainMode::Album => {
-                if let Some(ref child) = inner.rgvolume_child {
-                    child.set_passthrough(false);
-                }
-                inner.rgvolume.set_property("album-mode", true);
-                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
-                inner
-                    .rgvolume
-                    .set_property("fallback-gain", config.fallback_gain_db);
-                inner
-                    .rglimiter
-                    .set_property("enabled", config.prevent_clipping);
-            }
-            ReplayGainMode::Auto => {
-                if let Some(ref child) = inner.rgvolume_child {
-                    child.set_passthrough(false);
-                }
+                // Auto startuje od Track Gain (bezpieczne dla shuffle i mieszanych kolejek);
+                // `apply_auto_replaygain` przełącza na Album Gain przy odtwarzaniu całego albumu.
+                let album_mode = config.mode == ReplayGainMode::Album;
+                inner.rgvolume.set_property("album-mode", album_mode);
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
                 inner
                     .rgvolume
@@ -2889,6 +2836,15 @@ impl AudioEngine {
                 use_album_gain, is_same_album, is_shuffle
             );
         }
+    }
+
+    /// Czy element rgvolume używa obecnie Album Gain (true) czy Track Gain (false).
+    pub fn replaygain_album_mode(&self) -> bool {
+        self.inner
+            .lock()
+            .unwrap()
+            .rgvolume
+            .property::<bool>("album-mode")
     }
 
     /// Pobiera bieżącą konfigurację ReplayGain.

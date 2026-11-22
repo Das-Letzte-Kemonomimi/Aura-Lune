@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Element podglądu zmiany nazwy pliku utworu.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,10 +25,28 @@ pub fn sanitize_filename_part(input: &str) -> String {
     }
     let trimmed = out.trim();
     if trimmed.is_empty() {
-        "Unknown".to_string()
-    } else {
-        trimmed.to_string()
+        return "Unknown".to_string();
     }
+    // Wartości tagów "." i ".." nie mogą stać się nawigacją po katalogach.
+    if trimmed.chars().all(|c| c == '.') {
+        return "_".repeat(trimmed.chars().count());
+    }
+    truncate_to_bytes(trimmed, MAX_TAG_PART_BYTES).to_string()
+}
+
+/// Limit długości pojedynczej wartości tagu w nazwie pliku (zostawia miejsce na numer i rozszerzenie).
+const MAX_TAG_PART_BYTES: usize = 200;
+
+/// Przycina tekst do `max` bajtów na granicy znaku UTF-8.
+fn truncate_to_bytes(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        return s;
+    }
+    let mut end = max;
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    s[..end].trim_end()
 }
 
 /// Formatuje nową nazwę pliku utworu wg zadanego schematu tagów w stylu foobar2000.
@@ -89,14 +107,62 @@ pub fn format_pattern_for_track(pattern: &str, info: &RenamerTrackInfo) -> Strin
     result
 }
 
+/// Maksymalna długość pojedynczego składnika ścieżki w bajtach (limit większości systemów plików).
+pub const MAX_PATH_COMPONENT_BYTES: usize = 255;
+
 /// Buduje pełną nową ścieżkę dla pliku, zachowując katalog macierzysty lub budując strukturę folderów.
+///
+/// Sformatowana nazwa może zawierać podfoldery (np. `%artist%/%album%/%track% - %title%`), ale
+/// wynikowa ścieżka zawsze leży wewnątrz katalogu pliku źródłowego: ścieżki absolutne,
+/// składniki `..` / `.` oraz składniki dłuższe niż [`MAX_PATH_COMPONENT_BYTES`] są odrzucane.
 pub fn resolve_renamed_path(old_path_str: &str, formatted_name: &str) -> Result<PathBuf, String> {
     let old_path = Path::new(old_path_str);
     let parent = old_path
         .parent()
         .ok_or_else(|| "Brak katalogu nadrzędnego dla pliku".to_string())?;
 
-    // Jeśli sformatowana nazwa zawiera podfoldery (np. %artist%/%album%/%track% - %title%.flac)
-    let new_path = parent.join(formatted_name);
+    let relative = Path::new(formatted_name);
+    if formatted_name.trim().is_empty() {
+        return Err("Pusta nazwa pliku".to_string());
+    }
+    let mut new_path = parent.to_path_buf();
+    for component in relative.components() {
+        match component {
+            Component::Normal(part) => {
+                if part.len() > MAX_PATH_COMPONENT_BYTES {
+                    return Err(format!(
+                        "Składnik ścieżki przekracza {} bajtów",
+                        MAX_PATH_COMPONENT_BYTES
+                    ));
+                }
+                new_path.push(part);
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err("Wzorzec nie może tworzyć ścieżki absolutnej".to_string());
+            }
+            Component::ParentDir | Component::CurDir => {
+                return Err("Wzorzec nie może zawierać składników '.' ani '..'".to_string());
+            }
+        }
+    }
     Ok(new_path)
+}
+
+/// Sprawdza, czy docelowa ścieżka (np. przekazana z frontendu) jest dozwolonym celem zmiany
+/// nazwy pliku `old_path_str`: musi leżeć wewnątrz jego katalogu i przejść walidację
+/// [`resolve_renamed_path`].
+pub fn validate_rename_target(
+    old_path_str: &str,
+    target_path_str: &str,
+) -> Result<PathBuf, String> {
+    let parent = Path::new(old_path_str)
+        .parent()
+        .ok_or_else(|| "Brak katalogu nadrzędnego dla pliku".to_string())?;
+    let relative = Path::new(target_path_str)
+        .strip_prefix(parent)
+        .map_err(|_| "Ścieżka docelowa musi leżeć w katalogu pliku źródłowego".to_string())?;
+    let relative_str = relative
+        .to_str()
+        .ok_or_else(|| "Ścieżka docelowa nie jest poprawnym UTF-8".to_string())?;
+    resolve_renamed_path(old_path_str, relative_str)
 }

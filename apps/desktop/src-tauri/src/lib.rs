@@ -212,6 +212,8 @@ pub fn run() {
             play_previous,
             set_loop_mode,
             toggle_shuffle,
+            set_shuffle,
+            set_active_track,
             set_stop_after_current,
             toggle_stop_after_current,
             get_stop_after_current,

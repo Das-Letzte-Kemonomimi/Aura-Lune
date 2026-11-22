@@ -8,4 +8,3 @@ export * from './DragDropOverlay';
 export * from './QueueDrawer';
 export * from './useAppHeaderProps';
 export * from './useBottomPlaybackDockProps';
-export * from './useMainContentRouterProps';

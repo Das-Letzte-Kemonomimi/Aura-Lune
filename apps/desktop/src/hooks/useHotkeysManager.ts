@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { PlaybackStatus } from "../types/player";
 import type { getTranslations } from "../i18n";
 
@@ -37,42 +37,51 @@ export interface UseHotkeysManagerProps {
   librarySearchInputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
-export function useHotkeysManager({
-  statusRef,
-  handlePlayPause,
-  handleNext,
-  handlePrevious,
-  handleSeek,
-  handleVolumeChange,
-  handleToggleShuffle,
-  handleCycleLoopMode,
-  handlePitchChange,
-  handleTempoChange,
-  handleResetDsp,
-  toggleMiniPlayer,
-  setIsBigScreen,
-  setIsSettingsOpen,
-  setIsQueueOpen,
-  setIsQuickLoadOpen,
-  setShowPlaylistModal,
-  setIsScanFolderOpen,
-  setIsShortcutsModalOpen,
-  setIsCommandPaletteOpen,
-  setShowLyrics,
-  setLoopPointA,
-  setLoopPointB,
-  setActiveTab,
-  handleIncreaseScale,
-  handleDecreaseScale,
-  handleResetScale,
-  formatTime,
-  formatVolumeValue,
-  showMessage,
-  t,
-  librarySearchInputRef,
-}: UseHotkeysManagerProps) {
+export function useHotkeysManager(props: UseHotkeysManagerProps) {
+  // Nasłuch klawiatury rejestrowany jest raz; handler czyta najnowsze propsy z ref.
+  // Wcześniej efekt z pustą listą zależności zamrażał wartości z pierwszego renderu
+  // (np. tłumaczenia po zmianie języka i format jednostki głośności).
+  const propsRef = useRef(props);
+  useEffect(() => {
+    propsRef.current = props;
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const {
+        statusRef,
+        handlePlayPause,
+        handleNext,
+        handlePrevious,
+        handleSeek,
+        handleVolumeChange,
+        handleToggleShuffle,
+        handleCycleLoopMode,
+        handlePitchChange,
+        handleTempoChange,
+        handleResetDsp,
+        toggleMiniPlayer,
+        setIsBigScreen,
+        setIsSettingsOpen,
+        setIsQueueOpen,
+        setIsQuickLoadOpen,
+        setShowPlaylistModal,
+        setIsScanFolderOpen,
+        setIsShortcutsModalOpen,
+        setIsCommandPaletteOpen,
+        setShowLyrics,
+        setLoopPointA,
+        setLoopPointB,
+        setActiveTab,
+        handleIncreaseScale,
+        handleDecreaseScale,
+        handleResetScale,
+        formatTime,
+        formatVolumeValue,
+        showMessage,
+        t,
+        librarySearchInputRef,
+      } = propsRef.current;
       const activeEl = document.activeElement as HTMLElement | null;
       const activeTag = (activeEl?.tagName || '').toLowerCase();
       const isRangeInput = activeTag === 'input' && (activeEl as HTMLInputElement)?.type === 'range';

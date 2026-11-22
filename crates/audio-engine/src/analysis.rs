@@ -13,7 +13,6 @@ use gstreamer_audio as gst_audio;
 use lofty::file::TaggedFileExt;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
-use std::path::Path;
 
 pub const CHROMATIC_NOTES: [&str; 12] = [
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -141,25 +140,7 @@ pub fn decode_snippet_for_analysis(
     max_duration_sec: f64,
 ) -> Result<Vec<f32>, String> {
     let _ = gst::init();
-    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
-        uri_or_path.to_string()
-    } else if uri_or_path.starts_with("file://") {
-        let stripped = uri_or_path.trim_start_matches("file://");
-        glib::filename_to_uri(Path::new(stripped), None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| uri_or_path.to_string())
-    } else {
-        let path = Path::new(uri_or_path);
-        if !path.exists() {
-            return Err(format!("Plik nie istnieje: {}", uri_or_path));
-        }
-        let canonical = path
-            .canonicalize()
-            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
-        glib::filename_to_uri(&canonical, None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
-    };
+    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -277,25 +258,7 @@ pub fn decode_stereo_for_stems(
     max_duration_sec: f64,
 ) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
     let _ = gst::init();
-    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
-        uri_or_path.to_string()
-    } else if uri_or_path.starts_with("file://") {
-        let stripped = uri_or_path.trim_start_matches("file://");
-        glib::filename_to_uri(Path::new(stripped), None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| uri_or_path.to_string())
-    } else {
-        let path = Path::new(uri_or_path);
-        if !path.exists() {
-            return Err(format!("Plik nie istnieje: {}", uri_or_path));
-        }
-        let canonical = path
-            .canonicalize()
-            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
-        glib::filename_to_uri(&canonical, None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
-    };
+    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -665,11 +628,8 @@ fn pearson_correlation(x: &[f64; 12], y: &[f64; 12]) -> f64 {
 /// Główna funkcja analityczna: bada plik i zwraca kompleksowy wynik BPM oraz tonacji.
 pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, String> {
     // 1. Próba odczytu tagów z pliku za pomocą lofty (jeśli to plik lokalny)
-    let file_path = if uri_or_path.starts_with("file://") {
-        uri_or_path.trim_start_matches("file://")
-    } else {
-        uri_or_path
-    };
+    let local = crate::uri::local_path(uri_or_path);
+    let file_path = local.as_path();
 
     let mut detected_bpm: Option<f64> = None;
     let mut detected_key: Option<(usize, bool)> = None;
@@ -773,32 +733,7 @@ pub struct ReplayGainAnalysisResult {
 /// utworu za pomocą potoku GStreamer `rganalysis` i `fakesink` (ultra-szybka analiza bez czasu rzeczywistego).
 pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisResult, String> {
     let _ = gst::init();
-    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
-        uri_or_path.to_string()
-    } else if uri_or_path.starts_with("file://") {
-        if let Ok((path, _)) = glib::filename_from_uri(uri_or_path) {
-            if path.exists() {
-                glib::filename_to_uri(&path, None)
-                    .map(|u| u.to_string())
-                    .unwrap_or_else(|_| uri_or_path.to_string())
-            } else {
-                uri_or_path.to_string()
-            }
-        } else {
-            uri_or_path.to_string()
-        }
-    } else {
-        let path = Path::new(uri_or_path);
-        if !path.exists() {
-            return Err(format!("Plik nie istnieje: {}", uri_or_path));
-        }
-        let canonical = path
-            .canonicalize()
-            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
-        glib::filename_to_uri(&canonical, None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
-    };
+    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -1558,7 +1493,8 @@ pub fn analyze_track_chords_and_grid(
         detect_chords_from_samples(&samples, sample_rate, bpm, Some(key_idx), Some(is_minor));
 
     // 4. Obliczenie hasha pliku dla unikalnego cache
-    let path = Path::new(uri_or_path.trim_start_matches("file://"));
+    let local = crate::uri::local_path(uri_or_path);
+    let path = local.as_path();
     let file_hash = if path.exists() {
         calculate_file_sha256(path).unwrap_or_else(|_| "hash_unknown".to_string())
     } else {
@@ -1900,7 +1836,8 @@ pub fn analyze_track_transcription(
     let bpm = detect_bpm_from_samples(&samples, sample_rate);
     let notes = detect_notes_from_samples(&samples, sample_rate, None);
 
-    let path = Path::new(uri_or_path.trim_start_matches("file://"));
+    let local = crate::uri::local_path(uri_or_path);
+    let path = local.as_path();
     let file_hash = if path.exists() {
         calculate_file_sha256(path).unwrap_or_else(|_| format!("hash_{}", track_id))
     } else {
@@ -1925,25 +1862,7 @@ pub fn extract_track_waveform_peaks(uri_or_path: &str, count: usize) -> Result<V
     }
 
     let _ = gst::init();
-    let uri = if uri_or_path.starts_with("http://") || uri_or_path.starts_with("https://") {
-        uri_or_path.to_string()
-    } else if uri_or_path.starts_with("file://") {
-        let stripped = uri_or_path.trim_start_matches("file://");
-        glib::filename_to_uri(Path::new(stripped), None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| uri_or_path.to_string())
-    } else {
-        let path = Path::new(uri_or_path);
-        if !path.exists() {
-            return Err(format!("Plik nie istnieje: {}", uri_or_path));
-        }
-        let canonical = path
-            .canonicalize()
-            .map_err(|e| format!("Błąd ścieżki: {}", e))?;
-        glib::filename_to_uri(&canonical, None)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|_| format!("file://{}", canonical.display()))
-    };
+    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
 
     let pipeline = gst::Pipeline::new();
 

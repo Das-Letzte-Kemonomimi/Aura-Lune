@@ -581,7 +581,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
                 uri: fullTrack.path,
                 title: fullTrack.title,
                 artist: fullTrack.artist,
-                album: matchingAlbum?.title || fullTrack.album_artist || null,
+                album: matchingAlbum?.title || null,
                 duration_ms: (fullTrack.duration_ms || 0) as any,
               };
 

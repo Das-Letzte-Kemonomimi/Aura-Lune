@@ -221,13 +221,14 @@ pub async fn load_track_stems_internal(
         .map_err(|e| e.to_string())?;
 
     if let Some(track) = orig_track {
+        let album_title = state.db.queue_item_for_track(&track).await.album;
         let queue_item = QueueItem {
             id: format!("stems-track-{}", track_id),
             track_id: Some(track.id),
             uri: orig_uri.unwrap_or_else(|| track.path.clone()),
             title: track.title.clone(),
             artist: track.artist.clone(),
-            album: track.album_id.map(|aid| format!("Album #{}", aid)),
+            album: album_title,
             duration_ms: track.duration_ms.max(0) as u64,
         };
         state.engine.set_active_item(queue_item.clone());
