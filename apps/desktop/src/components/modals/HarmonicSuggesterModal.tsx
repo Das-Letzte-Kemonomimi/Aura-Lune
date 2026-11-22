@@ -484,7 +484,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   </span>
                 ) : (
                   <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                    (128 BPM domyślnie)
+                    {loc.harmonicSuggester.defaultBpm}
                   </span>
                 )}
               </div>

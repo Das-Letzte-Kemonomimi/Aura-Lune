@@ -1,24 +1,27 @@
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { QueueItem } from '../types/queue';
 import { useVirtualScroll } from './useVirtualScroll';
+import { getTranslations, type Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseQueueVirtualScrollOptions {
   items: QueueItem[];
   searchQuery: string;
   compactMode: boolean;
   containerRef: React.RefObject<HTMLElement | null>;
+  loc?: Translations;
 }
 
-export function formatTotalDuration(ms: number): string {
-  if (!ms || ms <= 0) return '0 min';
+export function formatTotalDuration(ms: number, t: Translations = getTranslations()): string {
+  if (!ms || ms <= 0) return fmt(t.common.durationMinutes, '0');
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   if (hours > 0) {
-    return `${hours} godz. ${minutes} min`;
+    return fmt(t.common.durationHoursMinutes, String(hours), String(minutes));
   }
-  return `${minutes} min ${seconds} s`;
+  return fmt(t.common.durationMinutesSeconds, String(minutes), String(seconds));
 }
 
 export function useQueueVirtualScroll({
@@ -26,7 +29,9 @@ export function useQueueVirtualScroll({
   searchQuery,
   compactMode,
   containerRef,
+  loc,
 }: UseQueueVirtualScrollOptions) {
+  const formatDuration = useCallback((ms: number) => formatTotalDuration(ms, loc), [loc]);
   const queueListRef = useRef<HTMLDivElement | null>(null);
 
   const totalQueueDurationMs = useMemo(() => {
@@ -65,7 +70,7 @@ export function useQueueVirtualScroll({
   return {
     queueListRef,
     totalQueueDurationMs,
-    formatTotalDuration,
+    formatTotalDuration: formatDuration,
     filteredQueueItems,
     queueStartIndex,
     queueEndIndex,

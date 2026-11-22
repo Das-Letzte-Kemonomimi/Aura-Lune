@@ -34,4 +34,11 @@ describe('romaji - Hepburn Romanization utility', () => {
   it('preserves Latin characters and spaces', () => {
     expect(toRomaji('Kitsune きつね Player')).toBe('Kitsune kitsune Player');
   });
+
+  it('converts half-width katakana and rare kana', () => {
+    expect(toRomaji('ｱｲｳ')).toBe('aiu');
+    expect(toRomaji('ｶﾞｸ')).toBe('gaku');
+    expect(toRomaji('ヶ月')).toBe('ke月');
+    expect(toRomaji('ヴァイオリン')).toBe('vaiorin');
+  });
 });

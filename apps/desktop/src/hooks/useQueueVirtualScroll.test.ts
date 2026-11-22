@@ -15,7 +15,7 @@ describe('formatTotalDuration', () => {
   });
 
   it('formats hours and minutes', () => {
-    expect(formatTotalDuration(3665000)).toBe('1 godz. 1 min');
+    expect(formatTotalDuration(3665000)).toBe('1 h 1 min');
   });
 });
 

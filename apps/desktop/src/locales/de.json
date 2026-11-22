@@ -799,7 +799,10 @@
     "close": "Schließen",
     "save": "Speichern",
     "errorPrefix": "Fehler:",
-    "copyToClipboard": "In die Zwischenablage kopieren"
+    "copyToClipboard": "In die Zwischenablage kopieren",
+    "durationHoursMinutes": "{0} Std. {1} Min.",
+    "durationMinutesSeconds": "{0} Min. {1} s",
+    "durationMinutes": "{0} Min."
   },
   "stats": {
     "title": "Auralune Recap & Musikstatistiken",
@@ -1093,7 +1096,16 @@
     "cuePlaybackStarted": "CUE-Wiedergabe: {0} ({1})",
     "cueTracksAdded": "{0} Titel aus CUE zur Warteschlange hinzugefügt",
     "tempoMatched": "DSP-Tempo angepasst: {0}x ({1} → {2} BPM)",
-    "noBpmDetected": "Aktueller Titel hat keine erkannte BPM zur Synchronisierung"
+    "noBpmDetected": "Aktueller Titel hat keine erkannte BPM zur Synchronisierung",
+    "queuePlayError": "Warteschlange konnte nicht abgespielt werden: {0}",
+    "queueRemoveError": "Entfernen fehlgeschlagen: {0}",
+    "queueReorderError": "Umsortieren fehlgeschlagen: {0}",
+    "queueClearError": "Warteschlange konnte nicht geleert werden: {0}",
+    "queueAddError": "Hinzufügen zur Warteschlange fehlgeschlagen: {0}",
+    "queueAddNextError": "Als Nächstes einreihen fehlgeschlagen: {0}",
+    "queueSetError": "Warteschlange konnte nicht gesetzt werden: {0}",
+    "queueAddTracksError": "Titel konnten nicht hinzugefügt werden: {0}",
+    "queueSavePlaylistError": "Playlist konnte nicht gespeichert werden: {0}"
   },
   "bigScreenModes": {
     "cover": "Album-Cover",
@@ -1141,7 +1153,8 @@
     "stationDescListenMoeKpop": "Koreanischer Pop, K-Drama-Soundtracks und Musik direkt aus Seoul.",
     "stationDescNightwavePlaza": "Nostalgische 80er/90er-Vibes, Anime-Ästhetik, Future Funk und Vaporwave.",
     "stationDescAnimenfo": "Klassische und moderne Anime-Openings, Endings und Soundtracks.",
-    "stationDescLofiGirl": "Beruhigende Lofi-Beats und Chill-Hip-Hop zum Lernen, Coden und Entspannen."
+    "stationDescLofiGirl": "Beruhigende Lofi-Beats und Chill-Hip-Hop zum Lernen, Coden und Entspannen.",
+    "website": "Webseite"
   },
   "onboarding": {
     "title": "Willkommen bei Auralune",
@@ -1543,7 +1556,8 @@
     "noFilterMatchesDesc": "Deaktivieren Sie Camelot- oder BPM-Filter oder analysieren Sie mehr Titel in der Bibliothek.",
     "enqueueNext": "Als nächsten Titel einreihen",
     "nextBtn": "Weiter",
-    "playNowCrossfade": "Jetzt mit DJ-Crossfade abspielen"
+    "playNowCrossfade": "Jetzt mit DJ-Crossfade abspielen",
+    "defaultBpm": "(standardmäßig 128 BPM)"
   },
   "facetsFilter": {
     "title": "Facettenfilter (foobar2000 Facets)",
@@ -1867,6 +1881,8 @@
     "zoomIn": "Zeit vergrößern",
     "exportMidiTooltip": "In Standard-MIDI-Datei (.mid) exportieren",
     "downloadMidi": "MIDI herunterladen (.mid)",
-    "transcriptionDefault": "Transkription"
+    "transcriptionDefault": "Transkription",
+    "noChordsDetected": "Für diesen Titel wurden keine Akkorde erkannt.",
+    "exportChordsTitle": "Akkord-Export ({0})"
   }
 }

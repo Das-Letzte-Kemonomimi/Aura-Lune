@@ -551,6 +551,7 @@ export default function App() {
     searchQuery: queueSearchQuery,
     compactMode: queueColumns.compactMode,
     containerRef: mainContentRef,
+    loc: t,
   });
 
   // Wykrywanie przewinięcia widoku poniżej górnego panelu odtwarzacza

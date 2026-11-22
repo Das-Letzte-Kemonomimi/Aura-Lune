@@ -799,7 +799,10 @@
     "close": "Sulje",
     "save": "Tallenna",
     "errorPrefix": "Virhe:",
-    "copyToClipboard": "Kopioi leikepöydälle"
+    "copyToClipboard": "Kopioi leikepöydälle",
+    "durationHoursMinutes": "{0} t {1} min",
+    "durationMinutesSeconds": "{0} min {1} s",
+    "durationMinutes": "{0} min"
   },
   "stats": {
     "title": "Auralune Recap & Musiikkitilastot",
@@ -1093,7 +1096,16 @@
     "cuePlaybackStarted": "Toistetaan CUE: {0} ({1})",
     "cueTracksAdded": "Lisätty {0} kappaletta CUE:sta jonoon",
     "tempoMatched": "DSP-tempo sovitettu: {0}x ({1} → {2} BPM)",
-    "noBpmDetected": "Nykyisellä kappaleella ei ole tunnistettua BPM:ää synkronointiin"
+    "noBpmDetected": "Nykyisellä kappaleella ei ole tunnistettua BPM:ää synkronointiin",
+    "queuePlayError": "Jonon toisto epäonnistui: {0}",
+    "queueRemoveError": "Poisto epäonnistui: {0}",
+    "queueReorderError": "Järjestyksen muutos epäonnistui: {0}",
+    "queueClearError": "Jonon tyhjennys epäonnistui: {0}",
+    "queueAddError": "Jonoon lisääminen epäonnistui: {0}",
+    "queueAddNextError": "Seuraavaksi lisääminen epäonnistui: {0}",
+    "queueSetError": "Jonon asettaminen epäonnistui: {0}",
+    "queueAddTracksError": "Kappaleiden lisääminen epäonnistui: {0}",
+    "queueSavePlaylistError": "Soittolistan tallennus epäonnistui: {0}"
   },
   "bigScreenModes": {
     "cover": "Kansikuva",
@@ -1141,7 +1153,8 @@
     "stationDescListenMoeKpop": "Korealaista poppia, K-draaman ääniraitoja ja tuoretta musiikkia Soulista.",
     "stationDescNightwavePlaza": "Nostalgista 80/90-luvun tunnelmaa, anime-estetiikkaa, future funkia ja vaporwavea.",
     "stationDescAnimenfo": "Klassisia ja moderneja anime-alkutunnareita, lopputunnareita ja ääniraitoja.",
-    "stationDescLofiGirl": "Rauhoittavia lofi-biittejä opiskeluun, koodaamiseen ja rentoutumiseen."
+    "stationDescLofiGirl": "Rauhoittavia lofi-biittejä opiskeluun, koodaamiseen ja rentoutumiseen.",
+    "website": "Verkkosivusto"
   },
   "onboarding": {
     "title": "Tervetuloa Auraluneen",
@@ -1543,7 +1556,8 @@
     "noFilterMatchesDesc": "Kokeile poistaa Camelot- tai BPM-suodattimet tai analysoi lisää kappaleita kirjastossa.",
     "enqueueNext": "Lisää jonoon seuraavaksi",
     "nextBtn": "Seuraava",
-    "playNowCrossfade": "Toista heti DJ Crossfadella"
+    "playNowCrossfade": "Toista heti DJ Crossfadella",
+    "defaultBpm": "(oletuksena 128 BPM)"
   },
   "facetsFilter": {
     "title": "Fasettisuodattimet (foobar2000 Facets)",
@@ -1867,6 +1881,8 @@
     "zoomIn": "Lähennä aikaa",
     "exportMidiTooltip": "Vie tavalliseen MIDI-tiedostoon (.mid)",
     "downloadMidi": "Lataa MIDI (.mid)",
-    "transcriptionDefault": "Transkriptio"
+    "transcriptionDefault": "Transkriptio",
+    "noChordsDetected": "Tälle kappaleelle ei havaittu sointuja.",
+    "exportChordsTitle": "Sointujen vienti ({0})"
   }
 }

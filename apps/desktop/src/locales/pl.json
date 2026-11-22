@@ -799,7 +799,10 @@
     "close": "Zamknij",
     "save": "Zapisz",
     "errorPrefix": "Błąd:",
-    "copyToClipboard": "Kopiuj do schowka"
+    "copyToClipboard": "Kopiuj do schowka",
+    "durationHoursMinutes": "{0} godz. {1} min",
+    "durationMinutesSeconds": "{0} min {1} s",
+    "durationMinutes": "{0} min"
   },
   "stats": {
     "title": "Auralune Recap & Statystyki Muzyczne",
@@ -1093,7 +1096,16 @@
     "cuePlaybackStarted": "Odtwarzanie CUE: {0} ({1})",
     "cueTracksAdded": "Dodano {0} utworów z CUE do kolejki",
     "tempoMatched": "Dopasowano tempo DSP: {0}x ({1} → {2} BPM)",
-    "noBpmDetected": "Bieżący utwór nie posiada wykrytego BPM do synchronizacji"
+    "noBpmDetected": "Bieżący utwór nie posiada wykrytego BPM do synchronizacji",
+    "queuePlayError": "Błąd odtwarzania kolejki: {0}",
+    "queueRemoveError": "Błąd usuwania: {0}",
+    "queueReorderError": "Błąd zmiany kolejności: {0}",
+    "queueClearError": "Błąd czyszczenia kolejki: {0}",
+    "queueAddError": "Błąd dodawania do kolejki: {0}",
+    "queueAddNextError": "Błąd dodawania jako następny: {0}",
+    "queueSetError": "Błąd ustawiania kolejki: {0}",
+    "queueAddTracksError": "Błąd dodawania utworów: {0}",
+    "queueSavePlaylistError": "Błąd zapisu playlisty: {0}"
   },
   "bigScreenModes": {
     "cover": "Okładka",
@@ -1141,7 +1153,8 @@
     "stationDescListenMoeKpop": "Koreański pop, ścieżki dźwiękowe z k-dram i świeża muzyka prosto z Seulu.",
     "stationDescNightwavePlaza": "Nostalgiczne brzmienia lat 80./90., anime aesthetics, future funk i vaporwave.",
     "stationDescAnimenfo": "Klasyczne i najnowsze openingi, endingi oraz ścieżki dźwiękowe z japońskich animacji.",
-    "stationDescLofiGirl": "Kojące bity lofi i lo-fi hip hop idealne do kodowania, nauki i relaksu."
+    "stationDescLofiGirl": "Kojące bity lofi i lo-fi hip hop idealne do kodowania, nauki i relaksu.",
+    "website": "Strona WWW"
   },
   "onboarding": {
     "title": "Witaj w Auralune",
@@ -1543,7 +1556,8 @@
     "noFilterMatchesDesc": "Wyłącz ograniczenie klucza lub tempa, albo przeskanuj więcej plików w bibliotece.",
     "enqueueNext": "Kolejkuj jako następny utwór",
     "nextBtn": "Następny",
-    "playNowCrossfade": "Odtwórz natychmiast z płynnym przenikaniem DJ Crossfade"
+    "playNowCrossfade": "Odtwórz natychmiast z płynnym przenikaniem DJ Crossfade",
+    "defaultBpm": "(domyślnie 128 BPM)"
   },
   "facetsFilter": {
     "title": "Filtry fasetowe (foobar2000 Facets)",
@@ -1867,6 +1881,8 @@
     "zoomIn": "Przybliż czas",
     "exportMidiTooltip": "Eksportuj do standardowego pliku MIDI (.mid)",
     "downloadMidi": "Pobierz MIDI (.mid)",
-    "transcriptionDefault": "Transkrypcja"
+    "transcriptionDefault": "Transkrypcja",
+    "noChordsDetected": "Brak wykrytych akordów dla tego utworu.",
+    "exportChordsTitle": "Eksport akordów ({0})"
   }
 }

@@ -365,3 +365,19 @@ button:disabled,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Library track actions: 10 icon buttons laid out as a 5x2 grid so none are clipped by the fixed-width column. */
+.library-track-actions {
+  display: grid;
+  grid-template-columns: repeat(5, 21px);
+  grid-auto-rows: 21px;
+  gap: 2px;
+  justify-content: center;
+  align-content: center;
+}
+.library-track-actions > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px !important;
+}

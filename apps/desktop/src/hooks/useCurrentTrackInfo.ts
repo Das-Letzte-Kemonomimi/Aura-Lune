@@ -171,9 +171,9 @@ export function useCurrentTrackInfo({
   const dspBadgeTitle = useMemo(() => {
     if (status.engine === 'Bypass') return 'DSP Bypass';
     const { engine, tempoRatio, pitchSt, rateRatio, rateSemitones, totalSpeedRatio, totalPitchSemitones, totalKey, totalBpm } = dspCombination;
-    let text = `${engine} [T: ${tempoRatio.toFixed(2)}x, P: ${pitchSt >= 0 ? `+${pitchSt.toFixed(2)}` : pitchSt.toFixed(2)}st, R: ${rateRatio.toFixed(2)}x (${rateSemitones >= 0 ? `+${rateSemitones.toFixed(2)}` : rateSemitones.toFixed(2)}st)] → Σ Prędkość: ${totalSpeedRatio.toFixed(2)}x, Σ Wysokość: ${totalPitchSemitones >= 0 ? `+${totalPitchSemitones.toFixed(2)}` : totalPitchSemitones.toFixed(2)}st`;
+    let text = `${engine} [T: ${tempoRatio.toFixed(2)}x, P: ${pitchSt >= 0 ? `+${pitchSt.toFixed(2)}` : pitchSt.toFixed(2)}st, R: ${rateRatio.toFixed(2)}x (${rateSemitones >= 0 ? `+${rateSemitones.toFixed(2)}` : rateSemitones.toFixed(2)}st)] → Σ Speed: ${totalSpeedRatio.toFixed(2)}x, Σ Pitch: ${totalPitchSemitones >= 0 ? `+${totalPitchSemitones.toFixed(2)}` : totalPitchSemitones.toFixed(2)}st`;
     if (totalKey) {
-      text += ` • Tonacja: ${totalKey.camelot} (${totalKey.keyName})`;
+      text += ` • Key: ${totalKey.camelot} (${totalKey.keyName})`;
     }
     if (totalBpm) {
       text += ` • Tempo: ${totalBpm} BPM`;

@@ -59,7 +59,8 @@ const HIRAGANA_MAP: Record<string, string> = {
   ば: 'ba', び: 'bi', ぶ: 'bu', べ: 'be', ぼ: 'bo',
   ぱ: 'pa', ぴ: 'pi', ぷ: 'pu', ぺ: 'pe', ぽ: 'po',
   ぁ: 'a', ぃ: 'i', ぅ: 'u', ぇ: 'e', ぉ: 'o',
-  ゃ: 'ya', ゅ: 'yu', ょ: 'yo',
+  ゃ: 'ya', ゅ: 'yu', ょ: 'yo', ゎ: 'wa',
+  ゐ: 'i', ゑ: 'e', ゔ: 'vu',
 };
 
 // Pojedyncze znaki Katakana
@@ -81,7 +82,10 @@ const KATAKANA_MAP: Record<string, string> = {
   パ: 'pa', ピ: 'pi', プ: 'pu', ペ: 'pe', ポ: 'po',
   ァ: 'a', ィ: 'i', ゥ: 'u', ェ: 'e', ォ: 'o',
   ャ: 'ya', ュ: 'yu', ョ: 'yo',
-  ヴ: 'vu',
+  ヴ: 'vu', ヰ: 'i', ヱ: 'e', ヮ: 'wa', ヵ: 'ka', ヶ: 'ke',
+  ヷ: 'va', ヸ: 'vi', ヹ: 've', ヺ: 'vo',
+  ㇰ: 'ku', ㇱ: 'shi', ㇲ: 'su', ㇳ: 'to', ㇴ: 'nu', ㇵ: 'ha', ㇶ: 'hi', ㇷ: 'fu',
+  ㇸ: 'he', ㇹ: 'ho', ㇺ: 'mu', ㇻ: 'ra', ㇼ: 'ri', ㇽ: 'ru', ㇾ: 're', ㇿ: 'ro',
 };
 
 // Japońskie znaki interpunkcyjne
@@ -113,6 +117,9 @@ export function hasJapaneseCharacters(text: string): boolean {
  */
 export function toRomaji(input: string): string {
   if (!input) return '';
+
+  // NFKC: half-width katakana (ｱｲｳ, ｶﾞ), full-width Latin and compatibility forms -> canonical kana.
+  input = input.normalize('NFKC');
 
   let result = '';
   let i = 0;

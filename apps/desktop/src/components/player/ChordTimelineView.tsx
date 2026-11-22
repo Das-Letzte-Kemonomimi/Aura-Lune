@@ -531,7 +531,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '0.85rem' }}>
-            Brak wykrytych akordów dla tego utworu.
+            {t.analysis.noChordsDetected}
           </div>
         )}
       </div>
@@ -570,7 +570,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
-                Eksport akordów ({exportFormat.toUpperCase()})
+                {fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
               </h3>
               <button
                 onClick={() => setExportOutput(null)}

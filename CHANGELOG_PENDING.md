@@ -47,6 +47,9 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Teksty interfejsu**: łączny czas kolejki ("9 godz. 59 min" → "9 h 59 min" w EN itd.), komunikaty błędów kolejki, raport diagnostyczny audio, komunikat o braku akordów i inne ciągi zapisane na sztywno po polsku są teraz tłumaczone przez pliki `locales/`.
+- **Romaji w tekstach piosenek**: katakana w półszerokiej formie (ｱｲｳ, ｶﾞ) oraz rzadkie znaki kana (ヶ, ヵ, ヰ, ヱ, ヴ-warianty, ㇰ…) są teraz transliterowane zamiast pozostawać jako znaki.
+- **Biblioteka**: przyciski akcji w wierszu utworu układają się w siatkę 5×2, dzięki czemu żadna ikona nie jest ucięta.
 
 #### Odtwarzanie i kolejka
 - **Utwory przechodzą dalej także przy ukrytym lub zminimalizowanym oknie.** Koniec utworu, przejście do następnego i zapętlenie były obsługiwane tylko wtedy, gdy interfejs odpytywał stan. Obsługuje je teraz osobny wątek backendu (`setup/playback_ticker.rs`), który też aktualizuje MPRIS po automatycznej zmianie utworu.

@@ -799,7 +799,10 @@
     "close": "Claude",
     "save": "Serva",
     "errorPrefix": "Error:",
-    "copyToClipboard": "Exscribe in capsam"
+    "copyToClipboard": "Exscribe in capsam",
+    "durationHoursMinutes": "{0} h {1} min",
+    "durationMinutesSeconds": "{0} min {1} s",
+    "durationMinutes": "{0} min"
   },
   "stats": {
     "title": "Auralune Recap & Statistica Musicae",
@@ -1093,7 +1096,16 @@
     "cuePlaybackStarted": "Sonans CUE: {0} ({1})",
     "cueTracksAdded": "Additi {0} cantus e CUE ad seriem",
     "tempoMatched": "Rhythmus DSP aptatus: {0}x ({1} → {2} BPM)",
-    "noBpmDetected": "Cantus hodiernus non habet BPM detectum"
+    "noBpmDetected": "Cantus hodiernus non habet BPM detectum",
+    "queuePlayError": "Series reddi non potuit: {0}",
+    "queueRemoveError": "Remotio defecit: {0}",
+    "queueReorderError": "Reordinatio defecit: {0}",
+    "queueClearError": "Series purgari non potuit: {0}",
+    "queueAddError": "Additio ad seriem defecit: {0}",
+    "queueAddNextError": "Additio ut proximus defecit: {0}",
+    "queueSetError": "Series constitui non potuit: {0}",
+    "queueAddTracksError": "Cantus addi non potuerunt: {0}",
+    "queueSavePlaylistError": "Index servari non potuit: {0}"
   },
   "bigScreenModes": {
     "cover": "Tegumentum",
@@ -1141,7 +1153,8 @@
     "stationDescListenMoeKpop": "Pop Coreanum, soni cinematographici et musica recens ex Seulo.",
     "stationDescNightwavePlaza": "Sonus nostalgicus annorum 80/90, aesthetica anime, future funk et vaporwave.",
     "stationDescAnimenfo": "Initia et fines animatiunculorum Iaponicorum veterum recentiumque.",
-    "stationDescLofiGirl": "Rhythmi lofi placidi ad studendum, codificandum et quiescendum."
+    "stationDescLofiGirl": "Rhythmi lofi placidi ad studendum, codificandum et quiescendum.",
+    "website": "Pagina interretialis"
   },
   "onboarding": {
     "title": "Salve in Auralune",
@@ -1543,7 +1556,8 @@
     "noFilterMatchesDesc": "Conare deactivare filtra Camelot aut BPM, vel plura carmina investiga.",
     "enqueueNext": "In seriem ut proximum adde",
     "nextBtn": "Sequens",
-    "playNowCrossfade": "Nunc sona cum DJ Crossfade"
+    "playNowCrossfade": "Nunc sona cum DJ Crossfade",
+    "defaultBpm": "(per defectum 128 BPM)"
   },
   "facetsFilter": {
     "title": "Filtra facietalia (foobar2000 Facets)",
@@ -1867,6 +1881,8 @@
     "zoomIn": "Tempus augere",
     "exportMidiTooltip": "Exportare in fasciculum MIDI (.mid)",
     "downloadMidi": "Depromere MIDI (.mid)",
-    "transcriptionDefault": "Transcriptio"
+    "transcriptionDefault": "Transcriptio",
+    "noChordsDetected": "Nulli accordus in hoc cantu inventi sunt.",
+    "exportChordsTitle": "Exportatio accordorum ({0})"
   }
 }

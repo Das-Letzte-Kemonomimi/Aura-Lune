@@ -799,7 +799,10 @@
     "close": "Close",
     "save": "Save",
     "errorPrefix": "Error:",
-    "copyToClipboard": "Copy to Clipboard"
+    "copyToClipboard": "Copy to Clipboard",
+    "durationHoursMinutes": "{0} h {1} min",
+    "durationMinutesSeconds": "{0} min {1} s",
+    "durationMinutes": "{0} min"
   },
   "stats": {
     "title": "Auralune Recap & Music Statistics",
@@ -1093,7 +1096,16 @@
     "cuePlaybackStarted": "Playing CUE: {0} ({1})",
     "cueTracksAdded": "Added {0} tracks from CUE to queue",
     "tempoMatched": "DSP tempo matched: {0}x ({1} → {2} BPM)",
-    "noBpmDetected": "Current track has no detected BPM to synchronize"
+    "noBpmDetected": "Current track has no detected BPM to synchronize",
+    "queuePlayError": "Failed to play queue: {0}",
+    "queueRemoveError": "Failed to remove: {0}",
+    "queueReorderError": "Failed to reorder: {0}",
+    "queueClearError": "Failed to clear queue: {0}",
+    "queueAddError": "Failed to add to queue: {0}",
+    "queueAddNextError": "Failed to add as next: {0}",
+    "queueSetError": "Failed to set queue: {0}",
+    "queueAddTracksError": "Failed to add tracks: {0}",
+    "queueSavePlaylistError": "Failed to save playlist: {0}"
   },
   "bigScreenModes": {
     "cover": "Album Art",
@@ -1141,7 +1153,8 @@
     "stationDescListenMoeKpop": "Korean pop, K-drama soundtracks, and fresh music straight from Seoul.",
     "stationDescNightwavePlaza": "Nostalgic 80s/90s vibes, anime aesthetics, future funk, and vaporwave.",
     "stationDescAnimenfo": "Classic and modern anime openings, endings, and Japanese animation soundtracks.",
-    "stationDescLofiGirl": "Soothing lofi beats and chill hip-hop for studying, coding, and relaxing."
+    "stationDescLofiGirl": "Soothing lofi beats and chill hip-hop for studying, coding, and relaxing.",
+    "website": "Website"
   },
   "onboarding": {
     "title": "Welcome to Auralune",
@@ -1543,7 +1556,8 @@
     "noFilterMatchesDesc": "Try unchecking Camelot or BPM compatibility filters, or analyze more tracks in library.",
     "enqueueNext": "Enqueue as next track",
     "nextBtn": "Next",
-    "playNowCrossfade": "Play now with DJ Crossfade"
+    "playNowCrossfade": "Play now with DJ Crossfade",
+    "defaultBpm": "(128 BPM by default)"
   },
   "facetsFilter": {
     "title": "Facets Filters (foobar2000 Facets)",
@@ -1867,6 +1881,8 @@
     "zoomIn": "Zoom in time",
     "exportMidiTooltip": "Export to standard MIDI file (.mid)",
     "downloadMidi": "Download MIDI (.mid)",
-    "transcriptionDefault": "Transcription"
+    "transcriptionDefault": "Transcription",
+    "noChordsDetected": "No chords detected for this track.",
+    "exportChordsTitle": "Chord export ({0})"
   }
 }

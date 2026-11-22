@@ -474,7 +474,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                     >
                       <ExternalLink size={12} />
-                      Strona WWW
+                      {loc.radio.website}
                     </a>
                   ) : <div />}
 

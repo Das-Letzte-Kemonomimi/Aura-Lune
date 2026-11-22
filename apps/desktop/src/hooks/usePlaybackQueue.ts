@@ -3,7 +3,7 @@ import { invoke } from '../api/ipc';
 import type { PlaybackQueue, QueueItem, QueueColumnConfig } from '../types/queue';
 import { DEFAULT_QUEUE_COLUMNS } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/player';
-import type { Translations } from '../i18n';
+import { getTranslations, type Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
 
 const QUEUE_COLUMNS_STORAGE_KEY = 'auralune_queue_columns_v1';
@@ -23,6 +23,7 @@ export function usePlaybackQueue({
   loc,
   onPlaylistSaved,
 }: UsePlaybackQueueProps = {}) {
+  const t = loc ?? getTranslations();
   const [queue, setQueue] = useState<PlaybackQueue>({
     items: [],
     current_index: null,
@@ -86,7 +87,7 @@ export function usePlaybackQueue({
         }
         return item;
       } catch (e: unknown) {
-        notify(`Błąd odtwarzania kolejki: ${e}`, true);
+        notify(fmt(t.notifications.queuePlayError, String(e)), true);
         return null;
       }
     },
@@ -101,10 +102,10 @@ export function usePlaybackQueue({
         await refreshQueue();
         notify(loc?.notifications.trackRemovedFromQueue || 'Removed track from queue');
       } catch (err: unknown) {
-        notify(`Błąd usuwania: ${err}`, true);
+        notify(fmt(t.notifications.queueRemoveError, String(err)), true);
       }
     },
-    [refreshQueue, notify, loc]
+    [refreshQueue, notify, t]
   );
 
   const moveQueueItem = useCallback(
@@ -117,7 +118,7 @@ export function usePlaybackQueue({
         await invoke('reorder_queue', { fromIdx, toIdx });
         await refreshQueue();
       } catch (err: unknown) {
-        notify(`Błąd zmiany kolejności: ${err}`, true);
+        notify(fmt(t.notifications.queueReorderError, String(err)), true);
       }
     },
     [queue.items.length, refreshQueue, notify]
@@ -129,9 +130,9 @@ export function usePlaybackQueue({
       await refreshQueue();
       notify(loc?.notifications.queueCleared || 'Cleared playback queue');
     } catch (e: unknown) {
-      notify(`Błąd czyszczenia kolejki: ${e}`, true);
+      notify(fmt(t.notifications.queueClearError, String(e)), true);
     }
-  }, [refreshQueue, notify, loc]);
+  }, [refreshQueue, notify, t]);
 
   const addToQueue = useCallback(
     async (item: QueueItem) => {
@@ -144,10 +145,10 @@ export function usePlaybackQueue({
             : `Added '${item.title}' to queue`
         );
       } catch (err: unknown) {
-        notify(`Błąd dodawania do kolejki: ${err}`, true);
+        notify(fmt(t.notifications.queueAddError, String(err)), true);
       }
     },
-    [refreshQueue, notify, loc]
+    [refreshQueue, notify, t]
   );
 
   const addNextToQueue = useCallback(
@@ -161,10 +162,10 @@ export function usePlaybackQueue({
             : `Set '${item.title}' as next track`
         );
       } catch (err: unknown) {
-        notify(`Błąd dodawania jako następny: ${err}`, true);
+        notify(fmt(t.notifications.queueAddNextError, String(err)), true);
       }
     },
-    [refreshQueue, notify, loc]
+    [refreshQueue, notify, t]
   );
 
   const setEntireQueue = useCallback(
@@ -173,7 +174,7 @@ export function usePlaybackQueue({
         await invoke('set_queue', { items, startIndex });
         await refreshQueue();
       } catch (err: unknown) {
-        notify(`Błąd ustawiania kolejki: ${err}`, true);
+        notify(fmt(t.notifications.queueSetError, String(err)), true);
       }
     },
     [refreshQueue, notify]
@@ -191,10 +192,10 @@ export function usePlaybackQueue({
             : `Added ${uris.length} tracks to queue`
         );
       } catch (err: unknown) {
-        notify(`Błąd dodawania utworów: ${err}`, true);
+        notify(fmt(t.notifications.queueAddTracksError, String(err)), true);
       }
     },
-    [refreshQueue, notify, loc]
+    [refreshQueue, notify, t]
   );
 
   const toggleColumn = useCallback((key: keyof QueueColumnConfig) => {
@@ -261,15 +262,13 @@ export function usePlaybackQueue({
         await invoke('add_to_queue', { item });
         await refreshQueue();
         notify(
-          loc?.notifications?.addedToQueueEndMsg
-            ? fmt(loc.notifications.addedToQueueEndMsg, track.title)
-            : `Dodano do kolejki: ${track.title}`
+          fmt(t.notifications.addedToQueueEndMsg, track.title)
         );
       } catch (err: unknown) {
-        notify(`Błąd dodawania: ${err}`, true);
+        notify(fmt(t.notifications.queueAddError, String(err)), true);
       }
     },
-    [albums, refreshQueue, notify, loc]
+    [albums, refreshQueue, notify, t]
   );
 
   const addTrackNextToQueue = useCallback(
@@ -289,15 +288,13 @@ export function usePlaybackQueue({
         await invoke('add_next_to_queue', { item });
         await refreshQueue();
         notify(
-          loc?.notifications?.setAsNextMsg
-            ? fmt(loc.notifications.setAsNextMsg, track.title)
-            : `Ustawiono jako następny: ${track.title}`
+          fmt(t.notifications.setAsNextMsg, track.title)
         );
       } catch (err: unknown) {
-        notify(`Błąd dodawania jako następny: ${err}`, true);
+        notify(fmt(t.notifications.queueAddNextError, String(err)), true);
       }
     },
-    [albums, refreshQueue, notify, loc]
+    [albums, refreshQueue, notify, t]
   );
 
   const confirmSaveQueueAsPlaylist = useCallback(
@@ -308,15 +305,13 @@ export function usePlaybackQueue({
           await onPlaylistSaved();
         }
         notify(
-          loc?.queue?.savedToPlaylist
-            ? fmt(loc.queue.savedToPlaylist, name)
-            : `Zapisano kolejkę jako playlistę: ${name}`
+          fmt(t.queue.savedToPlaylist, name)
         );
       } catch (err: unknown) {
-        notify(`Błąd zapisu playlisty: ${err}`, true);
+        notify(fmt(t.notifications.queueSavePlaylistError, String(err)), true);
       }
     },
-    [onPlaylistSaved, notify, loc]
+    [onPlaylistSaved, notify, t]
   );
 
   return {

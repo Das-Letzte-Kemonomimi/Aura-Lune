@@ -483,7 +483,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                         </div>
                       </td>
                       <td className="library-track-cell" style={{ padding: '0 6px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                        <div className="library-track-actions">
                           <button
                             onClick={(e) => handleToggleFavorite(t.id, e)}
                             title={t.is_favorite ? loc.library.removeFromFavorites : loc.library.addToFavorites}
