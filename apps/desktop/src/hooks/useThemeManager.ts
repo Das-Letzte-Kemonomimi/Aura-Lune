@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import type { Theme } from '../types/theme';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseThemeManagerOptions {
   showMessage: (msg: string, isError?: boolean) => void;
@@ -52,7 +53,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
           : scale >= 1.08
             ? loc.notifications.scale110
             : loc.notifications.scale100;
-    showMessage(loc.notifications.scaleLabel.replace('{0}', label));
+    showMessage(fmt(loc.notifications.scaleLabel, label));
   }, [loc.notifications.scale100, loc.notifications.scale110, loc.notifications.scale120, loc.notifications.scale130, loc.notifications.scaleLabel, showMessage]);
 
   const handleIncreaseScale = useCallback(() => {
@@ -68,7 +69,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
           : next >= 1.18
             ? loc.notifications.scale120
             : loc.notifications.scale110;
-      showMessage(loc.notifications.scaleLabel.replace('{0}', label));
+      showMessage(fmt(loc.notifications.scaleLabel, label));
       return next;
     });
   }, [loc.notifications.scale110, loc.notifications.scale120, loc.notifications.scale130, loc.notifications.scaleLabel, showMessage]);
@@ -85,7 +86,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
           : next >= 1.08
             ? loc.notifications.scale110
             : loc.notifications.scale100;
-      showMessage(loc.notifications.scaleLabel.replace('{0}', label));
+      showMessage(fmt(loc.notifications.scaleLabel, label));
       return next;
     });
   }, [loc.notifications.scale100, loc.notifications.scale110, loc.notifications.scale120, loc.notifications.scaleLabel, showMessage]);
@@ -153,7 +154,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
     try {
       const th = await invoke<Theme>('set_active_theme', { themeId });
       applyThemeToDom(th);
-      showMessage(loc.notifications.themeActivated.replace('{0}', th.name));
+      showMessage(fmt(loc.notifications.themeActivated, th.name));
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
@@ -165,10 +166,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
       const clean = applied === 'classic' ? 'classic' : 'lineout';
       setAppIconStyle(clean);
       showMessage(
-        loc.notifications.iconStyleChanged.replace(
-          '{0}',
-          clean === 'classic' ? loc.settings.iconStyleClassic : loc.settings.iconStyleLineout
-        )
+        fmt(loc.notifications.iconStyleChanged, clean === 'classic' ? loc.settings.iconStyleClassic : loc.settings.iconStyleLineout)
       );
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
@@ -285,7 +283,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
     try {
       const json = await invoke<string>('export_theme_json', { themeId: currentTheme.id });
       setJsonExportContent(json);
-      showMessage(loc.notifications.themeJsonExported.replace('{0}', currentTheme.name));
+      showMessage(fmt(loc.notifications.themeJsonExported, currentTheme.name));
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
@@ -301,7 +299,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
       applyThemeToDom(imported);
       await loadThemes();
       setJsonImportContent('');
-      showMessage(loc.notifications.themeImported.replace('{0}', imported.name));
+      showMessage(fmt(loc.notifications.themeImported, imported.name));
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }

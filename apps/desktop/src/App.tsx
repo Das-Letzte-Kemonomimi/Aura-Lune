@@ -32,7 +32,7 @@ import { useBottomPlaybackDockProps } from './components/layout/useBottomPlaybac
 import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from './api/ipc';
 import { setSetting } from './api/settings';
 import {
@@ -57,6 +57,9 @@ import type {
 import { formatTime, formatTimeMs } from './utils/timeFormat';
 import { BackgroundExportBadge } from './components/layout/BackgroundExportBadge';
 import { useSleepTimer } from './hooks/useSleepTimer';
+import { fmt } from './utils/fmt';
+import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
+import { useToasts } from './hooks/useToasts';
 
 export type { AlbumPlaybackBehavior };
 
@@ -98,22 +101,11 @@ export default function App() {
   const loc = getTranslations(language);
   const t = loc;
 
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
 
-  // Stabilna referencja: wiele hooków ma `showMessage` w zależnościach efektów/callbacków —
-  // nowa funkcja w każdym renderze (10× na sekundę podczas odtwarzania) restartowała ich efekty.
-  // Komunikaty informacyjne są celowo pomijane; wyświetlane są tylko błędy.
-  const infoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showMessage = useCallback((msg: string, isError = false) => {
-    if (!isError) return;
-    setInfoMessage(`⚠️ ${msg}`);
-    if (infoTimeoutRef.current) clearTimeout(infoTimeoutRef.current);
-    infoTimeoutRef.current = setTimeout(() => setInfoMessage(null), 4000);
-  }, []);
-  useEffect(() => () => {
-    if (infoTimeoutRef.current) clearTimeout(infoTimeoutRef.current);
-  }, []);
+  // Kolejka komunikatów (useToasts): stabilny `showMessage` dla hooków, osobny licznik czasu
+  // dla każdego komunikatu. Komunikaty informacyjne są celowo pomijane; widoczne są tylko błędy.
+  const { toasts, showMessage, dismiss: dismissToast } = useToasts();
 
   const mainContentRef = useRef<HTMLElement | null>(null);
 
@@ -374,7 +366,7 @@ export default function App() {
       if (uri) setFilePath(uri);
       if (trackId) setActiveTrackId(trackId);
       setStatus((prev) => ({ ...prev, state: 'Playing' }));
-      showMessage(t.notifications.playingMsg.replace('{0}', title));
+      showMessage(fmt(t.notifications.playingMsg, title));
     },
     albums,
     loc,
@@ -536,14 +528,13 @@ export default function App() {
   const [isBigScreen, setIsBigScreen] = useState(false);
 
   // Powiadomienia systemowe Linuksa (libnotify / D-Bus)
-  const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_desktop_notifications');
-      return saved !== 'false';
-    } catch {
-      return true;
-    }
-  });
+  // Wcześniej przełącznik zapisywał `auralune_notifications_enabled`, a start czytał inny klucz,
+  // więc wyłączenie powiadomień nie przetrwało restartu — stary klucz jest migrowany.
+  const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = usePersistedState(
+    'auralune_desktop_notifications',
+    true,
+    { parse: parseBoolean, legacyKeys: ['auralune_notifications_enabled'] },
+  );
 
 
   const {
@@ -1208,21 +1199,25 @@ export default function App() {
         <AppHeader {...appHeaderProps} />
 
         {/* Komunikat powiadomień */}
-        {infoMessage && (
+        {toasts.map((toast) => (
           <div
+            key={toast.id}
+            role={toast.level === 'error' ? 'alert' : 'status'}
+            onClick={() => dismissToast(toast.id)}
             style={{
               padding: '10px 16px',
-              marginBottom: '16px',
+              marginBottom: '8px',
               borderRadius: '10px',
               background: 'rgba(168, 85, 247, 0.2)',
               border: '1px solid var(--accent-purple)',
               color: '#fff',
               fontSize: '0.85rem',
+              cursor: 'pointer',
             }}
           >
-            {infoMessage}
+            {toast.level === 'error' ? `⚠️ ${toast.text}` : toast.text}
           </div>
-        )}
+        ))}
 
         {/* Główna zawartość */}
         <MainContentRouter

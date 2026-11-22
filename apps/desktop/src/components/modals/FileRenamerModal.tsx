@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../../api/ipc';
 import { FileEdit, X, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 export interface RenamePreviewItemDto {
   track_id: number;
@@ -229,7 +230,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
               }}
             >
               <CheckCircle2 size={18} />
-              <span>{loc.fileRenamer.renameSuccess.replace('{0}', String(successCount))}</span>
+              <span>{fmt(loc.fileRenamer.renameSuccess, String(successCount))}</span>
             </div>
           )}
 
@@ -319,7 +320,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
           {/* Tabela podglądu zmian */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
-              {loc.fileRenamer.previewCount.replace('{0}', String(previews.length))}
+              {fmt(loc.fileRenamer.previewCount, String(previews.length))}
             </span>
 
             <div
@@ -466,7 +467,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
             <CheckCircle2 size={16} />
             {isExecuting
               ? loc.fileRenamer.renamingProgress
-              : loc.fileRenamer.renameBtn.replace('{0}', String(previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length))}
+              : fmt(loc.fileRenamer.renameBtn, String(previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length))}
           </button>
         </div>
       </div>

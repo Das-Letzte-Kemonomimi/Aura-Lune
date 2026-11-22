@@ -2,6 +2,7 @@ import React from 'react';
 import type { Translations } from '../../../i18n';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 import { type ParametricEqPresetDto, type ParametricEqStateDto } from '../../../utils/parametricEqMath';
+import { fmt } from '../../../utils/fmt';
 
 export type PeqPresetBarProps = {} & {
   selectedPresetName: string;
@@ -99,7 +100,7 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
         {maxEffectiveBoost > 0.01 ? (
           <button
             onClick={handleApplySafePreamp}
-            title={loc.parametricEq.clippingRiskTitle.replace('{0}', maxEffectiveBoost.toFixed(1)).replace('{1}', safePreampDb.toFixed(1))}
+            title={fmt(loc.parametricEq.clippingRiskTitle, maxEffectiveBoost.toFixed(1), safePreampDb.toFixed(1))}
             style={{
               padding: '5px 10px',
               borderRadius: '8px',
@@ -115,7 +116,7 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
             }}
           >
             <AlertTriangle size={13} />
-            {loc.parametricEq.clippingRiskBadge.replace('{0}', maxEffectiveBoost.toFixed(1))}
+            {fmt(loc.parametricEq.clippingRiskBadge, maxEffectiveBoost.toFixed(1))}
           </button>
         ) : (
           <span

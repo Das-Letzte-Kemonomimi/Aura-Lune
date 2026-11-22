@@ -4,6 +4,7 @@ import type { Playlist } from '../types/playlist';
 import type { TrackRecord } from '../types/player';
 import type { RadioStation } from '../views/playlists/RadioView';
 import type { Language, Translations, getTranslations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UsePlaylistManagerProps {
   language: Language;
@@ -105,7 +106,7 @@ export function usePlaylistManager({
       await invoke('create_playlist', { name: newPlaylistName.trim() });
       setNewPlaylistName('');
       await refreshPlaylists();
-      showMessage(t.notifications.playlistCreatedMsg.replace('{0}', newPlaylistName.trim()));
+      showMessage(fmt(t.notifications.playlistCreatedMsg, newPlaylistName.trim()));
     } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
@@ -119,7 +120,7 @@ export function usePlaylistManager({
         setPlaylistTracks([]);
       }
       await refreshPlaylists();
-      showMessage(t.notifications.playlistDeletedMsg.replace('{0}', name));
+      showMessage(fmt(t.notifications.playlistDeletedMsg, name));
     } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
@@ -201,10 +202,7 @@ export function usePlaylistManager({
 
       await refreshPlaylists();
       showMessage(
-        loc.notifications.m3u8ImportSuccess
-          .replace('{0}', res.playlist_name)
-          .replace('{1}', String(res.matched_tracks))
-          .replace('{2}', String(res.total_entries))
+        fmt(loc.notifications.m3u8ImportSuccess, res.playlist_name, String(res.matched_tracks), String(res.total_entries))
       );
     } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);

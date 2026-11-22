@@ -136,3 +136,10 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **Discord cover lookup.** With Discord running, play a library track that has no cover, then a radio station showing "Artist - Title". A cover found online should appear in Rich Presence after a moment.
 - [ ] **Dropping a big folder.** Drop a large folder onto the queue; the UI should stay responsive while it's expanded.
 - [ ] **Stem project from a large file.** Create a stem project from a large hi-res file; the UI shouldn't freeze while it's hashed.
+
+### Frontend notifications and formatting (Phase 6)
+
+- [ ] **Desktop notifications setting survives a restart.** Settings → Audio → turn desktop notifications **off**, restart the app, and play a track: no system notification should appear, and the toggle should still be off. Before this fix the setting reset to on.
+- [ ] **Error messages stack.** Trigger two errors quickly (for example two failing radio streams). Both messages should show (up to 3) and disappear on their own; clicking one should close it.
+- [ ] **Translated messages with values.** Switch the language (pl / en / de) and check messages that contain numbers or names: M3U8 import "x of y tracks", "playlist created: …", the AcoustID match in the tag editor, model download progress. Values must be filled in, with no literal `{0}` left.
+- [ ] **Sizes and durations.** Duplicate finder, tag editor, CUE sheet and the URL import result should show sizes like `14.2 MB` and durations like `3:45`. URL imports longer than an hour should show `1:02:03`.

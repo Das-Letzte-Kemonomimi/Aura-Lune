@@ -12,6 +12,7 @@ import { invoke } from '../../api/ipc';
 import type { AiModelInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
+import { fmt } from '../../utils/fmt';
 
 export interface ModelManagerModalProps {
   isOpen: boolean;
@@ -92,7 +93,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
       setDownloading((prev) => ({ ...prev, [id]: 0.01 }));
       await invoke('download_ai_model', { modelId: id });
     } catch (err: unknown) {
-      setError(t.aiModels.downloadError.replace('{0}', String(err)));
+      setError(fmt(t.aiModels.downloadError, String(err)));
       setDownloading((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -110,7 +111,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
         prev.map((m) => (m.id === id ? { ...m, is_installed: false } : m))
       );
     } catch (err: unknown) {
-      setError(t.aiModels.deleteError.replace('{0}', String(err)));
+      setError(fmt(t.aiModels.deleteError, String(err)));
     }
   };
 
@@ -244,7 +245,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                     {model.description}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.72rem', color: '#64748b' }}>
-                    <span>{t.aiModels.sizeLabel.replace('{0}', (model.file_size / (1024 * 1024)).toFixed(0))}</span>
+                    <span>{fmt(t.aiModels.sizeLabel, (model.file_size / (1024 * 1024)).toFixed(0))}</span>
                     <span>{t.aiModels.formatLabel}</span>
                   </div>
                 </div>
@@ -308,7 +309,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                         />
                       </div>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
-                        {t.aiModels.downloading.replace('{0}', String(Math.round(progress * 100)))}
+                        {fmt(t.aiModels.downloading, String(Math.round(progress * 100)))}
                       </span>
                     </div>
                   ) : (
@@ -330,7 +331,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                       }}
                     >
                       <Download size={14} />
-                      <span>{t.aiModels.downloadBtn.replace('{0}', (model.file_size / (1024 * 1024)).toFixed(0))}</span>
+                      <span>{fmt(t.aiModels.downloadBtn, (model.file_size / (1024 * 1024)).toFixed(0))}</span>
                     </button>
                   )}
                 </div>

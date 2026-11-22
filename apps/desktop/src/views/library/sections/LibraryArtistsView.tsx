@@ -2,6 +2,7 @@ import React from 'react';
 import { Flame, ListMusic, Mic2, Play, Plus } from 'lucide-react';
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
+import { fmt } from '../../../utils/fmt';
 
 export type LibraryArtistsViewProps = Pick<LibraryViewProps, 'filteredArtists' | 'tracks' | 'loc' | 'librarySearch' | 'setLibrarySearch' | 'handlePlayLibraryTrack' | 'refreshQueue' | 'showMessage' | 'setLibrarySubView'> & {
   t: LibraryViewProps['loc'];
@@ -23,14 +24,14 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {filteredArtists.length !== new Set(tracks.map((t) => t.artist || loc.stats.unknownArtist)).size
-            ? loc.library.resultsArtists.replace('{0}', String(filteredArtists.length))
-            : loc.library.totalArtists.replace('{0}', String(filteredArtists.length))}
+            ? fmt(loc.library.resultsArtists, String(filteredArtists.length))
+            : fmt(loc.library.totalArtists, String(filteredArtists.length))}
         </span>
       </div>
 
       {filteredArtists.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-          <span>{loc.library.emptySearchArtists.replace("{0}", librarySearch)}</span>
+          <span>{fmt(loc.library.emptySearchArtists, librarySearch)}</span>
           {librarySearch && (
             <div style={{ marginTop: '12px' }}>
               <button
@@ -111,7 +112,7 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
                         color: 'var(--text-secondary)',
                       }}
                     >
-                      {loc.library.artistTracksCount.replace('{0}', String(artist.tracks.length))}
+                      {fmt(loc.library.artistTracksCount, String(artist.tracks.length))}
                     </span>
                     {artist.albumIds.size > 0 && (
                       <span
@@ -123,7 +124,7 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
                           color: 'var(--accent-purple)',
                         }}
                       >
-                        {loc.library.artistAlbumsCount.replace('{0}', String(artist.albumIds.size))}
+                        {fmt(loc.library.artistAlbumsCount, String(artist.albumIds.size))}
                       </span>
                     )}
                     {artist.totalPlays > 0 && (
@@ -184,7 +185,7 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
                     if (sorted.length > 0) {
                       await invoke('add_uris_to_queue', { uris: sorted.map((t) => t.path) });
                       await refreshQueue();
-                      showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sorted.length)));
+                      showMessage(fmt(t.notifications.loadedTracksToQueueMsg, String(sorted.length)));
                     }
                   }}
                   style={{

@@ -4,6 +4,7 @@ import type { PlaybackQueue, QueueItem, QueueColumnConfig } from '../types/queue
 import { DEFAULT_QUEUE_COLUMNS } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/player';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 const QUEUE_COLUMNS_STORAGE_KEY = 'auralune_queue_columns_v1';
 
@@ -139,7 +140,7 @@ export function usePlaybackQueue({
         await refreshQueue();
         notify(
           loc?.notifications.addedToQueueEndMsg
-            ? loc.notifications.addedToQueueEndMsg.replace('{0}', item.title)
+            ? fmt(loc.notifications.addedToQueueEndMsg, item.title)
             : `Added '${item.title}' to queue`
         );
       } catch (err: unknown) {
@@ -156,7 +157,7 @@ export function usePlaybackQueue({
         await refreshQueue();
         notify(
           loc?.notifications.setAsNextTrack
-            ? loc.notifications.setAsNextTrack.replace('{0}', item.title)
+            ? fmt(loc.notifications.setAsNextTrack, item.title)
             : `Set '${item.title}' as next track`
         );
       } catch (err: unknown) {
@@ -186,7 +187,7 @@ export function usePlaybackQueue({
         await refreshQueue();
         notify(
           loc?.notifications.loadedTracksToQueueMsg
-            ? loc.notifications.loadedTracksToQueueMsg.replace('{0}', String(uris.length))
+            ? fmt(loc.notifications.loadedTracksToQueueMsg, String(uris.length))
             : `Added ${uris.length} tracks to queue`
         );
       } catch (err: unknown) {
@@ -261,7 +262,7 @@ export function usePlaybackQueue({
         await refreshQueue();
         notify(
           loc?.notifications?.addedToQueueEndMsg
-            ? loc.notifications.addedToQueueEndMsg.replace('{0}', track.title)
+            ? fmt(loc.notifications.addedToQueueEndMsg, track.title)
             : `Dodano do kolejki: ${track.title}`
         );
       } catch (err: unknown) {
@@ -289,7 +290,7 @@ export function usePlaybackQueue({
         await refreshQueue();
         notify(
           loc?.notifications?.setAsNextMsg
-            ? loc.notifications.setAsNextMsg.replace('{0}', track.title)
+            ? fmt(loc.notifications.setAsNextMsg, track.title)
             : `Ustawiono jako następny: ${track.title}`
         );
       } catch (err: unknown) {
@@ -308,7 +309,7 @@ export function usePlaybackQueue({
         }
         notify(
           loc?.queue?.savedToPlaylist
-            ? loc.queue.savedToPlaylist.replace('{0}', name)
+            ? fmt(loc.queue.savedToPlaylist, name)
             : `Zapisano kolejkę jako playlistę: ${name}`
         );
       } catch (err: unknown) {

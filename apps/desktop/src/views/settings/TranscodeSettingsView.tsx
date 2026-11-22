@@ -14,6 +14,7 @@ import { formatTimeMs, parseTimeToMs } from '../../utils/timeFormat';
 import { TranscodeResultPanel } from './transcode/TranscodeResultPanel';
 import { TranscodeRangeOption } from './transcode/TranscodeRangeOption';
 import { TranscodeDspOption } from './transcode/TranscodeDspOption';
+import { fmt } from '../../utils/fmt';
 
 export interface TranscodeSettingsViewProps {
   language: Language;
@@ -104,9 +105,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
     onTranscodeRangeAChange(strA);
     onTranscodeRangeBChange(strB);
     onShowMessage(
-      loc.settings.transcodeAppliedLoopMsg
-        .replace('{0}', strA)
-        .replace('{1}', strB || loc.player.timerEnd)
+      fmt(loc.settings.transcodeAppliedLoopMsg, strA, strB || loc.player.timerEnd)
     );
   };
 
@@ -119,11 +118,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
     onTranscodeRangeAChange(strA);
     onTranscodeRangeBChange(strB);
     onShowMessage(
-      loc.settings.transcodeAppliedBookmarksMsg
-        .replace('{0}', bmA.name)
-        .replace('{1}', strA)
-        .replace('{2}', bmB.name)
-        .replace('{3}', strB)
+      fmt(loc.settings.transcodeAppliedBookmarksMsg, bmA.name, strA, bmB.name, strB)
     );
   };
 
@@ -463,10 +458,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
         >
           {isTranscoding && <Loader2 size={18} className="spin" />}
           {isTranscoding
-            ? loc.settings.transcodeRenderingProgress.replace(
-                '{0}',
-                String(transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0)
-              )
+            ? fmt(loc.settings.transcodeRenderingProgress, String(transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0))
             : loc.settings.exportOpus}
         </button>
 

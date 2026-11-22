@@ -4,6 +4,7 @@ import { getSetting, setSetting } from '../api/settings';
 import type { AudioCard } from '../types/audioDevices';
 import type { TrackRecord } from '../types/library';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseAudioSettingsOptions {
   showMessage: (msg: string, isError?: boolean) => void;
@@ -33,7 +34,7 @@ export function useAudioSettings({
   const handleEnableProAudio = useCallback(async (cardName: string) => {
     try {
       await invoke('enable_pro_audio', { cardName });
-      showMessage(loc.notifications.proAudioEnabledMsg.replace('{0}', cardName));
+      showMessage(fmt(loc.notifications.proAudioEnabledMsg, cardName));
       await refreshDevices();
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
@@ -43,7 +44,7 @@ export function useAudioSettings({
   const handleDisableProAudio = useCallback(async (cardName: string) => {
     try {
       const fallback = await invoke<string>('disable_pro_audio', { cardName });
-      showMessage(loc.notifications.proAudioDisabledMsg.replace('{0}', fallback));
+      showMessage(fmt(loc.notifications.proAudioDisabledMsg, fallback));
       await refreshDevices();
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
@@ -272,7 +273,7 @@ export function useAudioSettings({
       } catch {}
       showMessage(
         enabled
-          ? loc.notifications.crossfeedOn.replace('{0}', `${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`)
+          ? fmt(loc.notifications.crossfeedOn, `${preset} (${targetFcut}Hz / ${(targetFeed / 10).toFixed(1)}dB)`)
           : loc.notifications.crossfeedOff
       );
     } catch (e: unknown) {

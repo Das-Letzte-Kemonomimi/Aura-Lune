@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import { getSetting, setSetting } from '../api/settings';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseScrobblerManagerOptions {
   isSettingsOpen: boolean;
@@ -218,7 +219,7 @@ export function useScrobblerManager({
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${session.username}`);
       await setSetting('lastfm_session_key', session.session_key);
       await setSetting('lastfm_username', session.username);
-      showMessage(loc.notifications.lastfmLoginSuccess.replace('{0}', session.username));
+      showMessage(fmt(loc.notifications.lastfmLoginSuccess, session.username));
     } catch (err: unknown) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
     } finally {
@@ -253,7 +254,7 @@ export function useScrobblerManager({
       setLastfmUsername(user);
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${user}`);
       await setSetting('lastfm_username', user);
-      showMessage(loc.notifications.lastfmConnected.replace('{0}', user));
+      showMessage(fmt(loc.notifications.lastfmConnected, user));
     } catch (err: unknown) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
     } finally {

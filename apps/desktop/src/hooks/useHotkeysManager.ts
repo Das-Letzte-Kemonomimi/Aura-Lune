@@ -2,6 +2,7 @@ import type { AppTab } from '../types/navigation';
 import { useEffect, useRef } from "react";
 import type { PlaybackStatus } from "../types/player";
 import type { getTranslations } from "../i18n";
+import { fmt } from '../utils/fmt';
 
 export interface UseHotkeysManagerProps {
   statusRef: React.MutableRefObject<PlaybackStatus>;
@@ -167,7 +168,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         const newVol = Math.min(1.0, Math.round((statusRef.current.volume + 0.05) * 100) / 100);
         handleVolumeChange(newVol);
         const formatted = formatVolumeValue(newVol);
-        showMessage(t.notifications.volumeMsg.replace('{0}%', formatted).replace('{0}', formatted));
+        showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));
         return;
       }
 
@@ -177,7 +178,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         const newVol = Math.max(0, Math.round((statusRef.current.volume - 0.05) * 100) / 100);
         handleVolumeChange(newVol);
         const formatted = formatVolumeValue(newVol);
-        showMessage(t.notifications.volumeMsg.replace('{0}%', formatted).replace('{0}', formatted));
+        showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));
         return;
       }
 

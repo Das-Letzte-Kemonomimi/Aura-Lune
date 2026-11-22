@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft, Clock, Disc, FolderOpen, Heart, Music, Play, Plus, Shuffle, Sliders, Sparkles, Tag as TagIcon, Zap } from 'lucide-react';
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
+import { fmt } from '../../../utils/fmt';
 
 export type LibraryAlbumDetailProps = Pick<LibraryViewProps, 'handleBackFromAlbumDetail' | 'loc' | 'tracks' | 'handleOpenCoverPicker' | 'formatTime' | 'handlePlayAlbum' | 'handleShuffleAll' | 'refreshQueue' | 'showMessage' | 'handleOpenContainingFolder' | 'activeTrackId' | 'currentPlayingTrack' | 'handlePlayLibraryTrack' | 'status' | 'handleToggleFavorite' | 'handleAddTrackToQueue' | 'setTagEditorTrack' | 'setCreateStemProjectTrack' | 'setIsCreateStemProjectOpen'> & {
   selectedAlbumDetail: NonNullable<LibraryViewProps['selectedAlbumDetail']>;
@@ -272,7 +273,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                       if (albumTracks.length > 0) {
                         await invoke('add_uris_to_queue', { uris: albumTracks.map((t) => t.path) });
                         await refreshQueue();
-                        showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(albumTracks.length)));
+                        showMessage(fmt(t.notifications.loadedTracksToQueueMsg, String(albumTracks.length)));
                       }
                     }}
                     disabled={albumTracks.length === 0}

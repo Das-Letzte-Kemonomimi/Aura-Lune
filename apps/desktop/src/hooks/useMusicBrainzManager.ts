@@ -3,6 +3,7 @@ import { invoke } from '../api/ipc';
 import type { AlbumRecord, ReleaseCandidateDto } from '../types/library';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseMusicBrainzManagerOptions {
   setAlbums: React.Dispatch<React.SetStateAction<AlbumRecord[]>>;
@@ -56,7 +57,7 @@ export function useMusicBrainzManager({
       if (candidates.length === 0) {
         showMessage(loc.notifications.mbNoMatches, true);
       } else {
-        showMessage(loc.notifications.mbFoundReleases.replace('{0}', String(candidates.length)));
+        showMessage(fmt(loc.notifications.mbFoundReleases, String(candidates.length)));
       }
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
@@ -82,7 +83,7 @@ export function useMusicBrainzManager({
         )
       );
 
-      showMessage(loc.notifications.caaCoverDownloaded.replace('{0}', selectedAlbumForMb.title));
+      showMessage(fmt(loc.notifications.caaCoverDownloaded, selectedAlbumForMb.title));
       setSelectedAlbumForMb(null);
       await loadLibrary();
     } catch (e: unknown) {
@@ -94,7 +95,7 @@ export function useMusicBrainzManager({
 
   const handleAutoFetchCover = useCallback(async (album: AlbumRecord) => {
     try {
-      showMessage(loc.notifications.mbSearchingCover.replace('{0}', album.title));
+      showMessage(fmt(loc.notifications.mbSearchingCover, album.title));
       const coverDataUri = await invoke<string | null>('auto_fetch_album_cover', {
         albumId: album.id,
         albumTitle: album.title,
@@ -105,7 +106,7 @@ export function useMusicBrainzManager({
         setAlbums((prev) =>
           prev.map((a) => (a.id === album.id ? { ...a, cover_path: coverDataUri } : a))
         );
-        showMessage(loc.notifications.mbCoverMatched.replace('{0}', album.title));
+        showMessage(fmt(loc.notifications.mbCoverMatched, album.title));
         await loadLibrary();
       } else {
         showMessage(loc.notifications.mbCoverLowScore, true);
@@ -170,7 +171,7 @@ export function useMusicBrainzManager({
         if (setTrackDirectCover) {
           setTrackDirectCover(coverDataUri);
         }
-        showMessage(loc.covers.customCoverSaved.replace('{0}', targetTitle));
+        showMessage(fmt(loc.covers.customCoverSaved, targetTitle));
         await loadLibrary();
       }
     } catch (e: unknown) {

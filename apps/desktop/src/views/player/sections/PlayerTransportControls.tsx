@@ -3,6 +3,7 @@ import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, 
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs } from '../../../state/livePlayback';
+import { fmt } from '../../../utils/fmt';
 
 export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'volumeProgressPercent' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
@@ -99,7 +100,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             <button
               onClick={() => handleJumpToBookmark(currentBookmark)}
               className="glass-card"
-              title={loc.player.bookmarkJump.replace('{0}', formatTime(currentBookmark))}
+              title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
               style={{
                 padding: '6px 6px',
                 fontSize: '0.72rem',
@@ -161,7 +162,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             borderRadius: '8px',
             cursor: 'pointer',
           }}
-          title={loc.player.bookmarksModalTitle.replace('{0}', String(currentTrackBookmarks.length))}
+          title={fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length))}
         >
           <Bookmark size={13} color="var(--accent-cyan)" />
           <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}</span>
@@ -172,7 +173,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           onClick={() => {
             const pos = currentPositionMs(status.position_ms);
             setLoopPointA(pos);
-            showMessage(loc.player.pointAUpdatedMsg.replace('{0}', formatTimeMs(pos)));
+            showMessage(fmt(loc.player.pointAUpdatedMsg, formatTimeMs(pos)));
           }}
           className="glass-card"
           style={{
@@ -192,7 +193,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             transition: 'all 0.15s ease',
           }}
           title={loopPointA !== null
-            ? loc.player.pointATooltip.replace('{0}', formatTimeMs(loopPointA)).replace('{1}', String(loopPointA))
+            ? fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))
             : loc.player.setPointAAtCurrent}
         >
           A
@@ -203,7 +204,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           onClick={() => {
             const pos = currentPositionMs(status.position_ms);
             setLoopPointB(pos);
-            showMessage(loc.player.pointBUpdatedMsg.replace('{0}', formatTimeMs(pos)));
+            showMessage(fmt(loc.player.pointBUpdatedMsg, formatTimeMs(pos)));
           }}
           className="glass-card"
           style={{
@@ -223,7 +224,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             transition: 'all 0.15s ease',
           }}
           title={loopPointB !== null
-            ? loc.player.pointBTooltip.replace('{0}', formatTimeMs(loopPointB)).replace('{1}', String(loopPointB))
+            ? fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))
             : loc.player.setPointBAtCurrent}
         >
           B

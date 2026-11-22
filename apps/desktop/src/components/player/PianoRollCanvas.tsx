@@ -10,6 +10,7 @@ import {
 import { invoke } from '../../api/ipc';
 import type { TrackTranscriptionData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 export interface PianoRollCanvasProps {
   currentLang?: Language;
@@ -296,7 +297,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
               {t.analysis.pianoRollTitle}
             </span>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-              {data ? t.analysis.detectedNotes.replace('{0}', String(data.notes.length)).replace('{1}', data.bpm.toFixed(1)) : t.analysis.analyzingNotes}
+              {data ? fmt(t.analysis.detectedNotes, String(data.notes.length), data.bpm.toFixed(1)) : t.analysis.analyzingNotes}
             </p>
           </div>
         </div>

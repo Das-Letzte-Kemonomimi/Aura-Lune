@@ -10,6 +10,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
+import { formatBytes } from '../../utils/fileSizeFormat';
 
 export interface TrackMetadataFullDto {
   title: string;
@@ -123,10 +125,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
       applyCandidate(matches[0]);
 
       setIdentifyMessage(
-        loc.tagEditor.acoustIdIdentified
-          .replace('{0}', matches[0].artist)
-          .replace('{1}', matches[0].title)
-          .replace('{2}', String(matches[0].score))
+        fmt(loc.tagEditor.acoustIdIdentified, matches[0].artist, matches[0].title, String(matches[0].score))
       );
     } catch (err: unknown) {
       setError(errorMessage(err) || loc.tagEditor.acoustIdError);
@@ -209,12 +208,6 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
     } finally {
       setSaving(false);
     }
-  };
-
-  const formatFileSize = (bytes?: number | null) => {
-    if (!bytes) return '-';
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(2)} MB`;
   };
 
   return (
@@ -363,7 +356,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
               )}
               <div>
                 <span style={{ color: '#64748b' }}>File size: </span>
-                <strong>{formatFileSize(fileSize)}</strong>
+                <strong>{(fileSize ? formatBytes(fileSize) : '-')}</strong>
               </div>
             </div>
 
@@ -445,7 +438,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
               >
                 <TagIcon size={14} />
                 <span>
-                  {loc.tagEditor.selectReleaseCandidate.replace('{0}', String(fingerprintMatches.length))}
+                  {fmt(loc.tagEditor.selectReleaseCandidate, String(fingerprintMatches.length))}
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>

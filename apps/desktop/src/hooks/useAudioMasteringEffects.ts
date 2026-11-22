@@ -3,6 +3,7 @@ import { invoke } from '../api/ipc';
 import { setSetting } from '../api/settings';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseAudioMasteringEffectsOptions {
   status: PlaybackStatus;
@@ -69,7 +70,7 @@ export function useAudioMasteringEffects({
       }
       showMessage(
         clamped > 0
-          ? loc.notifications.bassBoostOn.replace('{0}', clamped.toFixed(1))
+          ? fmt(loc.notifications.bassBoostOn, clamped.toFixed(1))
           : loc.notifications.bassBoostOff
       );
     } catch (e) {
@@ -84,7 +85,7 @@ export function useAudioMasteringEffects({
       await setSetting('stereo_widener_active', active ? 'true' : 'false');
       showMessage(
         active
-          ? loc.notifications.stereoWidenerOn.replace('{0}', Math.round(stereoWidenerAmount * 100).toString())
+          ? fmt(loc.notifications.stereoWidenerOn, Math.round(stereoWidenerAmount * 100).toString())
           : loc.notifications.stereoWidenerOff
       );
     } catch (e) {

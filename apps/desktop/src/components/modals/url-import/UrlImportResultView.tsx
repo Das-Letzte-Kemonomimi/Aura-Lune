@@ -2,6 +2,7 @@ import React from 'react';
 import type { Translations } from '../../../i18n';
 import { Play, ListPlus, FolderOpen, CheckCircle2, Music } from 'lucide-react';
 import type { UrlAudioImportModalProps, ImportedItem, UrlImportResult } from '../UrlAudioImportModal';
+import { fmt } from '../../../utils/fmt';
 
 export type UrlImportResultViewProps = Pick<UrlAudioImportModalProps, 'onClose'> & {
   result: UrlImportResult;
@@ -46,7 +47,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
         <div>
           <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
             {result.items && result.items.length > 1
-              ? loc.urlImport.successMultiTitle.replace('{0}', String(result.items.length))
+              ? fmt(loc.urlImport.successMultiTitle, String(result.items.length))
               : loc.urlImport.successSingleTitle}
           </div>
           <div style={{ fontSize: '0.78rem', color: '#bbf7d0', marginTop: '2px' }}>

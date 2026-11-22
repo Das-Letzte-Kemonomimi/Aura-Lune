@@ -12,6 +12,7 @@ import {
 import { invoke } from '../../api/ipc';
 import type { TrackChordsData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -260,9 +261,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               }}
               title={t.player.transposeToggleTooltip}
             >
-              {t.player.transposition
-                .replace('{0}', pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones))
-                .replace('{1}', showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
+              {fmt(t.player.transposition, pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones), showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
             </button>
           )}
 
@@ -298,7 +297,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            title={t.player.exportChords.replace('{0}', exportFormat.toUpperCase())}
+            title={fmt(t.player.exportChords, exportFormat.toUpperCase())}
           >
             <Download size={16} />
           </button>

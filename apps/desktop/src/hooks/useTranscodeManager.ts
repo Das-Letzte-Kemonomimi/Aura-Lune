@@ -5,6 +5,7 @@ import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from 
 import { formatTimeMs, parseTimeToMs } from '../utils/timeFormat';
 import type { Language, Translations, getTranslations } from '../i18n';
 import { useTauriEvent } from './useTauriEvent';
+import { fmt } from '../utils/fmt';
 
 export interface UseTranscodeManagerProps {
   filePath: string;
@@ -284,9 +285,7 @@ export function useTranscodeManager({
     setSettingsTab('transcode');
     setIsSettingsOpen(true);
     showMessage(
-      (t.notifications.loopRangeImported || 'Imported A-B loop range for export: {0} → {1}')
-        .replace('{0}', formatTimeMs(a ?? 0))
-        .replace('{1}', formatTimeMs(b))
+      fmt((t.notifications.loopRangeImported || 'Imported A-B loop range for export: {0} → {1}'), formatTimeMs(a ?? 0), formatTimeMs(b))
     );
   }, [currentPlayingTrack?.path, status.current_track?.uri, filePath, setFilePath, transcodeFormat, setSettingsTab, setIsSettingsOpen, showMessage, t.notifications.loopRangeImported]);
 
@@ -441,7 +440,7 @@ export function useTranscodeManager({
         await handleAddTrackToQueue(renderedTrack);
       }
 
-      showMessage(t.notifications.transcodeSuccessMsg.replace('{0}', cleanOutput));
+      showMessage(fmt(t.notifications.transcodeSuccessMsg, cleanOutput));
       await loadLibrary();
     } catch (e: unknown) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);

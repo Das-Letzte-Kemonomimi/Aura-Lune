@@ -1,6 +1,7 @@
 import React from 'react';
 import { FolderOpen, RefreshCw, X } from 'lucide-react';
 import type { LibraryViewProps } from '../LibraryView';
+import { fmt } from '../../../utils/fmt';
 
 export type LibraryScanPanelProps = Pick<LibraryViewProps, 'loc' | 'setIsScanFolderOpen' | 'scanFolder' | 'setScanFolder' | 'handlePickFolder' | 'handleScanLibrary' | 'isScanning' | 'scanResult'>;
 
@@ -92,10 +93,7 @@ export const LibraryScanPanel: React.FC<LibraryScanPanelProps> = ({
       </div>
       {scanResult && (
         <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: 'var(--accent-green)' }}>
-          ✓ {loc.library.scanSummary
-            .replace('{0}', String(scanResult.total_files_found))
-            .replace('{1}', String(scanResult.new_or_updated_tracks))
-            .replace('{2}', String(scanResult.skipped_unchanged))}
+          ✓ {fmt(loc.library.scanSummary, String(scanResult.total_files_found), String(scanResult.new_or_updated_tracks), String(scanResult.skipped_unchanged))}
         </p>
       )}
     </div>

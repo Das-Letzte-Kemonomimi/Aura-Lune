@@ -3,6 +3,7 @@ import { Bookmark } from 'lucide-react';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
+import { fmt } from '../../../utils/fmt';
 
 export type PlayerProgressSectionProps = Pick<PlayerViewProps, 'formatTime' | 'dspCombination' | 'loopPointA' | 'loopPointB' | 'setIsLoopEditorOpen' | 'loc' | 'formatTimeMs' | 'setLoopPointA' | 'setLoopPointB' | 'showMessage' | 'handleToggleSeekFade' | 'seekFadeEnabled' | 'trackWaveformPeaks' | 'language' | 'handleSeek' | 'handleSeekPreview' | 'handleSeekCommit' | 'currentBookmark' | 'currentTrackBookmarks'> & {
   status: PlaybackStatus;
@@ -200,7 +201,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               handleSeek(loopPointA);
-              showMessage(loc.player.jumpToPointAMsg.replace('{0}', formatTimeMs(loopPointA)));
+              showMessage(fmt(loc.player.jumpToPointAMsg, formatTimeMs(loopPointA)));
             }}
             onDoubleClick={(e) => {
               e.stopPropagation();
@@ -221,7 +222,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               cursor: 'pointer',
               zIndex: 2,
             }}
-            title={loc.player.pointATooltip.replace('{0}', formatTimeMs(loopPointA)).replace('{1}', String(loopPointA))}
+            title={fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))}
           >
             A
           </div>
@@ -231,7 +232,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               handleSeek(loopPointB);
-              showMessage(loc.player.jumpToPointBMsg.replace('{0}', formatTimeMs(loopPointB)));
+              showMessage(fmt(loc.player.jumpToPointBMsg, formatTimeMs(loopPointB)));
             }}
             onDoubleClick={(e) => {
               e.stopPropagation();
@@ -252,7 +253,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               cursor: 'pointer',
               zIndex: 2,
             }}
-            title={loc.player.pointBTooltip.replace('{0}', formatTimeMs(loopPointB)).replace('{1}', String(loopPointB))}
+            title={fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))}
           >
             B
           </div>
@@ -283,7 +284,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               gap: '2px',
               boxShadow: '0 0 8px rgba(251, 191, 36, 0.4)',
             }}
-            title={`${loc.player.bookmarkJump.replace('{0}', formatTime(currentBookmark))} (${loc.player.clickToJump})`}
+            title={`${fmt(loc.player.bookmarkJump, formatTime(currentBookmark))} (${loc.player.clickToJump})`}
           >
             <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
           </div>

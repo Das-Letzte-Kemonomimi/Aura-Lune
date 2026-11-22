@@ -45,6 +45,7 @@ const FileRenamerModal = React.lazy(() => import('./FileRenamerModal').then((m) 
 const SaveQueueModal = React.lazy(() => import('./SaveQueueModal').then((m) => ({ default: m.SaveQueueModal })));
 const AddRadioStationModal = React.lazy(() => import('./AddRadioStationModal').then((m) => ({ default: m.AddRadioStationModal })));
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
+import { fmt } from '../../utils/fmt';
 
 export interface AppModalsContainerProps {
   language: Language;
@@ -435,7 +436,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
                 a.id === coverPickerState.albumId ? { ...a, cover_path: coverDataUri } : a
               )
             );
-            showMessage(loc.notifications.mbCoverMatched.replace('{0}', coverPickerState.title));
+            showMessage(fmt(loc.notifications.mbCoverMatched, coverPickerState.title));
             await loadLibrary();
           }}
         />
@@ -589,9 +590,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               await invoke('add_next_to_queue', { item: queueItem });
               await handleNext();
               showMessage(
-                loc.notifications.djMixTransition
-                  .replace('{0}', fullTrack.title)
-                  .replace('{1}', (crossfadeDuration / 1000).toFixed(1))
+                fmt(loc.notifications.djMixTransition, fullTrack.title, (crossfadeDuration / 1000).toFixed(1))
               );
             } else {
               handlePlayLibraryTrack(fullTrack);
@@ -614,10 +613,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             const ratio = Math.min(3.0, Math.max(0.25, Math.round((targetBpm / curBpm) * 100) / 100));
             handleTempoChange(ratio);
             showMessage(
-              loc.notifications.tempoMatched
-                .replace('{0}', String(ratio))
-                .replace('{1}', curBpm.toFixed(1))
-                .replace('{2}', targetBpm.toFixed(1))
+              fmt(loc.notifications.tempoMatched, String(ratio), curBpm.toFixed(1), targetBpm.toFixed(1))
             );
           } else {
             showMessage(loc.notifications.noBpmDetected, true);
@@ -650,10 +646,8 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             setStatus((prev: PlaybackStatus) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
             showMessage(
               preampDb !== 0
-                ? loc.notifications.autoEqAppliedWithPreamp
-                    .replace('{0}', profileName)
-                    .replace('{1}', preampDb.toFixed(1))
-                : loc.notifications.autoEqApplied.replace('{0}', profileName)
+                ? fmt(loc.notifications.autoEqAppliedWithPreamp, profileName, preampDb.toFixed(1))
+                : fmt(loc.notifications.autoEqApplied, profileName)
             );
             setIsAutoEqOpen(false);
           } catch (e: unknown) {
@@ -701,10 +695,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           setLoopPointB(b);
           if (a !== null && b !== null) {
             showMessage(
-              loc.notifications.loopSetRange
-                .replace('{0}', formatTimeMs(a))
-                .replace('{1}', formatTimeMs(b))
-                .replace('{2}', String(b - a))
+              fmt(loc.notifications.loopSetRange, formatTimeMs(a), formatTimeMs(b), String(b - a))
             );
           } else {
             showMessage(loc.shortcuts.loopClear);
@@ -919,9 +910,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               handleSeek(cueTrack.start_offset_ms);
             });
             showMessage(
-              loc.notifications.cuePlaybackStarted
-                .replace('{0}', cueTrack.title)
-                .replace('{1}', String(cueTrack.number))
+              fmt(loc.notifications.cuePlaybackStarted, cueTrack.title, String(cueTrack.number))
             );
           }}
           onAddCueTracksToQueue={async (audioFile, cueTracks) => {
@@ -944,7 +933,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               await invoke('add_to_queue', { item });
             }
             await refreshQueue();
-            showMessage(loc.notifications.cueTracksAdded.replace('{0}', String(cueTracks.length)));
+            showMessage(fmt(loc.notifications.cueTracksAdded, String(cueTracks.length)));
           }}
         />
       )}
@@ -982,9 +971,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
             if (endMs !== null) setLoopPointB(endMs);
             if (startMs !== null && endMs !== null) {
               showMessage(
-                loc.notifications.loopSetMarkers
-                  .replace('{0}', formatTimeMs(startMs))
-                  .replace('{1}', formatTimeMs(endMs))
+                fmt(loc.notifications.loopSetMarkers, formatTimeMs(startMs), formatTimeMs(endMs))
               );
             }
           }}
@@ -1018,7 +1005,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           onClose={() => setIsFileRenamerOpen(false)}
           onRenamedSuccess={() => {
             loadLibrary();
-            showMessage(loc.fileRenamer.renameSuccess.replace('{0}', '').replace('  ', ' ').trim());
+            showMessage(fmt(loc.fileRenamer.renameSuccess, '').replace('  ', ' ').trim());
           }}
           currentLang={language}
         />

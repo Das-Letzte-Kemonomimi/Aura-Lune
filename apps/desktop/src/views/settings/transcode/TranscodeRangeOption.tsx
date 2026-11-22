@@ -2,6 +2,7 @@ import React from 'react';
 import { Scissors, Repeat, Bookmark } from 'lucide-react';
 import { formatTimeMs } from '../../../utils/timeFormat';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
+import { fmt } from '../../../utils/fmt';
 
 export type TranscodeRangeOptionProps = Pick<TranscodeSettingsViewProps, 'transcodeApplyRange' | 'onTranscodeApplyRangeChange' | 'loc' | 'loopPointA' | 'loopPointB' | 'currentTrackBookmarks' | 'onTranscodeRangeAChange' | 'onTranscodeRangeBChange' | 'transcodeRangeA' | 'status' | 'transcodeRangeB'> & {
   handleApplyLoopFromPlayer: () => void;
@@ -142,7 +143,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                 }}
               >
                 <Bookmark size={12} />
-                {loc.settings.transcodeApplySavedBookmarks.replace('{0}', String(currentTrackBookmarks.length))}
+                {fmt(loc.settings.transcodeApplySavedBookmarks, String(currentTrackBookmarks.length))}
               </button>
             )}
           </div>
@@ -336,7 +337,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              <span>✂️ {loc.settings.transcodeRangeDuration.replace('{0}', `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`)}</span>
+              <span>✂️ {fmt(loc.settings.transcodeRangeDuration, `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`)}</span>
             </div>
           ) : (
             <div
@@ -349,7 +350,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              <span>✂️ {loc.settings.transcodeExportRangeText.replace('{0}', formatTimeMs(parsedA))}</span>
+              <span>✂️ {fmt(loc.settings.transcodeExportRangeText, formatTimeMs(parsedA))}</span>
             </div>
           )}
         </div>

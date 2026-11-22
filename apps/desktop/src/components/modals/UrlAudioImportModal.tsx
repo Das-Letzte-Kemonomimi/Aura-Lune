@@ -7,6 +7,7 @@ import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { UrlImportResultView } from './url-import/UrlImportResultView';
 import { UrlImportForm } from './url-import/UrlImportForm';
+import { formatDuration } from '../../utils/timeFormat';
 
 export interface ImportedItem {
   file_path: string;
@@ -222,14 +223,6 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
     setUrl('');
     setResult(null);
     setErrorMessage(null);
-  };
-
-  const formatDuration = (ms: number | null): string => {
-    if (!ms || ms <= 0) return '--:--';
-    const totalSecs = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   return (

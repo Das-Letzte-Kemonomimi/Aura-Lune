@@ -5,6 +5,7 @@ import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
 import { normalizeStr } from '../utils/textNormalize';
 import { useVirtualScroll } from './useVirtualScroll';
+import { fmt } from '../utils/fmt';
 
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
@@ -540,9 +541,7 @@ export function useLibraryManager({
       setScanResult(summary);
       await loadLibrary();
       showMessage(
-        loc.notifications.scanFinished
-          .replace('{0}', String(summary.new_or_updated_tracks))
-          .replace('{1}', String(summary.skipped_unchanged))
+        fmt(loc.notifications.scanFinished, String(summary.new_or_updated_tracks), String(summary.skipped_unchanged))
       );
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);

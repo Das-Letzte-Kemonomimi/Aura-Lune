@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Layers, Search, X } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 export interface FacetTrack {
   id: number;
@@ -162,7 +163,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              {loc.facetsFilter.activeFilter.replace('{0}', String(tracksInArtist.length))}
+              {fmt(loc.facetsFilter.activeFilter, String(tracksInArtist.length))}
             </span>
           )}
         </div>

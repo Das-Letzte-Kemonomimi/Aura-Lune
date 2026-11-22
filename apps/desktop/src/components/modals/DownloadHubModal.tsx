@@ -13,6 +13,7 @@ import {
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { formatBytes } from '../../utils/fileSizeFormat';
+import { fmt } from '../../utils/fmt';
 
 export interface DownloadJobDto {
   id: string;
@@ -115,7 +116,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         setDestinationFolder(selected);
       }
     } catch (err) {
-      setErrorMessage(loc.downloadHub.errorSelectFolder.replace('{0}', String(err)));
+      setErrorMessage(fmt(loc.downloadHub.errorSelectFolder, String(err)));
     }
   };
 
@@ -153,7 +154,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       setExpectedSha('');
       await fetchJobs();
     } catch (err) {
-      setErrorMessage(loc.downloadHub.errorStartDownload.replace('{0}', String(err)));
+      setErrorMessage(fmt(loc.downloadHub.errorStartDownload, String(err)));
     } finally {
       setIsSubmitting(false);
     }

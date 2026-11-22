@@ -8,6 +8,7 @@ import type { TrackStatsData } from '../components/modals/TrackStatsModal';
 import type { Translations } from '../i18n';
 import { formatTime, formatTimeMs } from '../utils/timeFormat';
 import { vinylSimulator } from '../utils/vinylSimulator';
+import { fmt } from '../utils/fmt';
 
 export interface UseLibraryPlaybackActionsOptions {
   tracks: TrackRecord[];
@@ -111,7 +112,7 @@ export function useLibraryPlaybackActions({
         }).catch(() => {});
       }
 
-      showMessage(loc.notifications.fileLoaded.replace('{0}', path));
+      showMessage(fmt(loc.notifications.fileLoaded, path));
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
@@ -122,7 +123,7 @@ export function useLibraryPlaybackActions({
     try {
       const selected = await invoke<string[]>('pick_files');
       if (selected && selected.length > 0) {
-        showMessage(loc.notifications.filesSelectedDolphin.replace('{0}', String(selected.length)));
+        showMessage(fmt(loc.notifications.filesSelectedDolphin, String(selected.length)));
         await handleScanPaths(selected);
 
         const items: QueueItem[] = selected.map((filePath, idx) => {
@@ -258,12 +259,12 @@ export function useLibraryPlaybackActions({
       if (bookmark && bookmark > 2000) {
         try {
           await invoke('seek', { positionMs: bookmark });
-          showMessage(loc.notifications.resumedTrack.replace('{0}', track.title).replace('{1}', formatTime(bookmark)));
+          showMessage(fmt(loc.notifications.resumedTrack, track.title, formatTime(bookmark)));
         } catch {
-          showMessage(loc.notifications.startedPlayback.replace('{0}', track.title).replace('{1}', track.artist));
+          showMessage(fmt(loc.notifications.startedPlayback, track.title, track.artist));
         }
       } else {
-        showMessage(loc.notifications.startedPlayback.replace('{0}', track.title).replace('{1}', track.artist));
+        showMessage(fmt(loc.notifications.startedPlayback, track.title, track.artist));
       }
 
       // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
@@ -339,7 +340,7 @@ export function useLibraryPlaybackActions({
       try {
         await invoke('add_uris_to_queue', { uris: sorted.map((t) => t.path) });
         await refreshQueue();
-        showMessage(loc.notifications.loadedTracksToQueueMsg.replace('{0}', String(sorted.length)));
+        showMessage(fmt(loc.notifications.loadedTracksToQueueMsg, String(sorted.length)));
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
@@ -382,7 +383,7 @@ export function useLibraryPlaybackActions({
       setFilePath(shuffled[0].path);
       showMessage(
         loc.notifications.shuffledTracksCount
-          ? loc.notifications.shuffledTracksCount.replace('{0}', String(shuffled.length))
+          ? fmt(loc.notifications.shuffledTracksCount, String(shuffled.length))
           : `🔀 Shuffled and started ${shuffled.length} tracks!`
       );
     } catch (e: unknown) {
@@ -526,7 +527,7 @@ export function useLibraryPlaybackActions({
         positionMs,
       });
       setCurrentBookmark(positionMs);
-      showMessage(loc.notifications.bookmarkSaved.replace('{0}', formatTimeMs(positionMs)));
+      showMessage(fmt(loc.notifications.bookmarkSaved, formatTimeMs(positionMs)));
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
@@ -548,7 +549,7 @@ export function useLibraryPlaybackActions({
   // Skok do zapisanej zakładki
   const handleJumpToBookmark = async (pos: number) => {
     await handleSeek(pos);
-    showMessage(loc.player.bookmarkJump.replace('{0}', formatTime(pos)));
+    showMessage(fmt(loc.player.bookmarkJump, formatTime(pos)));
   };
 
   // Reset licznika odtworzeń utworu
@@ -577,10 +578,10 @@ export function useLibraryPlaybackActions({
     if (!rawPath) return;
     try {
       const folder = await invoke<string>('open_containing_folder', { filePath: rawPath });
-      showMessage(loc.notifications.openedFolder.replace('{0}', folder));
+      showMessage(fmt(loc.notifications.openedFolder, folder));
     } catch (err: unknown) {
       console.error('Failed to open containing folder:', err);
-      showMessage(loc.notifications.openFolderError.replace('{0}', String(err)), true);
+      showMessage(fmt(loc.notifications.openFolderError, String(err)), true);
     }
   };
 

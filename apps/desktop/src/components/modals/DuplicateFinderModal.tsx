@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../../api/ipc';
 import { Copy, Trash2, FolderOpen, Play, X, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
+import { formatBytes } from '../../utils/fileSizeFormat';
+import { formatTime } from '../../utils/timeFormat';
 
 export interface TrackRecordDto {
   id: number;
@@ -73,12 +76,12 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
 
     try {
       await invoke('delete_track_record', { trackId, deleteFile });
-      setSuccessMsg(loc.duplicateFinder.removeSuccess.replace('{0}', title));
+      setSuccessMsg(fmt(loc.duplicateFinder.removeSuccess, title));
       setTimeout(() => setSuccessMsg(null), 3000);
       await loadDuplicates();
       onLibraryChanged?.();
     } catch (err) {
-      setError(loc.duplicateFinder.removeError.replace('{0}', String(err)));
+      setError(fmt(loc.duplicateFinder.removeError, String(err)));
     }
   };
 
@@ -88,23 +91,6 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
     } catch (err) {
       setError(String(err));
     }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes >= 1024 * 1024 * 1024) {
-      return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    }
-    if (bytes >= 1024 * 1024) {
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-    return `${Math.round(bytes / 1024)} KB`;
-  };
-
-  const formatDuration = (ms: number): string => {
-    const totalSecs = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -300,7 +286,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
           {!isLoading && groups.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                {loc.duplicateFinder.detectedGroups.replace('{0}', String(groups.length)).replace('{1}', String(groups.reduce((acc, g) => acc + g.tracks.length, 0)))}
+                {fmt(loc.duplicateFinder.detectedGroups, String(groups.length), String(groups.reduce((acc, g) => acc + g.tracks.length, 0)))}
               </div>
 
               {groups.map((group, idx) => (
@@ -385,7 +371,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                               {track.path}
                             </span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                              {loc.duplicateFinder.size} {formatFileSize(track.file_size)} • {loc.duplicateFinder.duration} {formatDuration(track.duration_ms)} • {loc.duplicateFinder.plays} {track.play_count || 0}
+                              {loc.duplicateFinder.size} {formatBytes(track.file_size)} • {loc.duplicateFinder.duration} {formatTime(track.duration_ms)} • {loc.duplicateFinder.plays} {track.play_count || 0}
                             </span>
                           </div>
 

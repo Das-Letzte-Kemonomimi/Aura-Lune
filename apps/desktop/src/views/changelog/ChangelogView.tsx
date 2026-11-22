@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
 import rawReleases from '../../data/changelog.json';
+import { fmt } from '../../utils/fmt';
 
 export interface ChangelogItem {
   pl: string;
@@ -187,13 +188,11 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
           <Layers size={14} color="var(--accent-cyan)" />
           <span style={{ fontWeight: 600, color: '#fff' }}>
-            {loc.changelog.totalReleases.replace('{0}', String(totalReleases))}
+            {fmt(loc.changelog.totalReleases, String(totalReleases))}
           </span>
           <span>•</span>
           <span>
-            {loc.changelog.page
-              .replace('{0}', String(clampedPage))
-              .replace('{1}', String(totalPages))}
+            {fmt(loc.changelog.page, String(clampedPage), String(totalPages))}
           </span>
         </div>
 

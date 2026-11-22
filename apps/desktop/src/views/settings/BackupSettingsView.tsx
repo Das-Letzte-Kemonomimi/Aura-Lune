@@ -11,6 +11,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 export interface BackupSettingsViewProps {
   language: Language;
@@ -406,9 +407,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
               {crossfadeDuration === 0
                 ? loc.settings.crossfadeDisabled
-                : loc.settings.crossfadeTime
-                    .replace('{0}', (crossfadeDuration / 1000).toFixed(2))
-                    .replace('{1}', String(crossfadeDuration))}
+                : fmt(loc.settings.crossfadeTime, (crossfadeDuration / 1000).toFixed(2), String(crossfadeDuration))}
             </span>
             <div style={{ display: 'flex', gap: '6px' }}>
               {[0, 1000, 1500, 3000, 5000].map((presetMs) => (

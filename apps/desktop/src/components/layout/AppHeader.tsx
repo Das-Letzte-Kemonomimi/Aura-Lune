@@ -19,6 +19,7 @@ import { type Language, type Translations } from '../../i18n';
 import { AppNavbar, type MainTabType } from './AppNavbar';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
+import { fmt } from '../../utils/fmt';
 
 export interface AppHeaderProps {
   appVersion: string;
@@ -501,7 +502,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             cursor: 'pointer',
             flexShrink: 0,
           }}
-          title={loc.nav.uiScaleTooltip.replace('{0}', String(Math.round(uiScale * 100)))}
+          title={fmt(loc.nav.uiScaleTooltip, String(Math.round(uiScale * 100)))}
         >
           <Maximize2 size={13} />
           <span className="header-action-text">{Math.round(uiScale * 100)}%</span>

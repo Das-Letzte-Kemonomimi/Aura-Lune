@@ -4,6 +4,7 @@ import { getSetting, setSetting } from '../api/settings';
 import type { PlaybackStatus, DspPresetRecord } from '../types/playback';
 import type { EqualizerPreset } from '../types/equalizer';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseDspManagerOptions {
   status: PlaybackStatus;
@@ -248,7 +249,7 @@ export function useDspManager({
         const res = await invoke<PlaybackStatus>('set_dsp_engine', { engine });
         setStatus(res);
         persistDspSettings(engine, res.pitch_semitones, res.tempo_ratio, res.rate_ratio);
-        showMessage(loc.notifications.dspEngineSwitchedMsg.replace('{0}', res.capabilities?.name ?? engine));
+        showMessage(fmt(loc.notifications.dspEngineSwitchedMsg, res.capabilities?.name ?? engine));
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
@@ -282,7 +283,7 @@ export function useDspManager({
       await invoke('restore_original_track');
       showMessage(loc.notifications.restoredOriginalTrack);
     } catch (err: unknown) {
-      showMessage(loc.notifications.restoreOriginalTrackError.replace('{0}', String(err)), true);
+      showMessage(fmt(loc.notifications.restoreOriginalTrackError, String(err)), true);
     }
   }, [showMessage, loc]);
 
@@ -312,7 +313,7 @@ export function useDspManager({
       try {
         await setSetting('dsp_default_engine', eng);
         showMessage(
-          loc.notifications.dspStartupEngineSaved.replace('{0}', eng === 'Bypass' ? 'Direct Bypass' : eng)
+          fmt(loc.notifications.dspStartupEngineSaved, eng === 'Bypass' ? 'Direct Bypass' : eng)
         );
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
@@ -328,7 +329,7 @@ export function useDspManager({
       try {
         await invoke('set_audio_buffer_duration_ms', { bufferMs: clamped });
         showMessage(
-          loc.notifications.audioBufferSet.replace('{0}', String(clamped)).replace('{1}', clamped === 600 ? ' (default)' : '')
+          fmt(loc.notifications.audioBufferSet, String(clamped), clamped === 600 ? ' (default)' : '')
         );
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
@@ -344,7 +345,7 @@ export function useDspManager({
       try {
         await invoke('set_dsp_block_size', { blockSize: clamped });
         showMessage(
-          loc.notifications.dspBlockSizeSet.replace('{0}', String(clamped)).replace('{1}', clamped === 2048 ? ' (default)' : '')
+          fmt(loc.notifications.dspBlockSizeSet, String(clamped), clamped === 2048 ? ' (default)' : '')
         );
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
@@ -388,7 +389,7 @@ export function useDspManager({
       try {
         const res = await invoke<PlaybackStatus>('load_dsp_preset', { preset });
         setStatus(res);
-        showMessage(loc.notifications.dspPresetLoadedMsg.replace('{0}', preset.name).replace('{1}', preset.engine));
+        showMessage(fmt(loc.notifications.dspPresetLoadedMsg, preset.name, preset.engine));
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
@@ -546,7 +547,7 @@ export function useDspManager({
         await invoke('set_equalizer_params', { enabled: true, bands: targetBands });
         await invoke('set_equalizer_bands', { bands: targetBands }).catch(() => {});
         setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands], equalizer_enabled: true }));
-        showMessage(loc.notifications.eqAppliedPreset.replace('{0}', getEqPresetDisplayName(targetName, loc)));
+        showMessage(fmt(loc.notifications.eqAppliedPreset, getEqPresetDisplayName(targetName, loc)));
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }

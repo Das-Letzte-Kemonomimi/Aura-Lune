@@ -14,6 +14,7 @@ import {
 import { invoke } from '../../api/ipc';
 import type { ModelPackInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 interface CreateStemProjectModalProps {
   isOpen: boolean;
@@ -376,7 +377,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           {/* Podgląd wynikowych stemów */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
-              {t.stems.outputTracks.replace('{0}', String(calculatedStems.length))}
+              {fmt(t.stems.outputTracks, String(calculatedStems.length))}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {calculatedStems.map((stem) => (
@@ -415,11 +416,11 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           >
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
               <Clock size={16} color="#f59e0b" />
-              <span>{t.stems.estimatedTime.replace('{0}', String(estimatedTimeSec))}</span>
+              <span>{fmt(t.stems.estimatedTime, String(estimatedTimeSec))}</span>
             </div>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
               <HardDrive size={16} color="#38bdf8" />
-              <span>{t.stems.diskSpace.replace('{0}', String(Math.round(calculatedStems.length * 8.5)))}</span>
+              <span>{fmt(t.stems.diskSpace, String(Math.round(calculatedStems.length * 8.5)))}</span>
             </div>
           </div>
         </div>

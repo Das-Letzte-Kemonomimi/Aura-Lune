@@ -3,6 +3,7 @@ import type { Translations } from '../../../i18n';
 import { RotateCcw, Download, Save, Sparkles, X, Sliders, Music } from 'lucide-react';
 import type { StemProject, StemChannel, StemProjectMix } from '../../../types/analysis';
 import type { Dispatch, SetStateAction } from 'react';
+import { fmt } from '../../../utils/fmt';
 
 export type StemStudioHeaderProps = {} & {
   project: StemProject | null;
@@ -86,12 +87,12 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
                 }}
               >
                 <Sparkles size={12} className="animate-spin" />
-                {loc.stems.statusSeparating.replace('{0}', String(Math.round(project.progress * 100)))}
+                {fmt(loc.stems.statusSeparating, String(Math.round(project.progress * 100)))}
               </span>
             )}
           </div>
           <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
-            {project?.artist} • {project?.album} • {loc.stems.instrumentTracksCount.replace('{0}', String(channels.length))}
+            {project?.artist} • {project?.album} • {fmt(loc.stems.instrumentTracksCount, String(channels.length))}
           </p>
         </div>
       </div>

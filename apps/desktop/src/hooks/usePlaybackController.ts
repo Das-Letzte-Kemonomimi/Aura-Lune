@@ -8,6 +8,7 @@ import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/library';
 import type { TrackBookmarkDto } from '../types/player';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UsePlaybackControllerOptions {
   status: PlaybackStatus;
@@ -335,7 +336,7 @@ export function usePlaybackController({
               listenedAt: Math.floor(Date.now() / 1000),
             })
               .then(() => {
-                curShowMessage(curLoc.notifications.scrobbledListenbrainz.replace('{0}', currentTrackObj.title));
+                curShowMessage(fmt(curLoc.notifications.scrobbledListenbrainz, currentTrackObj.title));
               })
               .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
           }
@@ -372,7 +373,7 @@ export function usePlaybackController({
               },
             })
               .then(() => {
-                curShowMessage(curLoc.notifications.scrobbledLastfm.replace('{0}', currentTrackObj.title));
+                curShowMessage(fmt(curLoc.notifications.scrobbledLastfm, currentTrackObj.title));
               })
               .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
           }
@@ -678,7 +679,7 @@ export function usePlaybackController({
       const nextItem = await invoke<QueueItem | null>('play_next');
       await refreshQueue();
       if (nextItem) {
-        showMessage(loc.notifications.nextTrackMsg.replace('{0}', nextItem.title));
+        showMessage(fmt(loc.notifications.nextTrackMsg, nextItem.title));
         if (nextItem.uri) setFilePath(nextItem.uri);
         if (nextItem.track_id) setActiveTrackId(nextItem.track_id);
       } else {
@@ -694,7 +695,7 @@ export function usePlaybackController({
       const prevItem = await invoke<QueueItem | null>('play_previous');
       await refreshQueue();
       if (prevItem) {
-        showMessage(loc.notifications.prevTrackMsg.replace('{0}', prevItem.title));
+        showMessage(fmt(loc.notifications.prevTrackMsg, prevItem.title));
         if (prevItem.uri) setFilePath(prevItem.uri);
         if (prevItem.track_id) setActiveTrackId(prevItem.track_id);
       }
@@ -726,7 +727,7 @@ export function usePlaybackController({
           : nextMode === 'Track'
           ? loc.queue.loopTrack
           : loc.queue.loopQueue;
-      showMessage(loc.notifications.loopModeMsg.replace('{0}', loopLabel));
+      showMessage(fmt(loc.notifications.loopModeMsg, loopLabel));
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowUpDown, Clock, Disc, LayoutGrid, List, Play, Plus, Search, Sparkles } from 'lucide-react';
 import type { LibraryViewProps } from '../LibraryView';
+import { fmt } from '../../../utils/fmt';
 
 export type LibraryAlbumGridProps = Pick<LibraryViewProps, 'sortedAlbums' | 'albums' | 'loc' | 'albumsWithCoverCount' | 'albumsWithoutCoverCount' | 'albumCoverFilter' | 'setAlbumCoverFilter' | 'albumSortField' | 'setAlbumSortField' | 'setAlbumSortOrder' | 'albumSortOrder' | 'albumViewMode' | 'albumGridSize' | 'setAlbumGridSize' | 'setAlbumViewMode' | 'librarySearch' | 'setLibrarySearch' | 'tracks' | 'handleOpenAlbumDetail' | 'handlePlayAlbum' | 'handleAddAlbumToQueue' | 'handleOpenCoverPicker' | 'handleOpenMbModal'> & {
   formatAlbumDuration: (ms: number) => string;
@@ -53,8 +54,8 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700 }}>
               {sortedAlbums.length !== albums.length
-                ? loc.library.resultsAlbums.replace('{0}', String(sortedAlbums.length)).replace('{1}', String(albums.length))
-                : loc.library.totalAlbums.replace('{0}', String(albums.length))}
+                ? fmt(loc.library.resultsAlbums, String(sortedAlbums.length), String(albums.length))
+                : fmt(loc.library.totalAlbums, String(albums.length))}
             </span>
 
             {/* Filtr okładek */}
@@ -70,9 +71,9 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
               }}
             >
               {[
-                { id: 'all', label: loc.library.albumFilterAll.replace('{0}', String(albums.length)) },
-                { id: 'with-cover', label: loc.library.albumFilterWithCover.replace('{0}', String(albumsWithCoverCount)) },
-                { id: 'missing-cover', label: loc.library.albumFilterMissingCover.replace('{0}', String(albumsWithoutCoverCount)) },
+                { id: 'all', label: fmt(loc.library.albumFilterAll, String(albums.length)) },
+                { id: 'with-cover', label: fmt(loc.library.albumFilterWithCover, String(albumsWithCoverCount)) },
+                { id: 'missing-cover', label: fmt(loc.library.albumFilterMissingCover, String(albumsWithoutCoverCount)) },
               ].map((f) => {
                 const isActive = albumCoverFilter === f.id;
                 return (
@@ -267,7 +268,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
               <span>{loc.library.emptyAlbums}</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                <span>{loc.library.emptySearchAlbums.replace('{0}', librarySearch)}</span>
+                <span>{fmt(loc.library.emptySearchAlbums, librarySearch)}</span>
                 <button
                   onClick={() => {
                     setLibrarySearch('');

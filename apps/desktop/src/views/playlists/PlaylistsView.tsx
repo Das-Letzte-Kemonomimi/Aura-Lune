@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
+import { fmt } from '../../utils/fmt';
 
 
 export interface PlaylistsViewProps {
@@ -198,7 +199,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
                     await invoke('add_uris_to_queue', { uris: playlistTracks.map((t) => t.path) });
                     await refreshQueue();
                     showMessage(
-                      loc.notifications.loadedTracksToQueueMsg.replace('{0}', String(playlistTracks.length))
+                      fmt(loc.notifications.loadedTracksToQueueMsg, String(playlistTracks.length))
                     );
                   }
                 }}

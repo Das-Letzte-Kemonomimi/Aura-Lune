@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 
 export interface AudioCodecStatus {
   format: string;
@@ -205,7 +206,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
 
           {error && (
             <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '0.85rem' }}>
-              {t.healthCheck.testError.replace('{0}', error)}
+              {fmt(t.healthCheck.testError, error)}
             </div>
           )}
 

@@ -5,6 +5,7 @@ import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/library';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 export interface UseInfinityQueueOptions {
   status: PlaybackStatus;
@@ -129,9 +130,7 @@ export function useInfinityQueue({
       .then(async () => {
         await refreshQueue();
         showMessage(
-          loc.notifications.infinityQueuePicked
-            .replace('{0}', bestTrack.title)
-            .replace('{1}', bestBadge)
+          fmt(loc.notifications.infinityQueuePicked, bestTrack.title, bestBadge)
         );
       })
       .catch((err) => {

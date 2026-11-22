@@ -12,6 +12,7 @@ import type { StemProject, StemProjectProgressPayload } from '../../types/analys
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
+import { fmt } from '../../utils/fmt';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
@@ -62,14 +63,14 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
   });
 
   const handleDelete = async (projectId: number, title: string) => {
-    if (!window.confirm(t.stems.deleteConfirm.replace('{0}', title))) {
+    if (!window.confirm(fmt(t.stems.deleteConfirm, title))) {
       return;
     }
     try {
       await invoke('delete_stem_project', { projectId });
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
     } catch (err: unknown) {
-      alert(t.stems.deleteError.replace('{0}', String(err)));
+      alert(fmt(t.stems.deleteError, String(err)));
     }
   };
 
@@ -90,7 +91,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       );
       setEditingProjectId(null);
     } catch (err: unknown) {
-      alert(t.stems.renameError.replace('{0}', String(err)));
+      alert(fmt(t.stems.renameError, String(err)));
     }
   };
 
@@ -317,7 +318,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                       }}
                     >
                       <Sparkles size={10} className="animate-spin" />
-                      {t.stems.statusSeparating.replace('{0}', String(Math.round(project.progress * 100)))}
+                      {fmt(t.stems.statusSeparating, String(Math.round(project.progress * 100)))}
                     </span>
                   ) : project.status === 'failed' ? (
                     <span
@@ -364,7 +365,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Layers size={13} /> {t.stems.tracksCount.replace('{0}', String(project.channels.length))}
+                  <Layers size={13} /> {fmt(t.stems.tracksCount, String(project.channels.length))}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <HardDrive size={13} /> {formatBytes(project.disk_size_bytes)}

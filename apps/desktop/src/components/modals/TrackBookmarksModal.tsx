@@ -5,6 +5,7 @@ import { formatTimeMs } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';
 import { type TrackBookmarkDto } from '../../types/player';
 import { useLivePositionMs } from '../../state/livePlayback';
+import { fmt } from '../../utils/fmt';
 
 export type { TrackBookmarkDto };
 
@@ -362,7 +363,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                     {loc.trackBookmarks.exportRangeWithBookmarks}
                   </span>
                   <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {loc.trackBookmarks.rangeFirstToLast.replace('{0}', bookmarks[0].name).replace('{1}', bookmarks[bookmarks.length - 1].name)}
+                    {fmt(loc.trackBookmarks.rangeFirstToLast, bookmarks[0].name, bookmarks[bookmarks.length - 1].name)}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -574,7 +575,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
                         onExportRange(bm.position_ms, bookmarks[idx + 1].position_ms);
                         onClose();
                       }}
-                      title={loc.trackBookmarks.exportSection.replace('{0}', bm.name).replace('{1}', bookmarks[idx + 1].name)}
+                      title={fmt(loc.trackBookmarks.exportSection, bm.name, bookmarks[idx + 1].name)}
                       style={{
                         background: 'rgba(255, 255, 255, 0.08)',
                         border: '1px solid var(--border-subtle)',

@@ -8,6 +8,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
+import { formatTime } from '../../utils/timeFormat';
 
 export interface CueTrackDto {
   number: number;
@@ -64,13 +66,6 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
     } catch (err: unknown) {
       setError(errorMessage(err) || loc.cueSheet.parseError);
     }
-  };
-
-  const formatMs = (ms: number) => {
-    const totalSec = Math.floor(ms / 1000);
-    const m = Math.floor(totalSec / 60);
-    const s = totalSec % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   return (
@@ -235,7 +230,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                   {parsedSheet.album_title || 'Album CUE'}
                 </h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                  {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} • {loc.cueSheet.tracksCount.replace('{0}', String(parsedSheet.tracks.length))}
+                  {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} • {fmt(loc.cueSheet.tracksCount, String(parsedSheet.tracks.length))}
                 </p>
                 <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#94a3b8' }}>
                   <span>{loc.cueSheet.audioFileLabel}</span>
@@ -291,8 +286,8 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
-                        {formatMs(track.start_offset_ms)}
-                        {track.duration_ms ? ` (${formatMs(track.duration_ms)})` : ''}
+                        {formatTime(track.start_offset_ms)}
+                        {track.duration_ms ? ` (${formatTime(track.duration_ms)})` : ''}
                       </span>
                       <button
                         onClick={() => onPlayCueTrack(audioTargetOverride, track)}

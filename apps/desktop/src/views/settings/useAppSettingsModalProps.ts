@@ -37,7 +37,7 @@ export interface UseAppSettingsModalPropsParams {
     recapOptIn: boolean;
     setRecapOptIn: React.Dispatch<React.SetStateAction<boolean>>;
     desktopNotificationsEnabled: boolean;
-    setDesktopNotificationsEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    setDesktopNotificationsEnabled: (next: boolean | ((prev: boolean) => boolean)) => void;
     albumPlaybackMode: import("../../types/playback").AlbumPlaybackBehavior;
     setAlbumPlaybackMode: React.Dispatch<React.SetStateAction<import("../../types/playback").AlbumPlaybackBehavior>>;
   }>;
@@ -192,7 +192,6 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onToggleDesktopNotifications: () => {
       const nextVal = !audioDevices.desktopNotificationsEnabled;
       audioDevices.setDesktopNotificationsEnabled(nextVal);
-      try { localStorage.setItem('auralune_notifications_enabled', String(nextVal)); } catch {}
     },
     albumPlaybackMode: audioDevices.albumPlaybackMode,
     onSetAlbumPlaybackMode: (mode) => {

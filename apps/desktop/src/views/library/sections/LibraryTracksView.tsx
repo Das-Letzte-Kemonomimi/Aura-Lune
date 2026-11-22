@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, BarChart3, Clock, FileCode, FilePlus, Flame, FolderOpen, FolderPlus, Heart, ListPlus, Moon, Music, Play, Plus, Sliders, Sparkles, Star, Tag as TagIcon, Zap } from 'lucide-react';
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
+import { fmt } from '../../../utils/fmt';
 
 export type LibraryTracksViewProps = Pick<LibraryViewProps, 'loc' | 'smartPlaylistFilter' | 'setSmartPlaylistFilter' | 'setIsCueModalOpen' | 'sortedTracks' | 'tracks' | 'sortField' | 'sortOrder' | 'librarySearch' | 'handlePlayLibraryTrack' | 'refreshQueue' | 'showMessage' | 'libraryTableRef' | 'handleSort' | 'handlePickFolder' | 'handlePickFiles' | 'setLibrarySearch' | 'trackTopSpacer' | 'trackStartIndex' | 'trackEndIndex' | 'activeTrackId' | 'currentPlayingTrack' | 'status' | 'formatTime' | 'setStatsModalTrack' | 'handleSetTrackRating' | 'handleToggleFavorite' | 'handleAddTrackToQueue' | 'setTagEditorTrack' | 'handleScanTrackReplayGain' | 'setCreateStemProjectTrack' | 'setIsCreateStemProjectOpen' | 'handleAddTrackNextToQueue' | 'setTrackToAddToPlaylist' | 'setShowPlaylistModal' | 'handleOpenContainingFolder' | 'trackBottomSpacer'> & {
   t: LibraryViewProps['loc'];
@@ -115,9 +116,9 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {sortedTracks.length !== tracks.length
-            ? loc.library.resultsCount.replace('{0}', String(sortedTracks.length)).replace('{1}', String(tracks.length))
-            : loc.library.totalTracksCount.replace('{0}', String(tracks.length))}
-          {(sortField !== 'default' || sortOrder !== 'asc') && ` • ${loc.library.sortedBy.replace('{0}', sortField === 'default' ? '#' : sortField).replace('{1}', sortOrder === 'asc' ? loc.library.sortedAsc : loc.library.sortedDesc)}`}
+            ? fmt(loc.library.resultsCount, String(sortedTracks.length), String(tracks.length))
+            : fmt(loc.library.totalTracksCount, String(tracks.length))}
+          {(sortField !== 'default' || sortOrder !== 'asc') && ` • ${fmt(loc.library.sortedBy, sortField === 'default' ? '#' : sortField, sortOrder === 'asc' ? loc.library.sortedAsc : loc.library.sortedDesc)}`}
           {smartPlaylistFilter === 'history' && ` • ${loc.library.sortedNewest}`}
           {smartPlaylistFilter === 'top_played' && ` • ${loc.library.sortedPlays}`}
         </span>
@@ -150,7 +151,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                 if (sortedTracks.length > 0) {
                   await invoke('add_uris_to_queue', { uris: sortedTracks.map((t) => t.path) });
                   await refreshQueue();
-                  showMessage(t.notifications.loadedTracksToQueueMsg.replace('{0}', String(sortedTracks.length)));
+                  showMessage(fmt(t.notifications.loadedTracksToQueueMsg, String(sortedTracks.length)));
                 }
               }}
               style={{
@@ -304,7 +305,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                      <span>{loc.library.emptySearchTracks.replace("{0}", librarySearch)}</span>
+                      <span>{fmt(loc.library.emptySearchTracks, librarySearch)}</span>
                       <button
                         onClick={() => setLibrarySearch('')}
                         style={{
@@ -473,7 +474,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                                   alignItems: 'center',
                                   transition: 'transform 0.1s ease',
                                 }}
-                                title={loc.library.ratingTooltip.replace('{0}', String(star))}
+                                title={fmt(loc.library.ratingTooltip, String(star))}
                               >
                                 <Star size={12} fill={active ? '#f59e0b' : 'none'} />
                               </button>

@@ -5,6 +5,7 @@ import { VinylTurntable } from '../../../components/player/VinylTurntable';
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
+import { fmt } from '../../../utils/fmt';
 
 export type PlayerVisualColumnProps = Pick<PlayerViewProps, 'nowPlayingVisualMode' | 'handleSelectNowPlayingVisualMode' | 'loc' | 'language' | 'currentCover' | 'currentPlayingTrack' | 'tracks' | 'handlePlayPause' | 'vinylRpm' | 'handleSelectVinylRpm' | 'setIsLoFiModalOpen' | 'tapeType' | 'handleSelectTapeType' | 'tapeSpeed' | 'handleSelectTapeSpeed' | 'currentAlbum' | 'handleOpenCoverPicker' | 'albums' | 'handleUploadCustomCoverDirect' | 'dspBadgeTitle' | 'dspBadgeText'> & {
   status: PlaybackStatus;
@@ -356,8 +357,8 @@ export const PlayerVisualColumn: React.FC<PlayerVisualColumnProps> = ({
           >
             <Disc3 size={11} color="var(--accent-pink)" />
             {status.state === 'Playing'
-              ? `${loc.player.vinylPlayingStatus.replace('{0}', vinylRpm === 33 ? '33⅓' : '45')} (${dspBadgeText})`
-              : loc.player.vinylPausedStatus.replace('{0}', vinylRpm === 33 ? '33⅓' : '45')}
+              ? `${fmt(loc.player.vinylPlayingStatus, vinylRpm === 33 ? '33⅓' : '45')} (${dspBadgeText})`
+              : fmt(loc.player.vinylPausedStatus, vinylRpm === 33 ? '33⅓' : '45')}
           </div>
         </div>
       ) : nowPlayingVisualMode === 'tape' ? (
@@ -382,8 +383,8 @@ export const PlayerVisualColumn: React.FC<PlayerVisualColumnProps> = ({
           >
             <CassetteTape size={11} color="var(--accent-pink)" />
             {status.state === 'Playing'
-              ? `${loc.player.tapePlayingStatus.replace('{0}', tapeSpeed === '7.5' ? '7½' : '3¾').replace('{1}', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')} (${dspBadgeText})`
-              : loc.player.tapePausedStatus.replace('{0}', tapeSpeed === '7.5' ? '7½' : '3¾').replace('{1}', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')}
+              ? `${fmt(loc.player.tapePlayingStatus, tapeSpeed === '7.5' ? '7½' : '3¾', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')} (${dspBadgeText})`
+              : fmt(loc.player.tapePausedStatus, tapeSpeed === '7.5' ? '7½' : '3¾', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')}
           </div>
         </div>
       ) : (

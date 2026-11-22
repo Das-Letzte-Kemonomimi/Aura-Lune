@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
 
 interface UseSleepTimerOptions {
   statusRef: React.MutableRefObject<PlaybackStatus>;
@@ -40,7 +41,7 @@ export function useSleepTimer({
       setSleepTimerTargetMode('time');
       const totalSec = Math.max(1, Math.round(Number(minutes) * 60));
       setSleepTimerRemainingSec(totalSec);
-      showMessage(loc.notifications.sleepTimerSet.replace('{0}', String(minutes)));
+      showMessage(fmt(loc.notifications.sleepTimerSet, String(minutes)));
     }
   }, [filePath, loc.notifications.sleepTimerEndOfTrack, loc.notifications.sleepTimerSet, showMessage, statusRef]);
 

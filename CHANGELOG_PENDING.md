@@ -56,6 +56,8 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Ustawienie powiadomień systemowych jest zapamiętywane**: przełącznik zapisywał wartość pod innym kluczem niż odczytywany przy starcie, więc wyłączenie powiadomień nie przetrwało restartu (zapisana wcześniej wartość jest przenoszona).
+- **Komunikaty o błędach nie nadpisują się**: kilka błędów pojawia się jednocześnie (do 3), każdy znika po własnym czasie; kliknięcie zamyka komunikat.
 - **Baza danych**: utwory w playlistach pokazują ulubione, oceny, BPM i ReplayGain (wcześniej te kolumny były pomijane); równoległe dodawanie do playlisty nie daje już zdublowanych pozycji; przełączanie ulubionych, zapis historii odsłuchów i kanałów projektu stemów są atomowe; wyszukiwanie duplikatów wykonuje jedno zapytanie zamiast jednego na grupę; nowe indeksy (utwory w playlistach, klucz duplikatów), usunięty zbędny indeks ścieżki.
 - **Skanowanie biblioteki nie blokuje aplikacji**: przeglądanie katalogów i odczyt tagów/okładek działa w puli wątków blokujących zamiast na wątkach asynchronicznych.
 - **Stan kolejki przy zamykaniu i podczas edycji**: zapisy kolejki są łączone i wykonywane przez jeden wątek (wcześniej równoległe zapisy mogły nadpisać nowszy stan starszym); przy wyjściu z aplikacji końcowy stan jest zapisywany synchronicznie, a silnik, sterowanie IPC i plik Waybar są porządnie zamykane. Przerwane separacje stemów są przy starcie oznaczane jako nieudane.
@@ -160,6 +162,7 @@
 ---
 
 ### 🔄 Zmieniono (Changed)
+- **Interfejs**: wspólna funkcja `fmt` dla szablonów tłumaczeń (157 miejsc zamiast łańcuchów `.replace`), wspólne formatowanie rozmiarów i czasu w oknach duplikatów, edytora tagów, CUE i importu z URL.
 - **Warstwa komend**: usunięto 31 komend IPC, których interfejs nigdy nie wywoływał (aliasy `set_*_ratio`/`set_pitch_semitones`, nieużywane gettery i eksporty); wspólne odwzorowanie nazw silnika DSP (`DspEngine::from_name`/`as_str`) zamiast pięciu kopii; jedna funkcja wyszukiwania okładki dla Discord zamiast dwóch; obliczanie SHA-256 projektu stemów i przeglądanie upuszczonych folderów nie blokują wątków asynchronicznych.
 - **Podział największych widoków i okien na komponenty sekcji**: `PlayerView` (3032 → 419 linii), `LibraryView` (2950 → 259), `DspStudioView` (2167 → 360) oraz `BigScreenView`, ustawienia Urządzeń i Transkodowania, korektor parametryczny, import z URL i studio projektów stemów. Sekcje odtwarzacza niezależne od pozycji (pasek narzędzi, transport, mini-pasek DSP, kolejka) nie renderują się już w każdej klatce odtwarzania.
 - **Ścisłe typy we frontendzie**: włączono `strict` w TypeScript, usunięto ~390 z ~434 użyć `any` (m.in. w budowniczych propsów widoków, ustawień i okien), ujednolicono zduplikowane typy (`TrackRecord`, `PlaybackStatus`, `AudioCard` i inne mają jedną definicję) i typy zakładek (`types/navigation.ts`). Reguła `exhaustive-deps` w oxlint jest teraz błędem.

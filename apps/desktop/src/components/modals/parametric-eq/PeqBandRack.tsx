@@ -3,6 +3,7 @@ import type { Translations } from '../../../i18n';
 import { Plus, Trash2 } from 'lucide-react';
 import { normalizeFilterType, PEQ_BAND_COLORS, type ParametricBandDto, type ParametricEqStateDto, type ParametricFilterType } from '../../../utils/parametricEqMath';
 import type { Dispatch, SetStateAction } from 'react';
+import { fmt } from '../../../utils/fmt';
 
 export type PeqBandRackProps = {} & {
   loc: Translations;
@@ -42,7 +43,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-            {loc.parametricEq.filterBands.replace('{0}', String(state.bands.length))}
+            {fmt(loc.parametricEq.filterBands, String(state.bands.length))}
           </span>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             {loc.parametricEq.filterBandsSubtitle}

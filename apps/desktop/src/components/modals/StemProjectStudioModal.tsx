@@ -15,6 +15,7 @@ import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { StemStudioWorkspace } from './stem-studio/StemStudioWorkspace';
 import { StemStudioHeader } from './stem-studio/StemStudioHeader';
+import { fmt } from '../../utils/fmt';
 
 export interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -141,7 +142,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         });
         setIsOriginalMode(false);
       } catch (err: unknown) {
-        setError(loc.stems.errLoadStems.replace('{0}', String(err)));
+        setError(fmt(loc.stems.errLoadStems, String(err)));
       }
     },
     [projectId, masterVolume, currentTimeMs, isPlaying, loc]
@@ -153,7 +154,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       await invoke('restore_original_track');
       setIsOriginalMode(true);
     } catch (err: unknown) {
-      setError(loc.stems.errRestoreTrack.replace('{0}', String(err)));
+      setError(fmt(loc.stems.errRestoreTrack, String(err)));
     }
   }, [loc]);
 
@@ -333,7 +334,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       setNewMixName('');
       fetchProjectData();
     } catch (err: unknown) {
-      setError(loc.stems.errSaveMix.replace('{0}', String(err)));
+      setError(fmt(loc.stems.errSaveMix, String(err)));
     }
   };
 
@@ -375,10 +376,10 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         projectId,
         exportPath: dest,
       });
-      setExportNotice(loc.stems.exportedZipTo.replace('{0}', dest));
+      setExportNotice(fmt(loc.stems.exportedZipTo, dest));
       setTimeout(() => setExportNotice(null), 5000);
     } catch (err: unknown) {
-      setError(loc.stems.errExportZip.replace('{0}', String(err)));
+      setError(fmt(loc.stems.errExportZip, String(err)));
     }
   };
 
