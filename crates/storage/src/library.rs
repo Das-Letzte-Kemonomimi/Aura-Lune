@@ -1,7 +1,7 @@
 //! Operacje na bibliotece muzycznej: wykonawcy, albumy, utwory, duplikaty oraz aktualizacje ścieżek.
 
 use crate::{AlbumRecord, ArtistRecord, Database, DuplicateGroup, StorageError, TrackRecord};
-use sqlx::Row;
+use sqlx::{FromRow, Row};
 
 impl Database {
     /// Wstawia lub aktualizuje artystę i zwraca jego ID.
@@ -315,51 +315,43 @@ impl Database {
 
     /// Wyszukuje grupy potencjalnych duplikatów utworów w bibliotece na podstawie znormalizowanego tytułu i wykonawcy.
     pub async fn find_duplicate_tracks(&self) -> Result<Vec<DuplicateGroup>, StorageError> {
-        let dup_keys = sqlx::query(
+        // Jedno zapytanie zamiast osobnego zapytania na każdą grupę duplikatów (N+1).
+        // Klucz grupy liczy SQLite (LOWER/TRIM), więc grupowanie jest identyczne jak w HAVING.
+        let rows = sqlx::query(
             r#"
-            SELECT LOWER(TRIM(title)) as norm_title, LOWER(TRIM(artist)) as norm_artist, COUNT(*) as cnt
-            FROM tracks
-            WHERE title != '' AND artist != ''
-            GROUP BY LOWER(TRIM(title)), LOWER(TRIM(artist))
-            HAVING cnt > 1
-            ORDER BY cnt DESC, norm_title ASC;
+            WITH dups AS (
+                SELECT LOWER(TRIM(title)) AS nt, LOWER(TRIM(artist)) AS na, COUNT(*) AS cnt
+                FROM tracks
+                WHERE title != '' AND artist != ''
+                GROUP BY LOWER(TRIM(title)), LOWER(TRIM(artist))
+                HAVING cnt > 1
+            )
+            SELECT t.*, d.nt AS dup_title, d.na AS dup_artist, d.cnt AS dup_count
+            FROM tracks t
+            JOIN dups d ON LOWER(TRIM(t.title)) = d.nt AND LOWER(TRIM(t.artist)) = d.na
+            ORDER BY d.cnt DESC, d.nt ASC, d.na ASC,
+                     t.format ASC, t.bit_depth DESC, t.sample_rate DESC, t.file_size DESC;
             "#,
         )
         .fetch_all(&self.pool)
         .await?;
 
-        let mut groups = Vec::new();
-        for row in dup_keys {
-            let norm_title: String = row.get("norm_title");
-            let norm_artist: String = row.get("norm_artist");
-            let cnt: i64 = row.get("cnt");
-
-            let tracks = sqlx::query_as::<_, TrackRecord>(
-                r#"
-                SELECT * FROM tracks
-                WHERE LOWER(TRIM(title)) = ?1 AND LOWER(TRIM(artist)) = ?2
-                ORDER BY format ASC, bit_depth DESC, sample_rate DESC, file_size DESC;
-                "#,
-            )
-            .bind(&norm_title)
-            .bind(&norm_artist)
-            .fetch_all(&self.pool)
-            .await?;
-
-            let title_display = tracks
-                .first()
-                .map(|t| t.title.as_str())
-                .unwrap_or(&norm_title);
-            let artist_display = tracks
-                .first()
-                .map(|t| t.artist.as_str())
-                .unwrap_or(&norm_artist);
-
-            groups.push(DuplicateGroup {
-                key: format!("{} — {}", artist_display, title_display),
-                count: cnt as usize,
-                tracks,
-            });
+        let mut groups: Vec<DuplicateGroup> = Vec::new();
+        let mut current_key: Option<(String, String)> = None;
+        for row in rows {
+            let key: (String, String) = (row.get("dup_title"), row.get("dup_artist"));
+            let track = TrackRecord::from_row(&row)?;
+            if current_key.as_ref() != Some(&key) {
+                groups.push(DuplicateGroup {
+                    key: format!("{} — {}", track.artist, track.title),
+                    count: row.get::<i64, _>("dup_count") as usize,
+                    tracks: Vec::new(),
+                });
+                current_key = Some(key);
+            }
+            if let Some(group) = groups.last_mut() {
+                group.tracks.push(track);
+            }
         }
 
         Ok(groups)

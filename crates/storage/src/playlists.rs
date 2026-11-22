@@ -69,22 +69,17 @@ impl Database {
         playlist_id: i64,
         track_id: i64,
     ) -> Result<(), StorageError> {
-        let next_pos: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_tracks WHERE playlist_id = ?1;",
-        )
-        .bind(playlist_id)
-        .fetch_one(&self.pool)
-        .await?;
-
+        // Pozycja liczona w tym samym poleceniu co wstawienie — dwa równoległe dodania
+        // nie dostaną tej samej pozycji.
         sqlx::query(
             r#"
             INSERT INTO playlist_tracks (playlist_id, track_id, position)
-            VALUES (?1, ?2, ?3);
+            SELECT ?1, ?2, COALESCE(MAX(position), -1) + 1
+            FROM playlist_tracks WHERE playlist_id = ?1;
             "#,
         )
         .bind(playlist_id)
         .bind(track_id)
-        .bind(next_pos)
         .execute(&self.pool)
         .await?;
 
@@ -113,9 +108,8 @@ impl Database {
     ) -> Result<Vec<TrackRecord>, StorageError> {
         let rows = sqlx::query_as::<_, TrackRecord>(
             r#"
-            SELECT t.id, t.path, t.title, t.artist, t.album_artist, t.album_id,
-                   t.disc_no, t.track_no, t.duration_ms, t.format, t.sample_rate,
-                   t.channels, t.bit_depth, t.file_size, t.modified_time
+            -- Wszystkie kolumny: ulubione, ocena, BPM i ReplayGain są widoczne także w playlistach.
+            SELECT t.*
             FROM tracks t
             JOIN playlist_tracks pt ON t.id = pt.track_id
             WHERE pt.playlist_id = ?1

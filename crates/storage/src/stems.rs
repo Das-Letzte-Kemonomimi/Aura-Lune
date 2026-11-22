@@ -306,9 +306,11 @@ impl Database {
         project_id: i64,
         channels: &[domain::StemChannel],
     ) -> Result<(), StorageError> {
+        // Jedna transakcja: błąd w połowie nie zostawia projektu bez kanałów.
+        let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
             .bind(project_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
 
         for ch in channels {
@@ -338,9 +340,10 @@ impl Database {
             .bind(ch.pan as f64)
             .bind(ch.mute as i32)
             .bind(ch.solo as i32)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
         }
+        tx.commit().await?;
 
         Ok(())
     }

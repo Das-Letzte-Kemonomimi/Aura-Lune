@@ -18,6 +18,8 @@ pub enum LibraryError {
     Io(#[from] std::io::Error),
     #[error("Błąd odczytu pliku lofty: {0}")]
     Lofty(#[from] lofty::error::FileParseError),
+    #[error("Przerwane zadanie odczytu pliku: {0}")]
+    Task(#[from] tokio::task::JoinError),
 }
 
 /// Podsumowanie przebiegu skanowania.
@@ -32,6 +34,33 @@ pub struct ScanSummary {
 }
 
 /// Skaner biblioteki z obsługą przyrostowego indeksowania i wykrywania okładek.
+/// Wynik blokującego odczytu jednego pliku (przed zapisem do bazy).
+struct ParsedTrack {
+    record: TrackRecord,
+    album_name: String,
+    album_artist: String,
+    year: Option<i64>,
+    cover_path: Option<String>,
+}
+
+/// Plik audio znaleziony podczas przejścia katalogu.
+struct ScannedFile {
+    path: PathBuf,
+    path_str: String,
+    file_size: i64,
+    modified_time: i64,
+}
+
+#[derive(Default)]
+struct WalkResult {
+    files: Vec<ScannedFile>,
+    walk_errors: usize,
+    /// Pliki, których metadanych nie udało się odczytać — nadal istnieją, więc nie mogą
+    /// zostać usunięte z bazy jako nieaktualne.
+    unreadable_paths: Vec<String>,
+}
+
+#[derive(Clone)]
 pub struct LibraryScanner {
     cache_dir: PathBuf,
 }
@@ -73,43 +102,20 @@ impl LibraryScanner {
         let mut active_paths = Vec::new();
         let mut walk_errors = 0usize;
 
-        for entry in WalkDir::new(root).follow_links(true) {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    warn!("Błąd przeglądania katalogu {}: {}", root.display(), e);
-                    walk_errors += 1;
-                    continue;
-                }
-            };
-            let path = entry.path();
-            if !path.is_file() || !Self::is_supported_audio_extension(path) {
-                continue;
-            }
+        // Przejście katalogu, canonicalize i stat są blokujące — wykonywane poza wątkami Tokio.
+        let walk_root = root.to_path_buf();
+        let walk = tokio::task::spawn_blocking(move || Self::walk_audio_files(&walk_root)).await?;
+        walk_errors += walk.walk_errors;
+        summary.total_files_found += walk.unreadable_paths.len();
+        summary.errors += walk.unreadable_paths.len();
+        active_paths.extend(walk.unreadable_paths);
 
+        for file in walk.files {
             summary.total_files_found += 1;
-            let path_str = match path.canonicalize() {
-                Ok(p) => p.display().to_string(),
-                Err(_) => path.display().to_string(),
-            };
-            active_paths.push(path_str.clone());
-
-            let metadata = match entry.metadata() {
-                Ok(m) => m,
-                Err(e) => {
-                    warn!("Błąd odczytu metadanych pliku {}: {:?}", path.display(), e);
-                    summary.errors += 1;
-                    continue;
-                }
-            };
-
-            let file_size = metadata.len() as i64;
-            let modified_time = metadata
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
+            active_paths.push(file.path_str.clone());
+            let path = file.path.as_path();
+            let path_str = file.path_str;
+            let (file_size, modified_time) = (file.file_size, file.modified_time);
 
             // PRZYROSTOWE SPRAWDZENIE:
             // Czy plik już istnieje i nie zmienił się rozmiar ani czas modyfikacji?
@@ -228,7 +234,7 @@ impl LibraryScanner {
         Ok(summary)
     }
 
-    /// Wyciąga tagi, okładkę i zapisuje encje do bazy.
+    /// Wyciąga tagi i okładkę (w `spawn_blocking`), po czym zapisuje encje do bazy.
     async fn extract_and_save_track(
         &self,
         file_path: &Path,
@@ -237,6 +243,37 @@ impl LibraryScanner {
         modified_time: i64,
         db: &Database,
     ) -> Result<(), LibraryError> {
+        let scanner = self.clone();
+        let file_path = file_path.to_path_buf();
+        let canonical_path = canonical_path.to_string();
+        let parsed = tokio::task::spawn_blocking(move || {
+            scanner.read_track_file(&file_path, &canonical_path, file_size, modified_time)
+        })
+        .await??;
+
+        db.upsert_artist(&parsed.record.artist).await?;
+        let album_id = db
+            .upsert_album(
+                &parsed.album_name,
+                &parsed.album_artist,
+                parsed.year,
+                parsed.cover_path.as_deref(),
+            )
+            .await?;
+        let mut record = parsed.record;
+        record.album_id = Some(album_id);
+        db.upsert_track(&record).await?;
+        Ok(())
+    }
+
+    /// Blokujący odczyt tagów (lofty) i okładki jednego pliku.
+    fn read_track_file(
+        &self,
+        file_path: &Path,
+        canonical_path: &str,
+        file_size: i64,
+        modified_time: i64,
+    ) -> Result<ParsedTrack, LibraryError> {
         let probe = Probe::open(file_path)?;
         let tagged_file = probe.read()?;
 
@@ -296,12 +333,6 @@ impl LibraryScanner {
         // Wykrywanie okładki: 1. Embedded, 2. Pliki w folderze
         let cover_path = self.resolve_cover_art(file_path, tag);
 
-        // Zapis w bazie SQLite:
-        let _artist_id = db.upsert_artist(&artist).await?;
-        let album_id = db
-            .upsert_album(&album_name, &album_artist, year, cover_path.as_deref())
-            .await?;
-
         let bpm = tag
             .as_ref()
             .and_then(|t| t.get_string(lofty::tag::ItemKey::Bpm))
@@ -335,8 +366,8 @@ impl LibraryScanner {
             path: canonical_path.to_string(),
             title,
             artist,
-            album_artist: Some(album_artist),
-            album_id: Some(album_id),
+            album_artist: Some(album_artist.clone()),
+            album_id: None,
             disc_no,
             track_no,
             duration_ms,
@@ -357,8 +388,57 @@ impl LibraryScanner {
             rating: None,
         };
 
-        db.upsert_track(&record).await?;
-        Ok(())
+        Ok(ParsedTrack {
+            record,
+            album_name,
+            album_artist,
+            year,
+            cover_path,
+        })
+    }
+
+    /// Zbiera obsługiwane pliki audio w katalogu wraz z rozmiarem i czasem modyfikacji.
+    fn walk_audio_files(root: &Path) -> WalkResult {
+        let mut out = WalkResult::default();
+        for entry in WalkDir::new(root).follow_links(true) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    warn!("Błąd przeglądania katalogu {}: {}", root.display(), e);
+                    out.walk_errors += 1;
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if !path.is_file() || !Self::is_supported_audio_extension(path) {
+                continue;
+            }
+            let path_str = match path.canonicalize() {
+                Ok(p) => p.display().to_string(),
+                Err(_) => path.display().to_string(),
+            };
+            let metadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(e) => {
+                    warn!("Błąd odczytu metadanych pliku {}: {:?}", path.display(), e);
+                    out.unreadable_paths.push(path_str);
+                    continue;
+                }
+            };
+            let modified_time = metadata
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            out.files.push(ScannedFile {
+                path: path.to_path_buf(),
+                path_str,
+                file_size: metadata.len() as i64,
+                modified_time,
+            });
+        }
+        out
     }
 
     /// Szuka okładki w tagach lub w katalogu pliku.

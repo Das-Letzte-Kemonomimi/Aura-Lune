@@ -228,12 +228,15 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
             CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
-            CREATE INDEX IF NOT EXISTS idx_tracks_path ON tracks(path);
             CREATE INDEX IF NOT EXISTS idx_tracks_favorite ON tracks(is_favorite);
             CREATE INDEX IF NOT EXISTS idx_tracks_last_played ON tracks(last_played_at);
             CREATE INDEX IF NOT EXISTS idx_tracks_rating ON tracks(rating);
             CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums(album_artist);
             CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON playlist_tracks(playlist_id);
+            CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track ON playlist_tracks(track_id);
+            CREATE INDEX IF NOT EXISTS idx_tracks_dup_key ON tracks(LOWER(TRIM(title)), LOWER(TRIM(artist)));
+            -- `tracks.path` ma już indeks z ograniczenia UNIQUE.
+            DROP INDEX IF EXISTS idx_tracks_path;
             CREATE INDEX IF NOT EXISTS idx_listening_history_played ON listening_history(played_at);
             CREATE INDEX IF NOT EXISTS idx_listening_history_track ON listening_history(track_id);
             CREATE INDEX IF NOT EXISTS idx_track_bookmarks_track ON track_bookmarks(track_id);

@@ -122,3 +122,9 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **App icon applied at startup.** It should still be set, now in the background.
 - [ ] **Queue survives quitting.** Rearrange the queue (drag a few items, add and remove tracks), then quit immediately via the tray "Quit" item, or close the window with close-to-tray off. After a restart, the queue should match exactly what you left.
 - [ ] **Interrupted stem separation.** Start a stem separation and quit mid-way. After a restart, the project should show as failed (retryable), not stuck "separating" forever.
+
+### Storage and scanning (Phase 6)
+
+- [ ] **Large library scan.** Rescan a big library (thousands of files). The UI should stay responsive during the scan (playback, scrolling), and the counts should match the previous scan.
+- [ ] **Playlists show favorites and ratings.** Open a playlist that has favorite or rated tracks; the heart and stars should appear, as they do in the library.
+- [ ] **Duplicate finder.** It should list the same groups as before, with the best-quality file (FLAC or hi-res) first in each group.

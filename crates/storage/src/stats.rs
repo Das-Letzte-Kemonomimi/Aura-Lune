@@ -8,18 +8,14 @@ use sqlx::Row;
 impl Database {
     /// Przełącza status ulubionego (is_favorite) dla danego utworu.
     pub async fn toggle_favorite(&self, track_id: i64) -> Result<bool, StorageError> {
-        let current: Option<bool> =
-            sqlx::query_scalar("SELECT is_favorite FROM tracks WHERE id = ?1;")
-                .bind(track_id)
-                .fetch_optional(&self.pool)
-                .await?;
-        let new_val = !current.unwrap_or(false);
-        sqlx::query("UPDATE tracks SET is_favorite = ?1 WHERE id = ?2;")
-            .bind(new_val)
-            .bind(track_id)
-            .execute(&self.pool)
-            .await?;
-        Ok(new_val)
+        // Jedno polecenie: odczyt i zapis nie mogą się przeplatać z innym przełączeniem.
+        let new_val: Option<bool> = sqlx::query_scalar(
+            "UPDATE tracks SET is_favorite = NOT COALESCE(is_favorite, 0) WHERE id = ?1 RETURNING is_favorite;",
+        )
+        .bind(track_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(new_val.unwrap_or(false))
     }
 
     /// Odnotowuje odsłuchanie utworu (zwiększa play_count i aktualizuje last_played_at).
@@ -52,13 +48,15 @@ impl Database {
             .unwrap_or_default()
             .as_secs() as i64;
 
+        // Licznik utworu i historia odsłuchów zmieniają się razem albo wcale.
+        let mut tx = self.pool.begin().await?;
         sqlx::query(
             "UPDATE tracks SET total_play_time_ms = COALESCE(total_play_time_ms, 0) + ?1, last_played_at = ?2 WHERE id = ?3;",
         )
         .bind(duration_ms)
         .bind(now)
         .bind(track_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
 
         sqlx::query(
@@ -67,8 +65,9 @@ impl Database {
         .bind(track_id)
         .bind(duration_ms)
         .bind(now)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
 
         Ok(())
     }

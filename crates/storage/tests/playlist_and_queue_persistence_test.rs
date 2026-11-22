@@ -204,3 +204,84 @@ async fn test_duplicate_tracks_detection() {
     assert_eq!(duplicates[0].tracks[0].title, "Identical Title");
     assert_eq!(duplicates[0].tracks[1].title, "Identical Title");
 }
+
+#[tokio::test]
+async fn test_playlist_tracks_keep_order_and_full_track_columns() {
+    let db = setup_test_db().await;
+    let pl = db.create_playlist("Order").await.unwrap();
+    let a = db
+        .upsert_track(&make_dummy_track("/m/1.flac", "One", "A"))
+        .await
+        .unwrap();
+    let b = db
+        .upsert_track(&make_dummy_track("/m/2.flac", "Two", "A"))
+        .await
+        .unwrap();
+    let c = db
+        .upsert_track(&make_dummy_track("/m/3.flac", "Three", "A"))
+        .await
+        .unwrap();
+    for id in [a, b, c] {
+        db.add_track_to_playlist(pl, id).await.unwrap();
+    }
+    assert!(db.toggle_favorite(b).await.unwrap());
+
+    db.remove_track_from_playlist(pl, a).await.unwrap();
+    let d = db
+        .upsert_track(&make_dummy_track("/m/4.flac", "Four", "A"))
+        .await
+        .unwrap();
+    db.add_track_to_playlist(pl, d).await.unwrap();
+
+    let tracks = db.get_playlist_tracks(pl).await.unwrap();
+    let titles: Vec<_> = tracks.iter().map(|t| t.title.as_str()).collect();
+    assert_eq!(
+        titles,
+        ["Two", "Three", "Four"],
+        "nowy utwór trafia na koniec"
+    );
+    assert_eq!(
+        tracks[0].is_favorite,
+        Some(true),
+        "playlisty zwracają też kolumny ulubionych/ocen"
+    );
+}
+
+#[tokio::test]
+async fn test_toggle_favorite_flips_and_reports_state() {
+    let db = setup_test_db().await;
+    let id = db
+        .upsert_track(&make_dummy_track("/m/fav.flac", "F", "A"))
+        .await
+        .unwrap();
+    assert!(db.toggle_favorite(id).await.unwrap());
+    assert!(!db.toggle_favorite(id).await.unwrap());
+    assert!(
+        !db.toggle_favorite(9_999).await.unwrap(),
+        "brak utworu → false, bez błędu"
+    );
+}
+
+#[tokio::test]
+async fn test_duplicate_groups_are_case_insensitive_and_best_quality_first() {
+    let db = setup_test_db().await;
+    let mut mp3 = make_dummy_track("/m/song.mp3", "Song", "Band");
+    mp3.format = "MP3".into();
+    let mut flac = make_dummy_track("/m/song.flac", "  song ", "BAND");
+    flac.format = "FLAC".into();
+    db.upsert_track(&mp3).await.unwrap();
+    db.upsert_track(&flac).await.unwrap();
+    db.upsert_track(&make_dummy_track("/m/other.flac", "Other", "Band"))
+        .await
+        .unwrap();
+
+    let groups = db.find_duplicate_tracks().await.unwrap();
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].count, 2);
+    assert_eq!(groups[0].tracks.len(), 2);
+    assert_eq!(groups[0].tracks[0].format, "FLAC");
+}
+
+async fn setup_test_db() -> Database {
+    Database::new_in_memory().await.expect("baza w pamięci")
+}

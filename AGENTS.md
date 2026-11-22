@@ -233,6 +233,7 @@ Aura-Lune/
 ### `crates/library`
 - **Purpose**: High-speed local music indexing using `walkdir` and `lofty`. Incremental scanning skips unchanged files using mtime and file size checks.
 - **Album grouping**: albums are keyed by the `ALBUMARTIST` tag (falling back to the track artist), so compilations stay a single album.
+- **Threading**: the directory walk (`walk_audio_files`) and tag/cover reading (`read_track_file`) run in `spawn_blocking`; only database writes stay async. Files whose metadata cannot be read still count as present for stale cleanup.
 - **Stale cleanup**: after a complete walk of an existing root, `Database::delete_stale_tracks(root, active_paths)` removes records for files that vanished — scoped to that root only and skipped on walk errors (unmounted drives never wipe the library).
 - **Tests**: `crates/library/tests/scanner_test.rs`.
 
