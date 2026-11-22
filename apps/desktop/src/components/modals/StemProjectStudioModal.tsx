@@ -21,6 +21,7 @@ import type {
 import { sliderToDb } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
+import { useLivePositionMs } from '../../state/livePlayback';
 
 interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   isOpen,
   onClose,
   projectId,
-  currentTimeMs = 0,
+  currentTimeMs: currentTimeMsProp = 0,
   durationMs = 180000,
   isPlaying = false,
   onPlayPause,
@@ -51,6 +52,8 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = ({
   onOpenChords,
   currentLang = 'en',
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const loc = t;
   const [project, setProject] = useState<StemProject | null>(null);

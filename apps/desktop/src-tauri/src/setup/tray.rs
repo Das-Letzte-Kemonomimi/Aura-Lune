@@ -54,20 +54,29 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                     }
                 }
                 "tray_play_pause" => {
+                    // Te same ścieżki co komendy UI: MPRIS, Discord i zapis kolejki pozostają spójne,
+                    // a interfejs dostaje nowy status ze zdarzenia tickera odtwarzania.
                     let state = app.state::<AppState>();
-                    if state.engine.state() == domain::PlaybackState::Playing {
-                        let _ = state.engine.pause();
+                    let result = if state.engine.state() == domain::PlaybackState::Playing {
+                        crate::commands::playback::pause_internal(&state)
                     } else {
-                        let _ = state.engine.play();
+                        crate::commands::playback::play_internal(&state)
+                    };
+                    if let Err(e) = result {
+                        tracing::warn!("Zasobnik: play/pause nie powiodło się: {}", e);
                     }
                 }
                 "tray_next" => {
                     let state = app.state::<AppState>();
-                    let _ = state.engine.play_next();
+                    if let Err(e) = crate::commands::queue::play_next_internal(&state) {
+                        tracing::warn!("Zasobnik: następny utwór nie powiódł się: {}", e);
+                    }
                 }
                 "tray_prev" => {
                     let state = app.state::<AppState>();
-                    let _ = state.engine.play_previous();
+                    if let Err(e) = crate::commands::queue::play_previous_internal(&state) {
+                        tracing::warn!("Zasobnik: poprzedni utwór nie powiódł się: {}", e);
+                    }
                 }
                 "tray_quit" => {
                     desktop_integration::cleanup_waybar_status();

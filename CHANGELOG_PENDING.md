@@ -56,6 +56,11 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Utwory przechodzą dalej także przy ukrytym oknie**: magistrala silnika audio (koniec utworu, następny utwór, zapętlenie) była obsługiwana tylko wtedy, gdy interfejs odpytywał `get_status`. Nowy backendowy ticker odtwarzania (`setup/playback_ticker.rs`) działa niezależnie od okna — odtwarzanie z zasobnika systemowego, zminimalizowane lub zdławione przez WebKit nie zatrzymuje się już po bieżącym utworze. Po automatycznej zmianie utworu aktualizowane są też metadane MPRIS.
+- **Pomijanie ciszy (Silence Trimming) wreszcie działa**: element GStreamera `cutter` nigdy nie był podłączony do potoku (i wymusiłby 16-bitowy dźwięk). Cisza na początku i końcu utworu jest teraz wykrywana w tle, zapamiętywana w bazie (migracja v3) i pomijana: odtwarzanie startuje od pierwszego dźwięku, a po ostatnim przechodzi dalej — z zachowaniem trybów powtarzania, „stop po bieżącym” i crossfade. Koniec utworu nigdy nie jest ucinany, jeśli analiza nie objęła całego pliku.
+- **Statystyki czasu słuchania (Recap) liczone przez backend**: także przy ukrytym oknie; uśpienie systemu nie dolicza godzin słuchania.
+- **Pętla A-B jest dokładniejsza** (sprawdzana w każdej klatce statusu, ~100 ms) i nie wysyła wielokrotnych żądań przewinięcia.
+- **Akcje z zasobnika systemowego (play/pauza/następny/poprzedni)** przechodzą przez te same ścieżki co interfejs — aktualizują MPRIS/Discord, zapisują kolejkę i od razu odświeżają UI.
 - **Losowe odtwarzanie całej biblioteki (Shuffle All) znów działa**: frontend wywoływał nieistniejącą komendę `set_shuffle`, przez co odtwarzanie nigdy się nie rozpoczynało. Dodano idempotentną komendę backendu `set_shuffle(enabled)`.
 - **Zastępowanie utworu demonstracyjnego pierwszym utworem z biblioteki**: dodano brakującą komendę `set_active_track`, dzięki czemu po pierwszym skanowaniu backend faktycznie ładuje wybrany utwór (wcześniej wywołanie trafiało w próżnię).
 - **Wyłącznik czasowy (Sleep Timer) odlicza podczas odtwarzania**: interwał był restartowany przy każdym renderze (~10×/s), więc odliczanie nie postępowało. `showMessage` ma teraz stabilną referencję, a efekty uboczne (`pause`, `set_volume`) nie są już wykonywane wewnątrz aktualizatora stanu.
@@ -143,6 +148,8 @@
 ---
 
 ### 🔄 Zmieniono (Changed)
+- **Interfejs nie renderuje się już w całości 10× na sekundę podczas odtwarzania**: status przychodzi zdarzeniem `auralune://playback-status` (zamiast odpytywania), pozycja i spektrum trafiają do lekkiego magazynu `src/state/livePlayback.ts`, a stan `App` zmienia się tylko przy istotnych zmianach (oraz z pozycją co ~1 s). W każdej klatce odświeżają się wyłącznie komponenty rysujące postęp i wizualizacje. Przeciąganie suwaka pozycji nie przerysowuje już całej aplikacji 60× na sekundę.
+- Komenda `get_status` zwraca gotową migawkę z tickera (tani odczyt zamiast ~300 linii pracy na wątku głównym). Usunięto komendę `notify_track_looped` — zapętlenia zgłasza backend.
 - **Typowane błędy komend Tauri (`CommandError`)**: wszystkie 215 komend zwraca teraz `{ code, message }` z kategorią błędu (`storage`, `engine`, `io`, `not_found`, `validation`, `network`, `internal`) zamiast samego tekstu. Ręczne konwersje `.map_err(|e| e.to_string())` zastąpiono operatorem `?` z typowanymi konwersjami `From`; komunikaty z kontekstem zachowują kategorię (`CommandError::context`).
 - **Typowane błędy w crate'ach**: `AnalysisError` i `TagError` (audio-engine), `ScrobbleError` (Last.fm/ListenBrainz), `DomainError` (parsery CUE/M3U/EqualizerAPO, walidacja motywów i wzorców nazw plików), `StorageError::Serde` / `StorageError::Domain` (zamiast nadużywanego wariantu `Migration`). `AudioEngineError` zyskał warianty `Validation`, `Pipeline`, `NotFound`, `External` w miejsce nadużywanego `ElementLink`.
 - **Odporność silnika audio na zatrute blokady**: `lock().unwrap()` (117 miejsc w `pipeline.rs` i `dsp_node.rs`) zastąpiono `lock_safe()` — panika jednego wątku nie unieruchamia już całego odtwarzacza.

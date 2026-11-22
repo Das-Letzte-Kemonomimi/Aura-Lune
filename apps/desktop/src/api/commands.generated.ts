@@ -116,7 +116,6 @@ export const COMMAND_NAMES = [
   'load_radio_stream',
   'load_stem_project',
   'load_track_stems',
-  'notify_track_looped',
   'open_containing_folder',
   'open_external_url',
   'parse_cue_sheet_content',

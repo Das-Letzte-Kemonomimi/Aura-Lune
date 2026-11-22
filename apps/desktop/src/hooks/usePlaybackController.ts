@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '../api/ipc';
+import { livePlayback } from '../state/livePlayback';
+import { shouldCommitStatus } from '../state/statusCommit';
+import { useTauriEvent } from './useTauriEvent';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/library';
@@ -94,7 +97,6 @@ export function usePlaybackController({
   // Stats / Recap tracking refs
   const lastRecordedTrackRef = useRef<{ id: number; recorded: boolean }>({ id: -1, recorded: false });
   const lastTrackPositionMsRef = useRef<number>(0);
-  const lastListeningTickRef = useRef<number>(0);
   const statusRef = useRef(status);
   useEffect(() => {
     statusRef.current = status;
@@ -171,226 +173,244 @@ export function usePlaybackController({
     };
   }, []);
 
-  // 1. Status Polling Loop (Adaptive: 100ms when Playing, 350ms when idle/paused)
+  // 1. Status odtwarzania: backend (setup/playback_ticker.rs) wysyła zdarzenie
+  //    `auralune://playback-status` ~10×/s podczas odtwarzania i ~4×/s w pauzie.
+  //    Pozycja i spektrum trafiają w każdej klatce do `livePlayback`; stan Reacta jest
+  //    aktualizowany tylko przy istotnych zmianach (`shouldCommitStatus`).
+  const loopPointsRef = useRef<{ a: number | null; b: number | null }>({ a: null, b: null });
   useEffect(() => {
-    let timeoutId: any;
-    let isMounted = true;
+    loopPointsRef.current = { a: loopPointA, b: loopPointB };
+  }, [loopPointA, loopPointB]);
+  const loopSeekPendingRef = useRef(false);
+  const handleSeekRef = useRef<((val: number) => Promise<void>) | null>(null);
+  const lastStatusEventAtRef = useRef(0);
 
-    const fetchStatus = async () => {
-      try {
-        const {
-          tracks: currentTracks,
-          albums: currentAlbums,
-          listenbrainzEnabled: lbEnabled,
-          listenbrainzToken: lbToken,
-          scrobbledTrackId: curScrobbledTrackId,
-          setScrobbledTrackId: curSetScrobbledTrackId,
-          lastfmEnabled: lfEnabled,
-          lastfmSessionKey: lfSessionKey,
-          lastfmCustomKey: lfCustomKey,
-          lastfmCustomSecret: lfCustomSecret,
-          lastfmScrobbledTrackId: curLastfmScrobbledTrackId,
-          setLastfmScrobbledTrackId: curSetLastfmScrobbledTrackId,
-          showMessage: curShowMessage,
-          loc: curLoc,
-          setStatus: curSetStatus,
-          setFilePath: curSetFilePath,
-          setActiveTrackId: curSetActiveTrackId,
-          setReplaygainStatus: curSetReplaygainStatus,
-          setTracks: curSetTracks,
-          initialStartupPositionRef: curInitialStartupPositionRef,
-        } = pollingDepsRef.current;
+  const applyStatus = useCallback((res: PlaybackStatus) => {
+    const {
+      tracks: currentTracks,
+      albums: currentAlbums,
+      listenbrainzEnabled: lbEnabled,
+      listenbrainzToken: lbToken,
+      scrobbledTrackId: curScrobbledTrackId,
+      setScrobbledTrackId: curSetScrobbledTrackId,
+      lastfmEnabled: lfEnabled,
+      lastfmSessionKey: lfSessionKey,
+      lastfmCustomKey: lfCustomKey,
+      lastfmCustomSecret: lfCustomSecret,
+      lastfmScrobbledTrackId: curLastfmScrobbledTrackId,
+      setLastfmScrobbledTrackId: curSetLastfmScrobbledTrackId,
+      showMessage: curShowMessage,
+      loc: curLoc,
+      setStatus: curSetStatus,
+      setFilePath: curSetFilePath,
+      setActiveTrackId: curSetActiveTrackId,
+      setReplaygainStatus: curSetReplaygainStatus,
+      setTracks: curSetTracks,
+      initialStartupPositionRef: curInitialStartupPositionRef,
+    } = pollingDepsRef.current;
 
-        const res = await invoke<PlaybackStatus>('get_status');
-        curSetStatus((prev) => {
-          // If the user is actively dragging the seek slider, preserve local position
-          const targetPosition = isSeekingRef.current ? prev.position_ms : res.position_ms;
-          // If the user is actively sliding volume, preserve local volume
-          const targetVolume = isVolumeInteractingRef.current ? prev.volume : res.volume;
+    // Klatka „na żywo”: pozycja (chyba że użytkownik właśnie przeciąga suwak) i spektrum.
+    if (!isSeekingRef.current) {
+      // Po starcie (stan Stopped) UI pokazuje pozycję wznowienia z zapisanej sesji.
+      const resumePos = pollingDepsRef.current.initialStartupPositionRef.current;
+      const livePos = res.state === 'Stopped' && resumePos !== null ? resumePos : res.position_ms;
+      livePlayback.publish({ positionMs: livePos, spectrum: res.spectrum });
+      statusRef.current = {
+        ...statusRef.current,
+        ...res,
+        volume: isVolumeInteractingRef.current ? statusRef.current.volume : res.volume,
+      };
+    } else if (res.spectrum) {
+      livePlayback.publish({ spectrum: res.spectrum });
+    }
 
-          if (res.state === 'Stopped' && curInitialStartupPositionRef.current !== null && prev.current_track) {
-            return {
-              ...res,
-              position_ms: curInitialStartupPositionRef.current,
-              duration_ms: prev.duration_ms || res.duration_ms,
-              current_track: prev.current_track,
-              volume: targetVolume,
-            };
-          }
-          if (
-            prev.state === res.state &&
-            res.state !== 'Playing' &&
-            prev.current_track?.track_id === res.current_track?.track_id &&
-            prev.position_ms === targetPosition &&
-            prev.volume === targetVolume &&
-            prev.tempo_ratio === res.tempo_ratio &&
-            prev.pitch_semitones === res.pitch_semitones &&
-            prev.equalizer_enabled === res.equalizer_enabled &&
-            JSON.stringify(prev.equalizer_bands) === JSON.stringify(res.equalizer_bands)
-          ) {
-            return prev;
-          }
-          return {
-            ...res,
-            position_ms: targetPosition,
-            volume: targetVolume,
-          };
-        });
+    // Pętla A-B sprawdzana w każdej klatce (dokładność ~100 ms).
+    const { a: loopA, b: loopB } = loopPointsRef.current;
+    if (loopA !== null && loopB !== null && loopB > loopA && res.state === 'Playing') {
+      if (res.position_ms >= loopB && !loopSeekPendingRef.current) {
+        loopSeekPendingRef.current = true;
+        handleSeekRef.current?.(loopA);
+      } else if (res.position_ms < loopB) {
+        loopSeekPendingRef.current = false;
+      }
+    }
 
-        if (res.replaygain_status) {
-          curSetReplaygainStatus(res.replaygain_status);
+    curSetStatus((prev) => {
+      // If the user is actively dragging the seek slider, preserve local position
+      const targetPosition = isSeekingRef.current ? prev.position_ms : res.position_ms;
+      // If the user is actively sliding volume, preserve local volume
+      const targetVolume = isVolumeInteractingRef.current ? prev.volume : res.volume;
+
+      if (res.state === 'Stopped' && curInitialStartupPositionRef.current !== null && prev.current_track) {
+        return {
+          ...res,
+          position_ms: curInitialStartupPositionRef.current,
+          duration_ms: prev.duration_ms || res.duration_ms,
+          current_track: prev.current_track,
+          volume: targetVolume,
+        };
+      }
+      const merged = {
+        ...res,
+        position_ms: targetPosition,
+        volume: targetVolume,
+      };
+      return shouldCommitStatus(prev, merged) ? merged : prev;
+    });
+
+    if (res.replaygain_status) {
+      curSetReplaygainStatus(res.replaygain_status);
+    }
+
+    if (res.current_track) {
+      if (res.current_track.uri) {
+        const trackUri = res.current_track.uri;
+        curSetFilePath(trackUri);
+      }
+      if (res.current_track.track_id) {
+        const trackId = res.current_track.track_id;
+        curSetActiveTrackId(trackId);
+
+        // Czas słuchania (Recap) nalicza backendowy ticker odtwarzania.
+
+        // Loop detection
+        if (res.position_ms < 3000 && lastTrackPositionMsRef.current > 5000) {
+          lastRecordedTrackRef.current.recorded = false;
+          if (curSetScrobbledTrackId) curSetScrobbledTrackId(null);
+          if (curSetLastfmScrobbledTrackId) curSetLastfmScrobbledTrackId(null);
+        }
+        lastTrackPositionMsRef.current = res.position_ms;
+
+        const playThresholdMs = Math.min(
+          15000,
+          res.duration_ms && res.duration_ms > 0 ? res.duration_ms * 0.5 : 15000
+        );
+
+        if (lastRecordedTrackRef.current.id !== trackId) {
+          lastRecordedTrackRef.current = { id: trackId, recorded: false };
+        } else if (
+          !lastRecordedTrackRef.current.recorded &&
+          res.state === 'Playing' &&
+          res.position_ms >= playThresholdMs
+        ) {
+          lastRecordedTrackRef.current.recorded = true;
+          invoke('record_track_play', { trackId }).catch((e) =>
+            console.warn('Błąd zapisu odtworzenia:', e)
+          );
+          curSetTracks((prev) =>
+            prev.map((t) =>
+              t.id === trackId
+                ? {
+                    ...t,
+                    play_count: (t.play_count || 0) + 1,
+                    last_played_at: Math.floor(Date.now() / 1000),
+                  }
+                : t
+            )
+          );
         }
 
-        if (res.current_track) {
-          if (res.current_track.uri) {
-            const trackUri = res.current_track.uri;
-            curSetFilePath(trackUri);
-          }
-          if (res.current_track.track_id) {
-            const trackId = res.current_track.track_id;
-            curSetActiveTrackId(trackId);
-
-            // Record actual listening time (Recap & Stats)
-            if (res.state === 'Playing') {
-              const now = Date.now();
-              const elapsed = now - lastListeningTickRef.current;
-              if (elapsed >= 5000 && elapsed < 30000) {
-                lastListeningTickRef.current = now;
-                invoke('record_track_listening', { trackId, durationMs: elapsed }).catch(() => { });
-              } else if (elapsed >= 30000) {
-                lastListeningTickRef.current = now;
-              }
-            } else {
-              lastListeningTickRef.current = Date.now();
-            }
-
-            // Loop detection
-            if (res.position_ms < 3000 && lastTrackPositionMsRef.current > 5000) {
-              lastRecordedTrackRef.current.recorded = false;
-              if (curSetScrobbledTrackId) curSetScrobbledTrackId(null);
-              if (curSetLastfmScrobbledTrackId) curSetLastfmScrobbledTrackId(null);
-              invoke('notify_track_looped', { positionMs: res.position_ms }).catch(() => { });
-            }
-            lastTrackPositionMsRef.current = res.position_ms;
-
-            const playThresholdMs = Math.min(
-              15000,
-              res.duration_ms && res.duration_ms > 0 ? res.duration_ms * 0.5 : 15000
-            );
-
-            if (lastRecordedTrackRef.current.id !== trackId) {
-              lastRecordedTrackRef.current = { id: trackId, recorded: false };
-            } else if (
-              !lastRecordedTrackRef.current.recorded &&
-              res.state === 'Playing' &&
-              res.position_ms >= playThresholdMs
-            ) {
-              lastRecordedTrackRef.current.recorded = true;
-              invoke('record_track_play', { trackId }).catch((e) =>
-                console.warn('Błąd zapisu odtworzenia:', e)
-              );
-              curSetTracks((prev) =>
-                prev.map((t) =>
-                  t.id === trackId
-                    ? {
-                        ...t,
-                        play_count: (t.play_count || 0) + 1,
-                        last_played_at: Math.floor(Date.now() / 1000),
-                      }
-                    : t
-                )
-              );
-            }
-
-            // ListenBrainz scrobbler
-            if (
-              res.state === 'Playing' &&
-              lbEnabled &&
-              lbToken &&
-              curScrobbledTrackId !== trackId &&
-              res.duration_ms &&
-              res.duration_ms >= 30000 &&
-              res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
-            ) {
-              if (curSetScrobbledTrackId) curSetScrobbledTrackId(trackId);
-              const currentTrackObj = currentTracks.find((t) => t.id === trackId);
-              if (currentTrackObj) {
-                const trackAlb = currentTrackObj.album_id
-                  ? currentAlbums.find((a) => a.id === currentTrackObj.album_id)?.title
-                  : null;
-                invoke('submit_listenbrainz_listen', {
-                  token: lbToken,
-                  artist: currentTrackObj.artist,
-                  title: currentTrackObj.title,
-                  album: trackAlb || null,
-                  durationMs: currentTrackObj.duration_ms || null,
-                  listenedAt: Math.floor(Date.now() / 1000),
-                })
-                  .then(() => {
-                    curShowMessage(curLoc.notifications.scrobbledListenbrainz.replace('{0}', currentTrackObj.title));
-                  })
-                  .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
-              }
-            }
-
-            // Last.fm scrobbler
-            if (
-              res.state === 'Playing' &&
-              lfEnabled &&
-              lfSessionKey &&
-              curLastfmScrobbledTrackId !== trackId &&
-              res.duration_ms &&
-              res.duration_ms >= 30000 &&
-              res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
-            ) {
-              if (curSetLastfmScrobbledTrackId) curSetLastfmScrobbledTrackId(trackId);
-              const currentTrackObj = currentTracks.find((t) => t.id === trackId);
-              if (currentTrackObj) {
-                const trackAlb = currentTrackObj.album_id
-                  ? currentAlbums.find((a) => a.id === currentTrackObj.album_id)?.title
-                  : null;
-                invoke('lastfm_scrobble', {
-                  request: {
-                    session_key: lfSessionKey,
-                    artist: currentTrackObj.artist,
-                    track: currentTrackObj.title,
-                    album: trackAlb || null,
-                    timestamp: Math.floor(Date.now() / 1000),
-                    duration_sec: currentTrackObj.duration_ms
-                      ? Math.round(currentTrackObj.duration_ms / 1000)
-                      : null,
-                    api_key: lfCustomKey.trim() || null,
-                    api_secret: lfCustomSecret.trim() || null,
-                  },
-                })
-                  .then(() => {
-                    curShowMessage(curLoc.notifications.scrobbledLastfm.replace('{0}', currentTrackObj.title));
-                  })
-                  .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
-              }
-            }
+        // ListenBrainz scrobbler
+        if (
+          res.state === 'Playing' &&
+          lbEnabled &&
+          lbToken &&
+          curScrobbledTrackId !== trackId &&
+          res.duration_ms &&
+          res.duration_ms >= 30000 &&
+          res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
+        ) {
+          if (curSetScrobbledTrackId) curSetScrobbledTrackId(trackId);
+          const currentTrackObj = currentTracks.find((t) => t.id === trackId);
+          if (currentTrackObj) {
+            const trackAlb = currentTrackObj.album_id
+              ? currentAlbums.find((a) => a.id === currentTrackObj.album_id)?.title
+              : null;
+            invoke('submit_listenbrainz_listen', {
+              token: lbToken,
+              artist: currentTrackObj.artist,
+              title: currentTrackObj.title,
+              album: trackAlb || null,
+              durationMs: currentTrackObj.duration_ms || null,
+              listenedAt: Math.floor(Date.now() / 1000),
+            })
+              .then(() => {
+                curShowMessage(curLoc.notifications.scrobbledListenbrainz.replace('{0}', currentTrackObj.title));
+              })
+              .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
           }
         }
-      } catch {
-        // Ignore backend initialisation errors
-      } finally {
-        if (isMounted) {
-          const delay = statusRef.current?.state === 'Playing' ? 100 : 350;
-          timeoutId = setTimeout(fetchStatus, delay);
+
+        // Last.fm scrobbler
+        if (
+          res.state === 'Playing' &&
+          lfEnabled &&
+          lfSessionKey &&
+          curLastfmScrobbledTrackId !== trackId &&
+          res.duration_ms &&
+          res.duration_ms >= 30000 &&
+          res.position_ms >= Math.min(res.duration_ms * 0.5, 240000)
+        ) {
+          if (curSetLastfmScrobbledTrackId) curSetLastfmScrobbledTrackId(trackId);
+          const currentTrackObj = currentTracks.find((t) => t.id === trackId);
+          if (currentTrackObj) {
+            const trackAlb = currentTrackObj.album_id
+              ? currentAlbums.find((a) => a.id === currentTrackObj.album_id)?.title
+              : null;
+            invoke('lastfm_scrobble', {
+              request: {
+                session_key: lfSessionKey,
+                artist: currentTrackObj.artist,
+                track: currentTrackObj.title,
+                album: trackAlb || null,
+                timestamp: Math.floor(Date.now() / 1000),
+                duration_sec: currentTrackObj.duration_ms
+                  ? Math.round(currentTrackObj.duration_ms / 1000)
+                  : null,
+                api_key: lfCustomKey.trim() || null,
+                api_secret: lfCustomSecret.trim() || null,
+              },
+            })
+              .then(() => {
+                curShowMessage(curLoc.notifications.scrobbledLastfm.replace('{0}', currentTrackObj.title));
+              })
+              .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
+          }
         }
       }
+    }
+  }, []);
+
+  useTauriEvent<PlaybackStatus>('auralune://playback-status', (res) => {
+    lastStatusEventAtRef.current = Date.now();
+    applyStatus(res);
+  });
+
+  // Start oraz rezerwa: pierwszy status pobierany od razu; jeśli zdarzenia przestaną
+  // napływać (np. środowisko bez tickera), status jest odpytywany raz na sekundę.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchOnce = () => {
+      invoke<PlaybackStatus>('get_status')
+        .then((res) => {
+          if (!cancelled && res) applyStatus(res);
+        })
+        .catch(() => {
+          // Backend jeszcze się inicjalizuje
+        });
     };
-
-    fetchStatus();
-
+    fetchOnce();
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastStatusEventAtRef.current > 1500) fetchOnce();
+    }, 1000);
     return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
+      cancelled = true;
+      clearInterval(watchdog);
       if (seekReleaseTimerRef.current) clearTimeout(seekReleaseTimerRef.current);
       if (volumeInteractionTimerRef.current) clearTimeout(volumeInteractionTimerRef.current);
       if (volumeThrottleTimerRef.current) clearTimeout(volumeThrottleTimerRef.current);
     };
-  }, []);
+  }, [applyStatus]);
 
   // 2. Track Bookmarks sync
   useEffect(() => {
@@ -424,9 +444,9 @@ export function usePlaybackController({
         clearTimeout(seekReleaseTimerRef.current);
         seekReleaseTimerRef.current = null;
       }
-      setStatus((prev) => ({ ...prev, position_ms: val }));
+      livePlayback.publish({ positionMs: val });
     },
-    [setStatus]
+    []
   );
 
   const handleSeekCommit = useCallback(
@@ -435,6 +455,7 @@ export function usePlaybackController({
       if (seekReleaseTimerRef.current) {
         clearTimeout(seekReleaseTimerRef.current);
       }
+      livePlayback.publish({ positionMs: val });
       setStatus((prev) => ({ ...prev, position_ms: val }));
       try {
         const shouldFade = typeof fade === 'boolean' ? fade : seekFadeEnabled;
@@ -459,16 +480,8 @@ export function usePlaybackController({
   );
 
   useEffect(() => {
-    if (
-      loopPointA !== null &&
-      loopPointB !== null &&
-      loopPointB > loopPointA &&
-      status.state === 'Playing' &&
-      status.position_ms >= loopPointB
-    ) {
-      handleSeek(loopPointA);
-    }
-  }, [status.position_ms, status.state, loopPointA, loopPointB, handleSeek]);
+    handleSeekRef.current = handleSeek;
+  }, [handleSeek]);
 
   // 4. Transport Actions
   const handlePlayPause = useCallback(async () => {

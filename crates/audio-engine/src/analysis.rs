@@ -140,6 +140,23 @@ pub fn decode_snippet_for_analysis(
     uri_or_path: &str,
     max_duration_sec: f64,
 ) -> Result<Vec<f32>, AnalysisError> {
+    decode_mono_22k(
+        uri_or_path,
+        max_duration_sec,
+        std::time::Duration::from_millis(6000),
+    )
+}
+
+/// Częstotliwość próbkowania sygnału zwracanego przez [`decode_snippet_for_analysis`].
+pub const ANALYSIS_SAMPLE_RATE: u32 = 22_050;
+
+/// Dekoduje do `max_duration_sec` sekund utworu (mono, [`ANALYSIS_SAMPLE_RATE`] Hz, F32LE),
+/// czekając na próbki najwyżej `max_wait`.
+fn decode_mono_22k(
+    uri_or_path: &str,
+    max_duration_sec: f64,
+    max_wait: std::time::Duration,
+) -> Result<Vec<f32>, AnalysisError> {
     let _ = gst::init();
     let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
@@ -221,7 +238,6 @@ pub fn decode_snippet_for_analysis(
     let mut collected: Vec<f32> = Vec::with_capacity(target_samples);
 
     let start_time = std::time::Instant::now();
-    let max_wait = std::time::Duration::from_millis(6000);
 
     while collected.len() < target_samples && start_time.elapsed() < max_wait {
         if appsink.is_eos() {
@@ -2018,4 +2034,36 @@ pub fn extract_track_waveform_peaks(
     }
 
     Ok(peaks)
+}
+
+/// Wykrywa ciszę na początku i końcu utworu (do pomijania ciszy podczas odtwarzania).
+///
+/// `expected_duration_ms` to długość utworu znana z tagów/biblioteki. Jeśli dekodowanie nie
+/// objęło całego utworu (limit czasu), granica końcowa jest odrzucana (`end_ms = None`),
+/// aby nigdy nie ucinać muzyki przed jej końcem.
+pub fn detect_silence_bounds(
+    uri_or_path: &str,
+    threshold_db: f64,
+    expected_duration_ms: Option<u64>,
+) -> Result<Option<domain::SilenceBounds>, AnalysisError> {
+    const MAX_DECODE_SEC: f64 = 2.0 * 60.0 * 60.0;
+    let samples = decode_mono_22k(
+        uri_or_path,
+        MAX_DECODE_SEC,
+        std::time::Duration::from_secs(20),
+    )?;
+    let decoded_ms = samples.len() as u64 * 1000 / ANALYSIS_SAMPLE_RATE as u64;
+    let Some(mut bounds) =
+        domain::silence::find_silence_bounds(&samples, ANALYSIS_SAMPLE_RATE, threshold_db)
+    else {
+        return Ok(None);
+    };
+    let decoded_whole_track = match expected_duration_ms {
+        Some(expected) if expected > 0 => decoded_ms + 1_500 >= expected,
+        _ => false,
+    };
+    if !decoded_whole_track {
+        bounds.end_ms = None;
+    }
+    Ok(Some(bounds))
 }

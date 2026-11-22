@@ -101,7 +101,7 @@ Aura-Lune/
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Modularized Tauri command handlers (215 commands)
+│           │   ├── commands/        # Modularized Tauri command handlers (214 commands)
 │           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
 │           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
@@ -121,6 +121,8 @@ Aura-Lune/
 │           │   ├── setup/           # Application lifecycle & environment configuration
 │           │   │   ├── app_init.rs  # DB connection, state init, command-line arguments
 │           │   │   ├── linux_env.rs # GStreamer plugin paths & WebKit2GTK configuration
+│           │   │   ├── playback_ticker.rs # Backend status loop: bus draining, status events, MPRIS on track change, listening time
+│           │   │   ├── silence_trim.rs # Silence trimming (detect + cache + skip lead/trail)
 │           │   │   └── tray.rs      # System tray icon, context menu, minimize-to-tray
 │           │   ├── lib.rs           # Lightweight Tauri entrypoint (< 350 lines)
 │           │   └── main.rs          # Native binary main function
@@ -165,6 +167,7 @@ Aura-Lune/
   - `stem_project`: Stem channel definitions, volume mappings, and mixer presets.
   - `dynamics`: Compressor, Tape Saturator, and Stereo Widener parameters.
   - `device`: `AudioCard`, `BluetoothCodec` (LDAC, aptX HD, AAC, SBC, SBC-XQ).
+  - `silence`: `SilenceTrimmingConfig`, `find_silence_bounds` (RMS windows → `SilenceBounds`), `trim_action` (seek past lead / finish at trail).
   - `renamer`: Pattern formatting (`%artist% - %title%`) and path sanitization.
   - `cue`: CUE sheet parser and track splitter.
   - `transcode`: Format choices (`Opus`, `Flac`, `Wav`) and `TimeRange` clipping validation.
@@ -204,7 +207,7 @@ Aura-Lune/
 ### `crates/storage` (Modular Architecture)
 - **Purpose**: SQLite persistence layer built with `sqlx`, partitioned into 9 domain submodules:
   - [`src/models.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/models.rs): Database records (`TrackRecord`, `AlbumRecord`, `ArtistRecord`, `DspPresetRecord`, `DuplicateGroup`, `RecapSummaryDto`) and `StorageError`.
-  - [`src/schema.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -64000`, `temp_store = MEMORY`, `mmap_size = 256MB`), versioned migrations (`PRAGMA user_version`, currently **v2**: bookmark `ON DELETE CASCADE`, `album_artist` repair, cached chord/transcription `bpm`/`musical_key`/`camelot`), default anime themes.
+  - [`src/schema.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -64000`, `temp_store = MEMORY`, `mmap_size = 256MB`), versioned migrations (`PRAGMA user_version`, currently **v3**: v2 = bookmark `ON DELETE CASCADE`, `album_artist` repair, cached chord/transcription `bpm`/`musical_key`/`camelot`; v3 = `track_silence_bounds` cache), default anime themes.
   - [`src/library.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/library.rs): Track, album, and artist CRUD, metadata updates, duplicate detection.
   - [`src/bookmarks.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/bookmarks.rs): Track bookmarks and multi-cue timestamp markers.
   - [`src/settings.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/settings.rs): Key-value app settings, DSP presets, custom theme storage.
@@ -248,10 +251,12 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 ### Setup & Lifecycle Modules (`setup/`)
 - [`setup/app_init.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/app_init.rs): Opens SQLite database, restores queue state, initializes MPRIS, Discord RPC, Control IPC, registers `AppState`.
 - [`setup/linux_env.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/linux_env.rs): Configures GStreamer plugin directories, scanner path, and WebKit2GTK environment for AppImage.
-- [`setup/tray.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/tray.rs): System tray icon, context menu, and close-to-tray handling.
+- [`setup/tray.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/tray.rs): System tray icon, context menu, and close-to-tray handling. Tray actions call the same `*_internal` functions as commands (`play_internal`, `play_next_internal`, …).
+- [`setup/playback_ticker.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/playback_ticker.rs): **The only driver of the engine bus.** A dedicated thread (100 ms while playing, 250 ms otherwise) calls `get_status_internal` (drains `poll_events`: EOS → next track, loops, spectrum, Waybar), caches the result in `AppState.last_status`, emits `auralune://playback-status`, syncs MPRIS on automatic track changes, records listening time (`ListeningTracker`) and runs `SilenceTrimmer`. Playback must never depend on the webview polling.
+- [`setup/silence_trim.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/silence_trim.rs): Detects silence bounds in the background (`audio_engine::detect_silence_bounds`, cached in `track_silence_bounds`), seeks past leading silence and seeks to just before EOS at trailing silence so the engine's normal EOS path handles loop / stop-after-current / crossfade. Pure decisions live in `domain::silence::{find_silence_bounds, trim_action}`.
 
 ### Modular Command Handlers (`commands/`)
-All 215 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+All 214 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
 
 **Error contract** — every command returns `Result<T, CommandError>` ([`commands/error.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/error.rs)).
 `CommandError` serializes to `{ "code": "not_found", "message": "…" }` with codes `storage | engine | io | not_found | validation | network | internal`.
@@ -260,8 +265,8 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 
 | Module | Responsibility | Key Commands |
 |---|---|---|
-| [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
-| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `set_stop_after_current`, `toggle_stop_after_current` |
+| [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync; `get_status` returns the ticker snapshot | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
+| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `set_stop_after_current`, `toggle_stop_after_current` (plus `play_next_internal` / `play_previous_internal` for non-command callers) |
 | [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_parametric_eq_enabled`, `set_compressor_enabled`, `set_saturator_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
 | [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `get_library_artists`, `get_favorite_tracks`, `get_recently_played_tracks`, `get_top_played_tracks`, `get_hires_tracks`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
 | [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `list_smart_playlist_tracks`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
@@ -332,8 +337,13 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **`useAppSettingsModalProps`**: Bundles settings tabs into `AppSettingsModal`.
 
 ### Performance & Responsiveness Principles
+0. **Live Playback Store (`src/state/livePlayback.ts`)**:
+   - Status arrives via the `auralune://playback-status` event (watchdog falls back to `get_status` once per second if events stop).
+   - Every frame publishes `position_ms` + `spectrum` to `livePlayback`; React state in `App` is only updated when `shouldCommitStatus` (`src/state/statusCommit.ts`) reports a structural change or a ≥1 s position step.
+   - Components that draw progress/visualizers read live values with `useLiveStatus(status)`, `useLivePositionMs(fallback)` or `useLiveSpectrum(fallback)` (PlayerView, BottomPlaybackDock, BigScreenView, DspStudioView, MiniPlayerWidget, DesktopLyricsOverlay, LoopEditorModal, TrackBookmarksModal, MusicAnalysisModal, StemProjectStudioModal). Event handlers needing the exact position call `currentPositionMs(fallback)`. Never read `status.position_ms` for display — it is up to 1 s stale.
+   - Per-frame logic (A-B loop) runs inside the status handler in `usePlaybackController`, not in effects on `status`.
 1. **Two-Phase Seeking**:
-   - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging. Supported across all progress sliders (`<input type="range">`) and animated `WaveformCanvas` visual styles (`smooth`, `bars`, `scrolling`, `mirror`) with pointer capture (`setPointerCapture`) and real-time hover/drag timestamp badges.
+   - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging (writes only to `livePlayback`, no `App` re-render). Supported across all progress sliders (`<input type="range">`) and animated `WaveformCanvas` visual styles (`smooth`, `bars`, `scrolling`, `mirror`) with pointer capture (`setPointerCapture`) and real-time hover/drag timestamp badges.
    - `handleSeekCommit(pos)`: Dispatched once on pointer/mouse/key up with `seek_with_fade` (20-48ms anti-pop micro-fade).
 2. **Dual-Mode Zero-Latency & Smooth Fade Volume Control**:
    - **Post-Queue Pipeline Placement**: In GStreamer, the `volume` element is linked downstream of `queue_sink` (`... -> queue_sink -> volume -> sink`), eliminating 600ms buffer latency so volume adjustments take effect at the hardware sink within < 15ms.
@@ -348,8 +358,8 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
      - In smooth mode: smoothly eases out to 0 or eases in from 0 over 120ms.
 3. **Interaction Guards Against Rubberbanding**:
    - `isSeekingRef` and `isVolumeInteractingRef` protect the UI state from being overwritten by delayed backend polling responses.
-4. **Adaptive Status Polling**:
-   - 100 ms interval while playing; 350 ms interval while paused or stopped.
+4. **Backend-Driven Status Cadence**:
+   - The backend ticker emits status every 100 ms while playing and every 250 ms while paused or stopped; the frontend does not poll.
 5. **Background Visualizer Optimization**:
    - `SpectrumVisualizer` and `AnimeAmbienceFX` listen for `document.hidden` and pause animation loops when minimized or hidden.
 
@@ -398,15 +408,15 @@ All tests across the workspace are decoupled from production source files into d
 
 | Crate | Test Files | Description |
 |---|---|---|
-| `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs`<br>`tests/schema_migrations_test.rs` | Full SQLite persistence and query test suite |
-| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs` | Domain entities, parsers, and DSP model math |
-| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`src/hpss_test.rs` | GStreamer playback, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
+| `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs`<br>`tests/schema_migrations_test.rs` (incl. silence cache) | Full SQLite persistence and query test suite |
+| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs`<br>`tests/silence_trim_test.rs` | Domain entities, parsers, and DSP model math |
+| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`tests/silence_detection_test.rs`<br>`src/hpss_test.rs` | GStreamer playback, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
 | `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs` | Network services, LRC parsing, AcoustID |
 | `crates/downloads` | `tests/download_manager_test.rs` | Model download jobs & path traversal checks |
 | `crates/desktop-integration` | `tests/desktop_integration_test.rs`<br>`tests/discord_rpc_test.rs`<br>`tests/mpris_test.rs`<br>`tests/waybar_and_ipc_test.rs` | MPRIS, Discord RPC, Waybar atomic status |
 | `crates/dsp-api` | `tests/dsp_api_test.rs` | DSP parameters, semitone & cent math |
 | `crates/library` | `tests/scanner_test.rs` | Incremental scan, album-artist grouping, scoped stale-track cleanup |
-| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs`<br>`tests/ipc_contract_test.rs`<br>`tests/command_error_test.rs` | DTO validation, `AppState` Send+Sync safety, frontend `invoke()` ↔ `generate_handler!` ↔ `commands.generated.ts` contract, `CommandError` JSON shape and code mapping |
+| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs`<br>`tests/ipc_contract_test.rs`<br>`tests/command_error_test.rs`<br>`tests/playback_ticker_test.rs` | DTO validation, `AppState` Send+Sync safety, frontend `invoke()` ↔ `generate_handler!` ↔ `commands.generated.ts` contract, `CommandError` JSON shape and code mapping |
 
 ---
 

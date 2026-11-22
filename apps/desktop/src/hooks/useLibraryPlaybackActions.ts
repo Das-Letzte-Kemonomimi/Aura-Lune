@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { invoke } from '../api/ipc';
+import { currentPositionMs } from '../state/livePlayback';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { AlbumPlaybackBehavior } from '../types/playback';
@@ -518,13 +519,14 @@ export function useLibraryPlaybackActions({
       showMessage(loc.notifications.firstSelectTrack, true);
       return;
     }
+    const positionMs = currentPositionMs(status.position_ms);
     try {
       await invoke('save_bookmark', {
         trackId: activeTrackId,
-        positionMs: status.position_ms,
+        positionMs,
       });
-      setCurrentBookmark(status.position_ms);
-      showMessage(loc.notifications.bookmarkSaved.replace('{0}', formatTimeMs(status.position_ms)));
+      setCurrentBookmark(positionMs);
+      showMessage(loc.notifications.bookmarkSaved.replace('{0}', formatTimeMs(positionMs)));
     } catch (e: any) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }

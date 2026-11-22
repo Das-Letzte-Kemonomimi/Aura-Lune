@@ -88,10 +88,7 @@ export default function App() {
     spectrum: Array(16).fill(0.05),
   });
 
-  // Procent postępu odtwarzania oraz głośności dla dynamicznego wypełnienia suwaków (anime aesthetic)
-  const seekProgressPercent = status.duration_ms && status.duration_ms > 0
-    ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
-    : 0;
+  // Procent głośności dla dynamicznego wypełnienia suwaka (postęp liczą komponenty z `useLiveStatus`)
   const volumeProgressPercent = Math.min(100, Math.max(0, (status.volume ?? 1) * 100));
 
   // Język interfejsu (domyślnie angielski: en, z opcją wyboru: pl, de, fi, la)
@@ -986,7 +983,6 @@ export default function App() {
     effectiveDisplayArtist,
     filePath,
     setFilePath,
-    seekProgressPercent,
     volumeProgressPercent,
     volumeUnit,
     formatVolumeValue,
@@ -1134,7 +1130,6 @@ export default function App() {
     effectiveDisplayArtist,
     currentCover,
     queue,
-    seekProgressPercent,
     volumeProgressPercent,
     formatTime,
     mainContentRef,

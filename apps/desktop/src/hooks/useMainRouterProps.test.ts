@@ -22,7 +22,6 @@ describe('useMainRouterProps', () => {
       effectiveDisplayArtist: 'Artist',
       filePath: '/path',
       setFilePath: vi.fn(),
-      seekProgressPercent: 50,
       volumeProgressPercent: 100,
       volumeUnit: 'percent',
       formatVolumeValue: vi.fn(),

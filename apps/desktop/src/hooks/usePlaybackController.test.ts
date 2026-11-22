@@ -1,10 +1,23 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlaybackController } from './usePlaybackController';
+import { livePlayback } from '../state/livePlayback';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue } from '../types/queue';
 import { getTranslations } from '../i18n';
 import { invokeMock as mockInvoke } from '../test/ipcMock';
+
+const eventHandlers = vi.hoisted(() => new Map<string, (e: { payload: unknown }) => void>());
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn((name: string, cb: (e: { payload: unknown }) => void) => {
+    eventHandlers.set(name, cb);
+    return Promise.resolve(() => eventHandlers.delete(name));
+  }),
+}));
+
+function emitStatus(status: PlaybackStatus) {
+  eventHandlers.get('auralune://playback-status')?.({ payload: status });
+}
 
 
 describe('usePlaybackController', () => {
@@ -158,12 +171,14 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 55000, fade: true });
   });
 
-  it('handleSeekPreview updates status optimistically without firing IPC seek', () => {
+  it('handleSeekPreview moves the live position without re-rendering App or firing IPC seek', () => {
     const { result } = setupHook();
+    setStatus.mockClear();
     act(() => {
       result.current.handleSeekPreview(12000);
     });
-    expect(setStatus).toHaveBeenCalled();
+    expect(livePlayback.getSnapshot()).toMatchObject({ ready: true, positionMs: 12000 });
+    expect(setStatus).not.toHaveBeenCalled();
     expect(mockInvoke).not.toHaveBeenCalledWith('seek', expect.anything());
   });
 
@@ -270,5 +285,66 @@ describe('usePlaybackController', () => {
     });
     expect(mockInvoke).toHaveBeenCalledWith('toggle_shuffle');
     expect(refreshQueue).toHaveBeenCalled();
+  });
+
+  describe('status events from the backend ticker', () => {
+    const playing = (position_ms: number, extra: Partial<PlaybackStatus> = {}): PlaybackStatus => ({
+      ...mockStatus,
+      state: 'Playing',
+      position_ms,
+      spectrum: [position_ms / 1000],
+      ...extra,
+    });
+
+    it('publishes every frame to the live store but commits React state only on real changes', async () => {
+      setupHook();
+      await act(async () => {});
+      act(() => emitStatus(playing(10_000)));
+      setStatus.mockClear();
+
+      act(() => {
+        emitStatus(playing(10_100));
+        emitStatus(playing(10_200));
+        emitStatus(playing(10_300));
+      });
+
+      expect(livePlayback.getSnapshot()).toMatchObject({ ready: true, positionMs: 10_300 });
+      expect(livePlayback.getSnapshot().spectrum).toEqual([10.3]);
+      // Updater wywołany, ale bez zmian strukturalnych zwraca poprzedni obiekt (brak re-renderu).
+      expect(mockStatus.position_ms).toBe(10_000);
+
+      act(() => emitStatus(playing(10_300, { volume: 0.3 })));
+      expect(mockStatus.volume).toBe(0.3);
+      expect(mockStatus.position_ms).toBe(10_300);
+    });
+
+    it('keeps the dragged position while the user is seeking', async () => {
+      const { result } = setupHook();
+      await act(async () => {});
+      act(() => {
+        result.current.handleSeekPreview(50_000);
+        emitStatus(playing(10_000));
+      });
+      expect(livePlayback.getSnapshot().positionMs).toBe(50_000);
+    });
+
+    it('jumps back to loop point A as soon as a frame passes loop point B', async () => {
+      const { result } = setupHook();
+      await act(async () => {});
+      act(() => {
+        result.current.setLoopPointA(5_000);
+        result.current.setLoopPointB(8_000);
+      });
+
+      await act(async () => {
+        emitStatus(playing(7_900));
+        emitStatus(playing(8_000));
+        emitStatus(playing(8_100));
+      });
+
+      const seeks = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'seek');
+      expect(seeks).toHaveLength(1);
+      expect(seeks[0][1]).toMatchObject({ positionMs: 5_000 });
+    });
   });
 });

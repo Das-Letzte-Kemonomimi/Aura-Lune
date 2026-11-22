@@ -256,3 +256,66 @@ impl Database {
         Ok(())
     }
 }
+
+impl Database {
+    /// Zwraca zapisane granice ciszy utworu, jeśli były liczone dla tego samego progu
+    /// i niezmienionego pliku (`file_modified_time`).
+    pub async fn get_silence_bounds(
+        &self,
+        track_id: i64,
+        threshold_db: f64,
+        file_modified_time: i64,
+    ) -> Result<Option<domain::SilenceBounds>, StorageError> {
+        let row: Option<(i64, Option<i64>)> = sqlx::query_as(
+            r#"
+            SELECT start_ms, end_ms FROM track_silence_bounds
+            WHERE track_id = ?1 AND ABS(threshold_db - ?2) < 0.01 AND file_modified_time = ?3;
+            "#,
+        )
+        .bind(track_id)
+        .bind(threshold_db)
+        .bind(file_modified_time)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|(start, end)| domain::SilenceBounds {
+            start_ms: start.max(0) as u64,
+            end_ms: end.map(|e| e.max(0) as u64),
+        }))
+    }
+
+    /// Zapisuje (nadpisuje) granice ciszy utworu.
+    pub async fn save_silence_bounds(
+        &self,
+        track_id: i64,
+        threshold_db: f64,
+        file_modified_time: i64,
+        bounds: &domain::SilenceBounds,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO track_silence_bounds
+                (track_id, threshold_db, start_ms, end_ms, file_modified_time, analyzed_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(track_id) DO UPDATE SET
+                threshold_db = excluded.threshold_db,
+                start_ms = excluded.start_ms,
+                end_ms = excluded.end_ms,
+                file_modified_time = excluded.file_modified_time,
+                analyzed_at = excluded.analyzed_at;
+            "#,
+        )
+        .bind(track_id)
+        .bind(threshold_db)
+        .bind(bounds.start_ms as i64)
+        .bind(bounds.end_ms.map(|e| e as i64))
+        .bind(file_modified_time)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+}

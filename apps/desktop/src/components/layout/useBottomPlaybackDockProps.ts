@@ -18,7 +18,6 @@ export interface UseBottomPlaybackDockPropsOptions {
   effectiveDisplayArtist: string;
   currentCover: string | null;
   queue: PlaybackQueue;
-  seekProgressPercent: number;
   volumeProgressPercent: number;
   formatTime: (ms: number) => string;
   mainContentRef: React.RefObject<HTMLElement | null>;
@@ -44,7 +43,6 @@ export function useBottomPlaybackDockProps(
     effectiveDisplayArtist,
     currentCover,
     queue,
-    seekProgressPercent,
     volumeProgressPercent,
     formatTime,
     mainContentRef,
@@ -78,7 +76,6 @@ export function useBottomPlaybackDockProps(
       currentCover,
       filePath,
       queue,
-      seekProgressPercent,
       volumeProgressPercent,
       formatTime,
       onScrollToTopOrSwitchTab: () => {
@@ -116,7 +113,6 @@ export function useBottomPlaybackDockProps(
       currentCover,
       filePath,
       queue,
-      seekProgressPercent,
       volumeProgressPercent,
       formatTime,
       mainContentRef,

@@ -924,8 +924,13 @@ pub fn set_volume(
     Ok(())
 }
 
+/// Zwraca ostatni status wyliczony przez ticker odtwarzania (tania kopia migawki).
+/// Przed pierwszym taktem tickera status jest liczony na żądanie.
 #[tauri::command]
 pub fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
+    if let Some(cached) = state.last_status.read().ok().and_then(|s| s.clone()) {
+        return cached;
+    }
     get_status_internal(&state)
 }
 

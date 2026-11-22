@@ -20,6 +20,7 @@ import {
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type DspEngineType } from '../../types/player';
 import { type PlaybackQueue } from '../../types/queue';
+import { useLiveStatus } from '../../state/livePlayback';
 
 export interface BottomPlaybackDockProps {
   isVisible: boolean;
@@ -33,7 +34,6 @@ export interface BottomPlaybackDockProps {
   currentCover: string | null;
   filePath: string;
   queue: PlaybackQueue;
-  seekProgressPercent: number;
   volumeProgressPercent: number;
   formatTime: (ms: number) => string;
   onScrollToTopOrSwitchTab: () => void;
@@ -59,14 +59,13 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   activeTab,
   language: _language,
   loc,
-  status,
+  status: statusProp,
   currentPlayingTrack,
   effectiveDisplayTitle,
   effectiveDisplayArtist,
   currentCover,
   filePath,
   queue,
-  seekProgressPercent,
   volumeProgressPercent,
   formatTime,
   onScrollToTopOrSwitchTab,
@@ -86,6 +85,12 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   onVolumeChange,
   onToggleMiniPlayer,
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const status = useLiveStatus(statusProp);
+  const seekProgressPercent =
+    status.duration_ms && status.duration_ms > 0
+      ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
+      : 0;
   const [isDspQuickMenuOpen, setIsDspQuickMenuOpen] = useState(false);
 
   if (!isVisible) return null;

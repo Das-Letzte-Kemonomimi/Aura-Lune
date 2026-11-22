@@ -52,6 +52,8 @@ pub struct AppState {
     pub last_reported_pos_ms: Arc<std::sync::atomic::AtomicU64>,
     pub control_ipc: Option<Arc<desktop_integration::ControlIpcServer>>,
     pub last_waybar_write: Arc<Mutex<std::time::Instant>>,
+    /// Ostatni status odtwarzania wyliczony przez ticker (`setup::playback_ticker`).
+    pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
 }
 
 pub fn run() {
@@ -270,7 +272,6 @@ pub fn run() {
             get_discord_rpc_status,
             set_discord_rpc_enabled,
             set_discord_rpc_client_id,
-            notify_track_looped,
             get_track_bookmarks,
             add_track_bookmark,
             update_track_bookmark,

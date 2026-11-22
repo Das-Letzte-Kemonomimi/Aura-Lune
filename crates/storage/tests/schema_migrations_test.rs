@@ -43,7 +43,7 @@ async fn test_fresh_database_reaches_latest_schema_version() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 2);
+    assert_eq!(version, 3);
 }
 
 /// Baza z wersji 1 (zakładki bez CASCADE, `album_artist` zawierający tytuł albumu)
@@ -92,7 +92,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 2);
+    assert_eq!(version, 3);
 
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
@@ -145,5 +145,65 @@ async fn test_delete_stale_tracks_is_scoped_to_root() {
     assert_eq!(
         paths,
         vec!["/lib/a/keep.flac", "/lib/ab/sibling.flac", "/other/x.flac"]
+    );
+}
+
+#[tokio::test]
+async fn test_silence_bounds_cache_matches_threshold_and_file_version() {
+    let db = setup_test_db().await;
+    let id = db
+        .upsert_track(&make_dummy_track("/music/s.flac", "S", "A"))
+        .await
+        .unwrap();
+    let bounds = domain::SilenceBounds {
+        start_ms: 1_200,
+        end_ms: Some(180_000),
+    };
+    db.save_silence_bounds(id, -50.0, 1_700_000_000, &bounds)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        db.get_silence_bounds(id, -50.0, 1_700_000_000)
+            .await
+            .unwrap(),
+        Some(bounds)
+    );
+    assert_eq!(
+        db.get_silence_bounds(id, -40.0, 1_700_000_000)
+            .await
+            .unwrap(),
+        None,
+        "inny próg"
+    );
+    assert_eq!(
+        db.get_silence_bounds(id, -50.0, 1_700_000_999)
+            .await
+            .unwrap(),
+        None,
+        "plik zmieniony"
+    );
+
+    let updated = domain::SilenceBounds {
+        start_ms: 0,
+        end_ms: None,
+    };
+    db.save_silence_bounds(id, -50.0, 1_700_000_999, &updated)
+        .await
+        .unwrap();
+    assert_eq!(
+        db.get_silence_bounds(id, -50.0, 1_700_000_999)
+            .await
+            .unwrap(),
+        Some(updated)
+    );
+
+    db.delete_track(id).await.unwrap();
+    assert_eq!(
+        db.get_silence_bounds(id, -50.0, 1_700_000_999)
+            .await
+            .unwrap(),
+        None,
+        "CASCADE"
     );
 }

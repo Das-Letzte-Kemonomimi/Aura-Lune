@@ -4,6 +4,7 @@ import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from '
 import { formatTimeMs } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';
 import { type TrackBookmarkDto } from '../../types/player';
+import { useLivePositionMs } from '../../state/livePlayback';
 
 export type { TrackBookmarkDto };
 
@@ -23,7 +24,7 @@ interface TrackBookmarksModalProps {
 export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   trackId,
   trackTitle,
-  currentPositionMs,
+  currentPositionMs: currentPositionMsProp,
   durationMs,
   onSeek,
   onClose,
@@ -32,6 +33,8 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   onSetAsLoop,
   currentLang = 'pl',
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = getTranslations(currentLang);
   const [bookmarks, setBookmarks] = useState<TrackBookmarkDto[]>([]);
   const [newBookmarkName, setNewBookmarkName] = useState('');

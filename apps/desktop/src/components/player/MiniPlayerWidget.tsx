@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
 import { formatTime } from '../../utils/timeFormat';
+import { useLivePositionMs } from '../../state/livePlayback';
 
 interface MiniPlayerWidgetProps {
   title: string;
@@ -38,7 +39,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   artist,
   coverUrl,
   isPlaying,
-  positionMs,
+  positionMs: positionMsProp,
   durationMs,
   volume,
   pitchSemitones,
@@ -53,6 +54,8 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   onToggleVolumeUnit,
   onRestore,
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const positionMs = useLivePositionMs(positionMsProp);
   const t = getTranslations(currentLang);
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const isDspActive = Math.abs(pitchSemitones) > 0.05 || Math.abs(tempoRatio - 1.0) > 0.02;

@@ -14,6 +14,7 @@ import { StemMixerModal } from './StemMixerModal';
 import { ModelManagerModal } from './ModelManagerModal';
 import { StemProjectsLibraryView } from '../../views/stems/StemProjectsLibraryView';
 import { type Language, getTranslations } from '../../i18n';
+import { useLivePositionMs } from '../../state/livePlayback';
 
 export interface MusicAnalysisModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   trackPath,
   trackTitle,
   trackArtist,
-  currentTimeMs,
+  currentTimeMs: currentTimeMsProp,
   durationMs = 180000,
   pitchSemitones = 0,
   onSeek,
@@ -50,6 +51,8 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   onOpenCreateProject,
   currentLang = 'en',
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const displayTitle = trackTitle || t.player.track;
   const displayArtist = trackArtist || t.player.artist;

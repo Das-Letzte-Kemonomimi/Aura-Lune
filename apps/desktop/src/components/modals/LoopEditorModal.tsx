@@ -3,6 +3,7 @@ import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } fro
 import { type Language, getTranslations } from '../../i18n';
 
 import { parseTimeToMs, formatTimeMs } from '../../utils/timeFormat';
+import { useLivePositionMs } from '../../state/livePlayback';
 export { parseTimeToMs, formatTimeMs };
 
 export interface LoopEditorModalProps {
@@ -25,7 +26,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   onClose,
   loopPointA,
   loopPointB,
-  currentPositionMs,
+  currentPositionMs: currentPositionMsProp,
   durationMs,
   onApplyLoop,
   onSeek,
@@ -34,6 +35,8 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   loc: propLoc,
   currentLang = 'pl',
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = propLoc || getTranslations(currentLang);
   const [inputA, setInputA] = useState('');
   const [inputB, setInputB] = useState('');

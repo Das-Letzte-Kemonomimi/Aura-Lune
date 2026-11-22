@@ -446,10 +446,12 @@ pub fn init_app(
         last_reported_pos_ms: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         control_ipc,
         last_waybar_write: Arc::new(Mutex::new(std::time::Instant::now())),
+        last_status: Arc::new(std::sync::RwLock::new(None)),
     };
 
     let state_for_cli = app_state.clone();
     app.manage(app_state);
+    crate::setup::spawn_playback_ticker(app.handle().clone());
 
     let cli_args = std::env::args().collect::<Vec<String>>();
     let initial_files = extract_audio_paths_from_args(&cli_args, None);

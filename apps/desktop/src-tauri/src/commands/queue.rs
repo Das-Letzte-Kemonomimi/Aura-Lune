@@ -203,33 +203,41 @@ pub fn play_queue_index(
 #[tauri::command]
 pub fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
     info!("Tauri command: play_next()");
+    play_next_internal(&state)
+}
+
+/// Następny utwór + synchronizacja MPRIS i zapis kolejki (komenda, zasobnik systemowy).
+pub fn play_next_internal(state: &AppState) -> Result<Option<QueueItem>, CommandError> {
     let next_item = state.engine.play_next()?;
-    if let Some(item) = &next_item {
-        if !item.id.starts_with("radio-") {
-            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-                *t = None;
-            }
-        }
-        crate::commands::playback::sync_mpris_from_queue_item(item, &state);
-    }
-    persist_queue_state(&state);
+    after_track_switch(state, next_item.as_ref());
     Ok(next_item)
 }
 
 #[tauri::command]
 pub fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
     info!("Tauri command: play_previous()");
+    play_previous_internal(&state)
+}
+
+/// Poprzedni utwór + synchronizacja MPRIS i zapis kolejki (komenda, zasobnik systemowy).
+pub fn play_previous_internal(state: &AppState) -> Result<Option<QueueItem>, CommandError> {
     let prev_item = state.engine.play_previous()?;
-    if let Some(item) = &prev_item {
+    after_track_switch(state, prev_item.as_ref());
+    Ok(prev_item)
+}
+
+/// Wspólna obsługa po przełączeniu utworu: czyści tag strumienia (poza radiem),
+/// synchronizuje MPRIS i zapisuje kolejkę.
+fn after_track_switch(state: &AppState, item: Option<&QueueItem>) {
+    if let Some(item) = item {
         if !item.id.starts_with("radio-") {
             if let Ok(mut t) = state.latest_live_stream_tag.lock() {
                 *t = None;
             }
         }
-        crate::commands::playback::sync_mpris_from_queue_item(item, &state);
+        crate::commands::playback::sync_mpris_from_queue_item(item, state);
     }
-    persist_queue_state(&state);
-    Ok(prev_item)
+    persist_queue_state(state);
 }
 
 #[tauri::command]
@@ -286,14 +294,6 @@ pub fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, Com
 #[tauri::command]
 pub fn get_stop_after_current(state: State<'_, AppState>) -> bool {
     state.engine.stop_after_current()
-}
-
-#[tauri::command]
-pub fn notify_track_looped(
-    position_ms: Option<u64>,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    crate::commands::devices::notify_track_looped_internal(&state, position_ms)
 }
 
 /// Ustawia utwór z biblioteki jako aktywny (załadowany, ale nieodtwarzany) — np. gdy po pierwszym

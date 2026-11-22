@@ -18,6 +18,7 @@ import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
 import { EQUALIZER_BANDS, type EqualizerPreset } from '../../types/equalizer';
 import type { DspPresetRecord, PlaybackStatus } from '../../types/player';
 import { type Language, getTranslations } from '../../i18n';
+import { useLiveStatus } from '../../state/livePlayback';
 
 export interface DspCombinationInfo {
   pitchSt: number;
@@ -112,7 +113,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
   loc,
   language: _language,
   currentLang: _currentLang = _language,
-  status,
+  status: statusProp,
   activeTrackKeyBpm,
   dspAutoStartup,
   dspDefaultEngine,
@@ -166,6 +167,8 @@ export const DspStudioView: React.FC<DspStudioViewProps> = ({
   setIsDynamicsStudioOpen,
   showMessage,
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const status = useLiveStatus(statusProp);
   const [editingPitch, setEditingPitch] = useState<string | null>(null);
   const [editingTempo, setEditingTempo] = useState<string | null>(null);
   const [editingRate, setEditingRate] = useState<string | null>(null);

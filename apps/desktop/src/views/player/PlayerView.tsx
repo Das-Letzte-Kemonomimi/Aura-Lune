@@ -59,6 +59,7 @@ import {
 import type { TrackBookmarkDto } from '../../types/player';
 import type { DspCombinationInfo } from '../dsp/DspStudioView';
 import { type Language, getTranslations } from '../../i18n';
+import { useLiveStatus } from '../../state/livePlayback';
 
 export interface PlayerViewProps {
   layoutMaxWidth: string;
@@ -76,7 +77,6 @@ export interface PlayerViewProps {
   effectiveDisplayArtist: string;
   filePath: string | null;
   setFilePath: (p: any) => void;
-  seekProgressPercent: number;
   volumeProgressPercent: number;
   volumeUnit: "percent" | "db";
   formatVolumeValue: (vol: number, unit?: "percent" | "db") => string;
@@ -180,7 +180,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
   layoutMaxWidth,
   language,
   loc,
-  status,
+  status: statusProp,
   activeTrackId,
   currentPlayingTrack,
   tracks,
@@ -192,7 +192,6 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
   effectiveDisplayArtist,
   filePath,
   setFilePath,
-  seekProgressPercent,
   volumeProgressPercent,
   volumeUnit,
   formatVolumeValue,
@@ -291,6 +290,12 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo(({
   formatTimeMs,
   showMessage,
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const status = useLiveStatus(statusProp);
+  const seekProgressPercent =
+    status.duration_ms && status.duration_ms > 0
+      ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
+      : 0;
   const t = loc;
 
   const getQueueTrackMeta = (item: QueueItem) => {

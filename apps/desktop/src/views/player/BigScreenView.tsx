@@ -25,6 +25,7 @@ import { LyricsView } from '../../components/player/LyricsView';
 import { WaveformCanvas } from '../../components/player/WaveformCanvas';
 import { formatTime } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';
+import { useLivePositionMs, useLiveSpectrum } from '../../state/livePlayback';
 
 interface BigScreenViewProps {
   title: string;
@@ -65,12 +66,12 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   coverUrl,
   trackPath,
   isPlaying,
-  positionMs,
+  positionMs: positionMsProp,
   durationMs,
   volume,
   pitchSemitones,
   tempoRatio,
-  spectrum,
+  spectrum: spectrumProp,
   currentLang = 'en',
   volumeUnit = 'percent',
   currentChord,
@@ -87,6 +88,10 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
   onFetchCover,
   onUploadCover,
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const positionMs = useLivePositionMs(positionMsProp);
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const spectrum = useLiveSpectrum(spectrumProp ?? []);
   const t = getTranslations(currentLang);
   const [showHud, setShowHud] = useState(true);
   const [showLyrics, setShowLyrics] = useState(true);

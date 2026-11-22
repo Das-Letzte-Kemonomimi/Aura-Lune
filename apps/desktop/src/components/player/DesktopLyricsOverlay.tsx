@@ -19,6 +19,7 @@ import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
 import type { LyricsDto } from './LyricsView';
+import { useLivePositionMs } from '../../state/livePlayback';
 
 interface DesktopLyricsOverlayProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   trackPath,
   coverUrl,
   durationMs,
-  positionMs,
+  positionMs: positionMsProp,
   isPlaying,
   currentLang = 'en',
   onPlayPause,
@@ -58,6 +59,8 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   onNext,
   onSeek,
 }) => {
+  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  const positionMs = useLivePositionMs(positionMsProp);
   const loc = getTranslations(currentLang);
 
   // Pozycja widżetu na ekranie

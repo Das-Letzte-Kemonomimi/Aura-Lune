@@ -54,7 +54,6 @@ struct PipelineInner {
     _saturator: gst::Element,
     saturator_config: Arc<RwLock<SaturatorConfig>>,
     bs2b: Option<gst::Element>,
-    cutter: Option<gst::Element>,
     rgvolume: gst::Element,
     rgvolume_child: Option<gst_base::BaseTransform>,
     rglimiter: gst::Element,
@@ -495,22 +494,6 @@ impl AudioEngine {
             }
         };
 
-        // Element automatycznego pomijania ciszy (Silence Trimming cutter)
-        let cutter = match gst::ElementFactory::make("cutter")
-            .name("cutter_silence")
-            .property("leaky", false) // Domyślnie wyłączony bypass
-            .property("threshold-dB", -50.0f64)
-            .property("run-length", 500_000_000u64)
-            .property("pre-length", 200_000_000u64)
-            .build()
-        {
-            Ok(c) => Some(c),
-            Err(e) => {
-                warn!("Brak elementu cutter (gst-plugins-good): {:?}", e);
-                None
-            }
-        };
-
         pipeline.add_many([
             &equalizer,
             &peq_preamp,
@@ -634,7 +617,6 @@ impl AudioEngine {
             _saturator: saturator,
             saturator_config,
             bs2b,
-            cutter,
             rgvolume: rgvolume.clone(),
             rgvolume_child,
             rglimiter,
@@ -2891,6 +2873,8 @@ impl AudioEngine {
     }
 
     /// Konfiguruje automatyczne pomijanie ciszy (Silence Trimming / Auto-skip silence).
+    /// Silnik tylko przechowuje konfigurację — ciszę wykrywa `detect_silence_bounds`, a pomija
+    /// ją backendowa pętla statusu odtwarzania (przewinięcie początku, wcześniejsze zakończenie).
     pub fn set_silence_trimming(
         &self,
         config: SilenceTrimmingConfig,
@@ -2898,10 +2882,6 @@ impl AudioEngine {
         let clamped = config.clamped();
         let mut inner = self.inner.lock_safe();
         inner.silence_trimming_config = clamped;
-        if let Some(ref c) = inner.cutter {
-            c.set_property("leaky", clamped.enabled);
-            c.set_property("threshold-dB", clamped.threshold_db);
-        }
         debug!(
             "Zaktualizowano Silence Trimming: enabled={}, threshold={:.1}dB",
             clamped.enabled, clamped.threshold_db

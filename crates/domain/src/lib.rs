@@ -43,7 +43,7 @@ pub use renamer::{
     RenamerTrackInfo,
 };
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
-pub use silence::SilenceTrimmingConfig;
+pub use silence::{SilenceBounds, SilenceTrimmingConfig, TrimAction};
 pub use stem_project::{
     default_stem_color, default_stem_label, linear_gain_to_slider, slider_to_db,
     slider_to_linear_gain, ChannelMixSetting, ModelPackInfo, StemChannel, StemProject,

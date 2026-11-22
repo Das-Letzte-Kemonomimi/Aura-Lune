@@ -333,6 +333,9 @@ impl Database {
         if user_version < 2 {
             self.migrate_v2().await?;
         }
+        if user_version < 3 {
+            self.migrate_v3().await?;
+        }
 
         // Inicjalizacja domyślnych motywów anime (upewniamy się, że każdy motyw istnieje)
         for theme in domain::default_themes() {
@@ -404,6 +407,30 @@ impl Database {
         }
 
         sqlx::query("PRAGMA user_version = 2;")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Migracja v3: pamięć podręczna granic ciszy (pomijanie ciszy podczas odtwarzania).
+    async fn migrate_v3(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS track_silence_bounds (
+                track_id INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+                threshold_db REAL NOT NULL,
+                start_ms INTEGER NOT NULL,
+                end_ms INTEGER,
+                file_modified_time INTEGER NOT NULL,
+                analyzed_at INTEGER NOT NULL
+            );
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("PRAGMA user_version = 3;")
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;

@@ -36,7 +36,6 @@ export interface UseMainRouterPropsParams {
   effectiveDisplayArtist?: string;
   filePath?: string;
   setFilePath?: (p: any) => void;
-  seekProgressPercent?: number;
   volumeProgressPercent?: number;
   volumeUnit?: 'percent' | 'db';
   formatVolumeValue?: (vol: number, unit?: 'percent' | 'db') => string;
@@ -338,7 +337,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     effectiveDisplayArtist: p.effectiveDisplayArtist,
     filePath: p.filePath,
     setFilePath: p.setFilePath,
-    seekProgressPercent: p.seekProgressPercent,
     volumeProgressPercent: p.volumeProgressPercent,
     volumeUnit: p.volumeUnit,
     formatVolumeValue: p.formatVolumeValue,

@@ -3,7 +3,6 @@ use crate::AppState;
 use audio_engine::DeviceManager;
 use desktop_integration::{DiscordRpcStatus, DEFAULT_DISCORD_CLIENT_ID};
 use domain::device::{AudioCard, BluetoothCodec};
-use domain::PlaybackState;
 use tracing::info;
 
 /// Lists all audio cards and endpoints detected on the host system via PipeWire / ALSA.
@@ -115,31 +114,5 @@ pub async fn set_discord_rpc_client_id_internal(
         .db
         .set_app_setting("discord_rpc_client_id", trimmed)
         .await?;
-    Ok(())
-}
-
-/// Notifies desktop integrations (Discord RPC & MPRIS) when track looping occurs.
-pub fn notify_track_looped_internal(
-    state: &AppState,
-    position_ms: Option<u64>,
-) -> Result<(), CommandError> {
-    let pos = position_ms.unwrap_or(0);
-    let dur = state
-        .engine
-        .duration()
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-
-    if let Some(discord) = &state.discord_rpc {
-        discord.update_playback_status(PlaybackState::Playing, pos, dur);
-    }
-
-    if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.emit_seeked(pos).await;
-        });
-    }
-
     Ok(())
 }
