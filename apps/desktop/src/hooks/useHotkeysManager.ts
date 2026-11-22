@@ -1,3 +1,4 @@
+import type { AppTab } from '../types/navigation';
 import { useEffect, useRef } from "react";
 import type { PlaybackStatus } from "../types/player";
 import type { getTranslations } from "../i18n";
@@ -26,7 +27,7 @@ export interface UseHotkeysManagerProps {
   setShowLyrics: React.Dispatch<React.SetStateAction<boolean>>;
   setLoopPointA: (v: number | null) => void;
   setLoopPointB: (v: number | null) => void;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: AppTab) => void;
   handleIncreaseScale: () => void;
   handleDecreaseScale: () => void;
   handleResetScale: () => void;

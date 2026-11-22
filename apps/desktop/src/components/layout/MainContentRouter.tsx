@@ -1,3 +1,4 @@
+import type { AppTab } from '../../types/navigation';
 import React from 'react';
 import {
   PlayerView,
@@ -34,7 +35,7 @@ export interface RadioRouterProps {
 
 export interface MainContentRouterProps {
   mainContentRef: React.RefObject<HTMLElement | null>;
-  activeTab: string;
+  activeTab: AppTab;
   isPlayerScrolledDown: boolean;
   layoutMaxWidth: string;
   playerProps: PlayerViewProps;

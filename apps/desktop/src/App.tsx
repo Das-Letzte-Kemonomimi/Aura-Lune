@@ -1,3 +1,5 @@
+import type { AppTab } from './types/navigation';
+import { isMainTab } from './types/navigation';
 import { usePlaylistManager } from './hooks/usePlaylistManager';
 import { useTranscodeManager } from './hooks/useTranscodeManager';
 import { useHotkeysManager } from './hooks/useHotkeysManager';
@@ -202,7 +204,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('auralune_nowplaying_visual_mode');
       if (saved === 'cover' || saved === 'turntable' || saved === 'tape' || saved === 'vumeter') return saved;
-    } catch (_) { }
+    } catch { }
     return 'cover';
   });
 
@@ -210,7 +212,7 @@ export default function App() {
     setNowPlayingVisualMode(mode);
     try {
       localStorage.setItem('auralune_nowplaying_visual_mode', mode);
-    } catch (_) { }
+    } catch { }
   };
 
   // Stan parametrów wizualnych: RPM winylu, prędkość taśmy, typ taśmy
@@ -218,7 +220,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('auralune_vinyl_rpm');
       if (saved === '33' || saved === '45') return Number(saved) as 33 | 45;
-    } catch (_) { }
+    } catch { }
     return 33;
   });
 
@@ -226,14 +228,14 @@ export default function App() {
     setVinylRpm(rpm);
     try {
       localStorage.setItem('auralune_vinyl_rpm', String(rpm));
-    } catch (_) { }
+    } catch { }
   };
 
   const [tapeSpeed, setTapeSpeed] = useState<'7.5' | '3.75'>(() => {
     try {
       const saved = localStorage.getItem('auralune_tape_speed');
       if (saved === '7.5' || saved === '3.75') return saved;
-    } catch (_) { }
+    } catch { }
     return '7.5';
   });
 
@@ -241,14 +243,14 @@ export default function App() {
     setTapeSpeed(speed);
     try {
       localStorage.setItem('auralune_tape_speed', speed);
-    } catch (_) { }
+    } catch { }
   };
 
   const [tapeType, setTapeType] = useState<TapeType>(() => {
     try {
       const saved = localStorage.getItem('auralune_tape_type');
       if (saved === 'TYPE_I' || saved === 'TYPE_II' || saved === 'METAL') return saved;
-    } catch (_) { }
+    } catch { }
     return 'TYPE_II';
   });
 
@@ -256,9 +258,9 @@ export default function App() {
     setTapeType(type);
     try {
       localStorage.setItem('auralune_tape_type', type);
-    } catch (_) { }
+    } catch { }
   };
-  const [activeTab, setActiveTab] = useState<'player' | 'library' | 'playlists' | 'stem-projects' | 'radio' | 'dsp' | 'stats' | 'devices' | 'transcode' | 'themes'>('player');
+  const [activeTab, setActiveTab] = useState<AppTab>('player');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
 
   // Zachowanie odtwarzania albumów i playlist (Autoplay & Kolejka)
@@ -538,7 +540,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('auralune_desktop_notifications');
       return saved !== 'false';
-    } catch (_) {
+    } catch {
       return true;
     }
   });
@@ -573,7 +575,7 @@ export default function App() {
     el.addEventListener('scroll', checkScroll, { passive: true });
     checkScroll();
     return () => el.removeEventListener('scroll', checkScroll);
-  }, [activeTab]);
+  }, [activeTab, setIsSettingsOpen, setSettingsTab]);
 
   // Aktualnie odtwarzany utwór, okładka albumu, parametry DSP i wizualizacja przebiegu (useCurrentTrackInfo)
   const {
@@ -649,7 +651,7 @@ export default function App() {
       setIsSettingsOpen(true);
       setActiveTab('player');
     }
-  }, [activeTab]);
+  }, [activeTab, setIsSettingsOpen, setSettingsTab]);
 
 
 
@@ -765,7 +767,7 @@ export default function App() {
         destinationPath: dest,
       });
       showMessage(msg);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   };
@@ -784,7 +786,7 @@ export default function App() {
       await refreshPlaylists();
       await loadLibrary();
       showMessage(msg);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   };
@@ -798,7 +800,7 @@ export default function App() {
           ? t.notifications.minimizeTrayOn
           : t.notifications.minimizeTrayOff
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn('Błąd zapisu close_to_tray:', e);
     }
   };
@@ -968,6 +970,7 @@ export default function App() {
   });
 
   const mainRouterProps = useMainRouterProps({
+    audioSettings,
     layoutMaxWidth,
     language,
     loc,
@@ -1095,8 +1098,9 @@ export default function App() {
     appVersion,
     themeManager,
     modalManager,
-    activeTab: activeTab as any,
-    setActiveTab: (tab) => setActiveTab(tab as any),
+    // Zakładki przekierowujące do Ustawień są natychmiast zamieniane na `player` (efekt powyżej).
+    activeTab: isMainTab(activeTab) ? activeTab : 'player',
+    setActiveTab,
     tracks,
     playlists,
     queue,

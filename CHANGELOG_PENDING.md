@@ -56,6 +56,10 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Crossfeed w DSP Studio działa**: suwaki i przełącznik Crossfeed w widoku DSP nie otrzymywały wartości ani obsługi (zawsze `undefined`) — teraz są podłączone do ustawień audio.
+- **„Dodaj do kolejki” i „Odtwórz jako następny” w bibliotece działają** (tabela utworów i widok albumu nie otrzymywały obsługi tych akcji).
+- **Skan ReplayGain pojedynczego utworu z biblioteki działa** (brakowało przekazania obsługi).
+- **Przełącznik „Przywracaj sesję przy starcie” w Ustawieniach → Urządzenia działa** (zakładka nie otrzymywała stanu z menedżera sesji).
 - **Klawisze multimedialne (MPRIS) i gniazdo sterowania nie blokują już wątków asynchronicznych**: polecenia następny/poprzedni/przewiń (z mikro-wyciszeniami do ~150 ms) wykonywane są w puli wątków blokujących.
 - **Wizualizacja widma nie może już spowodować paniki** dla analizatora zwracającego od 16 do 63 pasm (wcześniej indeks wychodził poza zakres).
 - **Utwory przechodzą dalej także przy ukrytym oknie**: magistrala silnika audio (koniec utworu, następny utwór, zapętlenie) była obsługiwana tylko wtedy, gdy interfejs odpytywał `get_status`. Nowy backendowy ticker odtwarzania (`setup/playback_ticker.rs`) działa niezależnie od okna — odtwarzanie z zasobnika systemowego, zminimalizowane lub zdławione przez WebKit nie zatrzymuje się już po bieżącym utworze. Po automatycznej zmianie utworu aktualizowane są też metadane MPRIS.
@@ -150,6 +154,8 @@
 ---
 
 ### 🔄 Zmieniono (Changed)
+- **Podział największych widoków i okien na komponenty sekcji**: `PlayerView` (3032 → 419 linii), `LibraryView` (2950 → 259), `DspStudioView` (2167 → 360) oraz `BigScreenView`, ustawienia Urządzeń i Transkodowania, korektor parametryczny, import z URL i studio projektów stemów. Sekcje odtwarzacza niezależne od pozycji (pasek narzędzi, transport, mini-pasek DSP, kolejka) nie renderują się już w każdej klatce odtwarzania.
+- **Ścisłe typy we frontendzie**: włączono `strict` w TypeScript, usunięto ~390 z ~434 użyć `any` (m.in. w budowniczych propsów widoków, ustawień i okien), ujednolicono zduplikowane typy (`TrackRecord`, `PlaybackStatus`, `AudioCard` i inne mają jedną definicję) i typy zakładek (`types/navigation.ts`). Reguła `exhaustive-deps` w oxlint jest teraz błędem.
 - **Silnik audio bezpieczniejszy w czasie rzeczywistym**: tryb Bypass (bit-perfect) nie korzysta już z blokady w wątku audio; zmiana rozmiaru bloku DSP lub formatu nie wstrzymuje strumienia na czas przygotowania silników Rubber Band/SoundTouch; saturator i stereo widener czytają ustawienia bez blokad; usunięto alokacje pamięci i zapytania o format przy każdym buforze. Mniejsze ryzyko trzasków i przerw przy zmianie parametrów podczas odtwarzania.
 - **Bezpieczne rzutowanie próbek audio**: wszystkie miejsca interpretujące bajty bufora jako próbki `f32` sprawdzają wyrównanie pamięci (z bezpiecznym kopiowaniem w razie potrzeby) zamiast niesprawdzonego `from_raw_parts`.
 - **Podział `pipeline.rs` (3089 linii) na moduły tematyczne** (`pipeline/`: graf, sondy efektów, źródła, transport, przejścia głośności, kolejka, magistrala, DSP, korektory, efekty) oraz usunięcie zduplikowanego kodu: demontaż źródła, gałęzie stemów, przejścia między utworami, obsługa zapętlenia przy EOS, normalizacja widma.

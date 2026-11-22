@@ -64,7 +64,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
     try {
       const res = await invoke<AudioSystemHealth>('get_audio_system_health');
       setHealth(res);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(String(e));
     } finally {
       setLoading(false);

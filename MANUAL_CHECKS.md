@@ -71,4 +71,26 @@ Tick items off as you go. Where a check fails, the "If it fails" note points to 
 
 ## Phase 5: frontend structure (branch `refactor/phase-5-frontend-structure`)
 
-_Filled in as the phase progresses._
+The big views and modals were split into section components by moving their JSX verbatim, so they should look and behave exactly as before. Click through each one once and look for anything missing, misplaced, or a control that no longer reacts.
+
+- [ ] **Player view.** Check that each part looks and works as before:
+  - the top toolbar (engine badge, open file, quick-load dropdown);
+  - the visual mode switcher (vinyl, tape, VU meter, spectrum) and the controls under it;
+  - Quick DSP Vibes;
+  - the progress bar with waveform, A-B loop band and bookmark markers;
+  - all transport and tool buttons (bookmark, cue points, A, B, loop editor, sleep timer, shortcuts, lyrics, shuffle, prev, stop, play, next, repeat, volume);
+  - the DSP mini-bar;
+  - the queue panel (badges, search, column config popover, add files, save as playlist, clear, drag to reorder, cover click, open folder, remove).
+- [ ] **Loop A/B buttons.** Pressing A or B mid-track should set the point at the exact moment you pressed (now read directly from live playback).
+- [ ] **Library view.** Check the header and actions, the folder scan panel, the toolbar (view switch, live search, format filters, hide duplicates, sort), the tracks table, the album grid, album detail (open an album and come back), artists, and the MusicBrainz matching panel.
+- [ ] **DSP Studio.** Check the engine selector, the pitch, tempo and rate sliders (buttons, step sizes, typing a value by hand), reverb, the preset manager, the mastering rack (bass boost, stereo widener, limiter, crossfeed) and the graphic EQ with its preset menu.
+- [ ] **Crossfeed controls in DSP Studio (bug fix).** They received no values before, so they did nothing. Toggle crossfeed, change the preset, and move the cut-off and feed sliders. The sound should change, and the Settings → Devices crossfeed option should show the same state.
+- [ ] **Library "Add to queue" and "Play next" (bug fix).** In the tracks table and album detail they received no handler before. Both should now add the track.
+- [ ] **Per-track ReplayGain scan from the library (bug fix).** It received no handler before. Run it on one track.
+- [ ] **Settings → Devices → "Restore session on startup" (bug fix).** The toggle received no state or handler before. Turn it on, restart, and the last track and position should come back. Turn it off, restart, and they shouldn't.
+- [ ] **Big-screen mode.** Check the HUD, the vinyl and tape modes, the bottom controls with the spectrum/VU switch and waveform, and the lyrics toggle.
+- [ ] **Settings → Devices and Transcode tabs.** Volume/OSD/Recap, output buffer, DSP block size, ReplayGain, crossfeed, the sound card list, and transcode with DSP, the A-B range and the result panel (play, queue, add to playlist, open folder).
+- [ ] **Parametric EQ modal.** Header (enable, reset), presets and preamp, dragging points on the response chart, the band rack, and EqualizerAPO / AutoEQ import and export.
+- [ ] **URL audio import modal.** Form (paste, format, bitrate, playlist options, folder picker) and the result view (play or queue all, play or queue single, open folder, import another).
+- [ ] **Stem project studio.** Header (switch original/stems, mixes, export ZIP) and workspace (solo, mute, pan, volume, master, presets).
+- [ ] **Command palette → "ReplayGain scanner".** It should open Settings on the Devices tab.

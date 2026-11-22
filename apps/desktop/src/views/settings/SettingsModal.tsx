@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { type Translations } from '../../i18n';
 
-export type SettingsTab = 'themes' | 'devices' | 'transcode' | 'about' | 'changelog' | 'backup';
+export type { SettingsTab } from '../../types/navigation';
+import type { SettingsTab } from '../../types/navigation';
 
 export interface SettingsModalProps {
   isOpen: boolean;

@@ -1,3 +1,4 @@
+import type { AlbumRecord, TrackRecord } from '../../types/library';
 import React, { useMemo } from 'react';
 import {
   BarChart3,
@@ -11,36 +12,6 @@ import {
 } from 'lucide-react';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
-
-interface TrackRecord {
-  id: number;
-  path: string;
-  title: string;
-  artist: string;
-  album_artist: string | null;
-  album_id: number | null;
-  disc_no: number | null;
-  track_no: number | null;
-  duration_ms: number;
-  format: string;
-  sample_rate: number;
-  channels: number;
-  bit_depth: number | null;
-  file_size: number;
-  modified_time: number;
-  is_favorite?: boolean | null;
-  play_count?: number | null;
-  last_played_at?: number | null;
-  total_play_time_ms?: number | null;
-}
-
-interface AlbumRecord {
-  id: number;
-  title: string;
-  album_artist: string;
-  year: number | null;
-  cover_path?: string | null;
-}
 
 export interface StatsDashboardViewProps {
   tracks: TrackRecord[];
@@ -129,7 +100,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       hiResCount,
       recentTracks,
     };
-  }, [tracks, albums]);
+  }, [tracks, albums, loc.stats.unknownArtist]);
 
   const formatTotalTime = (totalMs: number) => {
     const totalSecs = Math.floor(totalMs / 1000);

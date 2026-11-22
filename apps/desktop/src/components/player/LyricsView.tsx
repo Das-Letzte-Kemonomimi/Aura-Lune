@@ -255,7 +255,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       setOffsetMs(0);
       setSaveSuccessMsg(`${loc.lyricsView.lrcSavedSuccess}: ${savedPath}`);
       setTimeout(() => setSaveSuccessMsg(null), 5000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert(`${loc.lyricsView.errorPrefix}: ${err}`);
     }
   };

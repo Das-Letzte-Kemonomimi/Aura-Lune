@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react';
 import type { TrackRecord } from '../types/player';
 import type { TrackStatsData } from '../components/modals/TrackStatsModal';
 
-export type SettingsTab = 'themes' | 'devices' | 'transcode' | 'about' | 'changelog' | 'backup';
+export type { SettingsTab } from '../types/navigation';
+import type { SettingsTab } from '../types/navigation';
 export type AnalysisTab = 'chords' | 'pianoroll' | 'stems' | 'projects' | 'models';
 
 export interface CoverPickerState {

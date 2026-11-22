@@ -298,13 +298,15 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 ## 5. Frontend Architecture (`apps/desktop/src`)
 
 ### Views & Screens (`src/views`)
+**Section components.** Large views and modals are thin shells that compose section components from a sibling folder (`views/player/sections/`, `views/library/sections/`, `views/dsp/sections/`, `views/player/bigscreen/`, `views/settings/audio/`, `views/settings/transcode/`, `components/modals/parametric-eq/`, `url-import/`, `stem-studio/`). A section's props are typed `Pick<ParentProps, …>` plus the few parent locals it reads, and the parent renders it as `<Section {...props} status={…} />`. Sections that do not draw live progress receive the coarse `status` and are `React.memo`. Keep new UI in a section file; parent views should stay under ~500 lines.
+
 - **`views/player/`**:
-  - `PlayerView.tsx`: Main playback screen with spinning vinyl, cassette tape, interactive waveform canvas, spectrum visualizer, and dual ballistic VU meters.
-  - `BigScreenView.tsx`: Cinematic full-screen player with large album art, retro turntable, and synchronized scrolling lyrics.
+  - `PlayerView.tsx`: Main playback screen shell → `sections/` (`PlayerToolbar`, `PlayerVisualColumn`, `PlayerQuickDspVibes`, `PlayerProgressSection`, `PlayerTransportControls`, `PlayerDspMiniBar`, `PlayerQueuePanel`); `queueTrackMeta.ts` resolves queue items to library metadata.
+  - `BigScreenView.tsx`: Cinematic full-screen player → `bigscreen/` (HUD, vinyl, tape deck, controls).
 - **`views/library/`**:
-  - `LibraryView.tsx`: Virtualized library view (tracks, albums, artists, genres, Hi-Res indicator, instant search).
+  - `LibraryView.tsx`: Virtualized library view shell → `sections/` (header, scan panel, toolbar, tracks, album grid, album detail, artists, MusicBrainz match panel). Setter/state prop types come from `ReturnType<typeof useLibraryManager>`.
 - **`views/dsp/`**:
-  - `DspStudioView.tsx`: Audiophile DSP rack (10-band graphic EQ, Parametric EQ, RubberBand/SoundTouch pitch/tempo, Dynamics studio, Crossfeed, ReplayGain).
+  - `DspStudioView.tsx`: Audiophile DSP rack shell → `sections/` (engine selector, pitch/tempo/rate sliders, reverb, presets, mastering rack, graphic EQ).
 - **`views/playlists/`**:
   - `PlaylistsView.tsx`: Custom user playlists with M3U8 export/import and smart playlists.
   - `RadioView.tsx`: Live anime, J-Pop, and Lo-Fi internet radio streaming stations.
@@ -340,6 +342,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for ultra-large track libraries.
 
 ### Prop Builder Hooks
+Builders merge domain-hook results ("managers") with values from `App`. Managers are typed as `ReturnType<typeof useXManager>`; merged values are asserted to the intersection of their sources, so every value's **type** is checked, but **completeness** is not. After changing a view's props, check that every value is still provided by a manager or by `App`; missing values are silently `undefined` at runtime (that bug class broke crossfeed, add-to-queue and restore-session before Phase 5).
 - **`useAppHeaderProps`**: Assembles props for `AppHeader`.
 - **`useBottomPlaybackDockProps`**: Assembles props for `BottomPlaybackDock`.
 - **`useMainContentRouterProps`**: Assembles view routing parameters for `MainContentRouter` (including `statsProps`).
@@ -390,7 +393,8 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - `playlist.ts`: `Playlist`.
 - `theme.ts`: `ThemeTokens`, `Theme`.
 - `equalizer.ts`: `EqualizerPreset`, `EQUALIZER_BANDS`.
-- `player.ts`: `PlaybackState`, `DspEngineType`, `PlaybackStatus`, `TrackRecord`, `AlbumRecord`.
+- `player.ts`: `DspEngineType`, `DEFAULT_PLAYBACK_STATUS`; re-exports `TrackRecord`/`AlbumRecord` (from `library.ts`), `PlaybackStatus`/`DspCapabilities` (from `playback.ts`) and `AudioCard` (from `audioDevices.ts`). Define each backend contract **once**, in its domain module.
+- `navigation.ts`: `MainTabType` (routed views), `SettingsRedirectTab`, `AppTab`, `SettingsTab`, `isMainTab()`.
 - `analysis.ts`: `TrackKeyBpm`, `ChordSegment`, `AiModelInfo`.
 
 ### DSP & Audio Math Utilities (`src/utils`)
@@ -450,6 +454,9 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
    - When modifying a Tauri command in `commands/`, verify that both the backend handler and the corresponding frontend `invoke()` calls match signatures.
    - After adding/removing/renaming a command run `npm run gen:commands` (in `apps/desktop`); `tsc` then rejects stale command names in the frontend.
    - Commands return `Result<T, CommandError>`; crates return their own `thiserror` enums — no `Result<_, String>` in new code.
+5a. **Frontend type & lint baseline**:
+   - `tsconfig.app.json` / `tsconfig.node.json` run with `strict: true`.
+   - oxlint: `react-hooks/exhaustive-deps` is an **error** (intentional mount-only effects need an `oxlint-disable-next-line` with a reason); `typescript/no-explicit-any` warns outside tests. Use `catch (e: unknown)` with `errorMessage(e)` from `src/api/ipc`.
 6. **No Inline `#[cfg(test)]` in Production Sources**:
    - Place unit and integration tests in the crate's `tests/` directory (Pattern A), or in a companion `_test.rs` file referenced via `#[cfg(test)] #[path = "..."]` (Pattern B).
 7. **Continuous Documentation Synchronization (`AGENTS.md`)**:

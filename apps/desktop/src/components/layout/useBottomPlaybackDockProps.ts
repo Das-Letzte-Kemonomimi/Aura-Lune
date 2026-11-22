@@ -1,3 +1,4 @@
+import type { AppTab } from '../../types/navigation';
 import { useMemo } from 'react';
 import type { BottomPlaybackDockProps } from './BottomPlaybackDock';
 import type { usePlaybackController } from '../../hooks/usePlaybackController';
@@ -7,7 +8,7 @@ import type { PlaybackQueue } from '../../types/queue';
 import type { Language, Translations } from '../../i18n';
 
 export interface UseBottomPlaybackDockPropsOptions {
-  activeTab: string;
+  activeTab: AppTab;
   isPlayerScrolledDown: boolean;
   status: PlaybackStatus;
   currentPlayingTrack: TrackRecord | null;
@@ -21,7 +22,7 @@ export interface UseBottomPlaybackDockPropsOptions {
   volumeProgressPercent: number;
   formatTime: (ms: number) => string;
   mainContentRef: React.RefObject<HTMLElement | null>;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: AppTab) => void;
   handleOpenContainingFolder: (path: string, e: React.MouseEvent) => void;
   playbackController: ReturnType<typeof usePlaybackController>;
   dspManager: ReturnType<typeof useDspManager>;

@@ -10,14 +10,8 @@ import {
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
 
-export type MainTabType =
-  | 'player'
-  | 'library'
-  | 'playlists'
-  | 'stem-projects'
-  | 'radio'
-  | 'dsp'
-  | 'stats';
+export type { MainTabType } from '../../types/navigation';
+import type { MainTabType } from '../../types/navigation';
 
 export interface AppNavbarProps {
   activeTab: MainTabType;

@@ -65,7 +65,7 @@ export function useDspManager({
   const [isDspQuickMenuOpen, setIsDspQuickMenuOpen] = useState<boolean>(false);
   const dspAutoStartupRef = useRef<boolean>(false);
   const lastActiveDspEngineRef = useRef<'RubberBand' | 'SoundTouch'>('RubberBand');
-  const dspSaveTimeoutRef = useRef<any>(null);
+  const dspSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 3. DSP Vibes & Presets
   const [presets, setPresets] = useState<DspPresetRecord[]>([]);
@@ -89,7 +89,7 @@ export function useDspManager({
     try {
       const list = await invoke<DspPresetRecord[]>('list_dsp_presets');
       setPresets(list);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn('Błąd ładowania presetów:', e);
     }
   }, []);
@@ -157,7 +157,7 @@ export function useDspManager({
 
       pitchThrottleRef.current.lastVal = semitones;
       if (pitchThrottleRef.current.timer === null) {
-        invoke('set_pitch', { semitones }).catch((e: any) => {
+        invoke('set_pitch', { semitones }).catch((e: unknown) => {
           showMessage(`${loc.common.errorPrefix} ${e}`, true);
         });
 
@@ -165,7 +165,7 @@ export function useDspManager({
           pitchThrottleRef.current.timer = null;
           const finalVal = pitchThrottleRef.current.lastVal;
           if (finalVal !== null && finalVal !== semitones) {
-            invoke('set_pitch', { semitones: finalVal }).catch((e: any) => {
+            invoke('set_pitch', { semitones: finalVal }).catch((e: unknown) => {
               showMessage(`${loc.common.errorPrefix} ${e}`, true);
             });
           }
@@ -183,7 +183,7 @@ export function useDspManager({
 
       tempoThrottleRef.current.lastVal = tempoRatio;
       if (tempoThrottleRef.current.timer === null) {
-        invoke('set_tempo', { tempoRatio }).catch((e: any) => {
+        invoke('set_tempo', { tempoRatio }).catch((e: unknown) => {
           showMessage(`${loc.common.errorPrefix} ${e}`, true);
         });
 
@@ -191,7 +191,7 @@ export function useDspManager({
           tempoThrottleRef.current.timer = null;
           const finalVal = tempoThrottleRef.current.lastVal;
           if (finalVal !== null && finalVal !== tempoRatio) {
-            invoke('set_tempo', { tempoRatio: finalVal }).catch((e: any) => {
+            invoke('set_tempo', { tempoRatio: finalVal }).catch((e: unknown) => {
               showMessage(`${loc.common.errorPrefix} ${e}`, true);
             });
           }
@@ -209,7 +209,7 @@ export function useDspManager({
 
       rateThrottleRef.current.lastVal = rateRatio;
       if (rateThrottleRef.current.timer === null) {
-        invoke('set_rate', { rateRatio }).catch((e: any) => {
+        invoke('set_rate', { rateRatio }).catch((e: unknown) => {
           showMessage(`${loc.common.errorPrefix} ${e}`, true);
         });
 
@@ -217,7 +217,7 @@ export function useDspManager({
           rateThrottleRef.current.timer = null;
           const finalVal = rateThrottleRef.current.lastVal;
           if (finalVal !== null && finalVal !== rateRatio) {
-            invoke('set_rate', { rateRatio: finalVal }).catch((e: any) => {
+            invoke('set_rate', { rateRatio: finalVal }).catch((e: unknown) => {
               showMessage(`${loc.common.errorPrefix} ${e}`, true);
             });
           }
@@ -234,7 +234,7 @@ export function useDspManager({
       setStatus(res);
       persistDspSettings(res.engine, res.pitch_semitones, res.tempo_ratio, res.rate_ratio);
       showMessage(loc.notifications.dspResetDefaultsMsg);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [persistDspSettings, setStatus, showMessage, loc]);
@@ -249,7 +249,7 @@ export function useDspManager({
         setStatus(res);
         persistDspSettings(engine, res.pitch_semitones, res.tempo_ratio, res.rate_ratio);
         showMessage(loc.notifications.dspEngineSwitchedMsg.replace('{0}', res.capabilities?.name ?? engine));
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -272,7 +272,7 @@ export function useDspManager({
         setStatus((prev) => ({ ...prev, equalizer_enabled: false }));
       }
       showMessage(loc.notifications.resetBitPerfect);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to reset bit-perfect:', err);
     }
   }, [handleResetDsp, handleEngineChange, status.equalizer_enabled, setStatus, showMessage, loc]);
@@ -281,7 +281,7 @@ export function useDspManager({
     try {
       await invoke('restore_original_track');
       showMessage(loc.notifications.restoredOriginalTrack);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(loc.notifications.restoreOriginalTrackError.replace('{0}', String(err)), true);
     }
   }, [showMessage, loc]);
@@ -301,7 +301,7 @@ export function useDspManager({
       } else {
         showMessage(loc.notifications.dspAutostartOff);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [dspAutoStartup, status, showMessage, loc]);
@@ -314,7 +314,7 @@ export function useDspManager({
         showMessage(
           loc.notifications.dspStartupEngineSaved.replace('{0}', eng === 'Bypass' ? 'Direct Bypass' : eng)
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -330,7 +330,7 @@ export function useDspManager({
         showMessage(
           loc.notifications.audioBufferSet.replace('{0}', String(clamped)).replace('{1}', clamped === 600 ? ' (default)' : '')
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -346,7 +346,7 @@ export function useDspManager({
         showMessage(
           loc.notifications.dspBlockSizeSet.replace('{0}', String(clamped)).replace('{1}', clamped === 2048 ? ' (default)' : '')
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -362,7 +362,7 @@ export function useDspManager({
       setDspAutoStartup(true);
       dspAutoStartupRef.current = true;
       showMessage(`${loc.notifications.dspSavedAsStartup} (${status.engine})`);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [status, showMessage, loc]);
@@ -378,7 +378,7 @@ export function useDspManager({
       showMessage(`Zapisano preset '${newPresetName.trim()}' w bazie danych SQLite`);
       setNewPresetName('');
       await loadPresets();
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [newPresetName, loadPresets, showMessage, loc]);
@@ -389,7 +389,7 @@ export function useDspManager({
         const res = await invoke<PlaybackStatus>('load_dsp_preset', { preset });
         setStatus(res);
         showMessage(loc.notifications.dspPresetLoadedMsg.replace('{0}', preset.name).replace('{1}', preset.engine));
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -481,7 +481,7 @@ export function useDspManager({
         }));
 
         showMessage(msg);
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -499,7 +499,7 @@ export function useDspManager({
           return { ...prev, equalizer_bands: newBands, equalizer_enabled: true };
         });
         setSelectedEqPreset(loc.notifications.eqCustom);
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('Błąd zmiany pasma EQ:', e);
       }
     },
@@ -512,7 +512,7 @@ export function useDspManager({
       await invoke('set_equalizer_enabled', { enabled: newEnabled });
       setStatus((prev) => ({ ...prev, equalizer_enabled: newEnabled }));
       showMessage(newEnabled ? loc.notifications.eqEnabledMsg : loc.notifications.eqDisabledMsg);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [status.equalizer_enabled, setStatus, showMessage, loc]);
@@ -547,7 +547,7 @@ export function useDspManager({
         await invoke('set_equalizer_bands', { bands: targetBands }).catch(() => {});
         setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands], equalizer_enabled: true }));
         showMessage(loc.notifications.eqAppliedPreset.replace('{0}', getEqPresetDisplayName(targetName, loc)));
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
@@ -564,7 +564,7 @@ export function useDspManager({
       setIsEqPresetMenuOpen(false);
       setStatus((prev) => ({ ...prev, equalizer_bands: flatBands, equalizer_enabled: true }));
       showMessage(loc.notifications.dspPresetFlat);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [setStatus, showMessage, loc]);
@@ -591,7 +591,7 @@ export function useDspManager({
           width,
           level,
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.warn('Błąd aktualizacji parametrów pogłosu:', e);
       }
     },

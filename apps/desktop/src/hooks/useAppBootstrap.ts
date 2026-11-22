@@ -132,6 +132,8 @@ export function useAppBootstrap({
         invoke('set_limiter_enabled', { enabled }).catch(() => {});
       })
       .catch((e) => console.warn('Błąd odczytu limiter_enabled:', e));
+    // Jednorazowe wczytanie ustawień przy montowaniu — zależności to stabilne settery i wartości startowe.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. Inicjalizacja usług, biblioteki, motywów, kolejki i rejestracja zdarzeń drag & drop
@@ -350,6 +352,8 @@ export function useAppBootstrap({
       if (unlistenTauriEvent) unlistenTauriEvent();
       if (unlistenQueueEvent) unlistenQueueEvent();
     };
+    // Inicjalizacja usług i rejestracja nasłuchów drag & drop dokładnie raz (handler czytany z ref).
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

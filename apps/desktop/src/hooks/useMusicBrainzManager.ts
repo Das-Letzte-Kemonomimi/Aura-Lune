@@ -173,7 +173,7 @@ export function useMusicBrainzManager({
         showMessage(loc.covers.customCoverSaved.replace('{0}', targetTitle));
         await loadLibrary();
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [currentAlbum, currentPlayingTrack, loadLibrary, loc.common.errorPrefix, loc.covers.customCoverSaved, setAlbums, setTrackDirectCover, showMessage, status?.current_track]);

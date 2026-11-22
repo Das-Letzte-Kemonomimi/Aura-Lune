@@ -1,3 +1,4 @@
+import type { AppTab } from '../../types/navigation';
 import React from 'react';
 import { invoke } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
@@ -183,7 +184,7 @@ export interface AppModalsContainerProps {
   handleEngineChange: (engine: any) => void;
   handleResetDsp: () => void;
   setIsBigScreen: (open: boolean) => void;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: AppTab) => void;
   handleShuffleAll: () => void;
 
   isUrlImportModalOpen: boolean;
@@ -655,7 +656,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
                 : loc.notifications.autoEqApplied.replace('{0}', profileName)
             );
             setIsAutoEqOpen(false);
-          } catch (e: any) {
+          } catch (e: unknown) {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           }
         }}
@@ -881,7 +882,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           onOpenDynamicsStudio={() => setIsDynamicsStudioOpen(true)}
           onShuffleAll={() => handleShuffleAll()}
           onOpenHealthCheck={() => setIsHealthCheckModalOpen(true)}
-          onSelectTab={(tab) => setActiveTab(tab as any)}
+          onSelectTab={(tab) => setActiveTab(tab)}
         />
       )}
 

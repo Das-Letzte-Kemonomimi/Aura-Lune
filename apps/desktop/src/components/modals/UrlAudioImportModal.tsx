@@ -115,7 +115,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
       if (selected) {
         setTargetDir(selected);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setErrorMessage(String(e));
     }
   };
@@ -151,7 +151,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
       if (onLibraryUpdated) {
         onLibraryUpdated();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(String(err));
     } finally {
       setIsLoading(false);

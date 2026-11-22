@@ -91,7 +91,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
     try {
       setDownloading((prev) => ({ ...prev, [id]: 0.01 }));
       await invoke('download_ai_model', { modelId: id });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(t.aiModels.downloadError.replace('{0}', String(err)));
       setDownloading((prev) => {
         const next = { ...prev };
@@ -109,7 +109,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
       setModels((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_installed: false } : m))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(t.aiModels.deleteError.replace('{0}', String(err)));
     }
   };

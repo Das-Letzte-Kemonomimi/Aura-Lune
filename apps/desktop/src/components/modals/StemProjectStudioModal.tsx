@@ -78,7 +78,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
           setActiveMixName(p.active_mix_name);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(String(err));
     } finally {
       setLoading(false);
@@ -121,7 +121,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
           channels: updatedChannels,
           masterVolume: masterVol,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Błąd synchronizacji miksu:', err);
       }
     },
@@ -140,7 +140,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
           startPlaying: startPlaying ?? isPlaying,
         });
         setIsOriginalMode(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(loc.stems.errLoadStems.replace('{0}', String(err)));
       }
     },
@@ -152,7 +152,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     try {
       await invoke('restore_original_track');
       setIsOriginalMode(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(loc.stems.errRestoreTrack.replace('{0}', String(err)));
     }
   }, [loc]);
@@ -161,7 +161,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
   const handleReturnToOriginalAndClose = async () => {
     try {
       await invoke('restore_original_track');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Błąd przywracania oryginalnego utworu:', err);
     }
     onClose();
@@ -332,7 +332,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       setIsSavingMix(false);
       setNewMixName('');
       fetchProjectData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(loc.stems.errSaveMix.replace('{0}', String(err)));
     }
   };
@@ -377,7 +377,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       });
       setExportNotice(loc.stems.exportedZipTo.replace('{0}', dest));
       setTimeout(() => setExportNotice(null), 5000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(loc.stems.errExportZip.replace('{0}', String(err)));
     }
   };

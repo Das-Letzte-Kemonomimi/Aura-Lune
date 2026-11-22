@@ -71,7 +71,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
       if (results.length === 0) {
         setErrorMsg(t.covers.noCoversFound);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMsg(`${t.covers.searchError}: ${err}`);
     } finally {
       setIsSearching(false);
@@ -105,7 +105,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
       });
       onCoverApplied(coverDataUri);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMsg(`${t.covers.applyError}: ${err}`);
     } finally {
       setIsApplying(null);
@@ -128,7 +128,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         onCoverApplied(coverDataUri);
         onClose();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMsg(`${t.covers.uploadError}: ${err}`);
     } finally {
       setIsUploadingCustom(false);
@@ -160,7 +160,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         });
         onCoverApplied(coverDataUri);
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setErrorMsg(`${t.covers.uploadError}: ${err}`);
       } finally {
         setIsUploadingCustom(false);

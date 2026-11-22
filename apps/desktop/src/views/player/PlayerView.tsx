@@ -1,3 +1,4 @@
+import type { AppTab } from '../../types/navigation';
 import React, { useCallback } from "react";
 import { BarChart3,     FolderOpen,  Heart,                  } from "lucide-react";
 import { LyricsView } from '../../components/player/LyricsView';
@@ -52,7 +53,7 @@ export interface PlayerViewProps {
   setIsBookmarksModalOpen: (v: boolean) => void;
   setIsSaveQueueModalOpen: (v: boolean) => void;
   setStatsModalTrack: (t: TrackRecord | null) => void;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: AppTab) => void;
   showLyrics: boolean;
   setShowLyrics: (v: boolean | ((p: boolean) => boolean)) => void;
   nowPlayingVisualMode: "cover" | "turntable" | "tape" | "vumeter";

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { useAppSettingsModalProps } from './useAppSettingsModalProps';
+import { useAppSettingsModalProps, type UseAppSettingsModalPropsParams } from './useAppSettingsModalProps';
 import { getTranslations } from '../../i18n';
 
 describe('useAppSettingsModalProps', () => {
@@ -215,9 +215,10 @@ describe('useAppSettingsModalProps', () => {
     const result = useAppSettingsModalProps({
       language: 'en',
       loc,
-      themeManager: mockThemeManager,
-      modalManager: mockModalManager,
-      sessionManager: mockSessionManager,
+      // Częściowe mocki menedżerów — test sprawdza tylko pola zakładki About.
+      themeManager: mockThemeManager as unknown as UseAppSettingsModalPropsParams['themeManager'],
+      modalManager: mockModalManager as unknown as UseAppSettingsModalPropsParams['modalManager'],
+      sessionManager: mockSessionManager as unknown as UseAppSettingsModalPropsParams['sessionManager'],
       audioDevices: {} as any,
       transcode: {} as any,
       themes: {} as any,

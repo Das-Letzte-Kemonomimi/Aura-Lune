@@ -74,14 +74,14 @@ export function usePlaybackController({
   useEffect(() => {
     instantVolumeRef.current = instantVolume;
   }, [instantVolume]);
-  const smoothVolumeAnimRef = useRef<any>(null);
+  const smoothVolumeAnimRef = useRef<number | null>(null);
 
   // User gesture interaction guards to eliminate UI lag & rubberbanding
   const isSeekingRef = useRef<boolean>(false);
-  const seekReleaseTimerRef = useRef<any>(null);
+  const seekReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isVolumeInteractingRef = useRef<boolean>(false);
-  const volumeInteractionTimerRef = useRef<any>(null);
-  const volumeThrottleTimerRef = useRef<any>(null);
+  const volumeInteractionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const volumeThrottleTimerRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
   const pendingVolumeRef = useRef<number | null>(null);
 
   // A-B Repeat Loop State
@@ -460,7 +460,7 @@ export function usePlaybackController({
       try {
         const shouldFade = typeof fade === 'boolean' ? fade : seekFadeEnabled;
         await invoke('seek', { positionMs: val, fade: shouldFade });
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       } finally {
         seekReleaseTimerRef.current = setTimeout(() => {
@@ -513,7 +513,7 @@ export function usePlaybackController({
           }, 150);
         }
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [status, filePath, initialStartupPositionRef, showMessage, loc]);
@@ -521,7 +521,7 @@ export function usePlaybackController({
   const handleStop = useCallback(async () => {
     try {
       await invoke('stop');
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [showMessage, loc]);
@@ -564,7 +564,7 @@ export function usePlaybackController({
             volumeThrottleTimerRef.current = null;
           }
           pendingVolumeRef.current = null;
-          invoke('set_volume', { volume: clamped }).catch((e: any) => {
+          invoke('set_volume', { volume: clamped }).catch((e: unknown) => {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
           return;
@@ -573,7 +573,7 @@ export function usePlaybackController({
         // Display-synced high-frequency dispatch (0ms initial, coalesced intermediate moves)
         pendingVolumeRef.current = clamped;
         if (!volumeThrottleTimerRef.current) {
-          invoke('set_volume', { volume: clamped }).catch((e: any) => {
+          invoke('set_volume', { volume: clamped }).catch((e: unknown) => {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
           const scheduleNext = typeof requestAnimationFrame !== 'undefined'
@@ -585,7 +585,7 @@ export function usePlaybackController({
             if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
               const latestVol = pendingVolumeRef.current;
               pendingVolumeRef.current = null;
-              invoke('set_volume', { volume: latestVol }).catch((e: any) => {
+              invoke('set_volume', { volume: latestVol }).catch((e: unknown) => {
                 showMessage(`${loc.common.errorPrefix} ${e}`, true);
               });
             }
@@ -605,7 +605,7 @@ export function usePlaybackController({
           pendingVolumeRef.current = null;
 
           // Backend smoothly ramps over 120ms
-          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 120 }).catch((e: any) => {
+          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 120 }).catch((e: unknown) => {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
 
@@ -640,7 +640,7 @@ export function usePlaybackController({
         setStatus((prev) => ({ ...prev, volume: clamped }));
         pendingVolumeRef.current = clamped;
         if (!volumeThrottleTimerRef.current) {
-          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 60 }).catch((e: any) => {
+          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 60 }).catch((e: unknown) => {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
           const scheduleNext = typeof requestAnimationFrame !== 'undefined'
@@ -652,7 +652,7 @@ export function usePlaybackController({
             if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
               const latestVol = pendingVolumeRef.current;
               pendingVolumeRef.current = null;
-              invoke('set_volume', { volume: latestVol, smooth: true, fadeMs: 60 }).catch((e: any) => {
+              invoke('set_volume', { volume: latestVol, smooth: true, fadeMs: 60 }).catch((e: unknown) => {
                 showMessage(`${loc.common.errorPrefix} ${e}`, true);
               });
             }
@@ -684,7 +684,7 @@ export function usePlaybackController({
       } else {
         showMessage(loc.notifications.queueEndMsg);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [refreshQueue, setFilePath, setActiveTrackId, showMessage, loc]);
@@ -698,7 +698,7 @@ export function usePlaybackController({
         if (prevItem.uri) setFilePath(prevItem.uri);
         if (prevItem.track_id) setActiveTrackId(prevItem.track_id);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [refreshQueue, setFilePath, setActiveTrackId, showMessage, loc]);
@@ -708,7 +708,7 @@ export function usePlaybackController({
       const newShuffle = await invoke<boolean>('toggle_shuffle');
       await refreshQueue();
       showMessage(newShuffle ? loc.notifications.shuffleOnMsg : loc.notifications.shuffleOffMsg);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [refreshQueue, showMessage, loc]);
@@ -727,7 +727,7 @@ export function usePlaybackController({
           ? loc.queue.loopTrack
           : loc.queue.loopQueue;
       showMessage(loc.notifications.loopModeMsg.replace('{0}', loopLabel));
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [queue.loop_mode, refreshQueue, showMessage, loc]);
@@ -741,7 +741,7 @@ export function usePlaybackController({
       } else {
         showMessage(loc.notifications.stopAfterCurrentOff);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   }, [setStatus, showMessage, loc]);

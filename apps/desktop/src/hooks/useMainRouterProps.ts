@@ -1,3 +1,14 @@
+import type { useAudioSettings } from './useAudioSettings';
+import type { TrackRecord } from '../types/library';
+import type { useLibraryManager } from './useLibraryManager';
+import type { useLibraryPlaybackActions } from './useLibraryPlaybackActions';
+import type { useModalManager } from './useModalManager';
+import type { usePlaybackController } from './usePlaybackController';
+import type { useDspManager } from './useDspManager';
+import type { usePlaybackQueue } from './usePlaybackQueue';
+import type { usePlaylistManager } from './usePlaylistManager';
+import type { useMusicBrainzManager } from './useMusicBrainzManager';
+import type { useAudioMasteringEffects } from './useAudioMasteringEffects';
 import type {
   PlayerViewProps,
   LibraryViewProps,
@@ -6,296 +17,46 @@ import type {
   StatsDashboardViewProps,
 } from '../views';
 import type { StemProjectsRouterProps, RadioRouterProps } from '../components/layout/MainContentRouter';
-import type { PlaybackStatus } from '../types/playback';
-import type { AlbumRecord, TrackRecord } from '../types/library';
-import type { Language, getTranslations } from '../i18n';
 
-export interface UseMainRouterPropsParams {
-  library?: any;
-  libraryActions?: any;
-  modals?: any;
-  playback?: any;
-  dsp?: any;
-  queueManager?: any;
-  playlistsManager?: any;
-  musicbrainz?: any;
-  mastering?: any;
-  [key: string]: any;
-  layoutMaxWidth?: string;
-  language?: Language;
-  loc?: ReturnType<typeof getTranslations>;
-  status?: PlaybackStatus;
-  activeTrackId?: number | null;
-  currentPlayingTrack?: TrackRecord | null;
-  tracks?: TrackRecord[];
-  albums?: AlbumRecord[];
-  currentAlbum?: AlbumRecord | null;
-  currentCover?: string | null;
-  cleanLiveTitle?: string | null;
-  effectiveDisplayTitle?: string;
-  effectiveDisplayArtist?: string;
-  filePath?: string;
-  setFilePath?: (p: any) => void;
-  volumeProgressPercent?: number;
-  volumeUnit?: 'percent' | 'db';
-  formatVolumeValue?: (vol: number, unit?: 'percent' | 'db') => string;
-  handleToggleVolumeUnit?: () => void;
-  seekFadeEnabled?: boolean;
-  handleToggleSeekFade?: () => void;
-  infinityQueue?: boolean;
-  handleToggleInfinityQueue?: () => void;
-  sleepTimerRemainingSec?: number | null;
-  sleepTimerTargetMode?: 'time' | 'end_of_track' | null;
-  setIsSleepTimerOpen?: (v: boolean) => void;
-  setIsAudioPathModalOpen?: (v: boolean) => void;
-  setIsLoFiModalOpen?: (v: boolean) => void;
-  setIsShortcutsModalOpen?: (v: boolean) => void;
-  setIsLoopEditorOpen?: (v: boolean) => void;
-  setIsBookmarksModalOpen?: (v: boolean) => void;
-  setIsSaveQueueModalOpen?: (v: boolean) => void;
-  setStatsModalTrack?: (t: any) => void;
-  setActiveTab?: (tab: any) => void;
-  showLyrics?: boolean;
-  setShowLyrics?: (v: boolean | ((p: boolean) => boolean)) => void;
-  nowPlayingVisualMode?: 'cover' | 'turntable' | 'tape' | 'vumeter';
-  handleSelectNowPlayingVisualMode?: (m: any) => void;
-  vinylRpm?: 33 | 45;
-  handleSelectVinylRpm?: (rpm: 33 | 45) => void;
-  tapeSpeed?: '7.5' | '3.75';
-  handleSelectTapeSpeed?: (s: any) => void;
-  tapeType?: any;
-  handleSelectTapeType?: (t: any) => void;
-  activeDspVibe?: any;
-  handleApplyDspVibe?: (v: any) => void | Promise<void>;
-  dspBadgeText?: string;
-  dspBadgeTitle?: string;
-  dspCombination?: any;
-  lastActiveDspEngineRef?: any;
-  trackWaveformPeaks?: number[] | null;
-  loopPointA?: number | null;
-  setLoopPointA?: (v: number | null) => void;
-  loopPointB?: number | null;
-  setLoopPointB?: (v: number | null) => void;
-  currentBookmark?: number | null;
-  currentTrackBookmarks?: any[];
-  handleSaveBookmark?: () => void | Promise<void>;
-  handleDeleteBookmark?: (e?: any) => void | Promise<void>;
-  handleJumpToBookmark?: (pos: number) => void | Promise<void>;
-  queue?: any;
-  filteredQueueItems?: any[];
-  queueSearchQuery?: string;
-  setQueueSearchQuery?: (q: string) => void;
-  queueColumns?: any;
-  isColumnConfigOpen?: boolean;
-  setIsColumnConfigOpen?: (v: any) => void;
-  toggleQueueColumn?: (key: any) => void;
-  resetQueueColumns?: () => void;
-  isQuickLoadOpen?: boolean;
-  setIsQuickLoadOpen?: (v: any) => void;
-  draggedQueueIdx?: number | null;
-  dragOverQueueIdx?: number | null;
-  handleQueueDragStart?: (idx: number, e: any) => void;
-  handleQueueDragOver?: (idx: number, e: any) => void;
-  handleQueueDrop?: (idx: number, e: any) => void;
-  handleMoveQueueItem?: any;
-  handlePlayQueueIndex?: any;
-  handleRemoveFromQueue?: any;
-  handleClearQueue?: any;
-  totalQueueDurationMs?: number;
-  formatTotalDuration?: any;
-  queueListRef?: any;
-  queueStartIndex?: number;
-  queueEndIndex?: number;
-  queueTopSpacer?: number;
-  queueBottomSpacer?: number;
-  handleSeek?: any;
-  handleSeekPreview?: any;
-  handleSeekCommit?: any;
-  handlePlayPause?: any;
-  handleStop?: any;
-  handlePrevious?: any;
-  handleNext?: any;
-  handleToggleShuffle?: any;
-  handleCycleLoopMode?: any;
-  handleToggleStopAfterCurrent?: any;
-  handleToggleMute?: any;
-  handleVolumeChange?: any;
-  handlePitchChange?: any;
-  handleTempoChange?: any;
-  handleEngineChange?: any;
-  handleToggleFavorite?: any;
-  handleOpenContainingFolder?: any;
-  handleOpenCoverPicker?: any;
-  handleUploadCustomCoverDirect?: any;
-  handleRestoreOriginalTrack?: any;
-  handleLoadFile?: any;
-  handlePickFiles?: any;
-  formatTime?: any;
-  formatTimeMs?: any;
-  showMessage?: any;
-  // library props:
-  filteredTracks?: any[];
-  sortedTracks?: any[];
-  filteredAlbums?: any[];
-  sortedAlbums?: any[];
-  filteredArtists?: any[];
-  librarySubView?: any;
-  setLibrarySubView?: any;
-  librarySearch?: string;
-  setLibrarySearch?: any;
-  librarySearchInputRef?: any;
-  libraryFormatFilter?: any;
-  setLibraryFormatFilter?: any;
-  isFacetsFilterEnabled?: boolean;
-  setIsFacetsFilterEnabled?: any;
-  facetSelectedArtist?: any;
-  setFacetSelectedArtist?: any;
-  facetSelectedAlbumId?: any;
-  setFacetSelectedAlbumId?: any;
-  facetSelectedFormat?: any;
-  setFacetSelectedFormat?: any;
-  smartPlaylistFilter?: any;
-  setSmartPlaylistFilter?: any;
-  hideDuplicates?: boolean;
-  setHideDuplicates?: any;
-  sortField?: any;
-  setSortField?: any;
-  sortOrder?: any;
-  setSortOrder?: any;
-  handleSort?: any;
-  albumSortField?: any;
-  setAlbumSortField?: any;
-  albumSortOrder?: any;
-  setAlbumSortOrder?: any;
-  albumGridSize?: any;
-  setAlbumGridSize?: any;
-  albumViewMode?: any;
-  setAlbumViewMode?: any;
-  albumCoverFilter?: any;
-  setAlbumCoverFilter?: any;
-  albumsWithCoverCount?: number;
-  albumsWithoutCoverCount?: number;
-  selectedAlbumDetail?: any;
-  handleOpenAlbumDetail?: any;
-  handleBackFromAlbumDetail?: any;
-  selectedAlbumForMb?: any;
-  setSelectedAlbumForMb?: any;
-  handleOpenMbModal?: any;
-  mbSearchTitle?: string;
-  setMbSearchTitle?: any;
-  mbSearchArtist?: string;
-  setMbSearchArtist?: any;
-  mbCandidates?: any[];
-  isSearchingMb?: boolean;
-  isFetchingCover?: boolean;
-  handleSearchMusicBrainz?: any;
-  handleSelectCandidateAndFetchCover?: any;
-  handleAddTrackToQueue?: any;
-  handleAddTrackNextToQueue?: any;
-  handlePlayAlbum?: any;
-  handleAddAlbumToQueue?: any;
-  handleSetTrackRating?: any;
-  handleScanTrackReplayGain?: any;
-  handleShuffleAll?: any;
-  setTagEditorTrack?: any;
-  setTrackToAddToPlaylist?: any;
-  setShowPlaylistModal?: any;
-  setCreateStemProjectTrack?: any;
-  setIsCreateStemProjectOpen?: any;
-  setIsCueModalOpen?: any;
-  setIsDuplicateFinderOpen?: any;
-  setIsFileRenamerOpen?: any;
-  setIsUrlImportModalOpen?: any;
-  setShowDownloadHub?: any;
-  isScanFolderOpen?: boolean;
-  setIsScanFolderOpen?: any;
-  scanFolder?: string;
-  setScanFolder?: any;
-  handlePickFolder?: any;
-  handleScanLibrary?: any;
-  isScanning?: boolean;
-  scanResult?: any;
-  refreshQueue?: any;
-  loadLibrary?: any;
-  libraryTableRef?: any;
-  trackStartIndex?: number;
-  trackEndIndex?: number;
-  trackTopSpacer?: number;
-  trackBottomSpacer?: number;
-  // dsp props:
-  uiScale?: number;
-  activeTrackKeyBpm?: any;
-  dspAutoStartup?: boolean;
-  dspDefaultEngine?: any;
-  dspBlockSize?: number;
-  bassBoost?: number;
-  lastBassBoostRef?: any;
-  stereoWidenerActive?: boolean;
-  stereoWidenerAmount?: number;
-  limiterEnabled?: boolean;
-  crossfeedEnabled?: boolean;
-  crossfeedPreset?: any;
-  crossfeedFcut?: number;
-  crossfeedFeed?: number;
-  reverbEnabled?: boolean;
-  reverbRoomSize?: number;
-  reverbDamping?: number;
-  reverbWidth?: number;
-  reverbLevel?: number;
-  presets?: any[];
-  eqAutoStartup?: boolean;
-  selectedEqPreset?: any;
-  eqPresets?: any[];
-  newPresetName?: string;
-  setNewPresetName?: any;
-  handleToggleDspAutoStartup?: any;
-  handleSaveDspStartupDefault?: any;
-  handleResetDsp?: any;
-  handleSetDspBlockSize?: any;
-  handleRateChange?: any;
-  handleBassBoostChange?: any;
-  handleToggleStereoWidener?: any;
-  handleStereoWidenerAmountChange?: any;
-  handleToggleLimiter?: any;
-  handleSetCrossfeed?: any;
-  handleUpdateReverb?: any;
-  handleLoadPreset?: any;
-  handleSavePreset?: any;
-  handleApplySignatureProfile?: any;
-  handleToggleEqAutoStartup?: any;
-  handleApplyEqPreset?: any;
-  getEqPresetDisplayName?: any;
-  handleResetEq?: any;
-  handleEqToggle?: any;
-  handleEqBandChange?: any;
-  setIsParametricEqOpen?: any;
-  setIsAutoEqOpen?: any;
-  setIsDynamicsStudioOpen?: any;
-  // playlists props:
-  playlists?: any[];
-  newPlaylistName?: string;
-  setNewPlaylistName?: any;
-  handleCreatePlaylist?: any;
-  handleImportPlaylistM3u8?: any;
-  selectedPlaylist?: any;
-  setSelectedPlaylist?: any;
-  playlistTracks?: any[];
-  setPlaylistTracks?: any;
-  handlePlayLibraryTrack?: any;
-  handleExportPlaylistM3u8?: any;
-  handleDeletePlaylist?: any;
-  handleRemoveTrackFromPlaylist?: any;
-  handleOpenPlaylist?: any;
-  // stem projects:
-  setActiveStemProjectId?: any;
-  setIsStemStudioOpen?: any;
-  // radio:
-  currentRadioStation?: any;
-  customRadioStations?: any[];
-  handlePlayRadioStation?: any;
-  setIsAddStationModalOpen?: any;
-  handleDeleteCustomStation?: any;
-}
+/** Wszystkie wartości, z których budowane są propsy widoków głównych. */
+export type MainViewInputs = PlayerViewProps &
+  LibraryViewProps &
+  DspStudioViewProps &
+  PlaylistsViewProps &
+  StatsDashboardViewProps &
+  StemProjectsRouterProps &
+  RadioRouterProps;
+
+/**
+ * Parametry: menedżery (hooki domenowe) oraz pojedyncze wartości z `App`.
+ * Każde pole jest typowane typem propsa widoku, do którego trafia — błędny typ przekazany
+ * z `App` jest błędem kompilacji. Kompletność (czy każde pole zostało dostarczone przez
+ * menedżer lub `App`) nie jest sprawdzana — to zadanie docelowych kontekstów Reacta.
+ */
+/** Wyniki hooków domenowych scalane do wspólnej puli wartości. */
+type ManagerOutputs = ReturnType<typeof useLibraryManager> &
+  ReturnType<typeof useLibraryPlaybackActions> &
+  ReturnType<typeof useModalManager> &
+  ReturnType<typeof usePlaybackController> &
+  ReturnType<typeof useDspManager> &
+  ReturnType<typeof usePlaybackQueue> &
+  ReturnType<typeof usePlaylistManager> &
+  ReturnType<typeof useMusicBrainzManager> &
+  ReturnType<typeof useAudioMasteringEffects> &
+  ReturnType<typeof useAudioSettings>;
+
+export type UseMainRouterPropsParams = Partial<MainViewInputs> & {
+  library?: ReturnType<typeof useLibraryManager>;
+  libraryActions?: ReturnType<typeof useLibraryPlaybackActions>;
+  modals?: ReturnType<typeof useModalManager>;
+  playback?: ReturnType<typeof usePlaybackController>;
+  dsp?: ReturnType<typeof useDspManager>;
+  queueManager?: ReturnType<typeof usePlaybackQueue>;
+  playlistsManager?: ReturnType<typeof usePlaylistManager>;
+  musicbrainz?: ReturnType<typeof useMusicBrainzManager>;
+  mastering?: ReturnType<typeof useAudioMasteringEffects>;
+  audioSettings?: ReturnType<typeof useAudioSettings>;
+};
 
 export function useMainRouterProps(params: UseMainRouterPropsParams) {
   const p = {
@@ -308,6 +69,8 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     ...(params.playlistsManager || {}),
     ...(params.musicbrainz || {}),
     ...(params.mastering || {}),
+    // Crossfeed i skan ReplayGain pojedynczego utworu (wcześniej nie były przekazywane — przyciski nie działały).
+    ...(params.audioSettings || {}),
     ...(params.queueManager ? {
       handlePlayQueueIndex: params.queueManager.playQueueIndex,
       handleRemoveFromQueue: params.queueManager.removeFromQueue,
@@ -315,12 +78,14 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
       handleClearQueue: params.queueManager.clearQueue,
       toggleQueueColumn: params.queueManager.toggleColumn,
       confirmSaveQueueAsPlaylist: params.queueManager.confirmSaveQueueAsPlaylist,
+      handleAddTrackToQueue: params.queueManager.addTrackToQueue,
+      handleAddTrackNextToQueue: params.queueManager.addTrackNextToQueue,
     } : {}),
     ...(params.mastering ? {
       limiterActive: params.mastering.limiterEnabled,
     } : {}),
     ...params,
-  };
+  } as MainViewInputs & ManagerOutputs & Pick<UseMainRouterPropsParams, 'modals'>;
   const playerProps: PlayerViewProps = {
     layoutMaxWidth: p.layoutMaxWidth,
     language: p.language,
@@ -655,12 +420,12 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     tracks: p.tracks || [],
     albums: p.albums || [],
     currentLang: p.language,
-    onPlayTrack: (track: any) => {
+    onPlayTrack: (track: TrackRecord) => {
       if (p.handlePlayLibraryTrack) {
         p.handlePlayLibraryTrack(track);
       }
     },
-    onOpenStatsModal: (track: any) => {
+    onOpenStatsModal: (track: TrackRecord) => {
       if (p.setStatsModalTrack) {
         p.setStatsModalTrack(track);
       } else if (p.modals?.setStatsModalTrack) {

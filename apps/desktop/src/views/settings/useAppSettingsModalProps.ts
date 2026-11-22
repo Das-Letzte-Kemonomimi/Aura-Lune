@@ -1,3 +1,12 @@
+import type { useAudioSettings } from '../../hooks/useAudioSettings';
+import type { useTranscodeManager } from '../../hooks/useTranscodeManager';
+import type { useThemeManager } from '../../hooks/useThemeManager';
+import type { useModalManager } from '../../hooks/useModalManager';
+import type { useSessionManager } from '../../hooks/useSessionManager';
+import type { useScrobblerManager } from '../../hooks/useScrobblerManager';
+import type { useDspManager } from '../../hooks/useDspManager';
+import type { usePlaybackController } from '../../hooks/usePlaybackController';
+import type { useAudioMasteringEffects } from '../../hooks/useAudioMasteringEffects';
 import React from 'react';
 import type { Language, Translations } from '../../i18n';
 import type { AudioDevicesSettingsViewProps } from './AudioDevicesSettingsView';
@@ -7,143 +16,66 @@ import type { AboutSettingsViewProps } from './AboutSettingsView';
 import type { BackupSettingsViewProps } from './BackupSettingsView';
 
 export interface UseAppSettingsModalPropsParams {
-  audioSettings?: any;
-  transcodeManager?: any;
-  themeManager?: any;
-  modalManager?: any;
-  sessionManager?: any;
-  scrobblerManager?: any;
-  dspManager?: any;
-  playbackController?: any;
-  masteringEffects?: any;
-  [key: string]: any;
+  audioSettings?: ReturnType<typeof useAudioSettings>;
+  transcodeManager?: ReturnType<typeof useTranscodeManager>;
+  themeManager?: ReturnType<typeof useThemeManager>;
+  modalManager?: ReturnType<typeof useModalManager>;
+  sessionManager?: ReturnType<typeof useSessionManager>;
+  scrobblerManager?: ReturnType<typeof useScrobblerManager>;
+  dspManager?: ReturnType<typeof useDspManager>;
+  playbackController?: ReturnType<typeof usePlaybackController>;
+  masteringEffects?: ReturnType<typeof useAudioMasteringEffects>;
   language: Language;
   loc: Translations;
   audioDevices?: Partial<{
-    cards: any[];
-    refreshDevices: () => void;
-    seekFadeEnabled: boolean;
-    handleToggleSeekFade: () => void;
     instantVolume: boolean;
-    setInstantVolume: (v: boolean) => void;
-    volumeUnit: 'percent' | 'db';
-    handleSetVolumeUnit: (u: 'percent' | 'db') => void;
-    volumeOsdPosition: any;
-    setVolumeOsdPosition: (pos: any) => void;
+    setInstantVolume: React.Dispatch<React.SetStateAction<boolean>>;
+    volumeUnit: import("../../hooks/useVolumeUnit").VolumeUnit;
+    handleSetVolumeUnit: (unit: import("../../hooks/useVolumeUnit").VolumeUnit) => void;
+    volumeOsdPosition: import("../../components/player/VolumeOsd").VolumeOsdPosition;
+    setVolumeOsdPosition: React.Dispatch<React.SetStateAction<import("../../components/player/VolumeOsd").VolumeOsdPosition>>;
     recapOptIn: boolean;
-    setRecapOptIn: (v: boolean) => void;
-    restoreSessionOnStartup: boolean;
-    handleToggleRestoreSessionOnStartup: () => void;
-    dspAutoStartup: boolean;
-    handleToggleDspAutoStartup: () => void;
-    dspDefaultEngine: any;
-    handleSetDefaultDspEngine: (e: any) => void;
-    audioBufferMs: number;
-    handleSetAudioBuffer: (ms: number) => void;
-    dspBlockSize: number;
-    handleSetDspBlockSize: (b: number) => void;
+    setRecapOptIn: React.Dispatch<React.SetStateAction<boolean>>;
     desktopNotificationsEnabled: boolean;
-    setDesktopNotificationsEnabled: (v: boolean) => void;
-    albumPlaybackMode: any;
-    setAlbumPlaybackMode: (m: any) => void;
-    replaygainMode: any;
-    replaygainPreAmp: number;
-    replaygainFallbackGain: number;
-    replaygainPreventClipping: boolean;
-    handleSetReplayGain: any;
-    replaygainStatus: any;
-    replaygainScanWriteTags: boolean;
-    setReplaygainScanWriteTags: React.Dispatch<React.SetStateAction<boolean>>;
-    handleScanLibraryReplayGain: any;
-    isReplaygainScanning: boolean;
-    crossfeedEnabled: boolean;
-    crossfeedPreset: any;
-    crossfeedFcut: number;
-    crossfeedFeed: number;
-    handleSetCrossfeed: any;
-    silenceTrimmingEnabled: boolean;
-    silenceTrimmingThreshold: number;
-    handleSetSilenceTrimming: any;
-    handleDisableProAudio: any;
-    handleEnableProAudio: any;
-    handleSetCardProfile: any;
-    handleSetBluetoothCodec: any;
-    setIsHealthCheckModalOpen: (v: boolean) => void;
+    setDesktopNotificationsEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    albumPlaybackMode: import("../../types/playback").AlbumPlaybackBehavior;
+    setAlbumPlaybackMode: React.Dispatch<React.SetStateAction<import("../../types/playback").AlbumPlaybackBehavior>>;
   }>;
   transcode?: Partial<{
-    currentPlayingTrack: any;
-    status: any;
+    currentPlayingTrack: import("../../types/library").TrackRecord | null;
+    status: import("../../types/playback").PlaybackStatus;
     filePath: string;
-    setFilePath: (p: string) => void;
-    isPickingSource: boolean;
-    handlePickTranscodeSource: () => void;
-    transcodeOutput: string;
-    setTranscodeOutput: (o: string) => void;
-    isPickingDestination: boolean;
-    handlePickTranscodeDestination: () => void;
-    transcodeFormat: any;
-    setTranscodeFormat: (f: any) => void;
-    transcodeBitrate: number;
-    setTranscodeBitrate: (b: number) => void;
-    transcodeApplyDsp: boolean;
-    setTranscodeApplyDsp: (a: boolean) => void;
+    setFilePath: React.Dispatch<React.SetStateAction<string>>;
     reverbEnabled: boolean;
     reverbLevel: number;
-    transcodeApplyRange: boolean;
-    setTranscodeApplyRange: (r: boolean) => void;
-    transcodeRangeA: string;
-    setTranscodeRangeA: (r: string) => void;
-    transcodeRangeB: string;
-    setTranscodeRangeB: (r: string) => void;
     loopPointA: number | null;
     loopPointB: number | null;
-    currentTrackBookmarks: any[];
-    transcodeAutoEnqueue: boolean;
-    setTranscodeAutoEnqueue: (a: boolean) => void;
-    isTranscoding: boolean;
-    transcodeProgress: any;
-    transcodeElapsedSeconds: number;
-    setIsSettingsOpen: (v: boolean) => void;
-    handleTranscode: () => void;
-    lastExportedTrack: any;
-    setLastExportedTrack: (t: any) => void;
-    handlePlayLibraryTrack: any;
-    handleAddTrackToQueue: any;
-    setTrackToAddToPlaylist: any;
-    setShowPlaylistModal: any;
-    handleOpenContainingFolder: any;
-    showMessage: any;
-    handleUseCurrentTrackAsSource: any;
+    currentTrackBookmarks: import("../../types/player").TrackBookmarkDto[];
+    lastExportedTrack: import("../../types/library").TrackRecord | null;
+    setLastExportedTrack: React.Dispatch<React.SetStateAction<import("../../types/library").TrackRecord | null>>;
+    handlePlayLibraryTrack: (track: import("../../types/library").TrackRecord, contextTracks?: import("../../types/library").TrackRecord[] | undefined) => Promise<void>;
+    handleAddTrackToQueue: (track: import("../../types/library").TrackRecord, e?: React.MouseEvent<Element, MouseEvent> | undefined) => Promise<void>;
+    setTrackToAddToPlaylist: React.Dispatch<React.SetStateAction<import("../../types/library").TrackRecord | null>>;
+    setShowPlaylistModal: React.Dispatch<React.SetStateAction<boolean>>;
+    handleOpenContainingFolder: (rawPath: string, e?: React.MouseEvent<Element, MouseEvent> | undefined) => Promise<void>;
+    showMessage: (msg: string, isError?: boolean) => void;
+    handleUseCurrentTrackAsSource: () => void;
   }>;
   themes?: Partial<{
-    setLanguage: (l: any) => void;
+    setLanguage: React.Dispatch<React.SetStateAction<import("../../i18n").Language>>;
     buttonGlowEnabled: boolean;
     setButtonGlowEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-    uiScale: number;
-    handleResetScale: () => void;
-    handleSelectScale: (s: number) => void;
-    themes: any[];
-    currentTheme: any;
-    handleSelectTheme: any;
     customBgPath: string;
-    setCustomBgPath: any;
+    setCustomBgPath: React.Dispatch<React.SetStateAction<string>>;
     themeBgImage: string | null;
-    handlePickWallpaperFromDisk: any;
-    handleWallpaperDrop: any;
-    handleUploadBgImage: any;
-    handleRemoveBgImage: any;
-    handleSaveBackgroundSettings: any;
-    themeOverlay: number;
-    setThemeOverlay: any;
-    themeBlur: number;
-    setThemeBlur: any;
-    appIconStyle: any;
-    handleSelectIconStyle: any;
-    jsonExportContent: string;
-    handleExportTheme: any;
-    jsonImportContent: string;
-    setJsonImportContent: any;
-    handleImportTheme: any;
+    handlePickWallpaperFromDisk: () => Promise<void>;
+    handleWallpaperDrop: (e: React.DragEvent<Element>) => Promise<void>;
+    handleUploadBgImage: () => Promise<void>;
+    handleRemoveBgImage: () => Promise<void>;
+    handleSaveBackgroundSettings: () => Promise<void>;
+    handleSelectIconStyle: (style: "lineout" | "classic") => Promise<void>;
+    handleExportTheme: () => Promise<void>;
+    handleImportTheme: () => Promise<void>;
   }>;
   about?: Partial<{
     appIconStyle: any;
@@ -152,74 +84,73 @@ export interface UseAppSettingsModalPropsParams {
     setIsOnboardingOpen: (v: boolean) => void;
   }>;
   backup?: Partial<{
-    handleExportProfileBackup: any;
-    handleImportProfileBackup: any;
+    handleExportProfileBackup: () => Promise<void>;
+    handleImportProfileBackup: () => Promise<void>;
     closeToTray: boolean;
-    handleToggleCloseToTray: any;
+    handleToggleCloseToTray: (enabled: boolean) => Promise<void>;
     discordRpcEnabled: boolean;
     discordRpcConnected: boolean;
     discordClientId: string;
-    handleToggleDiscordRpc: any;
-    handleSaveDiscordClientId: any;
+    handleToggleDiscordRpc: (enabled: boolean) => Promise<void>;
+    handleSaveDiscordClientId: (newId: string) => Promise<void>;
     crossfadeDuration: number;
-    handleCrossfadeDurationChange: any;
-    listenbrainzEnabled: boolean;
-    listenbrainzToken: string;
-    listenbrainzUser: string | null;
-    listenbrainzStatusMsg: string | null;
-    listenbrainzTesting: boolean;
-    handleToggleListenbrainz: any;
-    handleListenbrainzTokenChange: any;
-    handleTestListenbrainz: any;
-    lastfmEnabled: boolean;
-    lastfmUsername: string | null;
-    lastfmSessionKey: string;
-    lastfmPendingToken: string | null;
-    lastfmTesting: boolean;
-    lastfmStatusMsg: string | null;
-    lastfmCustomKey: string;
-    lastfmCustomSecret: string;
-    handleToggleLastfm: any;
-    handleConnectLastfm: any;
-    handleConfirmLastfmAuth: any;
-    handleDisconnectLastfm: any;
-    handleManualLastfmSessionKeyChange: any;
-    handleValidateLastfmSession: any;
-    handleSaveLastfmCustomKeys: any;
+    handleCrossfadeDurationChange: (ms: number) => Promise<void>;
   }>;
 }
 
+/**
+ * Buduje propsy zakładek okna Ustawień z hooków domenowych i nadpisań z `App`.
+ * Każda zakładka scala kilka menedżerów; asercje typów opisują, skąd pochodzą wartości
+ * (typy pól są sprawdzane, kompletność — nie; docelowo zastąpią to konteksty Reacta).
+ */
 export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams) {
   const { language, loc } = params;
 
   const audioDevices = {
     ...(params.audioSettings || {}),
+    // „Przywracaj sesję przy starcie” należy do useSessionManager (wcześniej brakowało go tutaj,
+    // przez co przełącznik w zakładce Urządzenia nie działał).
+    ...(params.sessionManager || {}),
     ...(params.dspManager || {}),
     ...(params.modalManager || {}),
     ...(params.audioDevices || {}),
-  };
+  } as ReturnType<typeof useAudioSettings> &
+    ReturnType<typeof useSessionManager> &
+    ReturnType<typeof useDspManager> &
+    ReturnType<typeof useModalManager> &
+    Required<NonNullable<UseAppSettingsModalPropsParams['audioDevices']>>;
   const transcode = {
     ...(params.transcodeManager || {}),
     ...(params.playbackController || {}),
     ...(params.dspManager || {}),
     ...(params.modalManager || {}),
     ...(params.transcode || {}),
-  };
+  } as ReturnType<typeof useTranscodeManager> &
+    ReturnType<typeof usePlaybackController> &
+    ReturnType<typeof useDspManager> &
+    ReturnType<typeof useModalManager> &
+    Required<NonNullable<UseAppSettingsModalPropsParams['transcode']>>;
   const themes = {
     ...(params.themeManager || {}),
     ...(params.themes || {}),
-  };
+  } as ReturnType<typeof useThemeManager> &
+    Required<NonNullable<UseAppSettingsModalPropsParams['themes']>>;
   const about = {
     ...(params.themeManager || {}),
     ...(params.modalManager || {}),
     ...params.about,
-  };
+  } as ReturnType<typeof useThemeManager> &
+    ReturnType<typeof useModalManager> &
+    Required<NonNullable<UseAppSettingsModalPropsParams['about']>>;
   const backup = {
     ...(params.sessionManager || {}),
     ...(params.scrobblerManager || {}),
     ...(params.masteringEffects || {}),
     ...(params.backup || {}),
-  };
+  } as ReturnType<typeof useSessionManager> &
+    ReturnType<typeof useScrobblerManager> &
+    ReturnType<typeof useAudioMasteringEffects> &
+    Required<NonNullable<UseAppSettingsModalPropsParams['backup']>>;
 
   const devicesProps: AudioDevicesSettingsViewProps = {
     language,

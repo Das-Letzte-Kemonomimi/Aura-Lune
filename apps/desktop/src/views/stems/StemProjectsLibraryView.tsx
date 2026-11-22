@@ -37,7 +37,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
     try {
       const list = await invoke<StemProject[]>('list_stem_projects');
       setProjects(list);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(String(err));
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
     try {
       await invoke('delete_stem_project', { projectId });
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert(t.stems.deleteError.replace('{0}', String(err)));
     }
   };
@@ -89,7 +89,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
         prev.map((p) => (p.id === projectId ? { ...p, title: editingTitle.trim() } : p))
       );
       setEditingProjectId(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert(t.stems.renameError.replace('{0}', String(err)));
     }
   };

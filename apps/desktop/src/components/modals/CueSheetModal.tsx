@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { invoke } from '../../api/ipc';
+import { invoke, errorMessage } from '../../api/ipc';
 import {
   FileCode,
   X,
@@ -61,8 +61,8 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
       if (sheet.file_path) {
         setAudioTargetOverride(sheet.file_path);
       }
-    } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || loc.cueSheet.parseError);
+    } catch (err: unknown) {
+      setError(errorMessage(err) || loc.cueSheet.parseError);
     }
   };
 

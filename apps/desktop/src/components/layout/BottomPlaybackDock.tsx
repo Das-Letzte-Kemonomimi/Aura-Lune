@@ -1,3 +1,4 @@
+import type { AppTab } from '../../types/navigation';
 import React, { useState } from 'react';
 import {
   Play,
@@ -24,7 +25,7 @@ import { useLiveStatus } from '../../state/livePlayback';
 
 export interface BottomPlaybackDockProps {
   isVisible: boolean;
-  activeTab: string;
+  activeTab: AppTab;
   language: Language;
   loc: Translations;
   status: PlaybackStatus;

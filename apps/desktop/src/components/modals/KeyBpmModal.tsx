@@ -134,7 +134,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           );
         } catch {}
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn('Błąd detekcji Key/BPM:', e);
       setDetectError(String(e));
     } finally {

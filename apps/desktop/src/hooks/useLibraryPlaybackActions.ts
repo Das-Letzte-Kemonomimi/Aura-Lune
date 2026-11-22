@@ -112,7 +112,7 @@ export function useLibraryPlaybackActions({
       }
 
       showMessage(loc.notifications.fileLoaded.replace('{0}', path));
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -154,7 +154,7 @@ export function useLibraryPlaybackActions({
           await refreshQueue();
         }
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -173,7 +173,7 @@ export function useLibraryPlaybackActions({
           await invoke('play');
         }
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -313,7 +313,7 @@ export function useLibraryPlaybackActions({
           isShuffle: Boolean(queue.shuffle),
         }).catch((e) => console.warn('Auto ReplayGain error:', e));
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     } finally {
       clearTimeout(safetyTimeout);
@@ -340,7 +340,7 @@ export function useLibraryPlaybackActions({
         await invoke('add_uris_to_queue', { uris: sorted.map((t) => t.path) });
         await refreshQueue();
         showMessage(loc.notifications.loadedTracksToQueueMsg.replace('{0}', String(sorted.length)));
-      } catch (e: any) {
+      } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     }
@@ -385,7 +385,7 @@ export function useLibraryPlaybackActions({
           ? loc.notifications.shuffledTracksCount.replace('{0}', String(shuffled.length))
           : `🔀 Shuffled and started ${shuffled.length} tracks!`
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -508,7 +508,7 @@ export function useLibraryPlaybackActions({
         }));
         showMessage('🌌 Zastosowano profil: Ambient Slowed & Space (0.84x, -1.5 st, Wide M/S)');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -527,7 +527,7 @@ export function useLibraryPlaybackActions({
       });
       setCurrentBookmark(positionMs);
       showMessage(loc.notifications.bookmarkSaved.replace('{0}', formatTimeMs(positionMs)));
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -540,7 +540,7 @@ export function useLibraryPlaybackActions({
       await invoke('delete_bookmark', { trackId: activeTrackId });
       setCurrentBookmark(null);
       showMessage(loc.player.bookmarkDeleted);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -566,7 +566,7 @@ export function useLibraryPlaybackActions({
         setStatsModalTrack((prev: TrackStatsData | null) => (prev ? { ...prev, play_count: 0, last_played_at: null } : null));
       }
       showMessage(loc.notifications.trackStatsReset);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
@@ -578,7 +578,7 @@ export function useLibraryPlaybackActions({
     try {
       const folder = await invoke<string>('open_containing_folder', { filePath: rawPath });
       showMessage(loc.notifications.openedFolder.replace('{0}', folder));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to open containing folder:', err);
       showMessage(loc.notifications.openFolderError.replace('{0}', String(err)), true);
     }
@@ -591,7 +591,7 @@ export function useLibraryPlaybackActions({
       setTracks((prev) =>
         prev.map((t) => (t.id === trackId ? { ...t, rating } : t))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Błąd zapisu oceny utworu:', err);
     }
   };

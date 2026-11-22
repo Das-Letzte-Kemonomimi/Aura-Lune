@@ -74,7 +74,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
         ]);
         setModelPacks(packs);
         setCapabilities(caps);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Błąd pobierania pakietów:', err);
       }
     };
@@ -119,7 +119,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
       });
       onProjectCreated(project.id);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(String(err));
     } finally {
       setIsSubmitting(false);

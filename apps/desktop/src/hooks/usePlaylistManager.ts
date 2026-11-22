@@ -16,7 +16,7 @@ export interface UsePlaylistManagerProps {
 }
 
 export function usePlaylistManager({
-  language,
+  language: _language,
   loc,
   t,
   showMessage,
@@ -46,7 +46,7 @@ export function usePlaylistManager({
       const list = await invoke<Playlist[]>('list_playlists');
       setPlaylists(list);
       return list;
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn('Błąd pobierania playlist:', e);
       return [];
     }
@@ -64,7 +64,7 @@ export function usePlaylistManager({
       if (setActiveTrackId) setActiveTrackId(null);
       await invoke('load_radio_stream', { url: station.url, stationName: station.name });
       showMessage(`${station.name} • ${loc.radio.buffering}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [initialStartupPositionRef, setTrackDirectCover, setActiveTrackId, showMessage, loc.radio.buffering, t.common.errorPrefix]);
@@ -106,7 +106,7 @@ export function usePlaylistManager({
       setNewPlaylistName('');
       await refreshPlaylists();
       showMessage(t.notifications.playlistCreatedMsg.replace('{0}', newPlaylistName.trim()));
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [newPlaylistName, showMessage, t.notifications.playlistNamePrompt, t.notifications.playlistCreatedMsg, t.common.errorPrefix, refreshPlaylists]);
@@ -120,7 +120,7 @@ export function usePlaylistManager({
       }
       await refreshPlaylists();
       showMessage(t.notifications.playlistDeletedMsg.replace('{0}', name));
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [selectedPlaylist, showMessage, t.notifications.playlistDeletedMsg, t.common.errorPrefix, refreshPlaylists]);
@@ -130,7 +130,7 @@ export function usePlaylistManager({
     try {
       const tr = await invoke<TrackRecord[]>('get_playlist_tracks', { playlistId: pl.id });
       setPlaylistTracks(tr);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [showMessage, t.common.errorPrefix]);
@@ -146,7 +146,7 @@ export function usePlaylistManager({
         setPlaylistTracks(tr);
       }
       showMessage(t.notifications.addedToPlaylistMsg);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [selectedPlaylist, showMessage, t.notifications.addedToPlaylistMsg, t.common.errorPrefix, refreshPlaylists]);
@@ -159,7 +159,7 @@ export function usePlaylistManager({
       setPlaylistTracks(tr);
       await refreshPlaylists();
       showMessage(t.notifications.removedFromPlaylistMsg);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [showMessage, t.notifications.removedFromPlaylistMsg, t.common.errorPrefix, refreshPlaylists]);
@@ -178,7 +178,7 @@ export function usePlaylistManager({
         useRelativePaths: true,
       });
       showMessage(msg);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
   }, [showMessage, t.common.errorPrefix]);
@@ -206,10 +206,10 @@ export function usePlaylistManager({
           .replace('{1}', String(res.matched_tracks))
           .replace('{2}', String(res.total_entries))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       showMessage(`${t.common.errorPrefix} ${err}`, true);
     }
-  }, [loc.playlists.importM3u8, refreshPlaylists, showMessage, language, t.common.errorPrefix]);
+  }, [loc.playlists.importM3u8, loc.notifications.m3u8ImportSuccess, refreshPlaylists, showMessage, t.common.errorPrefix]);
 
   return {
     playlists,

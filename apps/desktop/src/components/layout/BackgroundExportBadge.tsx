@@ -1,10 +1,11 @@
+import type { AppTab } from '../../types/navigation';
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Translations } from '../../i18n';
 
 interface BackgroundExportBadgeProps {
   isTranscoding: boolean;
-  activeTab: string;
+  activeTab: AppTab;
   isPlayerScrolledDown: boolean;
   transcodeProgress: { percent: number } | null;
   transcodeElapsedSeconds: number;

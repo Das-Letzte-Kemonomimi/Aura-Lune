@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "typecheck": "tsc -b",
     "gen:commands": "node scripts/generate-command-names.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

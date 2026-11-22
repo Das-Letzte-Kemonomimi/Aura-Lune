@@ -1,3 +1,5 @@
+import type { Playlist } from '../../types/playlist';
+export type { Playlist } from '../../types/playlist';
 import React from 'react';
 import { invoke } from '../../api/ipc';
 import {
@@ -12,12 +14,6 @@ import {
 import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
 
-export interface Playlist {
-  id: number;
-  name: string;
-  created_at: number;
-  track_count: number;
-}
 
 export interface PlaylistsViewProps {
   layoutMaxWidth: string;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '../../api/ipc';
+import { invoke, errorMessage } from '../../api/ipc';
 import {
   X,
   Save,
@@ -128,8 +128,8 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
           .replace('{1}', matches[0].title)
           .replace('{2}', String(matches[0].score))
       );
-    } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || loc.tagEditor.acoustIdError);
+    } catch (err: unknown) {
+      setError(errorMessage(err) || loc.tagEditor.acoustIdError);
     } finally {
       setIdentifying(false);
     }
@@ -154,9 +154,9 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         setDiscNo(meta.disc_no != null ? meta.disc_no.toString() : '');
         setDiscTotal(meta.disc_total != null ? meta.disc_total.toString() : '');
         setComment(meta.comment || '');
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!isMounted) return;
-        setError(typeof err === 'string' ? err : err?.message || loc.tagEditor.readError);
+        setError(errorMessage(err) || loc.tagEditor.readError);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -204,8 +204,8 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         onSaveSuccess();
         onClose();
       }, 700);
-    } catch (err: any) {
-      setError(typeof err === 'string' ? err : err?.message || loc.tagEditor.saveError);
+    } catch (err: unknown) {
+      setError(errorMessage(err) || loc.tagEditor.saveError);
     } finally {
       setSaving(false);
     }

@@ -1,9 +1,18 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc"
+  ],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
     "react/set-state-in-effect": "off",
     "react/preserve-manual-memoization": "off",
     "react/immutability": "off",
@@ -13,17 +22,38 @@
         "paths": [
           {
             "name": "@tauri-apps/api/core",
-            "importNames": ["invoke"],
+            "importNames": [
+              "invoke"
+            ],
             "message": "Use `invoke` from src/api/ipc — it type-checks command names and normalizes backend errors to IpcError."
           }
         ]
       }
-    ]
+    ],
+    "react-hooks/exhaustive-deps": "error",
+    "typescript/no-explicit-any": "warn"
   },
   "overrides": [
     {
-      "files": ["src/api/**", "src/test/**", "**/*.test.ts", "**/*.test.tsx"],
-      "rules": { "no-restricted-imports": "off" }
+      "files": [
+        "src/api/**",
+        "src/test/**",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "src/test/**"
+      ],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
     }
   ]
 }

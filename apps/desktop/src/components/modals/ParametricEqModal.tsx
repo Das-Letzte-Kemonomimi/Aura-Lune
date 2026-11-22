@@ -342,7 +342,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
       } else {
         setImportError(loc.parametricEq.noBandsError);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setImportError(String(e));
     }
   };

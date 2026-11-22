@@ -1,3 +1,4 @@
+import type { SettingsTab } from '../types/navigation';
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '../api/ipc';
 import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from '../types/player';
@@ -20,7 +21,7 @@ export interface UseTranscodeManagerProps {
   loc: Translations;
   t: ReturnType<typeof getTranslations>;
   showMessage: (msg: string, isError?: boolean) => void;
-  setSettingsTab: (tab: any) => void;
+  setSettingsTab: (tab: SettingsTab) => void;
   isSettingsOpen?: boolean;
   settingsTab?: string;
   setIsSettingsOpen: (open: boolean) => void;
@@ -185,7 +186,7 @@ export function useTranscodeManager({
         setFilePath(selected);
         updateTranscodeOutputFilename(selected, transcodeFormat, transcodeRangeA, transcodeRangeB, transcodeApplyRange);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
       setIsPickingSource(false);
@@ -210,7 +211,7 @@ export function useTranscodeManager({
       if (selected) {
         setTranscodeOutput(selected);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
       setIsPickingDestination(false);
@@ -311,7 +312,7 @@ export function useTranscodeManager({
       }
       await refreshTrackBookmarks();
       showMessage(t.notifications.savedMarkersAsBookmarks);
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     }
   }, [activeTrackId, showMessage, t.notifications.noActiveTrackForMarkers, t.notifications.savedMarkersAsBookmarks, refreshTrackBookmarks, t.common.errorPrefix]);
@@ -442,7 +443,7 @@ export function useTranscodeManager({
 
       showMessage(t.notifications.transcodeSuccessMsg.replace('{0}', cleanOutput));
       await loadLibrary();
-    } catch (e: any) {
+    } catch (e: unknown) {
       showMessage(`${t.common.errorPrefix} ${e}`, true);
     } finally {
       setIsTranscoding(false);

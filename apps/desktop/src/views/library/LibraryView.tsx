@@ -1,3 +1,4 @@
+import type { useLibraryManager } from '../../hooks/useLibraryManager';
 import React, { useCallback } from "react";
 import {
   Clock,
@@ -15,6 +16,9 @@ import { LibraryTracksView } from './sections/LibraryTracksView';
 import { LibraryToolbar } from './sections/LibraryToolbar';
 import { LibraryScanPanel } from './sections/LibraryScanPanel';
 import { LibraryHeader } from './sections/LibraryHeader';
+
+/** Typy setterów i stanu biblioteki pochodzą bezpośrednio z hooka `useLibraryManager`. */
+type LibraryManager = ReturnType<typeof useLibraryManager>;
 
 export interface ArtistLibraryItem {
   name: string;
@@ -46,7 +50,7 @@ export interface LibraryViewProps {
   setLibrarySearch: (v: string) => void;
   librarySearchInputRef: React.RefObject<HTMLInputElement | null>;
   libraryFormatFilter: string;
-  setLibraryFormatFilter: (v: any) => void;
+  setLibraryFormatFilter: LibraryManager['setLibraryFormatFilter'];
   isFacetsFilterEnabled: boolean;
   setIsFacetsFilterEnabled: (v: boolean | ((p: boolean) => boolean)) => void;
   facetSelectedArtist: string | null;
@@ -56,24 +60,24 @@ export interface LibraryViewProps {
   facetSelectedFormat: string | null;
   setFacetSelectedFormat: (v: string | null) => void;
   smartPlaylistFilter: string | null;
-  setSmartPlaylistFilter: (v: any) => void;
+  setSmartPlaylistFilter: LibraryManager['setSmartPlaylistFilter'];
   hideDuplicates: boolean;
   setHideDuplicates: (v: boolean) => void;
   sortField: "default" | "title" | "artist" | "duration" | "format" | "date" | "plays";
-  setSortField: React.Dispatch<React.SetStateAction<any>>;
+  setSortField: LibraryManager['setSortField'];
   sortOrder: "asc" | "desc";
   setSortOrder: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
-  handleSort: (field: any) => void;
+  handleSort: LibraryManager['handleSort'];
   albumSortField: "tracks" | "title" | "artist" | "year" | "duration";
-  setAlbumSortField: (v: any) => void;
+  setAlbumSortField: LibraryManager['setAlbumSortField'];
   albumSortOrder: "asc" | "desc";
   setAlbumSortOrder: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
   albumGridSize: "compact" | "medium" | "large";
-  setAlbumGridSize: (v: any) => void;
+  setAlbumGridSize: LibraryManager['setAlbumGridSize'];
   albumViewMode: "grid" | "list";
-  setAlbumViewMode: (v: any) => void;
+  setAlbumViewMode: LibraryManager['setAlbumViewMode'];
   albumCoverFilter: "all" | "with-cover" | "missing-cover";
-  setAlbumCoverFilter: (v: any) => void;
+  setAlbumCoverFilter: LibraryManager['setAlbumCoverFilter'];
   albumsWithCoverCount: number;
   albumsWithoutCoverCount: number;
   selectedAlbumDetail: AlbumRecord | null;
@@ -121,7 +125,7 @@ export interface LibraryViewProps {
   handlePickFiles: () => Promise<void>;
   handleScanLibrary: () => Promise<void>;
   isScanning: boolean;
-  scanResult: any;
+  scanResult: LibraryManager['scanResult'];
   refreshQueue: () => Promise<void>;
   loadLibrary: () => Promise<void>;
   showMessage: (msg: string, isError?: boolean) => void;

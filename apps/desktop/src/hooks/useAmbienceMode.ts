@@ -75,7 +75,7 @@ export function useAmbienceMode({ loc, showMessage }: UseAmbienceModeOptions) {
       );
       try {
         soundscapeEngine.syncWithVisualAmbience(next);
-      } catch (_) { }
+      } catch { }
       return next;
     });
   }, [loc.notifications, showMessage]);

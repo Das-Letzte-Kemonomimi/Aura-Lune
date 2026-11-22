@@ -1,3 +1,4 @@
+import type { AppTab } from '../../types/navigation';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search,
@@ -58,7 +59,7 @@ interface CommandPaletteModalProps {
   onOpenDynamicsStudio?: () => void;
   onShuffleAll?: () => void;
   onOpenHealthCheck?: () => void;
-  onSelectTab: (tab: string) => void;
+  onSelectTab: (tab: AppTab) => void;
 }
 
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
