@@ -19,8 +19,8 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
 }) => (
     <div
       style={{
-        width: showLyrics ? '360px' : '440px',
-        height: showLyrics ? '230px' : '280px',
+        width: showLyrics ? 'min(360px, 100%)' : 'min(440px, 100%)',
+        height: showLyrics ? 'min(230px, 30vh)' : 'min(280px, 34vh)',
         borderRadius: '16px',
         background: 'linear-gradient(145deg, #181926 0%, #0d0e17 100%)',
         border: '2px solid rgba(255, 255, 255, 0.15)',

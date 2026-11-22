@@ -17,8 +17,8 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
     <div
       style={{
         position: 'relative',
-        width: showLyrics ? '340px' : '440px',
-        height: showLyrics ? '340px' : '440px',
+        width: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
+        height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

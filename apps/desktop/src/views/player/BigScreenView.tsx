@@ -159,10 +159,11 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '36px 48px',
+        padding: 'clamp(14px, 3vh, 36px) clamp(16px, 3vw, 48px)',
         color: '#fff',
         userSelect: 'none',
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'auto',
         cursor: showHud ? 'default' : 'none',
         willChange: 'transform',
         transform: 'translateZ(0)',
@@ -175,12 +176,12 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: showLyrics ? '420px 1fr' : '1fr',
-          gap: '50px',
+          gridTemplateColumns: showLyrics ? 'minmax(0, 420px) minmax(0, 1fr)' : 'minmax(0, 1fr)',
+          gap: 'clamp(20px, 3vw, 50px)',
           alignItems: 'center',
-          flex: 1,
-          maxHeight: 'calc(100vh - 200px)',
-          margin: '20px 0',
+          flex: '1 0 auto',
+          minHeight: 0,
+          margin: 'clamp(8px, 2vh, 20px) 0',
         }}
       >
         {/* Kolumna lewa: Wielka wirująca płyta winylowa / Okładka */}
@@ -263,8 +264,8 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
           {visualMode === 'cover' && (
             <div
               style={{
-                width: showLyrics ? '340px' : '440px',
-                height: showLyrics ? '340px' : '440px',
+                width: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
+                height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
                 borderRadius: '28px',
                 position: 'relative',
                 overflow: 'hidden',
@@ -388,7 +389,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
         {/* Kolumna prawa: Teksty synchronizowane */}
         {showLyrics && (
-          <div style={{ height: '100%', minHeight: '380px' }}>
+          <div style={{ height: '100%', minHeight: 'min(380px, 50vh)' }}>
             <LyricsView
               trackTitle={title}
               trackArtist={artist}
