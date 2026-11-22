@@ -255,6 +255,16 @@ impl Database {
     }
 
     /// Zwraca łączną liczbę utworów w bibliotece.
+    /// Pierwszy utwór w kolejności `list_tracks` (bez wczytywania całej biblioteki).
+    pub async fn first_track(&self) -> Result<Option<TrackRecord>, StorageError> {
+        let res = sqlx::query_as::<_, TrackRecord>(
+            "SELECT * FROM tracks ORDER BY artist, album_id, track_no, title LIMIT 1;",
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(res)
+    }
+
     pub async fn count_tracks(&self) -> Result<i64, StorageError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tracks;")
             .fetch_one(&self.pool)

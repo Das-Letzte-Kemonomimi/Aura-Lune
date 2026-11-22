@@ -80,11 +80,13 @@ pub async fn set_app_setting(
     value: String,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    state
-        .db
-        .set_app_setting(&key, &value)
-        .await
-        .map_err(CommandError::from)
+    state.db.set_app_setting(&key, &value).await?;
+    if key == "close_to_tray" {
+        state
+            .close_to_tray
+            .store(value != "false", std::sync::atomic::Ordering::Relaxed);
+    }
+    Ok(())
 }
 
 #[tauri::command]

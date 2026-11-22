@@ -202,3 +202,40 @@ async fn test_playlist_lifecycle_and_track_ordering() {
     let empty_pls = db.list_playlists().await.unwrap();
     assert_eq!(empty_pls.len(), 0);
 }
+
+#[tokio::test]
+async fn test_first_track_matches_list_order_and_count() {
+    let db = setup_test_db().await;
+    assert_eq!(db.first_track().await.unwrap(), None);
+    assert_eq!(db.count_tracks().await.unwrap(), 0);
+    db.upsert_track(&make_dummy_track("/m/b.flac", "B", "Zeta"))
+        .await
+        .unwrap();
+    db.upsert_track(&make_dummy_track("/m/a.flac", "A", "Alpha"))
+        .await
+        .unwrap();
+    let first = db.first_track().await.unwrap().unwrap();
+    assert_eq!(first.path, db.list_tracks().await.unwrap()[0].path);
+    assert_eq!(first.artist, "Alpha");
+    assert_eq!(db.count_tracks().await.unwrap(), 2);
+}
+
+#[tokio::test]
+async fn test_list_app_settings_returns_all_pairs() {
+    let db = setup_test_db().await;
+    db.set_app_setting("seek_fade_enabled", "true")
+        .await
+        .unwrap();
+    db.set_app_setting("crossfade_duration", "3000")
+        .await
+        .unwrap();
+    let all = db.list_app_settings().await.unwrap();
+    assert_eq!(
+        all.get("seek_fade_enabled").map(String::as_str),
+        Some("true")
+    );
+    assert_eq!(
+        all.get("crossfade_duration").map(String::as_str),
+        Some("3000")
+    );
+}

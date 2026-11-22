@@ -14,7 +14,6 @@ use dsp_api::{DspEngine, DspParams};
 use library::LibraryScanner;
 use metadata::{CoverArtArchiveClient, LastFmClient, ListenBrainzClient, MusicBrainzClient};
 use std::fs;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use storage::Database;
@@ -27,19 +26,31 @@ pub fn init_app(
     rt: Arc<tokio::runtime::Runtime>,
     engine: Arc<AudioEngine>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .unwrap_or_else(|_| PathBuf::from("."));
-    let _ = fs::create_dir_all(&data_dir);
+    let data_dir = app.path().app_data_dir().map_err(|e| {
+        let msg = format!("Brak katalogu danych aplikacji: {e}");
+        crate::setup::fatal::report_fatal_startup_error(&msg);
+        msg
+    })?;
+    if let Err(e) = fs::create_dir_all(&data_dir) {
+        let msg = format!("Nie można utworzyć katalogu {}: {e}", data_dir.display());
+        crate::setup::fatal::report_fatal_startup_error(&msg);
+        return Err(msg.into());
+    }
     let db_path = data_dir.join("auralune_library.db");
     let cache_dir = data_dir.join("cache");
 
-    let db = rt.block_on(async {
-        Database::open(&db_path)
-            .await
-            .expect("Błąd otwarcia bazy SQLite")
-    });
+    let db = match rt.block_on(Database::open(&db_path)) {
+        Ok(db) => db,
+        Err(e) => {
+            let msg = format!(
+                "Nie udało się otworzyć bazy danych {}: {}",
+                db_path.display(),
+                e
+            );
+            crate::setup::fatal::report_fatal_startup_error(&msg);
+            return Err(msg.into());
+        }
+    };
 
     // Przywrócenie ostatniego stanu kolejki odtwarzania z bazy danych
     if let Ok(Some(saved_queue)) = rt.block_on(async { db.load_queue_state().await }) {
@@ -55,6 +66,9 @@ pub fn init_app(
         engine.set_loop_mode(loop_mode);
         engine.set_shuffle(shuffle);
     }
+
+    // Wszystkie ustawienia jednym zapytaniem zamiast kilkunastu blokujących odczytów na wątku głównym.
+    let settings = rt.block_on(db.list_app_settings()).unwrap_or_default();
 
     let scanner = LibraryScanner::new(&cache_dir);
     let mb = Arc::new(MusicBrainzClient::new());
@@ -74,11 +88,7 @@ pub fn init_app(
     });
 
     // Sprawdź czy korektor graficzny EQ ma być automatycznie włączony przy starcie
-    let eq_startup = rt.block_on(async {
-        db.get_app_setting("eq_enabled_on_startup")
-            .await
-            .unwrap_or(None)
-    });
+    let eq_startup = settings.get("eq_enabled_on_startup").cloned();
     if let Some(val) = eq_startup {
         let enabled = val == "true";
         engine.set_equalizer_enabled(enabled);
@@ -87,17 +97,9 @@ pub fn init_app(
     }
 
     // Sprawdź czy ustawienia DSP mają być automatycznie przywracane przy starcie
-    let dsp_startup = rt.block_on(async {
-        db.get_app_setting("dsp_restore_on_startup")
-            .await
-            .unwrap_or(None)
-    });
+    let dsp_startup = settings.get("dsp_restore_on_startup").cloned();
     if dsp_startup.as_deref() == Some("true") {
-        if let Some(saved_json) = rt.block_on(async {
-            db.get_app_setting("dsp_saved_settings")
-                .await
-                .unwrap_or(None)
-        }) {
+        if let Some(saved_json) = settings.get("dsp_saved_settings").cloned() {
             #[derive(serde::Deserialize)]
             struct SavedDsp {
                 engine: String,
@@ -131,11 +133,7 @@ pub fn init_app(
         }
     } else {
         // Domyślny silnik DSP przy uruchomieniu (Bypass jako domyślny)
-        let default_engine_setting = rt.block_on(async {
-            db.get_app_setting("dsp_default_engine")
-                .await
-                .unwrap_or(None)
-        });
+        let default_engine_setting = settings.get("dsp_default_engine").cloned();
         let target_engine = match default_engine_setting.as_deref() {
             Some("RubberBand") => DspEngine::RubberBand,
             Some("SoundTouch") => DspEngine::SoundTouch,
@@ -149,8 +147,7 @@ pub fn init_app(
     }
 
     // Wczytanie zapisanego rozmiaru bufora wyjściowego audio (domyślnie: 600 ms)
-    let saved_audio_buffer =
-        rt.block_on(async { db.get_app_setting("audio_buffer_ms").await.unwrap_or(None) });
+    let saved_audio_buffer = settings.get("audio_buffer_ms").cloned();
     if let Some(buf_str) = saved_audio_buffer {
         if let Ok(ms) = buf_str.parse::<u64>() {
             let safe_ms = if ms < 250 { 600 } else { ms };
@@ -159,8 +156,7 @@ pub fn init_app(
     }
 
     // Wczytanie zapisanego rozmiaru bloku przetwarzania DSP (domyślnie: 2048 ramek)
-    let saved_dsp_block =
-        rt.block_on(async { db.get_app_setting("dsp_block_size").await.unwrap_or(None) });
+    let saved_dsp_block = settings.get("dsp_block_size").cloned();
     if let Some(block_str) = saved_dsp_block {
         if let Ok(size) = block_str.parse::<usize>() {
             let _ = engine.set_dsp_block_size(size);
@@ -168,19 +164,11 @@ pub fn init_app(
     }
 
     // Przywrócenie pełnego stanu sesji odtwarzania (utwór, pozycja, głośność dB, parametry)
-    let restore_session_setting = rt.block_on(async {
-        db.get_app_setting("restore_session_on_startup")
-            .await
-            .unwrap_or(None)
-    });
+    let restore_session_setting = settings.get("restore_session_on_startup").cloned();
     let should_restore_session = restore_session_setting.as_deref() != Some("false");
 
     if should_restore_session {
-        if let Some(session_json) = rt.block_on(async {
-            db.get_app_setting("playback_session_state")
-                .await
-                .unwrap_or(None)
-        }) {
+        if let Some(session_json) = settings.get("playback_session_state").cloned() {
             #[allow(dead_code)]
             #[derive(serde::Deserialize, Debug)]
             struct SavedSessionState {
@@ -273,23 +261,14 @@ pub fn init_app(
                             || uri.contains("Skrzydła Białe")
                             || session.track_id.is_none();
 
-                        let has_user_tracks = rt.block_on(async {
-                            db.list_tracks()
-                                .await
-                                .map(|t| !t.is_empty())
-                                .unwrap_or(false)
-                        });
+                        let has_user_tracks = rt
+                            .block_on(db.count_tracks())
+                            .map(|n| n > 0)
+                            .unwrap_or(false);
 
                         if is_demo_session && has_user_tracks && track_opt.is_none() {
-                            if let Some(first_track) = rt.block_on(async {
-                                db.list_tracks().await.ok().and_then(|mut t| {
-                                    if t.is_empty() {
-                                        None
-                                    } else {
-                                        Some(t.remove(0))
-                                    }
-                                })
-                            }) {
+                            if let Some(first_track) = rt.block_on(db.first_track()).ok().flatten()
+                            {
                                 let first_album = if let Some(alb_id) = first_track.album_id {
                                     rt.block_on(async {
                                         db.get_album_by_id(alb_id)
@@ -355,8 +334,7 @@ pub fn init_app(
 
     // Utwór demonstracyjny jeśli biblioteka jest pusta
     if engine.current_queue_item().is_none() {
-        let track_count =
-            rt.block_on(async { db.list_tracks().await.map(|t| t.len()).unwrap_or(0) });
+        let track_count = rt.block_on(db.count_tracks()).unwrap_or(0);
         if track_count == 0 {
             if let Some(sample) = resolve_or_extract_sample_track(&data_dir) {
                 tracing::info!(
@@ -396,24 +374,18 @@ pub fn init_app(
         }
     }
 
-    let icon_style = rt
-        .block_on(async { db.get_app_setting("app_icon_style").await.unwrap_or(None) })
+    let icon_style = settings
+        .get("app_icon_style")
+        .cloned()
         .unwrap_or_else(|| "lineout".to_string());
 
-    let discord_enabled = rt
-        .block_on(async {
-            db.get_app_setting("discord_rpc_enabled")
-                .await
-                .unwrap_or(None)
-        })
+    let discord_enabled = settings
+        .get("discord_rpc_enabled")
+        .cloned()
         .map(|v| v == "true")
         .unwrap_or(true);
 
-    let discord_client_id = rt.block_on(async {
-        db.get_app_setting("discord_rpc_client_id")
-            .await
-            .unwrap_or(None)
-    });
+    let discord_client_id = settings.get("discord_rpc_client_id").cloned();
 
     let discord_rpc = Some(desktop_integration::DiscordRpcController::start(
         Some(rt.handle()),
@@ -447,6 +419,12 @@ pub fn init_app(
         control_ipc,
         last_waybar_write: Arc::new(Mutex::new(std::time::Instant::now())),
         last_status: Arc::new(std::sync::RwLock::new(None)),
+        close_to_tray: Arc::new(std::sync::atomic::AtomicBool::new(
+            settings
+                .get("close_to_tray")
+                .map(|v| v != "false")
+                .unwrap_or(true),
+        )),
     };
 
     let state_for_cli = app_state.clone();
@@ -465,7 +443,11 @@ pub fn init_app(
         });
     }
 
-    let _ = update_system_icons(app.handle(), &icon_style);
+    // Zapis ikon i plików .desktop oraz gtk-update-icon-cache nie blokują startu okna.
+    let icon_handle = app.handle().clone();
+    std::thread::spawn(move || {
+        let _ = update_system_icons(&icon_handle, &icon_style);
+    });
 
     setup_tray_and_window_events(app)?;
 

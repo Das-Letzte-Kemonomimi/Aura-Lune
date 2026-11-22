@@ -112,19 +112,13 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
         let app_handle = app.handle().clone();
         main_window.on_window_event(move |event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Wartość z pamięci (aktualizowana przez `set_app_setting`) — bez zapytania do bazy
+                // i `block_on` na wątku głównym przy każdym zamknięciu okna.
                 let state = app_handle.state::<AppState>();
-                let close_to_tray = state
-                    .rt
-                    .block_on(async {
-                        state
-                            .db
-                            .get_app_setting("close_to_tray")
-                            .await
-                            .unwrap_or(None)
-                    })
-                    .unwrap_or_else(|| "true".to_string());
-
-                if close_to_tray == "true" {
+                if state
+                    .close_to_tray
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
                     api.prevent_close();
                     let _ = main_window_clone.hide();
                 }

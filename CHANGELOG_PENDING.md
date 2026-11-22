@@ -56,6 +56,7 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Szybszy i bezpieczniejszy start**: ustawienia wczytywane jednym zapytaniem, bez trzykrotnego ładowania całej biblioteki; aktualizacja ikon systemowych w tle; błąd otwarcia bazy lub silnika audio pokazuje komunikat zamiast cichej awarii; zamknięcie okna nie odpytuje bazy (ustawienie „zamykaj do zasobnika” w pamięci).
 - **Bezpieczeństwo**: włączono ścisłą politykę CSP okna aplikacji (wcześniej wyłączoną); zapis plików wskazanych przez interfejs (eksporty, renderowanie, pobieranie, kopie zapasowe) jest odrzucany dla katalogów systemowych i ukrytych plików konfiguracyjnych w katalogu domowym; odczyt plików graficznych/kopii/playlist sprawdza rozszerzenie po rozwiązaniu dowiązań; okładki mają limit 20 MB, wymagany typ obrazu i bezpieczne nazwy plików; kolejka FIFO i gniazdo sterowania są dostępne tylko dla bieżącego użytkownika; ikona aplikacji nie jest już wczytywana z /tmp; serwer deweloperski Vite nasłuchuje tylko na 127.0.0.1.
 - **Przerwane pobieranie nie zostawia plików tymczasowych** (`.auralune_tmp_*`) po błędzie sieci lub dysku.
 - **Crossfeed w DSP Studio działa**: suwaki i przełącznik Crossfeed w widoku DSP nie otrzymywały wartości ani obsługi (zawsze `undefined`) — teraz są podłączone do ustawień audio.

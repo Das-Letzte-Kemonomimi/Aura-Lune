@@ -11,7 +11,7 @@ use metadata::{CoverArtArchiveClient, LastFmClient, ListenBrainzClient, MusicBra
 use std::sync::{Arc, Mutex};
 use storage::Database;
 use tauri::Manager;
-use tracing::{error, info};
+use tracing::info;
 
 pub mod commands;
 pub mod setup;
@@ -54,6 +54,8 @@ pub struct AppState {
     pub last_waybar_write: Arc<Mutex<std::time::Instant>>,
     /// Ostatni status odtwarzania wyliczony przez ticker (`setup::playback_ticker`).
     pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
+    /// Pamięć podręczna ustawienia `close_to_tray` (odczyt w obsłudze zamknięcia okna bez blokowania).
+    pub close_to_tray: Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub fn run() {
@@ -71,8 +73,10 @@ pub fn run() {
     let engine = match AudioEngine::new() {
         Ok(e) => Arc::new(e),
         Err(err) => {
-            error!("Nie udało się zainicjalizować silnika audio: {:?}", err);
-            panic!("Krytyczny błąd silnika audio: {:?}", err);
+            setup::fatal::report_fatal_startup_error(&format!(
+                "Nie udało się zainicjalizować silnika audio (GStreamer): {err}"
+            ));
+            std::process::exit(1);
         }
     };
 

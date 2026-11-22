@@ -1,6 +1,7 @@
 //! Moduł inicjalizacji i cyklu życia aplikacji (Linux environment, app state, tray, lifecycle).
 
 pub mod app_init;
+pub mod fatal;
 pub mod linux_env;
 pub mod playback_ticker;
 pub mod silence_trim;

@@ -114,3 +114,9 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **Waybar / control FIFO.** If you use Waybar or scripts with `/tmp/auralune_ctl` or `/tmp/auralune.sock`, they should still control the player. Both are now readable and writable only by your user.
 - [ ] **Desktop notifications.** A track title starting with `-` should show correctly in the notification.
 - [ ] **App icon style "lineout".** Selecting it in Settings → Themes should still install the icon.
+
+### Startup (Phase 6)
+
+- [ ] **Normal start and closing the window.** The app should start normally. Closing the window with "close to tray" on should hide it to the tray; with it off, the app should quit. Toggling the setting should take effect immediately, without a restart.
+- [ ] **Startup failure shows a message.** Make the database unopenable (for example `chmod 000` on `auralune_library.db`) and start the app. An error dialog (zenity or kdialog) should appear instead of a silent crash. Restore the permissions afterwards.
+- [ ] **App icon applied at startup.** It should still be set, now in the background.

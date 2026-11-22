@@ -160,4 +160,14 @@ impl Database {
 
         Ok(row.map(|r| r.get("value")))
     }
+
+    /// Wszystkie ustawienia aplikacji jednym zapytaniem (np. przy starcie, zamiast wielu odczytów).
+    pub async fn list_app_settings(
+        &self,
+    ) -> Result<std::collections::HashMap<String, String>, StorageError> {
+        let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM app_settings;")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows.into_iter().collect())
+    }
 }
