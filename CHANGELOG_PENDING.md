@@ -12,195 +12,140 @@
 
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
+> Zakres: wszystkie zmiany gałęzi względem `main` (porządki „prepare for refactor”, wydzielenie `App.tsx`, kanał deweloperski instalatora oraz fazy 1–6 przeglądu backendu i frontendu). Lista rzeczy do sprawdzenia ręcznie w działającej aplikacji: [`MANUAL_CHECKS.md`](./MANUAL_CHECKS.md).
+
 ### ✨ Dodano (Added)
-- **Interaktywne przeciąganie animowanej fali dźwiękowej (Drag-to-Seek na falogramie `WaveformCanvas`)**:
-  - Wprowadzono płynne, bezpośrednie przeciąganie wskaźnika odtwarzania myszą oraz dotykiem na animowanym przebiegu fali we wszystkich 4 stylach wizualnych: Gładka Fala (`smooth`), Słupki Cyber (`bars`), Przewijana Fala DJ (`scrolling`) oraz Lustrzane Spektrum (`mirror`).
-  - Zastosowano mechanizm Pointer Events z przechwytywaniem wskaźnika (`setPointerCapture`) oraz asekuracyjnym śledzeniem zdarzeń na poziomie okna przeglądarki (`window`), eliminując gubienie gestu przy szybkim wyjechaniu poza kontener.
-  - Podczas przeciągania na żywo odświeżana jest podświetlona część utworu, igła DJ-a oraz pływający wskaźnik czasu (stabilne 60/120 FPS), a właściwy skok odtwarzania (`seek_with_fade`) następuje dopiero w momencie zwolnienia przycisku myszy (`onPointerUp` / `handleSeekCommit`).
-  - Dodano pełne pokrycie testami jednostkowymi w nowym pliku `WaveformCanvas.test.tsx`.
-- **Nowoczesna struktura danych i paginacja widoku historii wydań (`ChangelogView`)**:
-  - Wyodrębniono całą bazę 38 wydań z monolitycznego pliku komponentu do ustrukturyzowanego pliku danych [`apps/desktop/src/data/changelog.json`](./apps/desktop/src/data/changelog.json).
-  - Wdrożono wygodną paginację z wyborem liczby wydań na stronę (3, 5 lub 10 wydań), skrótami do pierwszej i ostatniej strony, nawigacją poprzednia/następna oraz inteligentnym wielokropkiem (`...`) przy dużej liczbie stron.
-  - Dodano automatyczne, łagodne przewijanie do góry widoku po zmianie strony oraz dedykowany zestaw testów jednostkowych `ChangelogView.test.tsx`.
-- **Dwuetapowe przewijanie utworów i płynny podgląd (Two-Phase Seeking)**:
-  - Wprowadzono natychmiastową reakcję suwaków pozycji (60/120 FPS) podczas przeciągania myszą lub dotykiem, bez zacinania dźwięku i bez wysyłania zbędnych zapytań IPC w trakcie ruchu (`handleSeekPreview`).
-  - Właściwy skok odtwarzania następuje dopiero po zwolnieniu suwaka (`onPointerUp`, `onMouseUp`, `onTouchEnd`, `onKeyUp`) za pośrednictwem funkcji `handleSeekCommit`.
-- **Podwójny tryb regulacji głośności (Instant Zero-Latency & Smooth S-Curve Fade)**:
-  - Przeniesiono element `volume` w potoku GStreamera za bufor wyjściowy `queue_sink` (`queue_sink -> volume -> sink`), co całkowicie wyeliminowało 600-milisekundowe opóźnienie bufora wyjściowego i pozwoliło na reakcję karty dźwiękowej poniżej 15 ms.
-  - Wdrożono wybór trybu głośności w ustawieniach (`instantVolume`):
-    - **Tryb natychmiastowy (Instant Response)**: bezpośrednie wysyłanie polecenia IPC (0 ms opóźnienia) z płynnym scalaniem ruchów suwaka zsynchronizowanym z odświeżaniem ekranu (`requestAnimationFrame`).
-    - **Tryb płynnego przejścia (Smooth Fade)**: studyjna, miękka interpolacja krzywą cosinusową S-curve po stronie silnika audio w Rust (`set_volume_smooth`, 60–120 ms w krokach co 8 ms) z natychmiastowym przerwaniem poprzedniej generacji oraz płynną animacją suwaka w UI, eliminująca trzaski cyfrowe i szum schodkowy.
-    - **Wyciszanie i odciszanie (Mute/Unmute)**: w trybie płynnym łagodne wygaszenie i przywrócenie dźwięku w 120 ms; w trybie natychmiastowym natychmiastowe odcięcie lub przywrócenie poziomu.
-- **Niezależne, w pełni asynchroniczne operacje w tle (brak zacinania interfejsu)**:
-  - Wszystkie komendy backendu korzystające z bazy danych SQLite i sieci (zarządzanie biblioteką, zakładki, motywy, playlisty, presety DSP, statystyki, skanowanie ReplayGain i okładki) działają teraz w pełni asynchronicznie w puli wątków Tokio, dzięki czemu interfejs odtwarzacza zachowuje pełną responsywność.
-- **Szybsze uruchamianie programu dzięki ładowaniu okien na żądanie (`React.lazy`)**:
-  - Wprowadzono podział kodu (`React.lazy` oraz `Suspense`) dla 32 modali narzędziowych i analitycznych w `AppModalsContainer.tsx` (m.in. korektory, edytor tagów, mikser stemów, analizator muzyczny, asystent ReplayGain).
-  - Zmniejszono główną paczkę startową JavaScript o około 380 kB (~20% mniejszy rozmiar kodu pobieranego przy uruchomieniu).
-- **Nowy instalator Linuksa z osobnym kanałem deweloperskim (`install.sh`)**:
-  - Dodano możliwość instalacji wersji deweloperskiej (`auralune-dev`) równolegle ze stabilną (`auralune`), z całkowicie odizolowanymi plikami wykonywalnymi, profilami i skrótami systemowymi.
-  - Wbudowano automatyczną detekcję wtyczek multimedialnych GStreamera w systemie użytkownika, zapobiegając brakowi dźwięku na dystrybucjach typu Arch Linux.
-- **Automatyczne budowanie wersji testowych w GitHub Actions (`ci.yml`)**:
-  - Każda zmiana wprowadzana do gałęzi deweloperskiej automatycznie tworzy i publikuje świeżą paczkę AppImage z oznaczeniem `dev`, gotową do pobrania i aktualizacji przez instalator.
-- **Uniwersalny skrypt weryfikacji całego projektu (`tests/run_all_tests.sh`)**:
-  - Przygotowano 7-stopniowy zestaw sprawdzający: formatowanie kodu Rusta (`cargo fmt`), linter oxlint i testy jednostkowe Vitest, poprawność typów TypeScript i build Vite, linter Rust Clippy (`-D warnings`), testy jednostkowe i integracyjne backendu Rust, test dymny `desktop_smoke_test` oraz poprawność składni skryptów powłoki (`bash -n`).
-  - Dodano poręczne przełączniki: `--fix` (automatyczne formatowanie), `--fast` (szybkie testy bez ciężkich prób audio) oraz `--bundle` (lokalny test paczkowania AppImage).
-- **Nowe dokumenty architektoniczne dla deweloperów i agentów AI**:
-  - Utworzono całościowy podręcznik architektury [`AGENTS.md`](./AGENTS.md) opisujący strukturę modułów, bazy danych SQLite, komend Tauri, hooków domenowych i protokołów weryfikacji.
-  - Utworzono plik [`DEVELOPMENT.md`](./DEVELOPMENT.md) z opisem konfiguracji środowiska, komend testowych i procesu budowania wydań.
-- **Duże rozszerzenie testów automatycznych**:
-  - **Pamięć i baza danych**: dodano testy CRUD biblioteki, zakładek i punktów cue, ustawień, presetów DSP, transkrypcji i profili fali dźwiękowej, projektów wielościeżkowych stemów, statystyk, podsumowań Recap oraz trwałości kolejki.
-  - **Silnik audio i DSP**: przetestowano granice procesora DSP, współbieżność, edytor metadanych (w tym polskie znaki diakrytyczne i odporność na uszkodzone pliki), stabilność odtwarzania przy skrajnych poziomach głośności oraz gwałtownym przewijaniu.
-  - **Parsery i integracja z systemem**: dodano testy arkuszy CUE (z przerwami pregap), playlist M3U/M3U8, modułu Waybar oraz komend sterowania IPC.
-  - **Interfejs użytkownika**: przetestowano wyłącznik czasowy (Sleep Timer z łagodnym wyciszaniem), formatowanie czasu, normalizację tekstu, router widoków, dok odtwarzacza oraz interaktywny falogram `WaveformCanvas`.
+
+#### Odtwarzanie i dźwięk
+- **Przewijanie przeciąganiem na falogramie** (`WaveformCanvas`) we wszystkich czterech stylach (gładka fala, słupki, przewijana fala DJ, lustrzane spektrum) — mysz i dotyk, z przechwytywaniem wskaźnika, podglądem czasu na żywo i skokiem dopiero po puszczeniu przycisku.
+- **Dwuetapowe przewijanie na wszystkich suwakach pozycji**: podczas przeciągania odświeża się tylko podgląd (60/120 FPS, bez zapytań IPC), a przewinięcie z mikro-wyciszeniem (20–48 ms, `seek_with_fade`) następuje po puszczeniu suwaka.
+- **Dwa tryby regulacji głośności** w ustawieniach:
+  - **natychmiastowy** — zmiana trafia do karty dźwiękowej w mniej niż 15 ms (element `volume` przeniesiono za bufor `queue_sink`, co usunęło ok. 600 ms opóźnienia);
+  - **płynny** — przejście po krzywej S (60–120 ms) bez trzasków, również przy wyciszaniu i przywracaniu dźwięku.
+
+#### Interfejs
+- **Historia wydań z paginacją**: dane wydań w pliku [`changelog.json`](./apps/desktop/src/data/changelog.json), wybór 3/5/10 wydań na stronę, skróty do pierwszej/ostatniej strony i wielokropek przy wielu stronach.
+- **Przycisk podsumowania Recap** w nagłówku panelu statystyk.
+- **Komunikat o błędzie przy nieudanym starcie** (baza danych, katalog danych, GStreamer) w oknie systemowym (zenity/kdialog) zamiast cichej awarii.
+- **Kilka komunikatów o błędach naraz** (do 3) — każdy znika po własnym czasie, kliknięcie zamyka komunikat, identyczne komunikaty nie są dublowane.
+
+#### Instalacja, wydania i narzędzia deweloperskie
+- **Kanał deweloperski instalatora** (`install.sh`): wersja `auralune-dev` instalowana obok stabilnej, z osobnymi plikami, profilem i skrótami; automatyczne wykrywanie wtyczek GStreamera (np. na Arch Linux).
+- **Automatyczne wydania testowe**: każda zmiana w gałęzi deweloperskiej publikuje w GitHub Actions świeży AppImage oznaczony `dev`.
+- **Skrypt pełnej weryfikacji** `tests/run_all_tests.sh` (7 etapów jak w CI: `cargo fmt`, oxlint + Vitest, `tsc` + build Vite, Clippy `-D warnings`, testy Rusta, test dymny, `bash -n`) z przełącznikami `--fix`, `--fast` i `--bundle`.
+- **Dokumentacja**: przewodnik architektury [`AGENTS.md`](./AGENTS.md), [`DEVELOPMENT.md`](./DEVELOPMENT.md) oraz lista kontroli ręcznych [`MANUAL_CHECKS.md`](./MANUAL_CHECKS.md).
+- **Znacznie więcej testów automatycznych**, m.in.:
+  - baza danych — migracje schematu, kaskady kluczy obcych, kolejność playlist, duplikaty;
+  - silnik audio — tryb bit-perfect, długość wyjścia i ciągłość znaczników czasu DSP, niewyrównane bufory, zakleszczenia, kodowanie URI, wykrywanie ciszy;
+  - pobieranie — lokalny serwer testowy zamiast zależności od Hugging Face;
+  - kontrakt IPC — każde `invoke()` frontendu musi trafiać w zarejestrowaną komendę;
+  - format błędów komend i polityka CSP;
+  - hooki frontendu — wyłącznik czasowy, skróty klawiaturowe, przeciąganie plików, nasłuchy zdarzeń, komunikaty, trwałe ustawienia.
 
 ---
 
 ### 🛠️ Poprawiono (Fixed)
-- **Ustawienie powiadomień systemowych jest zapamiętywane**: przełącznik zapisywał wartość pod innym kluczem niż odczytywany przy starcie, więc wyłączenie powiadomień nie przetrwało restartu (zapisana wcześniej wartość jest przenoszona).
-- **Komunikaty o błędach nie nadpisują się**: kilka błędów pojawia się jednocześnie (do 3), każdy znika po własnym czasie; kliknięcie zamyka komunikat.
-- **Baza danych**: utwory w playlistach pokazują ulubione, oceny, BPM i ReplayGain (wcześniej te kolumny były pomijane); równoległe dodawanie do playlisty nie daje już zdublowanych pozycji; przełączanie ulubionych, zapis historii odsłuchów i kanałów projektu stemów są atomowe; wyszukiwanie duplikatów wykonuje jedno zapytanie zamiast jednego na grupę; nowe indeksy (utwory w playlistach, klucz duplikatów), usunięty zbędny indeks ścieżki.
-- **Skanowanie biblioteki nie blokuje aplikacji**: przeglądanie katalogów i odczyt tagów/okładek działa w puli wątków blokujących zamiast na wątkach asynchronicznych.
-- **Stan kolejki przy zamykaniu i podczas edycji**: zapisy kolejki są łączone i wykonywane przez jeden wątek (wcześniej równoległe zapisy mogły nadpisać nowszy stan starszym); przy wyjściu z aplikacji końcowy stan jest zapisywany synchronicznie, a silnik, sterowanie IPC i plik Waybar są porządnie zamykane. Przerwane separacje stemów są przy starcie oznaczane jako nieudane.
-- **Szybszy i bezpieczniejszy start**: ustawienia wczytywane jednym zapytaniem, bez trzykrotnego ładowania całej biblioteki; aktualizacja ikon systemowych w tle; błąd otwarcia bazy lub silnika audio pokazuje komunikat zamiast cichej awarii; zamknięcie okna nie odpytuje bazy (ustawienie „zamykaj do zasobnika” w pamięci).
-- **Bezpieczeństwo**: włączono ścisłą politykę CSP okna aplikacji (wcześniej wyłączoną); zapis plików wskazanych przez interfejs (eksporty, renderowanie, pobieranie, kopie zapasowe) jest odrzucany dla katalogów systemowych i ukrytych plików konfiguracyjnych w katalogu domowym; odczyt plików graficznych/kopii/playlist sprawdza rozszerzenie po rozwiązaniu dowiązań; okładki mają limit 20 MB, wymagany typ obrazu i bezpieczne nazwy plików; kolejka FIFO i gniazdo sterowania są dostępne tylko dla bieżącego użytkownika; ikona aplikacji nie jest już wczytywana z /tmp; serwer deweloperski Vite nasłuchuje tylko na 127.0.0.1.
-- **Przerwane pobieranie nie zostawia plików tymczasowych** (`.auralune_tmp_*`) po błędzie sieci lub dysku.
-- **Crossfeed w DSP Studio działa**: suwaki i przełącznik Crossfeed w widoku DSP nie otrzymywały wartości ani obsługi (zawsze `undefined`) — teraz są podłączone do ustawień audio.
-- **„Dodaj do kolejki” i „Odtwórz jako następny” w bibliotece działają** (tabela utworów i widok albumu nie otrzymywały obsługi tych akcji).
-- **Skan ReplayGain pojedynczego utworu z biblioteki działa** (brakowało przekazania obsługi).
-- **Przełącznik „Przywracaj sesję przy starcie” w Ustawieniach → Urządzenia działa** (zakładka nie otrzymywała stanu z menedżera sesji).
-- **Klawisze multimedialne (MPRIS) i gniazdo sterowania nie blokują już wątków asynchronicznych**: polecenia następny/poprzedni/przewiń (z mikro-wyciszeniami do ~150 ms) wykonywane są w puli wątków blokujących.
-- **Wizualizacja widma nie może już spowodować paniki** dla analizatora zwracającego od 16 do 63 pasm (wcześniej indeks wychodził poza zakres).
-- **Utwory przechodzą dalej także przy ukrytym oknie**: magistrala silnika audio (koniec utworu, następny utwór, zapętlenie) była obsługiwana tylko wtedy, gdy interfejs odpytywał `get_status`. Nowy backendowy ticker odtwarzania (`setup/playback_ticker.rs`) działa niezależnie od okna — odtwarzanie z zasobnika systemowego, zminimalizowane lub zdławione przez WebKit nie zatrzymuje się już po bieżącym utworze. Po automatycznej zmianie utworu aktualizowane są też metadane MPRIS.
-- **Pomijanie ciszy (Silence Trimming) wreszcie działa**: element GStreamera `cutter` nigdy nie był podłączony do potoku (i wymusiłby 16-bitowy dźwięk). Cisza na początku i końcu utworu jest teraz wykrywana w tle, zapamiętywana w bazie (migracja v3) i pomijana: odtwarzanie startuje od pierwszego dźwięku, a po ostatnim przechodzi dalej — z zachowaniem trybów powtarzania, „stop po bieżącym” i crossfade. Koniec utworu nigdy nie jest ucinany, jeśli analiza nie objęła całego pliku.
-- **Statystyki czasu słuchania (Recap) liczone przez backend**: także przy ukrytym oknie; uśpienie systemu nie dolicza godzin słuchania.
-- **Pętla A-B jest dokładniejsza** (sprawdzana w każdej klatce statusu, ~100 ms) i nie wysyła wielokrotnych żądań przewinięcia.
-- **Akcje z zasobnika systemowego (play/pauza/następny/poprzedni)** przechodzą przez te same ścieżki co interfejs — aktualizują MPRIS/Discord, zapisują kolejkę i od razu odświeżają UI.
-- **Losowe odtwarzanie całej biblioteki (Shuffle All) znów działa**: frontend wywoływał nieistniejącą komendę `set_shuffle`, przez co odtwarzanie nigdy się nie rozpoczynało. Dodano idempotentną komendę backendu `set_shuffle(enabled)`.
-- **Zastępowanie utworu demonstracyjnego pierwszym utworem z biblioteki**: dodano brakującą komendę `set_active_track`, dzięki czemu po pierwszym skanowaniu backend faktycznie ładuje wybrany utwór (wcześniej wywołanie trafiało w próżnię).
-- **Wyłącznik czasowy (Sleep Timer) odlicza podczas odtwarzania**: interwał był restartowany przy każdym renderze (~10×/s), więc odliczanie nie postępowało. `showMessage` ma teraz stabilną referencję, a efekty uboczne (`pause`, `set_volume`) nie są już wykonywane wewnątrz aktualizatora stanu.
-- **Skróty klawiaturowe używają aktualnego języka, formatu głośności i handlerów** (wcześniej zamrożone wartości z pierwszego renderu).
-- **Jedno upuszczenie pliku (Drag & Drop) jest obsługiwane jednokrotnie** — zdarzenia z kilku kanałów (webview, okno, `tauri://drag-drop`, HTML5) są deduplikowane. Usunięto też podwójne wczytywanie presetów DSP i playlist przy starcie.
-- **Brak wycieków nasłuchów zdarzeń Tauri**: nowy hook `useTauriEvent` wyrejestrowuje nasłuch również wtedy, gdy komponent zostanie odmontowany przed rozwiązaniem `listen()`.
-- **Skaner biblioteki zapisuje prawdziwego wykonawcę albumu** (tag `ALBUMARTIST`, z rezerwą na wykonawcę utworu) zamiast tytułu albumu; kompilacje nie rozpadają się już na osobne albumy dla każdego artysty. Migracja v2 naprawia istniejące rekordy.
-- **Usunięte z dysku pliki znikają z biblioteki po ponownym skanowaniu** — tylko w obrębie skanowanego folderu i tylko po kompletnym przejściu istniejącego katalogu (odmontowany dysk nie wyczyści biblioteki).
-- **Usuwanie utworu z zapisaną zakładką odtwarzania** nie kończy się już błędem klucza obcego (`ON DELETE CASCADE`, migracja v2).
-- **Bezpieczna zmiana nazw plików**: wzorce nie mogą tworzyć ścieżek absolutnych ani wychodzić poza katalog pliku (`..`), wartości tagów `.`/`..` są neutralizowane, długość składników jest ograniczona, a istniejące pliki są nadpisywane wyłącznie po potwierdzeniu.
-- **Analiza akordów i transkrypcja z pamięci podręcznej zwracają zapisane tempo, tonację i kod Camelot** zamiast stałych `120 BPM` / `"Detected"`; eksport MIDI używa rzeczywistego tempa.
-- **ReplayGain w trybie Auto** zaczyna od Track Gain zamiast dziedziczyć tryb Album z poprzedniego ustawienia.
-- **Ścieżki ze spacjami i znakami spoza ASCII** (np. japońskie tytuły) w stemach, separacji i analizie są poprawnie kodowane jako URI (nowy moduł `audio_engine::uri`).
-- **Kolejność losowa (Shuffle) zmienia się między kolejkami** — ziarno nie zależy już wyłącznie od długości kolejki.
-- **Wyeliminowano możliwe zakleszczenie** silnika przy jednoczesnym `play()` i `play_index()` z różnych wątków (np. klawisze multimedialne MPRIS i kliknięcie w kolejce).
-- **Elementy kolejki dodawane przez upuszczenie plików** pokazują tytuł albumu zamiast wykonawcy albumu.
 
-- **Dwukierunkowe sortowanie i numeracja porządkowa w tabeli utworów (`#`) w bibliotece**:
-  - Rozwiązano problem braku reakcji na ponowne kliknięcie nagłówka kolumny `#` (`default`) oraz braku możliwości odwrócenia domyślnej kolejności utworów.
-  - Wyeliminowano powtarzające się wartości `#1` na każdym wierszu tabeli utworów: dotychczas kolumna `#` wyświetlała metadane numeru ścieżki z pliku (`t.track_no`), przez co wszystkie single cyfrowe oraz pierwsze utwory z albumów pokazywały tę samą wartość `1`. Zastąpiono ją sekwencyjnym numerem pozycji w widoku (`idx + 1`), a oryginalny numer ścieżki z tagów przeniesiono do dymku podpowiedzi (tooltip).
-  - W hooku `useLibraryManager.ts` obsłużono kierunek sortowania (`sortOrder === 'asc' ? baseList : [...baseList].reverse()`) w gałęzi `sortField === 'default'`, dzięki czemu ponowne kliknięcie nagłówka `#` lub użycie przycisku zmiany kierunku na pasku narzędzi natychmiast odwraca listę utworów (z zachowaniem aktywnych filtrów inteligentnych playlist).
-  - W nagłówku kolumny `#` w `LibraryView.tsx` zastąpiono statyczną kropkę aktywnym wskaźnikiem kierunku (`▲` dla rosnącego, `▼` dla malejącego), włączono widoczność przycisku przełączania kierunku w toolbarze przy wybranym domyślnym sortowaniu oraz zaktualizowano pasek stanu i akcję odtwarzania posortowanej kolejki.
-  - Dodano dedykowane testy jednostkowe weryfikujące przełączanie kierunku sortowania domyślnego w `useLibraryManager.test.ts`.
-- **Kompleksowe oczyszczenie adnotacji lintera React 19 i ESLint/Oxlint w CI/CD**:
-  - Wyeliminowano ostrzeżenia `react(refs)` oraz `react(purity)` w `usePlaybackController.ts` poprzez przeniesienie synchronizacji referencji do hooków `useEffect` oraz wyeliminowanie nieczystych wywołań czasu (`Date.now()`, `performance.now()`) w trakcie fazy renderowania komponentów (`TrackStatsModal.tsx`, `VinylTurntable.tsx`).
-  - Zastosowano bezpieczny wzorzec `pollingDepsRef` w pętli odpytywania stanu backendu, usuwając ostrzeżenie `react-hooks(exhaustive-deps)` i gwarantując przekazywanie najświeższych tokenów i danych bez efektu przestarzałych domknięć (stale closures) w scrobblerach Last.fm i ListenBrainz.
-  - Poprawiono tablice zależności w hookach `useCallback` i `useEffect` w `useTranscodeManager.ts`, `KeyBpmModal.tsx`, `HarmonicSuggesterModal.tsx` oraz `BigScreenView.tsx`.
-  - Zastąpiono nieużywane parametry błędów `catch (_)` nowoczesną składnią `catch {}` w `useAmbienceMode.ts`, `usePlaybackController.ts`, `useAudioSettings.ts`, `VuMeterWidget.tsx` oraz `SpectrumVisualizer.tsx`.
-- **Poprawka uprawnień buforowania pakietów APT w potoku CI (GitHub Actions)**:
-  - Rozwiązano problem niepowodzenia zapisu pamięci podręcznej (`/usr/bin/tar failed with error: exit code 2: Permission denied`) w kroku `Post job cleanup` dla ścieżki `/var/cache/apt/archives`.
-  - Wprowadzono automatyczne usuwanie systemowych plików blokad roota (`lock` oraz katalogu `partial`) oraz nadawanie uprawnień odczytu dla użytkownika `runner` zaraz po instalacji pakietów, co zapewnia w 100% bezbłędne tworzenie archiwum `.tzst` w akcji `actions/cache`.
-- **Czysty tryb Bit-Perfect (True Passthrough Bypass) dla korektora graficznego i parametrycznego**:
-  - Wprowadzono automatyczne włączanie natywnego trybu passthrough (`transform.set_passthrough(true)`) na elementach GStreamera `equalizer-10bands` oraz `equalizer-nbands`, gdy korektory są wyłączone lub nie posiadają aktywnych pasm. Zapobiega to zbędnemu przetwarzaniu próbek przez filtry IIR przy wyłączonym EQ, gwarantując 100% bit-exact bypass bez podbarwień i przesunięć fazowych.
-  - Naprawiono warunek wyświetlania stanu przycisku EQ w `DspStudioView.tsx`, usuwając błąd fałszywego wskazywania włączonego korektora przy wartości `undefined`.
-- **Podział paczek (Code-Splitting) w Vite i redukcja rozmiaru początkowego**:
-  - Skonfigurowano precyzyjny podział kodu (`manualChunks`) w pliku `apps/desktop/vite.config.ts`, wyodrębniając biblioteki dostawców (`react-vendor`, `icons-vendor`, `tauri-vendor`), bazę historii wydań (`changelog-data`), słowniki lokalizacyjne (`locales-data`) oraz duże widoki (`view-dsp`, `view-library`, `view-settings`).
-  - Zredukowano główny plik startowy JavaScript z ponad 1,57 MB do zaledwie 465 kB (110 kB po kompresji gzip), całkowicie usuwając ostrzeżenia minifikacji bundlera o przekroczeniu limitu 500 kB na paczkę i przyspieszając ładowanie interfejsu.
-- **Poprawka celów paczkowania w `tauri.conf.json` i zgodność wersji deweloperskiej**:
-  - Skonfigurowano jawne cele paczkowania na Linuksie jako `["appimage", "deb"]` zamiast domyślnego `"all"`, co wyeliminowało błąd bundlera RPM (`invalid version "1.1.6-dev": contains invalid character '-'`) pojawiający się na dystrybucjach z zainstalowanym narzędziem `rpmbuild` (np. Arch Linux / CachyOS, Fedora).
-- **Przywrócenie działania zakładki statystyk i podsumowań (Recap & Stats Dashboard)**:
-  - Naprawiono błąd trasowania w routerze głównej zawartości (`MainContentRouter.tsx`), przywracając brakującą gałąź dla aktywnej zakładki `'stats'` i podłączając komponent `StatsDashboardView.tsx`.
-  - Przekazano właściwości statystyk (`statsProps`) w hookach nawigacyjnych (`useMainRouterProps.ts` oraz `useMainContentRouterProps.ts`).
-  - W nagłówku panelu statystyk umieszczono przycisk bezpośredniego wywołania modalu rocznego podsumowania Recap.
-  - Pokryto działanie routera i hooków nawigacyjnych dedykowanymi testami jednostkowymi.
-- **Całościowy audyt i 100% lokalizacji interfejsu (i18n)**:
-  - Przeprowadzono całościowy audyt kodu frontendu (`apps/desktop`), usuwając wszelkie twardo zakodowane napisy i zastępując je dynamicznymi tłumaczeniami w 5 językach (angielski, polski, niemiecki, fiński, łacina).
-  - Przetłumaczono etykiety, opisy, dymki podpowiedzi (tooltips) i powiadomienia toast m.in. w:
-    - Inspektorze toru audio (`AudioPathInspectorModal`): formaty, częstotliwości próbkowania, głębia bitowa, kanały stereo, parametry tempo/pitch, latencja DSP, bufor odtwarzacza, stany bit-perfect i direct bypass;
-    - Centrum pobierania audio (`DownloadHubModal`): zlokalizowane placeholdery nazw plików oraz sum kontrolnych SHA-256;
-    - Szpuli magnetofonowej i gramofonie (`TapeDeckWidget`, `VinylTurntable`): tytuły nagłówka ("STUDIO TAPE DECK"), prędkości, typy taśm i ramiona gramofonowe;
-    - Panelu kolejki i nagłówku aplikacji (`QueueDrawer`, `AppHeader`, `BottomPlaybackDock`): przyciski Auto-DJ, Recap, Harmonic DJ oraz tryby odtwarzania losowego i pętli;
-    - Widokach biblioteki, playlist i radia (`LibraryView`, `PlaylistsView`, `RadioView`): nagłówki kolumn formatu, przycisk powrotu do albumów oraz zlokalizowane opisy stacji radiowych;
-    - Generatorze dźwięków tła (`SoundscapeModal` i `soundscapeAudio.ts`): wielojęzyczne nazwy wszystkich gotowych presetów relaksacyjnych;
-    - Oknie miksera stemów (`StemProjectStudioModal`): komunikaty o błędach, powiadomienia o tworzeniu i eksporcie archiwum ZIP, licznik ścieżek instrumentów oraz status separacji na żywo;
-    - Studiu DSP (`DspStudioView`): etykiety szerokości sceny stereo, podpowiedź studia dynamiki i lampy oraz jednostki półtonów.
-  - Naprawiono błąd gubienia wybranego języka w kontenerze modali (`AppModalsContainer.tsx`) – wyeliminowano sytuację, w której domyślny język polski był wymuszany w oknach dialogowych niezależnie od wybranego języka w ustawieniach.
-  - Zapewniono 100% zgodności i symetrii kluczy we wszystkich 5 plikach lokalizacyjnych (`src/locales/{en,pl,de,fi,la}.json`), zweryfikowane automatycznym testem jednostkowym `i18n.test.ts`.
-- **Poprawki ostrzeżeń lintera React 19 i zgodności z hookami**:
-  - Usunięto synchroniczne wywołania `setState` wewnątrz efektów `useEffect` (zapobiegając kaskadowym przerysowaniom) m.in. w `UrlAudioImportModal`, `DesktopLyricsOverlay`, `LyricsView`, `TrackBookmarksModal`, `StemProjectStudioModal` oraz `VolumeOsd`.
-  - Usunięto nieczyste wywołania funkcji w trakcie renderowania w `TapeDeckWidget`.
-  - Uzupełniono brakujące zależności w hookach `useEffect` i `useCallback` w `DesktopLyricsOverlay`, `LyricsView` i `StemProjectStudioModal`.
-- **Skrócenie czasu instalacji zależności systemowych w potoku CI z 12 minut do 1-2 minut**:
-  - Zoptymalizowano krok instalacji bibliotek GStreamera, PipeWire, WebKitGTK i AppIndicator w GitHub Actions poprzez buforowanie pakietów apt (`actions/cache`) oraz zastosowanie flagi `--no-install-recommends`.
-- **Rozwiązanie problemu kolizji tagu deweloperskiego w GitHub Actions**:
-  - Naprawiono błąd `dst refspec dev matches more than one` przy automatycznym wypychaniu wydań AppImage, stosując precyzyjny refspec `refs/tags/dev:refs/tags/dev`.
-- **Płynne wyciszanie przy przewijaniu (Smooth Seek Fade)**:
-  - Naprawiono błąd, przez który puszczenie suwaka pozycji ignorowało włączoną opcję łagodnego wyciszania.
-  - Opcja działa teraz spójnie we wszystkich widokach aplikacji: głównym pasku doku, widoku odtwarzacza, trybie pełnoekranowym, Mini Playerze, nakładce tekstu piosenki, widoku fali dźwiękowej oraz osi akordów.
-  - Zastosowano delikatne, studyjne mikro-wygaszenie (20–48 ms), które skutecznie usuwa wszelkie trzaski i stuki w głośnikach lub słuchawkach podczas skoków w utworze.
-- **Koniec z cofaniem i szarpaniem suwaków (rubberbanding)**:
-  - Zabezpieczono suwaki czasu i głośności za pomocą flag interakcji (`isSeekingRef`, `isVolumeInteractingRef`), dzięki czemu asynchroniczne odpytywanie stanu z backendu nie nadpisuje pozycji w trakcie trwania gestu użytkownika.
-- **Płynna regulacja głośności bez zatykania komunikacji**:
-  - Zastosowano łagodne dławienie częstych zdarzeń przeciągania suwaka głośności, zachowując jednocześnie natychmiastową reakcję dla przycisku wyciszenia/odciszenia.
-- **Szybsza i stabilniejsza baza danych SQLite**:
-  - Wprowadzono bezpieczny mechanizm aktualizacji bazy danych w oparciu o wersję schematu (`PRAGMA user_version`), usuwając błędy o powielonych kolumnach przy starcie programu.
-  - Zwiększono pamięć podręczną SQLite (do 64 MB) i włączono szybki tryb zapisu w pamięci RAM oraz mapowanie pamięci (`mmap`), co zauważalnie przyspiesza działanie aplikacji na dużych bibliotekach.
-- **Zmniejszone zużycie procesora i baterii przez wizualizator**:
-  - Animacja analizatora widma (`SpectrumVisualizer.tsx`) i efektów anime automatycznie zatrzymuje się, gdy okno programu jest zminimalizowane lub ukryte w tle (`document.hidden`), redukując zużycie GPU i CPU do zera.
-- **Poprawki w procesie budowania paczek AppImage**:
-  - Dodano brakujące pakiety systemowe do potoku CI na GitHubie, co rozwiązało problem z wykrywaniem bibliotek wskaźników zasobnika systemowego.
-- **Bezpieczeństwo pobierania instalatora**:
-  - Zabezpieczono instalator uruchamiany z gałęzi stabilnej przed przypadkowym pobraniem wersji testowych.
-  - Naprawiono obsługę kanału deweloperskiego, aby w razie opóźnienia wydań na GitHubie nie pobierał po cichu przestarzałych wersji stabilnych.
+#### Odtwarzanie i kolejka
+- **Utwory przechodzą dalej także przy ukrytym lub zminimalizowanym oknie.** Koniec utworu, przejście do następnego i zapętlenie były obsługiwane tylko wtedy, gdy interfejs odpytywał stan. Obsługuje je teraz osobny wątek backendu (`setup/playback_ticker.rs`), który też aktualizuje MPRIS po automatycznej zmianie utworu.
+- **Pomijanie ciszy (Silence Trimming) wreszcie działa.** Element `cutter` nigdy nie był podłączony do potoku (i wymusiłby dźwięk 16-bitowy). Cisza na początku i końcu jest teraz wykrywana w tle, zapamiętywana w bazie i pomijana — z zachowaniem powtarzania, „stop po bieżącym” i crossfade. Koniec utworu nie jest ucinany, jeśli analiza nie objęła całego pliku.
+- **Losowe odtwarzanie całej biblioteki (Shuffle All) znów działa** — frontend wywoływał nieistniejącą komendę `set_shuffle`. Kolejność losowa zmienia się też między kolejkami.
+- **Pierwszy utwór z biblioteki zastępuje utwór demonstracyjny** po pierwszym skanowaniu (brakowało komendy `set_active_track`).
+- **Wyłącznik czasowy (Sleep Timer) odlicza podczas odtwarzania** (wcześniej odliczanie restartowało się ~10× na sekundę).
+- **Pętla A-B jest dokładniejsza** i nie wysyła wielokrotnych żądań przewinięcia.
+- **Akcje z zasobnika systemowego** (odtwórz/pauza/następny/poprzedni) aktualizują MPRIS i Discord, zapisują kolejkę i od razu odświeżają interfejs.
+- **Klawisze multimedialne (MPRIS) i gniazdo sterowania nie blokują wątków asynchronicznych** — przełączanie utworów z mikro-wyciszeniem działa w puli wątków blokujących.
+- **Usunięto możliwe zakleszczenie silnika** przy jednoczesnym `play()` i `play_index()` (np. klawisz multimedialny i kliknięcie w kolejce).
+- **Stan kolejki nie ginie**: zapisy są łączone i wykonywane przez jeden wątek (równoległe zapisy mogły nadpisać nowszy stan starszym), a przy wyjściu z aplikacji końcowy stan jest zapisywany od razu.
+- **Plik upuszczony na okno jest dodawany raz** (zdarzenia z kilku kanałów są deduplikowane); elementy z upuszczonych plików pokazują tytuł albumu zamiast wykonawcy albumu.
+- **Płynne wyciszanie przy przewijaniu** działa we wszystkich widokach: dok, odtwarzacz, tryb pełnoekranowy, Mini Player, nakładka tekstu, falogram i oś akordów.
+- **Suwaki czasu i głośności nie „cofają się” w trakcie przeciągania** (stan z backendu nie nadpisuje gestu użytkownika).
+
+#### Dźwięk i DSP
+- **Prawdziwy tryb bit-perfect dla wyłączonych korektorów** — wyłączony EQ graficzny i parametryczny przepuszcza próbki bez przetwarzania; przycisk EQ nie pokazuje już fałszywie stanu „włączony”.
+- **Crossfeed w DSP Studio działa** (suwaki i przełącznik nie były podłączone do ustawień).
+- **ReplayGain w trybie Auto** zaczyna od Track Gain zamiast dziedziczyć tryb Album.
+- **Wizualizacja widma nie powoduje już awarii** dla analizatora zwracającego od 16 do 63 pasm.
+- **Ścieżki ze spacjami i znakami spoza ASCII** (np. japońskie tytuły) działają w stemach, separacji i analizie (poprawne kodowanie URI).
+- **Analiza akordów i transkrypcja z pamięci podręcznej** zwracają zapisane tempo, tonację i kod Camelot zamiast stałych `120 BPM` / „Detected”; eksport MIDI używa rzeczywistego tempa.
+
+#### Biblioteka i dane
+- **Skaner zapisuje prawdziwego wykonawcę albumu** (tag `ALBUMARTIST`), więc kompilacje nie rozpadają się na osobne albumy; istniejące rekordy naprawia migracja bazy.
+- **Pliki usunięte z dysku znikają z biblioteki po ponownym skanowaniu** — tylko w obrębie skanowanego folderu i tylko po kompletnym przejściu (odmontowany dysk nie wyczyści biblioteki).
+- **Usuwanie utworu z zapisaną zakładką** nie kończy się błędem klucza obcego.
+- **Playlisty pokazują ulubione, oceny, BPM i ReplayGain** (te kolumny były pomijane).
+- **Spójne zapisy w bazie**: równoległe dodawanie do playlisty nie dubluje pozycji; przełączanie ulubionych, historia odsłuchów i kanały projektu stemów zapisują się w całości albo wcale.
+- **Statystyki czasu słuchania (Recap)** liczy backend — także przy ukrytym oknie; uśpienie systemu nie dolicza godzin.
+- **Przerwane separacje stemów** są przy starcie oznaczane jako nieudane zamiast wisieć w stanie „separating”.
+- **Przerwane pobieranie** nie zostawia plików tymczasowych `.auralune_tmp_*`.
+- **Bezpieczna zmiana nazw plików**: wzorce nie mogą tworzyć ścieżek absolutnych ani wychodzić poza katalog (`..`), długość nazw jest ograniczona, a istniejące pliki są nadpisywane tylko po potwierdzeniu.
+- **Tabela utworów**: kolumna `#` pokazuje numer pozycji w widoku (numer ścieżki z tagów jest w podpowiedzi), a ponowne kliknięcie nagłówka odwraca kolejność domyślną.
+
+#### Interfejs i ustawienia
+- **Ustawienie powiadomień systemowych jest zapamiętywane** — przełącznik zapisywał wartość pod innym kluczem niż odczytywany przy starcie; zapisana wcześniej wartość jest przenoszona.
+- **„Dodaj do kolejki” i „Odtwórz jako następny”** w tabeli utworów i widoku albumu działają.
+- **Skan ReplayGain pojedynczego utworu** z biblioteki działa.
+- **Przełącznik „Przywracaj sesję przy starcie”** w Ustawieniach → Urządzenia działa.
+- **Zakładka statystyk** znów się otwiera (brakowało jej w routerze widoków).
+- **Skróty klawiaturowe** używają aktualnego języka, jednostki głośności i obsługi akcji (wcześniej wartości z pierwszego renderu).
+- **Okna dialogowe nie wymuszają już języka polskiego** niezależnie od ustawień.
+- **Pełna lokalizacja interfejsu w 5 językach** (en, pl, de, fi, la) — usunięto twardo zakodowane napisy m.in. z inspektora toru audio, centrum pobierania, magnetofonu i gramofonu, kolejki, biblioteki, radia, generatora dźwięków tła, miksera stemów i DSP Studio; test pilnuje zgodności kluczy.
+- **Brak wycieków nasłuchów zdarzeń** przy szybkim zamykaniu okien (`useTauriEvent`).
+
+#### Bezpieczeństwo
+- **Ścisła polityka CSP okna aplikacji** (wcześniej wyłączona) — bez skryptów inline i `eval`.
+- **Kontrola ścieżek wskazanych w interfejsie**: zapis (eksporty, renderowanie, pobieranie, kopie zapasowe) jest odrzucany dla katalogów systemowych i ukrytych folderów w katalogu domowym; odczyt okładek, tapet, kopii i playlist sprawdza rozszerzenie po rozwiązaniu dowiązań.
+- **Bezpieczniejsze okładki**: limit 20 MB, wymagany typ obrazu, tylko adresy http(s), bezpieczne nazwy plików.
+- **Kolejka FIFO i gniazdo sterowania** są dostępne tylko dla bieżącego użytkownika; ikona aplikacji nie jest wczytywana z `/tmp`; serwer deweloperski Vite nasłuchuje tylko na `127.0.0.1`.
+
+#### Budowanie i CI
+- **Paczki Linuksa** budowane jako `appimage` i `deb` (błąd RPM dla wersji `1.1.6-dev` na systemach z `rpmbuild`).
+- **CI**: brakujące zależności zasobnika systemowego, błąd uprawnień przy zapisie pamięci podręcznej apt, kolizja tagu `dev` przy wypychaniu wydań, instalacja zależności skrócona z ~12 do 1–2 minut.
+- **Instalator** nie pobiera przypadkowo wersji testowych z kanału stabilnego ani po cichu przestarzałych wersji stabilnych z kanału deweloperskiego.
 
 ---
 
 ### 🔄 Zmieniono (Changed)
-- **Interfejs**: wspólna funkcja `fmt` dla szablonów tłumaczeń (157 miejsc zamiast łańcuchów `.replace`), wspólne formatowanie rozmiarów i czasu w oknach duplikatów, edytora tagów, CUE i importu z URL.
-- **Warstwa komend**: usunięto 31 komend IPC, których interfejs nigdy nie wywoływał (aliasy `set_*_ratio`/`set_pitch_semitones`, nieużywane gettery i eksporty); wspólne odwzorowanie nazw silnika DSP (`DspEngine::from_name`/`as_str`) zamiast pięciu kopii; jedna funkcja wyszukiwania okładki dla Discord zamiast dwóch; obliczanie SHA-256 projektu stemów i przeglądanie upuszczonych folderów nie blokują wątków asynchronicznych.
-- **Podział największych widoków i okien na komponenty sekcji**: `PlayerView` (3032 → 419 linii), `LibraryView` (2950 → 259), `DspStudioView` (2167 → 360) oraz `BigScreenView`, ustawienia Urządzeń i Transkodowania, korektor parametryczny, import z URL i studio projektów stemów. Sekcje odtwarzacza niezależne od pozycji (pasek narzędzi, transport, mini-pasek DSP, kolejka) nie renderują się już w każdej klatce odtwarzania.
-- **Ścisłe typy we frontendzie**: włączono `strict` w TypeScript, usunięto ~390 z ~434 użyć `any` (m.in. w budowniczych propsów widoków, ustawień i okien), ujednolicono zduplikowane typy (`TrackRecord`, `PlaybackStatus`, `AudioCard` i inne mają jedną definicję) i typy zakładek (`types/navigation.ts`). Reguła `exhaustive-deps` w oxlint jest teraz błędem.
-- **Silnik audio bezpieczniejszy w czasie rzeczywistym**: tryb Bypass (bit-perfect) nie korzysta już z blokady w wątku audio; zmiana rozmiaru bloku DSP lub formatu nie wstrzymuje strumienia na czas przygotowania silników Rubber Band/SoundTouch; saturator i stereo widener czytają ustawienia bez blokad; usunięto alokacje pamięci i zapytania o format przy każdym buforze. Mniejsze ryzyko trzasków i przerw przy zmianie parametrów podczas odtwarzania.
-- **Bezpieczne rzutowanie próbek audio**: wszystkie miejsca interpretujące bajty bufora jako próbki `f32` sprawdzają wyrównanie pamięci (z bezpiecznym kopiowaniem w razie potrzeby) zamiast niesprawdzonego `from_raw_parts`.
-- **Podział `pipeline.rs` (3089 linii) na moduły tematyczne** (`pipeline/`: graf, sondy efektów, źródła, transport, przejścia głośności, kolejka, magistrala, DSP, korektory, efekty) oraz usunięcie zduplikowanego kodu: demontaż źródła, gałęzie stemów, przejścia między utworami, obsługa zapętlenia przy EOS, normalizacja widma.
-- **Interfejs nie renderuje się już w całości 10× na sekundę podczas odtwarzania**: status przychodzi zdarzeniem `auralune://playback-status` (zamiast odpytywania), pozycja i spektrum trafiają do lekkiego magazynu `src/state/livePlayback.ts`, a stan `App` zmienia się tylko przy istotnych zmianach (oraz z pozycją co ~1 s). W każdej klatce odświeżają się wyłącznie komponenty rysujące postęp i wizualizacje. Przeciąganie suwaka pozycji nie przerysowuje już całej aplikacji 60× na sekundę.
-- Komenda `get_status` zwraca gotową migawkę z tickera (tani odczyt zamiast ~300 linii pracy na wątku głównym). Usunięto komendę `notify_track_looped` — zapętlenia zgłasza backend.
-- **Typowane błędy komend Tauri (`CommandError`)**: wszystkie 215 komend zwraca teraz `{ code, message }` z kategorią błędu (`storage`, `engine`, `io`, `not_found`, `validation`, `network`, `internal`) zamiast samego tekstu. Ręczne konwersje `.map_err(|e| e.to_string())` zastąpiono operatorem `?` z typowanymi konwersjami `From`; komunikaty z kontekstem zachowują kategorię (`CommandError::context`).
-- **Typowane błędy w crate'ach**: `AnalysisError` i `TagError` (audio-engine), `ScrobbleError` (Last.fm/ListenBrainz), `DomainError` (parsery CUE/M3U/EqualizerAPO, walidacja motywów i wzorców nazw plików), `StorageError::Serde` / `StorageError::Domain` (zamiast nadużywanego wariantu `Migration`). `AudioEngineError` zyskał warianty `Validation`, `Pipeline`, `NotFound`, `External` w miejsce nadużywanego `ElementLink`.
-- **Odporność silnika audio na zatrute blokady**: `lock().unwrap()` (117 miejsc w `pipeline.rs` i `dsp_node.rs`) zastąpiono `lock_safe()` — panika jednego wątku nie unieruchamia już całego odtwarzacza.
-- **Typowana warstwa IPC frontendu (`src/api/`)**: `invoke` z `src/api/ipc.ts` akceptuje wyłącznie nazwy zarejestrowanych komend (generowane z `lib.rs` przez `npm run gen:commands`) i normalizuje błędy do `IpcError` z polem `code`. Ustawienia aplikacji obsługują `getSetting` / `setSetting` z zamkniętą listą kluczy (`src/api/settings.ts`). Bezpośredni import `invoke` z `@tauri-apps/api/core` blokuje oxlint.
-- **Wspólny mock IPC w testach Vitest** (`src/test/setup.ts`, `src/test/ipcMock.ts`) zastąpił 15 skopiowanych bloków `vi.mock`.
-- Usunięto nieużywane hooki `useAudioPlayer`, `useThemeEngine` i `useMainContentRouterProps` wraz z testami.
-- Dodano test kontraktu IPC (`apps/desktop/src-tauri/tests/ipc_contract_test.rs`), który wykrywa wywołania `invoke('…')` z frontendu do niezarejestrowanych komend Tauri.
-- **Kompleksowa dekompozycja monolitycznego pliku `App.tsx`**:
-  - Skrócono monolityczny plik `App.tsx` z ponad 3700 linii do zwięzłej, czytelnej powłoki aplikacji (około 1300 linii).
-  - Całą logikę biznesową wyodrębniono do ponad 20 dedykowanych hooków domenowych (`useAudioPlayer`, `usePlaybackController`, `usePlaybackQueue`, `useLibraryManager`, `useDspManager`, `useThemeEngine`, `useModalManager`, `useAudioSettings`, `usePlaylistManager`, `useTranscodeManager`, `useMusicBrainzManager`, `useScrobblerManager`, itp.).
-  - Główne ekrany aplikacji podzielono na modularne widoki w katalogu `views/` (`views/player/PlayerView.tsx`, `views/library/LibraryView.tsx`, `views/dsp/DspStudioView.tsx`, `views/playlists/PlaylistsView.tsx`, `views/stats/StatsDashboardView.tsx`, `views/changelog/ChangelogView.tsx`, `views/settings/AppSettingsModal.tsx`).
-  - Wprowadzono architekturę hooków budujących zestawy właściwości (`useMainRouterProps`, `useMainContentRouterProps`, `useAppHeaderProps`, `useBottomPlaybackDockProps`, `useAppModalsProps`, `useAppSettingsModalProps`).
-- **Wydzielenie słowników tłumaczeń do plików JSON**:
-  - Przeniesiono gigantyczny plik `i18n.ts` (ponad 4800 linii) do czytelnych plików JSON w folderze `src/locales/` (`en.json`, `pl.json`, `de.json`, `fi.json`, `la.json`), a moduł `i18n.ts` przekształcono w zwięzły mechanizm ładujący z pełną kontrolą typów.
-- **Porządki i modularna architektura aplikacji desktopowej (`apps/desktop/src-tauri`)**:
-  - Skrócono monolityczny plik `lib.rs` z 4914 linii do zaledwie 336 linii.
-  - Wszystkie 162 komendy aplikacji przeniesiono do czytelnych, tematycznych plików w katalogu `commands/` (m.in. odtwarzanie, biblioteka, korektor graficzny, motywy, zakładki, urządzenia, stemmy, presety, transkodowanie).
-  - Logikę startową i menu zasobnika systemowego wyodrębniono do osobnego modułu `setup/`.
-- **Uporządkowanie modułu pamięci podręcznej i bazy danych (`crates/storage`)**:
-  - Podzielono duży plik `lib.rs` (ponad 3000 linii) na 9 mniejszych, wyspecjalizowanych podmodułów w `src/` (`models`, `schema`, `library`, `bookmarks`, `settings`, `playlists`, `stats`, `analysis`, `stems`).
-  - Fasada `crates/storage/src/lib.rs` została zredukowana do zaledwie 74 linii.
-- **Kompleksowe wydzielenie testów ze źródeł produkcyjnych do osobnych plików (`tests/`)**:
-  - Usunięto wewnętrzne bloki testowe (`#[cfg(test)]`) z produkcyjnych plików źródłowych we wszystkich modułach Rusta (`storage`, `domain`, `metadata`, `downloads`, `dsp-api`, `desktop-integration`, `audio-engine` oraz `src-tauri`).
-  - Wszystkie testy przeniesiono do przejrzystych plików w dedykowanych folderach `tests/` lub wydzielonych modułach testowych, co przyspiesza kompilację równoległą i ułatwia przegląd kodu produkcyjnego.
-- **Błyskawiczne wyszukiwanie i sortowanie w bibliotece**:
-  - Zastosowano odroczoną aktualizację wyników (`useDeferredValue`), dzięki czemu wpisywanie tekstu w polu wyszukiwania nie zacina interfejsu (stabilne 120 FPS nawet w bardzo dużych kolekcjach).
-  - Przyspieszono sortowanie utworów, albumów i artystów (2–3x szybsze działanie dzięki `Intl.Collator`) z pełnym uwzględnieniem polskich reguł językowych.
-- **Mniejsze obciążenie komputera w spoczynku**:
-  - Odtwarzacz sprawdza stan co 100 ms podczas odtwarzania muzyki, a w stanie pauzy lub zatrzymania co 350 ms, zmniejszając niepotrzebne zużycie procesora.
-- **Lepsza płynność interfejsu dzięki memoizacji komponentów**:
-  - Kluczowe komponenty ekranu (`BottomPlaybackDock`, `PlayerView`, `LibraryView`) zostały zoptymalizowane za pomocą `React.memo`, eliminując zbędne przerysowywanie całego okna przy każdym tyknięciu licznika czasu.
-- **Aktualizacja narzędzi deweloperskich**:
-  - Zaktualizowano środowisko do Node.js 22 LTS, menedżera pnpm 10 oraz najnowszej stabilnej wersji kompilatora Rust (edycja 2024).
+
+#### Wydajność
+- **Interfejs nie renderuje się w całości 10× na sekundę podczas odtwarzania**: stan przychodzi zdarzeniem `auralune://playback-status` (backend wysyła go co 100 ms przy odtwarzaniu i co 250 ms w spoczynku; frontend nie odpytuje). Pozycja i widmo trafiają do lekkiego magazynu `src/state/livePlayback.ts`, więc w każdej klatce odświeżają się tylko paski postępu i wizualizacje.
+- **Szybszy start**:
+  - ustawienia wczytywane jednym zapytaniem, bez trzykrotnego ładowania całej biblioteki;
+  - ikony systemowe aktualizowane w tle;
+  - zamknięcie okna nie odpytuje bazy;
+  - 30 okien dialogowych ładowanych na żądanie (`React.lazy`);
+  - podział paczek Vite zmniejszył główny plik JavaScript z ~1,57 MB do ~465 kB (110 kB gzip).
+- **Skanowanie biblioteki, liczenie SHA-256 projektu stemów i rozwijanie upuszczonych folderów** nie blokują wątków asynchronicznych.
+- **Baza SQLite**: większa pamięć podręczna (64 MB), tabele tymczasowe w RAM, `mmap`, nowe indeksy; wyszukiwanie duplikatów jednym zapytaniem.
+- **Silnik audio bezpieczniejszy w czasie rzeczywistym**:
+  - tryb Bypass działa bez blokad;
+  - zmiana formatu lub rozmiaru bloku nie wstrzymuje strumienia;
+  - efekty czytają ustawienia bez blokad;
+  - przy buforach nie ma alokacji pamięci;
+  - próbki są odczytywane ze sprawdzeniem wyrównania pamięci.
+
+  Mniejsze ryzyko trzasków przy zmianie parametrów.
+- **Wyszukiwanie i sortowanie w bibliotece**: `useDeferredValue` (pisanie nie zacina interfejsu) i 2–3× szybsze sortowanie (`Intl.Collator`, z polskimi regułami).
+- **Wizualizacje zatrzymują się**, gdy okno jest ukryte lub zminimalizowane.
+- **Mniej przerysowań**: kluczowe komponenty i sekcje odtwarzacza niezależne od pozycji są memoizowane (`React.memo`).
+
+#### Architektura backendu
+- **Moduły zamiast monolitów**:
+  - `lib.rs` aplikacji desktopowej: z 4914 do ~300 linii (komendy w `commands/`, start, zasobnik, ticker i zamykanie w `setup/`);
+  - `crates/storage`: z ponad 3000 linii do 9 podmodułów;
+  - `pipeline.rs` silnika audio (3089 linii): moduły tematyczne `pipeline/` bez zduplikowanego kodu źródeł, stemów, przejść i obsługi końca utworu.
+- **Typowane błędy**: każda komenda Tauri zwraca `{ code, message }` (`storage`, `engine`, `io`, `not_found`, `validation`, `network`, `internal`); crate'y mają własne typy błędów (`AnalysisError`, `TagError`, `ScrobbleError`, `DomainError` i inne). Panika jednego wątku nie unieruchamia już silnika (`lock_safe`).
+- **Porządne zamykanie aplikacji**: zapis kolejki, zatrzymanie silnika i sterowania IPC, usunięcie pliku statusu Waybar.
+- **Usunięto 31 nieużywanych komend IPC** (m.in. aliasy `set_*_ratio` / `set_pitch_semitones`, nieużywane gettery i eksporty) oraz `notify_track_looped` — zostało 183 komend; logika w silniku i bazie pozostaje. Wspólne mapowanie nazw silnika DSP (`DspEngine::from_name` / `as_str`) i jedno wyszukiwanie okładek dla Discord zamiast kopii.
+- **Testy przeniesione z plików produkcyjnych** (`#[cfg(test)]`) do katalogów `tests/` we wszystkich crate'ach.
+
+#### Architektura frontendu
+- **`App.tsx` z ponad 3700 do ~1300 linii**: logika w hookach domenowych (`usePlaybackController`, `usePlaybackQueue`, `useLibraryManager`, `useDspManager`, `useModalManager`, `useAudioSettings`, `usePlaylistManager`, `useScrobblerManager` i inne), ekrany w `views/`, właściwości składane przez hooki-budowniczych. Nieużywane hooki `useAudioPlayer`, `useThemeEngine` i `useMainContentRouterProps` usunięto.
+- **Duże widoki podzielone na sekcje**: `PlayerView` (3032 → 419 linii), `LibraryView` (2950 → 259), `DspStudioView` (2167 → 360) oraz tryb pełnoekranowy, ustawienia urządzeń i transkodowania, korektor parametryczny, import z URL i studio stemów.
+- **Słowniki tłumaczeń w plikach JSON** (`src/locales/`) zamiast pliku `i18n.ts` z ponad 4800 liniami; wspólna funkcja `fmt` dla szablonów (zamiast 157 łańcuchów `.replace('{0}', …)`).
+- **Typowana warstwa IPC** (`src/api/`): `invoke` przyjmuje tylko zarejestrowane komendy (lista generowana z backendu, `npm run gen:commands`), błędy mają kod (`IpcError`), ustawienia mają zamkniętą listę kluczy.
+- **Ścisły TypeScript** (`strict`), usunięto ~390 z ~434 użyć `any`, każdy typ kontraktu z backendem ma jedną definicję; reguła `exhaustive-deps` jest błędem lintera. Poprawiono zależności hooków i czystość renderowania zgłaszane przez reguły React 19.
+- **Wspólne narzędzia**: kolejka komunikatów `useToasts`, trwałe ustawienia `usePersistedState`, wspólne formatowanie rozmiarów i czasu, wspólny mock IPC w testach.
+
+#### Środowisko
+- **Node.js 22 LTS** oraz stabilny Rust (edycja 2021) z `rustfmt` i `clippy`.
