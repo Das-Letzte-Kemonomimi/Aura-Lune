@@ -56,6 +56,7 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Wizualizacja widma nie może już spowodować paniki** dla analizatora zwracającego od 16 do 63 pasm (wcześniej indeks wychodził poza zakres).
 - **Utwory przechodzą dalej także przy ukrytym oknie**: magistrala silnika audio (koniec utworu, następny utwór, zapętlenie) była obsługiwana tylko wtedy, gdy interfejs odpytywał `get_status`. Nowy backendowy ticker odtwarzania (`setup/playback_ticker.rs`) działa niezależnie od okna — odtwarzanie z zasobnika systemowego, zminimalizowane lub zdławione przez WebKit nie zatrzymuje się już po bieżącym utworze. Po automatycznej zmianie utworu aktualizowane są też metadane MPRIS.
 - **Pomijanie ciszy (Silence Trimming) wreszcie działa**: element GStreamera `cutter` nigdy nie był podłączony do potoku (i wymusiłby 16-bitowy dźwięk). Cisza na początku i końcu utworu jest teraz wykrywana w tle, zapamiętywana w bazie (migracja v3) i pomijana: odtwarzanie startuje od pierwszego dźwięku, a po ostatnim przechodzi dalej — z zachowaniem trybów powtarzania, „stop po bieżącym” i crossfade. Koniec utworu nigdy nie jest ucinany, jeśli analiza nie objęła całego pliku.
 - **Statystyki czasu słuchania (Recap) liczone przez backend**: także przy ukrytym oknie; uśpienie systemu nie dolicza godzin słuchania.
@@ -148,6 +149,9 @@
 ---
 
 ### 🔄 Zmieniono (Changed)
+- **Silnik audio bezpieczniejszy w czasie rzeczywistym**: tryb Bypass (bit-perfect) nie korzysta już z blokady w wątku audio; zmiana rozmiaru bloku DSP lub formatu nie wstrzymuje strumienia na czas przygotowania silników Rubber Band/SoundTouch; saturator i stereo widener czytają ustawienia bez blokad; usunięto alokacje pamięci i zapytania o format przy każdym buforze. Mniejsze ryzyko trzasków i przerw przy zmianie parametrów podczas odtwarzania.
+- **Bezpieczne rzutowanie próbek audio**: wszystkie miejsca interpretujące bajty bufora jako próbki `f32` sprawdzają wyrównanie pamięci (z bezpiecznym kopiowaniem w razie potrzeby) zamiast niesprawdzonego `from_raw_parts`.
+- **Podział `pipeline.rs` (3089 linii) na moduły tematyczne** (`pipeline/`: graf, sondy efektów, źródła, transport, przejścia głośności, kolejka, magistrala, DSP, korektory, efekty) oraz usunięcie zduplikowanego kodu: demontaż źródła, gałęzie stemów, przejścia między utworami, obsługa zapętlenia przy EOS, normalizacja widma.
 - **Interfejs nie renderuje się już w całości 10× na sekundę podczas odtwarzania**: status przychodzi zdarzeniem `auralune://playback-status` (zamiast odpytywania), pozycja i spektrum trafiają do lekkiego magazynu `src/state/livePlayback.ts`, a stan `App` zmienia się tylko przy istotnych zmianach (oraz z pozycją co ~1 s). W każdej klatce odświeżają się wyłącznie komponenty rysujące postęp i wizualizacje. Przeciąganie suwaka pozycji nie przerysowuje już całej aplikacji 60× na sekundę.
 - Komenda `get_status` zwraca gotową migawkę z tickera (tani odczyt zamiast ~300 linii pracy na wątku głównym). Usunięto komendę `notify_track_looped` — zapętlenia zgłasza backend.
 - **Typowane błędy komend Tauri (`CommandError`)**: wszystkie 215 komend zwraca teraz `{ code, message }` z kategorią błędu (`storage`, `engine`, `io`, `not_found`, `validation`, `network`, `internal`) zamiast samego tekstu. Ręczne konwersje `.map_err(|e| e.to_string())` zastąpiono operatorem `?` z typowanymi konwersjami `From`; komunikaty z kontekstem zachowują kategorię (`CommandError::context`).

@@ -329,3 +329,14 @@ pub fn default_stem_label(stem_id: &str, lang_is_pl: bool) -> &'static str {
         }
     }
 }
+
+/// Liniowe wzmocnienie kanału projektu stemów w mikserze.
+///
+/// Wyciszony kanał oraz — gdy którykolwiek kanał jest w trybie solo — każdy kanał bez solo
+/// dostają 0. Pozostałe: krzywa suwaka (`slider_to_linear_gain`) × głośność główna.
+pub fn effective_channel_gain(channel: &StemChannel, any_solo: bool, master_volume: f32) -> f64 {
+    if channel.mute || (any_solo && !channel.solo) {
+        return 0.0;
+    }
+    (slider_to_linear_gain(channel.volume) * master_volume) as f64
+}

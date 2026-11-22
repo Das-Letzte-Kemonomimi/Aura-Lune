@@ -327,3 +327,47 @@ fn test_validate_rename_target() {
     assert!(validate_rename_target(old, "/music/lib/../other/new.flac").is_err());
     assert!(validate_rename_target(old, "/home/user/.bashrc").is_err());
 }
+
+#[test]
+fn test_effective_channel_gain_respects_mute_solo_and_master() {
+    use domain::{effective_channel_gain, StemChannel, StemQualityTier};
+    let mut ch = StemChannel {
+        id: "vocals".into(),
+        name: "Vocals".into(),
+        parent_stem: None,
+        file_path: "/s/v.wav".into(),
+        color_hex: "#fff".into(),
+        quality_tier: StemQualityTier::default(),
+        volume: 0.75, // 0 dB
+        pan: 0.0,
+        mute: false,
+        solo: false,
+    };
+
+    let full = effective_channel_gain(&ch, false, 1.0);
+    assert!(
+        (full - 1.0).abs() < 0.05,
+        "suwak 0.75 to 0 dB (≈1.0), jest {full}"
+    );
+    assert!(
+        (effective_channel_gain(&ch, false, 0.5) - full / 2.0).abs() < 1e-6,
+        "głośność główna mnoży"
+    );
+
+    assert_eq!(
+        effective_channel_gain(&ch, true, 1.0),
+        0.0,
+        "inny kanał ma solo"
+    );
+    ch.solo = true;
+    assert!(
+        effective_channel_gain(&ch, true, 1.0) > 0.0,
+        "kanał z solo gra"
+    );
+    ch.mute = true;
+    assert_eq!(
+        effective_channel_gain(&ch, true, 1.0),
+        0.0,
+        "mute wygrywa z solo"
+    );
+}

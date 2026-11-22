@@ -7,6 +7,7 @@ pub mod metadata_editor;
 pub mod model_manager;
 pub mod pipeline;
 pub mod rt;
+pub mod spectrum;
 pub mod stem_separator;
 pub(crate) mod sync;
 pub mod transcoder;

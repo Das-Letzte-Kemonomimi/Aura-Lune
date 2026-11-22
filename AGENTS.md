@@ -164,7 +164,7 @@ Aura-Lune/
   - `parametric_eq`: Biquad filter types (`Peak`, `LowShelf`, `HighShelf`, `LowPass`, `HighPass`, `BandPass`, `Notch`), EqualizerAPO format export and import.
   - `theme`: Anime aesthetic color tokens (`ThemeTokens`), background wallpaper opacity and blur properties.
   - `replaygain`: ReplayGain 2.0 ITU-R BS.1770 modes (`Off`, `Track`, `Album`, `Auto`) and target loudness settings.
-  - `stem_project`: Stem channel definitions, volume mappings, and mixer presets.
+  - `stem_project`: Stem channel definitions, volume mappings (`slider_to_linear_gain`, `effective_channel_gain` for mute/solo/master), and mixer presets.
   - `dynamics`: Compressor, Tape Saturator, and Stereo Widener parameters.
   - `device`: `AudioCard`, `BluetoothCodec` (LDAC, aptX HD, AAC, SBC, SBC-XQ).
   - `silence`: `SilenceTrimmingConfig`, `find_silence_bounds` (RMS windows → `SilenceBounds`), `trim_action` (seek past lead / finish at trail).
@@ -192,8 +192,19 @@ Aura-Lune/
 ### `crates/audio-engine`
 - **Purpose**: Core real-time playback engine powered by GStreamer 0.25 (`gst-plugins-base`, `gst-plugins-good`).
 - **Key Modules & Features**:
-  - `pipeline.rs`: `AudioEngine` orchestrator, atomic volume management (`atomic_volume`), instant zero-latency volume control via post-`queue_sink` element placement, smooth S-curve volume fading (`set_volume_smooth`), non-blocking seek with smooth micro-fade (`seek_with_fade`), rapid seek/fade cancellation (`fade_generation`).
-  - `dsp_node.rs`: Dynamic switching between Bypass, RubberBand, and SoundTouch.
+  - `pipeline/`: `AudioEngine` orchestrator, split into thematic `impl AudioEngine` blocks (no file > ~450 lines):
+    - `mod.rs` — shared state (`PipelineInner`, `StemMixerHandles`), `PlayerEvent`, lock-order rule (`inner` may be held while taking `queue`, never the reverse).
+    - `graph.rs` — `AudioEngine::new()`: element creation and linking (post-`queue_sink` `volume` placement for < 15 ms volume latency).
+    - `probes.rs` — saturator and stereo widener pad probes (streaming-thread code; config in `AtomicCell`, channel count cached from Caps).
+    - `source.rs` — `load_uri`, stems and stem projects (`teardown_source`, `add_stem_mixer`, `add_stem_branch`, `start_stem_source`).
+    - `transport.rs` — play/pause/stop/seek (`seek_with_fade`), position math.
+    - `fades.rs` — `atomic_volume`, `set_volume_smooth` S-curve, equal-power fades, crossfade, `fade_generation` cancellation.
+    - `queue_ops.rs` — queue mutations and track switches (`switch_context`, `fade_out_before_switch`, `start_switched_track`).
+    - `bus.rs` — `poll_events` (EOS → stop-after-current / `replay_current` / `advance_after_eos`, errors, tags, spectrum, pre-EOS fade). Called only by the desktop playback ticker.
+    - `dsp.rs`, `equalizer.rs`, `effects.rs` — DSP params, graphic/parametric EQ, dynamics, ReplayGain, crossfeed, silence config, widener, limiter.
+  - `dsp_node.rs`: Custom `auralune_dsp` element switching Bypass / RubberBand / SoundTouch. **Real-time model:** bypass is lock-free (atomic engine flag, bit-perfect passthrough); processing holds the state lock only for one buffer; `prepare()` for new formats/block sizes runs outside the lock and the processors are swapped in; output blocks are collected on the stack (no per-buffer heap allocation); format comes from the Caps event only.
+  - `rt.rs`: Streaming-thread helpers — alignment-checked `f32` views of buffer bytes (`f32_samples`, `map_f32_samples_in_place`, `map_stereo_frames_in_place`, `extend_f32_samples`) with copy fallback, and `RateLimiter` for hot-path logging. Never cast buffer bytes with `slice::from_raw_parts`.
+  - `spectrum.rs`: Pure spectrum math (dB normalisation, 64 → 16 perceptual bands, stereo assembly).
   - `analysis.rs`: Key & BPM detection, chord recognition, and transcription.
   - `metadata_editor.rs`: Full tag reading and writing using `lofty`.
   - `model_manager.rs`: AI model catalog and SHA-256 verification.
@@ -410,7 +421,7 @@ All tests across the workspace are decoupled from production source files into d
 |---|---|---|
 | `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs`<br>`tests/schema_migrations_test.rs` (incl. silence cache) | Full SQLite persistence and query test suite |
 | `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs`<br>`tests/silence_trim_test.rs` | Domain entities, parsers, and DSP model math |
-| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`tests/silence_detection_test.rs`<br>`src/hpss_test.rs` | GStreamer playback, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
+| `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`tests/silence_detection_test.rs`<br>`tests/dsp_node_test.rs`<br>`tests/rt_helpers_test.rs`<br>`tests/spectrum_test.rs`<br>`src/hpss_test.rs`<br>`src/sync_test.rs` | GStreamer playback, bit-perfect bypass & DSP output length/PTS, aligned/unaligned sample casts, spectrum pooling, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
 | `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs` | Network services, LRC parsing, AcoustID |
 | `crates/downloads` | `tests/download_manager_test.rs` | Model download jobs & path traversal checks |
 | `crates/desktop-integration` | `tests/desktop_integration_test.rs`<br>`tests/discord_rpc_test.rs`<br>`tests/mpris_test.rs`<br>`tests/waybar_and_ipc_test.rs` | MPRIS, Discord RPC, Waybar atomic status |
@@ -426,6 +437,7 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 
 1. **Audio Thread Real-Time Safety**:
    - The audio callback thread in `audio-engine` and `dsp-*` **must never perform heap allocations (`Vec::new()`, `Box::new()`, `String`), file I/O, network requests, or mutex locks**.
+   - Current exception, by design: the `auralune_dsp` processing path takes its state mutex for one buffer, because Rubber Band / SoundTouch need exclusive `&mut` access. Control-plane code must keep that critical section to a field update or a swap — never `prepare()`, allocation or I/O under the lock (see `dsp_node.rs`).
    - Use lock-free atomics, pre-allocated ring buffers, or crossbeam channels to communicate between GUI/worker threads and the audio processing thread.
 2. **Early Returns Policy**:
    - Favor guard clauses and early returns (`if !valid { return Err(...); }` or `if (!isOpen) return null;`) over deeply nested conditional blocks.

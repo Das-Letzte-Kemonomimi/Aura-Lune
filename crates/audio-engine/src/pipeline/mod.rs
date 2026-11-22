@@ -12,6 +12,7 @@ mod effects;
 mod equalizer;
 mod fades;
 mod graph;
+mod probes;
 mod queue_ops;
 mod source;
 mod transport;
@@ -27,7 +28,7 @@ use domain::parametric_eq::ParametricEqState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
 use domain::silence::SilenceTrimmingConfig;
-use domain::{slider_to_linear_gain, PlaybackState, StemChannel};
+use domain::{PlaybackState, StemChannel};
 use dsp_api::{DspCapabilities, DspEngine, DspParams};
 use gst::prelude::*;
 use gst_base::prelude::BaseTransformExt;
@@ -150,41 +151,4 @@ impl Drop for PipelineInner {
     fn drop(&mut self) {
         let _ = self.pipeline.set_state(gst::State::Null);
     }
-}
-
-/// Logarytmiczne grupowanie 64 liniowych pasm FFT na 16 percepcyjnych pasm widma.
-/// Zapewnia równomierną i czułą dynamikę od sub-basu (30-60 Hz) do najwyższych tonów (16-20 kHz).
-fn log_pool_to_16_bands(raw: &[f32]) -> Vec<f32> {
-    if raw.len() < 16 {
-        return raw.to_vec();
-    }
-    let bin_ranges: [(usize, usize); 16] = [
-        (0, 1),   // 0: Sub-bass (~0 - 344 Hz)
-        (1, 2),   // 1: Bass (~344 - 688 Hz)
-        (2, 3),   // 2: Low Mids (~688 - 1032 Hz)
-        (3, 4),   // 3: Midrange (~1032 - 1376 Hz)
-        (4, 5),   // 4: Midrange (~1376 - 1720 Hz)
-        (5, 6),   // 5: Upper Mids (~1720 - 2064 Hz)
-        (6, 7),   // 6: Upper Mids (~2064 - 2408 Hz)
-        (7, 8),   // 7: Presence low (~2408 - 2752 Hz)
-        (8, 10),  // 8: Presence (~2752 - 3440 Hz)
-        (10, 12), // 9: Presence high (~3440 - 4128 Hz)
-        (12, 15), // 10: Brilliance low (~4128 - 5160 Hz)
-        (15, 19), // 11: Brilliance mid (~5160 - 6536 Hz)
-        (19, 24), // 12: Brilliance high (~6536 - 8260 Hz)
-        (24, 32), // 13: Treble (~8260 - 11000 Hz)
-        (32, 44), // 14: High Treble (~11000 - 15100 Hz)
-        (44, 64), // 15: Air (~15100 - 22050 Hz)
-    ];
-
-    let mut out = Vec::with_capacity(16);
-    for (start, end) in bin_ranges {
-        let s = start.min(raw.len());
-        let e = end.min(raw.len()).max(s + 1);
-        let slice = &raw[s..e];
-        let max_val = slice.iter().copied().fold(0.0f32, f32::max);
-        let avg_val = slice.iter().sum::<f32>() / slice.len() as f32;
-        out.push((max_val * 0.7 + avg_val * 0.3).clamp(0.0, 1.0));
-    }
-    out
 }

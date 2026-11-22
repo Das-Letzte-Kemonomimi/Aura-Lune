@@ -14,17 +14,7 @@ impl AudioEngine {
         items: Vec<QueueItem>,
         start_index: Option<usize>,
     ) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (_crossfade_ms, user_vol, is_playing, volume) = {
-            let inner = self.inner.lock_safe();
-            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            (
-                inner.crossfade_duration_ms,
-                inner.user_volume,
-                is_playing,
-                inner.volume.clone(),
-            )
-        };
-
+        let ctx = self.switch_context();
         let active_item = {
             let mut q = self.queue.lock_safe();
             q.set_items(items, start_index);
@@ -32,16 +22,7 @@ impl AudioEngine {
         };
 
         if let Some(item) = &active_item {
-            if is_playing && user_vol > 0.001 {
-                let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
-                Self::fade_out_equal_power(
-                    &volume,
-                    user_vol,
-                    Duration::from_millis(20),
-                    &self.fade_generation,
-                    gen,
-                );
-            }
+            self.fade_out_before_switch(&ctx, ANTI_POP_FADE);
             self.load_uri(&item.uri)?;
             self.play_with_fade(true)?;
         }
@@ -139,18 +120,17 @@ impl AudioEngine {
                     self.play_with_fade(true)?;
                 }
             } else {
-                if is_playing && user_vol > 0.001 {
-                    // Szybki anti-pop ramp (20 ms) przy bezpośrednim kliknięciu utworu w kolejce:
-                    // eliminuje trzaski DAC bez wprowadzania opóźnień ani zamrażania UI (zero-freeze).
-                    let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
-                    Self::fade_out_equal_power(
-                        &volume,
+                // Szybki anti-pop ramp przy bezpośrednim kliknięciu utworu w kolejce:
+                // eliminuje trzaski DAC bez wprowadzania opóźnień ani zamrażania UI.
+                self.fade_out_before_switch(
+                    &SwitchContext {
+                        crossfade_ms: 0,
                         user_vol,
-                        Duration::from_millis(20),
-                        &self.fade_generation,
-                        gen,
-                    );
-                }
+                        is_playing,
+                        volume: volume.clone(),
+                    },
+                    ANTI_POP_FADE,
+                );
                 self.load_uri(&item.uri)?;
                 self.play_with_fade(true)?;
             }
@@ -161,27 +141,10 @@ impl AudioEngine {
     /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle,
     /// stosując płynne przejście z krzywą equal-power, jeśli włączony jest crossfade.
     pub fn play_next(&self) -> Result<Option<QueueItem>, AudioEngineError> {
-        let (crossfade_ms, user_vol, is_playing, volume) = {
-            let inner = self.inner.lock_safe();
-            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            (
-                inner.crossfade_duration_ms,
-                inner.user_volume,
-                is_playing,
-                inner.volume.clone(),
-            )
-        };
-
-        if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-            let fade_out_ms = (crossfade_ms / 8).clamp(30, 150);
-            let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
-            Self::fade_out_equal_power(
-                &volume,
-                user_vol,
-                Duration::from_millis(fade_out_ms),
-                &self.fade_generation,
-                gen,
-            );
+        let ctx = self.switch_context();
+        if ctx.crossfade_ms > 0 {
+            let fade_out_ms = (ctx.crossfade_ms / 8).clamp(30, 150);
+            self.fade_out_before_switch(&ctx, Duration::from_millis(fade_out_ms));
         }
 
         let next_item = {
@@ -191,13 +154,7 @@ impl AudioEngine {
 
         match next_item {
             Some(item) => {
-                self.load_uri(&item.uri)?;
-                if crossfade_ms > 0 && user_vol > 0.001 {
-                    let fade_in_ms = crossfade_ms / 2;
-                    self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
-                } else {
-                    self.play_with_fade(true)?;
-                }
+                self.start_switched_track(&ctx, &item.uri)?;
                 Ok(Some(item))
             }
             None => {
@@ -217,27 +174,10 @@ impl AudioEngine {
             }
         }
 
-        let (crossfade_ms, user_vol, is_playing, volume) = {
-            let inner = self.inner.lock_safe();
-            let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            (
-                inner.crossfade_duration_ms,
-                inner.user_volume,
-                is_playing,
-                inner.volume.clone(),
-            )
-        };
-
-        if is_playing && crossfade_ms > 0 && user_vol > 0.001 {
-            let fade_out_ms = (crossfade_ms / 8).clamp(30, 150);
-            let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
-            Self::fade_out_equal_power(
-                &volume,
-                user_vol,
-                Duration::from_millis(fade_out_ms),
-                &self.fade_generation,
-                gen,
-            );
+        let ctx = self.switch_context();
+        if ctx.crossfade_ms > 0 {
+            let fade_out_ms = (ctx.crossfade_ms / 8).clamp(30, 150);
+            self.fade_out_before_switch(&ctx, Duration::from_millis(fade_out_ms));
         }
 
         let prev_item = {
@@ -247,13 +187,7 @@ impl AudioEngine {
 
         match prev_item {
             Some(item) => {
-                self.load_uri(&item.uri)?;
-                if crossfade_ms > 0 && user_vol > 0.001 {
-                    let fade_in_ms = crossfade_ms / 2;
-                    self.play_with_fade_duration(Duration::from_millis(fade_in_ms))?;
-                } else {
-                    self.play_with_fade(true)?;
-                }
+                self.start_switched_track(&ctx, &item.uri)?;
                 Ok(Some(item))
             }
             None => Ok(None),
@@ -293,4 +227,52 @@ impl AudioEngine {
     pub fn stop_after_current(&self) -> bool {
         self.stop_after_current.load(Ordering::SeqCst)
     }
+
+    /// Migawka stanu potrzebna do płynnego przełączenia utworu (pobierana przed blokadą kolejki).
+    fn switch_context(&self) -> SwitchContext {
+        let inner = self.inner.lock_safe();
+        SwitchContext {
+            crossfade_ms: inner.crossfade_duration_ms,
+            user_vol: inner.user_volume,
+            is_playing: inner.pipeline.current_state() == gst::State::Playing,
+            volume: inner.volume.clone(),
+        }
+    }
+
+    /// Wycisza grający utwór krzywą equal-power przed przełączeniem (anuluje poprzednie fade'y).
+    fn fade_out_before_switch(&self, ctx: &SwitchContext, duration: Duration) {
+        if !ctx.is_playing || ctx.user_vol <= 0.001 {
+            return;
+        }
+        let gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        Self::fade_out_equal_power(
+            &ctx.volume,
+            ctx.user_vol,
+            duration,
+            &self.fade_generation,
+            gen,
+        );
+    }
+
+    /// Ładuje nowy utwór i startuje go: z narastaniem crossfade (połowa czasu), jeśli włączony,
+    /// w przeciwnym razie z mikro-fade-in.
+    fn start_switched_track(&self, ctx: &SwitchContext, uri: &str) -> Result<(), AudioEngineError> {
+        self.load_uri(uri)?;
+        if ctx.crossfade_ms > 0 && ctx.user_vol > 0.001 {
+            self.play_with_fade_duration(Duration::from_millis(ctx.crossfade_ms / 2))
+        } else {
+            self.play_with_fade(true)
+        }
+    }
+}
+
+/// Czas krótkiego wyciszenia przy bezpośrednim przełączeniu utworu (bez trzasków DAC).
+const ANTI_POP_FADE: Duration = Duration::from_millis(20);
+
+/// Stan silnika potrzebny do płynnego przełączenia utworu.
+struct SwitchContext {
+    crossfade_ms: u64,
+    user_vol: f64,
+    is_playing: bool,
+    volume: gst::Element,
 }

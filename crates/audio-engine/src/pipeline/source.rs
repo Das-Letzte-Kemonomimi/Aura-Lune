@@ -8,39 +8,7 @@ impl AudioEngine {
         let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
         let mut inner = self.inner.lock_safe();
-
-        // Zatrzymanie potoku przed przebudową wejścia (State::Null całkowicie resetuje EOS na zlewkach audio PipeWire)
-        let _ = inner.pipeline.set_state(gst::State::Null);
-        inner.base_media_pos = Duration::ZERO;
-        inner.base_sink_pts = Duration::ZERO;
-
-        // Reset procesorów DSP i kolejki próbek, aby uniknąć trzasków i zacinania
-        inner.dsp.reset();
-
-        // Upewnienie się, że pad wejściowy queue_in jest czysty i odłączony od poprzedniego strumienia
-        let queue_sink_pad = inner
-            .queue_in
-            .static_pad("sink")
-            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
-        if queue_sink_pad.is_linked() {
-            if let Some(peer) = queue_sink_pad.peer() {
-                let _ = peer.unlink(&queue_sink_pad);
-            }
-        }
-
-        // Usunięcie poprzedniego dekodera, jeśli istniał
-        if let Some(old_decoder) = inner.uri_decoder.take() {
-            let _ = old_decoder.set_state(gst::State::Null);
-            let _ = inner.pipeline.remove(&old_decoder);
-        }
-        if let Some(old_stems) = inner.stem_mixer_elements.take() {
-            let _ = old_stems.audiomixer.set_state(gst::State::Null);
-            for el in &old_stems.stem_elements {
-                let _ = el.set_state(gst::State::Null);
-                let _ = inner.pipeline.remove(el);
-            }
-            let _ = inner.pipeline.remove(&old_stems.audiomixer);
-        }
+        let queue_sink_pad = Self::teardown_source(&mut inner)?;
 
         let uri_decoder = gst::ElementFactory::make("uridecodebin")
             .property("uri", &uri)
@@ -105,44 +73,8 @@ impl AudioEngine {
         start_playing: bool,
     ) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
-
-        let _ = inner.pipeline.set_state(gst::State::Null);
-        inner.base_media_pos = Duration::ZERO;
-        inner.base_sink_pts = Duration::ZERO;
-        inner.dsp.reset();
-
-        let queue_sink_pad = inner
-            .queue_in
-            .static_pad("sink")
-            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
-        if queue_sink_pad.is_linked() {
-            if let Some(peer) = queue_sink_pad.peer() {
-                let _ = peer.unlink(&queue_sink_pad);
-            }
-        }
-
-        if let Some(old_decoder) = inner.uri_decoder.take() {
-            let _ = old_decoder.set_state(gst::State::Null);
-            let _ = inner.pipeline.remove(&old_decoder);
-        }
-        if let Some(old_stems) = inner.stem_mixer_elements.take() {
-            let _ = old_stems.audiomixer.set_state(gst::State::Null);
-            for el in &old_stems.stem_elements {
-                let _ = el.set_state(gst::State::Null);
-                let _ = inner.pipeline.remove(el);
-            }
-            let _ = inner.pipeline.remove(&old_stems.audiomixer);
-        }
-
-        let audiomixer = gst::ElementFactory::make("audiomixer")
-            .build()
-            .map_err(|_| AudioEngineError::MissingElement("audiomixer"))?;
-        inner.pipeline.add(&audiomixer)?;
-
-        let mixer_src_pad = audiomixer
-            .static_pad("src")
-            .ok_or_else(|| AudioEngineError::MissingElement("audiomixer.src"))?;
-        mixer_src_pad.link(&queue_sink_pad)?;
+        let queue_sink_pad = Self::teardown_source(&mut inner)?;
+        let audiomixer = Self::add_stem_mixer(&inner, &queue_sink_pad)?;
 
         let stem_list = [
             ("vocals", &stems.vocals_path),
@@ -156,62 +88,10 @@ impl AudioEngine {
 
         for (name, path_str) in stem_list {
             let uri = crate::uri::media_uri(path_str);
-
-            let decoder = gst::ElementFactory::make("uridecodebin")
-                .property("uri", &uri)
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("uridecodebin"))?;
-            let audioconvert = gst::ElementFactory::make("audioconvert")
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
-            let audioresample = gst::ElementFactory::make("audioresample")
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
-            let volume = gst::ElementFactory::make("volume")
-                .property("volume", initial_state.get_effective_volume(name))
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("volume"))?;
-
-            inner
-                .pipeline
-                .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
-
-            gst::Element::link_many([&audioconvert, &audioresample, &volume])
-                .map_err(|_| AudioEngineError::ElementLink("Błąd łączenia gałęzi stemu".into()))?;
-
-            let mixer_sink_pad = audiomixer
-                .request_pad_simple("sink_%u")
-                .ok_or_else(|| AudioEngineError::MissingElement("audiomixer.sink_%u"))?;
-            let volume_src_pad = volume
-                .static_pad("src")
-                .ok_or_else(|| AudioEngineError::MissingElement("volume.src"))?;
-            volume_src_pad.link(&mixer_sink_pad)?;
-
-            let conv_sink_pad = audioconvert
-                .static_pad("sink")
-                .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
-            let conv_pad_clone = conv_sink_pad.clone();
-            decoder.connect_pad_added(move |_bin, src_pad| {
-                let caps = src_pad
-                    .current_caps()
-                    .unwrap_or_else(|| src_pad.query_caps(None));
-                if let Some(structure) = caps.structure(0) {
-                    if structure.name().starts_with("audio/") && !conv_pad_clone.is_linked() {
-                        let _ = src_pad.link(&conv_pad_clone);
-                    }
-                }
-            });
-
-            let _ = decoder.sync_state_with_parent();
-            let _ = audioconvert.sync_state_with_parent();
-            let _ = audioresample.sync_state_with_parent();
-            let _ = volume.sync_state_with_parent();
-
-            stem_volumes.insert(name.to_string(), volume.clone());
-            stem_elements.push(decoder);
-            stem_elements.push(audioconvert);
-            stem_elements.push(audioresample);
-            stem_elements.push(volume);
+            let gain = initial_state.get_effective_volume(name);
+            let (volume, elements) = Self::add_stem_branch(&inner, &audiomixer, &uri, gain)?;
+            stem_volumes.insert(name.to_string(), volume);
+            stem_elements.extend(elements);
         }
 
         let _ = audiomixer.sync_state_with_parent();
@@ -228,24 +108,7 @@ impl AudioEngine {
         inner.stem_mixer_state = initial_state;
         inner.current_uri = Some(format!("stems://{}", stems.track_id));
 
-        if let Some(pos) = seek_pos {
-            inner.base_media_pos = pos;
-            inner.base_sink_pts = pos;
-        }
-
-        if start_playing {
-            inner.state = PlaybackState::Playing;
-            inner.volume.set_property("volume", inner.user_volume);
-            let _ = inner.pipeline.set_state(gst::State::Playing);
-            if let Some(pos) = seek_pos {
-                let _ = inner.pipeline.seek_simple(
-                    gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
-                    gst::ClockTime::from_nseconds(pos.as_nanos() as u64),
-                );
-            }
-        } else {
-            inner.state = PlaybackState::Stopped;
-        }
+        Self::start_stem_source(&mut inner, seek_pos, start_playing);
 
         info!("Załadowano stemy dla utworu {}", stems.track_id);
         Ok(())
@@ -284,44 +147,8 @@ impl AudioEngine {
         start_playing: bool,
     ) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
-
-        let _ = inner.pipeline.set_state(gst::State::Null);
-        inner.base_media_pos = Duration::ZERO;
-        inner.base_sink_pts = Duration::ZERO;
-        inner.dsp.reset();
-
-        let queue_sink_pad = inner
-            .queue_in
-            .static_pad("sink")
-            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
-        if queue_sink_pad.is_linked() {
-            if let Some(peer) = queue_sink_pad.peer() {
-                let _ = peer.unlink(&queue_sink_pad);
-            }
-        }
-
-        if let Some(old_decoder) = inner.uri_decoder.take() {
-            let _ = old_decoder.set_state(gst::State::Null);
-            let _ = inner.pipeline.remove(&old_decoder);
-        }
-        if let Some(old_stems) = inner.stem_mixer_elements.take() {
-            let _ = old_stems.audiomixer.set_state(gst::State::Null);
-            for el in &old_stems.stem_elements {
-                let _ = el.set_state(gst::State::Null);
-                let _ = inner.pipeline.remove(el);
-            }
-            let _ = inner.pipeline.remove(&old_stems.audiomixer);
-        }
-
-        let audiomixer = gst::ElementFactory::make("audiomixer")
-            .build()
-            .map_err(|_| AudioEngineError::MissingElement("audiomixer"))?;
-        inner.pipeline.add(&audiomixer)?;
-
-        let mixer_src_pad = audiomixer
-            .static_pad("src")
-            .ok_or_else(|| AudioEngineError::MissingElement("audiomixer.src"))?;
-        mixer_src_pad.link(&queue_sink_pad)?;
+        let queue_sink_pad = Self::teardown_source(&mut inner)?;
+        let audiomixer = Self::add_stem_mixer(&inner, &queue_sink_pad)?;
 
         let has_solo = channels.iter().any(|c| c.solo);
         let mut stem_volumes = std::collections::HashMap::new();
@@ -329,69 +156,10 @@ impl AudioEngine {
 
         for ch in channels {
             let uri = crate::uri::media_uri(&ch.file_path);
-
-            let decoder = gst::ElementFactory::make("uridecodebin")
-                .property("uri", &uri)
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("uridecodebin"))?;
-            let audioconvert = gst::ElementFactory::make("audioconvert")
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
-            let audioresample = gst::ElementFactory::make("audioresample")
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
-
-            let gain = if ch.mute || (has_solo && !ch.solo) {
-                0.0f64
-            } else {
-                (slider_to_linear_gain(ch.volume) * master_volume) as f64
-            };
-
-            let volume = gst::ElementFactory::make("volume")
-                .property("volume", gain)
-                .build()
-                .map_err(|_| AudioEngineError::MissingElement("volume"))?;
-
-            inner
-                .pipeline
-                .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
-            audioconvert.link(&audioresample)?;
-            audioresample.link(&volume)?;
-
-            let mixer_sink_pad = audiomixer
-                .request_pad_simple("sink_%u")
-                .ok_or_else(|| AudioEngineError::MissingElement("audiomixer.sink_%u"))?;
-            let vol_src_pad = volume
-                .static_pad("src")
-                .ok_or_else(|| AudioEngineError::MissingElement("volume.src"))?;
-            vol_src_pad.link(&mixer_sink_pad)?;
-
-            let conv_sink_pad = audioconvert
-                .static_pad("sink")
-                .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
-
-            let conv_pad_clone = conv_sink_pad.clone();
-            decoder.connect_pad_added(move |_bin, src_pad| {
-                let caps = src_pad
-                    .current_caps()
-                    .unwrap_or_else(|| src_pad.query_caps(None));
-                if let Some(structure) = caps.structure(0) {
-                    if structure.name().starts_with("audio/") && !conv_pad_clone.is_linked() {
-                        let _ = src_pad.link(&conv_pad_clone);
-                    }
-                }
-            });
-
-            let _ = decoder.sync_state_with_parent();
-            let _ = audioconvert.sync_state_with_parent();
-            let _ = audioresample.sync_state_with_parent();
-            let _ = volume.sync_state_with_parent();
-
-            stem_volumes.insert(ch.id.clone(), volume.clone());
-            stem_elements.push(decoder);
-            stem_elements.push(audioconvert);
-            stem_elements.push(audioresample);
-            stem_elements.push(volume);
+            let gain = domain::effective_channel_gain(ch, has_solo, master_volume);
+            let (volume, elements) = Self::add_stem_branch(&inner, &audiomixer, &uri, gain)?;
+            stem_volumes.insert(ch.id.clone(), volume);
+            stem_elements.extend(elements);
         }
 
         let _ = audiomixer.sync_state_with_parent();
@@ -407,24 +175,7 @@ impl AudioEngine {
         });
         inner.current_uri = Some(format!("stemproject://{}", project_id));
 
-        if let Some(pos) = seek_pos {
-            inner.base_media_pos = pos;
-            inner.base_sink_pts = pos;
-        }
-
-        if start_playing {
-            inner.state = PlaybackState::Playing;
-            inner.volume.set_property("volume", inner.user_volume);
-            let _ = inner.pipeline.set_state(gst::State::Playing);
-            if let Some(pos) = seek_pos {
-                let _ = inner.pipeline.seek_simple(
-                    gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
-                    gst::ClockTime::from_nseconds(pos.as_nanos() as u64),
-                );
-            }
-        } else {
-            inner.state = PlaybackState::Stopped;
-        }
+        Self::start_stem_source(&mut inner, seek_pos, start_playing);
 
         info!(
             "Załadowano projekt stemów {} (liczba kanałów: {})",
@@ -445,11 +196,7 @@ impl AudioEngine {
 
         if let Some(ref handles) = inner.stem_mixer_elements {
             for ch in channels {
-                let gain = if ch.mute || (has_solo && !ch.solo) {
-                    0.0f64
-                } else {
-                    (slider_to_linear_gain(ch.volume) * master_volume) as f64
-                };
+                let gain = domain::effective_channel_gain(ch, has_solo, master_volume);
 
                 if let Some(vol_el) = handles.stem_volumes.get(&ch.id) {
                     vol_el.set_property("volume", gain);
@@ -522,5 +269,143 @@ impl AudioEngine {
     pub fn current_uri(&self) -> Option<String> {
         let inner = self.inner.lock_safe();
         inner.current_uri.clone()
+    }
+
+    /// Zatrzymuje potok i usuwa bieżące źródło (dekoder lub mikser stemów), zostawiając
+    /// odłączony pad wejściowy `queue_in`, do którego można podłączyć nowe źródło.
+    ///
+    /// `State::Null` całkowicie resetuje EOS na zlewach audio PipeWire; reset DSP usuwa
+    /// zalegające próbki, aby uniknąć trzasków po zmianie utworu.
+    fn teardown_source(inner: &mut PipelineInner) -> Result<gst::Pad, AudioEngineError> {
+        let _ = inner.pipeline.set_state(gst::State::Null);
+        inner.base_media_pos = Duration::ZERO;
+        inner.base_sink_pts = Duration::ZERO;
+        inner.dsp.reset();
+
+        let queue_sink_pad = inner
+            .queue_in
+            .static_pad("sink")
+            .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
+        if let Some(peer) = queue_sink_pad.peer() {
+            let _ = peer.unlink(&queue_sink_pad);
+        }
+
+        if let Some(old_decoder) = inner.uri_decoder.take() {
+            let _ = old_decoder.set_state(gst::State::Null);
+            let _ = inner.pipeline.remove(&old_decoder);
+        }
+        if let Some(old_stems) = inner.stem_mixer_elements.take() {
+            let _ = old_stems.audiomixer.set_state(gst::State::Null);
+            for el in &old_stems.stem_elements {
+                let _ = el.set_state(gst::State::Null);
+                let _ = inner.pipeline.remove(el);
+            }
+            let _ = inner.pipeline.remove(&old_stems.audiomixer);
+        }
+        Ok(queue_sink_pad)
+    }
+
+    /// Dodaje `audiomixer` połączony z wejściem `queue_in` (źródło stemów / projektu).
+    fn add_stem_mixer(
+        inner: &PipelineInner,
+        queue_sink_pad: &gst::Pad,
+    ) -> Result<gst::Element, AudioEngineError> {
+        let audiomixer = gst::ElementFactory::make("audiomixer")
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("audiomixer"))?;
+        inner.pipeline.add(&audiomixer)?;
+        audiomixer
+            .static_pad("src")
+            .ok_or(AudioEngineError::MissingElement("audiomixer.src"))?
+            .link(queue_sink_pad)?;
+        Ok(audiomixer)
+    }
+
+    /// Buduje gałąź jednego stemu: `uridecodebin → audioconvert → audioresample → volume → mikser`.
+    /// Zwraca element `volume` (do regulacji w mikserze) oraz wszystkie utworzone elementy.
+    fn add_stem_branch(
+        inner: &PipelineInner,
+        audiomixer: &gst::Element,
+        uri: &str,
+        gain: f64,
+    ) -> Result<(gst::Element, [gst::Element; 4]), AudioEngineError> {
+        let make = |factory: &'static str| {
+            gst::ElementFactory::make(factory)
+                .build()
+                .map_err(|_| AudioEngineError::MissingElement(factory))
+        };
+        let decoder = gst::ElementFactory::make("uridecodebin")
+            .property("uri", uri)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("uridecodebin"))?;
+        let audioconvert = make("audioconvert")?;
+        let audioresample = make("audioresample")?;
+        let volume = gst::ElementFactory::make("volume")
+            .property("volume", gain)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("volume"))?;
+
+        inner
+            .pipeline
+            .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
+        gst::Element::link_many([&audioconvert, &audioresample, &volume])
+            .map_err(|_| AudioEngineError::ElementLink("Błąd łączenia gałęzi stemu".into()))?;
+
+        let mixer_sink_pad = audiomixer
+            .request_pad_simple("sink_%u")
+            .ok_or(AudioEngineError::MissingElement("audiomixer.sink_%u"))?;
+        volume
+            .static_pad("src")
+            .ok_or(AudioEngineError::MissingElement("volume.src"))?
+            .link(&mixer_sink_pad)?;
+
+        let conv_sink_pad = audioconvert
+            .static_pad("sink")
+            .ok_or(AudioEngineError::MissingElement("audioconvert.sink"))?;
+        decoder.connect_pad_added(move |_bin, src_pad| {
+            let caps = src_pad
+                .current_caps()
+                .unwrap_or_else(|| src_pad.query_caps(None));
+            let is_audio = caps
+                .structure(0)
+                .is_some_and(|s| s.name().starts_with("audio/"));
+            if is_audio && !conv_sink_pad.is_linked() {
+                let _ = src_pad.link(&conv_sink_pad);
+            }
+        });
+
+        for el in [&decoder, &audioconvert, &audioresample, &volume] {
+            let _ = el.sync_state_with_parent();
+        }
+        Ok((
+            volume.clone(),
+            [decoder, audioconvert, audioresample, volume],
+        ))
+    }
+
+    /// Wspólne zakończenie ładowania stemów / projektu: pozycja bazowa po przełączeniu
+    /// (zachowanie miejsca w utworze) i opcjonalny start odtwarzania z przewinięciem.
+    fn start_stem_source(
+        inner: &mut PipelineInner,
+        seek_pos: Option<Duration>,
+        start_playing: bool,
+    ) {
+        if let Some(pos) = seek_pos {
+            inner.base_media_pos = pos;
+            inner.base_sink_pts = pos;
+        }
+        if !start_playing {
+            inner.state = PlaybackState::Stopped;
+            return;
+        }
+        inner.state = PlaybackState::Playing;
+        inner.volume.set_property("volume", inner.user_volume);
+        let _ = inner.pipeline.set_state(gst::State::Playing);
+        if let Some(pos) = seek_pos {
+            let _ = inner.pipeline.seek_simple(
+                gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                gst::ClockTime::from_nseconds(pos.as_nanos() as u64),
+            );
+        }
     }
 }
