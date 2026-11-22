@@ -21,7 +21,7 @@ pub use analysis::{
     export_transcription_to_json, export_transcription_to_midi, extract_beat_grid,
     extract_chroma_frame, extract_track_waveform_peaks, generate_chord_templates,
     midi_pitch_to_name, transpose_chord, viterbi_smooth_chords, write_replaygain_tags_to_file,
-    ChordDef, ReplayGainAnalysisResult, TrackKeyBpm,
+    ChordDef, ReplayGainAnalysisResult, TrackKeyBpm, WaveformAccumulator,
 };
 pub use device::DeviceManager;
 pub use error::{AnalysisError, AudioEngineError, TagError};

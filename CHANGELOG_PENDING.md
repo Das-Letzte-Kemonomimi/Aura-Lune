@@ -67,6 +67,9 @@
 - **ReplayGain w trybie Auto** zaczyna od Track Gain zamiast dziedziczyć tryb Album.
 - **Wizualizacja widma nie powoduje już awarii** dla analizatora zwracającego od 16 do 63 pasm.
 - **Ścieżki ze spacjami i znakami spoza ASCII** (np. japońskie tytuły) działają w stemach, separacji i analizie (poprawne kodowanie URI).
+- **Analiza nie zawiesza się na uszkodzonych plikach**: dekodowanie do analizy (tonacja/BPM, akordy, transkrypcja, cisza, stemy, falogram) kończy się błędem, gdy dekoder zgłosi problem (uszkodzony plik, brak kodeka), zamiast blokować wątek na zawsze.
+- **Falogram obejmuje cały utwór**: wcześniej dekodowanie było przerywane po 12 s lub 20 mln próbek (~30 min), więc długie miksy miały ucięty przebieg.
+- **Separacja stemów (HPSS) zużywa wielokrotnie mniej pamięci**: zamiast 16 pełnych macierzy spektrogramu (ok. 1,7 GB dla 5-minutowego utworu) widmo jest liczone w buforze 15 ramek; wynik jest identyczny bit w bit.
 - **Analiza akordów i transkrypcja z pamięci podręcznej** zwracają zapisane tempo, tonację i kod Camelot zamiast stałych `120 BPM` / „Detected”; eksport MIDI używa rzeczywistego tempa.
 
 #### Biblioteka i dane
@@ -133,7 +136,8 @@
 - **Moduły zamiast monolitów**:
   - `lib.rs` aplikacji desktopowej: z 4914 do ~300 linii (komendy w `commands/`, start, zasobnik, ticker i zamykanie w `setup/`);
   - `crates/storage`: z ponad 3000 linii do 9 podmodułów;
-  - `pipeline.rs` silnika audio (3089 linii): moduły tematyczne `pipeline/` bez zduplikowanego kodu źródeł, stemów, przejść i obsługi końca utworu.
+  - `pipeline.rs` silnika audio (3089 linii): moduły tematyczne `pipeline/` bez zduplikowanego kodu źródeł, stemów, przejść i obsługi końca utworu;
+  - `analysis.rs` (2066 linii): moduły `analysis/` (dekodowanie, tonacja/BPM, akordy, transkrypcja, ReplayGain, falogram, cisza) z jednym wspólnym dekoderem zamiast czterech kopii.
 - **Typowane błędy**: każda komenda Tauri zwraca `{ code, message }` (`storage`, `engine`, `io`, `not_found`, `validation`, `network`, `internal`); crate'y mają własne typy błędów (`AnalysisError`, `TagError`, `ScrobbleError`, `DomainError` i inne). Panika jednego wątku nie unieruchamia już silnika (`lock_safe`).
 - **Porządne zamykanie aplikacji**: zapis kolejki, zatrzymanie silnika i sterowania IPC, usunięcie pliku statusu Waybar.
 - **Usunięto 31 nieużywanych komend IPC** (m.in. aliasy `set_*_ratio` / `set_pitch_semitones`, nieużywane gettery i eksporty) oraz `notify_track_looped` — zostało 183 komend; logika w silniku i bazie pozostaje. Wspólne mapowanie nazw silnika DSP (`DspEngine::from_name` / `as_str`) i jedno wyszukiwanie okładek dla Discord zamiast kopii.

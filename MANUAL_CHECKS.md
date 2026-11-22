@@ -143,3 +143,12 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **Error messages stack.** Trigger two errors quickly (for example two failing radio streams). Both messages should show (up to 3) and disappear on their own; clicking one should close it.
 - [ ] **Translated messages with values.** Switch the language (pl / en / de) and check messages that contain numbers or names: M3U8 import "x of y tracks", "playlist created: …", the AcoustID match in the tag editor, model download progress. Values must be filled in, with no literal `{0}` left.
 - [ ] **Sizes and durations.** Duplicate finder, tag editor, CUE sheet and the URL import result should show sizes like `14.2 MB` and durations like `3:45`. URL imports longer than an hour should show `1:02:03`.
+
+## Phase 7: analysis, HTTP, CI (branch `refactor/phase-7-analysis-http-ci`)
+
+### Analysis and stems
+
+- [ ] **Analysis still gives sensible results.** Key/BPM, chords, transcription and silence trimming should return results similar to before on a few library tracks. The code was split into modules and now uses one shared decoder.
+- [ ] **Waveform covers the whole track.** Open the waveform of a long mix (over 30 minutes). It should cover the whole track, with no flat tail at the end.
+- [ ] **Broken file doesn't hang analysis.** Rename a text file to `.flac`, add it to the library, and run Key/BPM analysis on it. An error should appear within a few seconds; before, it could spin forever.
+- [ ] **Stem separation on a long track.** Run HPSS (not the AI model) on a 5–10 minute track. Memory use should stay far lower than before (watch it in a system monitor), and the stems should sound the same.
