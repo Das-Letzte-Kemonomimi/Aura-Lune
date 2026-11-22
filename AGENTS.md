@@ -849,6 +849,8 @@ Standalone JSON translation dictionaries in `apps/desktop/src/locales/`:
 - 🇫🇮 Finnish (`fi.json`)
 - 🏛️ Latin (`la.json`)
 
+`i18n.test.ts` checks that every English key exists in every language; `i18n.parity.test.ts` checks the reverse (no stale keys) and that each message has the same `{n}` placeholders as English (required by `fmt`).
+
 ---
 
 ## 6. Modular Test Architecture (`tests/`)

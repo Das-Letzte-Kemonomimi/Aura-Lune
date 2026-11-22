@@ -41,6 +41,8 @@
   - kontrakt IPC — każde `invoke()` frontendu musi trafiać w zarejestrowaną komendę;
   - format błędów komend i polityka CSP;
   - hooki frontendu — wyłącznik czasowy, skróty klawiaturowe, przeciąganie plików, nasłuchy zdarzeń, komunikaty, trwałe ustawienia.
+  - miksowanie harmoniczne (dopasowanie BPM, crossfade w takt, ocena przejść), przeliczenia korektora parametrycznego, zgodność słowników (brak nieaktualnych kluczy, te same znaczniki `{n}` we wszystkich językach);
+  - dekodowanie do analizy (uszkodzone pliki, rozdział kanałów, długość), falogram długich utworów, równoważność nowego HPSS ze starą implementacją, ponawianie zapytań HTTP i limit częstotliwości.
 
 ---
 

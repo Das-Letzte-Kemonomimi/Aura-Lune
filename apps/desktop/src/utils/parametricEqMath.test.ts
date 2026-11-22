@@ -5,6 +5,8 @@ import {
   freqToNormX,
   normXToFreq,
   generateFrequencyResponseCurve,
+  gainToNormY,
+  normYToGain,
 } from './parametricEqMath';
 
 describe('parametricEqMath - Biquad audio DSP math & frequency curve', () => {
@@ -69,5 +71,38 @@ describe('parametricEqMath - Biquad audio DSP math & frequency curve', () => {
     expect(curve.length).toBe(101);
     expect(curve[0].freq).toBeCloseTo(20, 1);
     expect(curve[100].freq).toBeCloseTo(20000, 1);
+  });
+});
+
+describe('gainToNormY / normYToGain', () => {
+  it('round-trips every gain in the default range', () => {
+    for (let db = -24; db <= 12; db += 0.5) {
+      expect(normYToGain(gainToNormY(db))).toBeCloseTo(db, 9);
+    }
+  });
+
+  it('round-trips every position in a custom range', () => {
+    for (let y = 0; y <= 1; y += 0.05) {
+      expect(gainToNormY(normYToGain(y, -12, 12), -12, 12)).toBeCloseTo(y, 9);
+    }
+  });
+
+  it('maps the top of the graph to the maximum gain and clamps out-of-range input', () => {
+    expect(gainToNormY(12)).toBe(0);
+    expect(gainToNormY(-24)).toBe(1);
+    expect(gainToNormY(40)).toBe(0);
+    expect(normYToGain(-0.5)).toBe(12);
+    expect(normYToGain(2)).toBe(-24);
+  });
+
+  it('keeps frequency mapping monotonic across the audible range', () => {
+    let prev = -1;
+    for (const f of [20, 50, 100, 500, 1000, 5000, 10000, 20000]) {
+      const x = freqToNormX(f);
+      expect(x).toBeGreaterThan(prev);
+      prev = x;
+    }
+    expect(normXToFreq(-1)).toBeCloseTo(20, 6);
+    expect(normXToFreq(5)).toBeCloseTo(20000, 3);
   });
 });
