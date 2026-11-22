@@ -91,7 +91,7 @@ export function usePlaybackQueue({
         return null;
       }
     },
-    [refreshQueue, onTrackSelected, notify]
+    [refreshQueue, onTrackSelected, notify, t]
   );
 
   const removeFromQueue = useCallback(
@@ -100,7 +100,7 @@ export function usePlaybackQueue({
       try {
         await invoke('remove_from_queue', { id });
         await refreshQueue();
-        notify(loc?.notifications.trackRemovedFromQueue || 'Removed track from queue');
+        notify(t.notifications.trackRemovedFromQueue);
       } catch (err: unknown) {
         notify(fmt(t.notifications.queueRemoveError, String(err)), true);
       }
@@ -121,14 +121,14 @@ export function usePlaybackQueue({
         notify(fmt(t.notifications.queueReorderError, String(err)), true);
       }
     },
-    [queue.items.length, refreshQueue, notify]
+    [queue.items.length, refreshQueue, notify, t]
   );
 
   const clearQueue = useCallback(async () => {
     try {
       await invoke('clear_queue');
       await refreshQueue();
-      notify(loc?.notifications.queueCleared || 'Cleared playback queue');
+      notify(t.notifications.queueCleared);
     } catch (e: unknown) {
       notify(fmt(t.notifications.queueClearError, String(e)), true);
     }
@@ -140,9 +140,7 @@ export function usePlaybackQueue({
         await invoke('add_to_queue', { item });
         await refreshQueue();
         notify(
-          loc?.notifications.addedToQueueEndMsg
-            ? fmt(loc.notifications.addedToQueueEndMsg, item.title)
-            : `Added '${item.title}' to queue`
+          fmt(t.notifications.addedToQueueEndMsg, item.title)
         );
       } catch (err: unknown) {
         notify(fmt(t.notifications.queueAddError, String(err)), true);
@@ -157,9 +155,7 @@ export function usePlaybackQueue({
         await invoke('add_next_to_queue', { item });
         await refreshQueue();
         notify(
-          loc?.notifications.setAsNextTrack
-            ? fmt(loc.notifications.setAsNextTrack, item.title)
-            : `Set '${item.title}' as next track`
+          fmt(t.notifications.setAsNextTrack, item.title)
         );
       } catch (err: unknown) {
         notify(fmt(t.notifications.queueAddNextError, String(err)), true);
@@ -177,7 +173,7 @@ export function usePlaybackQueue({
         notify(fmt(t.notifications.queueSetError, String(err)), true);
       }
     },
-    [refreshQueue, notify]
+    [refreshQueue, notify, t]
   );
 
   const addUrisToQueue = useCallback(
@@ -187,9 +183,7 @@ export function usePlaybackQueue({
         await invoke('add_uris_to_queue', { uris });
         await refreshQueue();
         notify(
-          loc?.notifications.loadedTracksToQueueMsg
-            ? fmt(loc.notifications.loadedTracksToQueueMsg, String(uris.length))
-            : `Added ${uris.length} tracks to queue`
+          fmt(t.notifications.loadedTracksToQueueMsg, String(uris.length))
         );
       } catch (err: unknown) {
         notify(fmt(t.notifications.queueAddTracksError, String(err)), true);
