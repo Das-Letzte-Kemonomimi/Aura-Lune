@@ -6,7 +6,5 @@ license.workspace = true
 
 [dependencies]
 audio-engine = { path = "../audio-engine" }
-dsp-api = { path = "../dsp-api" }
-domain = { path = "../domain" }
 tracing.workspace = true
 tracing-subscriber.workspace = true

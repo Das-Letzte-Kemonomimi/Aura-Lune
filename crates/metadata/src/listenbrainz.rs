@@ -76,14 +76,7 @@ impl Default for ListenBrainzClient {
 
 impl ListenBrainzClient {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent(format!(
-                "Auralune/{} ( kitsune-player )",
-                env!("CARGO_PKG_VERSION")
-            ))
-            .timeout(std::time::Duration::from_secs(10))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+        let client = crate::http::build_client(std::time::Duration::from_secs(10));
 
         Self {
             client,

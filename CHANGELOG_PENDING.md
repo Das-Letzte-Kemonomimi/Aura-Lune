@@ -102,6 +102,9 @@
 - **Kolejka FIFO i gniazdo sterowania** są dostępne tylko dla bieżącego użytkownika; ikona aplikacji nie jest wczytywana z `/tmp`; serwer deweloperski Vite nasłuchuje tylko na `127.0.0.1`.
 
 #### Budowanie i CI
+- **Usługi sieciowe odporne na chwilowe awarie**: zapytania do MusicBrainz i AcoustID są ponawiane (do 3 prób z narastającym odstępem) przy błędach sieci i odpowiedziach 429/502/503/504; AcoustID ma limit 3 zapytań na sekundę; zawieszony `fpcalc` jest przerywany po 60 s; wszystkie usługi wysyłają jeden User-Agent z aktualną wersją (wcześniej m.in. na sztywno `0.1.0`), a teksty piosenek korzystają z jednego klienta HTTP zamiast tworzyć nowy dla każdego utworu.
+- **CI**: sprawdzanie składni skryptów powłoki (`bash -n`), informacyjny audyt zależności `cargo-deny` (podatności, licencje, duplikaty), test dymny uruchamiany raz zamiast dwa razy, uprawnienia pamięci podręcznej apt ograniczone do odczytu zamiast `777`.
+- **Usunięto 11 nieużywanych zależności** z crate'ów (m.in. `libc` i `thiserror` w modułach DSP, `storage` w `downloads` i `metadata`).
 - **Paczki Linuksa** budowane jako `appimage` i `deb` (błąd RPM dla wersji `1.1.6-dev` na systemach z `rpmbuild`).
 - **CI**: brakujące zależności zasobnika systemowego, błąd uprawnień przy zapisie pamięci podręcznej apt, kolizja tagu `dev` przy wypychaniu wydań, instalacja zależności skrócona z ~12 do 1–2 minut.
 - **Instalator** nie pobiera przypadkowo wersji testowych z kanału stabilnego ani po cichu przestarzałych wersji stabilnych z kanału deweloperskiego.

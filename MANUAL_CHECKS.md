@@ -152,3 +152,10 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **Waveform covers the whole track.** Open the waveform of a long mix (over 30 minutes). It should cover the whole track, with no flat tail at the end.
 - [ ] **Broken file doesn't hang analysis.** Rename a text file to `.flac`, add it to the library, and run Key/BPM analysis on it. An error should appear within a few seconds; before, it could spin forever.
 - [ ] **Stem separation on a long track.** Run HPSS (not the AI model) on a 5–10 minute track. Memory use should stay far lower than before (watch it in a system monitor), and the stems should sound the same.
+
+### Network services and CI
+
+- [ ] **Online lookups still work.** MusicBrainz release search, AcoustID identification (tag editor), cover search, lyrics download, and Last.fm / ListenBrainz scrobbling should all work. All of them now share one HTTP setup.
+- [ ] **AcoustID without the tool.** With `fpcalc` (chromaprint) missing, identification should show a clear error instead of hanging.
+- [ ] **First CI run on GitHub.** Check that the workflow passes and look at the **cargo-deny** step's report. It is report-only for now (`continue-on-error`). Once the report looks acceptable (licences in `deny.toml`), remove `continue-on-error` to make it a required check.
+- [ ] **Optional: pin the Rust version.** CI still uses `stable`, so a new Rust release can add Clippy lints that fail `-D warnings`. To pin, run `rustup toolchain install 1.99.0` locally and set `channel = "1.99.0"` in `rust-toolchain.toml`. Pinning here half-installed a second toolchain (download failed in this environment), so it was reverted.

@@ -2,7 +2,7 @@
 //!
 //! Zgodnie z ADR 0007 i AGENTS.md:
 //! - Identyfikacja wydań muzycznych przez identyfikatory MBID,
-//! - Jawny User-Agent ("Auralune/0.1.0 ( https://github.com/Auralune/Auralune )"),
+//! - Jawny User-Agent z wersją i adresem projektu (`http::USER_AGENT`),
 //! - Ograniczenie zapytań (rate limiting 1 req/s na serwer MusicBrainz),
 //! - Zwracanie kandydatów wydań do potwierdzenia przy niejednoznacznym dopasowaniu,
 //! - Pobieranie i lokalne buforowanie okładek z Cover Art Archive.
@@ -10,12 +10,13 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 pub mod acoustid;
+pub mod http;
 pub mod lastfm;
 pub mod listenbrainz;
 pub mod lyrics;
@@ -84,8 +85,7 @@ pub struct CoverCandidateDto {
 /// Klient API MusicBrainz.
 pub struct MusicBrainzClient {
     http: reqwest::Client,
-    user_agent: String,
-    last_request: Arc<Mutex<Option<Instant>>>,
+    limiter: Arc<http::RateLimiter>,
 }
 
 impl Default for MusicBrainzClient {
@@ -96,29 +96,16 @@ impl Default for MusicBrainzClient {
 
 impl MusicBrainzClient {
     pub fn new() -> Self {
-        let user_agent = "Auralune/0.1.0 ( https://github.com/Auralune/Auralune )".to_string();
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(10))
-            .build()
-            .unwrap_or_default();
-
         Self {
-            http,
-            user_agent,
-            last_request: Arc::new(Mutex::new(None)),
+            http: http::build_client(Duration::from_secs(10)),
+            // MusicBrainz: najwyżej 1 zapytanie na sekundę.
+            limiter: Arc::new(http::RateLimiter::new(Duration::from_millis(1050))),
         }
     }
 
     /// Zapewnia przestrzeganie limitu 1 zapytania na sekundę (MusicBrainz Rate Limit).
     async fn wait_rate_limit(&self) {
-        let mut last = self.last_request.lock().await;
-        if let Some(t) = *last {
-            let elapsed = t.elapsed();
-            if elapsed < Duration::from_millis(1050) {
-                tokio::time::sleep(Duration::from_millis(1050) - elapsed).await;
-            }
-        }
-        *last = Some(Instant::now());
+        self.limiter.wait().await;
     }
 
     /// Wyszukuje wydania na podstawie tytułu albumu i artysty.
@@ -144,13 +131,8 @@ impl MusicBrainzClient {
 
         debug!("MusicBrainz API search: {}", url);
 
-        let resp = self
-            .http
-            .get(&url)
-            .header("User-Agent", &self.user_agent)
-            .header("Accept", "application/json")
-            .send()
-            .await?;
+        let resp =
+            http::send_with_retry(self.http.get(&url).header("Accept", "application/json")).await?;
 
         if !resp.status().is_success() {
             return Err(MetadataError::Query(format!(
@@ -312,10 +294,7 @@ pub struct CoverArtArchiveClient {
 
 impl CoverArtArchiveClient {
     pub fn new(cache_dir: impl AsRef<Path>) -> Self {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(15))
-            .build()
-            .unwrap_or_default();
+        let http = http::build_client(Duration::from_secs(15));
 
         Self {
             http,
@@ -341,12 +320,7 @@ impl CoverArtArchiveClient {
         let url = format!("https://coverartarchive.org/release/{}/front-500", mbid);
         info!("Pobieranie okładki z Cover Art Archive: {}", url);
 
-        let resp = self
-            .http
-            .get(&url)
-            .header("User-Agent", "Auralune/0.1.0")
-            .send()
-            .await?;
+        let resp = self.http.get(&url).send().await?;
 
         if !resp.status().is_success() {
             warn!(
@@ -378,11 +352,7 @@ impl CoverArtArchiveClient {
         default_artist: &str,
     ) -> Vec<CoverCandidateDto> {
         debug!("Wyszukiwanie okładek Deezer: {}", url);
-        let req = self
-            .http
-            .get(url)
-            .header("User-Agent", "Auralune/0.1.0")
-            .send();
+        let req = self.http.get(url).send();
 
         let resp = match tokio::time::timeout(Duration::from_millis(3500), req).await {
             Ok(Ok(r)) => r,
@@ -440,11 +410,7 @@ impl CoverArtArchiveClient {
         default_artist: &str,
     ) -> Vec<CoverCandidateDto> {
         debug!("Wyszukiwanie okładek iTunes: {}", url);
-        let req = self
-            .http
-            .get(url)
-            .header("User-Agent", "Auralune/0.1.0")
-            .send();
+        let req = self.http.get(url).send();
 
         let resp = match tokio::time::timeout(Duration::from_millis(3500), req).await {
             Ok(Ok(r)) => r,
@@ -691,12 +657,7 @@ impl CoverArtArchiveClient {
             url, cached_file
         );
 
-        let resp = self
-            .http
-            .get(url)
-            .header("User-Agent", "Auralune/0.1.0")
-            .send()
-            .await?;
+        let resp = self.http.get(url).send().await?;
 
         if !resp.status().is_success() {
             return Err(MetadataError::Query(format!(

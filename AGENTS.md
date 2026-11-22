@@ -240,6 +240,7 @@ Aura-Lune/
 ### `crates/metadata`
 - **Purpose**: External online metadata enrichment and social scrobbling.
 - **Clients**: `AcoustidClient`, `CoverArtArchiveClient`, `LastFmClient`, `ListenBrainzClient`, `lyrics`, `urlencoding`.
+- **HTTP rules (`http.rs`)**: build clients with `http::build_client(timeout)` (single `USER_AGENT` with version + repo URL); send API calls through `http::send_with_retry` (3 attempts, backoff, `Retry-After` ≤ 5 s, retries only network errors and 429/502/503/504); per-service `RateLimiter` (MusicBrainz 1/s, AcoustID 3/s). `fpcalc` runs with `FPCALC_TIMEOUT` (60 s) and `kill_on_drop`.
 - **Tests**: Located in `crates/metadata/tests/` (`acoustid_fingerprint_test.rs`, `scrobbler_test.rs`, `lyrics_parser_test.rs`, `cover_art_archive_test.rs`).
 
 ### `crates/downloads`
@@ -859,7 +860,7 @@ All tests across the workspace are decoupled from production source files into d
 | `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs`<br>`tests/schema_migrations_test.rs` (incl. silence cache) | Full SQLite persistence and query test suite |
 | `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs`<br>`tests/silence_trim_test.rs` | Domain entities, parsers, and DSP model math |
 | `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`tests/silence_detection_test.rs`<br>`tests/decode_and_waveform_test.rs`<br>`tests/dsp_node_test.rs`<br>`tests/rt_helpers_test.rs`<br>`tests/spectrum_test.rs`<br>`src/hpss_test.rs`<br>`src/sync_test.rs` | GStreamer playback, bit-perfect bypass & DSP output length/PTS, aligned/unaligned sample casts, spectrum pooling, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
-| `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs` | Network services, LRC parsing, AcoustID |
+| `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs`<br>`tests/http_retry_test.rs` | Network services, retry/backoff and rate limiting (local test server), LRC parsing, AcoustID |
 | `crates/downloads` | `tests/download_manager_test.rs` | Model download jobs & path traversal checks |
 | `crates/desktop-integration` | `tests/desktop_integration_test.rs`<br>`tests/discord_rpc_test.rs`<br>`tests/mpris_test.rs`<br>`tests/waybar_and_ipc_test.rs` | MPRIS, Discord RPC, Waybar atomic status |
 | `crates/dsp-api` | `tests/dsp_api_test.rs` | DSP parameters, semitone & cent math |

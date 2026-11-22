@@ -6,7 +6,6 @@ license.workspace = true
 
 [dependencies]
 domain = { path = "../domain" }
-storage = { path = "../storage" }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

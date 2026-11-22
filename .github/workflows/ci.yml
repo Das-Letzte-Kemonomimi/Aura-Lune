@@ -34,6 +34,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm --prefix apps/desktop ci
 
+      - name: Validate shell scripts (bash -n)
+        run: |
+          find . -name '*.sh' -not -path '*/node_modules/*' -not -path './target/*' -print0 |
+            xargs -0 -n1 bash -n
+
       - name: Lint frontend codebase (oxlint)
         run: npm --prefix apps/desktop run lint
 
@@ -97,7 +102,8 @@ jobs:
             pulseaudio-utils \
             libasound2-plugins
           sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
-          sudo chmod -R 777 /var/cache/apt/archives
+          # Cache potrzebuje tylko odczytu pobranych pakietów.
+          sudo chmod -R a+rX /var/cache/apt/archives
 
       - name: Install frontend dependencies & build bundle
         run: |
@@ -120,8 +126,13 @@ jobs:
           GST_DEBUG: 2
         run: cargo test --workspace -- --test-threads=1
 
-      - name: Run Desktop backend smoke test
-        run: cargo test -p auralune-desktop --test desktop_smoke_test -- --nocapture
+      # desktop_smoke_test jest częścią `cargo test --workspace` powyżej (bez drugiego uruchomienia).
+
+      - name: Dependency audit (cargo-deny, report only)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        continue-on-error: true
+        with:
+          command: check advisories licenses bans
 
   publish-dev-release:
     name: Build & Publish Rolling Dev AppImage
@@ -177,7 +188,8 @@ jobs:
             libsoundtouch-dev
           sudo apt-get install -y --no-install-recommends libfuse2t64 2>/dev/null || sudo apt-get install -y --no-install-recommends libfuse2 || true
           sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
-          sudo chmod -R 777 /var/cache/apt/archives
+          # Cache potrzebuje tylko odczytu pobranych pakietów.
+          sudo chmod -R a+rX /var/cache/apt/archives
 
       - name: Install frontend dependencies & build bundle
         run: |

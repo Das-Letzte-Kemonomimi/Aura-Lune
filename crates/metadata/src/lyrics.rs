@@ -152,11 +152,10 @@ pub async fn fetch_lyrics_online_or_local(
     }
 
     // 2. Pobierz z darmowego i otwartego API LRCLIB
-    let client = reqwest::Client::builder()
-        .user_agent("Auralune/0.1.0 ( https://github.com/Das-Letzte-Kemonomimi/Auralune )")
-        .timeout(std::time::Duration::from_secs(4))
-        .build()
-        .ok()?;
+    // Jeden klient na cały proces (pula połączeń), zamiast nowego przy każdym utworze.
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    let client =
+        CLIENT.get_or_init(|| crate::http::build_client(std::time::Duration::from_secs(4)));
 
     let mut query = vec![
         ("track_name", title.to_string()),

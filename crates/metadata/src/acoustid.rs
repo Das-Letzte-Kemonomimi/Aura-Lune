@@ -31,11 +31,16 @@ pub struct TrackFingerprintMatchDto {
     pub score: u32,
 }
 
+/// Najdłuższy czas działania `fpcalc` dla jednego pliku.
+pub const FPCALC_TIMEOUT: Duration = Duration::from_secs(60);
+
 /// Klient AcoustID do generowania fingerprintu i wyszukiwania metadanych.
 #[derive(Clone, Debug)]
 pub struct AcoustidClient {
     http: reqwest::Client,
     client_key: String,
+    /// AcoustID: najwyżej 3 zapytania na sekundę (wspólne dla klonów klienta).
+    limiter: std::sync::Arc<crate::http::RateLimiter>,
 }
 
 impl Default for AcoustidClient {
@@ -46,16 +51,14 @@ impl Default for AcoustidClient {
 
 impl AcoustidClient {
     pub fn new(client_key: Option<String>) -> Self {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(12))
-            .build()
-            .unwrap_or_default();
+        let http = crate::http::build_client(Duration::from_secs(12));
 
         Self {
             http,
             client_key: client_key
                 .filter(|k| !k.trim().is_empty())
                 .unwrap_or_else(|| DEFAULT_ACOUSTID_CLIENT_KEY.to_string()),
+            limiter: std::sync::Arc::new(crate::http::RateLimiter::new(Duration::from_millis(340))),
         }
     }
 
@@ -80,11 +83,20 @@ impl AcoustidClient {
             )));
         }
 
-        let output = tokio::process::Command::new("fpcalc")
+        // Limit czasu: zawieszony fpcalc (np. uszkodzony plik) nie blokuje identyfikacji na zawsze.
+        let run = tokio::process::Command::new("fpcalc")
             .arg("-json")
             .arg(path)
-            .output()
+            .kill_on_drop(true)
+            .output();
+        let output = tokio::time::timeout(FPCALC_TIMEOUT, run)
             .await
+            .map_err(|_| {
+                MetadataError::AcoustId(format!(
+                    "fpcalc nie zakończył się w {} s",
+                    FPCALC_TIMEOUT.as_secs()
+                ))
+            })?
             .map_err(|e| {
                 MetadataError::AcoustId(format!(
                     "Nie udało się uruchomić 'fpcalc' (zainstaluj pakiet chromaprint): {}",
@@ -145,12 +157,9 @@ impl AcoustidClient {
             ("format", "json"),
         ];
 
-        let resp = self
-            .http
-            .post(ACOUSTID_API_URL)
-            .form(&params)
-            .send()
-            .await?;
+        self.limiter.wait().await;
+        let resp =
+            crate::http::send_with_retry(self.http.post(ACOUSTID_API_URL).form(&params)).await?;
 
         if !resp.status().is_success() {
             return Err(MetadataError::AcoustId(format!(
