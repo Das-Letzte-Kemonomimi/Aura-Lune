@@ -11,12 +11,6 @@ pub fn list_devices() -> Result<Vec<AudioCard>, CommandError> {
     DeviceManager::list_cards().map_err(CommandError::from)
 }
 
-/// Sets audio card profile (e.g. Pro Audio, Stereo Output).
-#[tauri::command]
-pub fn set_device_profile(card_name: String, profile_name: String) -> Result<(), CommandError> {
-    DeviceManager::set_card_profile(&card_name, &profile_name).map_err(CommandError::from)
-}
-
 /// Sets Bluetooth audio codec (LDAC, aptX HD, AAC, SBC).
 #[tauri::command]
 pub fn set_bluetooth_codec(card_name: String, codec: BluetoothCodec) -> Result<(), CommandError> {

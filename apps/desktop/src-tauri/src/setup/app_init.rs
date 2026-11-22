@@ -108,11 +108,7 @@ pub fn init_app(
                 rate_ratio: f64,
             }
             if let Ok(saved) = serde_json::from_str::<SavedDsp>(&saved_json) {
-                let target_engine = match saved.engine.as_str() {
-                    "RubberBand" => DspEngine::RubberBand,
-                    "SoundTouch" => DspEngine::SoundTouch,
-                    _ => DspEngine::Bypass,
-                };
+                let target_engine = DspEngine::from_name(&saved.engine);
                 let _ = engine.set_dsp_engine(target_engine);
                 if let Ok(params) = DspParams::new(
                     target_engine,
@@ -134,11 +130,8 @@ pub fn init_app(
     } else {
         // Domyślny silnik DSP przy uruchomieniu (Bypass jako domyślny)
         let default_engine_setting = settings.get("dsp_default_engine").cloned();
-        let target_engine = match default_engine_setting.as_deref() {
-            Some("RubberBand") => DspEngine::RubberBand,
-            Some("SoundTouch") => DspEngine::SoundTouch,
-            _ => DspEngine::Bypass,
-        };
+        let target_engine =
+            DspEngine::from_name(default_engine_setting.as_deref().unwrap_or_default());
         let _ = engine.set_dsp_engine(target_engine);
         tracing::info!(
             "Uruchomiono silnik DSP w trybie domyślnym: {:?}",

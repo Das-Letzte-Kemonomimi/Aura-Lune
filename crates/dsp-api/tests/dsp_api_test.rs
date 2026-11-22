@@ -43,3 +43,20 @@ fn test_audio_format_validation() {
     assert!(AudioFormat::new(48000, 0).is_err());
     assert!(AudioFormat::new(48000, 17).is_err());
 }
+
+#[test]
+fn test_dsp_engine_name_round_trip_and_fallback() {
+    use dsp_api::DspEngine;
+    for e in [
+        DspEngine::Bypass,
+        DspEngine::RubberBand,
+        DspEngine::SoundTouch,
+    ] {
+        assert_eq!(DspEngine::from_name(e.as_str()), e);
+        assert_eq!(e.to_string(), e.as_str());
+    }
+    assert_eq!(DspEngine::from_name("soundtouch"), DspEngine::SoundTouch);
+    assert_eq!(DspEngine::from_name("RUBBERBAND"), DspEngine::RubberBand);
+    assert_eq!(DspEngine::from_name(""), DspEngine::Bypass);
+    assert_eq!(DspEngine::from_name("unknown"), DspEngine::Bypass);
+}

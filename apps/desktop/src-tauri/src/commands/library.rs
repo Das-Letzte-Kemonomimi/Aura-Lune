@@ -162,13 +162,6 @@ pub async fn get_library_albums(
 }
 
 #[tauri::command]
-pub async fn get_library_artists(
-    state: State<'_, AppState>,
-) -> Result<Vec<ArtistRecord>, CommandError> {
-    get_library_artists_internal(&state).await
-}
-
-#[tauri::command]
 pub async fn toggle_favorite(
     track_id: i64,
     state: State<'_, AppState>,
@@ -206,19 +199,6 @@ pub async fn record_track_play(
 }
 
 #[tauri::command]
-pub async fn record_track_listening(
-    track_id: i64,
-    duration_ms: i64,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    state
-        .db
-        .record_track_listening(track_id, duration_ms)
-        .await
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
 pub async fn get_recap_summary(
     period: String,
     state: State<'_, AppState>,
@@ -250,54 +230,6 @@ pub async fn reset_track_plays(
     state
         .db
         .reset_track_plays(track_id)
-        .await
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub async fn get_favorite_tracks(
-    state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, CommandError> {
-    state
-        .db
-        .list_favorite_tracks()
-        .await
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub async fn get_recently_played_tracks(
-    limit: Option<i64>,
-    state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, CommandError> {
-    let l = limit.unwrap_or(30);
-    state
-        .db
-        .list_recently_played_tracks(l)
-        .await
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub async fn get_top_played_tracks(
-    limit: Option<i64>,
-    state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, CommandError> {
-    let l = limit.unwrap_or(30);
-    state
-        .db
-        .list_top_played_tracks(l)
-        .await
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub async fn get_hires_tracks(
-    state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, CommandError> {
-    state
-        .db
-        .list_hires_tracks()
         .await
         .map_err(CommandError::from)
 }

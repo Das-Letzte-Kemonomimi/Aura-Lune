@@ -20,51 +20,6 @@ pub fn parse_cue_sheet_content(cue_content: String) -> Result<CueSheet, CommandE
 }
 
 #[tauri::command]
-pub async fn list_smart_playlist_tracks(
-    smart_type: String,
-    state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, CommandError> {
-    match smart_type.as_str() {
-        "favorites" => state
-            .db
-            .list_favorite_tracks()
-            .await
-            .map_err(CommandError::from),
-        "top_played" => state
-            .db
-            .list_top_played_tracks(25)
-            .await
-            .map_err(CommandError::from),
-        "recently_played" => state
-            .db
-            .list_recently_played_tracks(50)
-            .await
-            .map_err(CommandError::from),
-        "hires" => state
-            .db
-            .list_hires_tracks()
-            .await
-            .map_err(CommandError::from),
-        "forgotten" => state
-            .db
-            .list_forgotten_tracks(50)
-            .await
-            .map_err(CommandError::from),
-        "high_bpm" => state
-            .db
-            .list_high_bpm_tracks(130.0)
-            .await
-            .map_err(CommandError::from),
-        "top_rated" => state
-            .db
-            .list_top_rated_tracks()
-            .await
-            .map_err(CommandError::from),
-        _ => Err("Nieznany typ inteligentnej playlisty".into()),
-    }
-}
-
-#[tauri::command]
 pub fn load_radio_stream(
     url: String,
     station_name: String,

@@ -59,15 +59,7 @@ pub fn set_queue(
 ) -> Result<Option<QueueItem>, CommandError> {
     info!("Tauri command: set_queue ({} utworów)", items.len());
     let active = state.engine.set_queue(items, start_index)?;
-    if let Some(item) = &active {
-        if !item.id.starts_with("radio-") {
-            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-                *t = None;
-            }
-        }
-        crate::commands::playback::sync_mpris_from_queue_item(item, &state);
-    }
-    persist_queue_state(&state);
+    after_track_switch(&state, active.as_ref());
     Ok(active)
 }
 
@@ -91,27 +83,34 @@ pub async fn add_uris_to_queue(
         return Ok(0);
     }
 
-    // Rozwiń rekurencyjnie foldery i zbierz wyłącznie pliki audio
-    let mut resolved_files = Vec::new();
-    for uri in uris {
-        let path = std::path::Path::new(&uri);
-        if path.is_dir() {
-            for entry in walkdir::WalkDir::new(path)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                let p = entry.path();
-                if p.is_file() && library::LibraryScanner::is_supported_audio_extension(p) {
-                    resolved_files.push(p.to_string_lossy().to_string());
+    // Rozwiń rekurencyjnie foldery i zbierz wyłącznie pliki audio (przejście katalogów
+    // jest blokujące, więc odbywa się poza wątkami Tokio).
+    let resolved_files = tokio::task::spawn_blocking(move || {
+        let mut resolved_files = Vec::new();
+        for uri in uris {
+            let path = std::path::Path::new(&uri);
+            if path.is_dir() {
+                for entry in walkdir::WalkDir::new(path)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    let p = entry.path();
+                    if p.is_file() && library::LibraryScanner::is_supported_audio_extension(p) {
+                        resolved_files.push(p.to_string_lossy().to_string());
+                    }
                 }
+            } else if (path.is_file()
+                && library::LibraryScanner::is_supported_audio_extension(path))
+                || uri.starts_with("http://")
+                || uri.starts_with("https://")
+            {
+                resolved_files.push(uri);
             }
-        } else if (path.is_file() && library::LibraryScanner::is_supported_audio_extension(path))
-            || uri.starts_with("http://")
-            || uri.starts_with("https://")
-        {
-            resolved_files.push(uri);
         }
-    }
+        resolved_files
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("Przerwane przeglądanie folderów: {e}")))?;
 
     if resolved_files.is_empty() {
         return Ok(0);
@@ -220,15 +219,7 @@ pub fn play_queue_index(
     };
 
     let active = state.engine.play_index(target_index)?;
-    if let Some(item) = &active {
-        if !item.id.starts_with("radio-") {
-            if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-                *t = None;
-            }
-        }
-        crate::commands::playback::sync_mpris_from_queue_item(item, &state);
-    }
-    persist_queue_state(&state);
+    after_track_switch(&state, active.as_ref());
     Ok(active)
 }
 
@@ -302,16 +293,6 @@ pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, Co
 }
 
 #[tauri::command]
-pub fn set_stop_after_current(
-    enabled: bool,
-    state: State<'_, AppState>,
-) -> Result<bool, CommandError> {
-    info!("Tauri command: set_stop_after_current({})", enabled);
-    state.engine.set_stop_after_current(enabled);
-    Ok(enabled)
-}
-
-#[tauri::command]
 pub fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, CommandError> {
     let current = state.engine.stop_after_current();
     let new_val = !current;
@@ -321,11 +302,6 @@ pub fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, Com
     );
     state.engine.set_stop_after_current(new_val);
     Ok(new_val)
-}
-
-#[tauri::command]
-pub fn get_stop_after_current(state: State<'_, AppState>) -> bool {
-    state.engine.stop_after_current()
 }
 
 /// Ustawia utwór z biblioteki jako aktywny (załadowany, ale nieodtwarzany) — np. gdy po pierwszym

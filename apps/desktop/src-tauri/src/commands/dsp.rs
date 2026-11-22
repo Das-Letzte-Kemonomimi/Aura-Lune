@@ -9,7 +9,7 @@ use domain::equalizer::EqualizerPreset;
 use domain::replaygain::ReplayGainConfig;
 use domain::silence::SilenceTrimmingConfig;
 use domain::{DynamicsPreset, DynamicsState, ParametricEqPreset, ParametricEqState};
-use dsp_api::{DspCapabilities, DspEngine, DspParams};
+use dsp_api::{DspEngine, DspParams};
 use serde::{Deserialize, Serialize};
 use storage::DspPresetRecord;
 use tauri::State;
@@ -57,11 +57,7 @@ pub fn set_rate_internal(
 
 /// Sets active DSP engine (Bypass, RubberBand, SoundTouch) with parameter preservation.
 pub fn set_dsp_engine_internal(state: &AppState, engine_str: &str) -> Result<(), CommandError> {
-    let engine = match engine_str {
-        "RubberBand" => DspEngine::RubberBand,
-        "SoundTouch" => DspEngine::SoundTouch,
-        _ => DspEngine::Bypass,
-    };
+    let engine = DspEngine::from_name(engine_str);
     state
         .engine
         .set_dsp_engine(engine)
@@ -169,30 +165,7 @@ pub fn set_tempo(
 }
 
 #[tauri::command]
-pub fn set_tempo_ratio(
-    tempo_ratio: Option<f64>,
-    ratio: Option<f64>,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    set_tempo_internal(&state, tempo_ratio, ratio)
-}
-
-#[tauri::command]
-pub fn set_pitch_semitones(semitones: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
-    set_pitch_internal(&state, semitones)
-}
-
-#[tauri::command]
 pub fn set_rate(
-    rate_ratio: Option<f64>,
-    rate: Option<f64>,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    set_rate_internal(&state, rate_ratio, rate)
-}
-
-#[tauri::command]
-pub fn set_rate_ratio(
     rate_ratio: Option<f64>,
     rate: Option<f64>,
     state: State<'_, AppState>,
@@ -210,11 +183,7 @@ pub fn set_dsp_params(
 ) -> Result<PlaybackStatusDto, CommandError> {
     let current = state.engine.dsp_params();
     let target_engine = if let Some(ref eng_str) = engine {
-        match eng_str.as_str() {
-            "RubberBand" => DspEngine::RubberBand,
-            "SoundTouch" => DspEngine::SoundTouch,
-            _ => DspEngine::Bypass,
-        }
+        DspEngine::from_name(eng_str)
     } else {
         current.engine
     };
@@ -277,20 +246,10 @@ pub fn set_stereo_widener(
 }
 
 #[tauri::command]
-pub fn get_stereo_widener(state: State<'_, AppState>) -> Result<(bool, f64), CommandError> {
-    Ok(state.engine.stereo_widener_params())
-}
-
-#[tauri::command]
 pub fn set_limiter_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: set_limiter_enabled({})", enabled);
     state.engine.set_limiter_enabled(enabled);
     Ok(())
-}
-
-#[tauri::command]
-pub fn is_limiter_enabled(state: State<'_, AppState>) -> Result<bool, CommandError> {
-    Ok(state.engine.is_limiter_enabled())
 }
 
 #[tauri::command]
@@ -304,11 +263,6 @@ pub fn set_crossfade_duration(
 }
 
 #[tauri::command]
-pub fn get_crossfade_duration(state: State<'_, AppState>) -> Result<u64, CommandError> {
-    Ok(state.engine.crossfade_duration_ms())
-}
-
-#[tauri::command]
 pub fn set_dsp_engine(
     engine: DspEngine,
     state: State<'_, AppState>,
@@ -316,11 +270,6 @@ pub fn set_dsp_engine(
     info!("Tauri command: set_dsp_engine({:?})", engine);
     state.engine.set_dsp_engine(engine)?;
     Ok(get_status_internal(&state))
-}
-
-#[tauri::command]
-pub fn get_dsp_capabilities(state: State<'_, AppState>) -> DspCapabilities {
-    state.engine.dsp_capabilities()
 }
 
 #[tauri::command]
@@ -374,11 +323,7 @@ pub async fn save_dsp_preset(
     state: State<'_, AppState>,
 ) -> Result<i64, CommandError> {
     let dsp = state.engine.dsp_params();
-    let engine_str = match dsp.engine {
-        DspEngine::Bypass => "Bypass",
-        DspEngine::SoundTouch => "SoundTouch",
-        DspEngine::RubberBand => "RubberBand",
-    };
+    let engine_str = dsp.engine.as_str();
 
     state
         .db
@@ -409,13 +354,7 @@ pub fn load_dsp_preset(
     preset: DspPresetRecord,
     state: State<'_, AppState>,
 ) -> Result<PlaybackStatusDto, CommandError> {
-    let engine = if preset.engine.eq_ignore_ascii_case("Bypass") {
-        DspEngine::Bypass
-    } else if preset.engine.eq_ignore_ascii_case("RubberBand") {
-        DspEngine::RubberBand
-    } else {
-        DspEngine::SoundTouch
-    };
+    let engine = DspEngine::from_name(&preset.engine);
 
     let params = DspParams::new(
         engine,
@@ -507,30 +446,6 @@ pub fn set_parametric_eq_state(
 }
 
 #[tauri::command]
-pub fn set_parametric_eq_enabled(
-    enabled: bool,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    info!("Tauri command: set_parametric_eq_enabled({})", enabled);
-    state
-        .engine
-        .set_parametric_eq_enabled(enabled)
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub fn set_parametric_eq_preamp(
-    preamp_db: f64,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    info!("Tauri command: set_parametric_eq_preamp({} dB)", preamp_db);
-    state
-        .engine
-        .set_parametric_eq_preamp(preamp_db)
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
 pub fn get_parametric_eq_presets() -> Vec<ParametricEqPreset> {
     ParametricEqPreset::default_presets()
 }
@@ -538,11 +453,6 @@ pub fn get_parametric_eq_presets() -> Vec<ParametricEqPreset> {
 #[tauri::command]
 pub fn parse_equalizer_apo_config(text: String) -> Result<ParametricEqState, CommandError> {
     ParametricEqState::parse_equalizer_apo(&text).map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub fn export_equalizer_apo_config(eq_state: ParametricEqState) -> String {
-    eq_state.export_to_equalizer_apo()
 }
 
 #[tauri::command]
@@ -568,37 +478,8 @@ pub fn set_dynamics_state(
 }
 
 #[tauri::command]
-pub fn set_compressor_enabled(
-    enabled: bool,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    info!("Tauri command: set_compressor_enabled({})", enabled);
-    state
-        .engine
-        .set_compressor_enabled(enabled)
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub fn set_saturator_enabled(
-    enabled: bool,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    info!("Tauri command: set_saturator_enabled({})", enabled);
-    state
-        .engine
-        .set_saturator_enabled(enabled)
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
 pub fn get_dynamics_presets() -> Vec<DynamicsPreset> {
     DynamicsPreset::default_presets()
-}
-
-#[tauri::command]
-pub fn get_replaygain_config(state: State<'_, AppState>) -> ReplayGainConfig {
-    state.engine.replaygain_config()
 }
 
 #[tauri::command]
@@ -621,11 +502,6 @@ pub fn apply_auto_replaygain(is_same_album: bool, is_shuffle: bool, state: State
 }
 
 #[tauri::command]
-pub fn get_crossfeed_config(state: State<'_, AppState>) -> CrossfeedConfig {
-    state.engine.crossfeed_config()
-}
-
-#[tauri::command]
 pub fn set_crossfeed_config(
     config: CrossfeedConfig,
     state: State<'_, AppState>,
@@ -638,11 +514,6 @@ pub fn set_crossfeed_config(
 }
 
 #[tauri::command]
-pub fn get_silence_trimming_config(state: State<'_, AppState>) -> SilenceTrimmingConfig {
-    state.engine.silence_trimming_config()
-}
-
-#[tauri::command]
 pub fn set_silence_trimming_config(
     config: SilenceTrimmingConfig,
     state: State<'_, AppState>,
@@ -652,11 +523,6 @@ pub fn set_silence_trimming_config(
         .engine
         .set_silence_trimming(config)
         .map_err(CommandError::from)
-}
-
-#[tauri::command]
-pub fn get_replaygain_status(state: State<'_, AppState>) -> (f64, f64, bool) {
-    state.engine.replaygain_status()
 }
 
 #[tauri::command]

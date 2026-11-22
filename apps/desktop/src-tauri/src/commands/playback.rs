@@ -503,45 +503,19 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
                 || !album.trim().is_empty()
                 || !effective_title.trim().is_empty())
         {
-            let discord_clone = discord.clone();
-            let cover_archive = state.cover_archive.clone();
-            let cache_clone = state.discord_cover_cache.clone();
-            let title_c = effective_title.clone();
-            let artist_c = effective_artist.clone();
-            let album_c = album.clone();
-            state.rt.spawn(async move {
-                let mut candidates = if !is_generic_album {
-                    cover_archive
-                        .search_cover_candidates(&album_c, &artist_c)
-                        .await
-                } else {
-                    Vec::new()
-                };
-                if candidates.is_empty() && !title_c.trim().is_empty() {
-                    candidates = cover_archive
-                        .search_cover_candidates(&title_c, &artist_c)
-                        .await;
-                }
-                if let Some(first) = candidates.first() {
-                    let best_url = if !first.thumbnail_url.is_empty() {
-                        first.thumbnail_url.clone()
-                    } else {
-                        first.full_url.clone()
-                    };
-                    if best_url.starts_with("http://") || best_url.starts_with("https://") {
-                        if let Ok(mut cache) = cache_clone.write() {
-                            cache.insert(cache_key, best_url.clone());
-                        }
-                        discord_clone.update_track(desktop_integration::DiscordTrackInfo {
-                            title: title_c,
-                            artist: artist_c,
-                            album: album_c,
-                            duration_ms,
-                            art_url: Some(best_url),
-                        });
-                    }
-                }
-            });
+            spawn_discord_cover_search(
+                state,
+                discord,
+                desktop_integration::DiscordTrackInfo {
+                    title: effective_title.clone(),
+                    artist: effective_artist.clone(),
+                    album: album.clone(),
+                    duration_ms,
+                    art_url: None,
+                },
+                !is_generic_album,
+                cache_key,
+            );
         }
     }
 }
@@ -644,40 +618,19 @@ pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
                             && !parsed_artist.trim().is_empty()
                             && !parsed_title.trim().is_empty()
                         {
-                            let discord_clone = discord.clone();
-                            let cover_archive = state.cover_archive.clone();
-                            let cache_clone = state.discord_cover_cache.clone();
-                            let title_c = parsed_title.clone();
-                            let artist_c = parsed_artist.clone();
-                            let album_c = station_album.clone();
-                            state.rt.spawn(async move {
-                                let candidates = cover_archive
-                                    .search_cover_candidates(&title_c, &artist_c)
-                                    .await;
-                                if let Some(first) = candidates.first() {
-                                    let best_url = if !first.thumbnail_url.is_empty() {
-                                        first.thumbnail_url.clone()
-                                    } else {
-                                        first.full_url.clone()
-                                    };
-                                    if best_url.starts_with("http://")
-                                        || best_url.starts_with("https://")
-                                    {
-                                        if let Ok(mut cache) = cache_clone.write() {
-                                            cache.insert(cache_key, best_url.clone());
-                                        }
-                                        discord_clone.update_track(
-                                            desktop_integration::DiscordTrackInfo {
-                                                title: title_c,
-                                                artist: artist_c,
-                                                album: album_c,
-                                                duration_ms: 0,
-                                                art_url: Some(best_url),
-                                            },
-                                        );
-                                    }
-                                }
-                            });
+                            spawn_discord_cover_search(
+                                state,
+                                discord,
+                                desktop_integration::DiscordTrackInfo {
+                                    title: parsed_title.clone(),
+                                    artist: parsed_artist.clone(),
+                                    album: station_album.clone(),
+                                    duration_ms: 0,
+                                    art_url: None,
+                                },
+                                false,
+                                cache_key,
+                            );
                         }
                     }
                 } else {
@@ -1130,4 +1083,50 @@ pub fn get_sample_track(app: tauri::AppHandle) -> Result<Option<SampleTrackDto>,
         .app_data_dir()
         .unwrap_or_else(|_| PathBuf::from("."));
     Ok(resolve_or_extract_sample_track(&data_dir))
+}
+
+/// Wyszukuje okładkę online w tle (najpierw po albumie, gdy `search_album`, potem po tytule),
+/// zapisuje adres w pamięci podręcznej okładek Discord i aktualizuje Rich Presence.
+fn spawn_discord_cover_search(
+    state: &AppState,
+    discord: &std::sync::Arc<desktop_integration::DiscordRpcController>,
+    track: desktop_integration::DiscordTrackInfo,
+    search_album: bool,
+    cache_key: String,
+) {
+    let discord = discord.clone();
+    let cover_archive = state.cover_archive.clone();
+    let cache = state.discord_cover_cache.clone();
+    state.rt.spawn(async move {
+        let mut candidates = if search_album {
+            cover_archive
+                .search_cover_candidates(&track.album, &track.artist)
+                .await
+        } else {
+            Vec::new()
+        };
+        if candidates.is_empty() && !track.title.trim().is_empty() {
+            candidates = cover_archive
+                .search_cover_candidates(&track.title, &track.artist)
+                .await;
+        }
+        let Some(first) = candidates.first() else {
+            return;
+        };
+        let best_url = if first.thumbnail_url.is_empty() {
+            first.full_url.clone()
+        } else {
+            first.thumbnail_url.clone()
+        };
+        if !(best_url.starts_with("http://") || best_url.starts_with("https://")) {
+            return;
+        }
+        if let Ok(mut c) = cache.write() {
+            c.insert(cache_key, best_url.clone());
+        }
+        discord.update_track(desktop_integration::DiscordTrackInfo {
+            art_url: Some(best_url),
+            ..track
+        });
+    });
 }

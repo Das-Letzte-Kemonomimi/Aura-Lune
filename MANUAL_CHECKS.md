@@ -128,3 +128,11 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **Large library scan.** Rescan a big library (thousands of files). The UI should stay responsive during the scan (playback, scrolling), and the counts should match the previous scan.
 - [ ] **Playlists show favorites and ratings.** Open a playlist that has favorite or rated tracks; the heart and stars should appear, as they do in the library.
 - [ ] **Duplicate finder.** It should list the same groups as before, with the best-quality file (FLAC or hi-res) first in each group.
+
+### Command cleanup (Phase 6)
+
+- [ ] **Watch for errors from removed commands.** 31 unused backend commands were removed; tests prove the frontend doesn't call them. While using the app, a devtools console error like `Command … not found` would mean a dynamic call was missed.
+- [ ] **DSP engine choice survives a restart.** Switch the DSP engine (Bypass / RubberBand / SoundTouch), save and load a DSP preset, and restart with "restore DSP on startup" on. The engine should be restored each time.
+- [ ] **Discord cover lookup.** With Discord running, play a library track that has no cover, then a radio station showing "Artist - Title". A cover found online should appear in Rich Presence after a moment.
+- [ ] **Dropping a big folder.** Drop a large folder onto the queue; the UI should stay responsive while it's expanded.
+- [ ] **Stem project from a large file.** Create a stem project from a large hi-res file; the UI shouldn't freeze while it's hashed.

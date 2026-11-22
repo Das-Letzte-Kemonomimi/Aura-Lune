@@ -26,6 +26,34 @@ pub enum DspEngine {
     SoundTouch,
 }
 
+impl DspEngine {
+    /// Nazwa zapisywana w ustawieniach, presetach i wysyłana do interfejsu.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DspEngine::Bypass => "Bypass",
+            DspEngine::RubberBand => "RubberBand",
+            DspEngine::SoundTouch => "SoundTouch",
+        }
+    }
+
+    /// Odczyt nazwy bez rozróżniania wielkości liter; nieznana nazwa oznacza `Bypass`.
+    pub fn from_name(name: &str) -> Self {
+        if name.eq_ignore_ascii_case("RubberBand") {
+            DspEngine::RubberBand
+        } else if name.eq_ignore_ascii_case("SoundTouch") {
+            DspEngine::SoundTouch
+        } else {
+            DspEngine::Bypass
+        }
+    }
+}
+
+impl std::fmt::Display for DspEngine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Zdolności i ograniczenia wybranego silnika DSP.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DspCapabilities {

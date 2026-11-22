@@ -263,8 +263,14 @@ pub async fn create_stem_project_internal(
         .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
 
     let track_path = track.path.clone();
-    let track_hash = audio_engine::calculate_file_sha256(Path::new(&track_path))
-        .map_err(|e| CommandError::from(e).context("Błąd kalkulacji SHA-256"))?;
+    // SHA-256 całego pliku audio (setki MB dla hi-res) — poza wątkami Tokio.
+    let hash_path = track_path.clone();
+    let track_hash = tokio::task::spawn_blocking(move || {
+        audio_engine::calculate_file_sha256(Path::new(&hash_path))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("Przerwane obliczanie SHA-256: {e}")))?
+    .map_err(|e| CommandError::from(e).context("Błąd kalkulacji SHA-256"))?;
 
     let album_title = if let Some(a_id) = track.album_id {
         state
@@ -791,14 +797,6 @@ pub async fn get_stem_project_mixes(
 }
 
 #[tauri::command]
-pub async fn delete_stem_project_mix(
-    mix_id: i64,
-    state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    delete_stem_project_mix_internal(&state, mix_id).await
-}
-
-#[tauri::command]
 pub async fn load_stem_project(
     project_id: i64,
     master_volume: Option<f32>,
@@ -828,16 +826,6 @@ pub async fn apply_stem_project_mix(
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
     apply_stem_project_mix_internal(&state, &channels, master_volume)
-}
-
-#[tauri::command]
-pub async fn export_stem_project_mix(
-    project_id: i64,
-    export_path: String,
-    state: State<'_, AppState>,
-) -> Result<String, CommandError> {
-    super::paths::ensure_writable(std::path::Path::new(&export_path))?;
-    export_stem_project_mix_internal(&state, project_id, &export_path).await
 }
 
 #[tauri::command]

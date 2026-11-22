@@ -424,11 +424,6 @@ pub async fn update_track_metadata(
 }
 
 #[tauri::command]
-pub async fn is_fpcalc_available() -> Result<bool, CommandError> {
-    Ok(AcoustidClient::is_fpcalc_available().await)
-}
-
-#[tauri::command]
 pub async fn identify_track_fingerprint(
     path: String,
     client_key: Option<String>,

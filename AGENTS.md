@@ -101,7 +101,7 @@ Aura-Lune/
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Modularized Tauri command handlers (214 commands)
+│           │   ├── commands/        # Modularized Tauri command handlers (183 commands)
 │           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
 │           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
@@ -180,7 +180,7 @@ Aura-Lune/
 ### `crates/dsp-api`
 - **Purpose**: DSP abstraction layer defining unified traits implemented by DSP backends.
 - **Key Items**:
-  - `DspEngine`: Common interface for pitch, tempo, and rate manipulation.
+  - `DspEngine`: Common interface for pitch, tempo, and rate manipulation. `as_str()` / `from_name()` (case-insensitive, unknown → `Bypass`) are the only string mapping — never match engine names by hand.
   - `DspCapabilities`: Formant preservation capabilities and pitch/tempo bounds.
   - Math helpers: `semitones_to_pitch_ratio()`, `pitch_ratio_to_semitones()`, `cents_to_semitones()`.
 - **Tests**: Located in `crates/dsp-api/tests/dsp_api_test.rs`.
@@ -273,7 +273,9 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 - [`setup/silence_trim.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/silence_trim.rs): Detects silence bounds in the background (`audio_engine::detect_silence_bounds`, cached in `track_silence_bounds`), seeks past leading silence and seeks to just before EOS at trailing silence so the engine's normal EOS path handles loop / stop-after-current / crossfade. Pure decisions live in `domain::silence::{find_silence_bounds, trim_action}`.
 
 ### Modular Command Handlers (`commands/`)
-All 214 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+All 183 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+
+**Dead commands** — a command no frontend `invoke()` uses is removed (the storage/engine method stays). The cleanup in Phase 6 removed 31 such wrappers.
 
 **Path contract** — commands that write a file the UI names call `paths::ensure_writable`; commands that read a file and return or store its content call `paths::ensure_readable(path, &[extensions])` (both in `commands/paths.rs`, symlinks resolved first).
 
@@ -285,11 +287,11 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 | Module | Responsibility | Key Commands |
 |---|---|---|
 | [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync; `get_status` returns the ticker snapshot | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
-| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `set_stop_after_current`, `toggle_stop_after_current` (plus `play_next_internal` / `play_previous_internal` for non-command callers) |
-| [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_parametric_eq_enabled`, `set_compressor_enabled`, `set_saturator_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
-| [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `get_library_artists`, `get_favorite_tracks`, `get_recently_played_tracks`, `get_top_played_tracks`, `get_hires_tracks`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
-| [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `list_smart_playlist_tracks`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
-| [`themes.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/themes.rs) | Themes, wallpapers & system icons | `list_themes`, `get_active_theme`, `set_active_theme`, `save_theme`, `update_theme_background`, `export_theme_json`, `import_theme_json`, `upload_background_image`, `set_app_icon_style`, `get_app_icon_style`, `update_system_icons` |
+| [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `toggle_stop_after_current` (plus `play_next_internal` / `play_previous_internal` for non-command callers) |
+| [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
+| [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
+| [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
+| [`themes.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/themes.rs) | Themes, wallpapers & system icons | `list_themes`, `get_active_theme`, `set_active_theme`, `update_theme_background`, `export_theme_json`, `import_theme_json`, `upload_background_image`, `set_app_icon_style`, `get_app_icon_style`, `update_system_icons` |
 | [`bookmarks.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/bookmarks.rs) | Track timestamps & A-B repeat bookmarks | `save_bookmark`, `get_bookmark`, `delete_bookmark`, `get_track_bookmarks`, `add_track_bookmark`, `update_track_bookmark`, `delete_track_bookmark` |
 | [`metadata.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/metadata.rs) | Tags, MusicBrainz, Covers, Scrobbling | `get_track_metadata`, `update_track_metadata`, `search_musicbrainz_releases`, `fetch_and_apply_cover`, `search_cover_candidates`, `apply_cover_url`, `apply_custom_cover_file`, `get_track_cover`, `get_lyrics`, `validate_listenbrainz_token`, `lastfm_scrobble` |
 | [`devices.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/devices.rs) | Audio devices, Bluetooth codecs, Volume | `list_devices`, `set_audio_device`, `get_bluetooth_codecs`, `set_bluetooth_codec`, `get_master_volume`, `set_master_volume`, `set_volume_unit` |

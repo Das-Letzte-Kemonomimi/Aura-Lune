@@ -44,16 +44,6 @@ pub async fn set_active_theme(
 }
 
 #[tauri::command]
-pub async fn save_theme(theme: Theme, state: State<'_, AppState>) -> Result<(), CommandError> {
-    theme.validate()?;
-    state
-        .db
-        .save_theme(&theme)
-        .await
-        .map_err(CommandError::from)
-}
-
-#[tauri::command]
 pub async fn update_theme_background(
     theme_id: String,
     background_ref: Option<String>,
