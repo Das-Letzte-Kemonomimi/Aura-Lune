@@ -82,7 +82,7 @@ impl StemSeparator {
             Ok(res) => res,
             Err(e) => {
                 let mono = decode_snippet_for_analysis(&uri, 360.0).map_err(|e2| {
-                    AudioEngineError::ElementLink(format!("Błąd dekodowania: {} / {}", e, e2))
+                    AudioEngineError::Pipeline(format!("Błąd dekodowania: {} / {}", e, e2))
                 })?;
                 let r = mono.clone();
                 (mono, r, 22050)
@@ -169,7 +169,7 @@ impl StemSeparator {
             Ok(res) => res,
             Err(e) => {
                 let mono = decode_snippet_for_analysis(&uri, 360.0).map_err(|e2| {
-                    AudioEngineError::ElementLink(format!("Błąd dekodowania: {} / {}", e, e2))
+                    AudioEngineError::Pipeline(format!("Błąd dekodowania: {} / {}", e, e2))
                 })?;
                 let r = mono.clone();
                 (mono, r, 22050)

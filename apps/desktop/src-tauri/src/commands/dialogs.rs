@@ -1,5 +1,6 @@
 //! Dialogi i menedżer plików (KDE Dolphin, Zenity, xdg-open).
 
+use super::error::CommandError;
 use tracing::info;
 
 pub fn is_kde_environment() -> bool {
@@ -10,7 +11,7 @@ pub fn is_kde_environment() -> bool {
 }
 
 #[tauri::command]
-pub async fn pick_folder() -> Result<Option<String>, String> {
+pub async fn pick_folder() -> Result<Option<String>, CommandError> {
     tokio::task::spawn_blocking(|| {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 
@@ -60,11 +61,11 @@ pub async fn pick_folder() -> Result<Option<String>, String> {
         }
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn pick_files() -> Result<Vec<String>, String> {
+pub async fn pick_files() -> Result<Vec<String>, CommandError> {
     tokio::task::spawn_blocking(|| {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 
@@ -131,11 +132,11 @@ pub async fn pick_files() -> Result<Vec<String>, String> {
         selected.unwrap_or_default()
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn pick_image_file() -> Result<Option<String>, String> {
+pub async fn pick_image_file() -> Result<Option<String>, CommandError> {
     tokio::task::spawn_blocking(|| {
         let pictures = std::env::var("HOME")
             .map(|h| format!("{}/Pictures", h))
@@ -188,11 +189,11 @@ pub async fn pick_image_file() -> Result<Option<String>, String> {
         }
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn pick_single_audio_file() -> Result<Option<String>, String> {
+pub async fn pick_single_audio_file() -> Result<Option<String>, CommandError> {
     tokio::task::spawn_blocking(|| {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 
@@ -243,14 +244,14 @@ pub async fn pick_single_audio_file() -> Result<Option<String>, String> {
         }
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn pick_save_destination(
     default_name: String,
     extension: String,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, CommandError> {
     tokio::task::spawn_blocking(move || {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         let target_file = format!("{}/{}", home, default_name);
@@ -305,11 +306,14 @@ pub async fn pick_save_destination(
         }
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn pick_custom_file(title: String, filter: String) -> Result<Option<String>, String> {
+pub async fn pick_custom_file(
+    title: String,
+    filter: String,
+) -> Result<Option<String>, CommandError> {
     tokio::task::spawn_blocking(move || {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 
@@ -352,11 +356,11 @@ pub async fn pick_custom_file(title: String, filter: String) -> Result<Option<St
         }
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn open_containing_folder(file_path: String) -> Result<String, String> {
+pub async fn open_containing_folder(file_path: String) -> Result<String, CommandError> {
     info!("Tauri command: open_containing_folder('{}')", file_path);
     tokio::task::spawn_blocking(move || {
         let clean = if let Some(stripped) = file_path.strip_prefix("file://") {
@@ -442,22 +446,23 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, String>
         let _ = std::process::Command::new("xdg-open")
             .arg(&target_dir)
             .spawn()
-            .map_err(|e| format!("Błąd otwierania folderu w menedżerze plików: {}", e))?;
+            .map_err(|e| {
+                CommandError::from(e).context("Błąd otwierania folderu w menedżerze plików")
+            })?;
 
         Ok(target_dir.to_string_lossy().to_string())
     })
-    .await
-    .map_err(|e| e.to_string())?
+    .await?
 }
 
 #[tauri::command]
-pub fn open_external_url(url: String) -> Result<(), String> {
+pub fn open_external_url(url: String) -> Result<(), CommandError> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
-        return Err("Dozwolone są wyłącznie bezpieczne adresy URL (http/https)".to_string());
+        return Err("Dozwolone są wyłącznie bezpieczne adresy URL (http/https)".into());
     }
     std::process::Command::new("xdg-open")
         .arg(&url)
         .spawn()
-        .map_err(|e| format!("Błąd otwierania odnośnika w przeglądarce: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd otwierania odnośnika w przeglądarce"))?;
     Ok(())
 }

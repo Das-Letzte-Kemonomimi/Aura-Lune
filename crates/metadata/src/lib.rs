@@ -40,6 +40,23 @@ pub enum MetadataError {
     AcoustId(String),
 }
 
+/// Błędy klientów scrobblingu (Last.fm, ListenBrainz).
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ScrobbleError {
+    /// Brakujące lub puste dane wejściowe (token, klucz sesji).
+    #[error("{0}")]
+    Validation(String),
+    /// Brak połączenia / błąd transportu HTTP.
+    #[error("{0}")]
+    Network(String),
+    /// Nieoczekiwany format odpowiedzi.
+    #[error("{0}")]
+    Parse(String),
+    /// Serwis odpowiedział błędem (kod HTTP, nieprawidłowy token, odrzucony scrobble).
+    #[error("{0}")]
+    Service(String),
+}
+
 /// Reprezentacja kandydata wydania z MusicBrainz.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReleaseCandidateDto {

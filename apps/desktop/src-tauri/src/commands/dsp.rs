@@ -1,3 +1,4 @@
+use super::error::CommandError;
 use crate::commands::playback::{get_status_internal, PlaybackStatusDto};
 use crate::AppState;
 use audio_engine::{
@@ -26,12 +27,12 @@ pub struct ReplayGainScanSummaryDto {
 // ----------------------------------------------------------------------------
 
 /// Internal helper for pitch shift adjustment in semitones (-24.0 to +24.0).
-pub fn set_pitch_internal(state: &AppState, semitones: f64) -> Result<(), String> {
+pub fn set_pitch_internal(state: &AppState, semitones: f64) -> Result<(), CommandError> {
     let clamped = semitones.clamp(-24.0, 24.0);
     state
         .engine
         .set_pitch_semitones(clamped)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 /// Internal helper for tempo ratio adjustment (0.15 to 4.0).
@@ -39,9 +40,9 @@ pub fn set_tempo_internal(
     state: &AppState,
     tempo_ratio: Option<f64>,
     ratio: Option<f64>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let r = tempo_ratio.or(ratio).unwrap_or(1.0).clamp(0.15, 4.0);
-    state.engine.set_tempo_ratio(r).map_err(|e| e.to_string())
+    state.engine.set_tempo_ratio(r).map_err(CommandError::from)
 }
 
 /// Internal helper for playback rate adjustment (0.25 to 3.0).
@@ -49,13 +50,13 @@ pub fn set_rate_internal(
     state: &AppState,
     rate_ratio: Option<f64>,
     rate: Option<f64>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let r = rate_ratio.or(rate).unwrap_or(1.0).clamp(0.25, 3.0);
-    state.engine.set_rate_ratio(r).map_err(|e| e.to_string())
+    state.engine.set_rate_ratio(r).map_err(CommandError::from)
 }
 
 /// Sets active DSP engine (Bypass, RubberBand, SoundTouch) with parameter preservation.
-pub fn set_dsp_engine_internal(state: &AppState, engine_str: &str) -> Result<(), String> {
+pub fn set_dsp_engine_internal(state: &AppState, engine_str: &str) -> Result<(), CommandError> {
     let engine = match engine_str {
         "RubberBand" => DspEngine::RubberBand,
         "SoundTouch" => DspEngine::SoundTouch,
@@ -64,7 +65,7 @@ pub fn set_dsp_engine_internal(state: &AppState, engine_str: &str) -> Result<(),
     state
         .engine
         .set_dsp_engine(engine)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 /// Sets a single band of the 10-band graphic equalizer.
@@ -72,22 +73,22 @@ pub fn set_equalizer_band_internal(
     state: &AppState,
     band: usize,
     gain_db: f64,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     if band >= 10 {
-        return Err(format!(
-            "Numer pasma {} jest nieprawidłowy (dozwolone 0-9)",
-            band
-        ));
+        return Err(format!("Numer pasma {} jest nieprawidłowy (dozwolone 0-9)", band).into());
     }
     let clamped = gain_db.clamp(-24.0, 24.0);
     state
         .engine
         .set_equalizer_band(band, clamped)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 /// Sets all 10 bands of the graphic equalizer.
-pub fn set_equalizer_bands_internal(state: &AppState, bands: &[f64; 10]) -> Result<(), String> {
+pub fn set_equalizer_bands_internal(
+    state: &AppState,
+    bands: &[f64; 10],
+) -> Result<(), CommandError> {
     let mut clamped = [0.0; 10];
     for (i, &g) in bands.iter().enumerate() {
         clamped[i] = g.clamp(-24.0, 24.0);
@@ -95,17 +96,17 @@ pub fn set_equalizer_bands_internal(state: &AppState, bands: &[f64; 10]) -> Resu
     state
         .engine
         .set_equalizer_bands(&clamped)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 /// Toggles graphic equalizer processing.
-pub fn set_equalizer_enabled_internal(state: &AppState, enabled: bool) -> Result<(), String> {
+pub fn set_equalizer_enabled_internal(state: &AppState, enabled: bool) -> Result<(), CommandError> {
     state.engine.set_equalizer_enabled(enabled);
     Ok(())
 }
 
 /// Sets graphic equalizer pre-amp gain in dB.
-pub fn set_equalizer_preamp_internal(state: &AppState, preamp_db: f64) -> Result<(), String> {
+pub fn set_equalizer_preamp_internal(state: &AppState, preamp_db: f64) -> Result<(), CommandError> {
     let clamped = preamp_db.clamp(-24.0, 24.0);
     state.engine.set_equalizer_preamp(clamped);
     Ok(())
@@ -117,7 +118,7 @@ pub fn apply_auto_eq_profile_internal(
     profile_name: &str,
     bands: &[f64; 10],
     preamp_db: f64,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Applying AutoEQ profile '{}' with preamp {} dB",
         profile_name, preamp_db
@@ -142,11 +143,11 @@ pub fn get_parametric_eq_state_internal(state: &AppState) -> ParametricEqState {
 pub fn set_parametric_eq_state_internal(
     state: &AppState,
     eq_state: &ParametricEqState,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .engine
         .set_parametric_eq_state(eq_state)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 // ----------------------------------------------------------------------------
@@ -154,7 +155,7 @@ pub fn set_parametric_eq_state_internal(
 // ----------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn set_pitch(semitones: f64, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_pitch(semitones: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
     set_pitch_internal(&state, semitones)
 }
 
@@ -163,7 +164,7 @@ pub fn set_tempo(
     tempo_ratio: Option<f64>,
     ratio: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_tempo_internal(&state, tempo_ratio, ratio)
 }
 
@@ -172,12 +173,12 @@ pub fn set_tempo_ratio(
     tempo_ratio: Option<f64>,
     ratio: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_tempo_internal(&state, tempo_ratio, ratio)
 }
 
 #[tauri::command]
-pub fn set_pitch_semitones(semitones: f64, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_pitch_semitones(semitones: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
     set_pitch_internal(&state, semitones)
 }
 
@@ -186,7 +187,7 @@ pub fn set_rate(
     rate_ratio: Option<f64>,
     rate: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_rate_internal(&state, rate_ratio, rate)
 }
 
@@ -195,7 +196,7 @@ pub fn set_rate_ratio(
     rate_ratio: Option<f64>,
     rate: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_rate_internal(&state, rate_ratio, rate)
 }
 
@@ -206,7 +207,7 @@ pub fn set_dsp_params(
     tempo_ratio: Option<f64>,
     rate_ratio: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<PlaybackStatusDto, String> {
+) -> Result<PlaybackStatusDto, CommandError> {
     let current = state.engine.dsp_params();
     let target_engine = if let Some(ref eng_str) = engine {
         match eng_str.as_str() {
@@ -222,30 +223,20 @@ pub fn set_dsp_params(
     let target_tempo = tempo_ratio.unwrap_or(current.tempo_ratio);
     let target_rate = rate_ratio.unwrap_or(current.rate_ratio);
 
-    state
-        .engine
-        .set_dsp_engine(target_engine)
-        .map_err(|e| e.to_string())?;
+    state.engine.set_dsp_engine(target_engine)?;
 
-    let params = DspParams::new(target_engine, target_pitch, target_tempo, target_rate)
-        .map_err(|e| e.to_string())?;
+    let params = DspParams::new(target_engine, target_pitch, target_tempo, target_rate)?;
 
-    state
-        .engine
-        .set_dsp_params(params)
-        .map_err(|e| e.to_string())?;
+    state.engine.set_dsp_params(params)?;
 
     Ok(get_status_internal(&state))
 }
 
 #[tauri::command]
-pub fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, String> {
+pub fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, CommandError> {
     let current = state.engine.dsp_params();
-    let reset_params = DspParams::new(current.engine, 0.0, 1.0, 1.0).map_err(|e| e.to_string())?;
-    state
-        .engine
-        .set_dsp_params(reset_params)
-        .map_err(|e| e.to_string())?;
+    let reset_params = DspParams::new(current.engine, 0.0, 1.0, 1.0)?;
+    state.engine.set_dsp_params(reset_params)?;
     Ok(get_status_internal(&state))
 }
 
@@ -257,7 +248,7 @@ pub fn set_reverb_params(
     width: Option<f64>,
     level: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let r_size = room_size.unwrap_or(0.5);
     let damp = damping.unwrap_or(0.2);
     let w = width.unwrap_or(1.0);
@@ -273,7 +264,7 @@ pub fn set_stereo_widener(
     active: bool,
     amount: Option<f64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: set_stereo_widener(active: {}, amount: {:?})",
         active, amount
@@ -286,31 +277,34 @@ pub fn set_stereo_widener(
 }
 
 #[tauri::command]
-pub fn get_stereo_widener(state: State<'_, AppState>) -> Result<(bool, f64), String> {
+pub fn get_stereo_widener(state: State<'_, AppState>) -> Result<(bool, f64), CommandError> {
     Ok(state.engine.stereo_widener_params())
 }
 
 #[tauri::command]
-pub fn set_limiter_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_limiter_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: set_limiter_enabled({})", enabled);
     state.engine.set_limiter_enabled(enabled);
     Ok(())
 }
 
 #[tauri::command]
-pub fn is_limiter_enabled(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn is_limiter_enabled(state: State<'_, AppState>) -> Result<bool, CommandError> {
     Ok(state.engine.is_limiter_enabled())
 }
 
 #[tauri::command]
-pub fn set_crossfade_duration(duration_ms: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_crossfade_duration(
+    duration_ms: u64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_crossfade_duration({} ms)", duration_ms);
     state.engine.set_crossfade_duration_ms(duration_ms);
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_crossfade_duration(state: State<'_, AppState>) -> Result<u64, String> {
+pub fn get_crossfade_duration(state: State<'_, AppState>) -> Result<u64, CommandError> {
     Ok(state.engine.crossfade_duration_ms())
 }
 
@@ -318,12 +312,9 @@ pub fn get_crossfade_duration(state: State<'_, AppState>) -> Result<u64, String>
 pub fn set_dsp_engine(
     engine: DspEngine,
     state: State<'_, AppState>,
-) -> Result<PlaybackStatusDto, String> {
+) -> Result<PlaybackStatusDto, CommandError> {
     info!("Tauri command: set_dsp_engine({:?})", engine);
-    state
-        .engine
-        .set_dsp_engine(engine)
-        .map_err(|e| e.to_string())?;
+    state.engine.set_dsp_engine(engine)?;
     Ok(get_status_internal(&state))
 }
 
@@ -336,15 +327,12 @@ pub fn get_dsp_capabilities(state: State<'_, AppState>) -> DspCapabilities {
 pub fn set_audio_buffer_duration_ms(
     buffer_ms: u64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: set_audio_buffer_duration_ms({} ms)",
         buffer_ms
     );
-    state
-        .engine
-        .set_audio_buffer_duration_ms(buffer_ms)
-        .map_err(|e| e.to_string())?;
+    state.engine.set_audio_buffer_duration_ms(buffer_ms)?;
     let db = state.db.clone();
     state.rt.spawn(async move {
         let _ = db
@@ -355,17 +343,17 @@ pub fn set_audio_buffer_duration_ms(
 }
 
 #[tauri::command]
-pub fn get_audio_buffer_duration_ms(state: State<'_, AppState>) -> Result<u64, String> {
+pub fn get_audio_buffer_duration_ms(state: State<'_, AppState>) -> Result<u64, CommandError> {
     Ok(state.engine.audio_buffer_duration_ms())
 }
 
 #[tauri::command]
-pub fn set_dsp_block_size(block_size: usize, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_dsp_block_size(
+    block_size: usize,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_dsp_block_size({} ramek)", block_size);
-    state
-        .engine
-        .set_dsp_block_size(block_size)
-        .map_err(|e| e.to_string())?;
+    state.engine.set_dsp_block_size(block_size)?;
     let db = state.db.clone();
     state.rt.spawn(async move {
         let _ = db
@@ -376,12 +364,15 @@ pub fn set_dsp_block_size(block_size: usize, state: State<'_, AppState>) -> Resu
 }
 
 #[tauri::command]
-pub fn get_dsp_block_size(state: State<'_, AppState>) -> Result<usize, String> {
+pub fn get_dsp_block_size(state: State<'_, AppState>) -> Result<usize, CommandError> {
     Ok(state.engine.dsp_block_size())
 }
 
 #[tauri::command]
-pub async fn save_dsp_preset(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+pub async fn save_dsp_preset(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<i64, CommandError> {
     let dsp = state.engine.dsp_params();
     let engine_str = match dsp.engine {
         DspEngine::Bypass => "Bypass",
@@ -399,19 +390,25 @@ pub async fn save_dsp_preset(name: String, state: State<'_, AppState>) -> Result
             dsp.rate_ratio,
         )
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn list_dsp_presets(state: State<'_, AppState>) -> Result<Vec<DspPresetRecord>, String> {
-    state.db.list_dsp_presets().await.map_err(|e| e.to_string())
+pub async fn list_dsp_presets(
+    state: State<'_, AppState>,
+) -> Result<Vec<DspPresetRecord>, CommandError> {
+    state
+        .db
+        .list_dsp_presets()
+        .await
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub fn load_dsp_preset(
     preset: DspPresetRecord,
     state: State<'_, AppState>,
-) -> Result<PlaybackStatusDto, String> {
+) -> Result<PlaybackStatusDto, CommandError> {
     let engine = if preset.engine.eq_ignore_ascii_case("Bypass") {
         DspEngine::Bypass
     } else if preset.engine.eq_ignore_ascii_case("RubberBand") {
@@ -425,13 +422,9 @@ pub fn load_dsp_preset(
         preset.pitch_semitones,
         preset.tempo_ratio,
         preset.rate_ratio,
-    )
-    .map_err(|e| e.to_string())?;
+    )?;
 
-    state
-        .engine
-        .set_dsp_params(params)
-        .map_err(|e| e.to_string())?;
+    state.engine.set_dsp_params(params)?;
     Ok(get_status_internal(&state))
 }
 
@@ -440,17 +433,23 @@ pub fn set_equalizer_band(
     band: usize,
     gain_db: f64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_equalizer_band_internal(&state, band, gain_db)
 }
 
 #[tauri::command]
-pub fn set_equalizer_bands(bands: [f64; 10], state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_equalizer_bands(
+    bands: [f64; 10],
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     set_equalizer_bands_internal(&state, &bands)
 }
 
 #[tauri::command]
-pub fn set_equalizer_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_equalizer_enabled(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     set_equalizer_enabled_internal(&state, enabled)
 }
 
@@ -459,7 +458,7 @@ pub fn set_equalizer_params(
     enabled: bool,
     bands: Option<Vec<f64>>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_equalizer_enabled_internal(&state, enabled)?;
     if let Some(b) = bands {
         if b.len() == 10 {
@@ -472,7 +471,10 @@ pub fn set_equalizer_params(
 }
 
 #[tauri::command]
-pub fn set_equalizer_preamp(preamp_db: f64, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_equalizer_preamp(
+    preamp_db: f64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     set_equalizer_preamp_internal(&state, preamp_db)
 }
 
@@ -482,7 +484,7 @@ pub fn apply_auto_eq_profile(
     bands: [f64; 10],
     preamp_db: f64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     apply_auto_eq_profile_internal(&state, &profile_name, &bands, preamp_db)
 }
 
@@ -500,26 +502,32 @@ pub fn get_parametric_eq_state(state: State<'_, AppState>) -> ParametricEqState 
 pub fn set_parametric_eq_state(
     eq_state: ParametricEqState,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     set_parametric_eq_state_internal(&state, &eq_state)
 }
 
 #[tauri::command]
-pub fn set_parametric_eq_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_parametric_eq_enabled(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_parametric_eq_enabled({})", enabled);
     state
         .engine
         .set_parametric_eq_enabled(enabled)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub fn set_parametric_eq_preamp(preamp_db: f64, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_parametric_eq_preamp(
+    preamp_db: f64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_parametric_eq_preamp({} dB)", preamp_db);
     state
         .engine
         .set_parametric_eq_preamp(preamp_db)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -528,8 +536,8 @@ pub fn get_parametric_eq_presets() -> Vec<ParametricEqPreset> {
 }
 
 #[tauri::command]
-pub fn parse_equalizer_apo_config(text: String) -> Result<ParametricEqState, String> {
-    ParametricEqState::parse_equalizer_apo(&text)
+pub fn parse_equalizer_apo_config(text: String) -> Result<ParametricEqState, CommandError> {
+    ParametricEqState::parse_equalizer_apo(&text).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -546,7 +554,7 @@ pub fn get_dynamics_state(state: State<'_, AppState>) -> DynamicsState {
 pub fn set_dynamics_state(
     dynamics_state: DynamicsState,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: set_dynamics_state(comp={}, sat={}, lim={})",
         dynamics_state.compressor.enabled,
@@ -556,25 +564,31 @@ pub fn set_dynamics_state(
     state
         .engine
         .set_dynamics_state(&dynamics_state)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub fn set_compressor_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_compressor_enabled(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_compressor_enabled({})", enabled);
     state
         .engine
         .set_compressor_enabled(enabled)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub fn set_saturator_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_saturator_enabled(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_saturator_enabled({})", enabled);
     state
         .engine
         .set_saturator_enabled(enabled)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -591,12 +605,12 @@ pub fn get_replaygain_config(state: State<'_, AppState>) -> ReplayGainConfig {
 pub fn set_replaygain_config(
     config: ReplayGainConfig,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!("Tauri command: set_replaygain_config({:?})", config);
     state
         .engine
         .set_replaygain(config)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -615,12 +629,12 @@ pub fn get_crossfeed_config(state: State<'_, AppState>) -> CrossfeedConfig {
 pub fn set_crossfeed_config(
     config: CrossfeedConfig,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!("Tauri command: set_crossfeed_config({:?})", config);
     state
         .engine
         .set_crossfeed(config)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -632,12 +646,12 @@ pub fn get_silence_trimming_config(state: State<'_, AppState>) -> SilenceTrimmin
 pub fn set_silence_trimming_config(
     config: SilenceTrimmingConfig,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!("Tauri command: set_silence_trimming_config({:?})", config);
     state
         .engine
         .set_silence_trimming(config)
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -650,7 +664,7 @@ pub async fn scan_track_replaygain(
     track_id: i64,
     write_tags: bool,
     state: State<'_, AppState>,
-) -> Result<ReplayGainAnalysisResult, String> {
+) -> Result<ReplayGainAnalysisResult, CommandError> {
     info!(
         "Tauri command: scan_track_replaygain(track_id={}, write_tags={})",
         track_id, write_tags
@@ -658,8 +672,7 @@ pub async fn scan_track_replaygain(
     let track = state
         .db
         .get_track_by_id(track_id)
-        .await
-        .map_err(|e| e.to_string())?
+        .await?
         .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
 
     let result = analyze_track_replaygain(&track.path)?;
@@ -670,8 +683,7 @@ pub async fn scan_track_replaygain(
     state
         .db
         .update_track_replaygain(track_id, gain, peak)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     // Opcjonalny zapis tagów do pliku
     if write_tags {
@@ -690,12 +702,12 @@ pub async fn scan_track_replaygain(
 pub async fn scan_library_replaygain(
     write_tags: bool,
     state: State<'_, AppState>,
-) -> Result<ReplayGainScanSummaryDto, String> {
+) -> Result<ReplayGainScanSummaryDto, CommandError> {
     info!(
         "Tauri command: scan_library_replaygain(write_tags={})",
         write_tags
     );
-    let tracks = state.db.list_tracks().await.map_err(|e| e.to_string())?;
+    let tracks = state.db.list_tracks().await?;
 
     let total_tracks = tracks.len();
     let mut scanned = 0;

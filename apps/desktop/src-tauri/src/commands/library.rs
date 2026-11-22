@@ -1,5 +1,6 @@
 //! Komendy zarządzania biblioteką muzyczną, indeksowaniem, statystykami i metadanymi utworów.
 
+use super::error::CommandError;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -58,17 +59,13 @@ pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
 pub async fn scan_library_internal(
     state: &AppState,
     folder_path: &str,
-) -> Result<ScanSummaryDto, String> {
+) -> Result<ScanSummaryDto, CommandError> {
     if folder_path.trim().is_empty() {
-        return Err("Ścieżka do skanowania nie może być pusta".to_string());
+        return Err("Ścieżka do skanowania nie może być pusta".into());
     }
 
     info!("Library scan started for: {}", folder_path);
-    let summary = state
-        .scanner
-        .scan_directory(folder_path, &state.db)
-        .await
-        .map_err(|e| e.to_string())?;
+    let summary = state.scanner.scan_directory(folder_path, &state.db).await?;
 
     Ok(ScanSummaryDto {
         total_files_found: summary.total_files_found,
@@ -82,7 +79,7 @@ pub async fn scan_library_internal(
 pub async fn scan_paths_internal(
     state: &AppState,
     paths: &[String],
-) -> Result<ScanSummaryDto, String> {
+) -> Result<ScanSummaryDto, CommandError> {
     if paths.is_empty() {
         return Ok(ScanSummaryDto {
             total_files_found: 0,
@@ -94,11 +91,7 @@ pub async fn scan_paths_internal(
 
     info!("Scanning {} specific paths", paths.len());
     let path_bufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let summary = state
-        .scanner
-        .scan_paths(&path_bufs, &state.db)
-        .await
-        .map_err(|e| e.to_string())?;
+    let summary = state.scanner.scan_paths(&path_bufs, &state.db).await?;
 
     Ok(ScanSummaryDto {
         total_files_found: summary.total_files_found,
@@ -109,25 +102,31 @@ pub async fn scan_paths_internal(
 }
 
 /// Retrieves all indexed tracks from the database.
-pub async fn get_library_tracks_internal(state: &AppState) -> Result<Vec<TrackRecord>, String> {
-    state.db.list_tracks().await.map_err(|e| e.to_string())
+pub async fn get_library_tracks_internal(
+    state: &AppState,
+) -> Result<Vec<TrackRecord>, CommandError> {
+    state.db.list_tracks().await.map_err(CommandError::from)
 }
 
 /// Retrieves all indexed albums from the database.
-pub async fn get_library_albums_internal(state: &AppState) -> Result<Vec<AlbumRecord>, String> {
-    state.db.list_albums().await.map_err(|e| e.to_string())
+pub async fn get_library_albums_internal(
+    state: &AppState,
+) -> Result<Vec<AlbumRecord>, CommandError> {
+    state.db.list_albums().await.map_err(CommandError::from)
 }
 
 /// Retrieves all indexed artists from the database.
-pub async fn get_library_artists_internal(state: &AppState) -> Result<Vec<ArtistRecord>, String> {
-    state.db.list_artists().await.map_err(|e| e.to_string())
+pub async fn get_library_artists_internal(
+    state: &AppState,
+) -> Result<Vec<ArtistRecord>, CommandError> {
+    state.db.list_artists().await.map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn scan_library(
     folder_path: String,
     state: State<'_, AppState>,
-) -> Result<ScanSummaryDto, String> {
+) -> Result<ScanSummaryDto, CommandError> {
     scan_library_internal(&state, &folder_path).await
 }
 
@@ -135,18 +134,22 @@ pub async fn scan_library(
 pub async fn scan_paths(
     paths: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<ScanSummaryDto, String> {
+) -> Result<ScanSummaryDto, CommandError> {
     scan_paths_internal(&state, &paths).await
 }
 
 #[tauri::command]
-pub async fn get_library_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+pub async fn get_library_tracks(
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, CommandError> {
     get_library_tracks_internal(&state).await
 }
 
 #[tauri::command]
-pub async fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumRecord>, String> {
-    let albums = state.db.list_albums().await.map_err(|e| e.to_string())?;
+pub async fn get_library_albums(
+    state: State<'_, AppState>,
+) -> Result<Vec<AlbumRecord>, CommandError> {
+    let albums = state.db.list_albums().await?;
 
     let mut resolved = Vec::with_capacity(albums.len());
     for mut album in albums {
@@ -159,17 +162,22 @@ pub async fn get_library_albums(state: State<'_, AppState>) -> Result<Vec<AlbumR
 }
 
 #[tauri::command]
-pub async fn get_library_artists(state: State<'_, AppState>) -> Result<Vec<ArtistRecord>, String> {
+pub async fn get_library_artists(
+    state: State<'_, AppState>,
+) -> Result<Vec<ArtistRecord>, CommandError> {
     get_library_artists_internal(&state).await
 }
 
 #[tauri::command]
-pub async fn toggle_favorite(track_id: i64, state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn toggle_favorite(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<bool, CommandError> {
     state
         .db
         .toggle_favorite(track_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -177,21 +185,24 @@ pub async fn set_track_rating(
     track_id: i64,
     rating: i64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .db
         .set_track_rating(track_id, rating)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn record_track_play(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn record_track_play(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     state
         .db
         .record_track_play(track_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -199,19 +210,19 @@ pub async fn record_track_listening(
     track_id: i64,
     duration_ms: i64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .db
         .record_track_listening(track_id, duration_ms)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn get_recap_summary(
     period: String,
     state: State<'_, AppState>,
-) -> Result<RecapSummaryDto, String> {
+) -> Result<RecapSummaryDto, CommandError> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -228,71 +239,78 @@ pub async fn get_recap_summary(
         .db
         .get_recap_summary(&period, since_epoch)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn reset_track_plays(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn reset_track_plays(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     state
         .db
         .reset_track_plays(track_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn get_favorite_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+pub async fn get_favorite_tracks(
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, CommandError> {
     state
         .db
         .list_favorite_tracks()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn get_recently_played_tracks(
     limit: Option<i64>,
     state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, String> {
+) -> Result<Vec<TrackRecord>, CommandError> {
     let l = limit.unwrap_or(30);
     state
         .db
         .list_recently_played_tracks(l)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn get_top_played_tracks(
     limit: Option<i64>,
     state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, String> {
+) -> Result<Vec<TrackRecord>, CommandError> {
     let l = limit.unwrap_or(30);
     state
         .db
         .list_top_played_tracks(l)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn get_hires_tracks(state: State<'_, AppState>) -> Result<Vec<TrackRecord>, String> {
+pub async fn get_hires_tracks(
+    state: State<'_, AppState>,
+) -> Result<Vec<TrackRecord>, CommandError> {
     state
         .db
         .list_hires_tracks()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn find_duplicate_tracks(
     state: State<'_, AppState>,
-) -> Result<Vec<DuplicateGroup>, String> {
+) -> Result<Vec<DuplicateGroup>, CommandError> {
     state
         .db
         .find_duplicate_tracks()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -300,7 +318,7 @@ pub async fn delete_track_record(
     track_id: i64,
     delete_file: bool,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     if delete_file {
         if let Ok(Some(track)) = state.db.get_track_by_id(track_id).await {
             let p = PathBuf::from(&track.path);
@@ -313,5 +331,5 @@ pub async fn delete_track_record(
         .db
         .delete_track(track_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }

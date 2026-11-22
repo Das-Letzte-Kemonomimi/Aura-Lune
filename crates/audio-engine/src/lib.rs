@@ -7,6 +7,7 @@ pub mod metadata_editor;
 pub mod model_manager;
 pub mod pipeline;
 pub mod stem_separator;
+pub(crate) mod sync;
 pub mod transcoder;
 pub mod uri;
 
@@ -21,7 +22,7 @@ pub use analysis::{
     TrackKeyBpm,
 };
 pub use device::DeviceManager;
-pub use error::AudioEngineError;
+pub use error::{AnalysisError, AudioEngineError, TagError};
 pub use metadata_editor::{read_track_metadata, write_track_metadata, TrackMetadataFullDto};
 pub use model_manager::{
     calculate_file_sha256, get_analysis_capabilities, get_default_model_catalog,

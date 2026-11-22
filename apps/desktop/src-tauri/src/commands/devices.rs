@@ -1,3 +1,4 @@
+use super::error::CommandError;
 use crate::AppState;
 use audio_engine::DeviceManager;
 use desktop_integration::{DiscordRpcStatus, DEFAULT_DISCORD_CLIENT_ID};
@@ -7,62 +8,68 @@ use tracing::info;
 
 /// Lists all audio cards and endpoints detected on the host system via PipeWire / ALSA.
 #[tauri::command]
-pub fn list_devices() -> Result<Vec<AudioCard>, String> {
-    DeviceManager::list_cards().map_err(|e| e.to_string())
+pub fn list_devices() -> Result<Vec<AudioCard>, CommandError> {
+    DeviceManager::list_cards().map_err(CommandError::from)
 }
 
 /// Sets audio card profile (e.g. Pro Audio, Stereo Output).
 #[tauri::command]
-pub fn set_device_profile(card_name: String, profile_name: String) -> Result<(), String> {
-    DeviceManager::set_card_profile(&card_name, &profile_name).map_err(|e| e.to_string())
+pub fn set_device_profile(card_name: String, profile_name: String) -> Result<(), CommandError> {
+    DeviceManager::set_card_profile(&card_name, &profile_name).map_err(CommandError::from)
 }
 
 /// Sets Bluetooth audio codec (LDAC, aptX HD, AAC, SBC).
 #[tauri::command]
-pub fn set_bluetooth_codec(card_name: String, codec: BluetoothCodec) -> Result<(), String> {
-    DeviceManager::set_bluetooth_codec(&card_name, &codec).map_err(|e| e.to_string())
+pub fn set_bluetooth_codec(card_name: String, codec: BluetoothCodec) -> Result<(), CommandError> {
+    DeviceManager::set_bluetooth_codec(&card_name, &codec).map_err(CommandError::from)
 }
 
 /// Enables Pro Audio mode on the given audio card.
 #[tauri::command]
-pub fn enable_pro_audio(card_name: String) -> Result<(), String> {
-    DeviceManager::enable_pro_audio(&card_name).map_err(|e| e.to_string())
+pub fn enable_pro_audio(card_name: String) -> Result<(), CommandError> {
+    DeviceManager::enable_pro_audio(&card_name).map_err(CommandError::from)
 }
 
 /// Disables Pro Audio mode and restores previous profile.
 #[tauri::command]
-pub fn disable_pro_audio(card_name: String) -> Result<String, String> {
-    DeviceManager::disable_pro_audio(&card_name).map_err(|e| e.to_string())
+pub fn disable_pro_audio(card_name: String) -> Result<String, CommandError> {
+    DeviceManager::disable_pro_audio(&card_name).map_err(CommandError::from)
 }
 
 /// Alias for set_device_profile.
 #[tauri::command]
-pub fn set_card_profile(card_name: String, profile: String) -> Result<(), String> {
-    DeviceManager::set_card_profile(&card_name, &profile).map_err(|e| e.to_string())
+pub fn set_card_profile(card_name: String, profile: String) -> Result<(), CommandError> {
+    DeviceManager::set_card_profile(&card_name, &profile).map_err(CommandError::from)
 }
 
-pub fn list_devices_internal() -> Result<Vec<AudioCard>, String> {
+pub fn list_devices_internal() -> Result<Vec<AudioCard>, CommandError> {
     list_devices()
 }
 
-pub fn set_device_profile_internal(card_name: &str, profile_name: &str) -> Result<(), String> {
-    DeviceManager::set_card_profile(card_name, profile_name).map_err(|e| e.to_string())
+pub fn set_device_profile_internal(
+    card_name: &str,
+    profile_name: &str,
+) -> Result<(), CommandError> {
+    DeviceManager::set_card_profile(card_name, profile_name).map_err(CommandError::from)
 }
 
-pub fn set_bluetooth_codec_internal(card_name: &str, codec: &BluetoothCodec) -> Result<(), String> {
-    DeviceManager::set_bluetooth_codec(card_name, codec).map_err(|e| e.to_string())
+pub fn set_bluetooth_codec_internal(
+    card_name: &str,
+    codec: &BluetoothCodec,
+) -> Result<(), CommandError> {
+    DeviceManager::set_bluetooth_codec(card_name, codec).map_err(CommandError::from)
 }
 
-pub fn enable_pro_audio_internal(card_name: &str) -> Result<(), String> {
-    DeviceManager::enable_pro_audio(card_name).map_err(|e| e.to_string())
+pub fn enable_pro_audio_internal(card_name: &str) -> Result<(), CommandError> {
+    DeviceManager::enable_pro_audio(card_name).map_err(CommandError::from)
 }
 
-pub fn disable_pro_audio_internal(card_name: &str) -> Result<String, String> {
-    DeviceManager::disable_pro_audio(card_name).map_err(|e| e.to_string())
+pub fn disable_pro_audio_internal(card_name: &str) -> Result<String, CommandError> {
+    DeviceManager::disable_pro_audio(card_name).map_err(CommandError::from)
 }
 
 /// Retrieves current Discord Rich Presence status.
-pub fn get_discord_rpc_status_internal(state: &AppState) -> Result<DiscordRpcStatus, String> {
+pub fn get_discord_rpc_status_internal(state: &AppState) -> Result<DiscordRpcStatus, CommandError> {
     if let Some(discord) = &state.discord_rpc {
         Ok(discord.get_status())
     } else {
@@ -79,7 +86,7 @@ pub fn get_discord_rpc_status_internal(state: &AppState) -> Result<DiscordRpcSta
 pub async fn set_discord_rpc_enabled_internal(
     state: &AppState,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!("Tauri command: set_discord_rpc_enabled({})", enabled);
     if let Some(discord) = &state.discord_rpc {
         discord.set_enabled(enabled);
@@ -90,8 +97,7 @@ pub async fn set_discord_rpc_enabled_internal(
             "discord_rpc_enabled",
             if enabled { "true" } else { "false" },
         )
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     Ok(())
 }
 
@@ -99,7 +105,7 @@ pub async fn set_discord_rpc_enabled_internal(
 pub async fn set_discord_rpc_client_id_internal(
     state: &AppState,
     client_id: &str,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!("Tauri command: set_discord_rpc_client_id('{}')", client_id);
     let trimmed = client_id.trim();
     if let Some(discord) = &state.discord_rpc {
@@ -108,8 +114,7 @@ pub async fn set_discord_rpc_client_id_internal(
     state
         .db
         .set_app_setting("discord_rpc_client_id", trimmed)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     Ok(())
 }
 
@@ -117,7 +122,7 @@ pub async fn set_discord_rpc_client_id_internal(
 pub fn notify_track_looped_internal(
     state: &AppState,
     position_ms: Option<u64>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let pos = position_ms.unwrap_or(0);
     let dur = state
         .engine

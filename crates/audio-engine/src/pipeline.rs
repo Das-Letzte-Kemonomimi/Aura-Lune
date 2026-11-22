@@ -1,6 +1,7 @@
 //! Główny potok odtwarzacza GStreamer z dynamicznym procesorem DSP.
 
 use crate::error::AudioEngineError;
+use crate::sync::LockExt;
 use domain::analysis::{StemMixerState, StemSeparationData};
 use domain::crossfeed::CrossfeedConfig;
 use domain::dynamics::{DynamicsState, SaturatorConfig};
@@ -693,7 +694,7 @@ impl AudioEngine {
     pub fn load_uri(&self, uri_or_path: &str) -> Result<(), AudioEngineError> {
         let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
 
         // Zatrzymanie potoku przed przebudową wejścia (State::Null całkowicie resetuje EOS na zlewkach audio PipeWire)
         let _ = inner.pipeline.set_state(gst::State::Null);
@@ -790,7 +791,7 @@ impl AudioEngine {
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
 
         let _ = inner.pipeline.set_state(gst::State::Null);
         inner.base_media_pos = Duration::ZERO;
@@ -939,7 +940,7 @@ impl AudioEngine {
 
     /// Aktualizuje wzmocnienie i wyciszenie poszczególnych ścieżek w mikserze stemów w czasie rzeczywistym.
     pub fn set_stem_mixer_state(&self, state: StemMixerState) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.stem_mixer_state = state.clone();
 
         if let Some(ref handles) = inner.stem_mixer_elements {
@@ -953,7 +954,7 @@ impl AudioEngine {
 
     /// Pobiera bieżący stan miksera stemów.
     pub fn get_stem_mixer_state(&self) -> StemMixerState {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.stem_mixer_state.clone()
     }
 
@@ -969,7 +970,7 @@ impl AudioEngine {
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
 
         let _ = inner.pipeline.set_state(gst::State::Null);
         inner.base_media_pos = Duration::ZERO;
@@ -1126,7 +1127,7 @@ impl AudioEngine {
         channels: &[StemChannel],
         master_volume: f32,
     ) -> Result<(), AudioEngineError> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         let has_solo = channels.iter().any(|c| c.solo);
 
         if let Some(ref handles) = inner.stem_mixer_elements {
@@ -1149,7 +1150,7 @@ impl AudioEngine {
     /// z zachowaniem bieżącej pozycji odtwarzania oraz stanu odtwarzania (Playing / Paused).
     pub fn restore_original_track(&self) -> Result<(), AudioEngineError> {
         let (orig_uri, pos, was_playing) = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             let pos = inner
                 .pipeline
                 .query_position::<gst::ClockTime>()
@@ -1188,26 +1189,26 @@ impl AudioEngine {
 
     /// Czy w potoku audio aktywne są stemy (audiomixer).
     pub fn is_stems_active(&self) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.stem_mixer_elements.is_some()
     }
 
     /// ID aktywnego projektu stemów (jeśli jest załadowany).
     pub fn active_stem_project_id(&self) -> Option<i64> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.active_stem_project_id
     }
 
     /// URI oryginalnego utworu skojarzonego ze stemami.
     pub fn original_track_uri(&self) -> Option<String> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.original_track_uri.clone()
     }
 
     /// Rozpoczyna lub wznawia odtwarzanie.
     pub fn play(&self) -> Result<(), AudioEngineError> {
         let uri_to_load = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 self.queue
                     .lock()
@@ -1224,7 +1225,7 @@ impl AudioEngine {
         }
 
         let (pipeline, volume, user_vol) = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play");
                 return Ok(());
@@ -1253,7 +1254,7 @@ impl AudioEngine {
         }
 
         let uri_to_load = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 self.queue
                     .lock()
@@ -1270,7 +1271,7 @@ impl AudioEngine {
         }
 
         let (pipeline, volume, target_vol) = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play_with_fade");
                 return Ok(());
@@ -1302,7 +1303,7 @@ impl AudioEngine {
     /// Wstrzymuje odtwarzanie (pauza).
     pub fn pause(&self) -> Result<(), AudioEngineError> {
         let pipeline = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             inner.state = PlaybackState::Paused;
             inner.pipeline.clone()
         };
@@ -1318,7 +1319,7 @@ impl AudioEngine {
         }
 
         let (pipeline, volume, target_vol) = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             (
                 inner.pipeline.clone(),
                 inner.volume.clone(),
@@ -1336,7 +1337,7 @@ impl AudioEngine {
         pipeline.set_state(gst::State::Paused)?;
         volume.set_property("volume", target_vol);
         {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             inner.state = PlaybackState::Paused;
         }
         debug!("Stan potoku zmieniony na Paused z mikro-fade-out");
@@ -1411,7 +1412,7 @@ impl AudioEngine {
     /// Zatrzymuje odtwarzanie i resetuje pozycję.
     pub fn stop(&self) -> Result<(), AudioEngineError> {
         let pipeline = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             inner.state = PlaybackState::Stopped;
             inner.base_media_pos = Duration::ZERO;
             inner.base_sink_pts = Duration::ZERO;
@@ -1424,7 +1425,7 @@ impl AudioEngine {
 
     /// Przewija do zadanej pozycji w czasie (natychmiastowy skok).
     pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         // Jeśli nie załadowano jeszcze żadnego URI lub potok jest w stanie spoczynku (Null),
         // po prostu zapamiętujemy pozycję jako punkt początkowy bez błędu BoolError
         if inner.current_uri.is_none() || inner.pipeline.current_state() == gst::State::Null {
@@ -1460,7 +1461,7 @@ impl AudioEngine {
         }
 
         let (is_playing, target_vol, current_seq) = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             inner.seek_seq = inner.seek_seq.wrapping_add(1);
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
             (is_playing, inner.user_volume, inner.seek_seq)
@@ -1478,7 +1479,7 @@ impl AudioEngine {
             let factor = (i as f64) / (fade_out_steps as f64);
             let curve = factor * factor; // Naturalna kwadratowa krzywa wygaszania
             {
-                let inner = self.inner.lock().unwrap();
+                let inner = self.inner.lock_safe();
                 if inner.seek_seq != current_seq {
                     return Ok(());
                 }
@@ -1488,7 +1489,7 @@ impl AudioEngine {
         }
 
         {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             if inner.seek_seq != current_seq {
                 return Ok(());
             }
@@ -1507,7 +1508,7 @@ impl AudioEngine {
             let factor = (i as f64) / (fade_in_steps as f64);
             let curve = (factor * std::f64::consts::FRAC_PI_2).sin(); // Płynne wejście sinusa
             {
-                let inner = self.inner.lock().unwrap();
+                let inner = self.inner.lock_safe();
                 if inner.seek_seq != current_seq {
                     return Ok(());
                 }
@@ -1518,7 +1519,7 @@ impl AudioEngine {
 
         // 5. Ostateczne upewnienie się, że głośność powróciła do zadanej przez użytkownika
         {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             if inner.seek_seq == current_seq {
                 inner.volume.set_property("volume", target_vol);
             }
@@ -1529,13 +1530,13 @@ impl AudioEngine {
 
     /// Zwraca aktualną pozycję odtwarzania w osi czasu pliku źródłowego (z uwzględnieniem DSP).
     pub fn position(&self) -> Option<Duration> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         Self::calculate_media_position(&inner)
     }
 
     /// Zwraca całkowity czas trwania załadowanego utworu.
     pub fn duration(&self) -> Option<Duration> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         Self::query_raw_duration(&inner)
     }
 
@@ -1620,7 +1621,7 @@ impl AudioEngine {
     /// Aktualizuje parametry DSP w locie.
     pub fn set_dsp_params(&self, params: DspParams) -> Result<(), AudioEngineError> {
         params.validate()?;
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
 
         // Jeśli parametry dotyczą silnika z przetwarzaniem, zapamiętujemy je
         if params.engine != DspEngine::Bypass {
@@ -1670,7 +1671,7 @@ impl AudioEngine {
         width: f64,
         level: f64,
     ) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.reverb_enabled = enabled;
         inner.reverb_room_size = room_size.clamp(0.0, 1.0);
         inner.reverb_damping = damping.clamp(0.0, 1.0);
@@ -1692,7 +1693,7 @@ impl AudioEngine {
 
     /// Pobiera aktualne parametry pogłosu (enabled, room_size, damping, width, level).
     pub fn reverb_params(&self) -> (bool, f64, f64, f64, f64) {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         (
             inner.reverb_enabled,
             inner.reverb_room_size,
@@ -1740,14 +1741,14 @@ impl AudioEngine {
 
     /// Zwraca aktualne parametry DSP.
     pub fn dsp_params(&self) -> DspParams {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.dsp_params
     }
 
     /// Ustawia rozmiar bufora wyjściowego audio w milisekundach (długość kolejki przed zlewem).
     /// Domyślnie: 600 ms (dostępne wartości: 50 ms - 4000 ms).
     pub fn set_audio_buffer_duration_ms(&self, buffer_ms: u64) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         let clamped = buffer_ms.clamp(50, 4000);
         inner.audio_buffer_ms = clamped;
         let time_ns = clamped * 1_000_000u64;
@@ -1769,14 +1770,14 @@ impl AudioEngine {
 
     /// Pobiera aktualny rozmiar bufora wyjściowego audio w milisekundach (domyślnie 600 ms).
     pub fn audio_buffer_duration_ms(&self) -> u64 {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.audio_buffer_ms
     }
 
     /// Ustawia rozmiar bloku bufora przetwarzania DSP w ramkach.
     /// Domyślnie: 2048 ramek (~46 ms). Dostępne wartości: 512 do 16384 ramek.
     pub fn set_dsp_block_size(&self, block_size: usize) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         let clamped = block_size.clamp(512, 16384);
         inner.dsp_block_size = clamped;
         inner.dsp.set_block_size(clamped);
@@ -1786,7 +1787,7 @@ impl AudioEngine {
 
     /// Pobiera aktualny rozmiar bloku bufora DSP w ramkach (domyślnie 2048 ramek).
     pub fn dsp_block_size(&self) -> usize {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.dsp_block_size
     }
 
@@ -1798,14 +1799,14 @@ impl AudioEngine {
         }
 
         let is_active_playback = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             inner.state == PlaybackState::Playing || inner.state == PlaybackState::Paused
         };
 
         // Obliczamy bieżącą pozycję w utworze źródłowym przed zmianą silnika
         let current_pos = self.position().unwrap_or(Duration::ZERO);
 
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
 
         // Jeśli opuszczamy aktywny silnik DSP (RubberBand / SoundTouch), zapamiętujemy parametry
         if current.engine != DspEngine::Bypass {
@@ -1872,13 +1873,13 @@ impl AudioEngine {
 
     /// Zwraca aktualny stan odtwarzacza.
     pub fn state(&self) -> PlaybackState {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.state
     }
 
     /// Zwraca bieżące załadowane URI odtwarzacza (globalne).
     pub fn current_uri(&self) -> Option<String> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.current_uri.clone()
     }
 
@@ -1886,7 +1887,7 @@ impl AudioEngine {
     pub fn poll_events(&self) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
         let pipeline = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             inner.pipeline.clone()
         };
 
@@ -1903,7 +1904,7 @@ impl AudioEngine {
                         if stop_after_current {
                             info!("'Stop After Current Track' aktywny — zatrzymuję potok audio i nie przechodzę do kolejnego utworu");
                             let old_state = {
-                                let mut inner = self.inner.lock().unwrap();
+                                let mut inner = self.inner.lock_safe();
                                 let old = inner.state;
                                 inner.state = PlaybackState::Stopped;
                                 let _ = inner.pipeline.set_state(gst::State::Null);
@@ -1918,7 +1919,7 @@ impl AudioEngine {
                         }
 
                         let (loop_mode, queue_is_empty) = {
-                            let q = self.queue.lock().unwrap();
+                            let q = self.queue.lock_safe();
                             (q.loop_mode, q.items.is_empty())
                         };
 
@@ -1926,34 +1927,34 @@ impl AudioEngine {
                             // Globalne powtórzenie bieżącego utworu — działa zawsze, niezależnie czy utwór
                             // został uruchomiony z kolejki, biblioteki, albumu czy pojedynczego pliku
                             let current_uri = {
-                                let inner = self.inner.lock().unwrap();
+                                let inner = self.inner.lock_safe();
                                 inner.current_uri.clone()
                             };
                             if let Some(uri) = current_uri {
                                 info!("LoopMode::Track (global) — przeładowuję i powtarzam utwór od nowa: {}", uri);
                                 if let Err(load_err) = self.load_uri(&uri) {
                                     error!("Błąd ładowania URI przy powtarzaniu: {}", load_err);
-                                    let mut inner = self.inner.lock().unwrap();
+                                    let mut inner = self.inner.lock_safe();
                                     inner.state = PlaybackState::Stopped;
                                 } else if let Err(play_err) = self.play() {
                                     error!(
                                         "Błąd odtwarzania przy powtarzaniu utworu: {}",
                                         play_err
                                     );
-                                    let mut inner = self.inner.lock().unwrap();
+                                    let mut inner = self.inner.lock_safe();
                                     inner.state = PlaybackState::Stopped;
                                 } else {
                                     events.push(PlayerEvent::TrackLooped);
                                 }
                             } else {
                                 warn!("LoopMode::Track aktywny, ale brak URI do powtórzenia");
-                                let mut inner = self.inner.lock().unwrap();
+                                let mut inner = self.inner.lock_safe();
                                 inner.state = PlaybackState::Stopped;
                             }
                         } else if loop_mode == LoopMode::Queue && queue_is_empty {
                             // Pojedynczy utwór odtworzony poza kolejką z aktywnym trybem zapętlania (Queue / Loop All)
                             let current_uri = {
-                                let inner = self.inner.lock().unwrap();
+                                let inner = self.inner.lock_safe();
                                 inner.current_uri.clone()
                             };
                             if let Some(uri) = current_uri {
@@ -1963,27 +1964,27 @@ impl AudioEngine {
                                 );
                                 if let Err(load_err) = self.load_uri(&uri) {
                                     error!("Błąd ładowania URI: {}", load_err);
-                                    let mut inner = self.inner.lock().unwrap();
+                                    let mut inner = self.inner.lock_safe();
                                     inner.state = PlaybackState::Stopped;
                                 } else if let Err(play_err) = self.play() {
                                     error!("Błąd odtwarzania: {}", play_err);
-                                    let mut inner = self.inner.lock().unwrap();
+                                    let mut inner = self.inner.lock_safe();
                                     inner.state = PlaybackState::Stopped;
                                 } else {
                                     events.push(PlayerEvent::TrackLooped);
                                 }
                             } else {
-                                let mut inner = self.inner.lock().unwrap();
+                                let mut inner = self.inner.lock_safe();
                                 inner.state = PlaybackState::Stopped;
                             }
                         } else {
                             {
-                                let mut inner = self.inner.lock().unwrap();
+                                let mut inner = self.inner.lock_safe();
                                 inner.state = PlaybackState::Stopped;
                             }
                             // Automatyczne przejście do następnego utworu w kolejce
                             let next_item = {
-                                let mut q = self.queue.lock().unwrap();
+                                let mut q = self.queue.lock_safe();
                                 q.next().cloned()
                             };
                             match next_item {
@@ -1992,7 +1993,7 @@ impl AudioEngine {
                                         error!("Błąd ładowania następnego utworu po EOS: {}", e);
                                     } else {
                                         let (crossfade_ms, user_vol) = {
-                                            let inner = self.inner.lock().unwrap();
+                                            let inner = self.inner.lock_safe();
                                             (inner.crossfade_duration_ms, inner.user_volume)
                                         };
                                         if crossfade_ms > 0 && user_vol > 0.001 {
@@ -2026,7 +2027,7 @@ impl AudioEngine {
                             err.debug()
                         );
                         error!("{}", error_msg);
-                        let mut inner = self.inner.lock().unwrap();
+                        let mut inner = self.inner.lock_safe();
                         inner.state = PlaybackState::Stopped;
                         events.push(PlayerEvent::Error(error_msg));
                     }
@@ -2170,13 +2171,13 @@ impl AudioEngine {
         // Sprawdź czy utwór zbliża się do końca (pre-EOS equal-power fade-out dla płynnego przejścia)
         if !self.is_fading_in.load(Ordering::Relaxed) {
             let is_track_loop = {
-                let q = self.queue.lock().unwrap();
+                let q = self.queue.lock_safe();
                 q.loop_mode == LoopMode::Track
             };
 
             if !is_track_loop {
                 let (is_playing, crossfade_ms, user_vol, volume) = {
-                    let inner = self.inner.lock().unwrap();
+                    let inner = self.inner.lock_safe();
                     (
                         inner.state == PlaybackState::Playing,
                         inner.crossfade_duration_ms,
@@ -2215,19 +2216,19 @@ impl AudioEngine {
 
     /// Zwraca aktualne wzmocnienia 10 pasm korektora graficznego (w dB).
     pub fn get_equalizer_bands(&self) -> [f64; 10] {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.equalizer_state.bands
     }
 
     /// Sprawdza, czy korektor graficzny jest włączony.
     pub fn is_equalizer_enabled(&self) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.equalizer_state.enabled
     }
 
     /// Włącza lub wyłącza korektor graficzny (bypass bez usuwania z potoku).
     pub fn set_equalizer_enabled(&self, enabled: bool) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.equalizer_state.enabled = enabled;
         if let Ok(transform) = inner
             .equalizer
@@ -2250,7 +2251,7 @@ impl AudioEngine {
     /// Ustawia wzmocnienie pojedynczego pasma korektora graficznego (w dB: -24.0 do +12.0).
     /// Automatycznie aktywuje korektor, zapewniając natychmiastową reakcję dźwięku na ruch suwaka.
     pub fn set_equalizer_band(&self, band: usize, gain_db: f64) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.equalizer_state.enabled = true;
         if let Ok(transform) = inner
             .equalizer
@@ -2272,7 +2273,7 @@ impl AudioEngine {
     /// Ustawia wzmocnienia wszystkich 10 pasm korektora graficznego jednocześnie.
     /// Automatycznie aktywuje korektor, aplikując wszystkie pasma bezpośrednio do potoku GStreamera.
     pub fn set_equalizer_bands(&self, bands: &[f64; 10]) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.equalizer_state.enabled = true;
         if let Ok(transform) = inner
             .equalizer
@@ -2293,14 +2294,14 @@ impl AudioEngine {
 
     /// Ustawia wzmocnienie przedwzmacniacza (preamp) dla korektora graficznego w dB.
     pub fn set_equalizer_preamp(&self, preamp_db: f64) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.eq_preamp_db = preamp_db.clamp(-24.0, 12.0);
         inner.update_preamp_volume();
     }
 
     /// Zwraca aktualne wzmocnienie przedwzmacniacza korektora graficznego w dB.
     pub fn get_equalizer_preamp(&self) -> f64 {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.eq_preamp_db
     }
 
@@ -2310,13 +2311,13 @@ impl AudioEngine {
 
     /// Zwraca aktualny stan korektora parametrycznego.
     pub fn get_parametric_eq_state(&self) -> ParametricEqState {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.parametric_eq_state.clone()
     }
 
     /// Sprawdza, czy korektor parametryczny jest włączony.
     pub fn is_parametric_eq_enabled(&self) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.parametric_eq_state.enabled
     }
 
@@ -2325,7 +2326,7 @@ impl AudioEngine {
         &self,
         state: &ParametricEqState,
     ) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.parametric_eq_state = state.clone();
 
         let enabled = state.enabled;
@@ -2391,7 +2392,7 @@ impl AudioEngine {
     /// Włącza lub wyłącza korektor parametryczny (bypass).
     pub fn set_parametric_eq_enabled(&self, enabled: bool) -> Result<(), AudioEngineError> {
         let mut state = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             inner.parametric_eq_state.clone()
         };
         state.enabled = enabled;
@@ -2401,7 +2402,7 @@ impl AudioEngine {
     /// Ustawia wzmocnienie przedwzmacniacza PEQ (preamp) w dB.
     pub fn set_parametric_eq_preamp(&self, preamp_db: f64) -> Result<(), AudioEngineError> {
         let mut state = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             inner.parametric_eq_state.clone()
         };
         state.preamp_db = preamp_db;
@@ -2414,17 +2415,17 @@ impl AudioEngine {
 
     /// Pobiera bieżący stan Studia Dynamiki (kompresor, saturator, limiter).
     pub fn get_dynamics_state(&self) -> domain::dynamics::DynamicsState {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.dynamics_state
     }
 
     pub fn is_compressor_enabled(&self) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.dynamics_state.compressor.enabled
     }
 
     pub fn is_saturator_enabled(&self) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.dynamics_state.saturator.enabled
     }
 
@@ -2433,7 +2434,7 @@ impl AudioEngine {
         &self,
         state: &domain::dynamics::DynamicsState,
     ) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.dynamics_state = *state;
 
         // 1. Kompresor dynamiki
@@ -2497,7 +2498,7 @@ impl AudioEngine {
 
     /// Zwraca kopię bieżącego stanu kolejki odtwarzania.
     pub fn queue(&self) -> PlaybackQueue {
-        self.queue.lock().unwrap().clone()
+        self.queue.lock_safe().clone()
     }
 
     /// Ustawia nową zawartość kolejki i opcjonalnie rozpoczyna odtwarzanie od wskazanego indeksu.
@@ -2507,7 +2508,7 @@ impl AudioEngine {
         start_index: Option<usize>,
     ) -> Result<Option<QueueItem>, AudioEngineError> {
         let (_crossfade_ms, user_vol, is_playing, volume) = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
             (
                 inner.crossfade_duration_ms,
@@ -2518,7 +2519,7 @@ impl AudioEngine {
         };
 
         let active_item = {
-            let mut q = self.queue.lock().unwrap();
+            let mut q = self.queue.lock_safe();
             q.set_items(items, start_index);
             q.current_item().cloned()
         };
@@ -2542,49 +2543,49 @@ impl AudioEngine {
 
     /// Przywraca elementy i indeks kolejki bez natychmiastowego ładowania i odtwarzania przez GStreamer (bezpieczny start aplikacji).
     pub fn restore_queue(&self, items: Vec<QueueItem>, current_index: Option<usize>) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.set_items(items, current_index);
     }
 
     /// Ustawia lub dodaje bieżący aktywny utwór do kolejki.
     pub fn set_active_item(&self, item: QueueItem) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.set_active_item(item);
     }
 
     /// Dodaje utwór na koniec bieżącej kolejki.
     pub fn add_to_queue(&self, item: QueueItem) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.add_item(item);
     }
 
     /// Wstawia utwór jako następny po bieżącym.
     pub fn add_next_to_queue(&self, item: QueueItem) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.add_next(item);
     }
 
     /// Usuwa utwór z kolejki po unikalnym identyfikatorze.
     pub fn remove_from_queue(&self, id: &str) -> Option<QueueItem> {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.remove_item(id)
     }
 
     /// Zmienia kolejność utworu w kolejce.
     pub fn move_in_queue(&self, from: usize, to: usize) -> bool {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.move_item(from, to)
     }
 
     /// Czyści całą kolejkę odtwarzania.
     pub fn clear_queue(&self) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.clear();
     }
 
     /// Pobiera kopię aktualnego utworu w kolejce odtwarzania.
     pub fn current_queue_item(&self) -> Option<QueueItem> {
-        let q = self.queue.lock().unwrap();
+        let q = self.queue.lock_safe();
         q.current_item().cloned()
     }
 
@@ -2593,7 +2594,7 @@ impl AudioEngine {
         // Kolejność blokad: `inner` może być trzymany podczas pobierania `queue`, ale nigdy odwrotnie.
         // Najpierw migawka stanu silnika (blokada zwalniana), dopiero potem modyfikacja kolejki.
         let (user_vol, is_playing, volume, current_uri) = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             (
                 inner.user_volume,
                 inner.pipeline.current_state() == gst::State::Playing,
@@ -2602,7 +2603,7 @@ impl AudioEngine {
             )
         };
         let (item, is_same_track) = {
-            let mut q = self.queue.lock().unwrap();
+            let mut q = self.queue.lock_safe();
             let item = if index < q.items.len() {
                 q.current_index = Some(index);
                 if q.shuffle && !q.shuffle_order.is_empty() {
@@ -2654,7 +2655,7 @@ impl AudioEngine {
     /// stosując płynne przejście z krzywą equal-power, jeśli włączony jest crossfade.
     pub fn play_next(&self) -> Result<Option<QueueItem>, AudioEngineError> {
         let (crossfade_ms, user_vol, is_playing, volume) = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
             (
                 inner.crossfade_duration_ms,
@@ -2677,7 +2678,7 @@ impl AudioEngine {
         }
 
         let next_item = {
-            let mut q = self.queue.lock().unwrap();
+            let mut q = self.queue.lock_safe();
             q.next().cloned()
         };
 
@@ -2704,13 +2705,13 @@ impl AudioEngine {
         if let Some(pos) = self.position() {
             if pos.as_secs() >= 3 {
                 self.seek(Duration::from_millis(0))?;
-                let q = self.queue.lock().unwrap();
+                let q = self.queue.lock_safe();
                 return Ok(q.current_item().cloned());
             }
         }
 
         let (crossfade_ms, user_vol, is_playing, volume) = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
             (
                 inner.crossfade_duration_ms,
@@ -2733,7 +2734,7 @@ impl AudioEngine {
         }
 
         let prev_item = {
-            let mut q = self.queue.lock().unwrap();
+            let mut q = self.queue.lock_safe();
             q.previous().cloned()
         };
 
@@ -2754,25 +2755,25 @@ impl AudioEngine {
 
     /// Ustawia tryb powtarzania (None, Track, Queue).
     pub fn set_loop_mode(&self, mode: LoopMode) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.set_loop_mode(mode);
     }
 
     /// Pobiera aktualny tryb powtarzania.
     pub fn loop_mode(&self) -> LoopMode {
-        let q = self.queue.lock().unwrap();
+        let q = self.queue.lock_safe();
         q.loop_mode
     }
 
     /// Włącza lub wyłącza tryb odtwarzania losowego (Shuffle).
     pub fn set_shuffle(&self, enabled: bool) {
-        let mut q = self.queue.lock().unwrap();
+        let mut q = self.queue.lock_safe();
         q.set_shuffle(enabled);
     }
 
     /// Pobiera stan trybu odtwarzania losowego (Shuffle).
     pub fn shuffle(&self) -> bool {
-        let q = self.queue.lock().unwrap();
+        let q = self.queue.lock_safe();
         q.shuffle
     }
 
@@ -2790,7 +2791,7 @@ impl AudioEngine {
     pub fn set_replaygain(&self, config: ReplayGainConfig) -> Result<(), AudioEngineError> {
         self.replaygain_mode
             .store(config.mode as u8, Ordering::Relaxed);
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.replaygain_config = config;
         match config.mode {
             ReplayGainMode::Off => {
@@ -2827,7 +2828,7 @@ impl AudioEngine {
 
     /// Dynamicznie dostosowuje tryb ReplayGain w trybie Auto (Track vs Album Gain).
     pub fn apply_auto_replaygain(&self, is_same_album: bool, is_shuffle: bool) {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         if inner.replaygain_config.mode == ReplayGainMode::Auto {
             let use_album_gain = is_same_album && !is_shuffle;
             inner.rgvolume.set_property("album-mode", use_album_gain);
@@ -2849,12 +2850,12 @@ impl AudioEngine {
 
     /// Pobiera bieżącą konfigurację ReplayGain.
     pub fn replaygain_config(&self) -> ReplayGainConfig {
-        self.inner.lock().unwrap().replaygain_config
+        self.inner.lock_safe().replaygain_config
     }
 
     /// Zwraca bieżący status normalizacji ReplayGain: (target_gain_db, result_gain_db, limiter_enabled).
     pub fn replaygain_status(&self) -> (f64, f64, bool) {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         if inner.replaygain_config.mode == ReplayGainMode::Off {
             return (0.0, 0.0, false);
         }
@@ -2866,7 +2867,7 @@ impl AudioEngine {
 
     /// Konfiguruje filtr Bauer stereophonic-to-binaural (Crossfeed bs2b) dla odsłuchu słuchawkowego.
     pub fn set_crossfeed(&self, config: CrossfeedConfig) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.crossfeed_config = config;
         if let Some(ref bs) = inner.bs2b {
             bs.set_property("fcut", config.fcut_hz as i32);
@@ -2886,7 +2887,7 @@ impl AudioEngine {
 
     /// Pobiera bieżącą konfigurację Crossfeed.
     pub fn crossfeed_config(&self) -> CrossfeedConfig {
-        self.inner.lock().unwrap().crossfeed_config
+        self.inner.lock_safe().crossfeed_config
     }
 
     /// Konfiguruje automatyczne pomijanie ciszy (Silence Trimming / Auto-skip silence).
@@ -2895,7 +2896,7 @@ impl AudioEngine {
         config: SilenceTrimmingConfig,
     ) -> Result<(), AudioEngineError> {
         let clamped = config.clamped();
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.silence_trimming_config = clamped;
         if let Some(ref c) = inner.cutter {
             c.set_property("leaky", clamped.enabled);
@@ -2910,7 +2911,7 @@ impl AudioEngine {
 
     /// Pobiera bieżącą konfigurację pomijania ciszy.
     pub fn silence_trimming_config(&self) -> SilenceTrimmingConfig {
-        self.inner.lock().unwrap().silence_trimming_config
+        self.inner.lock_safe().silence_trimming_config
     }
 
     /// Wykonuje płynne wyciszenie (fade-out) głośności z krzywą equal-power (cosinusową).
@@ -2986,7 +2987,7 @@ impl AudioEngine {
     pub fn play_with_fade_duration(&self, duration: Duration) -> Result<(), AudioEngineError> {
         let current_gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
         let (pipeline, volume, target_vol) = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play_with_fade");
                 return Ok(());
@@ -3031,7 +3032,7 @@ impl AudioEngine {
     /// Włącza lub wyłącza rozszerzanie bazy stereo (Stereo Widener).
     pub fn set_stereo_widener_active(&self, active: bool) {
         let config = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             Arc::clone(&inner.stereo_widener_config)
         };
         if let Ok(mut cfg) = config.write() {
@@ -3042,7 +3043,7 @@ impl AudioEngine {
     /// Ustawia intensywność rozszerzania stereo w zakresie 0.0 - 1.0.
     pub fn set_stereo_widener_amount(&self, amount: f64) {
         let config = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             Arc::clone(&inner.stereo_widener_config)
         };
         let clamped = amount.clamp(0.0, 1.0) as f32;
@@ -3054,7 +3055,7 @@ impl AudioEngine {
     /// Zwraca parametry rozszerzania stereo: (active, amount).
     pub fn stereo_widener_params(&self) -> (bool, f64) {
         let config = {
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock_safe();
             Arc::clone(&inner.stereo_widener_config)
         };
         let res = if let Ok(cfg) = config.read() {
@@ -3067,26 +3068,26 @@ impl AudioEngine {
 
     /// Włącza lub wyłącza True-Peak Limiter (rglimiter) oraz synchronizuje stan Studia Dynamiki.
     pub fn set_limiter_enabled(&self, enabled: bool) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.dynamics_state.limiter.enabled = enabled;
         inner.rglimiter.set_property("enabled", enabled);
     }
 
     /// Sprawdza, czy True-Peak Limiter (rglimiter) jest włączony.
     pub fn is_limiter_enabled(&self) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.dynamics_state.limiter.enabled
     }
 
     /// Ustawia czas płynnego przejścia (crossfade) w milisekundach (0 - 8000 ms).
     pub fn set_crossfade_duration_ms(&self, duration_ms: u64) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock_safe();
         inner.crossfade_duration_ms = duration_ms.clamp(0, 8000);
     }
 
     /// Pobiera bieżący czas crossfade w milisekundach.
     pub fn crossfade_duration_ms(&self) -> u64 {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock_safe();
         inner.crossfade_duration_ms
     }
 }

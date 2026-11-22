@@ -19,7 +19,7 @@ impl DeviceManager {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AudioEngineError::ElementLink(format!(
+            return Err(AudioEngineError::External(format!(
                 "Błąd odpytywania kart audio przez pactl: {}",
                 stderr
             )));
@@ -44,7 +44,7 @@ impl DeviceManager {
             .map_err(AudioEngineError::Io)?;
 
         if !status.success() {
-            return Err(AudioEngineError::ElementLink(format!(
+            return Err(AudioEngineError::External(format!(
                 "Nie udało się aktywować profilu '{}' na karcie '{}'",
                 profile_name, card_name
             )));
@@ -70,9 +70,10 @@ impl DeviceManager {
     /// Wyłącza tryb Pro Audio i bezpiecznie przywraca standardowy profil stereo (np. output:analog-stereo).
     pub fn disable_pro_audio(card_name: &str) -> Result<String, AudioEngineError> {
         let cards = Self::list_cards()?;
-        let card = cards.iter().find(|c| c.name == card_name).ok_or_else(|| {
-            AudioEngineError::ElementLink(format!("Nie znaleziono karty {}", card_name))
-        })?;
+        let card = cards
+            .iter()
+            .find(|c| c.name == card_name)
+            .ok_or_else(|| AudioEngineError::NotFound(format!("karta {}", card_name)))?;
 
         let fallback_profile = card
             .profiles

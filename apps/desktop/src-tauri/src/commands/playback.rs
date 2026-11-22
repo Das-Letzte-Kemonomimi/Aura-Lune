@@ -1,3 +1,4 @@
+use super::error::CommandError;
 use crate::AppState;
 use audio_engine::PlayerEvent;
 use domain::queue::{LoopMode, QueueItem};
@@ -341,45 +342,42 @@ pub fn sync_desktop_playback_state(state: &AppState, new_state: PlaybackState) {
 }
 
 /// Plays audio via the audio engine and updates desktop status.
-pub fn play_internal(state: &AppState) -> Result<(), String> {
+pub fn play_internal(state: &AppState) -> Result<(), CommandError> {
     if state.engine.current_uri().is_none() {
         let q = state.engine.queue();
         if let Some(item) = q.current_item() {
             let _ = state.engine.load_uri(&item.uri);
         }
     }
-    state
-        .engine
-        .play_with_fade(true)
-        .map_err(|e| e.to_string())?;
+    state.engine.play_with_fade(true)?;
     sync_desktop_playback_state(state, PlaybackState::Playing);
     Ok(())
 }
 
 /// Pauses audio with a gentle fade-out and updates desktop status.
-pub fn pause_internal(state: &AppState) -> Result<(), String> {
-    state
-        .engine
-        .pause_with_fade(true)
-        .map_err(|e| e.to_string())?;
+pub fn pause_internal(state: &AppState) -> Result<(), CommandError> {
+    state.engine.pause_with_fade(true)?;
     sync_desktop_playback_state(state, PlaybackState::Paused);
     Ok(())
 }
 
 /// Stops audio playback and clears desktop status.
-pub fn stop_internal(state: &AppState) -> Result<(), String> {
-    state.engine.stop().map_err(|e| e.to_string())?;
+pub fn stop_internal(state: &AppState) -> Result<(), CommandError> {
+    state.engine.stop()?;
     sync_desktop_playback_state(state, PlaybackState::Stopped);
     Ok(())
 }
 
 /// Seeks to a position in milliseconds with optional crossfade.
-pub fn seek_internal(state: &AppState, position_ms: u64, fade: Option<bool>) -> Result<(), String> {
+pub fn seek_internal(
+    state: &AppState,
+    position_ms: u64,
+    fade: Option<bool>,
+) -> Result<(), CommandError> {
     let should_fade = fade.unwrap_or(true);
     state
         .engine
-        .seek_with_fade(Duration::from_millis(position_ms), should_fade)
-        .map_err(|e| e.to_string())?;
+        .seek_with_fade(Duration::from_millis(position_ms), should_fade)?;
 
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
@@ -863,9 +861,9 @@ pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
 // ----------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: load_file('{}')", path);
-    state.engine.load_uri(&path).map_err(|e| e.to_string())?;
+    state.engine.load_uri(&path)?;
 
     if let Ok(mut t) = state.latest_live_stream_tag.lock() {
         *t = None;
@@ -880,17 +878,17 @@ pub async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn play(state: State<'_, AppState>) -> Result<(), String> {
+pub fn play(state: State<'_, AppState>) -> Result<(), CommandError> {
     play_internal(&state)
 }
 
 #[tauri::command]
-pub fn pause(state: State<'_, AppState>) -> Result<(), String> {
+pub fn pause(state: State<'_, AppState>) -> Result<(), CommandError> {
     pause_internal(&state)
 }
 
 #[tauri::command]
-pub fn stop(state: State<'_, AppState>) -> Result<(), String> {
+pub fn stop(state: State<'_, AppState>) -> Result<(), CommandError> {
     stop_internal(&state)
 }
 
@@ -899,7 +897,7 @@ pub fn seek(
     position_ms: u64,
     fade: Option<bool>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     seek_internal(&state, position_ms, fade)
 }
 
@@ -909,16 +907,13 @@ pub fn set_volume(
     smooth: Option<bool>,
     fade_ms: Option<u64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let is_smooth = smooth.unwrap_or(false);
     if is_smooth {
         let duration = std::time::Duration::from_millis(fade_ms.unwrap_or(90));
-        state
-            .engine
-            .set_volume_smooth(volume, duration)
-            .map_err(|e| e.to_string())?;
+        state.engine.set_volume_smooth(volume, duration)?;
     } else {
-        state.engine.set_volume(volume).map_err(|e| e.to_string())?;
+        state.engine.set_volume(volume)?;
     }
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
@@ -942,7 +937,7 @@ pub fn update_mpris_metadata(
     duration_ms: u64,
     art_url: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let normalized_art = normalize_art_url(art_url.as_deref());
 
     if let Some(mpris) = &state.mpris {
@@ -1108,7 +1103,7 @@ pub fn update_mpris_metadata(
 }
 
 #[tauri::command]
-pub fn get_default_music_dir() -> Result<String, String> {
+pub fn get_default_music_dir() -> Result<String, CommandError> {
     if let Ok(home) = std::env::var("HOME") {
         let music = Path::new(&home).join("Music");
         if music.exists() {
@@ -1124,7 +1119,7 @@ pub fn get_default_music_dir() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_sample_track(app: tauri::AppHandle) -> Result<Option<SampleTrackDto>, String> {
+pub fn get_sample_track(app: tauri::AppHandle) -> Result<Option<SampleTrackDto>, CommandError> {
     let data_dir = app
         .path()
         .app_data_dir()

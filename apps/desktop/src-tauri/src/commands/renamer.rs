@@ -1,3 +1,4 @@
+use super::error::CommandError;
 use crate::AppState;
 use domain::renamer::{
     format_pattern_for_track, resolve_renamed_path, validate_rename_target, RenamePreviewItem,
@@ -12,7 +13,7 @@ pub async fn preview_rename_tracks(
     pattern: String,
     track_ids: Vec<i64>,
     state: State<'_, AppState>,
-) -> Result<Vec<RenamePreviewItem>, String> {
+) -> Result<Vec<RenamePreviewItem>, CommandError> {
     let mut items = Vec::new();
     for id in track_ids {
         if let Ok(Some(track)) = state.db.get_track_by_id(id).await {
@@ -65,7 +66,7 @@ pub async fn preview_rename_tracks(
                         new_path: String::new(),
                         will_overwrite: false,
                         is_valid: false,
-                        error: Some(err),
+                        error: Some(err.to_string()),
                     });
                 }
             }
@@ -85,7 +86,7 @@ pub async fn execute_rename_tracks(
     items: Vec<(i64, String)>,
     allow_overwrite: Option<bool>,
     state: State<'_, AppState>,
-) -> Result<usize, String> {
+) -> Result<usize, CommandError> {
     let allow_overwrite = allow_overwrite.unwrap_or(false);
     let mut renamed_count = 0;
     for (track_id, target_path) in items {
@@ -117,8 +118,7 @@ pub async fn execute_rename_tracks(
             }
             fs::rename(&old_p, &new_p).map(|_| new_p)
         })
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
         match renamed {
             Ok(new_p) => {

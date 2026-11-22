@@ -1,3 +1,4 @@
+use crate::ScrobbleError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::{debug, error, info, warn};
@@ -96,40 +97,38 @@ impl LastFmClient {
     }
 
     /// Pobiera nowy token autoryzacyjny `auth.getToken` do autoryzacji w przeglądarce.
-    pub async fn get_auth_token(&self, api_key: Option<&str>) -> Result<String, String> {
+    pub async fn get_auth_token(&self, api_key: Option<&str>) -> Result<String, ScrobbleError> {
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
         let url = format!(
             "{}/?method=auth.getToken&api_key={}&format=json",
             self.base_url, key
         );
 
-        let res = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| format!("Błąd sieciowy przy pobieraniu tokenu Last.fm: {}", e))?;
+        let res = self.client.get(&url).send().await.map_err(|e| {
+            ScrobbleError::Network(format!(
+                "Błąd sieciowy przy pobieraniu tokenu Last.fm: {}",
+                e
+            ))
+        })?;
 
         if !res.status().is_success() {
-            return Err(format!(
+            return Err(ScrobbleError::Service(format!(
                 "Serwer Last.fm zwrócił błąd HTTP: {}",
                 res.status()
-            ));
+            )));
         }
 
-        let json: serde_json::Value = res
-            .json()
-            .await
-            .map_err(|e| format!("Błąd parsowania odpowiedzi JSON Last.fm: {}", e))?;
+        let json: serde_json::Value = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Błąd parsowania odpowiedzi JSON Last.fm: {}", e))
+        })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(format!("Błąd Last.fm: {}", err_msg));
+            return Err(ScrobbleError::Service(format!("Błąd Last.fm: {}", err_msg)));
         }
 
-        let token = json
-            .get("token")
-            .and_then(|t| t.as_str())
-            .ok_or_else(|| "Brak pola 'token' w odpowiedzi Last.fm".to_string())?;
+        let token = json.get("token").and_then(|t| t.as_str()).ok_or_else(|| {
+            ScrobbleError::Parse("Brak pola 'token' w odpowiedzi Last.fm".to_string())
+        })?;
 
         Ok(token.to_string())
     }
@@ -140,7 +139,7 @@ impl LastFmClient {
         token: &str,
         api_key: Option<&str>,
         api_secret: Option<&str>,
-    ) -> Result<LastFmSession, String> {
+    ) -> Result<LastFmSession, ScrobbleError> {
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
         let secret = api_secret.unwrap_or(DEFAULT_LASTFM_API_SECRET).trim();
 
@@ -159,31 +158,35 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd żądania pobrania sesji Last.fm: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Błąd żądania pobrania sesji Last.fm: {}", e))
+            })?;
 
-        let json: serde_json::Value = res
-            .json()
-            .await
-            .map_err(|e| format!("Błąd parsowania JSON sesji Last.fm: {}", e))?;
+        let json: serde_json::Value = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Błąd parsowania JSON sesji Last.fm: {}", e))
+        })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(format!("Nie udało się uzyskać sesji Last.fm: {}", err_msg));
+            return Err(ScrobbleError::Service(format!(
+                "Nie udało się uzyskać sesji Last.fm: {}",
+                err_msg
+            )));
         }
 
-        let session_obj = json
-            .get("session")
-            .ok_or_else(|| "Brak obiektu 'session' w odpowiedzi Last.fm".to_string())?;
+        let session_obj = json.get("session").ok_or_else(|| {
+            ScrobbleError::Parse("Brak obiektu 'session' w odpowiedzi Last.fm".to_string())
+        })?;
 
         let username = session_obj
             .get("name")
             .and_then(|n| n.as_str())
-            .ok_or_else(|| "Brak nazwy użytkownika w sesji".to_string())?
+            .ok_or_else(|| ScrobbleError::Parse("Brak nazwy użytkownika w sesji".to_string()))?
             .to_string();
 
         let session_key = session_obj
             .get("key")
             .and_then(|k| k.as_str())
-            .ok_or_else(|| "Brak klucza sesji w odpowiedzi".to_string())?
+            .ok_or_else(|| ScrobbleError::Parse("Brak klucza sesji w odpowiedzi".to_string()))?
             .to_string();
 
         Ok(LastFmSession {
@@ -198,10 +201,12 @@ impl LastFmClient {
         session_key: &str,
         api_key: Option<&str>,
         api_secret: Option<&str>,
-    ) -> Result<String, String> {
+    ) -> Result<String, ScrobbleError> {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
-            return Err("Klucz sesji Last.fm nie może być pusty".to_string());
+            return Err(ScrobbleError::Validation(
+                "Klucz sesji Last.fm nie może być pusty".to_string(),
+            ));
         }
 
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
@@ -222,15 +227,18 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd połączenia z Last.fm: {}", e))?;
+            .map_err(|e| ScrobbleError::Network(format!("Błąd połączenia z Last.fm: {}", e)))?;
 
         let json: serde_json::Value = res
             .json()
             .await
-            .map_err(|e| format!("Błąd parsowania profilu Last.fm: {}", e))?;
+            .map_err(|e| ScrobbleError::Parse(format!("Błąd parsowania profilu Last.fm: {}", e)))?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(format!("Niepoprawny klucz sesji Last.fm: {}", err_msg));
+            return Err(ScrobbleError::Service(format!(
+                "Niepoprawny klucz sesji Last.fm: {}",
+                err_msg
+            )));
         }
 
         let user_name = json
@@ -249,7 +257,7 @@ impl LastFmClient {
         session_key: &str,
         track_info: LastFmTrackInfo<'_>,
         auth: LastFmAuthOverride<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ScrobbleError> {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
             return Ok(());
@@ -289,13 +297,18 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd wysyłania Now Playing do Last.fm: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Błąd wysyłania Now Playing do Last.fm: {}", e))
+            })?;
 
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
             warn!("Last.fm Now Playing błąd ({}): {}", status, text);
-            return Err(format!("Last.fm zwrócił błąd HTTP {}: {}", status, text));
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm zwrócił błąd HTTP {}: {}",
+                status, text
+            )));
         }
 
         debug!(
@@ -312,7 +325,7 @@ impl LastFmClient {
         track_info: LastFmTrackInfo<'_>,
         timestamp: u64,
         auth: LastFmAuthOverride<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ScrobbleError> {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
             return Ok(());
@@ -353,13 +366,18 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd wysyłania scrobble do Last.fm: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Błąd wysyłania scrobble do Last.fm: {}", e))
+            })?;
 
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
             error!("Last.fm scrobble błąd ({}): {}", status, text);
-            return Err(format!("Last.fm zwrócił błąd HTTP {}: {}", status, text));
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm zwrócił błąd HTTP {}: {}",
+                status, text
+            )));
         }
 
         info!(

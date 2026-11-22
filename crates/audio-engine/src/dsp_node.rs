@@ -1,5 +1,6 @@
 //! Własny element GStreamer dla silników DSP Auralune (Bypass, Rubber Band, SoundTouch).
 
+use crate::sync::LockExt;
 use dsp_api::{AudioFormat, AudioProcessor, DspCapabilities, DspEngine, DspError, DspParams};
 use dsp_rubberband::RubberBandProcessor;
 use dsp_soundtouch::SoundTouchProcessor;
@@ -257,7 +258,7 @@ impl AuraluneDspImpl {
         state_arc: &Arc<Mutex<DspNodeState>>,
         buffer: gst::Buffer,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
-        let mut state = state_arc.lock().unwrap();
+        let mut state = state_arc.lock_safe();
 
         // 1. Sprawdzenie i aktualizacja formatu próbek (Caps)
         if let Some(caps) = sinkpad.current_caps() {
@@ -429,7 +430,7 @@ impl AuraluneDspImpl {
             }
             EventView::Eos(..) => {
                 // Drain resztek bufora procesora do FIFO
-                let mut state = state_arc.lock().unwrap();
+                let mut state = state_arc.lock_safe();
                 let mut out_buffer = std::mem::take(&mut state.out_buffer);
                 out_buffer.clear();
                 let engine = state.params.engine;
@@ -513,31 +514,31 @@ impl AuraluneDsp {
 
     pub fn set_params(&self, params: DspParams) -> Result<(), DspError> {
         let imp = self.imp();
-        let mut state = imp.state.lock().unwrap();
+        let mut state = imp.state.lock_safe();
         state.set_params(params)
     }
 
     pub fn set_engine(&self, engine: DspEngine) {
         let imp = self.imp();
-        let mut state = imp.state.lock().unwrap();
+        let mut state = imp.state.lock_safe();
         state.set_engine(engine);
     }
 
     pub fn set_block_size(&self, size: usize) {
         let imp = self.imp();
-        let mut state = imp.state.lock().unwrap();
+        let mut state = imp.state.lock_safe();
         state.set_block_size(size);
     }
 
     pub fn block_size(&self) -> usize {
         let imp = self.imp();
-        let state = imp.state.lock().unwrap();
+        let state = imp.state.lock_safe();
         state.block_size
     }
 
     pub fn dsp_params(&self) -> DspParams {
         let imp = self.imp();
-        let state = imp.state.lock().unwrap();
+        let state = imp.state.lock_safe();
         state.params
     }
 
@@ -547,7 +548,7 @@ impl AuraluneDsp {
 
     pub fn reset(&self) {
         let imp = self.imp();
-        let mut state = imp.state.lock().unwrap();
+        let mut state = imp.state.lock_safe();
         state.reset();
     }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
+import { getSetting, setSetting } from '../api/settings';
 import type { Translations } from '../i18n';
 
 export interface UseScrobblerManagerOptions {
@@ -61,43 +62,43 @@ export function useScrobblerManager({
       })
       .catch((e) => console.warn('Error reading get_discord_rpc_status:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'listenbrainz_token' })
+    getSetting('listenbrainz_token')
       .then((val) => {
         if (val) setListenbrainzToken(val);
       })
       .catch((e) => console.warn('Error reading listenbrainz_token:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'listenbrainz_enabled' })
+    getSetting('listenbrainz_enabled')
       .then((val) => {
         if (val !== null && val !== undefined) setListenbrainzEnabled(val === 'true');
       })
       .catch((e) => console.warn('Error reading listenbrainz_enabled:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'lastfm_session_key' })
+    getSetting('lastfm_session_key')
       .then((val) => {
         if (val) setLastfmSessionKey(val);
       })
       .catch(() => {});
 
-    invoke<string | null>('get_app_setting', { key: 'lastfm_username' })
+    getSetting('lastfm_username')
       .then((val) => {
         if (val) setLastfmUsername(val);
       })
       .catch(() => {});
 
-    invoke<string | null>('get_app_setting', { key: 'lastfm_enabled' })
+    getSetting('lastfm_enabled')
       .then((val) => {
         if (val !== null && val !== undefined) setLastfmEnabled(val === 'true');
       })
       .catch(() => {});
 
-    invoke<string | null>('get_app_setting', { key: 'lastfm_custom_key' })
+    getSetting('lastfm_custom_key')
       .then((val) => {
         if (val) setLastfmCustomKey(val);
       })
       .catch(() => {});
 
-    invoke<string | null>('get_app_setting', { key: 'lastfm_custom_secret' })
+    getSetting('lastfm_custom_secret')
       .then((val) => {
         if (val) setLastfmCustomSecret(val);
       })
@@ -141,7 +142,7 @@ export function useScrobblerManager({
       const userName = await invoke<string>('validate_listenbrainz_token', { token: listenbrainzToken.trim() });
       setListenbrainzUser(userName);
       setListenbrainzStatusMsg(`${loc.settings.listenbrainzValid}: @${userName}`);
-      await invoke('set_app_setting', { key: 'listenbrainz_token', value: listenbrainzToken.trim() });
+      await setSetting('listenbrainz_token', listenbrainzToken.trim());
       showMessage(`ListenBrainz: Zalogowano jako @${userName}`);
     } catch (err: unknown) {
       setListenbrainzUser(null);
@@ -154,7 +155,7 @@ export function useScrobblerManager({
   const handleToggleListenbrainz = useCallback(async (enabled: boolean) => {
     setListenbrainzEnabled(enabled);
     try {
-      await invoke('set_app_setting', { key: 'listenbrainz_enabled', value: enabled ? 'true' : 'false' });
+      await setSetting('listenbrainz_enabled', enabled ? 'true' : 'false');
       showMessage(
         enabled
           ? loc.notifications.listenbrainzOn
@@ -168,7 +169,7 @@ export function useScrobblerManager({
   const handleListenbrainzTokenChange = useCallback(async (token: string) => {
     setListenbrainzToken(token);
     try {
-      await invoke('set_app_setting', { key: 'listenbrainz_token', value: token });
+      await setSetting('listenbrainz_token', token);
     } catch (e) {
       console.warn('Error saving listenbrainz_token:', e);
     }
@@ -215,8 +216,8 @@ export function useScrobblerManager({
       setLastfmUsername(session.username);
       setLastfmPendingToken(null);
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${session.username}`);
-      await invoke('set_app_setting', { key: 'lastfm_session_key', value: session.session_key });
-      await invoke('set_app_setting', { key: 'lastfm_username', value: session.username });
+      await setSetting('lastfm_session_key', session.session_key);
+      await setSetting('lastfm_username', session.username);
       showMessage(loc.notifications.lastfmLoginSuccess.replace('{0}', session.username));
     } catch (err: unknown) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
@@ -230,14 +231,14 @@ export function useScrobblerManager({
     setLastfmUsername(null);
     setLastfmPendingToken(null);
     setLastfmStatusMsg(null);
-    await invoke('set_app_setting', { key: 'lastfm_session_key', value: '' });
-    await invoke('set_app_setting', { key: 'lastfm_username', value: '' });
+    await setSetting('lastfm_session_key', '');
+    await setSetting('lastfm_username', '');
     showMessage(loc.notifications.lastfmDisconnected);
   }, [loc.notifications.lastfmDisconnected, showMessage]);
 
   const handleManualLastfmSessionKeyChange = useCallback(async (key: string) => {
     setLastfmSessionKey(key);
-    await invoke('set_app_setting', { key: 'lastfm_session_key', value: key });
+    await setSetting('lastfm_session_key', key);
   }, []);
 
   const handleValidateLastfmSession = useCallback(async () => {
@@ -251,7 +252,7 @@ export function useScrobblerManager({
       });
       setLastfmUsername(user);
       setLastfmStatusMsg(`${loc.settings.lastfmConnectedAs}: @${user}`);
-      await invoke('set_app_setting', { key: 'lastfm_username', value: user });
+      await setSetting('lastfm_username', user);
       showMessage(loc.notifications.lastfmConnected.replace('{0}', user));
     } catch (err: unknown) {
       setLastfmStatusMsg(`${loc.settings.lastfmInvalidSession}: ${String(err)}`);
@@ -263,7 +264,7 @@ export function useScrobblerManager({
   const handleToggleLastfm = useCallback(async (enabled: boolean) => {
     setLastfmEnabled(enabled);
     try {
-      await invoke('set_app_setting', { key: 'lastfm_enabled', value: enabled ? 'true' : 'false' });
+      await setSetting('lastfm_enabled', enabled ? 'true' : 'false');
       showMessage(
         enabled
           ? loc.notifications.lastfmOn
@@ -277,8 +278,8 @@ export function useScrobblerManager({
   const handleSaveLastfmCustomKeys = useCallback(async (key: string, secret: string) => {
     setLastfmCustomKey(key);
     setLastfmCustomSecret(secret);
-    await invoke('set_app_setting', { key: 'lastfm_custom_key', value: key });
-    await invoke('set_app_setting', { key: 'lastfm_custom_secret', value: secret });
+    await setSetting('lastfm_custom_key', key);
+    await setSetting('lastfm_custom_secret', secret);
   }, []);
 
   return {

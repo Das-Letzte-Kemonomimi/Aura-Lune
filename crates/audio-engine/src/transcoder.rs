@@ -120,7 +120,7 @@ impl Transcoder {
         if let Some(range) = time_range {
             if let Some(end) = range.end_ms {
                 if end <= range.start_ms {
-                    return Err(AudioEngineError::ElementLink(
+                    return Err(AudioEngineError::Validation(
                         "Czas końcowy (Marker B) musi być większy niż czas początkowy (Marker A)"
                             .into(),
                     ));
@@ -131,7 +131,7 @@ impl Transcoder {
         let input_canonical = input.canonicalize()?;
         if let Ok(output_canonical) = output.canonicalize() {
             if input_canonical == output_canonical {
-                return Err(AudioEngineError::ElementLink(
+                return Err(AudioEngineError::Validation(
                     "Ścieżka pliku wyjściowego nie może być tożsama z plikiem wejściowym".into(),
                 ));
             }
@@ -354,7 +354,7 @@ impl Transcoder {
             let (state_change, cur_state, _) = pipeline.state(gst::ClockTime::from_seconds(5));
             if state_change.is_err() || cur_state != gst::State::Paused {
                 let _ = pipeline.set_state(gst::State::Null);
-                return Err(AudioEngineError::ElementLink(
+                return Err(AudioEngineError::Pipeline(
                     "Nie udało się zainicjalizować potoku do stanu Paused przed seekiem A-B".into(),
                 ));
             }
@@ -396,7 +396,7 @@ impl Transcoder {
         pipeline.set_state(gst::State::Playing)?;
 
         let bus = pipeline.bus().ok_or_else(|| {
-            AudioEngineError::ElementLink("Brak magistrali potoku transkodera".into())
+            AudioEngineError::Pipeline("Brak magistrali potoku transkodera".into())
         })?;
 
         let mut got_eos = false;
@@ -425,7 +425,7 @@ impl Transcoder {
                             format!("Błąd transkodowania: {} ({:?})", err.error(), err.debug());
                         error!("{}", err_msg);
                         let _ = pipeline.set_state(gst::State::Null);
-                        return Err(AudioEngineError::ElementLink(err_msg));
+                        return Err(AudioEngineError::Pipeline(err_msg));
                     }
                     MessageView::Warning(warn) => {
                         warn!(
@@ -489,7 +489,7 @@ impl Transcoder {
 
         if !got_eos {
             let _ = pipeline.set_state(gst::State::Null);
-            return Err(AudioEngineError::ElementLink(
+            return Err(AudioEngineError::Pipeline(
                 "Upłynął limit czasu transkodowania (timeout 180s) lub potok nie wygenerował EOS"
                     .into(),
             ));

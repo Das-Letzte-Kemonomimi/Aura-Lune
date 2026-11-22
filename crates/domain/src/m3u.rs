@@ -1,3 +1,4 @@
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -38,7 +39,7 @@ impl M3uPlaylist {
         content: &str,
         playlist_name: &str,
         base_dir: Option<&Path>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, DomainError> {
         let mut entries = Vec::new();
         let mut pending_duration: Option<i64> = None;
         let mut pending_artist: Option<String> = None;

@@ -1,3 +1,4 @@
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 
 /// Typ filtru biquad w korektorze parametrycznym.
@@ -206,7 +207,7 @@ impl ParametricEqState {
     /// `Filter 1: ON PK Fc 35 Hz Gain 4.8 dB Q 1.41`
     /// `Filter: ON LSC Fc 105 Hz Gain 3.2 dB Q 0.71`
     /// `Filter 3: OFF HSC Fc 8500 Hz Gain -2.0 dB Q 0.71`
-    pub fn parse_equalizer_apo(text: &str) -> Result<Self, String> {
+    pub fn parse_equalizer_apo(text: &str) -> Result<Self, DomainError> {
         let mut preamp_db = 0.0;
         let mut bands = Vec::new();
         let mut band_counter = 1;
@@ -308,9 +309,9 @@ impl ParametricEqState {
         }
 
         if bands.is_empty() {
-            return Err(
+            return Err(DomainError::Parse(
                 "Nie znaleziono żadnych pasm filtrów (Filter: ...) w podanym tekście.".into(),
-            );
+            ));
         }
 
         Ok(Self {

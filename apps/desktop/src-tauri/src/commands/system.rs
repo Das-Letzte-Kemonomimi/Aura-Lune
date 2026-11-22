@@ -1,5 +1,6 @@
 //! System, konfiguracja, transkodowanie, import z sieci oraz diagnostyka zdrowia audio.
 
+use super::error::CommandError;
 use crate::AppState;
 use audio_engine::Transcoder;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
@@ -65,12 +66,12 @@ pub struct AudioSystemHealthDto {
 pub async fn get_app_setting(
     key: String,
     state: State<'_, AppState>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, CommandError> {
     state
         .db
         .get_app_setting(&key)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -78,12 +79,12 @@ pub async fn set_app_setting(
     key: String,
     value: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .db
         .set_app_setting(&key, &value)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -94,7 +95,7 @@ pub async fn transcode_file(
     format: ExportFormat,
     dsp_settings: Option<DspExportSettings>,
     time_range: Option<TimeRange>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: transcode_file('{}' -> '{}')",
         input_path, output_path
@@ -119,9 +120,8 @@ pub async fn transcode_file(
             }),
         )
     })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())
+    .await?
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -134,7 +134,7 @@ pub fn show_desktop_notification(
     title: String,
     body: String,
     icon: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let mut cmd = std::process::Command::new("notify-send");
     cmd.arg("-a").arg("Auralune");
     cmd.arg("-u").arg("normal");
@@ -150,7 +150,7 @@ pub fn show_desktop_notification(
 #[tauri::command]
 pub async fn get_audio_system_health(
     state: State<'_, AppState>,
-) -> Result<AudioSystemHealthDto, String> {
+) -> Result<AudioSystemHealthDto, CommandError> {
     // 1. Sprawdź serwer PipeWire
     let pw_status = std::process::Command::new("pw-cli")
         .arg("info")
@@ -255,7 +255,7 @@ pub async fn get_audio_system_health(
 }
 
 #[tauri::command]
-pub fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), String> {
+pub fn set_mini_player_mode(mini: bool, window: tauri::Window) -> Result<(), CommandError> {
     info!("Tauri command: set_mini_player_mode({})", mini);
     if mini {
         let _ = window.set_min_size(Some(tauri::LogicalSize::new(320.0, 120.0)));
@@ -280,13 +280,13 @@ pub async fn import_audio_from_url(
     max_items: Option<u32>,
     folder_structure: Option<String>,
     state: State<'_, AppState>,
-) -> Result<UrlImportResultDto, String> {
+) -> Result<UrlImportResultDto, CommandError> {
     let clean_url = url.trim().to_string();
     if clean_url.is_empty() {
-        return Err("Adres URL nie może być pusty.".to_string());
+        return Err("Adres URL nie może być pusty.".into());
     }
     if !clean_url.starts_with("http://") && !clean_url.starts_with("https://") {
-        return Err("Nieprawidłowy protokół URL (wymagany http:// lub https://).".to_string());
+        return Err("Nieprawidłowy protokół URL (wymagany http:// lub https://).".into());
     }
 
     info!(
@@ -305,7 +305,7 @@ pub async fn import_audio_from_url(
     };
 
     if !has_ytdlp {
-        return Err("Narzędzie 'yt-dlp' nie zostało znalezione w Twoim systemie.\n\nAby korzystać z importera audio URL, zainstaluj 'yt-dlp' oraz 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg".to_string());
+        return Err("Narzędzie 'yt-dlp' nie zostało znalezione w Twoim systemie.\n\nAby korzystać z importera audio URL, zainstaluj 'yt-dlp' oraz 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg".into());
     }
 
     // 2. Określ folder docelowy
@@ -329,7 +329,7 @@ pub async fn import_audio_from_url(
 
     tokio::fs::create_dir_all(&dest_dir)
         .await
-        .map_err(|e| format!("Nie udało się utworzyć katalogu docelowego: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Nie udało się utworzyć katalogu docelowego"))?;
 
     // 3. Wybór formatu
     let audio_fmt = match format.as_deref().unwrap_or("flac").to_lowercase().as_str() {
@@ -403,7 +403,7 @@ pub async fn import_audio_from_url(
     let output = cmd
         .output()
         .await
-        .map_err(|e| format!("Błąd uruchomienia procesu yt-dlp: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd uruchomienia procesu yt-dlp"))?;
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let stderr_str = String::from_utf8_lossy(&output.stderr);
@@ -471,17 +471,13 @@ pub async fn import_audio_from_url(
             stdout_str.trim()
         };
         error!("Błąd wykonania yt-dlp: {}", err_detail);
-        return Err(format!(
-            "Pobieranie lub konwersja nie powiodła się: {}",
-            err_detail
-        ));
+        return Err(format!("Pobieranie lub konwersja nie powiodła się: {}", err_detail).into());
     }
 
     if resolved_files.is_empty() {
-        return Err(
-            "Pobieranie zakończone, lecz nie odnaleziono pobranych plików w folderze docelowym."
-                .to_string(),
-        );
+        return Err(CommandError::not_found(
+            "Pobieranie zakończone, lecz nie odnaleziono pobranych plików w folderze docelowym.",
+        ));
     }
 
     info!(
@@ -494,7 +490,7 @@ pub async fn import_audio_from_url(
         .scanner
         .scan_paths(&resolved_files, &state.db)
         .await
-        .map_err(|e| format!("Błąd indeksowania utworów w bibliotece: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd indeksowania utworów w bibliotece"))?;
 
     // 7. Zbuduj listę rekordów dla zwróconych plików
     let mut items = Vec::new();

@@ -134,8 +134,7 @@ impl Database {
         &self,
         queue: &domain::PlaybackQueue,
     ) -> Result<(), StorageError> {
-        let queue_json = serde_json::to_string(queue)
-            .map_err(|e| StorageError::Migration(format!("Błąd serializacji kolejki: {}", e)))?;
+        let queue_json = serde_json::to_string(queue)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -166,9 +165,7 @@ impl Database {
 
         if let Some(r) = row {
             let json_str: String = r.get("queue_json");
-            let q: domain::PlaybackQueue = serde_json::from_str(&json_str).map_err(|e| {
-                StorageError::Migration(format!("Błąd deserializacji kolejki: {}", e))
-            })?;
+            let q: domain::PlaybackQueue = serde_json::from_str(&json_str)?;
             Ok(Some(q))
         } else {
             Ok(None)

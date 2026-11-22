@@ -1,3 +1,4 @@
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 
@@ -115,33 +116,40 @@ pub const MAX_PATH_COMPONENT_BYTES: usize = 255;
 /// Sformatowana nazwa może zawierać podfoldery (np. `%artist%/%album%/%track% - %title%`), ale
 /// wynikowa ścieżka zawsze leży wewnątrz katalogu pliku źródłowego: ścieżki absolutne,
 /// składniki `..` / `.` oraz składniki dłuższe niż [`MAX_PATH_COMPONENT_BYTES`] są odrzucane.
-pub fn resolve_renamed_path(old_path_str: &str, formatted_name: &str) -> Result<PathBuf, String> {
+pub fn resolve_renamed_path(
+    old_path_str: &str,
+    formatted_name: &str,
+) -> Result<PathBuf, DomainError> {
     let old_path = Path::new(old_path_str);
-    let parent = old_path
-        .parent()
-        .ok_or_else(|| "Brak katalogu nadrzędnego dla pliku".to_string())?;
+    let parent = old_path.parent().ok_or_else(|| {
+        DomainError::Validation("Brak katalogu nadrzędnego dla pliku".to_string())
+    })?;
 
     let relative = Path::new(formatted_name);
     if formatted_name.trim().is_empty() {
-        return Err("Pusta nazwa pliku".to_string());
+        return Err(DomainError::Validation("Pusta nazwa pliku".to_string()));
     }
     let mut new_path = parent.to_path_buf();
     for component in relative.components() {
         match component {
             Component::Normal(part) => {
                 if part.len() > MAX_PATH_COMPONENT_BYTES {
-                    return Err(format!(
+                    return Err(DomainError::Validation(format!(
                         "Składnik ścieżki przekracza {} bajtów",
                         MAX_PATH_COMPONENT_BYTES
-                    ));
+                    )));
                 }
                 new_path.push(part);
             }
             Component::RootDir | Component::Prefix(_) => {
-                return Err("Wzorzec nie może tworzyć ścieżki absolutnej".to_string());
+                return Err(DomainError::Validation(
+                    "Wzorzec nie może tworzyć ścieżki absolutnej".to_string(),
+                ));
             }
             Component::ParentDir | Component::CurDir => {
-                return Err("Wzorzec nie może zawierać składników '.' ani '..'".to_string());
+                return Err(DomainError::Validation(
+                    "Wzorzec nie może zawierać składników '.' ani '..'".to_string(),
+                ));
             }
         }
     }
@@ -154,15 +162,19 @@ pub fn resolve_renamed_path(old_path_str: &str, formatted_name: &str) -> Result<
 pub fn validate_rename_target(
     old_path_str: &str,
     target_path_str: &str,
-) -> Result<PathBuf, String> {
-    let parent = Path::new(old_path_str)
-        .parent()
-        .ok_or_else(|| "Brak katalogu nadrzędnego dla pliku".to_string())?;
+) -> Result<PathBuf, DomainError> {
+    let parent = Path::new(old_path_str).parent().ok_or_else(|| {
+        DomainError::Validation("Brak katalogu nadrzędnego dla pliku".to_string())
+    })?;
     let relative = Path::new(target_path_str)
         .strip_prefix(parent)
-        .map_err(|_| "Ścieżka docelowa musi leżeć w katalogu pliku źródłowego".to_string())?;
-    let relative_str = relative
-        .to_str()
-        .ok_or_else(|| "Ścieżka docelowa nie jest poprawnym UTF-8".to_string())?;
+        .map_err(|_| {
+            DomainError::Validation(
+                "Ścieżka docelowa musi leżeć w katalogu pliku źródłowego".to_string(),
+            )
+        })?;
+    let relative_str = relative.to_str().ok_or_else(|| {
+        DomainError::Validation("Ścieżka docelowa nie jest poprawnym UTF-8".to_string())
+    })?;
     resolve_renamed_path(old_path_str, relative_str)
 }

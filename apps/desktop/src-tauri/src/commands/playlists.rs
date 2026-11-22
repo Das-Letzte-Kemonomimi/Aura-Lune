@@ -1,3 +1,4 @@
+use super::error::CommandError;
 use crate::AppState;
 use domain::queue::QueueItem;
 use domain::{CueSheet, ImportM3uResult, M3uEntry, M3uPlaylist, Playlist};
@@ -14,52 +15,52 @@ pub struct PlaylistExportDto {
 }
 
 #[tauri::command]
-pub fn parse_cue_sheet_content(cue_content: String) -> Result<CueSheet, String> {
-    CueSheet::parse(&cue_content)
+pub fn parse_cue_sheet_content(cue_content: String) -> Result<CueSheet, CommandError> {
+    CueSheet::parse(&cue_content).map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn list_smart_playlist_tracks(
     smart_type: String,
     state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, String> {
+) -> Result<Vec<TrackRecord>, CommandError> {
     match smart_type.as_str() {
         "favorites" => state
             .db
             .list_favorite_tracks()
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(CommandError::from),
         "top_played" => state
             .db
             .list_top_played_tracks(25)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(CommandError::from),
         "recently_played" => state
             .db
             .list_recently_played_tracks(50)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(CommandError::from),
         "hires" => state
             .db
             .list_hires_tracks()
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(CommandError::from),
         "forgotten" => state
             .db
             .list_forgotten_tracks(50)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(CommandError::from),
         "high_bpm" => state
             .db
             .list_high_bpm_tracks(130.0)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(CommandError::from),
         "top_rated" => state
             .db
             .list_top_rated_tracks()
             .await
-            .map_err(|e| e.to_string()),
-        _ => Err("Nieznany typ inteligentnej playlisty".to_string()),
+            .map_err(CommandError::from),
+        _ => Err("Nieznany typ inteligentnej playlisty".into()),
     }
 }
 
@@ -68,12 +69,12 @@ pub fn load_radio_stream(
     url: String,
     station_name: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: load_radio_stream('{}', '{}')",
         station_name, url
     );
-    state.engine.load_uri(&url).map_err(|e| e.to_string())?;
+    state.engine.load_uri(&url)?;
 
     if let Ok(mut t) = state.latest_live_stream_tag.lock() {
         *t = None;
@@ -97,7 +98,7 @@ pub fn load_radio_stream(
 
     state.engine.set_active_item(queue_item.clone());
     crate::commands::playback::sync_mpris_from_queue_item(&queue_item, &state);
-    state.engine.play().map_err(|e| e.to_string())?;
+    state.engine.play()?;
     Ok(())
 }
 
@@ -105,18 +106,14 @@ pub fn load_radio_stream(
 pub async fn save_queue_as_playlist(
     name: String,
     state: State<'_, AppState>,
-) -> Result<i64, String> {
+) -> Result<i64, CommandError> {
     info!("Tauri command: save_queue_as_playlist('{}')", name);
     let queue = state.engine.queue();
     if queue.items.is_empty() {
-        return Err("Kolejka odtwarzania jest pusta".to_string());
+        return Err("Kolejka odtwarzania jest pusta".into());
     }
 
-    let pl_id = state
-        .db
-        .create_playlist(&name)
-        .await
-        .map_err(|e| e.to_string())?;
+    let pl_id = state.db.create_playlist(&name).await?;
 
     for item in &queue.items {
         let track_id = if let Some(tid) = item.track_id {
@@ -135,28 +132,34 @@ pub async fn save_queue_as_playlist(
 }
 
 #[tauri::command]
-pub async fn create_playlist(name: String, state: State<'_, AppState>) -> Result<i64, String> {
+pub async fn create_playlist(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<i64, CommandError> {
     info!("Tauri command: create_playlist('{}')", name);
     state
         .db
         .create_playlist(&name)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn delete_playlist(playlist_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn delete_playlist(
+    playlist_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: delete_playlist({})", playlist_id);
     state
         .db
         .delete_playlist(playlist_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn list_playlists(state: State<'_, AppState>) -> Result<Vec<Playlist>, String> {
-    state.db.list_playlists().await.map_err(|e| e.to_string())
+pub async fn list_playlists(state: State<'_, AppState>) -> Result<Vec<Playlist>, CommandError> {
+    state.db.list_playlists().await.map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -164,7 +167,7 @@ pub async fn add_track_to_playlist(
     playlist_id: i64,
     track_id: i64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: add_track_to_playlist(playlist: {}, track: {})",
         playlist_id, track_id
@@ -173,7 +176,7 @@ pub async fn add_track_to_playlist(
         .db
         .add_track_to_playlist(playlist_id, track_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -181,7 +184,7 @@ pub async fn remove_track_from_playlist(
     playlist_id: i64,
     track_id: i64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     info!(
         "Tauri command: remove_track_from_playlist(playlist: {}, track: {})",
         playlist_id, track_id
@@ -190,19 +193,19 @@ pub async fn remove_track_from_playlist(
         .db
         .remove_track_from_playlist(playlist_id, track_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn get_playlist_tracks(
     playlist_id: i64,
     state: State<'_, AppState>,
-) -> Result<Vec<TrackRecord>, String> {
+) -> Result<Vec<TrackRecord>, CommandError> {
     state
         .db
         .get_playlist_tracks(playlist_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -211,7 +214,7 @@ pub async fn export_playlist_m3u8(
     export_path: String,
     use_relative_paths: bool,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!(
         "Tauri command: export_playlist_m3u8(playlist_id: {}, export_path: '{}', relative: {})",
         playlist_id, export_path, use_relative_paths
@@ -220,13 +223,13 @@ pub async fn export_playlist_m3u8(
         .db
         .get_playlist_tracks(playlist_id)
         .await
-        .map_err(|e| format!("Błąd pobierania utworów playlisty: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd pobierania utworów playlisty"))?;
 
     let playlists = state
         .db
         .list_playlists()
         .await
-        .map_err(|e| format!("Błąd pobierania listy playlist: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd pobierania listy playlist"))?;
 
     let playlist_name = playlists
         .iter()
@@ -249,7 +252,7 @@ pub async fn export_playlist_m3u8(
         M3uPlaylist::export_to_m3u8(&playlist_name, &entries, export_dir, use_relative_paths);
 
     fs::write(&export_path, content)
-        .map_err(|e| format!("Nie udało się zapisać pliku M3U8: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Nie udało się zapisać pliku M3U8"))?;
 
     Ok(format!(
         "Pomyślnie wyeksportowano playlistę '{}' ({} utworów)",
@@ -263,11 +266,11 @@ pub async fn import_playlist_m3u8(
     file_path: String,
     custom_name: Option<String>,
     state: State<'_, AppState>,
-) -> Result<ImportM3uResult, String> {
+) -> Result<ImportM3uResult, CommandError> {
     info!("Tauri command: import_playlist_m3u8('{}')", file_path);
 
     let content = fs::read_to_string(&file_path)
-        .map_err(|e| format!("Nie udało się odczytać pliku M3U/M3U8: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Nie udało się odczytać pliku M3U/M3U8"))?;
 
     let path_obj = std::path::Path::new(&file_path);
     let base_dir = path_obj.parent();
@@ -287,7 +290,7 @@ pub async fn import_playlist_m3u8(
         .db
         .create_playlist(&m3u.name)
         .await
-        .map_err(|e| format!("Błąd tworzenia playlisty w bazie: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd tworzenia playlisty w bazie"))?;
 
     let mut matched_tracks = 0;
     let mut missing_tracks = Vec::new();

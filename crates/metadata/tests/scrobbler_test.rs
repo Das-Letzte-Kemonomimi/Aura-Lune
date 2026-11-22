@@ -62,3 +62,21 @@ fn test_listenbrainz_payload_serialization() {
     assert!(json.contains("\"media_player\":\"Auralune\""));
     assert!(json.contains("\"listened_at\":1698200000"));
 }
+
+#[tokio::test]
+async fn test_empty_credentials_are_rejected_as_validation_errors_without_network() {
+    use metadata::listenbrainz::ListenBrainzClient;
+    use metadata::ScrobbleError;
+
+    let err = ListenBrainzClient::new()
+        .validate_token("   ")
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ScrobbleError::Validation(_)), "{err:?}");
+
+    let err = LastFmClient::new()
+        .validate_session("", None, None)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ScrobbleError::Validation(_)), "{err:?}");
+}

@@ -1,3 +1,4 @@
+use crate::ScrobbleError;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
@@ -91,10 +92,12 @@ impl ListenBrainzClient {
     }
 
     /// Weryfikuje token użytkownika w serwisie ListenBrainz i zwraca nazwę użytkownika.
-    pub async fn validate_token(&self, token: &str) -> Result<String, String> {
+    pub async fn validate_token(&self, token: &str) -> Result<String, ScrobbleError> {
         let clean_token = token.trim();
         if clean_token.is_empty() {
-            return Err("Token ListenBrainz nie może być pusty".to_string());
+            return Err(ScrobbleError::Validation(
+                "Token ListenBrainz nie może być pusty".to_string(),
+            ));
         }
 
         let url = format!("{}/validate-token", self.base_url);
@@ -104,24 +107,25 @@ impl ListenBrainzClient {
             .header("Authorization", format!("Token {}", clean_token))
             .send()
             .await
-            .map_err(|e| format!("Błąd połączenia z serwerem ListenBrainz: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Błąd połączenia z serwerem ListenBrainz: {}", e))
+            })?;
 
         if !res.status().is_success() {
-            return Err(format!(
+            return Err(ScrobbleError::Service(format!(
                 "Nieprawidłowy kod odpowiedzi HTTP ListenBrainz: {}",
                 res.status()
-            ));
+            )));
         }
 
-        let body: ValidateTokenResponse = res
-            .json()
-            .await
-            .map_err(|e| format!("Błąd parsowania odpowiedzi ListenBrainz: {}", e))?;
+        let body: ValidateTokenResponse = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Błąd parsowania odpowiedzi ListenBrainz: {}", e))
+        })?;
 
         if !body.valid {
-            return Err(body.message.unwrap_or_else(|| {
+            return Err(ScrobbleError::Service(body.message.unwrap_or_else(|| {
                 "Token ListenBrainz jest nieprawidłowy lub wygasł".to_string()
-            }));
+            })));
         }
 
         Ok(body
@@ -137,7 +141,7 @@ impl ListenBrainzClient {
         title: &str,
         album: Option<&str>,
         duration_ms: Option<u64>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ScrobbleError> {
         let clean_token = token.trim();
         if clean_token.is_empty() {
             return Ok(());
@@ -167,7 +171,9 @@ impl ListenBrainzClient {
             .json(&payload)
             .send()
             .await
-            .map_err(|e| format!("Błąd wysyłania playing_now do ListenBrainz: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Błąd wysyłania playing_now do ListenBrainz: {}", e))
+            })?;
 
         if res.status().is_success() {
             debug!(
@@ -182,7 +188,10 @@ impl ListenBrainzClient {
                 "Błąd wysyłania playing_now ListenBrainz ({}): {}",
                 status, text
             );
-            Err(format!("Błąd ListenBrainz ({}): {}", status, text))
+            Err(ScrobbleError::Service(format!(
+                "Błąd ListenBrainz ({}): {}",
+                status, text
+            )))
         }
     }
 
@@ -195,7 +204,7 @@ impl ListenBrainzClient {
         album: Option<&str>,
         listened_at: u64,
         duration_ms: Option<u64>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ScrobbleError> {
         let clean_token = token.trim();
         if clean_token.is_empty() {
             return Ok(());
@@ -225,7 +234,9 @@ impl ListenBrainzClient {
             .json(&payload)
             .send()
             .await
-            .map_err(|e| format!("Błąd wysyłania listen do ListenBrainz: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Błąd wysyłania listen do ListenBrainz: {}", e))
+            })?;
 
         if res.status().is_success() {
             info!(
@@ -237,7 +248,10 @@ impl ListenBrainzClient {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
             error!("Błąd scrobblowania ListenBrainz ({}): {}", status, text);
-            Err(format!("Błąd ListenBrainz ({}): {}", status, text))
+            Err(ScrobbleError::Service(format!(
+                "Błąd ListenBrainz ({}): {}",
+                status, text
+            )))
         }
     }
 }

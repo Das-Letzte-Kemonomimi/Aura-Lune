@@ -1,34 +1,28 @@
+use super::error::CommandError;
 use crate::AppState;
 use domain::Theme;
 use tauri::{Manager, State};
 
 #[tauri::command]
-pub async fn list_themes(state: State<'_, AppState>) -> Result<Vec<Theme>, String> {
-    state.db.list_themes().await.map_err(|e| e.to_string())
+pub async fn list_themes(state: State<'_, AppState>) -> Result<Vec<Theme>, CommandError> {
+    state.db.list_themes().await.map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub async fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, String> {
+pub async fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, CommandError> {
     let active_id = state
         .db
         .get_app_setting("active_theme_id")
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?
+        .await?
         .unwrap_or_else(|| "cyber-kitsune".to_string());
-    if let Some(theme) = state
-        .db
-        .get_theme(&active_id)
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?
-    {
+    if let Some(theme) = state.db.get_theme(&active_id).await? {
         Ok(theme)
     } else {
         state
             .db
             .get_theme("cyber-kitsune")
-            .await
-            .map_err(|e: storage::StorageError| e.to_string())?
-            .ok_or_else(|| "Nie znaleziono domyślnego motywu".to_string())
+            .await?
+            .ok_or_else(|| CommandError::not_found("Nie znaleziono domyślnego motywu"))
     }
 }
 
@@ -36,25 +30,27 @@ pub async fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, Strin
 pub async fn set_active_theme(
     theme_id: String,
     state: State<'_, AppState>,
-) -> Result<Theme, String> {
+) -> Result<Theme, CommandError> {
     let theme = state
         .db
         .get_theme(&theme_id)
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?
+        .await?
         .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
     state
         .db
         .set_app_setting("active_theme_id", &theme_id)
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?;
+        .await?;
     Ok(theme)
 }
 
 #[tauri::command]
-pub async fn save_theme(theme: Theme, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn save_theme(theme: Theme, state: State<'_, AppState>) -> Result<(), CommandError> {
     theme.validate()?;
-    state.db.save_theme(&theme).await.map_err(|e| e.to_string())
+    state
+        .db
+        .save_theme(&theme)
+        .await
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -64,22 +60,17 @@ pub async fn update_theme_background(
     overlay_opacity: f32,
     blur_radius: f32,
     state: State<'_, AppState>,
-) -> Result<Theme, String> {
+) -> Result<Theme, CommandError> {
     let mut theme = state
         .db
         .get_theme(&theme_id)
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?
+        .await?
         .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
     theme.background_ref = background_ref;
     theme.overlay_opacity = overlay_opacity;
     theme.blur_radius = blur_radius;
     theme.validate()?;
-    state
-        .db
-        .save_theme(&theme)
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?;
+    state.db.save_theme(&theme).await?;
     Ok(theme)
 }
 
@@ -87,42 +78,36 @@ pub async fn update_theme_background(
 pub async fn export_theme_json(
     theme_id: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     let theme = state
         .db
         .get_theme(&theme_id)
-        .await
-        .map_err(|e: storage::StorageError| e.to_string())?
+        .await?
         .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
-    serde_json::to_string_pretty(&theme).map_err(|e| e.to_string())
+    serde_json::to_string_pretty(&theme).map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub async fn import_theme_json(
     json_content: String,
     state: State<'_, AppState>,
-) -> Result<Theme, String> {
-    let theme: Theme =
-        serde_json::from_str(&json_content).map_err(|e| format!("Błąd parsowania JSON: {}", e))?;
+) -> Result<Theme, CommandError> {
+    let theme: Theme = serde_json::from_str(&json_content)
+        .map_err(|e| CommandError::from(e).context("Błąd parsowania JSON"))?;
     theme.validate()?;
-    state
-        .db
-        .save_theme(&theme)
-        .await
-        .map_err(|e| e.to_string())?;
+    state.db.save_theme(&theme).await?;
     state
         .db
         .set_app_setting("active_theme_id", &theme.id)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     Ok(theme)
 }
 
 #[tauri::command]
-pub fn upload_background_image(file_path: String) -> Result<String, String> {
+pub fn upload_background_image(file_path: String) -> Result<String, CommandError> {
     let path = std::path::Path::new(&file_path);
     if !path.exists() {
-        return Err("Wskazany plik nie istnieje".to_string());
+        return Err("Wskazany plik nie istnieje".into());
     }
     let ext = path
         .extension()
@@ -136,13 +121,14 @@ pub fn upload_background_image(file_path: String) -> Result<String, String> {
         "mp4" => "video/mp4",
         "webm" => "video/webm",
         _ => {
-            return Err(
-                "Obsługiwane są pliki PNG, JPG, WebP oraz animowane wideo tła MP4/WebM".to_string(),
-            )
+            return Err(CommandError::validation(
+                "Obsługiwane są pliki PNG, JPG, WebP oraz animowane wideo tła MP4/WebM",
+            ))
         }
     };
 
-    let bytes = std::fs::read(path).map_err(|e| format!("Błąd odczytu pliku: {}", e))?;
+    let bytes =
+        std::fs::read(path).map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
     let max_size = if mime.starts_with("video/") {
         100 * 1024 * 1024
     } else {
@@ -152,7 +138,8 @@ pub fn upload_background_image(file_path: String) -> Result<String, String> {
         return Err(format!(
             "Plik tła jest zbyt duży (maks. {} MB)",
             max_size / (1024 * 1024)
-        ));
+        )
+        .into());
     }
 
     use base64::Engine;
@@ -160,7 +147,7 @@ pub fn upload_background_image(file_path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
-pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), String> {
+pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), CommandError> {
     let clean_style = if style == "classic" {
         "classic"
     } else {
@@ -238,29 +225,24 @@ pub async fn set_app_icon_style(
     style: String,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     let clean = if style == "classic" {
         "classic"
     } else {
         "lineout"
     };
-    state
-        .db
-        .set_app_setting("app_icon_style", clean)
-        .await
-        .map_err(|e| e.to_string())?;
+    state.db.set_app_setting("app_icon_style", clean).await?;
 
     update_system_icons(&app, clean)?;
     Ok(clean.to_string())
 }
 
 #[tauri::command]
-pub async fn get_app_icon_style(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn get_app_icon_style(state: State<'_, AppState>) -> Result<String, CommandError> {
     let style = state
         .db
         .get_app_setting("app_icon_style")
-        .await
-        .map_err(|e| e.to_string())?
+        .await?
         .unwrap_or_else(|| "lineout".to_string());
     Ok(style)
 }

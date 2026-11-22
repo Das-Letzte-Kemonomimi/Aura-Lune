@@ -4,6 +4,7 @@ pub mod devices;
 pub mod dialogs;
 pub mod downloads;
 pub mod dsp;
+pub mod error;
 pub mod integrations;
 pub mod library;
 pub mod metadata;

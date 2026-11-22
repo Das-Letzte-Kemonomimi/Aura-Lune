@@ -47,9 +47,8 @@ impl Database {
 
     /// Zapisuje lub aktualizuje motyw w bazie danych.
     pub async fn save_theme(&self, theme: &domain::Theme) -> Result<(), StorageError> {
-        theme.validate().map_err(StorageError::Migration)?;
-        let tokens_json = serde_json::to_string(&theme.tokens)
-            .map_err(|e| StorageError::Migration(e.to_string()))?;
+        theme.validate()?;
+        let tokens_json = serde_json::to_string(&theme.tokens)?;
 
         sqlx::query(
             r#"
@@ -91,8 +90,7 @@ impl Database {
 
         if let Some(r) = row {
             let tokens_json: String = r.get("tokens_json");
-            let tokens: domain::ThemeTokens = serde_json::from_str(&tokens_json)
-                .map_err(|e| StorageError::Migration(e.to_string()))?;
+            let tokens: domain::ThemeTokens = serde_json::from_str(&tokens_json)?;
 
             Ok(Some(domain::Theme {
                 id: r.get("id"),
@@ -120,8 +118,7 @@ impl Database {
         let mut themes = Vec::with_capacity(rows.len());
         for r in rows {
             let tokens_json: String = r.get("tokens_json");
-            let tokens: domain::ThemeTokens = serde_json::from_str(&tokens_json)
-                .map_err(|e| StorageError::Migration(e.to_string()))?;
+            let tokens: domain::ThemeTokens = serde_json::from_str(&tokens_json)?;
 
             themes.push(domain::Theme {
                 id: r.get("id"),

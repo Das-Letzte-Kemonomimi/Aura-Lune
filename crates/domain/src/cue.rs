@@ -1,3 +1,4 @@
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 
 /// Reprezentacja pojedynczego utworu w arkuszu CUE.
@@ -24,7 +25,7 @@ pub struct CueSheet {
 
 impl CueSheet {
     /// Parsuje zawartość pliku `.cue`.
-    pub fn parse(content: &str) -> Result<Self, String> {
+    pub fn parse(content: &str) -> Result<Self, DomainError> {
         let mut album_title = None;
         let mut album_artist = None;
         let mut genre = None;
@@ -120,7 +121,9 @@ impl CueSheet {
         }
 
         if tracks.is_empty() {
-            return Err("Nie znaleziono poprawnych wpisów TRACK w pliku CUE".to_string());
+            return Err(DomainError::Parse(
+                "Nie znaleziono poprawnych wpisów TRACK w pliku CUE".to_string(),
+            ));
         }
 
         // Oblicz czas trwania utworów pośrednich (różnica pomiędzy startem kolejnego a bieżącego)

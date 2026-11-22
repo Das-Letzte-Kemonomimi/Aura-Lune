@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
+import { getSetting, setSetting } from '../api/settings';
 import type { AudioCard } from '../types/audioDevices';
 import type { TrackRecord } from '../types/library';
 import type { Translations } from '../i18n';
@@ -324,10 +325,7 @@ export function useAudioSettings({
   const handleToggleSeekFade = useCallback(async () => {
     setSeekFadeEnabled((prev) => {
       const newVal = !prev;
-      invoke('set_app_setting', {
-        key: 'seek_fade_enabled',
-        value: newVal ? 'true' : 'false',
-      })
+      setSetting('seek_fade_enabled', newVal ? 'true' : 'false')
         .then(() => {
           showMessage(
             newVal
@@ -345,10 +343,7 @@ export function useAudioSettings({
   const handleToggleEqAutoStartup = useCallback(async () => {
     setEqAutoStartup((prev) => {
       const newVal = !prev;
-      invoke('set_app_setting', {
-        key: 'eq_enabled_on_startup',
-        value: newVal ? 'true' : 'false',
-      })
+      setSetting('eq_enabled_on_startup', newVal ? 'true' : 'false')
         .then(() => {
           showMessage(
             newVal
@@ -404,7 +399,7 @@ export function useAudioSettings({
     }).catch((e) => console.warn('Błąd inicjalizacji Silence Trimming:', e));
 
     // 4. Seek fade setting
-    invoke<string | null>('get_app_setting', { key: 'seek_fade_enabled' })
+    getSetting('seek_fade_enabled')
       .then((val) => {
         if (val !== null && val !== undefined) {
           setSeekFadeEnabled(val !== 'false');
@@ -413,7 +408,7 @@ export function useAudioSettings({
       .catch(() => {});
 
     // 5. EQ startup setting
-    invoke<string | null>('get_app_setting', { key: 'eq_enabled_on_startup' })
+    getSetting('eq_enabled_on_startup')
       .then((val) => {
         if (val !== null && val !== undefined) {
           setEqAutoStartup(val === 'true');

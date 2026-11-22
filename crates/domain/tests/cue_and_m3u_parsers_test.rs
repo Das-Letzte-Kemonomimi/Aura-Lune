@@ -173,3 +173,18 @@ fn test_parse_m3u_simple_absolute() {
     assert_eq!(playlist.entries[0].title.as_deref(), Some("Skrzydła Białe"));
     assert_eq!(playlist.entries[0].duration_seconds, Some(215));
 }
+
+#[test]
+fn test_cue_without_tracks_is_a_parse_error() {
+    use domain::{CueSheet, DomainError};
+    let err = CueSheet::parse("TITLE \"Pusty album\"\n").unwrap_err();
+    assert!(matches!(err, DomainError::Parse(_)), "{err:?}");
+}
+
+#[test]
+fn test_invalid_theme_is_a_validation_error() {
+    use domain::DomainError;
+    let mut theme = domain::default_themes().remove(0);
+    theme.name = "  ".into();
+    assert!(matches!(theme.validate(), Err(DomainError::Validation(_))));
+}

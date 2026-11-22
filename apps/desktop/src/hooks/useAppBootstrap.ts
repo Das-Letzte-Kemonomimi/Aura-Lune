@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '../api/ipc';
+import { getSetting, setSetting } from '../api/settings';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
@@ -57,13 +58,13 @@ export function useAppBootstrap({
 
   // 1. Wczytanie początkowych ustawień aplikacji z SQLite
   useEffect(() => {
-    invoke<string | null>('get_app_setting', { key: 'eq_enabled_on_startup' })
+    getSetting('eq_enabled_on_startup')
       .then((val) => {
         setEqAutoStartup(val === 'true');
       })
       .catch((e) => console.warn('Błąd odczytu eq_enabled_on_startup:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'app_language' })
+    getSetting('app_language')
       .then((val) => {
         if (val && (val === 'en' || val === 'pl' || val === 'de' || val === 'fi' || val === 'la')) {
           setLanguage(val as Language);
@@ -71,7 +72,7 @@ export function useAppBootstrap({
       })
       .catch((e) => console.warn('Błąd odczytu app_language:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'seek_fade_enabled' })
+    getSetting('seek_fade_enabled')
       .then((val) => {
         if (val !== null) {
           setSeekFadeEnabled(val === 'true');
@@ -79,13 +80,13 @@ export function useAppBootstrap({
       })
       .catch((e) => console.warn('Błąd odczytu seek_fade_enabled:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'close_to_tray' })
+    getSetting('close_to_tray')
       .then((val) => {
         setCloseToTray(val !== 'false');
       })
       .catch((e) => console.warn('Błąd odczytu close_to_tray:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'crossfade_duration' })
+    getSetting('crossfade_duration')
       .then((val) => {
         const ms = val ? parseInt(val, 10) : 1500;
         if (!isNaN(ms)) {
@@ -95,7 +96,7 @@ export function useAppBootstrap({
       })
       .catch((e) => console.warn('Błąd odczytu crossfade_duration:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'bass_boost' })
+    getSetting('bass_boost')
       .then((val) => {
         if (val) {
           const num = parseFloat(val);
@@ -104,7 +105,7 @@ export function useAppBootstrap({
       })
       .catch((e) => console.warn('Błąd odczytu bass_boost:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'stereo_widener_active' })
+    getSetting('stereo_widener_active')
       .then((val) => {
         const active = val === 'true';
         setStereoWidenerActive(active);
@@ -112,7 +113,7 @@ export function useAppBootstrap({
       })
       .catch((e) => console.warn('Błąd odczytu stereo_widener_active:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'stereo_widener_amount' })
+    getSetting('stereo_widener_amount')
       .then((val) => {
         if (val) {
           const amt = parseFloat(val);
@@ -124,7 +125,7 @@ export function useAppBootstrap({
       })
       .catch((e) => console.warn('Błąd odczytu stereo_widener_amount:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'limiter_enabled' })
+    getSetting('limiter_enabled')
       .then((val) => {
         const enabled = val !== 'false';
         setLimiterEnabled(enabled);
@@ -267,7 +268,7 @@ export function useAppBootstrap({
 
     const savedAlbumMode = localStorage.getItem('auralune_album_playback_mode');
     if (savedAlbumMode) {
-      invoke('set_app_setting', { key: 'album_playback_mode', value: savedAlbumMode }).catch(() => {});
+      setSetting('album_playback_mode', savedAlbumMode).catch(() => {});
     }
 
     try {

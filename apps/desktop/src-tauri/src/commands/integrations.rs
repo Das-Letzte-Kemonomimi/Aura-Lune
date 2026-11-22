@@ -1,5 +1,6 @@
 //! Integracje zewnętrzne: ListenBrainz, Last.fm, Discord RPC oraz kopia profilu.
 
+use super::error::CommandError;
 use crate::commands::playlists::PlaylistExportDto;
 use crate::AppState;
 use domain::Theme;
@@ -25,7 +26,7 @@ pub struct ProfileBackupDto {
 pub async fn export_profile_backup(
     destination_path: Option<String>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!(
         "Tauri command: export_profile_backup(dest: {:?})",
         destination_path
@@ -61,10 +62,11 @@ pub async fn export_profile_backup(
     };
 
     let json = serde_json::to_string_pretty(&backup)
-        .map_err(|e| format!("Błąd serializacji kopii profilu: {}", e))?;
+        .map_err(|e| CommandError::from(e).context("Błąd serializacji kopii profilu"))?;
 
     if let Some(dest) = destination_path {
-        fs::write(&dest, &json).map_err(|e| format!("Błąd zapisu pliku kopii zapasowej: {}", e))?;
+        fs::write(&dest, &json)
+            .map_err(|e| CommandError::from(e).context("Błąd zapisu pliku kopii zapasowej"))?;
         Ok(format!("Pomyślnie zapisano kopię profilu w: {}", dest))
     } else {
         Ok(json)
@@ -75,17 +77,18 @@ pub async fn export_profile_backup(
 pub async fn import_profile_backup(
     file_path_or_json: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!("Tauri command: import_profile_backup");
     let json_content = if file_path_or_json.trim().starts_with('{') {
         file_path_or_json
     } else {
         fs::read_to_string(&file_path_or_json)
-            .map_err(|e| format!("Błąd odczytu pliku kopii zapasowej: {}", e))?
+            .map_err(|e| CommandError::from(e).context("Błąd odczytu pliku kopii zapasowej"))?
     };
 
-    let backup: ProfileBackupDto = serde_json::from_str(&json_content)
-        .map_err(|e| format!("Nieprawidłowy format pliku JSON kopii profilu: {}", e))?;
+    let backup: ProfileBackupDto = serde_json::from_str(&json_content).map_err(|e| {
+        CommandError::from(e).context("Nieprawidłowy format pliku JSON kopii profilu")
+    })?;
 
     let mut restored_presets = 0;
     let mut restored_themes = 0;
@@ -135,7 +138,7 @@ pub async fn import_profile_backup(
 pub async fn validate_listenbrainz_token(
     token: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     crate::commands::metadata::validate_listenbrainz_token_internal(&state, &token).await
 }
 
@@ -147,7 +150,7 @@ pub async fn submit_listenbrainz_playing_now(
     album: Option<String>,
     duration_ms: Option<u64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::metadata::submit_listenbrainz_playing_now_internal(
         &state,
         &token,
@@ -167,7 +170,7 @@ pub async fn submit_listenbrainz_listen(
     album: Option<String>,
     duration_ms: Option<u64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::metadata::submit_listenbrainz_listen_internal(
         &state,
         &token,
@@ -183,7 +186,7 @@ pub async fn submit_listenbrainz_listen(
 pub async fn lastfm_get_auth_url(
     api_key: Option<String>,
     state: State<'_, AppState>,
-) -> Result<LastFmAuthUrlResult, String> {
+) -> Result<LastFmAuthUrlResult, CommandError> {
     crate::commands::metadata::lastfm_get_auth_url_internal(&state, api_key).await
 }
 
@@ -193,7 +196,7 @@ pub async fn lastfm_fetch_session(
     api_key: Option<String>,
     api_secret: Option<String>,
     state: State<'_, AppState>,
-) -> Result<LastFmSession, String> {
+) -> Result<LastFmSession, CommandError> {
     crate::commands::metadata::lastfm_fetch_session_internal(
         &state,
         &token,
@@ -209,7 +212,7 @@ pub async fn lastfm_validate_session(
     api_key: Option<String>,
     api_secret: Option<String>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     crate::commands::metadata::lastfm_validate_session_internal(
         &state,
         &session_key,
@@ -223,7 +226,7 @@ pub async fn lastfm_validate_session(
 pub async fn lastfm_update_now_playing(
     request: LastFmScrobbleRequest,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::metadata::lastfm_update_now_playing_internal(&state, &request).await
 }
 
@@ -231,14 +234,14 @@ pub async fn lastfm_update_now_playing(
 pub async fn lastfm_scrobble(
     request: LastFmScrobbleRequest,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::metadata::lastfm_scrobble_internal(&state, &request).await
 }
 
 #[tauri::command]
 pub fn get_discord_rpc_status(
     state: State<'_, AppState>,
-) -> Result<desktop_integration::DiscordRpcStatus, String> {
+) -> Result<desktop_integration::DiscordRpcStatus, CommandError> {
     crate::commands::devices::get_discord_rpc_status_internal(&state)
 }
 
@@ -246,7 +249,7 @@ pub fn get_discord_rpc_status(
 pub async fn set_discord_rpc_enabled(
     enabled: bool,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::devices::set_discord_rpc_enabled_internal(&state, enabled).await
 }
 
@@ -254,6 +257,6 @@ pub async fn set_discord_rpc_enabled(
 pub async fn set_discord_rpc_client_id(
     client_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::devices::set_discord_rpc_client_id_internal(&state, &client_id).await
 }

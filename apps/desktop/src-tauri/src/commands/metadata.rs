@@ -1,5 +1,6 @@
 //! Komendy pobierania i edycji metadanych, okładek płyt, tekstów utworów (LRC) oraz fingerprintingu audio.
 
+use super::error::CommandError;
 use crate::commands::library::resolve_cover_to_data_uri;
 use crate::AppState;
 use base64::Engine;
@@ -34,21 +35,19 @@ pub struct LastFmScrobbleRequest {
 pub async fn identify_track_fingerprint_internal(
     path: &str,
     client_key: Option<String>,
-) -> Result<Vec<TrackFingerprintMatchDto>, String> {
+) -> Result<Vec<TrackFingerprintMatchDto>, CommandError> {
     let client = AcoustidClient::new(client_key);
     let path_buf = PathBuf::from(path);
     if !path_buf.exists() {
-        return Err("Plik audio nie istnieje na dysku".to_string());
+        return Err("Plik audio nie istnieje na dysku".into());
     }
 
-    let (duration, fingerprint) = AcoustidClient::generate_fingerprint(&path_buf)
-        .await
-        .map_err(|e| e.to_string())?;
+    let (duration, fingerprint) = AcoustidClient::generate_fingerprint(&path_buf).await?;
 
     client
         .lookup(duration, &fingerprint)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 /// Searches for album cover candidates using Cover Art Archive and MusicBrainz.
@@ -125,7 +124,7 @@ pub async fn apply_cover_url_internal(
     album_title: Option<String>,
     artist: Option<String>,
     track_id: Option<i64>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!(
         "Tauri command: apply_cover_url(album_id: {}, url: '{}')",
         album_id, cover_url
@@ -135,27 +134,21 @@ pub async fn apply_cover_url_internal(
         album_id
     } else if let Some(title) = &album_title {
         let art = artist.as_deref().unwrap_or("Unknown");
-        state
-            .db
-            .upsert_album(title, art, None, None)
-            .await
-            .map_err(|e| e.to_string())?
+        state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err("Nieprawidłowe ID albumu".to_string());
+        return Err("Nieprawidłowe ID albumu".into());
     };
 
     let path = state
         .cover_archive
         .download_cover_from_url(cover_url, &format!("album_{}", actual_album_id))
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     let path_str = path.to_string_lossy().to_string();
 
     state
         .db
         .update_album_cover(actual_album_id, &path_str, None)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
@@ -163,7 +156,7 @@ pub async fn apply_cover_url_internal(
 
     sync_cover_to_discord_cache(state, artist.as_deref(), album_title.as_deref(), cover_url);
 
-    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let bytes = std::fs::read(&path)?;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(format!("data:image/jpeg;base64,{}", b64))
 }
@@ -176,14 +169,14 @@ pub async fn apply_custom_cover_file_internal(
     album_title: Option<String>,
     artist: Option<String>,
     track_id: Option<i64>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!(
         "Tauri command: apply_custom_cover_file(album_id: {}, path: '{}')",
         album_id, file_path
     );
     let path = Path::new(file_path);
     if !path.exists() {
-        return Err("Wskazany plik nie istnieje".to_string());
+        return Err("Wskazany plik nie istnieje".into());
     }
 
     let ext = path
@@ -197,42 +190,37 @@ pub async fn apply_custom_cover_file_internal(
         "webp" => "image/webp",
         "gif" => "image/gif",
         _ => {
-            return Err(
-                "Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF".to_string(),
-            )
+            return Err(CommandError::validation(
+                "Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF",
+            ))
         }
     };
 
-    let bytes = std::fs::read(path).map_err(|e| format!("Błąd odczytu pliku: {}", e))?;
+    let bytes =
+        std::fs::read(path).map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
     if bytes.len() > 25 * 1024 * 1024 {
-        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".to_string());
+        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".into());
     }
 
     let actual_album_id = if album_id > 0 {
         album_id
     } else if let Some(title) = &album_title {
         let art = artist.as_deref().unwrap_or("Unknown");
-        state
-            .db
-            .upsert_album(title, art, None, None)
-            .await
-            .map_err(|e| e.to_string())?
+        state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err("Nieprawidłowe ID albumu".to_string());
+        return Err("Nieprawidłowe ID albumu".into());
     };
 
     let saved_path = state
         .cover_archive
         .save_custom_cover_file(actual_album_id, path)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     let path_str = saved_path.to_string_lossy().to_string();
 
     state
         .db
         .update_album_cover(actual_album_id, &path_str, None)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
@@ -246,9 +234,13 @@ pub async fn apply_custom_cover_file_internal(
 pub async fn validate_listenbrainz_token_internal(
     state: &AppState,
     token: &str,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!("Tauri command: validate_listenbrainz_token");
-    state.listenbrainz.validate_token(token).await
+    state
+        .listenbrainz
+        .validate_token(token)
+        .await
+        .map_err(CommandError::from)
 }
 
 /// Submits currently playing track to ListenBrainz.
@@ -259,11 +251,12 @@ pub async fn submit_listenbrainz_playing_now_internal(
     title: &str,
     album: Option<&str>,
     duration_ms: Option<u64>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .listenbrainz
         .submit_playing_now(token, artist, title, album, duration_ms)
         .await
+        .map_err(CommandError::from)
 }
 
 /// Submits completed listen to ListenBrainz.
@@ -274,7 +267,7 @@ pub async fn submit_listenbrainz_listen_internal(
     title: &str,
     album: Option<&str>,
     duration_ms: Option<u64>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -284,13 +277,14 @@ pub async fn submit_listenbrainz_listen_internal(
         .listenbrainz
         .submit_listen(token, artist, title, album, now, duration_ms)
         .await
+        .map_err(CommandError::from)
 }
 
 /// Generates Last.fm authentication URL and token.
 pub async fn lastfm_get_auth_url_internal(
     state: &AppState,
     api_key: Option<String>,
-) -> Result<LastFmAuthUrlResult, String> {
+) -> Result<LastFmAuthUrlResult, CommandError> {
     info!("Tauri command: lastfm_get_auth_url");
     let key = api_key
         .as_deref()
@@ -309,9 +303,13 @@ pub async fn lastfm_fetch_session_internal(
     token: &str,
     api_key: Option<&str>,
     api_secret: Option<&str>,
-) -> Result<LastFmSession, String> {
+) -> Result<LastFmSession, CommandError> {
     info!("Tauri command: lastfm_fetch_session");
-    state.lastfm.fetch_session(token, api_key, api_secret).await
+    state
+        .lastfm
+        .fetch_session(token, api_key, api_secret)
+        .await
+        .map_err(CommandError::from)
 }
 
 /// Validates existing Last.fm session key.
@@ -320,19 +318,20 @@ pub async fn lastfm_validate_session_internal(
     session_key: &str,
     api_key: Option<&str>,
     api_secret: Option<&str>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!("Tauri command: lastfm_validate_session");
     state
         .lastfm
         .validate_session(session_key, api_key, api_secret)
         .await
+        .map_err(CommandError::from)
 }
 
 /// Updates Last.fm Now Playing status.
 pub async fn lastfm_update_now_playing_internal(
     state: &AppState,
     request: &LastFmScrobbleRequest,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let track_info = LastFmTrackInfo {
         artist: &request.artist,
         track: &request.track,
@@ -347,13 +346,14 @@ pub async fn lastfm_update_now_playing_internal(
         .lastfm
         .update_now_playing(&request.session_key, track_info, auth)
         .await
+        .map_err(CommandError::from)
 }
 
 /// Submits Last.fm scrobble upon track playback completion.
 pub async fn lastfm_scrobble_internal(
     state: &AppState,
     request: &LastFmScrobbleRequest,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let track_info = LastFmTrackInfo {
         artist: &request.artist,
         track: &request.track,
@@ -374,6 +374,7 @@ pub async fn lastfm_scrobble_internal(
         .lastfm
         .scrobble(&request.session_key, track_info, ts, auth)
         .await
+        .map_err(CommandError::from)
 }
 
 // ==========================================
@@ -381,15 +382,17 @@ pub async fn lastfm_scrobble_internal(
 // ==========================================
 
 #[tauri::command]
-pub fn save_lyrics_lrc(track_path: String, lrc_content: String) -> Result<String, String> {
+pub fn save_lyrics_lrc(track_path: String, lrc_content: String) -> Result<String, CommandError> {
     metadata::save_lrc_file(&track_path, &lrc_content)
         .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
-pub fn get_track_metadata(path: String) -> Result<audio_engine::TrackMetadataFullDto, String> {
-    audio_engine::read_track_metadata(&path)
+pub fn get_track_metadata(
+    path: String,
+) -> Result<audio_engine::TrackMetadataFullDto, CommandError> {
+    audio_engine::read_track_metadata(&path).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -398,7 +401,7 @@ pub async fn update_track_metadata(
     path: String,
     meta: audio_engine::TrackMetadataFullDto,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     // 1. Zapis do pliku fizycznego audio przez lofty
     audio_engine::write_track_metadata(&path, &meta)?;
 
@@ -415,14 +418,13 @@ pub async fn update_track_metadata(
             meta.album.as_deref(),
             meta.year.map(|y| y as i64),
         )
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn is_fpcalc_available() -> Result<bool, String> {
+pub async fn is_fpcalc_available() -> Result<bool, CommandError> {
     Ok(AcoustidClient::is_fpcalc_available().await)
 }
 
@@ -430,7 +432,7 @@ pub async fn is_fpcalc_available() -> Result<bool, String> {
 pub async fn identify_track_fingerprint(
     path: String,
     client_key: Option<String>,
-) -> Result<Vec<TrackFingerprintMatchDto>, String> {
+) -> Result<Vec<TrackFingerprintMatchDto>, CommandError> {
     identify_track_fingerprint_internal(&path, client_key).await
 }
 
@@ -439,7 +441,7 @@ pub async fn search_musicbrainz_releases(
     album: String,
     artist: String,
     state: State<'_, AppState>,
-) -> Result<Vec<ReleaseCandidateDto>, String> {
+) -> Result<Vec<ReleaseCandidateDto>, CommandError> {
     info!(
         "Tauri command: search_musicbrainz_releases('{}', '{}')",
         album, artist
@@ -448,7 +450,7 @@ pub async fn search_musicbrainz_releases(
         .mb
         .search_releases(&album, &artist)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -456,25 +458,20 @@ pub async fn fetch_and_apply_cover(
     album_id: i64,
     mbid: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!(
         "Tauri command: fetch_and_apply_cover(album_id: {}, mbid: '{}')",
         album_id, mbid
     );
-    let path = state
-        .cover_archive
-        .fetch_and_cache_cover(&mbid)
-        .await
-        .map_err(|e| e.to_string())?;
+    let path = state.cover_archive.fetch_and_cache_cover(&mbid).await?;
     let path_str = path.to_string_lossy().to_string();
 
     state
         .db
         .update_album_cover(album_id, &path_str, Some(&mbid))
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
-    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let bytes = std::fs::read(&path)?;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(format!("data:image/jpeg;base64,{}", b64))
 }
@@ -485,16 +482,12 @@ pub async fn auto_fetch_album_cover(
     album_title: String,
     artist: String,
     state: State<'_, AppState>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, CommandError> {
     info!(
         "Tauri command: auto_fetch_album_cover('{}', '{}')",
         album_title, artist
     );
-    let candidates = state
-        .mb
-        .search_releases(&album_title, &artist)
-        .await
-        .map_err(|e| e.to_string())?;
+    let candidates = state.mb.search_releases(&album_title, &artist).await?;
     if candidates.is_empty() {
         return Ok(None);
     }
@@ -507,10 +500,9 @@ pub async fn auto_fetch_album_cover(
                 state
                     .db
                     .update_album_cover(album_id, &path_str, Some(&best.mbid))
-                    .await
-                    .map_err(|e| e.to_string())?;
+                    .await?;
 
-                let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+                let bytes = std::fs::read(&path)?;
                 let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
                 return Ok(Some(format!("data:image/jpeg;base64,{}", b64)));
             }
@@ -528,7 +520,7 @@ pub async fn search_cover_candidates(
     album: String,
     artist: String,
     state: State<'_, AppState>,
-) -> Result<Vec<CoverCandidateDto>, String> {
+) -> Result<Vec<CoverCandidateDto>, CommandError> {
     Ok(search_cover_candidates_internal(&state, &album, &artist).await)
 }
 
@@ -540,7 +532,7 @@ pub async fn apply_cover_url(
     artist: Option<String>,
     track_id: Option<i64>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     apply_cover_url_internal(&state, album_id, &cover_url, album_title, artist, track_id).await
 }
 
@@ -552,7 +544,7 @@ pub async fn apply_custom_cover_file(
     artist: Option<String>,
     track_id: Option<i64>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     apply_custom_cover_file_internal(&state, album_id, &file_path, album_title, artist, track_id)
         .await
 }
@@ -566,7 +558,7 @@ pub async fn apply_custom_cover_data(
     artist: Option<String>,
     track_id: Option<i64>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     info!(
         "Tauri command: apply_custom_cover_data(album_id: {}, ext: '{}')",
         album_id, extension
@@ -580,10 +572,10 @@ pub async fn apply_custom_cover_data(
 
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(raw_b64)
-        .map_err(|e| format!("Błąd dekodowania Base64: {}", e))?;
+        .map_err(|e| CommandError::validation(format!("Błąd dekodowania Base64: {}", e)))?;
 
     if bytes.len() > 25 * 1024 * 1024 {
-        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".to_string());
+        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".into());
     }
 
     let clean_ext = match extension.to_lowercase().as_str() {
@@ -604,27 +596,21 @@ pub async fn apply_custom_cover_data(
         album_id
     } else if let Some(title) = &album_title {
         let art = artist.as_deref().unwrap_or("Unknown");
-        state
-            .db
-            .upsert_album(title, art, None, None)
-            .await
-            .map_err(|e| e.to_string())?
+        state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err("Nieprawidłowe ID albumu".to_string());
+        return Err("Nieprawidłowe ID albumu".into());
     };
 
     let saved_path = state
         .cover_archive
         .save_custom_cover_bytes(actual_album_id, &bytes, clean_ext)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     let path_str = saved_path.to_string_lossy().to_string();
 
     state
         .db
         .update_album_cover(actual_album_id, &path_str, None)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     // Linkowanie utworu z albumem
     if let Some(tid) = track_id {
@@ -674,7 +660,7 @@ pub async fn apply_custom_cover_data(
 }
 
 #[tauri::command]
-pub fn get_track_cover(track_path: String) -> Result<Option<String>, String> {
+pub fn get_track_cover(track_path: String) -> Result<Option<String>, CommandError> {
     use lofty::file::TaggedFileExt;
     let clean_path = if let Some(stripped) = track_path.strip_prefix("file://") {
         stripped
@@ -737,7 +723,7 @@ pub async fn get_lyrics(
     album: Option<String>,
     duration_sec: Option<f64>,
     _state: State<'_, AppState>,
-) -> Result<Option<LyricsDto>, String> {
+) -> Result<Option<LyricsDto>, CommandError> {
     info!("Tauri command: get_lyrics('{}' - '{}')", artist, title);
     let lyrics = metadata::fetch_lyrics_online_or_local(
         track_path.as_deref(),

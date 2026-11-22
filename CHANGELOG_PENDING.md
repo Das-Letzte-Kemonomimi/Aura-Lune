@@ -143,6 +143,11 @@
 ---
 
 ### 🔄 Zmieniono (Changed)
+- **Typowane błędy komend Tauri (`CommandError`)**: wszystkie 215 komend zwraca teraz `{ code, message }` z kategorią błędu (`storage`, `engine`, `io`, `not_found`, `validation`, `network`, `internal`) zamiast samego tekstu. Ręczne konwersje `.map_err(|e| e.to_string())` zastąpiono operatorem `?` z typowanymi konwersjami `From`; komunikaty z kontekstem zachowują kategorię (`CommandError::context`).
+- **Typowane błędy w crate'ach**: `AnalysisError` i `TagError` (audio-engine), `ScrobbleError` (Last.fm/ListenBrainz), `DomainError` (parsery CUE/M3U/EqualizerAPO, walidacja motywów i wzorców nazw plików), `StorageError::Serde` / `StorageError::Domain` (zamiast nadużywanego wariantu `Migration`). `AudioEngineError` zyskał warianty `Validation`, `Pipeline`, `NotFound`, `External` w miejsce nadużywanego `ElementLink`.
+- **Odporność silnika audio na zatrute blokady**: `lock().unwrap()` (117 miejsc w `pipeline.rs` i `dsp_node.rs`) zastąpiono `lock_safe()` — panika jednego wątku nie unieruchamia już całego odtwarzacza.
+- **Typowana warstwa IPC frontendu (`src/api/`)**: `invoke` z `src/api/ipc.ts` akceptuje wyłącznie nazwy zarejestrowanych komend (generowane z `lib.rs` przez `npm run gen:commands`) i normalizuje błędy do `IpcError` z polem `code`. Ustawienia aplikacji obsługują `getSetting` / `setSetting` z zamkniętą listą kluczy (`src/api/settings.ts`). Bezpośredni import `invoke` z `@tauri-apps/api/core` blokuje oxlint.
+- **Wspólny mock IPC w testach Vitest** (`src/test/setup.ts`, `src/test/ipcMock.ts`) zastąpił 15 skopiowanych bloków `vi.mock`.
 - Usunięto nieużywane hooki `useAudioPlayer`, `useThemeEngine` i `useMainContentRouterProps` wraz z testami.
 - Dodano test kontraktu IPC (`apps/desktop/src-tauri/tests/ipc_contract_test.rs`), który wykrywa wywołania `invoke('…')` z frontendu do niezarejestrowanych komend Tauri.
 - **Kompleksowa dekompozycja monolitycznego pliku `App.tsx`**:

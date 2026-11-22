@@ -32,6 +32,7 @@ import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from './api/ipc';
+import { setSetting } from './api/settings';
 import {
   type TapeType,
   MiniPlayerWidget,
@@ -794,7 +795,7 @@ export default function App() {
   const handleToggleCloseToTray = async (enabled: boolean) => {
     setCloseToTray(enabled);
     try {
-      await invoke('set_app_setting', { key: 'close_to_tray', value: String(enabled) });
+      await setSetting('close_to_tray', String(enabled));
       showMessage(
         enabled
           ? t.notifications.minimizeTrayOn

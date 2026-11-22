@@ -1,3 +1,4 @@
+use super::error::CommandError;
 use crate::AppState;
 use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use tauri::State;
@@ -23,12 +24,9 @@ pub fn set_queue(
     items: Vec<QueueItem>,
     start_index: Option<usize>,
     state: State<'_, AppState>,
-) -> Result<Option<QueueItem>, String> {
+) -> Result<Option<QueueItem>, CommandError> {
     info!("Tauri command: set_queue ({} utworów)", items.len());
-    let active = state
-        .engine
-        .set_queue(items, start_index)
-        .map_err(|e| e.to_string())?;
+    let active = state.engine.set_queue(items, start_index)?;
     if let Some(item) = &active {
         if !item.id.starts_with("radio-") {
             if let Ok(mut t) = state.latest_live_stream_tag.lock() {
@@ -42,7 +40,7 @@ pub fn set_queue(
 }
 
 #[tauri::command]
-pub fn add_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), String> {
+pub fn add_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: add_to_queue('{}')", item.title);
     state.engine.add_to_queue(item);
     persist_queue_state(&state);
@@ -55,7 +53,7 @@ pub fn add_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), S
 pub async fn add_uris_to_queue(
     uris: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<usize, String> {
+) -> Result<usize, CommandError> {
     info!("Tauri command: add_uris_to_queue({} ścieżek)", uris.len());
     if uris.is_empty() {
         return Ok(0);
@@ -127,7 +125,7 @@ pub async fn add_uris_to_queue(
 }
 
 #[tauri::command]
-pub fn add_next_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), String> {
+pub fn add_next_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: add_next_to_queue('{}')", item.title);
     state.engine.add_next_to_queue(item);
     persist_queue_state(&state);
@@ -135,7 +133,7 @@ pub fn add_next_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
-pub fn remove_from_queue(id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn remove_from_queue(id: String, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: remove_from_queue('{}')", id);
     state.engine.remove_from_queue(&id);
     persist_queue_state(&state);
@@ -147,7 +145,7 @@ pub fn reorder_queue(
     from_idx: usize,
     to_idx: usize,
     state: State<'_, AppState>,
-) -> Result<bool, String> {
+) -> Result<bool, CommandError> {
     info!("Tauri command: reorder_queue({} -> {})", from_idx, to_idx);
     let res = state.engine.move_in_queue(from_idx, to_idx);
     persist_queue_state(&state);
@@ -155,7 +153,7 @@ pub fn reorder_queue(
 }
 
 #[tauri::command]
-pub fn clear_queue(state: State<'_, AppState>) -> Result<(), String> {
+pub fn clear_queue(state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: clear_queue()");
     state.engine.clear_queue();
     persist_queue_state(&state);
@@ -167,7 +165,7 @@ pub fn play_queue_index(
     index: usize,
     expected_id: Option<String>,
     state: State<'_, AppState>,
-) -> Result<Option<QueueItem>, String> {
+) -> Result<Option<QueueItem>, CommandError> {
     info!(
         "Tauri command: play_queue_index({}, expected_id: {:?})",
         index, expected_id
@@ -189,10 +187,7 @@ pub fn play_queue_index(
         index
     };
 
-    let active = state
-        .engine
-        .play_index(target_index)
-        .map_err(|e| e.to_string())?;
+    let active = state.engine.play_index(target_index)?;
     if let Some(item) = &active {
         if !item.id.starts_with("radio-") {
             if let Ok(mut t) = state.latest_live_stream_tag.lock() {
@@ -206,9 +201,9 @@ pub fn play_queue_index(
 }
 
 #[tauri::command]
-pub fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
+pub fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
     info!("Tauri command: play_next()");
-    let next_item = state.engine.play_next().map_err(|e| e.to_string())?;
+    let next_item = state.engine.play_next()?;
     if let Some(item) = &next_item {
         if !item.id.starts_with("radio-") {
             if let Ok(mut t) = state.latest_live_stream_tag.lock() {
@@ -222,9 +217,9 @@ pub fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, String
 }
 
 #[tauri::command]
-pub fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, String> {
+pub fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
     info!("Tauri command: play_previous()");
-    let prev_item = state.engine.play_previous().map_err(|e| e.to_string())?;
+    let prev_item = state.engine.play_previous()?;
     if let Some(item) = &prev_item {
         if !item.id.starts_with("radio-") {
             if let Ok(mut t) = state.latest_live_stream_tag.lock() {
@@ -238,7 +233,7 @@ pub fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, St
 }
 
 #[tauri::command]
-pub fn set_loop_mode(mode: LoopMode, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_loop_mode(mode: LoopMode, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: set_loop_mode({:?})", mode);
     state.engine.set_loop_mode(mode);
     persist_queue_state(&state);
@@ -246,7 +241,7 @@ pub fn set_loop_mode(mode: LoopMode, state: State<'_, AppState>) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, CommandError> {
     let current = state.engine.shuffle();
     let new_val = !current;
     info!("Tauri command: toggle_shuffle({} -> {})", current, new_val);
@@ -257,7 +252,7 @@ pub fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, String> {
 
 /// Ustawia tryb losowy na konkretną wartość (idempotentnie, w przeciwieństwie do `toggle_shuffle`).
 #[tauri::command]
-pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, String> {
+pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, CommandError> {
     info!("Tauri command: set_shuffle({})", enabled);
     if state.engine.shuffle() != enabled {
         state.engine.set_shuffle(enabled);
@@ -267,14 +262,17 @@ pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, St
 }
 
 #[tauri::command]
-pub fn set_stop_after_current(enabled: bool, state: State<'_, AppState>) -> Result<bool, String> {
+pub fn set_stop_after_current(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<bool, CommandError> {
     info!("Tauri command: set_stop_after_current({})", enabled);
     state.engine.set_stop_after_current(enabled);
     Ok(enabled)
 }
 
 #[tauri::command]
-pub fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, CommandError> {
     let current = state.engine.stop_after_current();
     let new_val = !current;
     info!(
@@ -294,7 +292,7 @@ pub fn get_stop_after_current(state: State<'_, AppState>) -> bool {
 pub fn notify_track_looped(
     position_ms: Option<u64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     crate::commands::devices::notify_track_looped_internal(&state, position_ms)
 }
 
@@ -302,7 +300,10 @@ pub fn notify_track_looped(
 /// skanowaniu domyślny utwór demonstracyjny zastępowany jest pierwszym utworem użytkownika.
 /// Nie przerywa trwającego odtwarzania.
 #[tauri::command]
-pub async fn set_active_track(track_id: i64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn set_active_track(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
     info!("Tauri command: set_active_track({})", track_id);
     if state.engine.state() == domain::PlaybackState::Playing {
         return Ok(());
@@ -310,15 +311,11 @@ pub async fn set_active_track(track_id: i64, state: State<'_, AppState>) -> Resu
     let track = state
         .db
         .get_track_by_id(track_id)
-        .await
-        .map_err(|e| e.to_string())?
+        .await?
         .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
     let item = state.db.queue_item_for_track(&track).await;
     state.engine.set_active_item(item);
-    state
-        .engine
-        .load_uri(&track.path)
-        .map_err(|e| e.to_string())?;
+    state.engine.load_uri(&track.path)?;
     persist_queue_state(&state);
     Ok(())
 }

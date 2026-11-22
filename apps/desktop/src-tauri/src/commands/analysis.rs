@@ -1,5 +1,6 @@
 //! Analiza muzyczna: BPM, tonacja, akordy, fale dźwiękowe i transkrypcja MIDI.
 
+use super::error::CommandError;
 use crate::AppState;
 use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_transcription, export_chords_to_chordpro,
@@ -18,7 +19,7 @@ pub async fn detect_track_key_bpm(
     track_id: Option<i64>,
     force_recompute: Option<bool>,
     state: State<'_, AppState>,
-) -> Result<TrackKeyBpm, String> {
+) -> Result<TrackKeyBpm, CommandError> {
     let recompute = force_recompute.unwrap_or(false);
     // 1. Sprawdź, czy mamy już zapisany BPM i klucz w bazie danych (chyba że wymuszono przeliczenie)
     if !recompute {
@@ -50,8 +51,8 @@ pub async fn detect_track_key_bpm(
     let analysis_res =
         tokio::task::spawn_blocking(move || audio_engine::analyze_track_key_bpm(&path_clone))
             .await
-            .map_err(|e| format!("Błąd wątku analizy: {}", e))?
-            .map_err(|e| format!("Błąd analizy: {}", e))?;
+            .map_err(|e| CommandError::from(e).context("Błąd wątku analizy"))?
+            .map_err(|e| CommandError::from(e).context("Błąd analizy"))?;
 
     // 3. Jeśli mamy track_id, zapisz wynik w bazie danych
     if let Some(id) = track_id {
@@ -70,17 +71,16 @@ pub async fn save_track_key_bpm(
     bpm: f64,
     key_name: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .db
         .update_track_key_bpm(track_id, bpm, &key_name)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn get_analysis_capabilities() -> Result<AnalysisCapabilities, String> {
+pub async fn get_analysis_capabilities() -> Result<AnalysisCapabilities, CommandError> {
     Ok(engine_get_analysis_capabilities())
 }
 
@@ -90,7 +90,7 @@ pub async fn get_or_extract_track_waveform(
     path: String,
     count: Option<usize>,
     state: State<'_, AppState>,
-) -> Result<Vec<f32>, String> {
+) -> Result<Vec<f32>, CommandError> {
     let desired_count = count.unwrap_or(160);
 
     // 1. Sprawdź pamięć podręczną SQLite
@@ -110,8 +110,8 @@ pub async fn get_or_extract_track_waveform(
         audio_engine::extract_track_waveform_peaks(&path_clone, desired_count)
     })
     .await
-    .map_err(|e| format!("Błąd wątku roboczego ekstrakcji: {}", e))?
-    .map_err(|e| format!("Błąd ekstrakcji fali: {}", e))?;
+    .map_err(|e| CommandError::from(e).context("Błąd wątku roboczego ekstrakcji"))?
+    .map_err(|e| CommandError::from(e).context("Błąd ekstrakcji fali"))?;
 
     // 3. Zapisz w SQLite w tle jeśli podano track_id
     if let Some(id) = track_id {
@@ -188,7 +188,7 @@ pub async fn detect_track_chords(
     track_id: Option<i64>,
     force_recompute: Option<bool>,
     state: State<'_, AppState>,
-) -> Result<TrackChordsData, String> {
+) -> Result<TrackChordsData, CommandError> {
     let recompute = force_recompute.unwrap_or(false);
 
     if let (false, Some(id)) = (recompute, track_id) {
@@ -204,8 +204,8 @@ pub async fn detect_track_chords(
     let analysis_res =
         tokio::task::spawn_blocking(move || analyze_track_chords_and_grid(&path_clone, id_val))
             .await
-            .map_err(|e| format!("Błąd wątku analizy: {}", e))?
-            .map_err(|e| format!("Błąd analizy akordów: {}", e))?;
+            .map_err(|e| CommandError::from(e).context("Błąd wątku analizy"))?
+            .map_err(|e| CommandError::from(e).context("Błąd analizy akordów"))?;
 
     if let Some(id) = track_id {
         let beat_json = serde_json::to_string(&analysis_res.beat_grid).unwrap_or_default();
@@ -232,12 +232,8 @@ pub async fn detect_track_chords(
 pub async fn get_cached_chords(
     track_id: i64,
     state: State<'_, AppState>,
-) -> Result<Option<TrackChordsData>, String> {
-    let cached = state
-        .db
-        .get_track_chords(track_id)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> Result<Option<TrackChordsData>, CommandError> {
+    let cached = state.db.get_track_chords(track_id).await?;
     match cached {
         Some(cached) => Ok(chords_from_cache(&state, track_id, cached).await),
         None => Ok(None),
@@ -249,12 +245,12 @@ pub async fn save_chord_overrides(
     track_id: i64,
     overrides_json: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .db
         .save_chord_overrides(track_id, &overrides_json)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -264,14 +260,14 @@ pub async fn export_chords_file(
     title: String,
     artist: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     let chords_data = get_cached_chords(track_id, state)
         .await?
         .ok_or_else(|| "Brak przeanalizowanych akordów dla tego utworu".to_string())?;
 
     match format.to_lowercase().as_str() {
         "chordpro" | "cho" => Ok(export_chords_to_chordpro(&chords_data, &title, &artist)),
-        "json" => export_chords_to_json(&chords_data).map_err(|e| e.to_string()),
+        "json" => export_chords_to_json(&chords_data).map_err(CommandError::from),
         _ => Ok(export_chords_to_text(&chords_data)),
     }
 }
@@ -309,7 +305,7 @@ pub async fn detect_track_transcription(
     track_id: Option<i64>,
     force_recompute: Option<bool>,
     state: State<'_, AppState>,
-) -> Result<TrackTranscriptionData, String> {
+) -> Result<TrackTranscriptionData, CommandError> {
     let recompute = force_recompute.unwrap_or(false);
 
     if let (false, Some(id)) = (recompute, track_id) {
@@ -325,8 +321,8 @@ pub async fn detect_track_transcription(
     let analysis_res =
         tokio::task::spawn_blocking(move || analyze_track_transcription(&path_clone, id_val))
             .await
-            .map_err(|e| format!("Błąd wątku analizy: {}", e))?
-            .map_err(|e| format!("Błąd transkrypcji nutowej: {}", e))?;
+            .map_err(|e| CommandError::from(e).context("Błąd wątku analizy"))?
+            .map_err(|e| CommandError::from(e).context("Błąd transkrypcji nutowej"))?;
 
     if let Some(id) = track_id {
         if let Ok(json) = serde_json::to_string(&analysis_res.notes) {
@@ -350,12 +346,8 @@ pub async fn detect_track_transcription(
 pub async fn get_cached_transcription(
     track_id: i64,
     state: State<'_, AppState>,
-) -> Result<Option<TrackTranscriptionData>, String> {
-    let cached = state
-        .db
-        .get_track_transcription(track_id)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> Result<Option<TrackTranscriptionData>, CommandError> {
+    let cached = state.db.get_track_transcription(track_id).await?;
     match cached {
         Some(cached) => Ok(transcription_from_cache(&state, track_id, cached).await),
         None => Ok(None),
@@ -366,12 +358,8 @@ pub async fn get_cached_transcription(
 pub async fn export_transcription_midi(
     track_id: i64,
     state: State<'_, AppState>,
-) -> Result<Vec<u8>, String> {
-    let cached = state
-        .db
-        .get_track_transcription(track_id)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> Result<Vec<u8>, CommandError> {
+    let cached = state.db.get_track_transcription(track_id).await?;
     let data = match cached {
         Some(cached) => transcription_from_cache(&state, track_id, cached).await,
         None => None,

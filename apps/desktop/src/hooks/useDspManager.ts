@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '../api/ipc';
+import { getSetting, setSetting } from '../api/settings';
 import type { PlaybackStatus, DspPresetRecord } from '../types/playback';
 import type { EqualizerPreset } from '../types/equalizer';
 import type { Translations } from '../i18n';
@@ -35,6 +36,14 @@ export function getEqPresetDisplayName(name: string, locOrIsPl?: Translations | 
     }
   }
   return name;
+}
+
+/** Zapisuje parametry DSP przywracane przy starcie aplikacji (ustawienie `dsp_saved_settings`). */
+function saveDspStartupSettings(engine: string, pitch: number, tempo: number, rate: number) {
+  return setSetting(
+    'dsp_saved_settings',
+    JSON.stringify({ engine, pitch_semitones: pitch, tempo_ratio: tempo, rate_ratio: rate }),
+  );
 }
 
 export function useDspManager({
@@ -91,7 +100,7 @@ export function useDspManager({
       .then((presets) => setEqPresets(presets))
       .catch((err) => console.warn('Błąd pobierania presetów EQ:', err));
 
-    invoke<string | null>('get_app_setting', { key: 'dsp_restore_on_startup' })
+    getSetting('dsp_restore_on_startup')
       .then((val) => {
         const enabled = val === 'true';
         setDspAutoStartup(enabled);
@@ -99,7 +108,7 @@ export function useDspManager({
       })
       .catch((e) => console.warn('Błąd odczytu dsp_restore_on_startup:', e));
 
-    invoke<string | null>('get_app_setting', { key: 'dsp_default_engine' })
+    getSetting('dsp_default_engine')
       .then((val) => {
         if (val === 'RubberBand' || val === 'SoundTouch' || val === 'Bypass') {
           setDspDefaultEngine(val);
@@ -132,15 +141,7 @@ export function useDspManager({
     }
     dspSaveTimeoutRef.current = setTimeout(async () => {
       try {
-        await invoke('set_app_setting', {
-          key: 'dsp_saved_settings',
-          value: JSON.stringify({
-            engine,
-            pitch_semitones: pitch,
-            tempo_ratio: tempo,
-            rate_ratio: rate,
-          }),
-        });
+        await saveDspStartupSettings(engine, pitch, tempo, rate);
       } catch (err) {
         console.warn('Błąd zapisu ustawień startowych DSP:', err);
       }
@@ -291,24 +292,10 @@ export function useDspManager({
     setDspAutoStartup(newVal);
     dspAutoStartupRef.current = newVal;
     try {
-      await invoke('set_app_setting', {
-        key: 'dsp_restore_on_startup',
-        value: newVal ? 'true' : 'false',
-      });
+      await setSetting('dsp_restore_on_startup', newVal ? 'true' : 'false');
       if (newVal) {
-        await invoke('set_app_setting', {
-          key: 'dsp_default_engine',
-          value: status.engine,
-        });
-        await invoke('set_app_setting', {
-          key: 'dsp_saved_settings',
-          value: JSON.stringify({
-            engine: status.engine,
-            pitch_semitones: status.pitch_semitones ?? 0.0,
-            tempo_ratio: status.tempo_ratio ?? 1.0,
-            rate_ratio: status.rate_ratio ?? 1.0,
-          }),
-        });
+        await setSetting('dsp_default_engine', status.engine);
+        await saveDspStartupSettings(status.engine, status.pitch_semitones ?? 0.0, status.tempo_ratio ?? 1.0, status.rate_ratio ?? 1.0);
         setDspDefaultEngine(status.engine);
         showMessage(loc.notifications.dspAutostartOn);
       } else {
@@ -323,10 +310,7 @@ export function useDspManager({
     async (eng: 'Bypass' | 'RubberBand' | 'SoundTouch') => {
       setDspDefaultEngine(eng);
       try {
-        await invoke('set_app_setting', {
-          key: 'dsp_default_engine',
-          value: eng,
-        });
+        await setSetting('dsp_default_engine', eng);
         showMessage(
           loc.notifications.dspStartupEngineSaved.replace('{0}', eng === 'Bypass' ? 'Direct Bypass' : eng)
         );
@@ -371,23 +355,9 @@ export function useDspManager({
 
   const handleSaveDspStartupDefault = useCallback(async () => {
     try {
-      await invoke('set_app_setting', {
-        key: 'dsp_restore_on_startup',
-        value: 'true',
-      });
-      await invoke('set_app_setting', {
-        key: 'dsp_default_engine',
-        value: status.engine,
-      });
-      await invoke('set_app_setting', {
-        key: 'dsp_saved_settings',
-        value: JSON.stringify({
-          engine: status.engine,
-          pitch_semitones: status.pitch_semitones ?? 0.0,
-          tempo_ratio: status.tempo_ratio ?? 1.0,
-          rate_ratio: status.rate_ratio ?? 1.0,
-        }),
-      });
+      await setSetting('dsp_restore_on_startup', 'true');
+      await setSetting('dsp_default_engine', status.engine);
+      await saveDspStartupSettings(status.engine, status.pitch_semitones ?? 0.0, status.tempo_ratio ?? 1.0, status.rate_ratio ?? 1.0);
       setDspDefaultEngine(status.engine);
       setDspAutoStartup(true);
       dspAutoStartupRef.current = true;

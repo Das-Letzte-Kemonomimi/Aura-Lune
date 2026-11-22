@@ -10,6 +10,10 @@ pub enum StorageError {
     Sqlx(#[from] sqlx::Error),
     #[error("Błąd migracji: {0}")]
     Migration(String),
+    #[error("Błąd serializacji danych: {0}")]
+    Serde(#[from] serde_json::Error),
+    #[error(transparent)]
+    Domain(#[from] domain::DomainError),
 }
 
 /// Rekord utworu w bazie danych.

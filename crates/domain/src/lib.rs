@@ -5,6 +5,7 @@ pub mod cue;
 pub mod device;
 pub mod dynamics;
 pub mod equalizer;
+pub mod error;
 pub mod m3u;
 pub mod parametric_eq;
 pub mod playlist;
@@ -28,6 +29,7 @@ pub use dynamics::{
     StereoWidenerConfig,
 };
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
+pub use error::DomainError;
 pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
 pub use parametric_eq::{
     ParametricBand, ParametricEqPreset, ParametricEqState, ParametricFilterType,

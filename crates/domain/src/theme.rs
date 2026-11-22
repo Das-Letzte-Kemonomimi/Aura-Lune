@@ -4,6 +4,7 @@
 //! Motyw zawiera zestaw tokenów CSS, opcjonalne tło użytkowniczki,
 //! suwaki przezroczystości (overlay) i rozmycia (blur) oraz atrybucję.
 
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 
 /// Tokeny wizualne CSS variables dla motywu.
@@ -42,29 +43,33 @@ pub struct Theme {
 
 impl Theme {
     /// Waliduje parametry motywu pod kątem bezpieczeństwa i zakresów UI.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), DomainError> {
         if self.schema_version != 1 {
-            return Err(format!(
+            return Err(DomainError::Validation(format!(
                 "Nieobsługiwana wersja schematu: {}",
                 self.schema_version
-            ));
+            )));
         }
         if self.id.trim().is_empty() {
-            return Err("ID motywu nie może być puste".to_string());
+            return Err(DomainError::Validation(
+                "ID motywu nie może być puste".to_string(),
+            ));
         }
         if self.name.trim().is_empty() {
-            return Err("Nazwa motywu nie może być pusta".to_string());
+            return Err(DomainError::Validation(
+                "Nazwa motywu nie może być pusta".to_string(),
+            ));
         }
         if !(0.0..=0.9).contains(&self.overlay_opacity) {
-            return Err(
+            return Err(DomainError::Validation(
                 "Współczynnik overlay_opacity musi mieścić się w przedziale 0.0 - 0.9".to_string(),
-            );
+            ));
         }
         if !(0.0..=30.0).contains(&self.blur_radius) {
-            return Err(
+            return Err(DomainError::Validation(
                 "Promień rozmycia blur_radius musi mieścić się w przedziale 0.0 - 30.0 px"
                     .to_string(),
-            );
+            ));
         }
         Ok(())
     }

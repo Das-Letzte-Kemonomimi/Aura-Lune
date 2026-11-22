@@ -6,6 +6,7 @@
 //! 2. Algorytm autokorelacji obwiedni transjentów energii (onset detection) do wykrywania BPM.
 //! 3. Opcjonalne odczytywanie metadanych tagów ID3/Vorbis (BPM, TKEY/INITIALKEY) jeśli są dostępne.
 
+use crate::AnalysisError;
 use gst::prelude::*;
 use gstreamer as gst;
 use gstreamer_app as gst_app;
@@ -138,9 +139,9 @@ pub fn parse_musical_key(raw: &str) -> Option<(usize, bool)> {
 pub fn decode_snippet_for_analysis(
     uri_or_path: &str,
     max_duration_sec: f64,
-) -> Result<Vec<f32>, String> {
+) -> Result<Vec<f32>, AnalysisError> {
     let _ = gst::init();
-    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
+    let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -245,7 +246,7 @@ pub fn decode_snippet_for_analysis(
     let _ = pipeline.set_state(gst::State::Null);
 
     if collected.is_empty() {
-        return Err("Nie udało się zdekodować próbek audio".to_string());
+        return Err("Nie udało się zdekodować próbek audio".into());
     }
 
     Ok(collected)
@@ -256,9 +257,9 @@ pub fn decode_snippet_for_analysis(
 pub fn decode_stereo_for_stems(
     uri_or_path: &str,
     max_duration_sec: f64,
-) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
+) -> Result<(Vec<f32>, Vec<f32>, u32), AnalysisError> {
     let _ = gst::init();
-    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
+    let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -370,7 +371,7 @@ pub fn decode_stereo_for_stems(
     let _ = pipeline.set_state(gst::State::Null);
 
     if left.is_empty() {
-        return Err("Nie udało się zdekodować próbek stereo".to_string());
+        return Err("Nie udało się zdekodować próbek stereo".into());
     }
 
     Ok((left, right, sample_rate))
@@ -626,7 +627,7 @@ fn pearson_correlation(x: &[f64; 12], y: &[f64; 12]) -> f64 {
 }
 
 /// Główna funkcja analityczna: bada plik i zwraca kompleksowy wynik BPM oraz tonacji.
-pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, String> {
+pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisError> {
     // 1. Próba odczytu tagów z pliku za pomocą lofty (jeśli to plik lokalny)
     let local = crate::uri::local_path(uri_or_path);
     let file_path = local.as_path();
@@ -731,9 +732,11 @@ pub struct ReplayGainAnalysisResult {
 
 /// Przeprowadza pełną, bitowo dokładną analizę głośności EBU R128 / ReplayGain 2.0
 /// utworu za pomocą potoku GStreamer `rganalysis` i `fakesink` (ultra-szybka analiza bez czasu rzeczywistego).
-pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisResult, String> {
+pub fn analyze_track_replaygain(
+    uri_or_path: &str,
+) -> Result<ReplayGainAnalysisResult, AnalysisError> {
     let _ = gst::init();
-    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
+    let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -827,7 +830,7 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
     loop {
         if start_time.elapsed() > std::time::Duration::from_secs(60) {
             let _ = pipeline.set_state(gst::State::Null);
-            return Err("Przekroczono limit czasu analizy ReplayGain (60s)".to_string());
+            return Err("Przekroczono limit czasu analizy ReplayGain (60s)".into());
         }
 
         if let Some(msg) = bus.timed_pop(gst::ClockTime::from_mseconds(100)) {
@@ -855,7 +858,7 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
                 }
                 gst::MessageView::Error(err) => {
                     let _ = pipeline.set_state(gst::State::Null);
-                    return Err(format!("Błąd analizy potoku audio: {}", err.error()));
+                    return Err(format!("Błąd analizy potoku audio: {}", err.error()).into());
                 }
                 _ => {}
             }
@@ -877,16 +880,20 @@ pub fn analyze_track_replaygain(uri_or_path: &str) -> Result<ReplayGainAnalysisR
 }
 
 /// Zapisuje obliczone tagi ReplayGain (Track Gain i Track Peak) bezpośrednio do pliku audio.
-pub fn write_replaygain_tags_to_file(path: &str, gain: f64, peak: f64) -> Result<(), String> {
+pub fn write_replaygain_tags_to_file(
+    path: &str,
+    gain: f64,
+    peak: f64,
+) -> Result<(), AnalysisError> {
     use lofty::config::WriteOptions;
     use lofty::file::AudioFile;
     use lofty::probe::Probe;
     use lofty::tag::{ItemKey, ItemValue, TagItem};
 
     let mut tagged_file = Probe::open(path)
-        .map_err(|e| format!("Błąd otwarcia pliku: {}", e))?
+        .map_err(|e| AnalysisError::Tags(format!("Błąd otwarcia pliku: {}", e)))?
         .read()
-        .map_err(|e| format!("Błąd odczytu tagów: {}", e))?;
+        .map_err(|e| AnalysisError::Tags(format!("Błąd odczytu tagów: {}", e)))?;
 
     let tag = match tagged_file.primary_tag_mut() {
         Some(primary) => primary,
@@ -894,7 +901,9 @@ pub fn write_replaygain_tags_to_file(path: &str, gain: f64, peak: f64) -> Result
             if let Some(first) = tagged_file.first_tag_mut() {
                 first
             } else {
-                return Err("Brak obsługiwanego kontenera tagów w pliku audio".to_string());
+                return Err(AnalysisError::Tags(
+                    "Brak obsługiwanego kontenera tagów w pliku audio".into(),
+                ));
             }
         }
     };
@@ -910,7 +919,7 @@ pub fn write_replaygain_tags_to_file(path: &str, gain: f64, peak: f64) -> Result
 
     tagged_file
         .save_to_path(path, WriteOptions::default())
-        .map_err(|e| format!("Błąd zapisu tagów do pliku {}: {}", path, e))?;
+        .map_err(|e| AnalysisError::Tags(format!("Błąd zapisu tagów do pliku {}: {}", path, e)))?;
     Ok(())
 }
 
@@ -1469,7 +1478,7 @@ pub fn export_chords_to_json(data: &TrackChordsData) -> Result<String, serde_jso
 pub fn analyze_track_chords_and_grid(
     uri_or_path: &str,
     track_id: i64,
-) -> Result<TrackChordsData, String> {
+) -> Result<TrackChordsData, AnalysisError> {
     // 1. Zdekoduj próbki do analizy (do 360 sekund)
     let samples = decode_snippet_for_analysis(uri_or_path, 360.0)?;
     let sample_rate = 22050.0;
@@ -1828,7 +1837,7 @@ pub fn export_transcription_to_json(
 pub fn analyze_track_transcription(
     uri_or_path: &str,
     track_id: i64,
-) -> Result<TrackTranscriptionData, String> {
+) -> Result<TrackTranscriptionData, AnalysisError> {
     let samples = decode_snippet_for_analysis(uri_or_path, 300.0)
         .map_err(|e| format!("Błąd dekodowania audio dla transkrypcji: {}", e))?;
     let sample_rate = 22050.0;
@@ -1856,13 +1865,16 @@ pub fn analyze_track_transcription(
 /// Ekstrahuje znormalizowane wartości szczytowe/RMS amplitudy dla całego utworu
 /// w określonej liczbie kubełków (np. 160 próbek), umożliwiając renderowanie
 /// wierno-akustycznego wykresu fali (waveform).
-pub fn extract_track_waveform_peaks(uri_or_path: &str, count: usize) -> Result<Vec<f32>, String> {
+pub fn extract_track_waveform_peaks(
+    uri_or_path: &str,
+    count: usize,
+) -> Result<Vec<f32>, AnalysisError> {
     if count == 0 {
         return Ok(Vec::new());
     }
 
     let _ = gst::init();
-    let uri = crate::uri::media_uri_checked(uri_or_path).map_err(|e| e.to_string())?;
+    let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
     let pipeline = gst::Pipeline::new();
 
@@ -1967,7 +1979,7 @@ pub fn extract_track_waveform_peaks(uri_or_path: &str, count: usize) -> Result<V
     let _ = pipeline.set_state(gst::State::Null);
 
     if collected.is_empty() {
-        return Err("Brak próbek audio do wygenerowania przebiegu fali".to_string());
+        return Err("Brak próbek audio do wygenerowania przebiegu fali".into());
     }
 
     let total_samples = collected.len();

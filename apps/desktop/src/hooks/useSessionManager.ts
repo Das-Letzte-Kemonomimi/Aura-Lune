@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
+import { getSetting, setSetting } from '../api/settings';
 import type { PlaybackStatus } from '../types/playback';
 import type { TrackRecord, AlbumRecord } from '../types/library';
 import type { Translations } from '../i18n';
@@ -56,10 +57,7 @@ export function useSessionManager({
       } catch {
         // ignore
       }
-      invoke('set_app_setting', {
-        key: 'restore_session_on_startup',
-        value: next ? 'true' : 'false',
-      }).catch((e) => console.warn('Error saving restore_session_on_startup:', e));
+      setSetting('restore_session_on_startup', next ? 'true' : 'false').catch((e) => console.warn('Error saving restore_session_on_startup:', e));
 
       showMessage(
         next
@@ -72,7 +70,7 @@ export function useSessionManager({
 
   // Restore session on initial mount
   useEffect(() => {
-    invoke<string | null>('get_app_setting', { key: 'restore_session_on_startup' })
+    getSetting('restore_session_on_startup')
       .then((val) => {
         if (val !== null) {
           setRestoreSessionOnStartup(val !== 'false');
@@ -198,10 +196,7 @@ export function useSessionManager({
     const timer = setTimeout(() => {
       if (serialized !== lastSavedSessionRef.current) {
         lastSavedSessionRef.current = serialized;
-        invoke('set_app_setting', {
-          key: 'playback_session_state',
-          value: serialized,
-        }).catch(() => {});
+        setSetting('playback_session_state', serialized).catch(() => {});
       }
     }, 1500);
 
