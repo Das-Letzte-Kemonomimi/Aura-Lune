@@ -9,6 +9,7 @@ use audio_engine::AudioEngine;
 use domain::PlaybackState;
 use std::fs;
 use std::io::{BufRead, BufReader};
+use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::path::Path;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -72,12 +73,35 @@ impl ControlIpcServer {
             let _ = fs::remove_file(p);
         }
 
-        // Utwórz FIFO przez polecenie systemowe `mkfifo`
-        let status = Command::new("mkfifo").arg(fifo_path).status();
-        if let Err(e) = status {
+        // FIFO tylko dla bieżącego użytkownika (0600): inni użytkownicy systemu nie mogą
+        // sterować odtwarzaczem przez wspólny katalog /tmp.
+        match Command::new("mkfifo")
+            .arg("-m")
+            .arg("600")
+            .arg(fifo_path)
+            .status()
+        {
+            Ok(s) if s.success() => {}
+            Ok(s) => {
+                warn!(
+                    "mkfifo {} zakończył się kodem {:?} — IPC FIFO niedostępne",
+                    fifo_path,
+                    s.code()
+                );
+                return;
+            }
+            Err(e) => {
+                warn!(
+                    "Nie udało się uruchomić mkfifo dla {}: {} — IPC FIFO niedostępne",
+                    fifo_path, e
+                );
+                return;
+            }
+        }
+        if !is_own_private_fifo(p) {
             warn!(
-                "Nie udało się utworzyć FIFO {}: {}. IPC FIFO może być niedostępne.",
-                fifo_path, e
+                "{} nie jest prywatną kolejką FIFO bieżącego użytkownika — pomijam IPC FIFO",
+                fifo_path
             );
             return;
         }
@@ -132,6 +156,13 @@ impl ControlIpcServer {
                 return;
             }
         };
+        // Socket tylko dla bieżącego użytkownika.
+        if let Err(e) = fs::set_permissions(p, fs::Permissions::from_mode(0o600)) {
+            warn!(
+                "Nie udało się ograniczyć uprawnień socketu {}: {}",
+                socket_path, e
+            );
+        }
 
         info!(
             "Gniazdo Unix Socket gotowe do odbioru poleceń: {}",
@@ -268,4 +299,12 @@ impl Drop for ControlIpcServer {
     fn drop(&mut self) {
         self.stop();
     }
+}
+
+/// Czy `path` to FIFO (nie dowiązanie) należące do bieżącego użytkownika, bez dostępu dla innych.
+fn is_own_private_fifo(path: &Path) -> bool {
+    let (Ok(meta), Ok(me)) = (fs::symlink_metadata(path), fs::metadata("/proc/self")) else {
+        return false;
+    };
+    meta.file_type().is_fifo() && meta.uid() == me.uid() && meta.mode() & 0o077 == 0
 }

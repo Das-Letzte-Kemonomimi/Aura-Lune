@@ -836,6 +836,7 @@ pub async fn export_stem_project_mix(
     export_path: String,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
+    super::paths::ensure_writable(std::path::Path::new(&export_path))?;
     export_stem_project_mix_internal(&state, project_id, &export_path).await
 }
 
@@ -845,5 +846,6 @@ pub async fn export_stem_project_zip(
     export_path: String,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
+    super::paths::ensure_writable(std::path::Path::new(&export_path))?;
     export_stem_project_zip_internal(&state, project_id, &export_path).await
 }

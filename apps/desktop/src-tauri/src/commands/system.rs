@@ -96,6 +96,7 @@ pub async fn transcode_file(
     dsp_settings: Option<DspExportSettings>,
     time_range: Option<TimeRange>,
 ) -> Result<(), CommandError> {
+    super::paths::ensure_writable(std::path::Path::new(&output_path))?;
     info!(
         "Tauri command: transcode_file('{}' -> '{}')",
         input_path, output_path
@@ -142,8 +143,14 @@ pub fn show_desktop_notification(
     if let Some(ic) = icon {
         cmd.arg("-i").arg(ic);
     }
-    cmd.arg(&title).arg(&body);
-    let _ = cmd.spawn();
+    // `--` kończy opcje: tytuł zaczynający się od `-` nie zostanie odczytany jako flaga.
+    cmd.arg("--").arg(&title).arg(&body);
+    // Proces potomny jest zbierany w tle, aby nie zostawiać procesów zombie.
+    if let Ok(mut child) = cmd.spawn() {
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+    }
     Ok(())
 }
 
@@ -281,6 +288,9 @@ pub async fn import_audio_from_url(
     folder_structure: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<UrlImportResultDto, CommandError> {
+    if let Some(dir) = &target_dir {
+        super::paths::ensure_writable(std::path::Path::new(dir))?;
+    }
     let clean_url = url.trim().to_string();
     if clean_url.is_empty() {
         return Err("Adres URL nie może być pusty.".into());

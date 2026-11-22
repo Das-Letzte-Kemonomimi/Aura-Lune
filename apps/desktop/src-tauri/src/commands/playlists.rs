@@ -219,6 +219,7 @@ pub async fn export_playlist_m3u8(
         "Tauri command: export_playlist_m3u8(playlist_id: {}, export_path: '{}', relative: {})",
         playlist_id, export_path, use_relative_paths
     );
+    super::paths::ensure_writable(std::path::Path::new(&export_path))?;
     let tracks = state
         .db
         .get_playlist_tracks(playlist_id)
@@ -268,6 +269,7 @@ pub async fn import_playlist_m3u8(
     state: State<'_, AppState>,
 ) -> Result<ImportM3uResult, CommandError> {
     info!("Tauri command: import_playlist_m3u8('{}')", file_path);
+    super::paths::ensure_readable(std::path::Path::new(&file_path), &["m3u", "m3u8"])?;
 
     let content = fs::read_to_string(&file_path)
         .map_err(|e| CommandError::from(e).context("Nie udało się odczytać pliku M3U/M3U8"))?;

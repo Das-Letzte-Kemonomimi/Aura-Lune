@@ -94,3 +94,23 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **URL audio import modal.** Form (paste, format, bitrate, playlist options, folder picker) and the result view (play or queue all, play or queue single, open folder, import another).
 - [ ] **Stem project studio.** Header (switch original/stems, mixes, export ZIP) and workspace (solo, mute, pan, volume, master, presets).
 - [ ] **Command palette → "ReplayGain scanner".** It should open Settings on the Devices tab.
+
+## Phase 6: hardening, lifecycle, storage, cleanup (branch `refactor/phase-6-hardening`)
+
+### Security (do these first)
+
+- [ ] **The app renders with the new Content Security Policy.** Start a production build (`npm run tauri build`, then run the AppImage or deb) **and** `npm run tauri dev`. The window must not be blank, and the devtools console (right-click → Inspect) must show no `Refused to load…` / `violates the Content Security Policy` errors while you browse:
+  - Google Fonts (Outfit / JetBrains Mono) should load;
+  - album covers, cover-art search thumbnails and custom wallpapers (image **and** video) should show;
+  - the spectrum and waveform canvases and soundscapes should work;
+  - piano-roll MIDI export (uses a `blob:` URL) should work.
+  - If it fails: `app.security.csp` / `devCsp` in `apps/desktop/src-tauri/tauri.conf.json`. Setting `"csp": null` there temporarily confirms whether the CSP is the cause.
+- [ ] **Export and save dialogs still work for normal places.** Export a playlist (M3U8), a profile backup, a transcode render, and a stem ZIP to `~/Music` or `~/Desktop`; each should succeed.
+- [ ] **Hidden locations are refused.** Exporting to a hidden folder in your home directory (for example `~/.config/test.m3u8`) or to `/etc` should be refused with an error toast.
+- [ ] **Downloads.** In the Download Hub, a download into `~/Music` should work. A typed destination like `~/Music` (with a literal `~`) is now rejected because it isn't an absolute path; use the folder picker.
+- [ ] **AI model download.** It should still save into the app data folder.
+- [ ] **Custom cover, wallpaper and M3U import.** Pick a PNG or JPG as a custom album cover and as a wallpaper (also an MP4 or WebM wallpaper), and import an `.m3u8` and a backup `.json`; each should work. A renamed non-image file (for example `notes.txt` renamed to `.png`) is accepted by extension, which is expected.
+- [ ] **Cover search.** Applying a cover from cover-art search (MusicBrainz / Deezer thumbnails) should still work.
+- [ ] **Waybar / control FIFO.** If you use Waybar or scripts with `/tmp/auralune_ctl` or `/tmp/auralune.sock`, they should still control the player. Both are now readable and writable only by your user.
+- [ ] **Desktop notifications.** A track title starting with `-` should show correctly in the notification.
+- [ ] **App icon style "lineout".** Selecting it in Settings → Themes should still install the icon.

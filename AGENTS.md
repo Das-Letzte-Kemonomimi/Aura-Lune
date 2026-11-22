@@ -168,6 +168,7 @@ Aura-Lune/
   - `dynamics`: Compressor, Tape Saturator, and Stereo Widener parameters.
   - `device`: `AudioCard`, `BluetoothCodec` (LDAC, aptX HD, AAC, SBC, SBC-XQ).
   - `silence`: `SilenceTrimmingConfig`, `find_silence_bounds` (RMS windows → `SilenceBounds`), `trim_action` (seek past lead / finish at trail).
+  - `paths`: security rules for UI-supplied paths — `check_write_target`, `has_allowed_extension`, `is_safe_file_token`.
   - `renamer`: Pattern formatting (`%artist% - %title%`) and path sanitization.
   - `cue`: CUE sheet parser and track splitter.
   - `transcode`: Format choices (`Opus`, `Flac`, `Wav`) and `TimeRange` clipping validation.
@@ -242,6 +243,7 @@ Aura-Lune/
 
 ### `crates/downloads`
 - **Purpose**: Managed asynchronous HTTP asset downloads (AI separation models) with progress reporting, path traversal protection, and SHA-256 verification.
+- **Paths**: destinations are checked by `domain::paths::check_write_target` (absolute, no `..`, no system dirs, no hidden `$HOME` entries except the app data/cache dirs). A `TempFileGuard` removes `.auralune_tmp_*` on every failed download.
 - **Tests**: Located in `crates/downloads/tests/download_manager_test.rs`.
 
 ### `crates/desktop-integration`
@@ -268,6 +270,8 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 
 ### Modular Command Handlers (`commands/`)
 All 214 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+
+**Path contract** — commands that write a file the UI names call `paths::ensure_writable`; commands that read a file and return or store its content call `paths::ensure_readable(path, &[extensions])` (both in `commands/paths.rs`, symlinks resolved first).
 
 **Error contract** — every command returns `Result<T, CommandError>` ([`commands/error.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/error.rs)).
 `CommandError` serializes to `{ "code": "not_found", "message": "…" }` with codes `storage | engine | io | not_found | validation | network | internal`.
@@ -461,6 +465,7 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
    - Place unit and integration tests in the crate's `tests/` directory (Pattern A), or in a companion `_test.rs` file referenced via `#[cfg(test)] #[path = "..."]` (Pattern B).
 7. **Continuous Documentation Synchronization (`AGENTS.md`)**:
    - Whenever introducing new crates, database submodules, Tauri commands, frontend hooks, modals, or architectural refactorings, agents and developers **must update this `AGENTS.md` guide as part of the task closure**. Never leave documentation out-of-sync with active code.
+8a. **WebView security**: `tauri.conf.json` sets a strict `csp` (no inline/eval scripts, `object-src none`) and a `devCsp` that only adds the Vite dev server. `dangerousDisableAssetCspModification: ["style-src"]` keeps React inline `style` attributes working. `tests/security_config_test.rs` guards this; adding a new remote origin means updating both CSPs.
 8. **Pragmatic Testing & No Tests for Removed Features**:
    - Tests must verify active invariants, functional contracts, boundary conditions, and error recovery paths.
    - **Never write or retain tests that assert the non-existence of intentionally removed features** (e.g. testing that a deleted function does not exist or verifying that an obsolete UI element cannot be found). When a feature is deprecated or removed, delete or update its obsolete tests rather than creating tests asserting its removal. Keep the test suite clean, reasonable, and maintainable.

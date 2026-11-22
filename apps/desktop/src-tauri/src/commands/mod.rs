@@ -8,6 +8,7 @@ pub mod error;
 pub mod integrations;
 pub mod library;
 pub mod metadata;
+pub mod paths;
 pub mod playback;
 pub mod playlists;
 pub mod queue;

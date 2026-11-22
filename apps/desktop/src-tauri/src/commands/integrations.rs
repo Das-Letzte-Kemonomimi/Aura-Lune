@@ -31,6 +31,9 @@ pub async fn export_profile_backup(
         "Tauri command: export_profile_backup(dest: {:?})",
         destination_path
     );
+    if let Some(dest) = &destination_path {
+        super::paths::ensure_writable(std::path::Path::new(dest))?;
+    }
     let presets = state.db.list_dsp_presets().await.unwrap_or_default();
     let themes = state.db.list_themes().await.unwrap_or_default();
     let playlists = state.db.list_playlists().await.unwrap_or_default();
@@ -82,6 +85,7 @@ pub async fn import_profile_backup(
     let json_content = if file_path_or_json.trim().starts_with('{') {
         file_path_or_json
     } else {
+        super::paths::ensure_readable(std::path::Path::new(&file_path_or_json), &["json"])?;
         fs::read_to_string(&file_path_or_json)
             .map_err(|e| CommandError::from(e).context("Błąd odczytu pliku kopii zapasowej"))?
     };

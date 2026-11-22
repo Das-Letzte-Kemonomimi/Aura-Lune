@@ -8,6 +8,7 @@ pub mod equalizer;
 pub mod error;
 pub mod m3u;
 pub mod parametric_eq;
+pub mod paths;
 pub mod playlist;
 pub mod queue;
 pub mod renamer;

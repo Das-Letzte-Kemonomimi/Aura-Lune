@@ -545,6 +545,10 @@ pub async fn apply_custom_cover_file(
     track_id: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
+    super::paths::ensure_readable(
+        std::path::Path::new(&file_path),
+        &["png", "jpg", "jpeg", "webp", "gif"],
+    )?;
     apply_custom_cover_file_internal(&state, album_id, &file_path, album_title, artist, track_id)
         .await
 }

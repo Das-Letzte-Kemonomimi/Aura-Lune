@@ -11,6 +11,7 @@ pub async fn add_download_job(
     expected_sha256: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
+    super::paths::ensure_writable(std::path::Path::new(&destination_path))?;
     info!(
         "Tauri command: add_download_job(url: '{}', dest: '{}')",
         remote_url, destination_path

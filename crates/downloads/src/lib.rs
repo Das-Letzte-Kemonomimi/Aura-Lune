@@ -157,6 +157,9 @@ impl DownloadProvider for HttpDownloadProvider {
 
         let total_bytes = res.content_length();
         let mut file = File::create(&temp_path)?;
+        // Usuwa plik tymczasowy przy każdym wcześniejszym wyjściu (błąd sieci/dysku, anulowanie,
+        // niezgodna suma kontrolna). Rozbrajany dopiero po atomowym przeniesieniu.
+        let mut temp_guard = TempFileGuard::new(temp_path.clone());
         let mut hasher = Sha256::new();
         let mut downloaded_bytes: u64 = 0;
 
@@ -164,7 +167,6 @@ impl DownloadProvider for HttpDownloadProvider {
         while let Some(chunk) = stream.chunk().await? {
             if cancel_flag.load(Ordering::Relaxed) {
                 drop(file);
-                let _ = fs::remove_file(&temp_path);
                 return Err(DownloadError::Cancelled);
             }
 
@@ -185,7 +187,6 @@ impl DownloadProvider for HttpDownloadProvider {
         if let Some(expected) = expected_sha256 {
             let clean_expected = expected.trim().to_lowercase();
             if clean_expected != calculated_sha256.to_lowercase() {
-                let _ = fs::remove_file(&temp_path);
                 return Err(DownloadError::ChecksumMismatch {
                     expected: clean_expected,
                     actual: calculated_sha256,
@@ -199,6 +200,7 @@ impl DownloadProvider for HttpDownloadProvider {
 
         // 5. Atomowe przeniesienie pliku tymczasowego na ścieżkę docelową
         fs::rename(&temp_path, destination_path)?;
+        temp_guard.disarm();
         info!(
             "Pobieranie ukończone sukcesem! Zapisano atomowo w: {:?}",
             destination_path
@@ -359,25 +361,48 @@ impl DownloadManager {
     }
 }
 
-/// Zapewnia ochronę przed path traversal (ścieżka nie może zawierać `..` ani odwoływać się do katalogów systemowych).
+/// Sprawdza cel pobierania wg wspólnych zasad `domain::paths::check_write_target`:
+/// ścieżka absolutna, bez `..`, poza katalogami systemowymi i ukrytymi wpisami `$HOME`
+/// (z wyjątkiem katalogów danych/cache aplikacji, gdzie trafiają modele AI).
 pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> {
-    for comp in path.components() {
-        if let std::path::Component::ParentDir = comp {
-            return Err(DownloadError::PathTraversal(format!(
-                "Wykryto niedozwolone odwołanie nadrzędne ('..') w ścieżce: {:?}",
-                path
-            )));
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let app_roots: Vec<std::path::PathBuf> = [
+        ("XDG_DATA_HOME", ".local/share"),
+        ("XDG_CACHE_HOME", ".cache"),
+    ]
+    .iter()
+    .filter_map(|(var, fallback)| {
+        std::env::var_os(var)
+            .map(std::path::PathBuf::from)
+            .or_else(|| home.as_ref().map(|h| h.join(fallback)))
+    })
+    .map(|base| base.join("com.auralune.player"))
+    .collect();
+    let roots: Vec<&Path> = app_roots.iter().map(|p| p.as_path()).collect();
+    domain::paths::check_write_target(path, home.as_deref(), &roots)
+        .map_err(|e| DownloadError::PathTraversal(e.to_string()))
+}
+
+/// Usuwa wskazany plik przy zniszczeniu, chyba że wywołano [`TempFileGuard::disarm`].
+struct TempFileGuard {
+    path: PathBuf,
+    armed: bool,
+}
+
+impl TempFileGuard {
+    fn new(path: PathBuf) -> Self {
+        Self { path, armed: true }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            let _ = fs::remove_file(&self.path);
         }
     }
-
-    let path_str = path.to_string_lossy();
-    if path_str.starts_with("/etc") || path_str.starts_with("/root") || path_str.starts_with("/bin")
-    {
-        return Err(DownloadError::PathTraversal(format!(
-            "Zapis do katalogów systemowych jest zabroniony: {:?}",
-            path
-        )));
-    }
-
-    Ok(())
 }

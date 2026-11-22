@@ -105,10 +105,12 @@ pub async fn import_theme_json(
 
 #[tauri::command]
 pub fn upload_background_image(file_path: String) -> Result<String, CommandError> {
-    let path = std::path::Path::new(&file_path);
-    if !path.exists() {
-        return Err("Wskazany plik nie istnieje".into());
-    }
+    // Rozwiązanie dowiązań: rozszerzenie sprawdzane jest na pliku docelowym.
+    let resolved = super::paths::ensure_readable(
+        std::path::Path::new(&file_path),
+        &["png", "jpg", "jpeg", "webp", "gif", "mp4", "webm"],
+    )?;
+    let path = resolved.as_path();
     let ext = path
         .extension()
         .and_then(|s| s.to_str())
@@ -176,15 +178,10 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
             let dir = base_icons.join(format!("{}x{}/apps", s, s));
             let _ = std::fs::create_dir_all(&dir);
 
-            let specific_bytes = if clean_style == "lineout" {
-                std::fs::read(format!("/tmp/lineout_{}.png", s))
-                    .unwrap_or_else(|_| icon_bytes.clone())
-            } else {
-                icon_bytes.clone()
-            };
-
-            let _ = std::fs::write(dir.join("auralune.png"), &specific_bytes);
-            let _ = std::fs::write(dir.join("auralune-desktop.png"), &specific_bytes);
+            // Ikona pochodzi wyłącznie z zasobów wbudowanych w aplikację (nigdy z /tmp,
+            // gdzie dowolny użytkownik mógłby podłożyć plik).
+            let _ = std::fs::write(dir.join("auralune.png"), &icon_bytes);
+            let _ = std::fs::write(dir.join("auralune-desktop.png"), &icon_bytes);
         }
 
         // 3. Zaktualizuj pliki .desktop w ~/.local/share/applications

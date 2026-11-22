@@ -327,6 +327,7 @@ impl CoverArtArchiveClient {
     /// Pobiera okładkę (front thumbnail 500px) dla danego MBID i zapisuje w pamięci podręcznej.
     /// Jeśli okładka jest już w cache, natychmiast zwraca istniejącą ścieżkę.
     pub async fn fetch_and_cache_cover(&self, mbid: &str) -> Result<PathBuf, MetadataError> {
+        ensure_safe_token(mbid)?;
         let covers_dir = self.cache_dir.join("covers");
         tokio::fs::create_dir_all(&covers_dir).await?;
 
@@ -356,7 +357,7 @@ impl CoverArtArchiveClient {
             return Err(MetadataError::CoverNotFound(mbid.to_string()));
         }
 
-        let bytes = resp.bytes().await?;
+        let bytes = read_image_body(resp).await?;
         if bytes.is_empty() {
             return Err(MetadataError::CoverNotFound(mbid.to_string()));
         }
@@ -675,6 +676,12 @@ impl CoverArtArchiveClient {
         url: &str,
         file_stem: &str,
     ) -> Result<PathBuf, MetadataError> {
+        ensure_safe_token(file_stem)?;
+        if !(url.starts_with("https://") || url.starts_with("http://")) {
+            return Err(MetadataError::Query(format!(
+                "Nieobsługiwany adres okładki: {url}"
+            )));
+        }
         let covers_dir = self.cache_dir.join("covers");
         tokio::fs::create_dir_all(&covers_dir).await?;
 
@@ -698,7 +705,7 @@ impl CoverArtArchiveClient {
             )));
         }
 
-        let bytes = resp.bytes().await?;
+        let bytes = read_image_body(resp).await?;
         if bytes.is_empty() {
             return Err(MetadataError::CoverNotFound(url.to_string()));
         }
@@ -724,11 +731,7 @@ impl CoverArtArchiveClient {
                 "Wskazany plik graficzny nie istnieje",
             )));
         }
-        let ext = src
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("jpg")
-            .to_lowercase();
+        let ext = image_extension(src.extension().and_then(|e| e.to_str()).unwrap_or("jpg"))?;
         let covers_dir = self.cache_dir.join("covers");
         tokio::fs::create_dir_all(&covers_dir).await?;
 
@@ -751,7 +754,7 @@ impl CoverArtArchiveClient {
         bytes: &[u8],
         ext: &str,
     ) -> Result<PathBuf, MetadataError> {
-        let clean_ext = if ext.is_empty() { "jpg" } else { ext };
+        let clean_ext = image_extension(if ext.is_empty() { "jpg" } else { ext })?;
         let covers_dir = self.cache_dir.join("covers");
         tokio::fs::create_dir_all(&covers_dir).await?;
 
@@ -785,4 +788,58 @@ pub mod urlencoding {
         }
         encoded
     }
+}
+
+/// Maksymalny rozmiar pobieranej okładki (chroni przed zapełnieniem pamięci i dysku).
+pub const MAX_COVER_BYTES: u64 = 20 * 1024 * 1024;
+const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
+
+/// Identyfikator używany w nazwie pliku okładki (MBID, `album_<id>`) nie może zawierać
+/// separatorów ścieżki ani `..`.
+fn ensure_safe_token(token: &str) -> Result<(), MetadataError> {
+    if domain::paths::is_safe_file_token(token) {
+        Ok(())
+    } else {
+        Err(MetadataError::Query(format!(
+            "Niedozwolony identyfikator okładki: {token:?}"
+        )))
+    }
+}
+
+/// Rozszerzenie pliku okładki z listy dozwolonych (zwraca je małymi literami).
+fn image_extension(ext: &str) -> Result<String, MetadataError> {
+    let lower = ext.to_ascii_lowercase();
+    if IMAGE_EXTENSIONS.contains(&lower.as_str()) {
+        Ok(lower)
+    } else {
+        Err(MetadataError::Query(format!(
+            "Nieobsługiwany format okładki: .{ext}"
+        )))
+    }
+}
+
+/// Czyta odpowiedź z okładką: wymaga typu `image/*` (gdy serwer go podaje) i limitu rozmiaru.
+async fn read_image_body(resp: reqwest::Response) -> Result<Vec<u8>, MetadataError> {
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if !content_type.is_empty() && !content_type.starts_with("image/") {
+        return Err(MetadataError::Query(format!(
+            "Serwer zwrócił {content_type} zamiast obrazu okładki"
+        )));
+    }
+    if resp
+        .content_length()
+        .is_some_and(|len| len > MAX_COVER_BYTES)
+    {
+        return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
+    }
+    let bytes = resp.bytes().await?;
+    if bytes.len() as u64 > MAX_COVER_BYTES {
+        return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
+    }
+    Ok(bytes.to_vec())
 }
