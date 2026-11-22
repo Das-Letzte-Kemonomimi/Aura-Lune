@@ -2,6 +2,7 @@
 
 use crate::error::AudioEngineError;
 use crate::sync::LockExt;
+use crossbeam_utils::atomic::AtomicCell;
 use domain::analysis::{StemMixerState, StemSeparationData};
 use domain::crossfeed::CrossfeedConfig;
 use domain::dynamics::{DynamicsState, SaturatorConfig};
@@ -16,8 +17,8 @@ use gst::prelude::*;
 use gst_base::prelude::BaseTransformExt;
 use gstreamer as gst;
 use gstreamer_base as gst_base;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
@@ -52,7 +53,7 @@ struct PipelineInner {
     compressor: gst::Element,
     compressor_makeup: gst::Element,
     _saturator: gst::Element,
-    saturator_config: Arc<RwLock<SaturatorConfig>>,
+    saturator_config: Arc<AtomicCell<SaturatorConfig>>,
     bs2b: Option<gst::Element>,
     rgvolume: gst::Element,
     rgvolume_child: Option<gst_base::BaseTransform>,
@@ -83,7 +84,7 @@ struct PipelineInner {
     user_volume: f64,
     seek_seq: u64,
     _stereo_widener: gst::Element,
-    stereo_widener_config: Arc<RwLock<domain::dynamics::StereoWidenerConfig>>,
+    stereo_widener_config: Arc<AtomicCell<domain::dynamics::StereoWidenerConfig>>,
     crossfade_duration_ms: u64,
     stem_mixer_elements: Option<StemMixerHandles>,
     stem_mixer_state: StemMixerState,
@@ -239,38 +240,25 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("identity"))?;
 
-        let saturator_config = Arc::new(RwLock::new(domain::dynamics::SaturatorConfig::default()));
+        // Konfiguracja czytana w wątku strumieniowym bez blokad (AtomicCell; zapis jest rzadki i krótki).
+        let saturator_config =
+            Arc::new(AtomicCell::new(domain::dynamics::SaturatorConfig::default()));
         let sat_cfg_clone = Arc::clone(&saturator_config);
 
         if let Some(src_pad) = saturator.static_pad("src") {
             src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, info| {
-                if let Some(gst::PadProbeData::Buffer(ref mut buffer)) = info.data {
-                    let config = if let Ok(guard) = sat_cfg_clone.read() {
-                        *guard
-                    } else {
-                        return gst::PadProbeReturn::Ok;
-                    };
-
-                    if !config.enabled || config.mode == domain::dynamics::SaturatorMode::Off {
-                        return gst::PadProbeReturn::Ok;
-                    }
-
-                    let buffer_mut = buffer.make_mut();
-                    if let Ok(mut map) = buffer_mut.map_writable() {
-                        let slice = map.as_mut_slice();
-                        let f32_count = slice.len() / std::mem::size_of::<f32>();
-                        if f32_count > 0 {
-                            let f32_slice = unsafe {
-                                std::slice::from_raw_parts_mut(
-                                    slice.as_mut_ptr() as *mut f32,
-                                    f32_count,
-                                )
-                            };
-                            for s in f32_slice.iter_mut() {
-                                *s = config.process_sample(*s);
-                            }
-                        }
-                    }
+                let Some(gst::PadProbeData::Buffer(ref mut buffer)) = info.data else {
+                    return gst::PadProbeReturn::Ok;
+                };
+                let config = sat_cfg_clone.load();
+                if !config.enabled || config.mode == domain::dynamics::SaturatorMode::Off {
+                    return gst::PadProbeReturn::Ok;
+                }
+                let buffer_mut = buffer.make_mut();
+                if let Ok(mut map) = buffer_mut.map_writable() {
+                    crate::rt::map_f32_samples_in_place(map.as_mut_slice(), |s| {
+                        config.process_sample(s)
+                    });
                 }
                 gst::PadProbeReturn::Ok
             });
@@ -283,53 +271,44 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("identity"))?;
 
-        let stereo_widener_config =
-            Arc::new(RwLock::new(domain::dynamics::StereoWidenerConfig::default()));
+        let stereo_widener_config = Arc::new(AtomicCell::new(
+            domain::dynamics::StereoWidenerConfig::default(),
+        ));
         let widener_cfg_clone = Arc::clone(&stereo_widener_config);
 
         if let Some(src_pad) = stereo_widener.static_pad("src") {
+            // Liczba kanałów z ostatniego zdarzenia Caps (0 = nieznana) — bez odpytywania caps
+            // przy każdym buforze.
+            let channels = Arc::new(AtomicU32::new(0));
+            let channels_from_caps = Arc::clone(&channels);
+            src_pad.add_probe(gst::PadProbeType::EVENT_DOWNSTREAM, move |_pad, info| {
+                if let Some(gst::PadProbeData::Event(ref event)) = info.data {
+                    if let gst::EventView::Caps(c) = event.view() {
+                        let ch = c
+                            .caps()
+                            .structure(0)
+                            .and_then(|s| s.get::<i32>("channels").ok())
+                            .unwrap_or(0);
+                        channels_from_caps.store(ch.max(0) as u32, Ordering::Relaxed);
+                    }
+                }
+                gst::PadProbeReturn::Ok
+            });
+
             src_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, info| {
-                if let Some(gst::PadProbeData::Buffer(ref mut buffer)) = info.data {
-                    let config = if let Ok(guard) = widener_cfg_clone.read() {
-                        *guard
-                    } else {
-                        return gst::PadProbeReturn::Ok;
-                    };
-
-                    if !config.enabled || config.width <= 0.0 {
-                        return gst::PadProbeReturn::Ok;
-                    }
-
-                    // Bezpieczna weryfikacja: Stereo Widener przetwarza wyłącznie 2-kanałowy strumień stereo
-                    if let Some(caps) = _pad.current_caps() {
-                        if let Some(s) = caps.structure(0) {
-                            if let Ok(channels) = s.get::<i32>("channels") {
-                                if channels != 2 {
-                                    return gst::PadProbeReturn::Ok;
-                                }
-                            }
-                        }
-                    }
-
-                    let buffer_mut = buffer.make_mut();
-                    if let Ok(mut map) = buffer_mut.map_writable() {
-                        let slice = map.as_mut_slice();
-                        let f32_count = slice.len() / std::mem::size_of::<f32>();
-                        if f32_count >= 2 {
-                            let f32_slice = unsafe {
-                                std::slice::from_raw_parts_mut(
-                                    slice.as_mut_ptr() as *mut f32,
-                                    f32_count,
-                                )
-                            };
-
-                            for frame in f32_slice.as_chunks_mut::<2>().0 {
-                                let (l, r) = config.process_frame(frame[0], frame[1]);
-                                frame[0] = l;
-                                frame[1] = r;
-                            }
-                        }
-                    }
+                let Some(gst::PadProbeData::Buffer(ref mut buffer)) = info.data else {
+                    return gst::PadProbeReturn::Ok;
+                };
+                let config = widener_cfg_clone.load();
+                // Stereo Widener przetwarza wyłącznie 2-kanałowy strumień stereo.
+                if !config.enabled || config.width <= 0.0 || channels.load(Ordering::Relaxed) != 2 {
+                    return gst::PadProbeReturn::Ok;
+                }
+                let buffer_mut = buffer.make_mut();
+                if let Ok(mut map) = buffer_mut.map_writable() {
+                    crate::rt::map_stereo_frames_in_place(map.as_mut_slice(), |l, r| {
+                        config.process_frame(l, r)
+                    });
                 }
                 gst::PadProbeReturn::Ok
             });
@@ -2450,9 +2429,7 @@ impl AudioEngine {
         inner.compressor_makeup.set_property("volume", makeup_vol);
 
         // 2. Saturator analogowy
-        if let Ok(mut guard) = inner.saturator_config.write() {
-            *guard = state.saturator.clamped();
-        }
+        inner.saturator_config.store(state.saturator.clamped());
 
         // 3. Limiter słuchawkowy (rglimiter)
         inner
@@ -3011,25 +2988,24 @@ impl AudioEngine {
 
     /// Włącza lub wyłącza rozszerzanie bazy stereo (Stereo Widener).
     pub fn set_stereo_widener_active(&self, active: bool) {
-        let config = {
-            let inner = self.inner.lock_safe();
-            Arc::clone(&inner.stereo_widener_config)
-        };
-        if let Ok(mut cfg) = config.write() {
-            cfg.enabled = active;
-        };
+        // Odczyt-modyfikacja-zapis pod blokadą `inner`, aby równoległe zmiany nie nadpisywały się.
+        let inner = self.inner.lock_safe();
+        let config = &inner.stereo_widener_config;
+        config.store(domain::dynamics::StereoWidenerConfig {
+            enabled: active,
+            ..config.load()
+        });
     }
 
     /// Ustawia intensywność rozszerzania stereo w zakresie 0.0 - 1.0.
     pub fn set_stereo_widener_amount(&self, amount: f64) {
-        let config = {
-            let inner = self.inner.lock_safe();
-            Arc::clone(&inner.stereo_widener_config)
-        };
         let clamped = amount.clamp(0.0, 1.0) as f32;
-        if let Ok(mut cfg) = config.write() {
-            cfg.width = clamped;
-        };
+        let inner = self.inner.lock_safe();
+        let config = &inner.stereo_widener_config;
+        config.store(domain::dynamics::StereoWidenerConfig {
+            width: clamped,
+            ..config.load()
+        });
     }
 
     /// Zwraca parametry rozszerzania stereo: (active, amount).
@@ -3038,12 +3014,8 @@ impl AudioEngine {
             let inner = self.inner.lock_safe();
             Arc::clone(&inner.stereo_widener_config)
         };
-        let res = if let Ok(cfg) = config.read() {
-            (cfg.enabled, cfg.width as f64)
-        } else {
-            (false, 0.15)
-        };
-        res
+        let cfg = config.load();
+        (cfg.enabled, cfg.width as f64)
     }
 
     /// Włącza lub wyłącza True-Peak Limiter (rglimiter) oraz synchronizuje stan Studia Dynamiki.

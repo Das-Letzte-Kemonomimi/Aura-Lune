@@ -246,11 +246,7 @@ fn decode_mono_22k(
         if let Ok(sample) = appsink.pull_sample() {
             if let Some(buffer) = sample.buffer() {
                 if let Ok(map) = buffer.map_readable() {
-                    let num_floats = map.len() / std::mem::size_of::<f32>();
-                    let slice = unsafe {
-                        std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats)
-                    };
-                    collected.extend_from_slice(slice);
+                    crate::rt::extend_f32_samples(map.as_slice(), &mut collected);
                 }
             }
         } else {
@@ -365,9 +361,14 @@ pub fn decode_stereo_for_stems(
         if let Ok(sample) = appsink.pull_sample() {
             if let Some(buffer) = sample.buffer() {
                 if let Ok(map) = buffer.map_readable() {
-                    let num_floats = map.len() / std::mem::size_of::<f32>();
-                    let slice = unsafe {
-                        std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats)
+                    // Rzutowanie sprawdzane pod kątem wyrównania; niewyrównany bufor jest kopiowany.
+                    let mut unaligned_copy = Vec::new();
+                    let slice: &[f32] = match crate::rt::f32_samples(map.as_slice()) {
+                        Some(s) => s,
+                        None => {
+                            crate::rt::extend_f32_samples(map.as_slice(), &mut unaligned_copy);
+                            &unaligned_copy
+                        }
                     };
                     let num_pairs = slice.len() / 2;
                     for p in 0..num_pairs {
@@ -1977,11 +1978,7 @@ pub fn extract_track_waveform_peaks(
         if let Ok(sample) = appsink.pull_sample() {
             if let Some(buffer) = sample.buffer() {
                 if let Ok(map) = buffer.map_readable() {
-                    let num_floats = map.len() / std::mem::size_of::<f32>();
-                    let slice = unsafe {
-                        std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats)
-                    };
-                    collected.extend_from_slice(slice);
+                    crate::rt::extend_f32_samples(map.as_slice(), &mut collected);
                     if collected.len() >= 20_000_000 {
                         break;
                     }

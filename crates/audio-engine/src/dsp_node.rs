@@ -1,5 +1,19 @@
 //! Własny element GStreamer dla silników DSP Auralune (Bypass, Rubber Band, SoundTouch).
+//!
+//! ## Bezpieczeństwo czasu rzeczywistego (AGENTS.md §7.1)
+//! Funkcja `chain` działa w wątku strumieniowym GStreamera:
+//! - **Bypass** (tryb bit-perfect, najczęstszy) nie dotyka blokady — silnik jest czytany
+//!   z atomika, a bufor przekazywany dalej bez zmian.
+//! - **Przetwarzanie** trzyma blokadę stanu tylko na czas obróbki jednego bufora. Wątek
+//!   sterujący nigdy nie trzyma jej podczas kosztownych operacji: nowe procesory są
+//!   przygotowywane (`prepare`) poza blokadą i jedynie podmieniane pod nią.
+//! - Brak alokacji na stercie Rusta w stanie ustalonym: bufory FIFO i wyjściowy mają
+//!   zarezerwowaną pojemność, a bloki wyjściowe zbierane są w tablicy na stosie.
+//!   (Pamięć `gst::Buffer` pochodzi z alokatora GStreamera przeznaczonego dla wątków strumieniowych.)
+//! - Format (częstotliwość, kanały) jest ustalany ze zdarzenia Caps, nie odpytywany przy każdym buforze.
+//! - Rzutowanie bajtów na `f32` jest sprawdzane (`crate::rt`); błędy DSP są logowane z limitem.
 
+use crate::rt::{self, RateLimiter};
 use crate::sync::LockExt;
 use dsp_api::{AudioFormat, AudioProcessor, DspCapabilities, DspEngine, DspError, DspParams};
 use dsp_rubberband::RubberBandProcessor;
@@ -8,6 +22,8 @@ use glib::prelude::*;
 use gst::prelude::*;
 use gst::subclass::prelude::*;
 use gstreamer as gst;
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use tracing::{debug, info, warn};
 
@@ -47,13 +63,66 @@ static ELEMENT_METADATA: LazyLock<gst::subclass::ElementMetadata> = LazyLock::ne
     )
 });
 
+/// Maksymalna liczba bloków wyjściowych wypychanych z jednego wywołania `chain`.
+/// Nadmiar zostaje w FIFO i trafia do kolejnego wywołania (lub do drenażu przy EOS).
+const MAX_BLOCKS_PER_CHAIN: usize = 16;
+/// Minimalny rozmiar bloku przekazywany procesorom w `prepare`.
+const MIN_PREPARE_BLOCK: usize = 2048;
+/// Zakładany maksymalny rozmiar bufora wejściowego (ramek) przy rezerwacji pamięci.
+const TYPICAL_INPUT_FRAMES: usize = 4096;
+/// Najmniejsze tempo obu silników to 0.15× — wyjście może być ~6.7× dłuższe niż wejście.
+const MAX_STRETCH_FACTOR: usize = 7;
+
+fn engine_to_u8(engine: DspEngine) -> u8 {
+    match engine {
+        DspEngine::Bypass => 0,
+        DspEngine::RubberBand => 1,
+        DspEngine::SoundTouch => 2,
+    }
+}
+
+fn is_bypass_u8(value: u8) -> bool {
+    value == engine_to_u8(DspEngine::Bypass)
+}
+
+/// Para procesorów przygotowanych dla danego formatu (tworzona poza blokadą stanu).
+struct Processors {
+    rubberband: RubberBandProcessor,
+    soundtouch: SoundTouchProcessor,
+}
+
+impl Processors {
+    fn unprepared() -> Self {
+        Self {
+            rubberband: RubberBandProcessor::new(),
+            soundtouch: SoundTouchProcessor::new(),
+        }
+    }
+
+    /// Tworzy i przygotowuje oba procesory. Kosztowne — wywoływać bez blokady stanu.
+    fn prepared(format: AudioFormat, block_size: usize, params: DspParams) -> Self {
+        let mut p = Self::unprepared();
+        let prep_block = block_size.max(MIN_PREPARE_BLOCK);
+        if let Err(e) = p.rubberband.prepare(format, prep_block) {
+            warn!("Błąd prepare RubberBand: {:?}", e);
+        }
+        if let Err(e) = p.soundtouch.prepare(format, prep_block) {
+            warn!("Błąd prepare SoundTouch: {:?}", e);
+        }
+        let _ = p.rubberband.set_params(params);
+        let _ = p.soundtouch.set_params(params);
+        p
+    }
+}
+
 struct DspNodeState {
     params: DspParams,
     format: Option<AudioFormat>,
-    rubberband: RubberBandProcessor,
-    soundtouch: SoundTouchProcessor,
-    fifo: std::collections::VecDeque<f32>,
+    processors: Processors,
+    fifo: VecDeque<f32>,
     out_buffer: Vec<f32>,
+    /// Kopia wejścia, gdy bufor GStreamera nie jest wyrównany do `f32` (rzadkie).
+    unaligned_input: Vec<f32>,
     current_pts: Option<u64>,
     current_offset: u64,
     block_size: usize,
@@ -64,59 +133,31 @@ impl DspNodeState {
         Self {
             params: DspParams::default(),
             format: None,
-            rubberband: RubberBandProcessor::new(),
-            soundtouch: SoundTouchProcessor::new(),
-            fifo: std::collections::VecDeque::with_capacity(32768),
+            processors: Processors::unprepared(),
+            fifo: VecDeque::with_capacity(32768),
             out_buffer: Vec::with_capacity(16384),
+            unaligned_input: Vec::new(),
             current_pts: None,
             current_offset: 0,
             block_size: 2048,
         }
     }
 
-    fn is_bypass(&self) -> bool {
-        self.params.engine == DspEngine::Bypass
-    }
+    /// Podmienia procesory przygotowane poza blokadą i rezerwuje bufory dla nowego formatu.
+    fn install(&mut self, format: AudioFormat, processors: Processors) {
+        let mut processors = processors;
+        // Parametry mogły się zmienić, gdy procesory były przygotowywane bez blokady.
+        let _ = processors.rubberband.set_params(self.params);
+        let _ = processors.soundtouch.set_params(self.params);
+        self.processors = processors;
+        self.format = Some(format);
 
-    fn prepare_if_needed(&mut self, rate: u32, channels: u32) {
-        if let Some(fmt) = self.format {
-            if fmt.sample_rate == rate && fmt.channels == channels {
-                return;
-            }
-        }
-
-        if let Ok(new_fmt) = AudioFormat::new(rate, channels) {
-            info!(
-                "AuraluneDsp: Przygotowanie silników dla {} Hz, {} kanałów (block_size: {})",
-                rate, channels, self.block_size
-            );
-            let prep_block = self.block_size.max(2048);
-            if let Err(e) = self.rubberband.prepare(new_fmt, prep_block) {
-                warn!("Błąd prepare RubberBand: {:?}", e);
-            }
-            if let Err(e) = self.soundtouch.prepare(new_fmt, prep_block) {
-                warn!("Błąd prepare SoundTouch: {:?}", e);
-            }
-            let _ = self.rubberband.set_params(self.params);
-            let _ = self.soundtouch.set_params(self.params);
-            self.format = Some(new_fmt);
-        }
-    }
-
-    fn set_block_size(&mut self, size: usize) {
-        let clamped = size.clamp(512, 16384);
-        self.block_size = clamped;
-        if let Some(fmt) = self.format {
-            let prep_block = clamped.max(2048);
-            let _ = self.rubberband.prepare(fmt, prep_block);
-            let _ = self.soundtouch.prepare(fmt, prep_block);
-            let _ = self.rubberband.set_params(self.params);
-            let _ = self.soundtouch.set_params(self.params);
-        }
-        info!(
-            "AuraluneDsp: Zaktualizowano block_size na {} ramek",
-            clamped
-        );
+        let channels = format.channels as usize;
+        let max_out = TYPICAL_INPUT_FRAMES.max(self.block_size) * channels * MAX_STRETCH_FACTOR;
+        let want = max_out.saturating_sub(self.out_buffer.capacity());
+        self.out_buffer.reserve(want);
+        let fifo_want = (2 * max_out).saturating_sub(self.fifo.capacity());
+        self.fifo.reserve(fifo_want);
     }
 
     fn set_params(&mut self, params: DspParams) -> Result<(), DspError> {
@@ -124,8 +165,12 @@ impl DspNodeState {
         let old_params = self.params;
         self.params = params;
         if self.format.is_some() {
-            let _ = self.rubberband.set_params(params);
-            let _ = self.soundtouch.set_params(params);
+            let _ = self.processors.rubberband.set_params(params);
+            let _ = self.processors.soundtouch.set_params(params);
+        }
+
+        if old_params.engine != params.engine {
+            self.on_engine_changed(old_params.engine, params.engine);
         }
 
         // Gdy zmienia się prędkość (tempo/rate) lub tonacja, natychmiast zredukuj zalegające
@@ -149,27 +194,89 @@ impl DspNodeState {
     fn set_engine(&mut self, engine: DspEngine) {
         let old_engine = self.params.engine;
         self.params.engine = engine;
-
-        // Przy zmianie silnika resetuj oba procesory i czyść FIFO,
-        // aby próbki z poprzedniego silnika nie mieszały się z nowym
         if old_engine != engine {
-            let _ = self.rubberband.reset();
-            let _ = self.soundtouch.reset();
-            self.fifo.clear();
-            // Zachowujemy self.current_pts, aby nie powodować skoków znaczników czasowych dla sinka
-            debug!(
-                "AuraluneDsp: Silnik zmieniony {:?} -> {:?}, reset buforów",
-                old_engine, engine
-            );
+            self.on_engine_changed(old_engine, engine);
         }
     }
 
+    /// Przy zmianie silnika resetuj oba procesory i czyść FIFO, aby próbki z poprzedniego
+    /// silnika nie mieszały się z nowym. `current_pts` zostaje — bez skoków znaczników czasu.
+    fn on_engine_changed(&mut self, old_engine: DspEngine, engine: DspEngine) {
+        let _ = self.processors.rubberband.reset();
+        let _ = self.processors.soundtouch.reset();
+        self.fifo.clear();
+        debug!(
+            "AuraluneDsp: Silnik zmieniony {:?} -> {:?}, reset buforów",
+            old_engine, engine
+        );
+    }
+
     fn reset(&mut self) {
-        let _ = self.rubberband.reset();
-        let _ = self.soundtouch.reset();
+        let _ = self.processors.rubberband.reset();
+        let _ = self.processors.soundtouch.reset();
         self.fifo.clear();
         self.current_pts = None;
         self.current_offset = 0;
+    }
+
+    /// Zdejmuje z FIFO do `max_frames` ramek jako jeden `gst::Buffer` z poprawnymi PTS/offsetami.
+    /// `fallback_pts` (PTS bufora wejściowego) wyznacza bazę czasu po resecie.
+    fn take_block(&mut self, max_frames: usize, fallback_pts: Option<u64>) -> Option<gst::Buffer> {
+        let fmt = self.format?;
+        let channels = fmt.channels as usize;
+        let sample_rate = fmt.sample_rate as u64;
+
+        let frames = (self.fifo.len() / channels).min(max_frames);
+        if frames == 0 {
+            return None;
+        }
+        let samples = frames * channels;
+
+        let cur_offset = self.current_offset;
+        let next_offset = cur_offset + frames as u64;
+
+        let base_pts = self.current_pts.or(fallback_pts).unwrap_or(0);
+        let frame_pts_ns = base_pts + (cur_offset * 1_000_000_000) / sample_rate;
+        let next_pts_ns = base_pts + (next_offset * 1_000_000_000) / sample_rate;
+
+        let mut out = gst::Buffer::with_size(samples * std::mem::size_of::<f32>()).ok()?;
+        {
+            let out_mut = out.get_mut()?;
+            {
+                let mut map = out_mut.map_writable().ok()?;
+                let fifo = &mut self.fifo;
+                let bytes = map.as_mut_slice();
+                match rt::f32_samples_mut(bytes) {
+                    Some(dst) => {
+                        for (d, s) in dst.iter_mut().zip(fifo.drain(..samples)) {
+                            *d = s;
+                        }
+                    }
+                    None => {
+                        for (chunk, s) in bytes
+                            .as_chunks_mut::<4>()
+                            .0
+                            .iter_mut()
+                            .zip(fifo.drain(..samples))
+                        {
+                            *chunk = s.to_ne_bytes();
+                        }
+                    }
+                }
+            }
+            out_mut.set_pts(gst::ClockTime::from_nseconds(frame_pts_ns));
+            out_mut.set_duration(gst::ClockTime::from_nseconds(
+                next_pts_ns.saturating_sub(frame_pts_ns),
+            ));
+            out_mut.set_offset(cur_offset);
+            out_mut.set_offset_end(next_offset);
+        }
+
+        if self.current_pts.is_none() {
+            self.current_pts = Some(base_pts);
+        }
+        self.current_offset = next_offset;
+        Some(out)
     }
 }
 
@@ -177,6 +284,10 @@ pub struct AuraluneDspImpl {
     sinkpad: gst::Pad,
     srcpad: gst::Pad,
     state: Arc<Mutex<DspNodeState>>,
+    /// Aktywny silnik (dla ścieżki Bypass bez blokady w `chain`).
+    engine: Arc<AtomicU8>,
+    /// Ustawiane przy przejściu na Bypass — `chain` jednorazowo czyści FIFO pod blokadą.
+    bypass_reset_pending: Arc<AtomicBool>,
 }
 
 #[glib::object_subclass]
@@ -196,8 +307,19 @@ impl ObjectSubclass for AuraluneDspImpl {
             sinkpad,
             srcpad,
             state: Arc::new(Mutex::new(DspNodeState::new())),
+            engine: Arc::new(AtomicU8::new(engine_to_u8(DspEngine::Bypass))),
+            bypass_reset_pending: Arc::new(AtomicBool::new(false)),
         }
     }
+}
+
+/// Wspólne uchwyty przekazywane do funkcji `chain` i obsługi zdarzeń.
+#[derive(Clone)]
+struct Shared {
+    srcpad: gst::Pad,
+    state: Arc<Mutex<DspNodeState>>,
+    engine: Arc<AtomicU8>,
+    bypass_reset_pending: Arc<AtomicBool>,
 }
 
 impl ObjectImpl for AuraluneDspImpl {
@@ -207,20 +329,24 @@ impl ObjectImpl for AuraluneDspImpl {
         obj.add_pad(&self.sinkpad).unwrap();
         obj.add_pad(&self.srcpad).unwrap();
 
-        let srcpad_clone = self.srcpad.clone();
-        let state_chain = Arc::clone(&self.state);
+        let shared = Shared {
+            srcpad: self.srcpad.clone(),
+            state: Arc::clone(&self.state),
+            engine: Arc::clone(&self.engine),
+            bypass_reset_pending: Arc::clone(&self.bypass_reset_pending),
+        };
 
         unsafe {
+            let chain_shared = shared.clone();
             self.sinkpad
-                .set_chain_function(move |pad, _parent, buffer| {
-                    Self::chain(pad, &srcpad_clone, &state_chain, buffer)
+                .set_chain_function(move |_pad, _parent, buffer| {
+                    Self::chain(&chain_shared, buffer)
                 });
 
-            let srcpad_event = self.srcpad.clone();
-            let state_event = Arc::clone(&self.state);
+            let event_shared = shared.clone();
             self.sinkpad
                 .set_event_function(move |_pad, _parent, event| {
-                    Self::sink_event(&srcpad_event, &state_event, event)
+                    Self::sink_event(&event_shared, event)
                 });
 
             let sinkpad_src_event = self.sinkpad.clone();
@@ -251,174 +377,113 @@ impl ElementImpl for AuraluneDspImpl {
     }
 }
 
+static DSP_ERROR_LOG: RateLimiter = RateLimiter::new();
+
 impl AuraluneDspImpl {
-    fn chain(
-        sinkpad: &gst::Pad,
-        srcpad: &gst::Pad,
-        state_arc: &Arc<Mutex<DspNodeState>>,
-        buffer: gst::Buffer,
-    ) -> Result<gst::FlowSuccess, gst::FlowError> {
-        let mut state = state_arc.lock_safe();
-
-        // 1. Sprawdzenie i aktualizacja formatu próbek (Caps)
-        if let Some(caps) = sinkpad.current_caps() {
-            if let Some(s) = caps.structure(0) {
-                if let (Ok(rate), Ok(channels)) = (s.get::<i32>("rate"), s.get::<i32>("channels")) {
-                    state.prepare_if_needed(rate as u32, channels as u32);
-                }
+    fn chain(shared: &Shared, buffer: gst::Buffer) -> Result<gst::FlowSuccess, gst::FlowError> {
+        // 1. Bypass: czysty, bit-perfect passthrough bez blokady.
+        if is_bypass_u8(shared.engine.load(Ordering::Acquire)) {
+            if shared.bypass_reset_pending.swap(false, Ordering::AcqRel) {
+                let mut state = shared.state.lock_safe();
+                state.fifo.clear();
+                state.current_pts = None;
             }
+            return shared.srcpad.push(buffer);
         }
 
-        // 2. Jeśli tryb Bypass -> Czysty, bit-perfect passthrough
-        if state.is_bypass() {
-            state.fifo.clear();
-            state.current_pts = None;
-            drop(state);
-            return srcpad.push(buffer);
-        }
-
-        // 3. Przetwarzanie DSP (Rubber Band lub SoundTouch)
-        let fmt = match state.format {
-            Some(f) => f,
-            None => {
+        // 2. Przetwarzanie DSP (Rubber Band lub SoundTouch)
+        let mut blocks: [Option<gst::Buffer>; MAX_BLOCKS_PER_CHAIN] = Default::default();
+        {
+            let mut state = shared.state.lock_safe();
+            if state.format.is_none() {
                 drop(state);
-                return srcpad.push(buffer);
-            }
-        };
-
-        let map = match buffer.map_readable() {
-            Ok(m) => m,
-            Err(_) => return Ok(gst::FlowSuccess::Ok),
-        };
-
-        let num_floats = map.len() / std::mem::size_of::<f32>();
-        let input_samples: &[f32] =
-            unsafe { std::slice::from_raw_parts(map.as_ptr() as *const f32, num_floats) };
-
-        let channels = fmt.channels as usize;
-        let sample_rate = fmt.sample_rate as u64;
-
-        let mut out_buffer = std::mem::take(&mut state.out_buffer);
-        out_buffer.clear();
-        let engine = state.params.engine;
-
-        let status = match engine {
-            DspEngine::Bypass => Ok(dsp_api::ProcessStatus::Ok),
-            DspEngine::RubberBand => state.rubberband.process(input_samples, &mut out_buffer),
-            DspEngine::SoundTouch => state.soundtouch.process(input_samples, &mut out_buffer),
-        };
-
-        if let Err(err) = status {
-            warn!("Błąd przetwarzania DSP ({:?}): {:?}", engine, err);
-            drop(map);
-            state.out_buffer = out_buffer;
-            drop(state);
-            return srcpad.push(buffer);
-        }
-
-        drop(map);
-
-        // Umieść wyprodukowane próbki w elastycznym buforze FIFO
-        if !out_buffer.is_empty() {
-            state.fifo.extend(out_buffer.iter().copied());
-        }
-        state.out_buffer = out_buffer;
-
-        // Jeśli w buforze FIFO nie ma jeszcze próbek (np. wstępne buforowanie), czekamy na kolejny pakiet
-        if state.fifo.is_empty() {
-            drop(state);
-            return Ok(gst::FlowSuccess::Ok);
-        }
-
-        let mut buffers_to_push = Vec::with_capacity(8);
-
-        // Drenujemy wszystkie dostępne próbki w blokach do block_size ramek.
-        // Wszelkie próbki wyprodukowane przez DSP są natychmiast wypychane w dół potoku,
-        // co zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
-        while !state.fifo.is_empty() {
-            let available_samples = state.fifo.len();
-            let drain_frames = (available_samples / channels).min(state.block_size);
-            if drain_frames == 0 {
-                break;
-            }
-            let drain_samples = drain_frames * channels;
-            let out_frames = drain_frames as u64;
-
-            let cur_offset = state.current_offset;
-            let next_offset = cur_offset + out_frames;
-            state.current_offset = next_offset;
-
-            let buffer_pts = buffer.pts().map(|p| p.nseconds());
-            let base_pts = state.current_pts.or(buffer_pts).unwrap_or(0);
-            if state.current_pts.is_none() {
-                state.current_pts = Some(base_pts);
+                return shared.srcpad.push(buffer);
             }
 
-            let frame_pts_ns = base_pts + (cur_offset * 1_000_000_000) / sample_rate;
-            let next_pts_ns = base_pts + (next_offset * 1_000_000_000) / sample_rate;
-            let out_duration_ns = next_pts_ns.saturating_sub(frame_pts_ns);
+            let Ok(map) = buffer.map_readable() else {
+                return Ok(gst::FlowSuccess::Ok);
+            };
 
-            let byte_len = drain_samples * std::mem::size_of::<f32>();
-            if let Ok(mut gst_out_buffer) = gst::Buffer::with_size(byte_len) {
-                let out_buf_mut = gst_out_buffer.make_mut();
-                if let Ok(mut out_map) = out_buf_mut.map_writable() {
-                    let dst_slice: &mut [f32] = unsafe {
-                        std::slice::from_raw_parts_mut(
-                            out_map.as_mut_ptr() as *mut f32,
-                            drain_samples,
-                        )
-                    };
-                    for sample in dst_slice.iter_mut() {
-                        *sample = state.fifo.pop_front().unwrap_or(0.0);
-                    }
+            let state = &mut *state;
+            let engine = state.params.engine;
+            let mut out_buffer = std::mem::take(&mut state.out_buffer);
+            out_buffer.clear();
+
+            let input: &[f32] = match rt::f32_samples(map.as_slice()) {
+                Some(samples) => samples,
+                None => {
+                    state.unaligned_input.clear();
+                    rt::extend_f32_samples(map.as_slice(), &mut state.unaligned_input);
+                    &state.unaligned_input
                 }
+            };
 
-                out_buf_mut.set_pts(gst::ClockTime::from_nseconds(frame_pts_ns));
-                out_buf_mut.set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
-                out_buf_mut.set_offset(cur_offset);
-                out_buf_mut.set_offset_end(next_offset);
-                buffers_to_push.push(gst_out_buffer);
-            } else {
-                break;
+            let status = match engine {
+                DspEngine::Bypass => Ok(dsp_api::ProcessStatus::Ok),
+                DspEngine::RubberBand => {
+                    state.processors.rubberband.process(input, &mut out_buffer)
+                }
+                DspEngine::SoundTouch => {
+                    state.processors.soundtouch.process(input, &mut out_buffer)
+                }
+            };
+
+            if let Err(err) = status {
+                if DSP_ERROR_LOG.should_log(500) {
+                    warn!(
+                        "Błąd przetwarzania DSP ({:?}): {:?} (log co 500 wystąpień)",
+                        engine, err
+                    );
+                }
+                drop(map);
+                state.out_buffer = out_buffer;
+                return shared.srcpad.push(buffer);
+            }
+
+            // Umieść wyprodukowane próbki w elastycznym buforze FIFO
+            state.fifo.extend(out_buffer.iter().copied());
+            state.out_buffer = out_buffer;
+
+            // Drenujemy dostępne próbki w blokach do block_size ramek — natychmiastowe wypychanie
+            // zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
+            let fallback_pts = buffer.pts().map(|p| p.nseconds());
+            let block_size = state.block_size;
+            for slot in blocks.iter_mut() {
+                match state.take_block(block_size, fallback_pts) {
+                    Some(b) => *slot = Some(b),
+                    None => break,
+                }
             }
         }
 
-        drop(state);
-
-        for buf in buffers_to_push {
-            srcpad.push(buf)?;
+        // Wypychanie poza blokadą — element w dół potoku może blokować.
+        for block in blocks.into_iter().flatten() {
+            shared.srcpad.push(block)?;
         }
-
         Ok(gst::FlowSuccess::Ok)
     }
 
-    fn sink_event(
-        srcpad: &gst::Pad,
-        state_arc: &Arc<Mutex<DspNodeState>>,
-        event: gst::Event,
-    ) -> bool {
+    fn sink_event(shared: &Shared, event: gst::Event) -> bool {
         use gst::EventView;
         match event.view() {
             EventView::FlushStop(..) | EventView::Seek(..) => {
-                if let Ok(mut state) = state_arc.lock() {
-                    state.reset();
-                }
-                srcpad.push_event(event)
+                shared.state.lock_safe().reset();
+                shared.srcpad.push_event(event)
             }
             EventView::Caps(c) => {
-                if let Some(s) = c.caps().structure(0) {
-                    if let (Ok(rate), Ok(channels)) =
-                        (s.get::<i32>("rate"), s.get::<i32>("channels"))
-                    {
-                        if let Ok(mut state) = state_arc.lock() {
-                            state.prepare_if_needed(rate as u32, channels as u32);
-                        }
-                    }
+                let format = c.caps().structure(0).and_then(|s| {
+                    let rate = s.get::<i32>("rate").ok()?;
+                    let channels = s.get::<i32>("channels").ok()?;
+                    AudioFormat::new(rate as u32, channels as u32).ok()
+                });
+                if let Some(format) = format {
+                    Self::prepare_for_format(shared, format);
                 }
-                srcpad.push_event(event)
+                shared.srcpad.push_event(event)
             }
             EventView::Segment(seg) => {
-                if let Ok(mut state) = state_arc.lock() {
+                {
+                    let mut state = shared.state.lock_safe();
                     let position = match seg.segment().position() {
                         gst::GenericFormattedValue::Time(Some(t)) => t.nseconds(),
                         _ => 0,
@@ -426,78 +491,51 @@ impl AuraluneDspImpl {
                     state.current_pts = Some(position);
                     state.current_offset = 0;
                 }
-                srcpad.push_event(event)
+                shared.srcpad.push_event(event)
             }
             EventView::Eos(..) => {
-                // Drain resztek bufora procesora do FIFO
-                let mut state = state_arc.lock_safe();
-                let mut out_buffer = std::mem::take(&mut state.out_buffer);
-                out_buffer.clear();
-                let engine = state.params.engine;
-                let _ = match engine {
-                    DspEngine::Bypass => Ok(dsp_api::ProcessStatus::Eos),
-                    DspEngine::RubberBand => state.rubberband.drain(&mut out_buffer),
-                    DspEngine::SoundTouch => state.soundtouch.drain(&mut out_buffer),
-                };
-
-                if !out_buffer.is_empty() {
+                // Drenaż resztek bufora procesora (EOS nie jest gorącą ścieżką — Vec dozwolony).
+                let mut tail = Vec::new();
+                {
+                    let mut state = shared.state.lock_safe();
+                    let state = &mut *state;
+                    let mut out_buffer = std::mem::take(&mut state.out_buffer);
+                    out_buffer.clear();
+                    let _ = match state.params.engine {
+                        DspEngine::Bypass => Ok(dsp_api::ProcessStatus::Eos),
+                        DspEngine::RubberBand => state.processors.rubberband.drain(&mut out_buffer),
+                        DspEngine::SoundTouch => state.processors.soundtouch.drain(&mut out_buffer),
+                    };
                     state.fifo.extend(out_buffer.iter().copied());
-                }
-
-                if let Some(fmt) = state.format {
-                    let channels = fmt.channels as usize;
-                    let sample_rate = fmt.sample_rate as u64;
-
-                    while !state.fifo.is_empty() {
-                        let drain_frames = (state.fifo.len() / channels).min(4096);
-                        if drain_frames == 0 {
-                            break;
-                        }
-                        let drain_samples = drain_frames * channels;
-                        let out_frames = drain_frames as u64;
-
-                        let cur_offset = state.current_offset;
-                        let next_offset = cur_offset + out_frames;
-                        state.current_offset = next_offset;
-
-                        let base_pts = state.current_pts.unwrap_or(0);
-                        let frame_pts_ns = base_pts + (cur_offset * 1_000_000_000) / sample_rate;
-                        let next_pts_ns = base_pts + (next_offset * 1_000_000_000) / sample_rate;
-                        let out_duration_ns = next_pts_ns.saturating_sub(frame_pts_ns);
-                        let byte_len = drain_samples * std::mem::size_of::<f32>();
-
-                        if let Ok(mut gst_out_buffer) = gst::Buffer::with_size(byte_len) {
-                            let out_buf_mut = gst_out_buffer.make_mut();
-                            {
-                                if let Ok(mut out_map) = out_buf_mut.map_writable() {
-                                    let dst_slice: &mut [f32] = unsafe {
-                                        std::slice::from_raw_parts_mut(
-                                            out_map.as_mut_ptr() as *mut f32,
-                                            drain_samples,
-                                        )
-                                    };
-                                    for sample in dst_slice.iter_mut() {
-                                        *sample = state.fifo.pop_front().unwrap_or(0.0);
-                                    }
-                                }
-                            }
-                            out_buf_mut.set_pts(gst::ClockTime::from_nseconds(frame_pts_ns));
-                            out_buf_mut
-                                .set_duration(gst::ClockTime::from_nseconds(out_duration_ns));
-                            out_buf_mut.set_offset(cur_offset);
-                            out_buf_mut.set_offset_end(next_offset);
-                            let _ = srcpad.push(gst_out_buffer);
-                        } else {
-                            break;
-                        }
+                    state.out_buffer = out_buffer;
+                    while let Some(block) = state.take_block(4096, None) {
+                        tail.push(block);
                     }
                 }
-                state.out_buffer = out_buffer;
-                drop(state);
-                srcpad.push_event(event)
+                for block in tail {
+                    let _ = shared.srcpad.push(block);
+                }
+                shared.srcpad.push_event(event)
             }
-            _ => srcpad.push_event(event),
+            _ => shared.srcpad.push_event(event),
         }
+    }
+
+    /// Przygotowuje procesory dla nowego formatu. Kosztowny `prepare` odbywa się poza blokadą.
+    fn prepare_for_format(shared: &Shared, format: AudioFormat) {
+        let (block_size, params) = {
+            let state = shared.state.lock_safe();
+            if state.format == Some(format) {
+                return;
+            }
+            (state.block_size, state.params)
+        };
+        info!(
+            "AuraluneDsp: Przygotowanie silników dla {} Hz, {} kanałów (block_size: {})",
+            format.sample_rate, format.channels, block_size
+        );
+        let processors = Processors::prepared(format, block_size, params);
+        shared.state.lock_safe().install(format, processors);
     }
 }
 
@@ -514,32 +552,45 @@ impl AuraluneDsp {
 
     pub fn set_params(&self, params: DspParams) -> Result<(), DspError> {
         let imp = self.imp();
-        let mut state = imp.state.lock_safe();
-        state.set_params(params)
+        let result = imp.state.lock_safe().set_params(params);
+        if result.is_ok() {
+            self.publish_engine(params.engine);
+        }
+        result
     }
 
     pub fn set_engine(&self, engine: DspEngine) {
         let imp = self.imp();
-        let mut state = imp.state.lock_safe();
-        state.set_engine(engine);
+        imp.state.lock_safe().set_engine(engine);
+        self.publish_engine(engine);
     }
 
+    /// Zmienia rozmiar bloku. Procesory są przygotowywane od nowa poza blokadą stanu,
+    /// więc wątek strumieniowy nie czeka na kosztowny `prepare`.
     pub fn set_block_size(&self, size: usize) {
         let imp = self.imp();
-        let mut state = imp.state.lock_safe();
-        state.set_block_size(size);
+        let clamped = size.clamp(512, 16384);
+        let (format, params) = {
+            let mut state = imp.state.lock_safe();
+            state.block_size = clamped;
+            (state.format, state.params)
+        };
+        if let Some(format) = format {
+            let processors = Processors::prepared(format, clamped, params);
+            imp.state.lock_safe().install(format, processors);
+        }
+        info!(
+            "AuraluneDsp: Zaktualizowano block_size na {} ramek",
+            clamped
+        );
     }
 
     pub fn block_size(&self) -> usize {
-        let imp = self.imp();
-        let state = imp.state.lock_safe();
-        state.block_size
+        self.imp().state.lock_safe().block_size
     }
 
     pub fn dsp_params(&self) -> DspParams {
-        let imp = self.imp();
-        let state = imp.state.lock_safe();
-        state.params
+        self.imp().state.lock_safe().params
     }
 
     pub fn dsp_capabilities(&self) -> DspCapabilities {
@@ -547,9 +598,15 @@ impl AuraluneDsp {
     }
 
     pub fn reset(&self) {
+        self.imp().state.lock_safe().reset();
+    }
+
+    fn publish_engine(&self, engine: DspEngine) {
         let imp = self.imp();
-        let mut state = imp.state.lock_safe();
-        state.reset();
+        let previous = imp.engine.swap(engine_to_u8(engine), Ordering::AcqRel);
+        if is_bypass_u8(engine_to_u8(engine)) && !is_bypass_u8(previous) {
+            imp.bypass_reset_pending.store(true, Ordering::Release);
+        }
     }
 }
 

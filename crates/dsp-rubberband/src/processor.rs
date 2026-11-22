@@ -29,6 +29,49 @@ impl Default for RubberBandProcessor {
 }
 
 impl RubberBandProcessor {
+    /// Pobiera z biblioteki wszystkie gotowe ramki i dopisuje je (z przeplotem kanałów) do
+    /// `output`. Bufory kanałowe rosną tylko przy pierwszym większym bloku — w stanie
+    /// ustalonym bez alokacji. Zwraca liczbę pobranych ramek.
+    fn retrieve_available(
+        &mut self,
+        state: RubberBandState,
+        channels: usize,
+        output: &mut Vec<f32>,
+    ) -> usize {
+        let mut total = 0;
+        loop {
+            let available = unsafe { rubberband_available(state) };
+            if available <= 0 {
+                break;
+            }
+            let avail_frames = available as usize;
+            for (ptr, ch) in self
+                .out_ptrs
+                .iter_mut()
+                .zip(&mut self.out_channels[..channels])
+            {
+                if ch.len() < avail_frames {
+                    ch.resize(avail_frames, 0.0);
+                }
+                *ptr = ch.as_mut_ptr();
+            }
+
+            let retrieved = unsafe {
+                rubberband_retrieve(state, self.out_ptrs.as_ptr(), avail_frames as u32) as usize
+            };
+            if retrieved == 0 {
+                break;
+            }
+
+            total += retrieved;
+            output.reserve(retrieved * channels);
+            for f in 0..retrieved {
+                output.extend(self.out_channels[..channels].iter().map(|ch| ch[f]));
+            }
+        }
+        total
+    }
+
     pub fn new() -> Self {
         Self {
             state: None,
@@ -140,7 +183,6 @@ impl AudioProcessor for RubberBandProcessor {
         Ok(())
     }
 
-    #[allow(clippy::needless_range_loop)]
     fn process(&mut self, input: &[f32], output: &mut Vec<f32>) -> Result<ProcessStatus, DspError> {
         let state = self.state.ok_or_else(|| DspError::Internal {
             engine: "RubberBand",
@@ -172,8 +214,8 @@ impl AudioProcessor for RubberBandProcessor {
                     self.in_channels[c].push(sample);
                 }
             }
-            for c in 0..channels {
-                self.in_ptrs[c] = self.in_channels[c].as_ptr();
+            for (ptr, ch) in self.in_ptrs.iter_mut().zip(&self.in_channels[..channels]) {
+                *ptr = ch.as_ptr();
             }
 
             // 2. Przetwarzanie w bibliotece Rubber Band
@@ -182,35 +224,7 @@ impl AudioProcessor for RubberBandProcessor {
             }
 
             // 3. Pobranie wszystkich dostępnych przetworzonych ramek
-            loop {
-                let available = unsafe { rubberband_available(state) };
-                if available <= 0 {
-                    break;
-                }
-                let avail_frames = available as usize;
-                for c in 0..channels {
-                    if self.out_channels[c].len() < avail_frames {
-                        self.out_channels[c].resize(avail_frames, 0.0);
-                    }
-                    self.out_ptrs[c] = self.out_channels[c].as_mut_ptr();
-                }
-
-                let retrieved = unsafe {
-                    rubberband_retrieve(state, self.out_ptrs.as_ptr(), avail_frames as u32) as usize
-                };
-
-                if retrieved == 0 {
-                    break;
-                }
-
-                total_retrieved += retrieved;
-                output.reserve(retrieved * channels);
-                for f in 0..retrieved {
-                    for c in 0..channels {
-                        output.push(self.out_channels[c][f]);
-                    }
-                }
-            }
+            total_retrieved += self.retrieve_available(state, channels, output);
         }
 
         if total_retrieved > 0 {
@@ -243,7 +257,6 @@ impl AudioProcessor for RubberBandProcessor {
         Ok(())
     }
 
-    #[allow(clippy::needless_range_loop)]
     fn drain(&mut self, output: &mut Vec<f32>) -> Result<ProcessStatus, DspError> {
         let state = match self.state {
             Some(s) => s,
@@ -256,48 +269,21 @@ impl AudioProcessor for RubberBandProcessor {
         let channels = format.channels as usize;
 
         // Przekazanie sygnału finalnego (final = 1) z prawidłowymi wskaźnikami buforów kanałów
-        for c in 0..channels {
-            if self.in_channels[c].is_empty() {
-                self.in_channels[c].resize(1, 0.0);
+        for (ptr, ch) in self
+            .in_ptrs
+            .iter_mut()
+            .zip(&mut self.in_channels[..channels])
+        {
+            if ch.is_empty() {
+                ch.resize(1, 0.0);
             }
-            self.in_ptrs[c] = self.in_channels[c].as_ptr();
+            *ptr = ch.as_ptr();
         }
         unsafe {
             rubberband_process(state, self.in_ptrs.as_ptr(), 0, 1);
         }
 
-        let mut retrieved_any = false;
-        loop {
-            let avail = unsafe { rubberband_available(state) };
-            if avail <= 0 {
-                break;
-            }
-            let avail_frames = avail as usize;
-            for c in 0..channels {
-                if self.out_channels[c].len() < avail_frames {
-                    self.out_channels[c].resize(avail_frames, 0.0);
-                }
-                self.out_ptrs[c] = self.out_channels[c].as_mut_ptr();
-            }
-
-            let retrieved = unsafe {
-                rubberband_retrieve(state, self.out_ptrs.as_ptr(), avail_frames as u32) as usize
-            };
-
-            if retrieved == 0 {
-                break;
-            }
-
-            retrieved_any = true;
-            output.reserve(retrieved * channels);
-            for f in 0..retrieved {
-                for c in 0..channels {
-                    output.push(self.out_channels[c][f]);
-                }
-            }
-        }
-
-        if retrieved_any {
+        if self.retrieve_available(state, channels, output) > 0 {
             Ok(ProcessStatus::Ok)
         } else {
             Ok(ProcessStatus::Eos)
