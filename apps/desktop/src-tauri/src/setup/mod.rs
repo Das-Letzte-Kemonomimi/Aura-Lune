@@ -4,6 +4,7 @@ pub mod app_init;
 pub mod fatal;
 pub mod linux_env;
 pub mod playback_ticker;
+pub mod shutdown;
 pub mod silence_trim;
 pub mod tray;
 

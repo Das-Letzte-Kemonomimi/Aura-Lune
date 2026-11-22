@@ -483,4 +483,14 @@ impl Database {
         .await?;
         Ok(())
     }
+
+    /// Projekty, których separacja została przerwana (np. zamknięciem aplikacji), oznacza jako
+    /// nieudane — inaczej pozostałyby na zawsze w stanie „separating”. Zwraca liczbę projektów.
+    pub async fn fail_interrupted_stem_projects(&self) -> Result<u64, StorageError> {
+        let res =
+            sqlx::query("UPDATE stem_projects SET status = 'failed' WHERE status = 'separating';")
+                .execute(&self.pool)
+                .await?;
+        Ok(res.rows_affected())
+    }
 }

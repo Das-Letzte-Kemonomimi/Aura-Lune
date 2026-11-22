@@ -120,3 +120,5 @@ The big views and modals were split into section components by moving their JSX 
 - [ ] **Normal start and closing the window.** The app should start normally. Closing the window with "close to tray" on should hide it to the tray; with it off, the app should quit. Toggling the setting should take effect immediately, without a restart.
 - [ ] **Startup failure shows a message.** Make the database unopenable (for example `chmod 000` on `auralune_library.db`) and start the app. An error dialog (zenity or kdialog) should appear instead of a silent crash. Restore the permissions afterwards.
 - [ ] **App icon applied at startup.** It should still be set, now in the background.
+- [ ] **Queue survives quitting.** Rearrange the queue (drag a few items, add and remove tracks), then quit immediately via the tray "Quit" item, or close the window with close-to-tray off. After a restart, the queue should match exactly what you left.
+- [ ] **Interrupted stem separation.** Start a stem separation and quit mid-way. After a restart, the project should show as failed (retryable), not stuck "separating" forever.

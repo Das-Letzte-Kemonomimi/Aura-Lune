@@ -399,10 +399,21 @@ pub fn init_app(
         Some(server)
     };
 
+    let db = Arc::new(db);
+    match rt.block_on(db.fail_interrupted_stem_projects()) {
+        Ok(n) if n > 0 => info!("Oznaczono {} przerwanych projektów stemów jako nieudane", n),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(
+            "Nie udało się zaktualizować przerwanych projektów stemów: {}",
+            e
+        ),
+    }
+    let queue_saver = crate::commands::queue::QueueSaver::spawn(&rt, engine.clone(), db.clone());
     let rt_for_cli = rt.clone();
     let app_state = AppState {
         engine,
-        db: Arc::new(db),
+        db,
+        queue_saver,
         scanner: Arc::new(scanner),
         rt,
         mpris,

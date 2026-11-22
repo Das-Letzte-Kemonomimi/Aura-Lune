@@ -56,6 +56,8 @@ pub struct AppState {
     pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
     /// Pamięć podręczna ustawienia `close_to_tray` (odczyt w obsłudze zamknięcia okna bez blokowania).
     pub close_to_tray: Arc<std::sync::atomic::AtomicBool>,
+    /// Jedyny zapisujący stan kolejki (zob. `persist_queue_state`).
+    pub queue_saver: commands::queue::QueueSaver,
 }
 
 pub fn run() {
@@ -326,6 +328,11 @@ pub fn run() {
             export_stem_project_mix,
             export_stem_project_zip,
         ])
-        .run(tauri::generate_context!())
-        .expect("Błąd podczas uruchamiania aplikacji Tauri");
+        .build(tauri::generate_context!())
+        .expect("Błąd podczas uruchamiania aplikacji Tauri")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                setup::shutdown::on_exit(app);
+            }
+        });
 }

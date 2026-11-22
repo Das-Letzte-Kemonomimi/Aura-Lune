@@ -4,14 +4,46 @@ use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use tauri::State;
 use tracing::{info, warn};
 
+/// Zleca zapis stanu kolejki. Zapisy są łączone (debounce) i wykonywane przez jeden wątek
+/// zapisujący, więc nie mogą się wyprzedzić i nadpisać nowszego stanu starszym.
 pub fn persist_queue_state(state: &AppState) {
-    let queue = state.engine.queue();
-    let db = state.db.clone();
-    state.rt.spawn(async move {
-        if let Err(e) = db.save_queue_state(&queue).await {
-            tracing::warn!("Nie udało się zapisać stanu kolejki: {}", e);
+    state.queue_saver.request_save();
+}
+
+/// Pojedynczy, opóźniony zapis kolejki odtwarzania do bazy.
+#[derive(Clone)]
+pub struct QueueSaver {
+    tx: std::sync::Arc<tokio::sync::watch::Sender<u64>>,
+}
+
+impl QueueSaver {
+    /// Czas łączenia serii zmian (np. przeciąganie wielu elementów) w jeden zapis.
+    pub const DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(300);
+
+    pub fn spawn(
+        rt: &tokio::runtime::Runtime,
+        engine: std::sync::Arc<audio_engine::AudioEngine>,
+        db: std::sync::Arc<storage::Database>,
+    ) -> Self {
+        let (tx, mut rx) = tokio::sync::watch::channel(0u64);
+        rt.spawn(async move {
+            while rx.changed().await.is_ok() {
+                tokio::time::sleep(Self::DEBOUNCE).await;
+                rx.borrow_and_update();
+                let queue = engine.queue();
+                if let Err(e) = db.save_queue_state(&queue).await {
+                    warn!("Nie udało się zapisać stanu kolejki: {}", e);
+                }
+            }
+        });
+        Self {
+            tx: std::sync::Arc::new(tx),
         }
-    });
+    }
+
+    pub fn request_save(&self) {
+        self.tx.send_modify(|v| *v = v.wrapping_add(1));
+    }
 }
 
 #[tauri::command]

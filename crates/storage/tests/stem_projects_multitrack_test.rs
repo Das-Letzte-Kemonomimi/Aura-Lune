@@ -163,3 +163,50 @@ async fn test_stem_project_mixes_and_active_mix() {
     db.delete_stem_project(proj_id).await.unwrap();
     assert!(db.get_stem_project(proj_id).await.unwrap().is_none());
 }
+
+#[tokio::test]
+async fn test_interrupted_separations_are_marked_failed_on_startup() {
+    let db = setup_test_db().await;
+    let track_id = db
+        .upsert_track(&make_dummy_track("/music/interrupted.flac", "T", "A"))
+        .await
+        .unwrap();
+    let project = |status: domain::StemProjectStatus| domain::StemProject {
+        id: 0,
+        track_id,
+        track_hash: "h".into(),
+        title: "P".into(),
+        artist: "A".into(),
+        album: "Al".into(),
+        cover_uri: None,
+        status,
+        progress: 0.4,
+        model_name: "htdemucs".into(),
+        disk_size_bytes: 0,
+        channels: vec![],
+        active_mix_name: None,
+        created_at: "2026-11-22T10:00:00Z".into(),
+        updated_at: "2026-11-22T10:00:00Z".into(),
+    };
+    let stuck = db
+        .create_stem_project(&project(domain::StemProjectStatus::Separating))
+        .await
+        .unwrap();
+    let ready = db
+        .create_stem_project(&project(domain::StemProjectStatus::Ready))
+        .await
+        .unwrap();
+
+    assert_eq!(db.fail_interrupted_stem_projects().await.unwrap(), 1);
+    let status = |id| {
+        let db = db.clone();
+        async move { db.get_stem_project(id).await.unwrap().unwrap().status }
+    };
+    assert_eq!(status(stuck).await, domain::StemProjectStatus::Failed);
+    assert_eq!(status(ready).await, domain::StemProjectStatus::Ready);
+    assert_eq!(
+        db.fail_interrupted_stem_projects().await.unwrap(),
+        0,
+        "idempotentne"
+    );
+}
