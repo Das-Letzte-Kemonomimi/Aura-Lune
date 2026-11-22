@@ -12,7 +12,7 @@
 
 ## Oczekujące zmiany na kolejne wydanie (Unreleased / Next Release)
 
-> Zakres: wszystkie zmiany gałęzi względem `main` (porządki „prepare for refactor”, wydzielenie `App.tsx`, kanał deweloperski instalatora oraz fazy 1–6 przeglądu backendu i frontendu). Lista rzeczy do sprawdzenia ręcznie w działającej aplikacji: [`MANUAL_CHECKS.md`](./MANUAL_CHECKS.md).
+> Zakres: wszystkie zmiany gałęzi względem `main` (porządki „prepare for refactor”, wydzielenie `App.tsx`, kanał deweloperski instalatora oraz fazy 1–6 przeglądu backendu i frontendu).
 
 ### ✨ Dodano (Added)
 
@@ -33,7 +33,7 @@
 - **Kanał deweloperski instalatora** (`install.sh`): wersja `auralune-dev` instalowana obok stabilnej, z osobnymi plikami, profilem i skrótami; automatyczne wykrywanie wtyczek GStreamera (np. na Arch Linux).
 - **Automatyczne wydania testowe**: każda zmiana w gałęzi deweloperskiej publikuje w GitHub Actions świeży AppImage oznaczony `dev`.
 - **Skrypt pełnej weryfikacji** `tests/run_all_tests.sh` (7 etapów jak w CI: `cargo fmt`, oxlint + Vitest, `tsc` + build Vite, Clippy `-D warnings`, testy Rusta, test dymny, `bash -n`) z przełącznikami `--fix`, `--fast` i `--bundle`.
-- **Dokumentacja**: przewodnik architektury [`AGENTS.md`](./AGENTS.md), [`DEVELOPMENT.md`](./DEVELOPMENT.md) oraz lista kontroli ręcznych [`MANUAL_CHECKS.md`](./MANUAL_CHECKS.md).
+- **Dokumentacja**: przewodnik architektury [`AGENTS.md`](./AGENTS.md) oraz [`DEVELOPMENT.md`](./DEVELOPMENT.md).
 - **Znacznie więcej testów automatycznych**, m.in.:
   - baza danych — migracje schematu, kaskady kluczy obcych, kolejność playlist, duplikaty;
   - silnik audio — tryb bit-perfect, długość wyjścia i ciągłość znaczników czasu DSP, niewyrównane bufory, zakleszczenia, kodowanie URI, wykrywanie ciszy;
