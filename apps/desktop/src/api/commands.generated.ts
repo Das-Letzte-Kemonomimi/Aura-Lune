@@ -13,6 +13,7 @@ export const COMMAND_NAMES = [
   'apply_cover_url',
   'apply_custom_cover_data',
   'apply_custom_cover_file',
+  'apply_dsp_profile',
   'apply_stem_project_mix',
   'auto_fetch_album_cover',
   'cancel_download_job',

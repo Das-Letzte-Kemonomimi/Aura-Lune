@@ -201,6 +201,33 @@ pub fn set_dsp_params(
     Ok(get_status_internal(&state))
 }
 
+/// Applies a whole DSP profile (engine, tempo, pitch, rate and graphic EQ) in one IPC round trip and
+/// returns the resulting status. Used by the one-click vibe presets (Nightcore, Slowed, ...).
+#[tauri::command]
+pub fn apply_dsp_profile(
+    engine: Option<String>,
+    tempo_ratio: f64,
+    pitch_semitones: f64,
+    rate_ratio: f64,
+    equalizer_bands: [f64; 10],
+    equalizer_enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<PlaybackStatusDto, CommandError> {
+    let current = state.engine.dsp_params();
+    let target_engine = engine
+        .as_deref()
+        .map(DspEngine::from_name)
+        .unwrap_or(current.engine);
+    let params = DspParams::new(target_engine, pitch_semitones, tempo_ratio, rate_ratio)?;
+
+    state.engine.set_dsp_engine(target_engine)?;
+    state.engine.set_dsp_params(params)?;
+    set_equalizer_bands_internal(&state, &equalizer_bands)?;
+    set_equalizer_enabled_internal(&state, equalizer_enabled)?;
+
+    Ok(get_status_internal(&state))
+}
+
 #[tauri::command]
 pub fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, CommandError> {
     let current = state.engine.dsp_params();

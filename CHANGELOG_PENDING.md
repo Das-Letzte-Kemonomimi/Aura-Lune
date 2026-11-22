@@ -47,6 +47,7 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Profile DSP (Nightcore, Slowed, …)**: zastosowanie profilu to jedno wywołanie IPC (`apply_dsp_profile`) zamiast sześciu, a przełączenie z Bypass na silnik DSP nie wykonuje już seeku (przebazowanie osi czasu), więc profil włącza się bez przerwy w dźwięku.
 - **Ikona kanału dev**: `install.sh` instaluje nową ikonę (lineout) zamiast starej, launcher eksportuje `AURALUNE_CHANNEL`, a aplikacja zapisuje ikonę pod `auralune-dev` i nie nadpisuje wpisu `.desktop` wersji stable.
 - **Pełnoekranowy odtwarzacz**: zawartość skaluje się do okna i można ją przewijać zamiast wychodzić poza ekran.
 - **Teksty interfejsu**: łączny czas kolejki ("9 godz. 59 min" → "9 h 59 min" w EN itd.), komunikaty błędów kolejki, raport diagnostyczny audio, komunikat o braku akordów i inne ciągi zapisane na sztywno po polsku są teraz tłumaczone przez pliki `locales/`.

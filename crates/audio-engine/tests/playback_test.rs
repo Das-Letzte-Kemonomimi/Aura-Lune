@@ -816,3 +816,47 @@ fn test_equal_power_crossfade_duration_and_transition() {
 
     engine.stop().expect("stop");
 }
+
+/// Wejście z Bypass w przetwarzanie DSP nie robi seeku, ale pozycja musi płynnie rosnąć:
+/// bez skoku do tyłu / na początek i bez przeskoku do przodu po zmianie silnika i tempa.
+#[test]
+fn test_bypass_to_dsp_switch_keeps_position_continuous() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/Skrzydła Białe.flac");
+    assert!(fixture_path.exists(), "Plik testowy powinien istnieć");
+
+    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let uri = audio_engine::uri::media_uri(fixture_path.to_str().unwrap());
+    engine.load_uri(&uri).expect("Ładowanie pliku");
+    engine.play().expect("Play");
+    engine.seek(Duration::from_secs(5)).expect("Seek na 5 s");
+    sleep(Duration::from_millis(500));
+
+    let before = engine.position().expect("Pozycja przed przełączeniem");
+
+    engine
+        .set_dsp_engine(dsp_api::DspEngine::RubberBand)
+        .expect("Wejście w RubberBand z Bypass");
+    engine.set_tempo_ratio(1.5).expect("Tempo 1.5x");
+    sleep(Duration::from_millis(800));
+
+    let after = engine.position().expect("Pozycja po przełączeniu");
+
+    assert!(
+        after >= before,
+        "Pozycja nie może cofnąć się po przełączeniu: {:?} -> {:?}",
+        before,
+        after
+    );
+    // 0.8 s zegara * 1.5 + zapas na bufory/rebase; przeskok o kilka sekund oznaczałby błąd osi czasu.
+    assert!(
+        after - before < Duration::from_millis(2500),
+        "Pozycja przeskoczyła do przodu: {:?} -> {:?}",
+        before,
+        after
+    );
+}

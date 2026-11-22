@@ -101,7 +101,7 @@ Aura-Lune/
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Modularized Tauri command handlers (183 commands)
+│           │   ├── commands/        # Modularized Tauri command handlers (184 commands)
 │           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
 │           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
@@ -202,7 +202,7 @@ Aura-Lune/
     - `fades.rs` — `atomic_volume`, `set_volume_smooth` S-curve, equal-power fades, crossfade, `fade_generation` cancellation.
     - `queue_ops.rs` — queue mutations and track switches (`switch_context`, `fade_out_before_switch`, `start_switched_track`).
     - `bus.rs` — `poll_events` (EOS → stop-after-current / `replay_current` / `advance_after_eos`, errors, tags, spectrum, pre-EOS fade). Called only by the desktop playback ticker.
-    - `dsp.rs`, `equalizer.rs`, `effects.rs` — DSP params, graphic/parametric EQ, dynamics, ReplayGain, crossfeed, silence config, widener, limiter.
+    - `dsp.rs` (entering DSP from Bypass rebases the timeline instead of seeking; other engine switches still seek to realign PTS), `equalizer.rs`, `effects.rs` — DSP params, graphic/parametric EQ, dynamics, ReplayGain, crossfeed, silence config, widener, limiter.
   - `dsp_node.rs`: Custom `auralune_dsp` element switching Bypass / RubberBand / SoundTouch. **Real-time model:** bypass is lock-free (atomic engine flag, bit-perfect passthrough); processing holds the state lock only for one buffer; `prepare()` for new formats/block sizes runs outside the lock and the processors are swapped in; output blocks are collected on the stack (no per-buffer heap allocation); format comes from the Caps event only.
   - `rt.rs`: Streaming-thread helpers — alignment-checked `f32` views of buffer bytes (`f32_samples`, `map_f32_samples_in_place`, `map_stereo_frames_in_place`, `extend_f32_samples`) with copy fallback, and `RateLimiter` for hot-path logging. Never cast buffer bytes with `slice::from_raw_parts`.
   - `spectrum.rs`: Pure spectrum math (dB normalisation, 64 → 16 perceptual bands, stereo assembly).
@@ -274,7 +274,7 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 - [`setup/silence_trim.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/silence_trim.rs): Detects silence bounds in the background (`audio_engine::detect_silence_bounds`, cached in `track_silence_bounds`), seeks past leading silence and seeks to just before EOS at trailing silence so the engine's normal EOS path handles loop / stop-after-current / crossfade. Pure decisions live in `domain::silence::{find_silence_bounds, trim_action}`.
 
 ### Modular Command Handlers (`commands/`)
-All 183 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+All 184 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
 
 **Dead commands** — a command no frontend `invoke()` uses is removed (the storage/engine method stays). The cleanup in Phase 6 removed 31 such wrappers.
 
@@ -289,7 +289,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 |---|---|---|
 | [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync; `get_status` returns the ticker snapshot | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
 | [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `toggle_stop_after_current` (plus `play_next_internal` / `play_previous_internal` for non-command callers) |
-| [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
+| [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `apply_dsp_profile` (whole vibe preset — engine, tempo, pitch, rate, EQ — in one IPC call), `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
 | [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
 | [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
 | [`themes.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/themes.rs) | Themes, wallpapers & system icons | `list_themes`, `get_active_theme`, `set_active_theme`, `update_theme_background`, `export_theme_json`, `import_theme_json`, `upload_background_image`, `set_app_icon_style`, `get_app_icon_style`, `update_system_icons` (icons/.desktop written under the channel id from `install_identity`: `auralune-dev` when `AURALUNE_CHANNEL=dev` or the AppImage path says dev; dev never rewrites stable `.desktop` entries) |
@@ -522,7 +522,7 @@ Aura-Lune/
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Modularized Tauri command handlers (183 commands)
+│           │   ├── commands/        # Modularized Tauri command handlers (184 commands)
 │           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
 │           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
@@ -623,7 +623,7 @@ Aura-Lune/
     - `fades.rs` — `atomic_volume`, `set_volume_smooth` S-curve, equal-power fades, crossfade, `fade_generation` cancellation.
     - `queue_ops.rs` — queue mutations and track switches (`switch_context`, `fade_out_before_switch`, `start_switched_track`).
     - `bus.rs` — `poll_events` (EOS → stop-after-current / `replay_current` / `advance_after_eos`, errors, tags, spectrum, pre-EOS fade). Called only by the desktop playback ticker.
-    - `dsp.rs`, `equalizer.rs`, `effects.rs` — DSP params, graphic/parametric EQ, dynamics, ReplayGain, crossfeed, silence config, widener, limiter.
+    - `dsp.rs` (entering DSP from Bypass rebases the timeline instead of seeking; other engine switches still seek to realign PTS), `equalizer.rs`, `effects.rs` — DSP params, graphic/parametric EQ, dynamics, ReplayGain, crossfeed, silence config, widener, limiter.
   - `dsp_node.rs`: Custom `auralune_dsp` element switching Bypass / RubberBand / SoundTouch. **Real-time model:** bypass is lock-free (atomic engine flag, bit-perfect passthrough); processing holds the state lock only for one buffer; `prepare()` for new formats/block sizes runs outside the lock and the processors are swapped in; output blocks are collected on the stack (no per-buffer heap allocation); format comes from the Caps event only.
   - `rt.rs`: Streaming-thread helpers — alignment-checked `f32` views of buffer bytes (`f32_samples`, `map_f32_samples_in_place`, `map_stereo_frames_in_place`, `extend_f32_samples`) with copy fallback, and `RateLimiter` for hot-path logging. Never cast buffer bytes with `slice::from_raw_parts`.
   - `spectrum.rs`: Pure spectrum math (dB normalisation, 64 → 16 perceptual bands, stereo assembly).
@@ -694,7 +694,7 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 - [`setup/silence_trim.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/silence_trim.rs): Detects silence bounds in the background (`audio_engine::detect_silence_bounds`, cached in `track_silence_bounds`), seeks past leading silence and seeks to just before EOS at trailing silence so the engine's normal EOS path handles loop / stop-after-current / crossfade. Pure decisions live in `domain::silence::{find_silence_bounds, trim_action}`.
 
 ### Modular Command Handlers (`commands/`)
-All 183 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+All 184 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
 
 **Dead commands** — a command no frontend `invoke()` uses is removed (the storage/engine method stays). The cleanup in Phase 6 removed 31 such wrappers.
 
@@ -709,7 +709,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 |---|---|---|
 | [`playback.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playback.rs) | Playback controls & MPRIS sync; `get_status` returns the ticker snapshot | `play`, `pause`, `stop`, `seek`, `sync_mpris_from_queue_item`, `sync_desktop_playback_state` |
 | [`queue.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/queue.rs) | Queue lifecycle, looping, shuffling | `get_queue`, `set_queue`, `add_to_queue`, `add_uris_to_queue`, `add_next_to_queue`, `remove_from_queue`, `reorder_queue`, `clear_queue`, `play_queue_index`, `play_next`, `play_previous`, `set_loop_mode`, `toggle_shuffle`, `set_shuffle`, `set_active_track`, `toggle_stop_after_current` (plus `play_next_internal` / `play_previous_internal` for non-command callers) |
-| [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
+| [`dsp.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dsp.rs) | Pitch, tempo, rate, EQ & AutoEQ, dynamics | `apply_dsp_profile` (whole vibe preset — engine, tempo, pitch, rate, EQ — in one IPC call), `set_pitch`, `set_tempo`, `set_rate`, `set_equalizer_bands`, `set_equalizer_enabled`, `set_limiter_enabled`, `set_crossfeed_enabled`, `set_silence_trimming_enabled`, `set_replaygain_mode` |
 | [`library.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/library.rs) | Library scanning, queries & stats | `scan_paths`, `rescan_library`, `get_library_stats`, `get_library_tracks`, `get_library_albums`, `toggle_favorite`, `set_track_rating`, `find_duplicate_tracks`, `delete_track_record` |
 | [`playlists.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/playlists.rs) | Playlists, Smart Playlists, Radio & CUE | `create_playlist`, `delete_playlist`, `list_playlists`, `add_track_to_playlist`, `remove_track_from_playlist`, `get_playlist_tracks`, `save_queue_as_playlist`, `export_playlist_m3u8`, `import_playlist_m3u8`, `load_radio_stream`, `parse_cue_sheet_content` |
 | [`themes.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/themes.rs) | Themes, wallpapers & system icons | `list_themes`, `get_active_theme`, `set_active_theme`, `update_theme_background`, `export_theme_json`, `import_theme_json`, `upload_background_image`, `set_app_icon_style`, `get_app_icon_style`, `update_system_icons` (icons/.desktop written under the channel id from `install_identity`: `auralune-dev` when `AURALUNE_CHANNEL=dev` or the AppImage path says dev; dev never rewrites stable `.desktop` entries) |

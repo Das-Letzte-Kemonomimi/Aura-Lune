@@ -143,8 +143,38 @@ describe('useDspManager', () => {
       await result.current.handleApplyDspVibe('nightcore');
     });
     expect(result.current.activeDspVibe).toBe('nightcore');
-    expect(mockInvoke).toHaveBeenCalledWith('set_rate', { rateRatio: 1.25 });
-    expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_enabled', { enabled: true });
+    expect(mockInvoke).toHaveBeenCalledWith('apply_dsp_profile', {
+      engine: null,
+      tempoRatio: 1.0,
+      pitchSemitones: 0.0,
+      rateRatio: 1.25,
+      equalizerBands: [0, 0, 0, 0, 1.0, 1.5, 2.5, 3.0, 2.5, 2.0],
+      equalizerEnabled: true,
+    });
+    // One IPC round trip for the whole profile.
+    expect(mockInvoke.mock.calls.filter(([cmd]) => cmd === 'apply_dsp_profile')).toHaveLength(1);
+    expect(mockInvoke).not.toHaveBeenCalledWith('set_rate', expect.anything());
+  });
+
+  it('handleApplyDspVibe toggles the active vibe off back to Bypass in one call', async () => {
+    const { result } = setupHook();
+    await act(async () => {
+      await result.current.handleApplyDspVibe('slowed');
+    });
+    mockInvoke.mockClear();
+    await act(async () => {
+      await result.current.handleApplyDspVibe('slowed');
+    });
+    expect(result.current.activeDspVibe).toBeNull();
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledWith('apply_dsp_profile', {
+      engine: 'Bypass',
+      tempoRatio: 1.0,
+      pitchSemitones: 0.0,
+      rateRatio: 1.0,
+      equalizerBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      equalizerEnabled: false,
+    });
   });
 
   it('handleUpdateReverb sets parameters and calls IPC', async () => {

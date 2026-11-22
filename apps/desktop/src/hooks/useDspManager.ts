@@ -403,12 +403,7 @@ export function useDspManager({
       try {
         if (activeDspVibe === vibe) {
           setActiveDspVibe(null);
-          await invoke('set_dsp_engine', { engine: 'Bypass' });
-          await invoke('set_tempo', { tempoRatio: 1.0 });
-          await invoke('set_pitch', { semitones: 0.0 });
-          await invoke('set_rate', { rateRatio: 1.0 });
-          await invoke('set_equalizer_bands', { bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
-          await invoke('set_equalizer_enabled', { enabled: false });
+          const flatBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
           setStatus((prev) => ({
             ...prev,
             engine: 'Bypass',
@@ -418,6 +413,14 @@ export function useDspManager({
             equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             equalizer_enabled: false,
           }));
+          await invoke('apply_dsp_profile', {
+            engine: 'Bypass',
+            tempoRatio: 1.0,
+            pitchSemitones: 0.0,
+            rateRatio: 1.0,
+            equalizerBands: flatBands,
+            equalizerEnabled: false,
+          });
           showMessage(loc.notifications.dspVibeBypass);
           return;
         }
@@ -461,16 +464,6 @@ export function useDspManager({
           msg = loc.notifications.dspPresetFlat;
         }
 
-        if (vibe !== 'flat' && status.engine === 'Bypass') {
-          await invoke('set_dsp_engine', { engine: 'RubberBand' });
-        }
-
-        await invoke('set_tempo', { tempoRatio: targetTempo });
-        await invoke('set_pitch', { semitones: targetPitch });
-        await invoke('set_rate', { rateRatio: targetRate });
-        await invoke('set_equalizer_bands', { bands });
-        await invoke('set_equalizer_enabled', { enabled: true });
-
         setStatus((prev) => ({
           ...prev,
           tempo_ratio: targetTempo,
@@ -480,6 +473,17 @@ export function useDspManager({
           equalizer_enabled: true,
           engine: vibe !== 'flat' && prev.engine === 'Bypass' ? 'RubberBand' : prev.engine,
         }));
+
+        // Jedno wywołanie IPC zamiast sześciu kolejnych; UI zmienia się od razu (optymistycznie),
+        // a ticker backendu i tak potwierdza faktyczny stan.
+        await invoke('apply_dsp_profile', {
+          engine: vibe !== 'flat' && status.engine === 'Bypass' ? 'RubberBand' : null,
+          tempoRatio: targetTempo,
+          pitchSemitones: targetPitch,
+          rateRatio: targetRate,
+          equalizerBands: bands,
+          equalizerEnabled: true,
+        });
 
         showMessage(msg);
       } catch (e: unknown) {

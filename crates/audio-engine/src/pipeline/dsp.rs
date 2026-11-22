@@ -193,6 +193,16 @@ impl AudioEngine {
 
         let mut inner = self.inner.lock_safe();
 
+        // Wejście z Bypass w przetwarzanie nie wymaga seeku: w Bypass bufory przechodzą bez zmian
+        // (czas strumienia == czas nośnika), więc silnik startuje z PTS kolejnego bufora, a oś czasu
+        // wystarczy przebazować (tak jak przy zmianie tempa w locie). Pozostałe przejścia
+        // (do Bypass, Rubber Band <-> SoundTouch) niosą narosły dryf PTS i nadal robią seek.
+        let entering_from_bypass = is_active_playback
+            && current.engine == DspEngine::Bypass
+            && engine != DspEngine::Bypass;
+        let rebase_media = Self::calculate_media_position(&inner).unwrap_or(current_pos);
+        let rebase_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
+
         // Jeśli opuszczamy aktywny silnik DSP (RubberBand / SoundTouch), zapamiętujemy parametry
         if current.engine != DspEngine::Bypass {
             inner.last_active_dsp = Some(current);
@@ -230,15 +240,20 @@ impl AudioEngine {
         inner.dsp.set_engine(engine);
         let _ = inner.dsp.set_params(target_params);
         inner.dsp_params = target_params;
-        inner.base_media_pos = current_pos;
-        inner.base_sink_pts = current_pos;
+        if entering_from_bypass {
+            inner.base_media_pos = rebase_media;
+            inner.base_sink_pts = rebase_sink;
+        } else {
+            inner.base_media_pos = current_pos;
+            inner.base_sink_pts = current_pos;
+        }
         drop(inner);
 
         // Jeśli odtwarzanie jest aktywne, wykonaj natychmiastowy seek do bieżącej pozycji.
         // Oczyszcza to zbuforowane w kolejkach zdezsynchronizowane próbki i gwarantuje,
         // że nowy silnik (lub czysty strumień Bypass) startuje od dokładnie tej samej sekundy
         // z idealnie wyrównanymi znacznikami czasu PTS w GStreamerze (brak efektu flangera i szarpnięć).
-        if is_active_playback {
+        if is_active_playback && !entering_from_bypass {
             if let Err(e) = self.seek(current_pos) {
                 warn!(
                     "Błąd resynchronizacji seek przy zmianie silnika DSP: {:?}",

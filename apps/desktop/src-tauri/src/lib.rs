@@ -124,6 +124,7 @@ pub fn run() {
             set_dsp_params,
             reset_dsp,
             set_dsp_engine,
+            apply_dsp_profile,
             save_dsp_preset,
             list_dsp_presets,
             load_dsp_preset,
