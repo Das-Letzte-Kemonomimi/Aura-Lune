@@ -288,6 +288,7 @@ cat > "$LAUNCHER_DEST" <<EOF
 #!/usr/bin/env bash
 # ${APP_NAME} smart launcher with automatic FUSE 2 fallback and GStreamer plugin detection
 APPIMAGE="${APPIMAGE_DEST}"
+export AURALUNE_CHANNEL="${CHANNEL}"
 
 if [ ! -f "\$APPIMAGE" ]; then
     echo "Error: Could not find ${APP_NAME} AppImage at \$APPIMAGE" >&2
@@ -322,14 +323,13 @@ fi
 EOF
 chmod +x "$LAUNCHER_DEST"
 
-# 6. Install hicolor icons
-echo -e "${BLUE}🎨 Installing application icons (128x128 and 512x512)...${RESET}"
-if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/icons/128x128.png" ]]; then
-    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/128x128.png" "$ICONS_128_DIR/${ICON_NAME}.png"
-    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon.png" "$ICONS_512_DIR/${ICON_NAME}.png"
+# 6. Install hicolor icons (new "lineout" default; the app re-applies the style chosen in Settings on start)
+echo -e "${BLUE}🎨 Installing application icon...${RESET}"
+rm -f "$ICONS_128_DIR/${ICON_NAME}.png"
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon_lineout.png" ]]; then
+    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon_lineout.png" "$ICONS_512_DIR/${ICON_NAME}.png"
 else
-    curl -sSf -o "$ICONS_128_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/apps/desktop/src-tauri/icons/128x128.png" 2>/dev/null || true
-    curl -sSf -o "$ICONS_512_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/apps/desktop/src-tauri/icons/icon.png" 2>/dev/null || true
+    curl -sSf -o "$ICONS_512_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/apps/desktop/src-tauri/icons/icon_lineout.png" 2>/dev/null || true
 fi
 
 # 7. Configure desktop entry (.desktop)

@@ -139,6 +139,33 @@ pub fn upload_background_image(file_path: String) -> Result<String, CommandError
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
+/// Tożsamość instalacji w systemie (kanał stable / dev), używana do nazw ikon i wpisu .desktop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstallIdentity {
+    pub app_id: &'static str,
+    pub display_name: &'static str,
+    pub is_dev: bool,
+}
+
+/// Kanał dev rozpoznajemy po `AURALUNE_CHANNEL=dev` (ustawia go launcher z `install.sh`)
+/// albo po ścieżce AppImage (`auralune-dev`). Wszystko inne to kanał stable.
+pub fn install_identity(channel_env: Option<&str>, appimage: Option<&str>) -> InstallIdentity {
+    let is_dev = channel_env == Some("dev") || appimage.is_some_and(|p| p.contains("auralune-dev"));
+    if is_dev {
+        InstallIdentity {
+            app_id: "auralune-dev",
+            display_name: "Auralune (Dev)",
+            is_dev,
+        }
+    } else {
+        InstallIdentity {
+            app_id: "auralune",
+            display_name: "Auralune",
+            is_dev,
+        }
+    }
+}
+
 pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), CommandError> {
     let clean_style = if style == "classic" {
         "classic"
@@ -160,6 +187,11 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
         }
     }
 
+    let identity = install_identity(
+        std::env::var("AURALUNE_CHANNEL").ok().as_deref(),
+        std::env::var("APPIMAGE").ok().as_deref(),
+    );
+
     // 2. Zainstaluj w ~/.local/share/icons/hicolor dla środowiska Wayland / KDE Plasma
     if let Some(home) = std::env::var_os("HOME") {
         let base_icons = std::path::PathBuf::from(home.clone()).join(".local/share/icons/hicolor");
@@ -170,14 +202,19 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
 
             // Ikona pochodzi wyłącznie z zasobów wbudowanych w aplikację (nigdy z /tmp,
             // gdzie dowolny użytkownik mógłby podłożyć plik).
-            let _ = std::fs::write(dir.join("auralune.png"), &icon_bytes);
-            let _ = std::fs::write(dir.join("auralune-desktop.png"), &icon_bytes);
+            let _ = std::fs::write(dir.join(format!("{}.png", identity.app_id)), &icon_bytes);
+            if !identity.is_dev {
+                let _ = std::fs::write(dir.join("auralune-desktop.png"), &icon_bytes);
+            }
         }
 
         // 3. Zaktualizuj pliki .desktop w ~/.local/share/applications
-        let apps_dir = std::path::PathBuf::from(home).join(".local/share/applications");
-        let _ = std::fs::create_dir_all(&apps_dir);
-        let desktop_content = r#"[Desktop Entry]
+        // Kanał dev ma własny wpis `auralune-dev.desktop` tworzony przez install.sh (Exec wskazuje
+        // jego launcher), więc nie nadpisujemy go ani nie tworzymy wpisu stable.
+        if !identity.is_dev {
+            let apps_dir = std::path::PathBuf::from(home).join(".local/share/applications");
+            let _ = std::fs::create_dir_all(&apps_dir);
+            let desktop_content = r#"[Desktop Entry]
 Name=Auralune
 GenericName=Music Player
 GenericName[pl]=Odtwarzacz muzyki
@@ -193,8 +230,9 @@ StartupNotify=true
 StartupWMClass=auralune
 Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
 "#;
-        let _ = std::fs::write(apps_dir.join("auralune.desktop"), desktop_content);
-        let _ = std::fs::write(apps_dir.join("auralune-desktop.desktop"), desktop_content);
+            let _ = std::fs::write(apps_dir.join("auralune.desktop"), desktop_content);
+            let _ = std::fs::write(apps_dir.join("auralune-desktop.desktop"), desktop_content);
+        }
 
         // 4. Odśwież pamięć podręczną ikon
         let _ = std::process::Command::new("gtk-update-icon-cache")

@@ -47,6 +47,8 @@
 ---
 
 ### 🛠️ Poprawiono (Fixed)
+- **Ikona kanału dev**: `install.sh` instaluje nową ikonę (lineout) zamiast starej, launcher eksportuje `AURALUNE_CHANNEL`, a aplikacja zapisuje ikonę pod `auralune-dev` i nie nadpisuje wpisu `.desktop` wersji stable.
+- **Pełnoekranowy odtwarzacz**: zawartość skaluje się do okna i można ją przewijać zamiast wychodzić poza ekran.
 - **Teksty interfejsu**: łączny czas kolejki ("9 godz. 59 min" → "9 h 59 min" w EN itd.), komunikaty błędów kolejki, raport diagnostyczny audio, komunikat o braku akordów i inne ciągi zapisane na sztywno po polsku są teraz tłumaczone przez pliki `locales/`.
 - **Romaji w tekstach piosenek**: katakana w półszerokiej formie (ｱｲｳ, ｶﾞ) oraz rzadkie znaki kana (ヶ, ヵ, ヰ, ヱ, ヴ-warianty, ㇰ…) są teraz transliterowane zamiast pozostawać jako znaki.
 - **Biblioteka**: przyciski akcji w wierszu utworu układają się w siatkę 5×2, dzięki czemu żadna ikona nie jest ucięta.
