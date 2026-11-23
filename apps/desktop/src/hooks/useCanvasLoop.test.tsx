@@ -1,0 +1,100 @@
+import React from 'react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, cleanup, act } from '@testing-library/react';
+import { useCanvasLoop, type CanvasFrame } from './useCanvasLoop';
+import { installCanvasMock, installFakeRaf, type CanvasMock, type FakeRaf } from '../test/canvasMock';
+
+let raf: FakeRaf;
+let canvas: CanvasMock;
+
+afterEach(() => {
+  cleanup();
+  canvas?.restore();
+  raf?.restore();
+});
+
+function setup(draw: (f: CanvasFrame) => boolean | void, css = { width: 201, height: 101 }, dpr = 1.5) {
+  raf = installFakeRaf();
+  canvas = installCanvasMock(css);
+  canvas.setDpr(dpr);
+  let invalidate: () => void = () => {};
+  const Probe: React.FC = () => {
+    const loop = useCanvasLoop(draw);
+    invalidate = loop.invalidate;
+    return <canvas ref={loop.canvasRef} />;
+  };
+  const view = render(<Probe />);
+  return { view, invalidate: () => invalidate() };
+}
+
+describe('useCanvasLoop', () => {
+  it('sizes the backing store once (rounded) and draws in CSS pixels', () => {
+    const draw = vi.fn();
+    setup(draw);
+    raf.step();
+
+    const frame = draw.mock.calls[0][0] as CanvasFrame;
+    expect(frame.width).toBe(201);
+    expect(frame.height).toBe(101);
+    expect(frame.dpr).toBe(1.5);
+    expect(canvas.widthAssignments()).toBe(1); // 201 * 1.5 = 301.5 -> 302 (różne od domyślnych 300)
+    // 101 * 1.5 = 151.5 -> 152 (różne od domyślnych 150)
+    expect(canvas.heightAssignments()).toBe(1);
+    expect(canvas.calls).toContain('setTransform');
+  });
+
+  it('does not reallocate the buffer across many frames at a fractional DPR (regression: flicker every frame)', () => {
+    const draw = vi.fn();
+    setup(draw);
+    for (let i = 0; i < 30; i++) raf.step();
+    expect(draw.mock.calls.length).toBeGreaterThanOrEqual(30);
+    expect(canvas.widthAssignments()).toBe(1);
+    expect(canvas.heightAssignments()).toBe(1);
+
+    // Ten sam rozmiar zgłoszony przez ResizeObserver nie realokuje bufora
+    act(() => canvas.triggerResize());
+    expect(canvas.widthAssignments()).toBe(1);
+  });
+
+  it('reallocates when the element or the DPR really changes', () => {
+    setup(vi.fn());
+    raf.step();
+    act(() => {
+      canvas.setCssSize(400, 101);
+      canvas.triggerResize();
+    });
+    expect(canvas.widthAssignments()).toBe(2);
+
+    act(() => {
+      canvas.setDpr(2);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(canvas.widthAssignments()).toBe(3);
+  });
+
+  it('sleeps when draw returns false and redraws on invalidate()', () => {
+    const draw = vi.fn(() => false as const);
+    const { invalidate } = setup(draw);
+    raf.step();
+    expect(draw).toHaveBeenCalledTimes(1);
+    expect(raf.pending()).toBe(0);
+
+    act(() => invalidate());
+    raf.step();
+    expect(draw).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not draw (and does not spin) for an element without size', () => {
+    const draw = vi.fn();
+    setup(draw, { width: 0, height: 0 });
+    raf.step();
+    expect(draw).not.toHaveBeenCalled();
+    expect(raf.pending()).toBe(0);
+  });
+
+  it('clears the canvas before each frame', () => {
+    setup(vi.fn());
+    raf.step();
+    expect(canvas.calls).toContain('clearRect');
+  });
+});

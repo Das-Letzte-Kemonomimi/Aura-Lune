@@ -81,6 +81,20 @@ export function useLiveStatus<T extends Pick<PlaybackStatus, 'position_ms' | 'sp
   return { ...status, position_ms: s.positionMs, spectrum };
 }
 
+/**
+ * Wartość pochodna ze store'u (np. pozycja zaokrąglona do sekundy). Komponent renderuje się tylko wtedy,
+ * gdy wynik selektora się zmieni — selektor MUSI zwracać wartość prostą (liczba/tekst/bool).
+ */
+export function useLiveSelector<T extends string | number | boolean | null | undefined>(
+  selector: (snapshot: LivePlaybackSnapshot) => T,
+): T {
+  return useSyncExternalStore(
+    livePlayback.subscribe,
+    () => selector(livePlayback.getSnapshot()),
+    () => selector(livePlayback.getSnapshot()),
+  );
+}
+
 /** Dokładna pozycja w chwili wywołania (poza renderem, np. w handlerze kliknięcia). */
 export function currentPositionMs(fallback: number): number {
   const s = livePlayback.getSnapshot();

@@ -5,6 +5,7 @@ import {
   useLivePositionMs,
   useLiveSpectrum,
   useLiveStatus,
+  useLiveSelector,
   currentPositionMs,
 } from './livePlayback';
 
@@ -50,5 +51,23 @@ describe('livePlayback store', () => {
     const after = renders;
     act(() => livePlayback.publish({ positionMs: 500, spectrum }));
     expect(renders).toBe(after);
+  });
+
+  it('useLiveSelector re-renders only when the derived value changes', () => {
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders++;
+      return useLiveSelector((s) => Math.floor(s.positionMs / 1000));
+    });
+    act(() => livePlayback.publish({ positionMs: 1_100, spectrum: [0.1] }));
+    expect(result.current).toBe(1);
+    const afterFirst = renders;
+
+    act(() => livePlayback.publish({ positionMs: 1_400, spectrum: [0.2] })); // ta sama sekunda
+    expect(renders).toBe(afterFirst);
+
+    act(() => livePlayback.publish({ positionMs: 2_050, spectrum: [0.2] }));
+    expect(result.current).toBe(2);
+    expect(renders).toBe(afterFirst + 1);
   });
 });
