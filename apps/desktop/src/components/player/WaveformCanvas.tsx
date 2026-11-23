@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { BarChart2, Waves, Activity, Sliders } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
 
 export type WaveformStyle = 'bars' | 'smooth' | 'scrolling' | 'mirror';
 
@@ -75,7 +76,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 800, height });
+  // Szerokość 0 do czasu pierwszego pomiaru — wcześniej start z 800 px rozciągał płótno na mgnienie.
+  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 0, height });
+  const [dpr, setDpr] = useState<number>(() => (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [hoverPct, setHoverPct] = useState<number | null>(null);
 
@@ -108,39 +111,39 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   };
 
   // Obserwacja dynamicznego rozmiaru kontenera (HiDPI / Retina)
-  useEffect(() => {
+  // useLayoutEffect: pomiar przed pierwszym malowaniem, bez klatki z błędnym rozmiarem.
+  useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const updateSize = () => {
       const rect = container.getBoundingClientRect();
-      if (rect.width > 0) {
-        setDimensions({
-          width: Math.floor(rect.width),
-          height: Math.floor(height),
-        });
+      const w = Math.floor(rect.width);
+      const h = Math.floor(height);
+      if (w > 0) {
+        setDimensions((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
       }
+      const ratio = window.devicePixelRatio || 1;
+      setDpr((prev) => (prev === ratio ? prev : ratio));
     };
 
     updateSize();
 
+    // `resize` łapie też zmianę devicePixelRatio (zoom, przeniesienie na inny monitor).
+    window.addEventListener('resize', updateSize);
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(() => updateSize());
       ro.observe(container);
-      return () => ro.disconnect();
-    } else {
-      window.addEventListener('resize', updateSize);
-      return () => window.removeEventListener('resize', updateSize);
+      return () => {
+        ro.disconnect();
+        window.removeEventListener('resize', updateSize);
+      };
     }
+    return () => window.removeEventListener('resize', updateSize);
   }, [height]);
 
   // Interpolacja / wygładzanie danych szczytów
-  const normalizedPeaks = useMemo(() => {
-    if (!peaks || peaks.length === 0) {
-      return Array.from({ length: 120 }, () => 30);
-    }
-    return peaks;
-  }, [peaks]);
+  const normalizedPeaks = useMemo(() => sanitizePeaks(peaks), [peaks]);
 
   // Główna pętla renderowania Canvas
   useEffect(() => {
@@ -149,16 +152,23 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
     const width = dimensions.width;
     const canvasHeight = dimensions.height;
+    if (width <= 0 || canvasHeight <= 0) return;
 
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(canvasHeight * dpr);
+    // Zmiana width/height czyści i realokuje bufor — robimy to tylko przy realnej zmianie rozmiaru,
+    // a nie przy każdym ticku postępu (powodowało to migotanie / puste klatki).
+    const pxW = Math.floor(width * dpr);
+    const pxH = Math.floor(canvasHeight * dpr);
+    if (canvas.width !== pxW || canvas.height !== pxH) {
+      canvas.width = pxW;
+      canvas.height = pxH;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, canvasHeight);
 
     const startColor = resolveCssColor(colorPlayedStart, '#f43f5e');
     const endColor = resolveCssColor(colorPlayedEnd, '#a855f7');
@@ -191,7 +201,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     // STYL 1: GŁADKA CIĄGŁA FALA (SMOOTH ANALOG WAVE)
     // ==========================================
     if (activeStyle === 'smooth') {
-      const count = normalizedPeaks.length;
+      // Krzywa wymaga co najmniej 2 punktów (inaczej dzielenie przez zero → NaN).
+      const smoothPeaks = normalizedPeaks.length >= 2 ? normalizedPeaks : [normalizedPeaks[0], normalizedPeaks[0]];
+      const count = smoothPeaks.length;
       const step = width / (count - 1);
       const midY = canvasHeight / 2;
 
@@ -201,7 +213,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 
       for (let i = 0; i < count; i++) {
         const x = i * step;
-        const p = normalizedPeaks[i] / 100;
+        const p = smoothPeaks[i] / 100;
         const amp = Math.max(0.12, p) * (midY - 4);
         topPoints.push({ x, y: midY - amp });
         bottomPoints.push({ x, y: midY + amp * 0.85 });
@@ -297,40 +309,42 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     // STYL 2: NOWOCZESNE SŁUPKI CYBER (CYBER BARS)
     // ==========================================
     else if (activeStyle === 'bars') {
-      const count = normalizedPeaks.length;
-      const gap = 3;
-      const totalGap = (count - 1) * gap;
-      const barWidth = Math.max(2.5, (width - totalGap) / count);
+      // Układ wypełnia dokładnie całą szerokość, więc słupki są zgodne z pozycją głowicy.
+      const layout = computeBarLayout(width, normalizedPeaks.length, 3, 2.5);
+      const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
+      const { barWidth, step } = layout;
 
-      for (let i = 0; i < count; i++) {
-        const peak = normalizedPeaks[i];
-        const x = i * (barWidth + gap);
-        const barCenter = x + barWidth / 2;
-        const isPlayed = barCenter <= currentX;
+      const playedPath: { x: number; y: number; h: number }[] = [];
+      const unplayedPath: { x: number; y: number; h: number }[] = [];
+      for (let i = 0; i < barPeaks.length; i++) {
+        const x = i * step;
+        const barHeight = Math.max(8, (Math.max(14, barPeaks[i]) / 100) * (canvasHeight - 6));
+        const bar = { x, y: (canvasHeight - barHeight) / 2, h: barHeight };
+        (x + barWidth / 2 <= currentX ? playedPath : unplayedPath).push(bar);
+      }
 
-        const barHeight = Math.max(8, (Math.max(14, peak) / 100) * (canvasHeight - 6));
-        const y = (canvasHeight - barHeight) / 2;
-
-        ctx.save();
-        if (isPlayed) {
-          ctx.fillStyle = verticalPlayedGrad;
-          ctx.shadowColor = 'rgba(244, 63, 94, 0.45)';
-          ctx.shadowBlur = 8;
-        } else {
-          ctx.fillStyle = unplayedColor;
-          ctx.shadowColor = 'transparent';
-          ctx.shadowBlur = 0;
-        }
-
+      const fillBars = (bars: { x: number; y: number; h: number }[], radius: number) => {
+        if (bars.length === 0) return;
         ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x, y, barWidth, barHeight, Math.min(barWidth / 2, 4));
-        } else {
-          ctx.rect(x, y, barWidth, barHeight);
+        for (const b of bars) {
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(b.x, b.y, barWidth, b.h, Math.min(barWidth / 2, radius));
+          } else {
+            ctx.rect(b.x, b.y, barWidth, b.h);
+          }
         }
         ctx.fill();
-        ctx.restore();
-      }
+      };
+
+      // Jedno wypełnienie z jednym cieniem zamiast cienia dla każdego słupka (znacznie mniej pracy GPU/CPU).
+      ctx.save();
+      ctx.fillStyle = unplayedColor;
+      fillBars(unplayedPath, 4);
+      ctx.fillStyle = verticalPlayedGrad;
+      ctx.shadowColor = 'rgba(244, 63, 94, 0.45)';
+      ctx.shadowBlur = 8;
+      fillBars(playedPath, 4);
+      ctx.restore();
 
       // Wskaźnik playheadu z neonową kropką
       if (currentX > 0 && currentX < width) {
@@ -368,38 +382,42 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.stroke();
       }
 
-      // Rysowanie przewijanych słupków
+      // Rysowanie przewijanych słupków (zbiorczo: jedno wypełnienie na grupę, jeden cień)
+      const bWidth = 4.5;
+      const played: { x: number; y: number; h: number }[] = [];
+      const upcoming: { x: number; y: number; h: number }[] = [];
       for (let i = 0; i < count; i++) {
-        const peak = normalizedPeaks[i];
         const barX = playheadX - scrollOffset + i * waveUnitWidth;
 
         // Rysuj tylko te elementy, które mieszczą się na ekranie
         if (barX < -20 || barX > width + 20) continue;
 
-        const isPlayed = barX <= playheadX;
-        const barHeight = Math.max(10, (Math.max(16, peak) / 100) * (canvasHeight - 8));
-        const y = midY - barHeight / 2;
-        const bWidth = 4.5;
+        const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
+        const bar = { x: barX, y: midY - barHeight / 2, h: barHeight };
+        (barX <= playheadX ? played : upcoming).push(bar);
+      }
 
-        ctx.save();
-        if (isPlayed) {
-          ctx.fillStyle = verticalPlayedGrad;
-          ctx.shadowColor = 'rgba(244, 63, 94, 0.4)';
-          ctx.shadowBlur = 6;
-        } else {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-          ctx.shadowColor = 'transparent';
-        }
-
+      const fillScrollBars = (bars: { x: number; y: number; h: number }[]) => {
+        if (bars.length === 0) return;
         ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(barX, y, bWidth, barHeight, 2.5);
-        } else {
-          ctx.rect(barX, y, bWidth, barHeight);
+        for (const b of bars) {
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(b.x, b.y, bWidth, b.h, 2.5);
+          } else {
+            ctx.rect(b.x, b.y, bWidth, b.h);
+          }
         }
         ctx.fill();
-        ctx.restore();
-      }
+      };
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      fillScrollBars(upcoming);
+      ctx.fillStyle = verticalPlayedGrad;
+      ctx.shadowColor = 'rgba(244, 63, 94, 0.4)';
+      ctx.shadowBlur = 6;
+      fillScrollBars(played);
+      ctx.restore();
 
       // Centralna laserowa igła DJ z poświatą (Playhead Marker)
       ctx.save();
@@ -417,6 +435,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ? (dragProgress / 100) * durationMs
         : positionMs;
       if (durationMs > 0 && effectivePosMs > 0) {
+        // Bez poświaty igły: inaczej tło i tekst etykiety czasu są rozmyte.
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(15, 20, 32, 0.85)';
         ctx.fillRect(playheadX + 4, 4, 38, 14);
         ctx.fillStyle = '#fff';
@@ -425,6 +446,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       }
 
       // Znacznik głowicy na górze i dole
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
       ctx.fillStyle = isPlaying ? '#06b6d4' : '#f43f5e';
       ctx.beginPath();
       ctx.moveTo(playheadX - 6, 0);
@@ -446,51 +469,54 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     // STYL 4: SYMETRYCZNA FALA LUSTRZANA (MIRROR SPECTRUM)
     // ==========================================
     else if (activeStyle === 'mirror') {
-      const count = normalizedPeaks.length;
-      const gap = 2.5;
-      const totalGap = (count - 1) * gap;
-      const barWidth = Math.max(2, (width - totalGap) / count);
+      const layout = computeBarLayout(width, normalizedPeaks.length, 2.5, 2);
+      const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
+      const { barWidth, step } = layout;
       const midY = canvasHeight / 2;
 
-      for (let i = 0; i < count; i++) {
-        const peak = normalizedPeaks[i];
-        const x = i * (barWidth + gap);
-        const barCenter = x + barWidth / 2;
-        const isPlayed = barCenter <= currentX;
+      const playedBars: { x: number; h: number }[] = [];
+      const unplayedBars: { x: number; h: number }[] = [];
+      for (let i = 0; i < barPeaks.length; i++) {
+        const x = i * step;
+        const halfHeight = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
+        (x + barWidth / 2 <= currentX ? playedBars : unplayedBars).push({ x, h: halfHeight });
+      }
 
-        const halfHeight = Math.max(5, (Math.max(12, peak) / 100) * (midY - 4));
+      const addRect = (x: number, y: number, h: number, radii: number[]) => {
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, barWidth, h, radii);
+        } else {
+          ctx.rect(x, y, barWidth, h);
+        }
+      };
 
+      // Górna połowa (główna) i dolna (lustrzane odbicie z niższą przezroczystością) —
+      // po jednym wypełnieniu na grupę zamiast cienia dla każdego słupka.
+      const fillGroup = (
+        bars: { x: number; h: number }[],
+        fill: string | CanvasGradient,
+        lowerAlpha: number,
+        glow: boolean,
+      ) => {
+        if (bars.length === 0) return;
         ctx.save();
-        // Górna połowa (główna)
-        if (isPlayed) {
-          ctx.fillStyle = playedGrad;
+        ctx.fillStyle = fill;
+        if (glow) {
           ctx.shadowColor = 'rgba(244, 63, 94, 0.4)';
           ctx.shadowBlur = 8;
-        } else {
-          ctx.fillStyle = unplayedColor;
-          ctx.shadowColor = 'transparent';
         }
-
         ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x, midY - halfHeight - 1, barWidth, halfHeight, [3, 3, 0, 0]);
-        } else {
-          ctx.rect(x, midY - halfHeight - 1, barWidth, halfHeight);
-        }
+        for (const b of bars) addRect(b.x, midY - b.h - 1, b.h, [3, 3, 0, 0]);
         ctx.fill();
 
-        // Dolna połowa (lustrzane odbicie z niższą przezroczystością)
-        ctx.globalAlpha = isPlayed ? 0.45 : 0.15;
+        ctx.globalAlpha = lowerAlpha;
         ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x, midY + 1, barWidth, halfHeight * 0.75, [0, 0, 3, 3]);
-        } else {
-          ctx.rect(x, midY + 1, barWidth, halfHeight * 0.75);
-        }
+        for (const b of bars) addRect(b.x, midY + 1, b.h * 0.75, [0, 0, 3, 3]);
         ctx.fill();
-
         ctx.restore();
-      }
+      };
+      fillGroup(unplayedBars, unplayedColor, 0.15, false);
+      fillGroup(playedBars, playedGrad, 0.45, true);
 
       // Linia zerowa (Central Zero-Line)
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -568,7 +594,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Etykieta [A
+        // Etykieta [A (bez cienia — inaczej tekst jest rozmyty)
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#06b6d4';
         ctx.font = 'bold 10px monospace';
         ctx.fillText('[A', Math.min(width - 18, Math.max(2, xA + 3)), 11);
@@ -588,6 +616,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.setLineDash([]);
 
         // Etykieta B]
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#f43f5e';
         ctx.font = 'bold 10px monospace';
         ctx.fillText('B]', Math.max(2, xB - 15), 11);
@@ -598,6 +628,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     ctx.restore();
   }, [
     dimensions,
+    dpr,
     normalizedPeaks,
     progress,
     isDragging,
@@ -839,8 +870,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           cursor: isDragging ? 'grabbing' : onSeek || onSeekCommit ? 'pointer' : 'default',
           borderRadius: '12px',
           overflow: 'hidden',
-          background: 'rgba(10, 12, 22, 0.55)',
-          backdropFilter: 'blur(12px)',
+          // Bez backdrop-filter: kontener jest przemalowywany co tick, a rozmycie tła pod ciągle
+          // zmieniającym się płótnem powodowało artefakty kompozytora (WebKitGTK) i spadki klatek.
+          background: 'rgba(10, 12, 22, 0.72)',
           border: isDragging ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
           boxShadow: isDragging
             ? '0 0 16px rgba(244, 63, 94, 0.35), inset 0 2px 8px rgba(0,0,0,0.4)'
