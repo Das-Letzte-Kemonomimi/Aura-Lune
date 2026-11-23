@@ -29,6 +29,13 @@ export interface WaveformCanvasProps {
   currentLang?: string;
 }
 
+/** Szerokość jednego szczytu na przewijanej fali DJ (px) — wspólna dla rysowania i przeciągania. */
+const SCROLL_UNIT_WIDTH = 6.5;
+/** Pozycja stałej igły DJ jako ułamek szerokości (środek). */
+const SCROLL_PLAYHEAD_RATIO = 0.5;
+/** Minimalne przesunięcie (px), od którego przeciąganie fali DJ jest uznawane za przewijanie, a nie kliknięcie. */
+const SCROLL_DRAG_THRESHOLD_PX = 3;
+
 function resolveCssColor(color: string | undefined, fallback: string): string {
   if (!color) return fallback;
   const trimmed = color.trim();
@@ -87,6 +94,10 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const isDraggingRef = useRef(false);
   const dragProgressRef = useRef<number | null>(null);
+  // Tryb przewijanej fali DJ: przeciąganie przesuwa utwór pod stałą igłą (jog), zamiast skakać do pozycji kursora
+  const scrollDragStartXRef = useRef(0);
+  const scrollDragStartProgressRef = useRef(0);
+  const scrollDragMovedRef = useRef(false);
 
   // Styl fali (zapamiętywany w localStorage)
   const [activeStyle, setActiveStyle] = useState<WaveformStyle>(() => {
@@ -364,9 +375,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     // ==========================================
     else if (activeStyle === 'scrolling') {
       const midY = canvasHeight / 2;
-      const playheadX = Math.floor(width * 0.4); // Igła DJ-ska na 40% szerokości
+      const playheadX = Math.floor(width * SCROLL_PLAYHEAD_RATIO); // Stała igła DJ w środku
       const count = normalizedPeaks.length;
-      const waveUnitWidth = 6.5; // Szerokość pojedynczego taktu
+      const waveUnitWidth = SCROLL_UNIT_WIDTH; // Szerokość pojedynczego taktu
       const totalWaveWidth = count * waveUnitWidth;
 
       // Przesunięcie fali w zależności od postępu odtwarzania
@@ -544,7 +555,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     // ==========================================
     // INTERAKTYWNA LINIA HOVERA (CURSOR PREVIEW)
     // ==========================================
-    if (hoverX !== null && hoverX >= 0 && hoverX <= width) {
+    if (hoverX !== null && hoverX >= 0 && hoverX <= width && !(activeStyle === 'scrolling' && isDragging)) {
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(hoverX, 0);
@@ -645,13 +656,105 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     isPlaying,
   ]);
 
+  const isScrolling = activeStyle === 'scrolling';
+
+  /** Całkowita szerokość przewijanej fali (px) — 1 px przeciągnięcia = utwór / ta szerokość. */
+  const scrollTotalWidth = normalizedPeaks.length * SCROLL_UNIT_WIDTH;
+
+  /**
+   * Zwraca pozycję (0..1) wskazywaną przez kursor w punkcie `clientX` oraz jego `x` w kontenerze.
+   * Dla przewijanej fali DJ `pct` to czas pod kursorem względem stałej igły (podgląd po najechaniu);
+   * dla pozostałych stylów to bezwzględna pozycja na osi czasu.
+   */
   const getPctFromClientX = (clientX: number): { pct: number; x: number } => {
     const container = containerRef.current;
     if (!container) return { pct: 0, x: 0 };
     const rect = container.getBoundingClientRect();
     const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    if (isScrolling) {
+      const base = (isDraggingRef.current && dragProgressRef.current !== null ? dragProgressRef.current : progress) / 100;
+      const pct = base + (x - rect.width * SCROLL_PLAYHEAD_RATIO) / scrollTotalWidth;
+      return { pct: Math.max(0, Math.min(1, pct)), x };
+    }
     const pct = rect.width > 0 ? x / rect.width : 0;
     return { pct, x };
+  };
+
+  /** Nowy postęp (0..1) po przeciągnięciu fali DJ: fala podąża za kursorem, więc utwór cofa się/przewija odwrotnie. */
+  const getScrollDragPct = (clientX: number): number => {
+    const dx = clientX - scrollDragStartXRef.current;
+    const next = scrollDragStartProgressRef.current - (dx / scrollTotalWidth) * 100;
+    return Math.max(0, Math.min(100, next)) / 100;
+  };
+
+  const beginDrag = (clientX: number, pct: number, x: number) => {
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    setHoverX(x);
+    setHoverPct(pct);
+
+    if (isScrolling) {
+      // Fala stoi w miejscu do czasu faktycznego przeciągnięcia; samo kliknięcie nic nie przewija.
+      scrollDragStartXRef.current = clientX;
+      scrollDragStartProgressRef.current = progress;
+      scrollDragMovedRef.current = false;
+      dragProgressRef.current = progress;
+      setDragProgress(progress);
+      return;
+    }
+
+    dragProgressRef.current = pct * 100;
+    setDragProgress(pct * 100);
+    onSeekPreview?.(pct);
+  };
+
+  const moveDrag = (clientX: number, pct: number, x: number) => {
+    if (isScrolling) {
+      if (!scrollDragMovedRef.current) {
+        if (Math.abs(clientX - scrollDragStartXRef.current) < SCROLL_DRAG_THRESHOLD_PX) return;
+        scrollDragMovedRef.current = true;
+      }
+      const nextPct = getScrollDragPct(clientX);
+      dragProgressRef.current = nextPct * 100;
+      setDragProgress(nextPct * 100);
+      onSeekPreview?.(nextPct);
+      return;
+    }
+
+    dragProgressRef.current = pct * 100;
+    setDragProgress(pct * 100);
+    setHoverX(x);
+    setHoverPct(pct);
+    onSeekPreview?.(pct);
+  };
+
+  /** Kończy przeciąganie; zwraca pozycję do zatwierdzenia albo null, gdy nic nie trzeba przewijać. */
+  const endDrag = (clientX: number, pct: number): number | null => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
+
+    let result: number | null;
+    if (isScrolling) {
+      result = scrollDragMovedRef.current ? getScrollDragPct(clientX) : null;
+      scrollDragMovedRef.current = false;
+    } else {
+      result = typeof clientX === 'number' && !isNaN(clientX)
+        ? pct
+        : (dragProgressRef.current !== null ? dragProgressRef.current / 100 : pct);
+    }
+
+    dragProgressRef.current = null;
+    setDragProgress(null);
+    return result;
+  };
+
+  const commitSeek = (target: number | null) => {
+    if (target === null) return;
+    if (onSeekCommit) {
+      onSeekCommit(target);
+    } else if (onSeek) {
+      onSeek(target);
+    }
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -663,50 +766,28 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
 
-    isDraggingRef.current = true;
-    setIsDragging(true);
-    dragProgressRef.current = pct * 100;
-    setDragProgress(pct * 100);
-    setHoverX(x);
-    setHoverPct(pct);
-
-    onSeekPreview?.(pct);
+    beginDrag(e.clientX, pct, x);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const { pct, x } = getPctFromClientX(e.clientX);
+    if (isDraggingRef.current) {
+      moveDrag(e.clientX, pct, x);
+      return;
+    }
     setHoverX(x);
     setHoverPct(pct);
-
-    if (isDraggingRef.current) {
-      dragProgressRef.current = pct * 100;
-      setDragProgress(pct * 100);
-      onSeekPreview?.(pct);
-    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
-    setIsDragging(false);
 
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
 
     const { pct } = getPctFromClientX(e.clientX);
-    const finalPct = typeof e.clientX === 'number' && !isNaN(e.clientX)
-      ? pct
-      : (dragProgressRef.current !== null ? dragProgressRef.current / 100 : pct);
-
-    dragProgressRef.current = null;
-    setDragProgress(null);
-
-    if (onSeekCommit) {
-      onSeekCommit(finalPct);
-    } else if (onSeek) {
-      onSeek(finalPct);
-    }
+    commitSeek(endDrag(e.clientX, pct));
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -716,6 +797,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {}
+      scrollDragMovedRef.current = false;
       dragProgressRef.current = null;
       setDragProgress(null);
     }
@@ -728,37 +810,27 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     }
   };
 
+  // Najnowsze funkcje przeciągania dla nasłuchów okna (rejestrowanych tylko na czas przeciągania)
+  const dragApiRef = useRef({ getPctFromClientX, moveDrag, endDrag, commitSeek });
+  useEffect(() => {
+    dragApiRef.current = { getPctFromClientX, moveDrag, endDrag, commitSeek };
+  });
+
   // Obsługa przeciągania na poziomie okna, gdyby kursor opuścił kontener
   useEffect(() => {
     if (!isDragging) return;
 
     const handleWindowPointerMove = (e: PointerEvent) => {
-      const { pct, x } = getPctFromClientX(e.clientX);
-      dragProgressRef.current = pct * 100;
-      setDragProgress(pct * 100);
-      setHoverX(x);
-      setHoverPct(pct);
-      onSeekPreview?.(pct);
+      const api = dragApiRef.current;
+      const { pct, x } = api.getPctFromClientX(e.clientX);
+      api.moveDrag(e.clientX, pct, x);
     };
 
     const handleWindowPointerUp = (e: PointerEvent) => {
       if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
-      setIsDragging(false);
-
-      const { pct } = getPctFromClientX(e.clientX);
-      const finalPct = typeof e.clientX === 'number' && !isNaN(e.clientX)
-        ? pct
-        : (dragProgressRef.current !== null ? dragProgressRef.current / 100 : pct);
-
-      dragProgressRef.current = null;
-      setDragProgress(null);
-
-      if (onSeekCommit) {
-        onSeekCommit(finalPct);
-      } else if (onSeek) {
-        onSeek(finalPct);
-      }
+      const api = dragApiRef.current;
+      const { pct } = api.getPctFromClientX(e.clientX);
+      api.commitSeek(api.endDrag(e.clientX, pct));
     };
 
     window.addEventListener('pointermove', handleWindowPointerMove);
@@ -770,7 +842,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       window.removeEventListener('pointerup', handleWindowPointerUp);
       window.removeEventListener('pointercancel', handleWindowPointerUp);
     };
-  }, [isDragging, onSeek, onSeekCommit, onSeekPreview]);
+  }, [isDragging]);
 
   const loc = useMemo(() => getTranslations(currentLang as Language), [currentLang]);
 
@@ -867,7 +939,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           position: 'relative',
           width: '100%',
           height: `${height}px`,
-          cursor: isDragging ? 'grabbing' : onSeek || onSeekCommit ? 'pointer' : 'default',
+          cursor: isDragging ? 'grabbing' : isScrolling ? 'grab' : onSeek || onSeekCommit ? 'pointer' : 'default',
           borderRadius: '12px',
           overflow: 'hidden',
           // Bez backdrop-filter: kontener jest przemalowywany co tick, a rozmycie tła pod ciągle
@@ -901,7 +973,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         />
 
         {/* Pływający wskaźnik czasu przy najechaniu myszą lub przeciąganiu */}
-        {(isDragging || hoverX !== null) && hoverX !== null && hoverTimeStr && (
+        {(isDragging || hoverX !== null) && hoverX !== null && hoverTimeStr && !(isScrolling && isDragging) && (
           <div
             style={{
               position: 'absolute',
