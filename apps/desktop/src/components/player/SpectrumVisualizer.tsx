@@ -232,14 +232,15 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       } else if (mode === 'anime_circle') {
         const cx = width / 2;
         const cy = height / 2;
-        const maxR = Math.min(width, height) * 0.44;
+        // Skala względem bazowej wysokości 88 px — jądro rośnie razem z polem wizualizacji
+        const unit = Math.max(0.6, height / 88);
         const bassLevel = (smoothedRef.current[0] || 0) * 0.6 + (smoothedRef.current[1] || 0) * 0.4;
-        const coreR = Math.max(8, 14 + bassLevel * 16);
+        const coreR = Math.max(8, (14 + bassLevel * 16) * unit);
 
         rotationRef.current += isPlaying ? 0.012 : 0.003;
         const rot = rotationRef.current;
 
-        // Pulsujące jądro anime z poświatą neonową
+        // Pulsujące jądro anime z poświatą neonową (zawsze idealne koło — nie jest rozciągane)
         ctx.save();
         ctx.shadowBlur = 14;
         ctx.shadowColor = 'rgba(255, 77, 148, 0.75)';
@@ -258,23 +259,74 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
         ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.arc(cx, cy, coreR + 4 + bassLevel * 6, 0, 2 * Math.PI);
+        ctx.arc(cx, cy, coreR + (4 + bassLevel * 6) * unit, 0, 2 * Math.PI);
         ctx.stroke();
-
         ctx.restore();
 
-        // 36 promieni mocy z podwójną rotacją
-        const raysCount = 36;
-        for (let i = 0; i < raysCount; i++) {
-          const angle = (i / raysCount) * 2 * Math.PI + rot;
-          const bandIdx = i % bandCount;
-          const val = smoothedRef.current[bandIdx] || 0.04;
-          const spikeLen = Math.max(4, val * (maxR - coreR));
+        // Obracająca się przerywana orbita wokół jądra
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot * 2);
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 7]);
+        ctx.beginPath();
+        ctx.arc(0, 0, coreR + (12 + bassLevel * 8) * unit, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
 
-          const xStart = cx + Math.cos(angle) * (coreR + 3);
-          const yStart = cy + Math.sin(angle) * (coreR + 3);
-          const xEnd = cx + Math.cos(angle) * (coreR + 3 + spikeLen);
-          const yEnd = cy + Math.sin(angle) * (coreR + 3 + spikeLen);
+        // Promienie sięgają krawędzi prostokąta: końce rozmieszczone równomiernie wzdłuż obwodu pola,
+        // więc wybuch wypełnia całą szerokość i wysokość (zamiast małego koła pośrodku).
+        const margin = 4;
+        const left = margin;
+        const right = Math.max(left + 1, width - margin);
+        const top = margin;
+        const bottom = Math.max(top + 1, height - margin);
+        const rw = right - left;
+        const rh = bottom - top;
+        const perimeter = 2 * (rw + rh);
+        const raysCount = Math.max(36, Math.min(120, Math.round(perimeter / 14)));
+        const startR = coreR + 3 * unit;
+
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < raysCount; i++) {
+          const d = ((i + 0.5) / raysCount) * perimeter;
+          let ex: number;
+          let ey: number;
+          if (d < rw) {
+            ex = left + d;
+            ey = top;
+          } else if (d < rw + rh) {
+            ex = right;
+            ey = top + (d - rw);
+          } else if (d < 2 * rw + rh) {
+            ex = right - (d - rw - rh);
+            ey = bottom;
+          } else {
+            ex = left;
+            ey = bottom - (d - 2 * rw - rh);
+          }
+
+          const dx = ex - cx;
+          const dy = ey - cy;
+          const dist = Math.hypot(dx, dy) || 1;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          const available = Math.max(4, dist - startR);
+
+          // Pasma od środka na zewnątrz: bas przy jądrze, soprany na bokach (symetrycznie)
+          const norm = Math.min(1, Math.abs(dx) / Math.max(1, rw / 2));
+          const bandIdx = Math.min(bandCount - 1, Math.floor(norm * bandCount));
+          // Soprany są z natury cichsze — lekka kompensacja w stronę boków, by promienie sięgały krawędzi
+          const val = Math.min(1, (smoothedRef.current[bandIdx] || 0.04) * (1 + norm * 1.1));
+          // Minimalna długość zachowuje kształt wybuchu w ciszy, a szczyty sięgają krawędzi
+          const spikeLen = Math.max(4, available * (0.18 + 0.82 * val));
+
+          const xStart = cx + ux * startR;
+          const yStart = cy + uy * startR;
+          const xEnd = xStart + ux * spikeLen;
+          const yEnd = yStart + uy * spikeLen;
 
           const rayGrad = ctx.createLinearGradient(xStart, yStart, xEnd, yEnd);
           rayGrad.addColorStop(0, '#06b6d4');
@@ -285,8 +337,6 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
           ctx.moveTo(xStart, yStart);
           ctx.lineTo(xEnd, yEnd);
           ctx.strokeStyle = rayGrad;
-          ctx.lineWidth = 2.2;
-          ctx.lineCap = 'round';
           ctx.stroke();
 
           // Iskra energii na szczycie każdego promienia
