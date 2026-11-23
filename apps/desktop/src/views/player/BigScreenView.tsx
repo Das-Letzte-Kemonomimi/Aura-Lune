@@ -389,7 +389,10 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
         {/* Kolumna prawa: Teksty synchronizowane */}
         {showLyrics && (
-          <div style={{ height: '100%', minHeight: 'min(380px, 50vh)' }}>
+          // The lyrics are absolutely positioned inside this cell so their content
+          // height never stretches the grid row (the cell sizes from the cover column).
+          <div style={{ position: 'relative', alignSelf: 'stretch', minWidth: 0, minHeight: 'min(380px, 50vh)' }}>
+            <div style={{ position: 'absolute', inset: 0, minWidth: 0, overflow: 'hidden' }}>
             <LyricsView
               trackTitle={title}
               trackArtist={artist}
@@ -401,6 +404,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
               onSeek={onSeek}
               onClose={() => setShowLyrics(false)}
             />
+            </div>
           </div>
         )}
       </div>

@@ -164,11 +164,15 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
   // Autoscroll do aktywnej linii
   useEffect(() => {
-    if (autoScroll && activeLineRef.current && scrollContainerRef.current) {
-      activeLineRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+    const container = scrollContainerRef.current;
+    const line = activeLineRef.current;
+    if (autoScroll && container && line) {
+      // Scroll only the lyrics container (scrollIntoView would also shift
+      // overflow:hidden ancestors, e.g. the fullscreen player root).
+      const cRect = container.getBoundingClientRect();
+      const lRect = line.getBoundingClientRect();
+      const delta = lRect.top - cRect.top - (cRect.height - lRect.height) / 2;
+      container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' });
     }
   }, [activeIndex, autoScroll]);
 
@@ -266,6 +270,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        width: '100%',
+        minWidth: 0,
+        minHeight: 0,
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         background: 'var(--bg-surface)',
         borderRadius: '16px',
         border: '1px solid var(--border-subtle)',
@@ -282,12 +291,14 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          rowGap: '8px',
           padding: '14px 20px',
           borderBottom: '1px solid var(--border-subtle)',
           background: 'rgba(0, 0, 0, 0.35)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 180px' }}>
           <div
             style={{
               width: '32px',
@@ -302,17 +313,17 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           >
             <Mic2 size={18} />
           </div>
-          <div>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {trackTitle || loc.lyricsView.title}
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {trackArtist}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', minWidth: 0 }}>
           {lyrics && (
             <span
               style={{
@@ -666,7 +677,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         ref={scrollContainerRef}
         style={{
           flex: 1,
+          minHeight: 0,
+          minWidth: 0,
           overflowY: 'auto',
+          overflowX: 'hidden',
+          overflowWrap: 'anywhere',
           padding: '30px 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -759,6 +774,8 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             style={{
               width: '100%',
               maxWidth: '820px',
+              minWidth: 0,
+              boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
               gap: '14px',
@@ -780,6 +797,10 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '10px',
+                    minWidth: 0,
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    overflowWrap: 'anywhere',
                     padding: '8px 16px',
                     borderRadius: '12px',
                     cursor: 'pointer',
@@ -855,13 +876,14 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
                   {/* Treść wersu tekstu z opcjonalną transliteracją Romaji */}
                   {romajiMode === 'original' ? (
-                    <span style={{ flex: 1 }}>{line.text}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>{line.text}</span>
                   ) : romajiMode === 'romaji' ? (
-                    <span style={{ flex: 1 }}>{toRomaji(line.text)}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>{toRomaji(line.text)}</span>
                   ) : (
                     <div
                       style={{
                         flex: 1,
+                        minWidth: 0,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -898,6 +920,8 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             style={{
               width: '100%',
               maxWidth: '680px',
+              minWidth: 0,
+              boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
               gap: '20px',
@@ -940,6 +964,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             <div
               style={{
                 whiteSpace: 'pre-line',
+                overflowWrap: 'anywhere',
                 lineHeight: 1.8,
                 fontSize: '1rem',
                 color: 'var(--text-primary)',
