@@ -53,6 +53,11 @@ impl PlaybackQueue {
         } else {
             start_index.map(|idx| idx.min(count - 1))
         };
+        // Utwór z kolejki ma być teraz odtwarzany — nieaktualny strumień (np. radio)
+        // nie może go przesłaniać w `current_item()`.
+        if self.current_index.is_some() {
+            self.active_stream = None;
+        }
         self.rebuild_shuffle_order();
     }
 

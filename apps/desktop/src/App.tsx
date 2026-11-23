@@ -15,6 +15,7 @@ import { useDspManager } from './hooks/useDspManager';
 import { useModalManager } from './hooks/useModalManager';
 import { usePlaybackQueue } from './hooks/usePlaybackQueue';
 import { useCurrentTrackInfo } from './hooks/useCurrentTrackInfo';
+import { resolveActiveRadioStation } from './utils/radioStation';
 import { useLibraryPlaybackActions } from './hooks/useLibraryPlaybackActions';
 import { useAudioMasteringEffects } from './hooks/useAudioMasteringEffects';
 import { useVolumeUnit } from './hooks/useVolumeUnit';
@@ -352,11 +353,14 @@ export default function App() {
   });
   const {
     playlists,
-    currentRadioStation,
+    currentRadioStation: storedRadioStation,
     refreshPlaylists,
     setShowPlaylistModal,
     setTrackToAddToPlaylist,
   } = playlistManager;
+  // Stacja zapamiętana w stanie UI jest aktywna tylko dopóki silnik gra strumień
+  // (po przejściu na bibliotekę / projekt stemów nie może przesłaniać utworu).
+  const currentRadioStation = resolveActiveRadioStation(storedRadioStation, status.current_track?.uri);
 
   // Kolejka odtwarzania, reorder, kolumny i przeciąganie (usePlaybackQueue)
   const playbackQueue = usePlaybackQueue({

@@ -112,3 +112,26 @@ fn test_add_next_inserts_after_current_in_sequential_mode() {
     q.add_next(extra);
     assert_eq!(q.next().unwrap().id, "next-up");
 }
+
+#[test]
+fn test_set_items_with_start_index_drops_stale_active_stream() {
+    let mut q = PlaybackQueue::new();
+    // Radio nie należy do kolejki — ustawione jako aktywny strumień.
+    q.set_active_item(QueueItem {
+        id: "radio-1".into(),
+        track_id: None,
+        uri: "http://stream.radio.fm/live".into(),
+        title: "Anime FM".into(),
+        artist: "Anime FM".into(),
+        album: None,
+        duration_ms: 0,
+    });
+    assert_eq!(q.current_item().map(|i| i.id.as_str()), Some("radio-1"));
+
+    q.set_items(items(3), Some(1));
+    assert_eq!(q.current_item().map(|i| i.id.as_str()), Some("q-1"));
+
+    // Po wyczyszczeniu indeksu radio nie może „wrócić" jako bieżący utwór.
+    q.current_index = None;
+    assert!(q.current_item().is_none());
+}
