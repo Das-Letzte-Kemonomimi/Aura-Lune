@@ -31,6 +31,7 @@ export interface BigScreenViewProps {
   spectrum?: number[];
   currentLang?: Language;
   volumeUnit?: 'percent' | 'db';
+  volumeDbStep?: number;
   currentChord?: string;
   onCreateStemProject?: () => void;
   onPlayPause: () => void;

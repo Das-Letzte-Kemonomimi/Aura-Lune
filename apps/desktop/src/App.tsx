@@ -331,10 +331,12 @@ export default function App() {
     handleSetVolumeUnit,
     handleToggleVolumeUnit,
     formatVolumeValue,
+    volumeDbStep,
+    handleSetVolumeDbStep,
   } = useVolumeUnit({ loc: t, showMessage });
 
   // Procent wypełnienia suwaka głośności — pozycja suwaka w aktywnej skali (liniowa w dB dla trybu dB)
-  const volumeProgressPercent = volumeToSlider(status.volume ?? 1, volumeUnit) * 100;
+  const volumeProgressPercent = volumeToSlider(status.volume ?? 1, volumeUnit, volumeDbStep) * 100;
 
   // Stan ręcznego wpisywania wartości DSP (Pitch, Tempo, Speed)
   const initialStartupPositionRef = useRef<number | null>(null);
@@ -883,6 +885,7 @@ export default function App() {
     formatTime,
     formatVolumeValue,
     volumeUnit,
+    volumeDbStep,
     showMessage,
     t: loc,
     librarySearchInputRef,
@@ -907,6 +910,8 @@ export default function App() {
       setInstantVolume,
       volumeUnit,
       handleSetVolumeUnit,
+      volumeDbStep,
+      handleSetVolumeDbStep,
       volumeOsdPosition,
       setVolumeOsdPosition,
       recapOptIn,
@@ -986,6 +991,7 @@ export default function App() {
     setFilePath,
     volumeProgressPercent,
     volumeUnit,
+    volumeDbStep,
     formatVolumeValue,
     handleToggleVolumeUnit,
     seekFadeEnabled,
@@ -1134,6 +1140,7 @@ export default function App() {
     queue,
     volumeProgressPercent,
     volumeUnit,
+    volumeDbStep,
     formatTime,
     mainContentRef,
     setActiveTab,
@@ -1158,6 +1165,7 @@ export default function App() {
         tempoRatio={status.tempo_ratio}
         currentLang={language}
         volumeUnit={volumeUnit}
+        volumeDbStep={volumeDbStep}
         onPlayPause={handlePlayPause}
         onPrev={handlePrevious}
         onNext={handleNext}
@@ -1268,6 +1276,9 @@ export default function App() {
           positionMs={status.position_ms}
           durationMs={status.duration_ms}
           volume={status.volume}
+          volumeUnit={volumeUnit}
+          volumeDbStep={volumeDbStep}
+          onToggleVolumeUnit={handleToggleVolumeUnit}
           pitchSemitones={status.pitch_semitones}
           tempoRatio={status.tempo_ratio}
           spectrum={status.spectrum}

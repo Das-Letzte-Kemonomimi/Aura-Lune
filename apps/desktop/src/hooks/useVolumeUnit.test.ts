@@ -44,4 +44,24 @@ describe('useVolumeUnit', () => {
     });
     expect(result.current.volumeUnit).toBe('percent');
   });
+  it('defaults the dB step to 1.5 dB per 5% and persists a change', () => {
+    const { result, unmount } = renderHook(() => useVolumeUnit({ loc, showMessage }));
+    expect(result.current.volumeDbStep).toBe(1.5);
+
+    act(() => {
+      result.current.handleSetVolumeDbStep(1.2);
+    });
+    expect(result.current.volumeDbStep).toBe(1.2);
+    expect(localStorage.getItem('auralune_volume_db_step')).toBe('1.2');
+    unmount();
+
+    const reloaded = renderHook(() => useVolumeUnit({ loc, showMessage }));
+    expect(reloaded.result.current.volumeDbStep).toBe(1.2);
+  });
+
+  it('ignores an invalid stored dB step', () => {
+    localStorage.setItem('auralune_volume_db_step', '3.7');
+    const { result } = renderHook(() => useVolumeUnit({ loc, showMessage }));
+    expect(result.current.volumeDbStep).toBe(1.5);
+  });
 });

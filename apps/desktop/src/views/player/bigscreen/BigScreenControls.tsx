@@ -9,7 +9,7 @@ import { formatDb, sliderToVolume, volumeToSlider } from '../../../utils/volumeS
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 
-export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlaying' | 'durationMs' | 'currentLang' | 'onSeek' | 'onSeekPreview' | 'onSeekCommit' | 'tempoRatio' | 'onPrev' | 'onPlayPause' | 'onNext' | 'onVolumeChange' | 'onToggleVolumeUnit' | 'volumeUnit'> & {
+export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlaying' | 'durationMs' | 'currentLang' | 'onSeek' | 'onSeekPreview' | 'onSeekCommit' | 'tempoRatio' | 'onPrev' | 'onPlayPause' | 'onNext' | 'onVolumeChange' | 'onToggleVolumeUnit' | 'volumeUnit' | 'volumeDbStep'> & {
   showHud: boolean;
   setBottomVisualMode: Dispatch<SetStateAction<"spectrum" | "vumeter">>;
   bottomVisualMode: "spectrum" | "vumeter";
@@ -42,6 +42,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
   tempoRatio,
   volume,
   volumeUnit,
+  volumeDbStep,
   waveformPeaks,
 }) => (
     <div
@@ -267,8 +268,8 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             min={0}
             max={1}
             step={0.01}
-            value={volumeToSlider(volume, volumeUnit)}
-            onChange={(e) => onVolumeChange(sliderToVolume(parseFloat(e.target.value), volumeUnit))}
+            value={volumeToSlider(volume, volumeUnit, volumeDbStep)}
+            onChange={(e) => onVolumeChange(sliderToVolume(parseFloat(e.target.value), volumeUnit, volumeDbStep))}
             onPointerUp={(e) => e.currentTarget.blur()}
             onMouseUp={(e) => e.currentTarget.blur()}
             onKeyDown={(e) => {
@@ -279,7 +280,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             style={{
               width: '80px',
               cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeToSlider(volume, volumeUnit) * 100}%, rgba(255, 255, 255, 0.12) ${volumeToSlider(volume, volumeUnit) * 100}%, rgba(255, 255, 255, 0.12) 100%)`,
+              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeToSlider(volume, volumeUnit, volumeDbStep) * 100}%, rgba(255, 255, 255, 0.12) ${volumeToSlider(volume, volumeUnit, volumeDbStep) * 100}%, rgba(255, 255, 255, 0.12) 100%)`,
             }}
           />
           <button

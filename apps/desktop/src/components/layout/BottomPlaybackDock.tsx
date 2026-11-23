@@ -39,6 +39,7 @@ export interface BottomPlaybackDockProps {
   queue: PlaybackQueue;
   volumeProgressPercent: number;
   volumeUnit: VolumeUnit;
+  volumeDbStep?: number;
   formatTime: (ms: number) => string;
   onScrollToTopOrSwitchTab: () => void;
   onOpenContainingFolder: (path: string, e: React.MouseEvent) => void;
@@ -72,6 +73,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   queue,
   volumeProgressPercent,
   volumeUnit,
+  volumeDbStep,
   formatTime,
   onScrollToTopOrSwitchTab,
   onOpenContainingFolder,
@@ -657,8 +659,8 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             min={0}
             max={1}
             step={0.01}
-            value={volumeToSlider(status.volume, volumeUnit)}
-            onChange={(e) => onVolumeChange(sliderToVolume(Number(e.target.value), volumeUnit))}
+            value={volumeToSlider(status.volume, volumeUnit, volumeDbStep)}
+            onChange={(e) => onVolumeChange(sliderToVolume(Number(e.target.value), volumeUnit, volumeDbStep))}
             title={`${loc.player.volume}: ${volumeUnit === 'db' ? formatDb(status.volume) : `${Math.round(status.volume * 100)}%`}`}
             style={{
               width: '95px',

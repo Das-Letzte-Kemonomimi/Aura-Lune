@@ -492,6 +492,8 @@
     "volumeUnitDesc": "Wybierz wyświetlanie głośności w procentach (0% – 100%) lub w decybelach studyjnych (-∞ dB do 0.0 dB)",
     "volumeUnitPercent": "Procenty (%)",
     "volumeUnitDb": "Decybele (dB)",
+    "volumeDbStepTitle": "Krok dB na każde 5%",
+    "volumeDbStepDesc": "-{0} dB na każde 5% suwaka (100% = 0,0 dB). Działa, gdy jednostką są dB.",
     "restoreSessionTitle": "Zapamiętywanie sesji odtwarzania przy uruchomieniu",
     "restoreSessionDesc": "Zapamiętuje bieżący utwór, pozycję w utworze, poziom głośności (dB), parametry DSP oraz stan kolejki przy ponownym uruchomieniu.",
     "restoreSessionOn": "Włączone",

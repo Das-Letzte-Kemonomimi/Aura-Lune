@@ -32,6 +32,8 @@ export interface UseAppSettingsModalPropsParams {
     setInstantVolume: React.Dispatch<React.SetStateAction<boolean>>;
     volumeUnit: import("../../hooks/useVolumeUnit").VolumeUnit;
     handleSetVolumeUnit: (unit: import("../../hooks/useVolumeUnit").VolumeUnit) => void;
+    volumeDbStep: import("../../utils/volumeScale").VolumeDbStep;
+    handleSetVolumeDbStep: (step: import("../../utils/volumeScale").VolumeDbStep) => void;
     volumeOsdPosition: import("../../components/player/VolumeOsd").VolumeOsdPosition;
     setVolumeOsdPosition: React.Dispatch<React.SetStateAction<import("../../components/player/VolumeOsd").VolumeOsdPosition>>;
     recapOptIn: boolean;
@@ -167,6 +169,8 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     },
     volumeUnit: audioDevices.volumeUnit,
     onSetVolumeUnit: audioDevices.handleSetVolumeUnit,
+    volumeDbStep: audioDevices.volumeDbStep,
+    onSetVolumeDbStep: audioDevices.handleSetVolumeDbStep,
     volumeOsdPosition: audioDevices.volumeOsdPosition,
     onSetVolumeOsdPosition: (pos) => {
       audioDevices.setVolumeOsdPosition(pos);

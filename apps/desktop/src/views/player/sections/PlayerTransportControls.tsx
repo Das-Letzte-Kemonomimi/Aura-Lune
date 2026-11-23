@@ -6,7 +6,7 @@ import { currentPositionMs } from '../../../state/livePlayback';
 import { fmt } from '../../../utils/fmt';
 import { sliderToVolume, volumeToSlider } from '../../../utils/volumeScale';
 
-export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'volumeProgressPercent' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
+export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'volumeProgressPercent' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit' | 'volumeDbStep'> & {
   status: PlaybackStatus;
 };
 
@@ -48,6 +48,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   status,
   volumeProgressPercent,
   volumeUnit,
+  volumeDbStep,
 }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       {/* Narzędzia lewe: Zakładka, Pętla A-B, Sleep Timer, Skróty */}
@@ -509,8 +510,8 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           min={0}
           max={1}
           step={0.01}
-          value={volumeToSlider(status.volume, volumeUnit)}
-          onChange={(e) => handleVolumeChange(sliderToVolume(Number(e.target.value), volumeUnit))}
+          value={volumeToSlider(status.volume, volumeUnit, volumeDbStep)}
+          onChange={(e) => handleVolumeChange(sliderToVolume(Number(e.target.value), volumeUnit, volumeDbStep))}
           onPointerUp={(e) => e.currentTarget.blur()}
           onMouseUp={(e) => e.currentTarget.blur()}
           onKeyDown={(e) => {

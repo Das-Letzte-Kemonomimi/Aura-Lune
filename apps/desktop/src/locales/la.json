@@ -492,6 +492,8 @@
     "volumeUnitDesc": "Monstra volumen per centesimas (0% - 100%) an per decibel (-∞ dB ad 0.0 dB)",
     "volumeUnitPercent": "Centesimae (%)",
     "volumeUnitDb": "Decibel (dB)",
+    "volumeDbStepTitle": "Gradus dB per quinque centesimas",
+    "volumeDbStepDesc": "-{0} dB pro qualibet quinta centesima regulae (100% = 0,0 dB). Valet cum unitas est dB.",
     "restoreSessionTitle": "Restaura sessionem auditionis in initio",
     "restoreSessionDesc": "Meminit currentem cantum, locum auditionis, volumen (dB), parametros DSP et seriem cum denuo incipit.",
     "restoreSessionOn": "Activatum",

@@ -37,6 +37,7 @@ export interface PlayerViewProps {
   setFilePath: (p: any) => void;
   volumeProgressPercent: number;
   volumeUnit: "percent" | "db";
+  volumeDbStep?: number;
   formatVolumeValue: (vol: number, unit?: "percent" | "db") => string;
   handleToggleVolumeUnit: () => void;
   seekFadeEnabled: boolean;
