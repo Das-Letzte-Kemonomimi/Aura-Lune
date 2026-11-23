@@ -43,6 +43,7 @@ describe('BottomPlaybackDock component', () => {
       shuffle_cursor: 0,
     },
     volumeProgressPercent: 80,
+    volumeUnit: 'percent',
     formatTime: (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`,
     onScrollToTopOrSwitchTab: vi.fn(),
     onOpenContainingFolder: vi.fn(),

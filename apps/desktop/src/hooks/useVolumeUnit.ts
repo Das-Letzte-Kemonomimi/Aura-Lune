@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Translations } from '../i18n';
+import { formatDb } from '../utils/volumeScale';
 
 export type VolumeUnit = 'percent' | 'db';
 
@@ -40,11 +41,7 @@ export function useVolumeUnit({ loc, showMessage }: UseVolumeUnitOptions) {
 
   const formatVolumeValue = useCallback(
     (vol: number, unit: VolumeUnit = volumeUnit): string => {
-      if (unit === 'db') {
-        if (vol <= 0.0001) return '-∞ dB';
-        const db = 20 * Math.log10(vol);
-        return `${db >= 0 ? '0.0' : db.toFixed(1)} dB`;
-      }
+      if (unit === 'db') return formatDb(vol);
       return `${Math.round(vol * 100)}%`;
     },
     [volumeUnit]

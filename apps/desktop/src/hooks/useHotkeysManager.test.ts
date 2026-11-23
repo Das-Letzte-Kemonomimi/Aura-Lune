@@ -41,6 +41,7 @@ describe('useHotkeysManager', () => {
         handleResetScale: vi.fn(),
         formatTime: (ms) => `${ms}ms`,
         formatVolumeValue: (vol) => `${Math.round(vol * 100)}%`,
+        volumeUnit: 'percent',
         showMessage: vi.fn(),
         t,
       })
@@ -87,6 +88,7 @@ describe('useHotkeysManager', () => {
         handleResetScale: vi.fn(),
         formatTime: (ms) => `${ms}ms`,
         formatVolumeValue: (vol) => `${Math.round(vol * 100)}%`,
+        volumeUnit: 'percent',
         showMessage: vi.fn(),
         t,
       })
@@ -142,6 +144,7 @@ describe('useHotkeysManager', () => {
         ...baseProps,
         handleVolumeChange: vi.fn(),
         formatVolumeValue: (vol: number) => `${Math.round(vol * 100)}%`,
+        volumeUnit: 'percent' as 'percent' | 'db',
         showMessage: firstNotify,
         t: getTranslations('en'),
       },
@@ -151,6 +154,7 @@ describe('useHotkeysManager', () => {
       ...baseProps,
       handleVolumeChange: latestVolumeChange,
       formatVolumeValue: (vol: number) => `${(20 * Math.log10(vol)).toFixed(1)} dB`,
+      volumeUnit: 'db' as 'percent' | 'db',
       showMessage: latestNotify,
       t: pl,
     });
@@ -158,8 +162,10 @@ describe('useHotkeysManager', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown' }));
 
     expect(firstNotify).not.toHaveBeenCalled();
-    expect(latestVolumeChange).toHaveBeenCalledWith(0.95);
-    const expected = pl.notifications.volumeMsg.replace('{0}%', '-0.4 dB').replace('{0}', '-0.4 dB');
+    // W trybie dB klawisz obniża suwak o 5% = 1.5 dB (100% → 95% = -1.5 dB).
+    expect(latestVolumeChange).toHaveBeenCalledTimes(1);
+    expect(latestVolumeChange.mock.calls[0][0]).toBeCloseTo(Math.pow(10, -1.5 / 20), 6);
+    const expected = pl.notifications.volumeMsg.replace('{0}%', '-1.5 dB').replace('{0}', '-1.5 dB');
     expect(latestNotify).toHaveBeenCalledWith(expected);
   });
 });

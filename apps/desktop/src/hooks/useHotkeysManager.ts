@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 import type { PlaybackStatus } from "../types/player";
 import type { getTranslations } from "../i18n";
 import { fmt } from '../utils/fmt';
+import { stepVolume } from '../utils/volumeScale';
+import type { VolumeUnit } from './useVolumeUnit';
 
 export interface UseHotkeysManagerProps {
   statusRef: React.MutableRefObject<PlaybackStatus>;
@@ -34,6 +36,7 @@ export interface UseHotkeysManagerProps {
   handleResetScale: () => void;
   formatTime: (ms: number) => string;
   formatVolumeValue: (vol: number) => string;
+  volumeUnit: VolumeUnit;
   showMessage: (msg: string, isError?: boolean) => void;
   t: ReturnType<typeof getTranslations>;
   librarySearchInputRef?: React.RefObject<HTMLInputElement | null>;
@@ -80,6 +83,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         handleResetScale,
         formatTime,
         formatVolumeValue,
+        volumeUnit,
         showMessage,
         t,
         librarySearchInputRef,
@@ -165,7 +169,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // Strzałka w górę: Głośność +5%
       if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const newVol = Math.min(1.0, Math.round((statusRef.current.volume + 0.05) * 100) / 100);
+        const newVol = stepVolume(statusRef.current.volume, 1, volumeUnit);
         handleVolumeChange(newVol);
         const formatted = formatVolumeValue(newVol);
         showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));
@@ -175,7 +179,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // Strzałka w dół: Głośność -5%
       if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const newVol = Math.max(0, Math.round((statusRef.current.volume - 0.05) * 100) / 100);
+        const newVol = stepVolume(statusRef.current.volume, -1, volumeUnit);
         handleVolumeChange(newVol);
         const formatted = formatVolumeValue(newVol);
         showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));

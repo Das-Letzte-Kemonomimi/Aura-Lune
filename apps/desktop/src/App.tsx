@@ -56,6 +56,7 @@ import type {
   AlbumRecord,
 } from './types/library';
 import { formatTime, formatTimeMs } from './utils/timeFormat';
+import { volumeToSlider } from './utils/volumeScale';
 import { BackgroundExportBadge } from './components/layout/BackgroundExportBadge';
 import { useSleepTimer } from './hooks/useSleepTimer';
 import { fmt } from './utils/fmt';
@@ -93,9 +94,6 @@ export default function App() {
     limiter_enabled: true,
     spectrum: Array(16).fill(0.05),
   });
-
-  // Procent głośności dla dynamicznego wypełnienia suwaka (postęp liczą komponenty z `useLiveStatus`)
-  const volumeProgressPercent = Math.min(100, Math.max(0, (status.volume ?? 1) * 100));
 
   // Język interfejsu (domyślnie angielski: en, z opcją wyboru: pl, de, fi, la)
   const [language, setLanguage] = useState<Language>('en');
@@ -334,6 +332,9 @@ export default function App() {
     handleToggleVolumeUnit,
     formatVolumeValue,
   } = useVolumeUnit({ loc: t, showMessage });
+
+  // Procent wypełnienia suwaka głośności — pozycja suwaka w aktywnej skali (liniowa w dB dla trybu dB)
+  const volumeProgressPercent = volumeToSlider(status.volume ?? 1, volumeUnit) * 100;
 
   // Stan ręcznego wpisywania wartości DSP (Pitch, Tempo, Speed)
   const initialStartupPositionRef = useRef<number | null>(null);
@@ -881,6 +882,7 @@ export default function App() {
     handleResetScale,
     formatTime,
     formatVolumeValue,
+    volumeUnit,
     showMessage,
     t: loc,
     librarySearchInputRef,
@@ -1131,6 +1133,7 @@ export default function App() {
     currentCover,
     queue,
     volumeProgressPercent,
+    volumeUnit,
     formatTime,
     mainContentRef,
     setActiveTab,

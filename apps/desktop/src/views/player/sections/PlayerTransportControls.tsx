@@ -4,6 +4,7 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs } from '../../../state/livePlayback';
 import { fmt } from '../../../utils/fmt';
+import { sliderToVolume, volumeToSlider } from '../../../utils/volumeScale';
 
 export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'volumeProgressPercent' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
@@ -508,8 +509,8 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           min={0}
           max={1}
           step={0.01}
-          value={status.volume}
-          onChange={(e) => handleVolumeChange(Number(e.target.value))}
+          value={volumeToSlider(status.volume, volumeUnit)}
+          onChange={(e) => handleVolumeChange(sliderToVolume(Number(e.target.value), volumeUnit))}
           onPointerUp={(e) => e.currentTarget.blur()}
           onMouseUp={(e) => e.currentTarget.blur()}
           onKeyDown={(e) => {
