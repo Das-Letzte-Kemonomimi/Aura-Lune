@@ -6,6 +6,12 @@ This document is the authoritative single source of truth for AI agents and huma
 > **CRITICAL DIRECTIVES FOR AGENTS & DEVELOPERS:**
 > 1. **Continuous Documentation Synchronization**: Whenever adding, modifying, or refactoring crates, database submodules, Tauri commands, hooks, modals, or architecture patterns, you **must update `AGENTS.md`** within the same task. Keep this document evergreen and accurate.
 > 2. **Pragmatic Testing (No Tests for Removed Features)**: Tests must strictly verify active invariants, working functionality, and edge cases. **Never write tests asserting that deliberately removed features, deprecated endpoints, or deleted UI elements do not exist**. Obsolete tests must simply be removed or updated.
+> 3. **ALWAYS FORMAT, LINT & VERIFY BEFORE FINISHING (NON-NEGOTIABLE)**: Before committing, and before declaring any task done, **every agent MUST run the formatters and checks for every language it touched** — CI fails on a single unformatted line, and a task is *not finished* until all of these pass with 0 errors and 0 warnings:
+>    - **Rust** (any `.rs` change, including tests): run `cargo fmt --all` (this *applies* formatting; then confirm with `cargo fmt --all --check`), then `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+>    - **Frontend / Node.js** (any change under `apps/desktop`): run `npm --prefix apps/desktop run lint` (oxlint), `npm --prefix apps/desktop run typecheck` (`tsc -b`) and `npm --prefix apps/desktop test` (Vitest). There is no separate JS/TS auto-formatter — match the surrounding code style and fix every lint finding.
+>    - **Shell scripts** (any `.sh` change): `bash -n <file>`.
+>    - Simplest path: `./tests/run_all_tests.sh --fix` from the repository root (runs `cargo fmt` first, then the full CI-parity suite — see [section 8](#8-mandatory-verification-protocol-7-stage-ci-parity)).
+>    - Re-run the formatters **after your last edit** (formatting after the final change, not before it) and commit the formatting result together with the work. Never hand work back with "CI will format it" or an unchecked formatting state.
 
 ---
 
@@ -910,6 +916,8 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 > **MANDATORY PRE-COMMIT & COMPLETION PROTOCOL FOR ALL AGENTS**
 > Before committing any changes or declaring a task complete, every agent **MUST** run the code quality, linting, and verification commands below.
 > 
+> **Run the formatters first, always:** `cargo fmt --all` (Rust) and `npm --prefix apps/desktop run lint` + `typecheck` (frontend) after your *final* edit — new/edited test files and one-line `format!` changes are the most common source of `cargo fmt --check` failures in CI.
+>
 > **CI enforces `-D warnings` and `--all-features`**. Any clippy warning, formatting mismatch, Vitest failure, or TypeScript error will cause GitHub Actions to fail. No task is done until all checks pass with **0 errors and 0 warnings**.
 
 ### Pre-Commit Fast One-Liner (Run from Repository Root)
