@@ -162,10 +162,13 @@ fn test_destination_policy_allows_ai_model_dirs_under_xdg_data() {
             .is_ok());
         }
         if std::env::var_os("XDG_CACHE_HOME").is_none() {
-            assert!(validate_safe_destination_path(&home.join(".cache/auralune/stems/x.wav"))
-                .is_ok());
+            assert!(
+                validate_safe_destination_path(&home.join(".cache/auralune/stems/x.wav")).is_ok()
+            );
         }
-        assert!(validate_safe_destination_path(&home.join(".local/share/applications/x.desktop"))
-            .is_err());
+        assert!(
+            validate_safe_destination_path(&home.join(".local/share/applications/x.desktop"))
+                .is_err()
+        );
     }
 }

@@ -81,9 +81,5 @@ pub fn is_safe_file_token(token: &str) -> bool {
 }
 
 fn invalid(path: &Path, reason: &str) -> DomainError {
-    DomainError::Validation(format!(
-        "Path not allowed {}: {}",
-        path.display(),
-        reason
-    ))
+    DomainError::Validation(format!("Path not allowed {}: {}", path.display(), reason))
 }
