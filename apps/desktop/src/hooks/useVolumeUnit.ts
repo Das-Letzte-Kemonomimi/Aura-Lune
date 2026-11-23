@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Translations } from '../i18n';
-import { formatDb, normalizeDbStep, type VolumeDbStep } from '../utils/volumeScale';
+import { formatDb } from '../utils/volumeScale';
 
 export type VolumeUnit = 'percent' | 'db';
 
@@ -18,23 +18,6 @@ export function useVolumeUnit({ loc, showMessage }: UseVolumeUnitOptions) {
       return 'percent';
     }
   });
-
-  // Krok trybu dB: ile dB przypada na każde 5% suwaka (1.5 lub 1.2)
-  const [volumeDbStep, setVolumeDbStep] = useState<VolumeDbStep>(() => {
-    try {
-      return normalizeDbStep(localStorage.getItem('auralune_volume_db_step'));
-    } catch {
-      return normalizeDbStep(null);
-    }
-  });
-
-  const handleSetVolumeDbStep = useCallback((step: VolumeDbStep) => {
-    const next = normalizeDbStep(step);
-    setVolumeDbStep(next);
-    try {
-      localStorage.setItem('auralune_volume_db_step', String(next));
-    } catch {}
-  }, []);
 
   const handleSetVolumeUnit = useCallback(
     (unit: VolumeUnit) => {
@@ -70,7 +53,5 @@ export function useVolumeUnit({ loc, showMessage }: UseVolumeUnitOptions) {
     handleSetVolumeUnit,
     handleToggleVolumeUnit,
     formatVolumeValue,
-    volumeDbStep,
-    handleSetVolumeDbStep,
   };
 }

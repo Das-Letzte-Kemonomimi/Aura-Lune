@@ -37,7 +37,6 @@ export interface UseHotkeysManagerProps {
   formatTime: (ms: number) => string;
   formatVolumeValue: (vol: number) => string;
   volumeUnit: VolumeUnit;
-  volumeDbStep?: number;
   showMessage: (msg: string, isError?: boolean) => void;
   t: ReturnType<typeof getTranslations>;
   librarySearchInputRef?: React.RefObject<HTMLInputElement | null>;
@@ -85,7 +84,6 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         formatTime,
         formatVolumeValue,
         volumeUnit,
-        volumeDbStep,
         showMessage,
         t,
         librarySearchInputRef,
@@ -171,7 +169,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // Strzałka w górę: Głośność +5%
       if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const newVol = stepVolume(statusRef.current.volume, 1, volumeUnit, volumeDbStep);
+        const newVol = stepVolume(statusRef.current.volume, 1, volumeUnit);
         handleVolumeChange(newVol);
         const formatted = formatVolumeValue(newVol);
         showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));
@@ -181,7 +179,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // Strzałka w dół: Głośność -5%
       if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const newVol = stepVolume(statusRef.current.volume, -1, volumeUnit, volumeDbStep);
+        const newVol = stepVolume(statusRef.current.volume, -1, volumeUnit);
         handleVolumeChange(newVol);
         const formatted = formatVolumeValue(newVol);
         showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));

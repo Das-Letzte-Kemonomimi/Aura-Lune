@@ -22,7 +22,6 @@ export interface UseBottomPlaybackDockPropsOptions {
   queue: PlaybackQueue;
   volumeProgressPercent: number;
   volumeUnit: VolumeUnit;
-  volumeDbStep?: number;
   formatTime: (ms: number) => string;
   mainContentRef: React.RefObject<HTMLElement | null>;
   setActiveTab: (tab: AppTab) => void;
@@ -49,7 +48,6 @@ export function useBottomPlaybackDockProps(
     queue,
     volumeProgressPercent,
     volumeUnit,
-    volumeDbStep,
     formatTime,
     mainContentRef,
     setActiveTab,
@@ -84,7 +82,6 @@ export function useBottomPlaybackDockProps(
       queue,
       volumeProgressPercent,
       volumeUnit,
-      volumeDbStep,
       formatTime,
       onScrollToTopOrSwitchTab: () => {
         if (activeTab === 'player') {
@@ -123,7 +120,6 @@ export function useBottomPlaybackDockProps(
       queue,
       volumeProgressPercent,
       volumeUnit,
-      volumeDbStep,
       formatTime,
       mainContentRef,
       setActiveTab,

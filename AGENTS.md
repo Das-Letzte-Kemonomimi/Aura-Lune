@@ -424,7 +424,7 @@ Builders merge domain-hook results ("managers") with values from `App`. Managers
 - `soundscapeAudio.ts`: Procedural ambient soundscapes (rain, thunder, cafe, waves, night ambient).
 - `romaji.ts`: Transliterates Japanese Kanji, Hiragana, and Katakana titles into Latin Romaji.
 - `timeFormat.ts`: Time formatters (`formatTime`, `formatTimeMs`, `parseTimeToMs`).
-- `volumeScale.ts`: Volume slider scale. In `percent` mode the slider is linear in amplitude; in `db` mode it is linear in dB — 100% = 0.0 dB (digital max) and every 5% down is −`dbStep` dB, where the user picks `dbStep` = 1.5 (default; 0.3 dB per 1%, 89% = −3.3 dB) or 1.2 (0.24 dB per 1%) in Settings → Audio & Devices → Volume Display Unit (`useVolumeUnit().volumeDbStep`, persisted in `auralune_volume_db_step`). 0% = mute. Always convert via `sliderToVolume` / `volumeToSlider` / `stepVolume` (pass `volumeUnit` and `volumeDbStep`) and `formatDb`; the engine volume stays a linear 0..1 amplitude.
+- `volumeScale.ts`: Volume slider scale. In `percent` mode the slider is linear in amplitude; in `db` mode it is linear in dB — 100% = 0.0 dB (digital max) and every 1% down is −0.3 dB (5% = −1.5 dB, 89% = −3.3 dB, 0% = mute). Always convert via `sliderToVolume` / `volumeToSlider` / `stepVolume` / `formatDb`; the engine volume stays a linear 0..1 amplitude.
 - `fileSizeFormat.ts`: Human-readable byte formatting (`formatBytes`).
 - `fmt.ts`: `fmt(template, ...args)` fills `{0}`, `{1}` … in translation strings. Never chain `.replace('{0}', …)` (it only replaces the first occurrence and treats `# 🌸 Aura-Lune — Agents & Developer Architecture Guide
 
@@ -845,7 +845,7 @@ Builders merge domain-hook results ("managers") with values from `App`. Managers
 - `soundscapeAudio.ts`: Procedural ambient soundscapes (rain, thunder, cafe, waves, night ambient).
 - `romaji.ts`: Transliterates Japanese Kanji, Hiragana, and Katakana titles into Latin Romaji.
 - `timeFormat.ts`: Time formatters (`formatTime`, `formatTimeMs`, `parseTimeToMs`).
-- `volumeScale.ts`: Volume slider scale. In `percent` mode the slider is linear in amplitude; in `db` mode it is linear in dB — 100% = 0.0 dB (digital max) and every 5% down is −`dbStep` dB, where the user picks `dbStep` = 1.5 (default; 0.3 dB per 1%, 89% = −3.3 dB) or 1.2 (0.24 dB per 1%) in Settings → Audio & Devices → Volume Display Unit (`useVolumeUnit().volumeDbStep`, persisted in `auralune_volume_db_step`). 0% = mute. Always convert via `sliderToVolume` / `volumeToSlider` / `stepVolume` (pass `volumeUnit` and `volumeDbStep`) and `formatDb`; the engine volume stays a linear 0..1 amplitude.
+- `volumeScale.ts`: Volume slider scale. In `percent` mode the slider is linear in amplitude; in `db` mode it is linear in dB — 100% = 0.0 dB (digital max) and every 1% down is −0.3 dB (5% = −1.5 dB, 89% = −3.3 dB, 0% = mute). Always convert via `sliderToVolume` / `volumeToSlider` / `stepVolume` / `formatDb`; the engine volume stays a linear 0..1 amplitude.
  specially).
 - Components must use these formatters rather than local copies.
 

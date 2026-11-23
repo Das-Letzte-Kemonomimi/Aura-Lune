@@ -492,8 +492,6 @@
     "volumeUnitDesc": "Näytä äänenvoimakkuus prosentteina (0% – 100%) tai studiodesibeleinä (-∞ dB – 0.0 dB)",
     "volumeUnitPercent": "Prosentit (%)",
     "volumeUnitDb": "Desibelit (dB)",
-    "volumeDbStepTitle": "dB-askel 5 %:a kohden",
-    "volumeDbStepDesc": "-{0} dB jokaista liukusäätimen 5 %:a kohden (100 % = 0,0 dB). Käytössä, kun yksikkönä on dB.",
     "restoreSessionTitle": "Palauta toistoistunto käynnistettäessä",
     "restoreSessionDesc": "Muistaa nykyisen kappaleen, toistokohdan, äänenvoimakkuuden (dB), DSP-parametrit ja toistojonon uudelleenkäynnistyksen yhteydessä.",
     "restoreSessionOn": "Käytössä",

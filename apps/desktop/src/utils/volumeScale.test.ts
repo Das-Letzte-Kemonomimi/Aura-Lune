@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DB_PER_PERCENT, normalizeDbStep, sliderToVolume, stepVolume, volumeToDb, volumeToSlider } from './volumeScale';
+import { DB_PER_PERCENT, sliderToVolume, stepVolume, volumeToDb, volumeToSlider } from './volumeScale';
 
 const dbAt = (percent: number) => volumeToDb(sliderToVolume(percent / 100, 'db'));
 
@@ -73,50 +73,5 @@ describe('stepVolume', () => {
     expect(stepVolume(0.5, -1, 'percent')).toBeCloseTo(0.45, 10);
     expect(stepVolume(1, 1, 'percent')).toBe(1);
     expect(stepVolume(0.02, -1, 'percent')).toBe(0);
-  });
-});
-
-describe('volumeScale (dB mode, 1.2 dB per 5% step)', () => {
-  const dbAt12 = (percent: number) => volumeToDb(sliderToVolume(percent / 100, 'db', 1.2));
-
-  it('every 5% down lowers the level by 1.2 dB (0.24 dB per 1%)', () => {
-    expect(dbAt12(100)).toBeCloseTo(0, 10);
-    expect(dbAt12(95)).toBeCloseTo(-1.2, 6);
-    expect(dbAt12(90)).toBeCloseTo(-2.4, 6);
-    expect(dbAt12(89)).toBeCloseTo(-2.64, 6);
-    expect(dbAt12(0)).toBe(-Infinity);
-  });
-
-  it('round-trips every slider percent', () => {
-    for (let p = 0; p <= 100; p++) {
-      const vol = Math.fround(sliderToVolume(p / 100, 'db', 1.2));
-      expect(Math.round(volumeToSlider(vol, 'db', 1.2) * 100)).toBe(p);
-    }
-  });
-
-  it('the same amplitude sits at a different slider position per step size', () => {
-    const vol = sliderToVolume(0.9, 'db', 1.5); // -3.0 dB
-    expect(volumeToSlider(vol, 'db', 1.5)).toBe(0.9);
-    expect(volumeToSlider(vol, 'db', 1.2)).toBe(0.88); // -3.0 / 0.24 = -12.5% -> rounds to 88%
-  });
-
-  it('keys step 5% of the slider = 1.2 dB', () => {
-    expect(volumeToDb(stepVolume(1, -1, 'db', 1.2))).toBeCloseTo(-1.2, 6);
-  });
-
-  it('ignores the step in percent mode', () => {
-    expect(sliderToVolume(0.37, 'percent', 1.2)).toBe(0.37);
-    expect(stepVolume(0.5, 1, 'percent', 1.2)).toBeCloseTo(0.55, 10);
-  });
-});
-
-describe('normalizeDbStep', () => {
-  it('accepts only the supported steps and defaults to 1.5', () => {
-    expect(normalizeDbStep(1.2)).toBe(1.2);
-    expect(normalizeDbStep('1.2')).toBe(1.2);
-    expect(normalizeDbStep('1.5')).toBe(1.5);
-    expect(normalizeDbStep('2')).toBe(1.5);
-    expect(normalizeDbStep(null)).toBe(1.5);
-    expect(normalizeDbStep(undefined)).toBe(1.5);
   });
 });

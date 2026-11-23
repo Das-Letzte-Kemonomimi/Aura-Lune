@@ -492,8 +492,6 @@
     "volumeUnitDesc": "Lautstärke in Prozent (0% – 100%) oder Studio-Dezibel (-∞ dB bis 0.0 dB) anzeigen",
     "volumeUnitPercent": "Prozent (%)",
     "volumeUnitDb": "Dezibel (dB)",
-    "volumeDbStepTitle": "dB-Schritt pro 5 %",
-    "volumeDbStepDesc": "-{0} dB für jede 5 % des Reglers (100 % = 0,0 dB). Gilt, wenn die Einheit dB ist.",
     "restoreSessionTitle": "Wiedergabesitzung beim Start wiederherstellen",
     "restoreSessionDesc": "Merkt sich den aktuellen Titel, die Wiedergabeposition, die Lautstärke (dB), die DSP-Parameter und die Warteschlange beim Neustart.",
     "restoreSessionOn": "Aktiviert",

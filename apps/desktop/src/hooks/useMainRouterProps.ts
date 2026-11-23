@@ -104,7 +104,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     setFilePath: p.setFilePath,
     volumeProgressPercent: p.volumeProgressPercent,
     volumeUnit: p.volumeUnit,
-    volumeDbStep: p.volumeDbStep,
     formatVolumeValue: p.formatVolumeValue,
     handleToggleVolumeUnit: p.handleToggleVolumeUnit,
     seekFadeEnabled: p.seekFadeEnabled,

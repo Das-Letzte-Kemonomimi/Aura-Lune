@@ -26,7 +26,6 @@ interface MiniPlayerWidgetProps {
   tempoRatio: number;
   currentLang?: Language;
   volumeUnit?: 'percent' | 'db';
-  volumeDbStep?: number;
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -48,7 +47,6 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   tempoRatio,
   currentLang = 'en',
   volumeUnit = 'percent',
-  volumeDbStep,
   onPlayPause,
   onPrev,
   onNext,
@@ -258,8 +256,8 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
             min={0}
             max={1}
             step={0.01}
-            value={volumeToSlider(volume, volumeUnit, volumeDbStep)}
-            onChange={(e) => onVolumeChange(sliderToVolume(parseFloat(e.target.value), volumeUnit, volumeDbStep))}
+            value={volumeToSlider(volume, volumeUnit)}
+            onChange={(e) => onVolumeChange(sliderToVolume(parseFloat(e.target.value), volumeUnit))}
             onPointerUp={(e) => e.currentTarget.blur()}
             onMouseUp={(e) => e.currentTarget.blur()}
             onKeyDown={(e) => {
@@ -271,7 +269,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
               width: '50px',
               height: '3px',
               cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeToSlider(volume, volumeUnit, volumeDbStep) * 100}%, rgba(255, 255, 255, 0.12) ${volumeToSlider(volume, volumeUnit, volumeDbStep) * 100}%, rgba(255, 255, 255, 0.12) 100%)`,
+              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeToSlider(volume, volumeUnit) * 100}%, rgba(255, 255, 255, 0.12) ${volumeToSlider(volume, volumeUnit) * 100}%, rgba(255, 255, 255, 0.12) 100%)`,
             }}
           />
           <button

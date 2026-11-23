@@ -2,21 +2,17 @@ import React from 'react';
 import { Volume2 } from 'lucide-react';
 import { type VolumeOsdPosition } from '../../../components/player/VolumeOsd';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
-import { DB_STEP_OPTIONS } from '../../../utils/volumeScale';
-import { fmt } from '../../../utils/fmt';
 
-export type VolumeAndOsdCardProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'instantVolume' | 'onToggleInstantVolume' | 'volumeUnit' | 'onSetVolumeUnit' | 'volumeDbStep' | 'onSetVolumeDbStep' | 'volumeOsdPosition' | 'onSetVolumeOsdPosition' | 'onToggleRecapOptIn' | 'recapOptIn'>;
+export type VolumeAndOsdCardProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'instantVolume' | 'onToggleInstantVolume' | 'volumeUnit' | 'onSetVolumeUnit' | 'volumeOsdPosition' | 'onSetVolumeOsdPosition' | 'onToggleRecapOptIn' | 'recapOptIn'>;
 
 export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   instantVolume,
   loc,
   onSetVolumeOsdPosition,
   onSetVolumeUnit,
-  onSetVolumeDbStep,
   onToggleInstantVolume,
   onToggleRecapOptIn,
   recapOptIn,
-  volumeDbStep,
   volumeOsdPosition,
   volumeUnit,
 }) => (
@@ -100,47 +96,6 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
             </button>
           </div>
         </div>
-
-        {/* Krok trybu dB: ile dB na każde 5% suwaka — dostępne tylko, gdy włączona jest jednostka dB */}
-        {volumeUnit === 'db' && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 600, color: '#fff' }}>
-                {loc.settings.volumeDbStepTitle}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {fmt(loc.settings.volumeDbStepDesc, String(volumeDbStep))}
-              </div>
-            </div>
-            <div
-              role="group"
-              aria-label={loc.settings.volumeDbStepTitle}
-              style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}
-            >
-              {DB_STEP_OPTIONS.map((step) => (
-                <button
-                  key={step}
-                  type="button"
-                  aria-pressed={volumeDbStep === step}
-                  onClick={() => onSetVolumeDbStep(step)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    border: 'none',
-                    fontFamily: 'var(--font-mono)',
-                    background: volumeDbStep === step ? 'var(--accent-cyan)' : 'transparent',
-                    color: volumeDbStep === step ? '#fff' : 'var(--text-muted)',
-                  }}
-                >
-                  -{step.toFixed(1)} dB
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Pozycja OSD głośności */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

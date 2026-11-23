@@ -492,8 +492,6 @@
     "volumeUnitDesc": "Display volume as percentage (0% - 100%) or studio decibels (-∞ dB to 0.0 dB)",
     "volumeUnitPercent": "Percentage (%)",
     "volumeUnitDb": "Decibels (dB)",
-    "volumeDbStepTitle": "dB Step per 5%",
-    "volumeDbStepDesc": "-{0} dB for every 5% of the slider (100% = 0.0 dB). Applies when the unit is dB.",
     "restoreSessionTitle": "Restore Playback Session on Startup",
     "restoreSessionDesc": "Remembers the current track, playback position, volume level (dB), DSP parameters, and queue upon restarting.",
     "restoreSessionOn": "Enabled",
