@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Disc, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { getTranslations, type Language } from '../../i18n';
+import { useInertialSpin } from '../../hooks/useInertialSpin';
+import { playbackSpeed } from '../../utils/playbackSpeed';
+import { tauFromFrameLerp } from '../../utils/smoothing';
+
+// Dawna bezwładność talerza: 0.08 (rozpędzanie) / 0.04 (hamowanie) na klatkę 60 Hz => ~0.2 s / ~0.41 s
+const PLATTER_TAU_UP = tauFromFrameLerp(0.08);
+const PLATTER_TAU_DOWN = tauFromFrameLerp(0.04);
 
 const AnalogLoFiModal = React.lazy(() =>
   import('../modals/AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal }))
@@ -80,71 +87,30 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
     vinylSimulator.setRpm(rpm);
   }, [rpm]);
 
-  // Weryfikacja czy DSP aktywnie moduluje strumień audio, czy działa Direct Bypass:
-  // W trybie Direct Bypass dźwięk płynie bit-perfect z prędkością 1.0x, więc płyta obraca się z nominalną prędkością!
-  const dspActive = isDspActive !== undefined
-    ? isDspActive
-    : (engine !== 'Bypass' && Boolean(engine));
+  // Efektywny mnożnik prędkości obrotu płyty zsynchronizowany z DSP (Tempo + Rate).
+  // W trybie Direct Bypass dźwięk płynie bit-perfect z prędkością 1.0x, więc płyta obraca się z nominalną prędkością.
+  const effectiveSpeed = playbackSpeed({ engine, tempo, rate, isDspActive });
 
-  // Efektywny mnożnik prędkości obrotu płyty zsynchronizowany z DSP (Tempo + Rate)
-  const effectiveSpeed = dspActive
-    ? Math.max(0.1, Math.min(4.0, (tempo || 1.0) * (rate || 1.0)))
-    : 1.0;
-
-  // Obliczenie aktualnej fizycznej prędkości obrotowej (RPM)
+  // Aktualna fizyczna prędkość obrotowa (RPM)
   const currentRpm = (rpm * effectiveSpeed).toFixed(1);
 
-  // Kąt obrotu płyty i fizyczna prędkość kątowa z płynną bezwładnością (Direct-Drive motor inertia)
+  // Kąt obrotu płyty z płynną bezwładnością silnika (Direct-Drive). Docelowa prędkość w stopniach na sekundę:
+  // 33⅓ RPM = ok. 190 deg/s, 45 RPM = ok. 285 deg/s (zauważalnie, 50% szybszy obrót fizyczny).
   const platterRef = useRef<HTMLDivElement | null>(null);
-  const angleRef = useRef<number>(0);
-  const currentSpeedRef = useRef<number>(0); // w stopniach na sekundę
-  const lastTimeRef = useRef<number>(0);
-  const [displayRpm, setDisplayRpm] = useState<string>(currentRpm);
-
-  // Docelowa prędkość w stopniach na sekundę:
-  // 33⅓ RPM = ok. 190 deg/s
-  // 45 RPM = ok. 285 deg/s (zauważalnie, 50% szybszy obrót fizyczny)
   const baseDegPerSec = rpm === 33 ? 190 : 285;
   const targetDegPerSec = isPlaying ? baseDegPerSec * effectiveSpeed : 0;
 
-  useEffect(() => {
-    setDisplayRpm(currentRpm);
-  }, [currentRpm]);
-
-  useEffect(() => {
-    let animId: number;
-    lastTimeRef.current = performance.now();
-
-    const updatePlatter = (now: number) => {
-      const dt = Math.min(0.1, (now - lastTimeRef.current) / 1000);
-      lastTimeRef.current = now;
-
-      // Płynne nabieranie i wytracanie prędkości (bezwładność silnika)
-      const lerpFactor = isPlaying ? 0.08 : 0.04;
-      currentSpeedRef.current += (targetDegPerSec - currentSpeedRef.current) * lerpFactor;
-
-      // Jeśli prędkość jest bardzo mała i nie odtwarzamy, całkowicie zatrzymaj
-      if (!isPlaying && Math.abs(currentSpeedRef.current) < 0.1) {
-        currentSpeedRef.current = 0;
-      }
-
-      // Aktualizacja kąta obrotu
-      if (currentSpeedRef.current > 0.01) {
-        angleRef.current = (angleRef.current + currentSpeedRef.current * dt) % 360;
-        if (platterRef.current) {
-          platterRef.current.style.transform = `rotate(${angleRef.current.toFixed(2)}deg)`;
-        }
-      }
-
-      animId = requestAnimationFrame(updatePlatter);
-    };
-
-    animId = requestAnimationFrame(updatePlatter);
-
-    return () => {
-      cancelAnimationFrame(animId);
-    };
-  }, [isPlaying, targetDegPerSec]);
+  // Pętla działa tylko, dopóki talerz się obraca lub rozpędza; zmiana tempa jej nie restartuje.
+  useInertialSpin({
+    targetDegPerSec,
+    playing: isPlaying,
+    tauUp: PLATTER_TAU_UP,
+    tauDown: PLATTER_TAU_DOWN,
+    target: platterRef,
+    apply: (angle) => {
+      if (platterRef.current) platterRef.current.style.transform = `rotate(${angle.toFixed(2)}deg)`;
+    },
+  });
 
   // Kąt ramienia gramofonu:
   // Spoczynek (park): 0deg (bezpiecznie wewnątrz plinty gramofonu, pionowo w uchwycie ramienia)
@@ -464,7 +430,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
             style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', whiteSpace: 'nowrap' }}
           >
             {isPlaying
-              ? `${displayRpm} RPM`
+              ? `${currentRpm} RPM`
               : (rpm === 33 ? '33⅓ RPM' : '45 RPM')}
           </span>
         </div>

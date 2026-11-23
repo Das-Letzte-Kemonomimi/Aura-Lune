@@ -1,7 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import { CassetteTape, Sparkles } from 'lucide-react';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { getTranslations, type Language } from '../../i18n';
+import { useInertialSpin } from '../../hooks/useInertialSpin';
+import { playbackSpeed } from '../../utils/playbackSpeed';
+import { tauFromFrameLerp } from '../../utils/smoothing';
+
+// Dawna bezwładność szpul: 0.09 (rozpędzanie) / 0.05 (hamowanie) na klatkę 60 Hz => ~0.18 s / ~0.33 s
+const REEL_TAU_UP = tauFromFrameLerp(0.09);
+const REEL_TAU_DOWN = tauFromFrameLerp(0.05);
 
 const AnalogLoFiModal = React.lazy(() =>
   import('../modals/AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal }))
@@ -88,14 +95,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     vinylSimulator.setPlaybackState(isPlaying);
   }, [isPlaying]);
 
-  const dspActive =
-    isDspActive !== undefined
-      ? isDspActive
-      : engine !== 'Bypass' && Boolean(engine);
-
-  const effectiveSpeed = dspActive
-    ? Math.max(0.1, Math.min(4.0, (tempo || 1.0) * (rate || 1.0)))
-    : 1.0;
+  const effectiveSpeed = playbackSpeed({ engine, tempo, rate, isDspActive });
 
   // Tematyczne warianty wizualne dla 3 typów taśmy studyjnej
   const currentTheme = {
@@ -155,13 +155,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   // Procent postępu odtwarzania (0.0 do 1.0)
   const progress = durationMs > 0 ? Math.min(1.0, Math.max(0.0, positionMs / durationMs)) : 0.0;
 
-  // Kąty obrotu obu szpul
-  const leftAngleRef = useRef<number>(0);
-  const rightAngleRef = useRef<number>(0);
-  const leftSpeedRef = useRef<number>(0);
-  const rightSpeedRef = useRef<number>(0);
-  const lastTimeRef = useRef<number>(0);
-
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const leftSpoolRef = useRef<SVGGElement | null>(null);
   const rightSpoolRef = useRef<SVGGElement | null>(null);
   const pinchRollerRef = useRef<SVGGElement | null>(null);
@@ -170,67 +164,52 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   const leftTapeRadius = 38 - progress * 20; // 38 -> 18
   const rightTapeRadius = 18 + progress * 20; // 18 -> 38
 
-  useEffect(() => {
-    let animId: number;
-    lastTimeRef.current = performance.now();
+  // 7½ IPS obraca się dwukrotnie szybciej niż standardowe 3¾ IPS
+  const speedMultiplier = tapeSpeed === '7.5' ? 1.0 : 0.5;
+  const baseLinearVelocity = 280 * effectiveSpeed * speedMultiplier;
 
-    // 7½ IPS obraca się dwukrotnie szybciej niż standardowe 3¾ IPS
-    const speedMultiplier = tapeSpeed === '7.5' ? 1.0 : 0.5;
-    const baseLinearVelocity = 280 * effectiveSpeed * speedMultiplier;
-
-    const animateTape = (now: number) => {
-      const dt = Math.min(0.1, (now - lastTimeRef.current) / 1000);
-      lastTimeRef.current = now;
-
-      // Zgodnie z mechaniką szpulowca: prędkość kątowa ω = v / r
-      const targetLeftSpeed = isPlaying ? (baseLinearVelocity / leftTapeRadius) * 36 : 0;
-      const targetRightSpeed = isPlaying ? (baseLinearVelocity / rightTapeRadius) * 36 : 0;
-
-      // Płynna bezwładność szpul (lerp)
-      const lerp = isPlaying ? 0.09 : 0.05;
-      leftSpeedRef.current += (targetLeftSpeed - leftSpeedRef.current) * lerp;
-      rightSpeedRef.current += (targetRightSpeed - rightSpeedRef.current) * lerp;
-
-      if (!isPlaying && Math.abs(leftSpeedRef.current) < 0.1) leftSpeedRef.current = 0;
-      if (!isPlaying && Math.abs(rightSpeedRef.current) < 0.1) rightSpeedRef.current = 0;
-
-      // Zgodnie z mechaniką magnetofonu szpulowego: taśma biegnie dołem z lewej do prawej,
-      // więc obie szpule obracają się w lewo (przeciwnie do ruchu wskazówek zegara),
-      // a dolna krawędź szpuli przesuwa się zgodnie z ruchem taśmy w prawo.
-      if (leftSpeedRef.current > 0.01) {
-        leftAngleRef.current = (leftAngleRef.current - leftSpeedRef.current * dt + 360) % 360;
-        if (leftSpoolRef.current) {
-          leftSpoolRef.current.setAttribute('transform', `rotate(${leftAngleRef.current.toFixed(2)} 65 75)`);
-        }
-      }
-
-      if (rightSpeedRef.current > 0.01) {
-        rightAngleRef.current = (rightAngleRef.current - rightSpeedRef.current * dt + 360) % 360;
-        if (rightSpoolRef.current) {
-          rightSpoolRef.current.setAttribute('transform', `rotate(${rightAngleRef.current.toFixed(2)} 175 75)`);
-        }
-      }
-
-      if (pinchRollerRef.current && (leftSpeedRef.current > 0.01 || rightSpeedRef.current > 0.01)) {
-        pinchRollerRef.current.setAttribute(
-          'transform',
-          `rotate(${((rightAngleRef.current * (tapeSpeed === '7.5' ? 2.4 : 1.2)) % 360).toFixed(2)} 158 135)`
-        );
-      }
-
-      animId = requestAnimationFrame(animateTape);
-    };
-
-    animId = requestAnimationFrame(animateTape);
-    return () => cancelAnimationFrame(animId);
-  }, [isPlaying, effectiveSpeed, tapeSpeed, leftTapeRadius, rightTapeRadius]);
+  // Zgodnie z mechaniką szpulowca: prędkość kątowa ω = v / r. Obie szpule obracają się w lewo
+  // (taśma biegnie dołem z lewej do prawej). Parametry trafiają do pętli przez ref — zmiana promienia,
+  // tempa czy prędkości taśmy jej nie restartuje, a po zatrzymaniu pętla śpi.
+  useInertialSpin({
+    targetDegPerSec: isPlaying ? (baseLinearVelocity / leftTapeRadius) * 36 : 0,
+    playing: isPlaying,
+    tauUp: REEL_TAU_UP,
+    tauDown: REEL_TAU_DOWN,
+    direction: -1,
+    target: rootRef,
+    apply: (angle) => {
+      leftSpoolRef.current?.setAttribute('transform', `rotate(${angle.toFixed(2)} 65 75)`);
+    },
+  });
+  useInertialSpin({
+    targetDegPerSec: isPlaying ? (baseLinearVelocity / rightTapeRadius) * 36 : 0,
+    playing: isPlaying,
+    tauUp: REEL_TAU_UP,
+    tauDown: REEL_TAU_DOWN,
+    direction: -1,
+    target: rootRef,
+    apply: (angle) => {
+      rightSpoolRef.current?.setAttribute('transform', `rotate(${angle.toFixed(2)} 175 75)`);
+      // Rolka dociskowa napędzana od prawej szpuli
+      pinchRollerRef.current?.setAttribute(
+        'transform',
+        `rotate(${((angle * (tapeSpeed === '7.5' ? 2.4 : 1.2)) % 360).toFixed(2)} 158 135)`
+      );
+    },
+  });
 
   // Licznik obrotów taśmy (Tape Counter 4-cyfrowy) — na 7.5 IPS tyka 2x szybciej
   const tapeCounterVal = Math.floor((positionMs / 1000) * (tapeSpeed === '7.5' ? 3.2 : 1.6));
   const counterFormatted = String(tapeCounterVal % 10000).padStart(4, '0');
 
+  const uid = useId().replace(/:/g, '');
+  const packGradId = `${uid}-tapePackGrad`;
+  const spoolGradId = `${uid}-metalSpool`;
+
   return (
     <div
+      ref={rootRef}
       className={className}
       style={{
         width: size,
@@ -298,14 +277,14 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         >
           <defs>
             {/* Dynamiczny gradient taśmy magnetycznej (FE-I vs CR-II vs METAL) */}
-            <radialGradient id="tapePackGrad" cx="50%" cy="50%" r="50%">
+            <radialGradient id={packGradId} cx="50%" cy="50%" r="50%">
               <stop offset="60%" stopColor={currentTheme.tapePackStart} />
               <stop offset="90%" stopColor={currentTheme.tapePackMid} />
               <stop offset="100%" stopColor={currentTheme.tapePackEnd} />
             </radialGradient>
 
             {/* Dynamiczny gradient szpuli NAB (Aluminium vs Tytan vs Złoto) */}
-            <linearGradient id="metalSpool" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={spoolGradId} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={currentTheme.spoolStart} />
               <stop offset="50%" stopColor={currentTheme.spoolMid} />
               <stop offset="100%" stopColor={currentTheme.spoolEnd} />
@@ -347,25 +326,25 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           />
 
           {/* --- LEWA SZPULA (Podająca / Feed Reel) --- */}
-          <circle cx="65" cy="75" r={leftTapeRadius} fill="url(#tapePackGrad)" stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
+          <circle cx="65" cy="75" r={leftTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
           <g ref={leftSpoolRef}>
-            <circle cx="65" cy="75" r="42" fill="none" stroke="url(#metalSpool)" strokeWidth="1.8" />
+            <circle cx="65" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
             <circle cx="65" cy="75" r="14" fill={currentTheme.spoolHub} stroke={currentTheme.spoolMid} strokeWidth="1.5" />
             <circle cx="65" cy="75" r="4" fill="#0f172a" />
-            <path d="M 65 61 L 62 42 L 68 42 Z" fill="url(#metalSpool)" />
-            <path d="M 53 82 L 36 92 L 39 97 Z" fill="url(#metalSpool)" />
-            <path d="M 77 82 L 94 92 L 91 97 Z" fill="url(#metalSpool)" />
+            <path d="M 65 61 L 62 42 L 68 42 Z" fill={`url(#${spoolGradId})`} />
+            <path d="M 53 82 L 36 92 L 39 97 Z" fill={`url(#${spoolGradId})`} />
+            <path d="M 77 82 L 94 92 L 91 97 Z" fill={`url(#${spoolGradId})`} />
           </g>
 
           {/* --- PRAWA SZPULA (Odbierająca / Take-up Reel) --- */}
-          <circle cx="175" cy="75" r={rightTapeRadius} fill="url(#tapePackGrad)" stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
+          <circle cx="175" cy="75" r={rightTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
           <g ref={rightSpoolRef}>
-            <circle cx="175" cy="75" r="42" fill="none" stroke="url(#metalSpool)" strokeWidth="1.8" />
+            <circle cx="175" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
             <circle cx="175" cy="75" r="14" fill={currentTheme.spoolHub} stroke={currentTheme.spoolMid} strokeWidth="1.5" />
             <circle cx="175" cy="75" r="4" fill="#0f172a" />
-            <path d="M 175 61 L 172 42 L 178 42 Z" fill="url(#metalSpool)" />
-            <path d="M 163 82 L 146 92 L 149 97 Z" fill="url(#metalSpool)" />
-            <path d="M 187 82 L 204 92 L 201 97 Z" fill="url(#metalSpool)" />
+            <path d="M 175 61 L 172 42 L 178 42 Z" fill={`url(#${spoolGradId})`} />
+            <path d="M 163 82 L 146 92 L 149 97 Z" fill={`url(#${spoolGradId})`} />
+            <path d="M 187 82 L 204 92 L 201 97 Z" fill={`url(#${spoolGradId})`} />
           </g>
 
           {/* Rolki prowadzące i głowica studyjna (Head Block) */}

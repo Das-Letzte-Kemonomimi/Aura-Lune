@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CassetteTape, Disc, Disc3, Gauge, Sparkles, Upload } from 'lucide-react';
 import { TapeDeckWidget } from '../../../components/player/TapeDeckWidget';
 import { VinylTurntable } from '../../../components/player/VinylTurntable';
@@ -6,12 +6,13 @@ import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
+import { arePlayerVisualColumnPropsEqual } from './playerVisualColumnMemo';
 
 export type PlayerVisualColumnProps = Pick<PlayerViewProps, 'nowPlayingVisualMode' | 'handleSelectNowPlayingVisualMode' | 'loc' | 'language' | 'currentCover' | 'currentPlayingTrack' | 'tracks' | 'handlePlayPause' | 'vinylRpm' | 'handleSelectVinylRpm' | 'setIsLoFiModalOpen' | 'tapeType' | 'handleSelectTapeType' | 'tapeSpeed' | 'handleSelectTapeSpeed' | 'currentAlbum' | 'handleOpenCoverPicker' | 'albums' | 'handleUploadCustomCoverDirect' | 'dspBadgeTitle' | 'dspBadgeText'> & {
   status: PlaybackStatus;
 };
 
-export const PlayerVisualColumn: React.FC<PlayerVisualColumnProps> = ({
+const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   albums,
   currentAlbum,
   currentCover,
@@ -34,7 +35,19 @@ export const PlayerVisualColumn: React.FC<PlayerVisualColumnProps> = ({
   tapeType,
   tracks,
   vinylRpm,
-}) => (
+}) => {
+  // BPM bieżącego utworu — wyszukiwanie w bibliotece tylko przy zmianie utworu/biblioteki, nie co tick
+  const currentTrackId = status.current_track?.track_id;
+  const currentTrackUri = status.current_track?.uri;
+  const turntableBpm = useMemo(
+    () =>
+      currentPlayingTrack?.bpm ||
+      tracks.find((t) => (currentTrackId && t.id === currentTrackId) || t.path === currentTrackUri)?.bpm ||
+      null,
+    [currentPlayingTrack?.bpm, tracks, currentTrackId, currentTrackUri]
+  );
+
+  return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Taśma • Wskaźnik VU */}
       <div
@@ -141,15 +154,7 @@ export const PlayerVisualColumn: React.FC<PlayerVisualColumnProps> = ({
           rate={status.rate_ratio ?? 1.0}
           engine={status.engine}
           isDspActive={status.engine !== 'Bypass'}
-          bpm={
-            currentPlayingTrack?.bpm ||
-            tracks.find(
-              (t) =>
-                (status.current_track?.track_id && t.id === status.current_track.track_id) ||
-                t.path === status.current_track?.uri
-            )?.bpm ||
-            null
-          }
+          bpm={turntableBpm}
           trackTitle={status.current_track?.title || currentPlayingTrack?.title}
           artistName={status.current_track?.artist || currentPlayingTrack?.artist}
           onTogglePlayPause={handlePlayPause}
@@ -426,4 +431,8 @@ export const PlayerVisualColumn: React.FC<PlayerVisualColumnProps> = ({
         </div>
       )}
     </div>
-);
+  );
+};
+
+/** Zob. `statusUnchanged` w `playerVisualColumnMemo.ts` — pomija ~10 Hz zmiany pozycji i widma. */
+export const PlayerVisualColumn = React.memo(PlayerVisualColumnBase, arePlayerVisualColumnPropsEqual);
