@@ -329,10 +329,13 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: showLyrics ? '420px 1fr' : '1fr',
+          gridTemplateColumns: showLyrics ? '420px minmax(0, 1fr)' : 'minmax(0, 1fr)',
+          gridTemplateRows: 'minmax(0, 1fr)',
           gap: '50px',
           alignItems: 'center',
           flex: 1,
+          minHeight: 0,
+          minWidth: 0,
           maxHeight: 'calc(100vh - 200px)',
           margin: '20px 0',
         }}
@@ -994,7 +997,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = ({
 
         {/* Kolumna prawa: Teksty synchronizowane */}
         {showLyrics && (
-          <div style={{ height: '100%', minHeight: '380px' }}>
+          <div style={{ height: '100%', minHeight: 0, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
             <LyricsView
               trackTitle={title}
               trackArtist={artist}
