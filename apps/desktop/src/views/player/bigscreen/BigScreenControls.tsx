@@ -5,7 +5,6 @@ import { SpectrumVisualizer } from '../../../components/player/SpectrumVisualize
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import { formatTime } from '../../../utils/timeFormat';
-import { formatDb, sliderToVolume, volumeToSlider } from '../../../utils/volumeScale';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -267,8 +266,8 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             min={0}
             max={1}
             step={0.01}
-            value={volumeToSlider(volume, volumeUnit)}
-            onChange={(e) => onVolumeChange(sliderToVolume(parseFloat(e.target.value), volumeUnit))}
+            value={volume}
+            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
             onPointerUp={(e) => e.currentTarget.blur()}
             onMouseUp={(e) => e.currentTarget.blur()}
             onKeyDown={(e) => {
@@ -279,7 +278,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             style={{
               width: '80px',
               cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeToSlider(volume, volumeUnit) * 100}%, rgba(255, 255, 255, 0.12) ${volumeToSlider(volume, volumeUnit) * 100}%, rgba(255, 255, 255, 0.12) 100%)`,
+              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
             }}
           />
           <button
@@ -301,7 +300,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             }}
           >
             {volumeUnit === 'db'
-              ? formatDb(volume)
+              ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
               : `${Math.round(volume * 100)}%`}
           </button>
         </div>

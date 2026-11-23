@@ -1,7 +1,5 @@
 import type { AppTab } from '../../types/navigation';
 import React, { useState } from 'react';
-import type { VolumeUnit } from '../../hooks/useVolumeUnit';
-import { formatDb, sliderToVolume, volumeToSlider } from '../../utils/volumeScale';
 import {
   Play,
   Pause,
@@ -38,7 +36,6 @@ export interface BottomPlaybackDockProps {
   filePath: string;
   queue: PlaybackQueue;
   volumeProgressPercent: number;
-  volumeUnit: VolumeUnit;
   formatTime: (ms: number) => string;
   onScrollToTopOrSwitchTab: () => void;
   onOpenContainingFolder: (path: string, e: React.MouseEvent) => void;
@@ -71,7 +68,6 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   filePath,
   queue,
   volumeProgressPercent,
-  volumeUnit,
   formatTime,
   onScrollToTopOrSwitchTab,
   onOpenContainingFolder,
@@ -657,9 +653,9 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             min={0}
             max={1}
             step={0.01}
-            value={volumeToSlider(status.volume, volumeUnit)}
-            onChange={(e) => onVolumeChange(sliderToVolume(Number(e.target.value), volumeUnit))}
-            title={`${loc.player.volume}: ${volumeUnit === 'db' ? formatDb(status.volume) : `${Math.round(status.volume * 100)}%`}`}
+            value={status.volume}
+            onChange={(e) => onVolumeChange(Number(e.target.value))}
+            title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
             style={{
               width: '95px',
               height: '4px',

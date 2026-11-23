@@ -6,7 +6,6 @@ import type { useDspManager } from '../../hooks/useDspManager';
 import type { PlaybackStatus, TrackRecord } from '../../types/player';
 import type { PlaybackQueue } from '../../types/queue';
 import type { Language, Translations } from '../../i18n';
-import type { VolumeUnit } from '../../hooks/useVolumeUnit';
 
 export interface UseBottomPlaybackDockPropsOptions {
   activeTab: AppTab;
@@ -21,7 +20,6 @@ export interface UseBottomPlaybackDockPropsOptions {
   currentCover: string | null;
   queue: PlaybackQueue;
   volumeProgressPercent: number;
-  volumeUnit: VolumeUnit;
   formatTime: (ms: number) => string;
   mainContentRef: React.RefObject<HTMLElement | null>;
   setActiveTab: (tab: AppTab) => void;
@@ -47,7 +45,6 @@ export function useBottomPlaybackDockProps(
     currentCover,
     queue,
     volumeProgressPercent,
-    volumeUnit,
     formatTime,
     mainContentRef,
     setActiveTab,
@@ -81,7 +78,6 @@ export function useBottomPlaybackDockProps(
       filePath,
       queue,
       volumeProgressPercent,
-      volumeUnit,
       formatTime,
       onScrollToTopOrSwitchTab: () => {
         if (activeTab === 'player') {
@@ -119,7 +115,6 @@ export function useBottomPlaybackDockProps(
       filePath,
       queue,
       volumeProgressPercent,
-      volumeUnit,
       formatTime,
       mainContentRef,
       setActiveTab,

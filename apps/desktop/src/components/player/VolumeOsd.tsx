@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Volume2, Volume1, VolumeX } from 'lucide-react';
-import { formatDb } from '../../utils/volumeScale';
 
 export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'off';
 
@@ -18,7 +17,7 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
   const percentage = Math.round(volume * 100);
   const isDb = unit === 'db';
   const displayValue = isDb
-    ? formatDb(volume)
+    ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
     : `${percentage}%`;
 
   useEffect(() => {
