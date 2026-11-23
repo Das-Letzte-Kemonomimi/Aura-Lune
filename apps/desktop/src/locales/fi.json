@@ -1865,7 +1865,21 @@
     "deleteConfirm": "Haluatko varmasti poistaa tämän mallin painot levyltä?",
     "deleteError": "Mallin poistaminen epäonnistui: {0}",
     "sizeLabel": "Koko: {0} MB",
-    "formatLabel": "Muoto: ONNX"
+    "formatLabel": "Muoto: ONNX",
+    "catalog": {
+      "htdemucs_v4": "Studiolaatuinen erottelu neljään raitaan: laulu, rummut, basso ja säestävät soittimet.",
+      "htdemucs_6s": "Laajennettu 6-raitamalli: laulu, rummut, basso, kitara, piano ja muu.",
+      "uvr_mdx_karaoke": "Päälaulun erottelu taustalaulusta ja harmonioista.",
+      "spotify_basic_pitch": "Soittimien ja melodioiden polyfoninen transkriptio suoraan nuoteiksi ja MIDI-tiedostoiksi."
+    },
+    "packs": {
+      "pack_core_4stem": "Klassinen studiojako neljään pääraitaan: laulu, rummut, basso ja muu.",
+      "pack_extended_6stem": "Laajentaa erottelun erillisillä piano- ja kitararaidoilla.",
+      "pack_vocal_harmonies": "Jakaa laulun puhtaaseen päälauluun ja taustalauluihin/harmonioihin.",
+      "pack_drum_pieces": "Hajottaa rumpusetin bassorumpuun, virveliin, hi-hatiin, tomeihin ja symbaaleihin.",
+      "pack_orchestral": "Erottelee jousi-, vaskisoitin- ja puupuhallinosiot.",
+      "pack_dsp_cascade": "Edistynyt STFT-pohjainen Harmonic-Percussive Source Separation -moottori stereokentän (keski/sivu) hajotuksella. Erottaa bassorummun ja virvelin transientit koko kaistalla sekä laulun harmoniat ilman laatikkomaista EQ-suodatinta. 100 % alkuperäisen miksauksen rekonstruktio."
+    }
   },
   "analysis": {
     "title": "Musiikkianalyysistudio",

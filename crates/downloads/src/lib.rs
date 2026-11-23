@@ -18,19 +18,19 @@ use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum DownloadError {
-    #[error("Błąd sieciowy HTTP: {0}")]
+    #[error("HTTP network error: {0}")]
     Network(#[from] reqwest::Error),
-    #[error("Błąd wejścia/wyjścia dysku: {0}")]
+    #[error("Disk I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Niezgodność sumy kontrolnej SHA-256 (oczekiwano: {expected}, otrzymano: {actual})")]
+    #[error("SHA-256 checksum mismatch (expected: {expected}, got: {actual})")]
     ChecksumMismatch { expected: String, actual: String },
-    #[error("Próba niebezpiecznego dostępu do ścieżki (path traversal): {0}")]
+    #[error("Unsafe path access attempt (path traversal): {0}")]
     PathTraversal(String),
     #[error("Brak wspieranego providera dla podanego adresu URL: {0}")]
     UnsupportedUrl(String),
-    #[error("Pobieranie zostało anulowane przez użytkowniczkę")]
+    #[error("Download was cancelled by the user")]
     Cancelled,
-    #[error("Błąd zadania pobierania: {0}")]
+    #[error("Download task error: {0}")]
     General(String),
 }
 
@@ -376,7 +376,9 @@ pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> 
             .map(std::path::PathBuf::from)
             .or_else(|| home.as_ref().map(|h| h.join(fallback)))
     })
-    .map(|base| base.join("com.auralune.player"))
+    // Modele AI i cache stemów leżą w `<base>/auralune/...` (audio_engine::model_manager),
+    // a dane Tauri w `<base>/com.auralune.player` — oba katalogi należą do aplikacji.
+    .flat_map(|base| [base.join("auralune"), base.join("com.auralune.player")])
     .collect();
     let roots: Vec<&Path> = app_roots.iter().map(|p| p.as_path()).collect();
     domain::paths::check_write_target(path, home.as_deref(), &roots)

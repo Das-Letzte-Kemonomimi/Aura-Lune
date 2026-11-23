@@ -59,11 +59,11 @@ pub async fn download_ai_model_internal(
     let model = catalog
         .into_iter()
         .find(|m| m.id == model_id)
-        .ok_or_else(|| format!("Nieznany model AI: {}", model_id))?;
+        .ok_or_else(|| format!("Unknown AI model: {}", model_id))?;
 
     let url = model
         .download_url
-        .ok_or_else(|| "Model nie posiada zdefiniowanego adresu URL do pobrania".to_string())?;
+        .ok_or_else(|| "Model has no download URL defined".to_string())?;
 
     let dest_path = PathBuf::from(&model.file_path);
     if let Some(parent) = dest_path.parent() {
@@ -105,7 +105,7 @@ pub async fn download_ai_model_internal(
         )
         .await
         .map_err(|e| {
-            CommandError::from(e).context(format!("Błąd pobierania modelu {}", model_id))
+            CommandError::from(e).context(format!("Failed to download model {}", model_id))
         })?;
 
     let _ = app_handle.emit(

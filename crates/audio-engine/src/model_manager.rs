@@ -99,12 +99,12 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             file_path: models_dir.join("htdemucs_v4.onnx").to_string_lossy().to_string(),
             file_size: 316_446_953,
             sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".to_string(),
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             download_url: Some(
                 "https://huggingface.co/StemSplitio/htdemucs-onnx/resolve/main/htdemucs.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Studyjnej jakości rozbicie utworu na 4 stem-y: wokal, perkusja, bas i instrumenty towarzyszące."
+            description: "Studio-quality 4-stem separation: vocals, drums, bass and accompanying instruments."
                 .to_string(),
         },
         AiModelInfo {
@@ -114,12 +114,12 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             file_path: models_dir.join("htdemucs_6s.onnx").to_string_lossy().to_string(),
             file_size: 258_159_781,
             sha256: "48f8e84945579f8ab340e083339e9221e03785dbe733a52c388200b6d3ca779a".to_string(),
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             download_url: Some(
                 "https://huggingface.co/StemSplitio/htdemucs-6s-onnx/resolve/main/htdemucs_6s.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Rozszerzony model 6-ścieżkowy: Wokal, Perkusja, Bas, Gitara, Fortepian oraz Podkład."
+            description: "Extended 6-stem model: Vocals, Drums, Bass, Guitar, Piano and Other."
                 .to_string(),
         },
         AiModelInfo {
@@ -134,7 +134,7 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
                 "https://huggingface.co/musetric/uvr-mdxnet-kara2-onnx/resolve/main/kara2.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Dedykowana izolacja wokalu prowadzącego (Lead) od chórków i harmonii (Backing)."
+            description: "Dedicated isolation of the lead vocal from backing vocals and harmonies."
                 .to_string(),
         },
         AiModelInfo {
@@ -149,7 +149,7 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
                 "https://huggingface.co/daserge/basic-pitch-onnx/resolve/main/nmp.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Wielogłosowa polifoniczna transkrypcja instrumentów i melodii wprost do nut i plików MIDI."
+            description: "Polyphonic transcription of instruments and melodies straight to notes and MIDI files."
                 .to_string(),
         },
     ]
@@ -173,9 +173,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_core_4stem".to_string(),
             name: "Core 4-Stem Studio Pack (HTDemucs v4)".to_string(),
-            description: "Klasyczny studyjny podział na 4 główne stemy: Wokal, Perkusja, Bas oraz Podkład."
+            description: "Classic studio split into 4 main stems: Vocals, Drums, Bass and Other."
                 .to_string(),
-            category: "Baza".to_string(),
+            category: "Base".to_string(),
             unlocked_stems: vec![
                 "vocals".to_string(),
                 "drums".to_string(),
@@ -184,7 +184,7 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
             ],
             model_files: vec!["htdemucs_v4.onnx".to_string()],
             total_size_bytes: 316_446_953,
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             source_url: "https://huggingface.co/StemSplitio/htdemucs-onnx".to_string(),
             sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".to_string(),
             is_installed: false,
@@ -194,9 +194,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_extended_6stem".to_string(),
             name: "Extended 6-Stem Pack (HTDemucs 6s)".to_string(),
-            description: "Rozszerza podział o dedykowane ścieżki Fortepianu (Piano) oraz Gitary (Guitar)."
+            description: "Extends the split with dedicated Piano and Guitar stems."
                 .to_string(),
-            category: "Baza".to_string(),
+            category: "Base".to_string(),
             unlocked_stems: vec![
                 "vocals".to_string(),
                 "drums".to_string(),
@@ -207,7 +207,7 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
             ],
             model_files: vec!["htdemucs_6s.onnx".to_string()],
             total_size_bytes: 258_159_781,
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             source_url: "https://huggingface.co/StemSplitio/htdemucs-6s-onnx".to_string(),
             sha256: "48f8e84945579f8ab340e083339e9221e03785dbe733a52c388200b6d3ca779a".to_string(),
             is_installed: false,
@@ -217,9 +217,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_vocal_harmonies".to_string(),
             name: "Vocal Harmonies & Lead Isolation Pack".to_string(),
-            description: "Dzieli wokal na czysty Wokal prowadzący (Lead Vocal) oraz Chórki/Harmonie (Backing Vocals)."
+            description: "Splits vocals into a clean Lead Vocal and Backing Vocals/Harmonies."
                 .to_string(),
-            category: "Wokale".to_string(),
+            category: "Vocals".to_string(),
             unlocked_stems: vec![
                 "lead_vocal".to_string(),
                 "backing_vocals".to_string(),
@@ -236,9 +236,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_drum_pieces".to_string(),
             name: "Drum Kit Decomposition Pack".to_string(),
-            description: "Dekompozycja zestawu perkusyjnego na Stopę (Kick), Werbel (Snare), Hi-Hat, Tomy i Talerze."
+            description: "Decomposes the drum kit into Kick, Snare, Hi-Hat, Toms and Cymbals."
                 .to_string(),
-            category: "Perkusja".to_string(),
+            category: "Drums".to_string(),
             unlocked_stems: vec![
                 "kick".to_string(),
                 "snare".to_string(),
@@ -259,9 +259,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_orchestral".to_string(),
             name: "Acoustic & Orchestral Pack (MDX23C)".to_string(),
-            description: "Wyodrębnia sekcję smyczkową (Strings), dętą blaszaną (Brass) oraz dętą drewnianą (Woodwinds)."
+            description: "Extracts the Strings, Brass and Woodwinds sections."
                 .to_string(),
-            category: "Orkiestra".to_string(),
+            category: "Orchestra".to_string(),
             unlocked_stems: vec![
                 "strings".to_string(),
                 "brass".to_string(),
@@ -279,9 +279,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_dsp_cascade".to_string(),
             name: "Auralune Native HPSS & Stereo Azimuth Engine".to_string(),
-            description: "Zaawansowany silnik STFT Harmonic-Percussive Source Separation z dekompozycją panoramy stereo (Center/Side). Izoluje transjenty stopy i werbla w pełnym paśmie oraz harmoniczne wokalu bez pudełkowatego filtra EQ. 100% rekonstrukcji pierwotnego miksu."
+            description: "Advanced STFT Harmonic-Percussive Source Separation engine with stereo-field decomposition (Center/Side). Isolates full-band kick and snare transients and vocal harmonics without a boxy EQ filter. 100% reconstruction of the original mix."
                 .to_string(),
-            category: "Wbudowany DSP".to_string(),
+            category: "Built-in DSP".to_string(),
             unlocked_stems: vec![
                 "vocals".to_string(),
                 "lead_vocal".to_string(),

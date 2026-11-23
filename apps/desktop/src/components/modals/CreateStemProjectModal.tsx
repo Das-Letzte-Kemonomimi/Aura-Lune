@@ -349,7 +349,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
                         )}
                       </div>
                       <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
-                        {pack.description}
+                        {(t.aiModels.packs as Record<string, string>)[pack.id] ?? pack.description}
                       </p>
                     </div>
 

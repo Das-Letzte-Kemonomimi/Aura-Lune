@@ -148,3 +148,24 @@ fn test_destination_policy_rejects_hidden_home_entries() {
         assert!(validate_safe_destination_path(&home.join("Music/x.flac")).is_ok());
     }
 }
+
+#[test]
+fn test_destination_policy_allows_ai_model_dirs_under_xdg_data() {
+    // Regresja: modele AI trafiają do `~/.local/share/auralune/models`, co było
+    // odrzucane jako „ukryty katalog” w $HOME.
+    if let Some(home) = std::env::var_os("HOME") {
+        let home = std::path::PathBuf::from(home);
+        if std::env::var_os("XDG_DATA_HOME").is_none() {
+            assert!(validate_safe_destination_path(
+                &home.join(".local/share/auralune/models/htdemucs_v4.onnx")
+            )
+            .is_ok());
+        }
+        if std::env::var_os("XDG_CACHE_HOME").is_none() {
+            assert!(validate_safe_destination_path(&home.join(".cache/auralune/stems/x.wav"))
+                .is_ok());
+        }
+        assert!(validate_safe_destination_path(&home.join(".local/share/applications/x.desktop"))
+            .is_err());
+    }
+}

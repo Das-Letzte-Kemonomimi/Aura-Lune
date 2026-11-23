@@ -242,7 +242,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
                     </span>
                   </div>
                   <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                    {model.description}
+                    {(t.aiModels.catalog as Record<string, string>)[model.id] ?? model.description}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.72rem', color: '#64748b' }}>
                     <span>{fmt(t.aiModels.sizeLabel, (model.file_size / (1024 * 1024)).toFixed(0))}</span>

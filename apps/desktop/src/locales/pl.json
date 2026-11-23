@@ -1865,7 +1865,21 @@
     "deleteConfirm": "Czy na pewno chcesz usunąć wagi tego modelu z dysku?",
     "deleteError": "Błąd usuwania modelu: {0}",
     "sizeLabel": "Rozmiar: {0} MB",
-    "formatLabel": "Format: ONNX"
+    "formatLabel": "Format: ONNX",
+    "catalog": {
+      "htdemucs_v4": "Studyjnej jakości rozbicie utworu na 4 stem-y: wokal, perkusja, bas i instrumenty towarzyszące.",
+      "htdemucs_6s": "Rozszerzony model 6-ścieżkowy: Wokal, Perkusja, Bas, Gitara, Fortepian oraz Podkład.",
+      "uvr_mdx_karaoke": "Dedykowana izolacja wokalu prowadzącego (Lead) od chórków i harmonii (Backing).",
+      "spotify_basic_pitch": "Wielogłosowa polifoniczna transkrypcja instrumentów i melodii wprost do nut i plików MIDI."
+    },
+    "packs": {
+      "pack_core_4stem": "Klasyczny studyjny podział na 4 główne stemy: Wokal, Perkusja, Bas oraz Podkład.",
+      "pack_extended_6stem": "Rozszerza podział o dedykowane ścieżki Fortepianu (Piano) oraz Gitary (Guitar).",
+      "pack_vocal_harmonies": "Dzieli wokal na czysty Wokal prowadzący (Lead Vocal) oraz Chórki/Harmonie (Backing Vocals).",
+      "pack_drum_pieces": "Dekompozycja zestawu perkusyjnego na Stopę (Kick), Werbel (Snare), Hi-Hat, Tomy i Talerze.",
+      "pack_orchestral": "Wyodrębnia sekcję smyczkową (Strings), dętą blaszaną (Brass) oraz dętą drewnianą (Woodwinds).",
+      "pack_dsp_cascade": "Zaawansowany silnik STFT Harmonic-Percussive Source Separation z dekompozycją panoramy stereo (Center/Side). Izoluje transjenty stopy i werbla w pełnym paśmie oraz harmoniczne wokalu bez pudełkowatego filtra EQ. 100% rekonstrukcji pierwotnego miksu."
+    }
   },
   "analysis": {
     "title": "Studio Analizy Muzycznej",

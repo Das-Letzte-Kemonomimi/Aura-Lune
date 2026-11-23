@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 
 /// Identyfikator aplikacji z `tauri.conf.json` — katalogi danych i cache aplikacji.
 const APP_IDENTIFIER: &str = "com.auralune.player";
+/// Katalog używany przez silnik audio dla modeli AI i cache stemów.
+const APP_DIR_NAME: &str = "auralune";
 
 fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
@@ -28,7 +30,8 @@ pub fn app_dirs() -> Vec<PathBuf> {
     ]
     .into_iter()
     .flatten()
-    .map(|base| base.join(APP_IDENTIFIER))
+    // `auralune` — modele AI i cache stemów (audio_engine::model_manager).
+    .flat_map(|base| [base.join(APP_IDENTIFIER), base.join(APP_DIR_NAME)])
     .collect()
 }
 

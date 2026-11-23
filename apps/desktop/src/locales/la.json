@@ -1865,7 +1865,21 @@
     "deleteConfirm": "Certe visne pondera huius exemplaris e disco delere?",
     "deleteError": "Error in delendo exemplari: {0}",
     "sizeLabel": "Magnitudo: {0} MB",
-    "formatLabel": "Forma: ONNX"
+    "formatLabel": "Forma: ONNX",
+    "catalog": {
+      "htdemucs_v4": "Separatio quattuor stirpium studii qualitate: vox, tympana, bassus et instrumenta comitantia.",
+      "htdemucs_6s": "Exemplar sex stirpium auctum: vox, tympana, bassus, cithara, clavicordium et cetera.",
+      "uvr_mdx_karaoke": "Vocem principalem a vocibus subsidiariis et harmoniis seiungit.",
+      "spotify_basic_pitch": "Transcriptio polyphonica instrumentorum et melodiarum in notas et tabulas MIDI."
+    },
+    "packs": {
+      "pack_core_4stem": "Divisio studii classica in quattuor stirpes principales: vox, tympana, bassus et cetera.",
+      "pack_extended_6stem": "Divisionem stirpibus clavicordii et citharae propriis auget.",
+      "pack_vocal_harmonies": "Vocem in vocem principalem puram et voces subsidiarias/harmonias dividit.",
+      "pack_drum_pieces": "Tympana in pedem, caudam, hi-hat, tomos et cymbala resolvit.",
+      "pack_orchestral": "Sectiones chordarum, aeris et lignorum extrahit.",
+      "pack_dsp_cascade": "Machina STFT progressa ad Harmonic-Percussive Source Separation cum resolutione campi stereophonici (medium/latus). Transientes pedis et caudae toto spectro vocisque harmonias sine filtro EQ obtuso seiungit. Mixtura prima ex toto reficitur."
+    }
   },
   "analysis": {
     "title": "Officina Musicae Analyxeos",

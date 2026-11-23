@@ -29,10 +29,10 @@ pub fn check_write_target(
     allowed_roots: &[&Path],
 ) -> Result<(), DomainError> {
     if !path.is_absolute() {
-        return Err(invalid(path, "ścieżka musi być absolutna"));
+        return Err(invalid(path, "path must be absolute"));
     }
     if path.components().any(|c| matches!(c, Component::ParentDir)) {
-        return Err(invalid(path, "ścieżka nie może zawierać '..'"));
+        return Err(invalid(path, "path must not contain '..'"));
     }
     if allowed_roots.iter().any(|root| path.starts_with(root)) {
         return Ok(());
@@ -42,7 +42,7 @@ pub fn check_write_target(
     if under_system {
         return Err(invalid(
             path,
-            "zapis do katalogów systemowych jest zabroniony",
+            "writing to system directories is not allowed",
         ));
     }
     if let Some(home) = home {
@@ -55,7 +55,7 @@ pub fn check_write_target(
             if hidden {
                 return Err(invalid(
                     path,
-                    "zapis do ukrytych plików i katalogów konfiguracyjnych jest zabroniony",
+                    "writing to hidden files and configuration directories is not allowed",
                 ));
             }
         }
@@ -82,7 +82,7 @@ pub fn is_safe_file_token(token: &str) -> bool {
 
 fn invalid(path: &Path, reason: &str) -> DomainError {
     DomainError::Validation(format!(
-        "Niedozwolona ścieżka {}: {}",
+        "Path not allowed {}: {}",
         path.display(),
         reason
     ))

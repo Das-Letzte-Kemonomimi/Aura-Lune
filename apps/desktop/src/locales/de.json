@@ -1865,7 +1865,21 @@
     "deleteConfirm": "Möchten Sie die Gewichte dieses Modells wirklich von der Festplatte löschen?",
     "deleteError": "Fehler beim Löschen des Modells: {0}",
     "sizeLabel": "Größe: {0} MB",
-    "formatLabel": "Format: ONNX"
+    "formatLabel": "Format: ONNX",
+    "catalog": {
+      "htdemucs_v4": "Trennung in 4 Stems in Studioqualität: Gesang, Schlagzeug, Bass und begleitende Instrumente.",
+      "htdemucs_6s": "Erweitertes 6-Stem-Modell: Gesang, Schlagzeug, Bass, Gitarre, Klavier und Sonstiges.",
+      "uvr_mdx_karaoke": "Gezielte Isolierung des Leadgesangs von Backing-Vocals und Harmonien.",
+      "spotify_basic_pitch": "Polyphone Transkription von Instrumenten und Melodien direkt in Noten und MIDI-Dateien."
+    },
+    "packs": {
+      "pack_core_4stem": "Klassische Studio-Aufteilung in 4 Haupt-Stems: Gesang, Schlagzeug, Bass und Sonstiges.",
+      "pack_extended_6stem": "Erweitert die Trennung um eigene Klavier- und Gitarren-Stems.",
+      "pack_vocal_harmonies": "Teilt den Gesang in einen sauberen Leadgesang und Backing-Vocals/Harmonien.",
+      "pack_drum_pieces": "Zerlegt das Schlagzeug in Bassdrum, Snare, Hi-Hat, Toms und Becken.",
+      "pack_orchestral": "Extrahiert die Streicher-, Blech- und Holzbläsergruppen.",
+      "pack_dsp_cascade": "Fortschrittliche STFT-Engine für Harmonic-Percussive Source Separation mit Stereofeld-Zerlegung (Mitte/Seite). Isoliert Bassdrum- und Snare-Transienten im Vollband sowie Gesangsharmonien ohne dumpfen EQ-Filter. 100 % Rekonstruktion des ursprünglichen Mixes."
+    }
   },
   "analysis": {
     "title": "Musikanalyse-Studio",

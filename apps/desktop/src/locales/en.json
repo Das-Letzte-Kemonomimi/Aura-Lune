@@ -1865,7 +1865,21 @@
     "deleteConfirm": "Are you sure you want to delete this model's weights from disk?",
     "deleteError": "Failed to delete model: {0}",
     "sizeLabel": "Size: {0} MB",
-    "formatLabel": "Format: ONNX"
+    "formatLabel": "Format: ONNX",
+    "catalog": {
+      "htdemucs_v4": "Studio-quality 4-stem separation: vocals, drums, bass and accompanying instruments.",
+      "htdemucs_6s": "Extended 6-stem model: Vocals, Drums, Bass, Guitar, Piano and Other.",
+      "uvr_mdx_karaoke": "Dedicated isolation of the lead vocal from backing vocals and harmonies.",
+      "spotify_basic_pitch": "Polyphonic transcription of instruments and melodies straight to notes and MIDI files."
+    },
+    "packs": {
+      "pack_core_4stem": "Classic studio split into 4 main stems: Vocals, Drums, Bass and Other.",
+      "pack_extended_6stem": "Extends the split with dedicated Piano and Guitar stems.",
+      "pack_vocal_harmonies": "Splits vocals into a clean Lead Vocal and Backing Vocals/Harmonies.",
+      "pack_drum_pieces": "Decomposes the drum kit into Kick, Snare, Hi-Hat, Toms and Cymbals.",
+      "pack_orchestral": "Extracts the Strings, Brass and Woodwinds sections.",
+      "pack_dsp_cascade": "Advanced STFT Harmonic-Percussive Source Separation engine with stereo-field decomposition (Center/Side). Isolates full-band kick and snare transients and vocal harmonics without a boxy EQ filter. 100% reconstruction of the original mix."
+    }
   },
   "analysis": {
     "title": "Music Analysis Studio",
