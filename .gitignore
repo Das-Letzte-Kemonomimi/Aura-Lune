@@ -17,3 +17,5 @@ packaging/archlinux/*.pkg.tar.*
 .plans
 .idea
 .agents
+.claude
+.gemini
