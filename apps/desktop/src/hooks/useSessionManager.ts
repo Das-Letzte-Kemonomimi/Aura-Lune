@@ -88,12 +88,7 @@ export function useSessionManager({
       const session = JSON.parse(savedLocal);
       if (!session) return;
 
-      // 1. Volume, unit, visual mode
-      if (typeof session.volume === 'number') {
-        const vol = Math.max(0, Math.min(1.0, session.volume));
-        setStatus((prev) => ({ ...prev, volume: vol }));
-        invoke('set_volume', { volume: vol }).catch(() => {});
-      }
+      // 1. Volume unit, visual mode (volume itself is restored by the backend from `playback_volume`)
       if (session.volume_unit === 'percent' || session.volume_unit === 'db') {
         setVolumeUnit(session.volume_unit);
       }

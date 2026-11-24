@@ -20,6 +20,9 @@ use storage::Database;
 use tauri::Manager;
 use tracing::info;
 
+/// Klucz ustawienia z ostatnią głośnością (0.0–1.0); zapisywany przy zamykaniu, czytany przy starcie.
+pub const VOLUME_SETTING_KEY: &str = "playback_volume";
+
 /// Inicjalizuje bazę danych, usługi pomocnicze, stan sesji i zasobnik systemowy.
 pub fn init_app(
     app: &mut tauri::App,
@@ -156,7 +159,18 @@ pub fn init_app(
         }
     }
 
-    // Przywrócenie pełnego stanu sesji odtwarzania (utwór, pozycja, głośność dB, parametry)
+    // Głośność jest zapamiętywana niezależnie od przywracania sesji (zapis przy zamykaniu aplikacji).
+    let saved_volume = settings
+        .get(VOLUME_SETTING_KEY)
+        .and_then(|v| v.parse::<f64>().ok())
+        .filter(|v| v.is_finite());
+    if let Some(vol) = saved_volume {
+        let clamped = vol.clamp(0.0, 1.0);
+        let _ = engine.set_volume(clamped);
+        info!("Przywrócono zapisaną głośność: {:.2}", clamped);
+    }
+
+    // Przywrócenie pełnego stanu sesji odtwarzania (utwór, pozycja, parametry)
     let restore_session_setting = settings.get("restore_session_on_startup").cloned();
     let should_restore_session = restore_session_setting.as_deref() != Some("false");
 
@@ -176,8 +190,8 @@ pub fn init_app(
             }
 
             if let Ok(session) = serde_json::from_str::<SavedSessionState>(&session_json) {
-                // 1. Przywróć głośność w audio engine od samego startu
-                if let Some(vol) = session.volume {
+                // 1. Migracja: głośność z zapisanej sesji tylko gdy nie ma jeszcze osobnego ustawienia
+                if let Some(vol) = session.volume.filter(|_| saved_volume.is_none()) {
                     let clamped = vol.clamp(0.0, 1.0);
                     let _ = engine.set_volume(clamped);
                     info!(

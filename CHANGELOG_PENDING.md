@@ -23,6 +23,8 @@
   - **natychmiastowy** — zmiana trafia do karty dźwiękowej w mniej niż 15 ms (element `volume` przeniesiono za bufor `queue_sink`, co usunęło ok. 600 ms opóźnienia);
   - **płynny** — przejście po krzywej S (60–120 ms) bez trzasków, również przy wyciszaniu i przywracaniu dźwięku.
 
+- **Zapamiętywanie głośności**: ostatnia głośność jest zapisywana przy zamykaniu aplikacji i przywracana przy starcie, niezależnie od opcji przywracania sesji.
+
 #### Interfejs
 - **Historia wydań z paginacją**: dane wydań w pliku [`changelog.json`](./apps/desktop/src/data/changelog.json), wybór 3/5/10 wydań na stronę, skróty do pierwszej/ostatniej strony i wielokropek przy wielu stronach.
 - **Przycisk podsumowania Recap** w nagłówku panelu statystyk.

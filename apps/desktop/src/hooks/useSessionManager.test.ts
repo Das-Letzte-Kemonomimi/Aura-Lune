@@ -98,7 +98,6 @@ describe('useSessionManager hook', () => {
 
   it('restores session state on mount when saved session exists', async () => {
     const savedSession = {
-      volume: 0.65,
       volume_unit: 'db',
       track_id: 42,
       uri: '/music/restored.flac',
@@ -125,7 +124,7 @@ describe('useSessionManager hook', () => {
     expect(setActiveTrackId).toHaveBeenCalledWith(42);
     expect(setFilePath).toHaveBeenCalledWith('/music/restored.flac');
     expect(initialStartupPositionRef.current).toBe(45000);
-    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.65 });
+    expect(mockInvoke).not.toHaveBeenCalledWith('set_volume', expect.anything());
     expect(mockInvoke).toHaveBeenCalledWith('set_dsp_params', {
       engine: 'SoundTouch',
       pitchSemitones: 2.0,
