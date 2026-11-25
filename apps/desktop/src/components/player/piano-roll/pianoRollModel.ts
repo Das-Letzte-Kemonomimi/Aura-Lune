@@ -122,7 +122,7 @@ export const RULER_HEIGHT = 20;
 export const MINIMAP_HEIGHT = 34;
 /** Poniżej tej wysokości canvasu minimapa jest ukrywana. */
 export const MINIMAP_MIN_CANVAS_HEIGHT = 220;
-export const MIN_KEY_HEIGHT = 10;
+export const MIN_KEY_HEIGHT = 5;
 export const MAX_KEY_HEIGHT = 22;
 
 export function computeLayout(width: number, height: number): Layout {

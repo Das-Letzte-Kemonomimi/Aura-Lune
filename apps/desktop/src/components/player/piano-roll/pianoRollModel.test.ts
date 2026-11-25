@@ -7,6 +7,9 @@ import {
   buildNoteIndex,
   clampOriginMs,
   computeDensity,
+  computeKeyHeight,
+  maxScrollRows,
+  MIN_KEY_HEIGHT,
   computePitchRange,
   followOriginMs,
   hitTestNote,
@@ -235,5 +238,21 @@ describe('hitTestNote', () => {
     const short = buildNoteIndex([note(2000, 5, 60)]);
     const x = timeToX(time, 2000) + 3;
     expect(hitTestNote({ index: short, time, pitch, x, y: pitchToY(pitch, 60) + 7 })).not.toBeNull();
+  });
+});
+
+describe('computeKeyHeight', () => {
+  it('shrinks rows so a wide pitch range fits without vertical scrolling', () => {
+    const rows = 50;
+    const roll = 300;
+    const keyHeight = computeKeyHeight(roll, rows);
+    expect(keyHeight * rows).toBeLessThanOrEqual(roll + 1e-9);
+    expect(maxScrollRows(roll, keyHeight, rows)).toBe(0);
+  });
+
+  it('keeps rows readable and scrolls only when the area is very small', () => {
+    const keyHeight = computeKeyHeight(100, 88);
+    expect(keyHeight).toBe(MIN_KEY_HEIGHT);
+    expect(maxScrollRows(100, keyHeight, 88)).toBeGreaterThan(0);
   });
 });
