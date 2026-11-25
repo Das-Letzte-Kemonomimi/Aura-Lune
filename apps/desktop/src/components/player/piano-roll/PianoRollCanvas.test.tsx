@@ -183,3 +183,20 @@ describe('PianoRollCanvas', () => {
     expect(zoom).toBeGreaterThan(100);
   });
 });
+
+describe('PianoRollCanvas note labels', () => {
+  const labelCalls = (showLabels: boolean) => {
+    mount(baseProps({ showLabels }), { width: 723, height: 411 }, 1);
+    for (let i = 0; i < 5; i++) raf.step();
+    return canvas.calls.filter((c) => c === 'fillText').length;
+  };
+
+  it('draws note names only when labels are enabled', () => {
+    const off = labelCalls(false);
+    cleanup();
+    canvas.restore();
+    raf.restore();
+    const on = labelCalls(true);
+    expect(on).toBeGreaterThan(off);
+  });
+});

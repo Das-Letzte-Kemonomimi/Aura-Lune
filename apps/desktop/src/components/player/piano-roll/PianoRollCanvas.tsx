@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useCanvasLoop, type CanvasFrame } from '../../../hooks/useCanvasLoop';
 import { livePlayback } from '../../../state/livePlayback';
 import { roundRectPath } from '../../../utils/canvasDraw';
+import { smoothTo } from '../../../utils/smoothing';
 import { easeDisplayPosition, extrapolatePositionMs, type ClockAnchor } from '../../../utils/playbackClock';
 import { formatTime, formatTimeMs } from '../../../utils/timeFormat';
 import {
@@ -20,6 +21,7 @@ import {
   clampOriginMs,
   computeDensity,
   computeKeyHeight,
+  LABEL_KEY_HEIGHT,
   computeLayout,
   computePitchRange,
   followOriginMs,
@@ -76,9 +78,9 @@ export interface PianoRollCanvasProps {
 /** Przesunięcie kursora (px) powyżej którego kliknięcie staje się przeciąganiem (panoramowaniem). */
 const DRAG_THRESHOLD_PX = 4;
 const NOTE_MIN_WIDTH = 3;
-const NOTE_LABEL_MIN_WIDTH = 24;
+const NOTE_LABEL_MIN_WIDTH = 26;
 /** Poniżej tej wysokości wiersza podpis byłby nieczytelny. */
-const MIN_LABEL_KEY_HEIGHT = 8;
+const MIN_LABEL_KEY_HEIGHT = 10;
 /** Różnica pozycji (ms), poniżej której uznajemy głowicę za ustaloną i usypiamy pętlę. */
 const SETTLED_EPSILON_MS = 0.5;
 
@@ -166,8 +168,30 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
 
     // --- oś wysokości ---
     const rows = rowCount(range);
-    const keyHeight = computeKeyHeight(roll.h, rows);
-    scrollRowsRef.current = clamp(scrollRowsRef.current, 0, maxScrollRows(roll.h, keyHeight, rows));
+    const keyHeight = computeKeyHeight(roll.h, rows, p.showLabels ? LABEL_KEY_HEIGHT : undefined);
+    const maxScroll = maxScrollRows(roll.h, keyHeight, rows);
+    let verticalSettled = true;
+    if (maxScroll > 0 && view.mode === 'follow') {
+      // Follow: widok pionowy sam centruje się na nutach z bieżącego okna czasu.
+      let lo = Infinity;
+      let hi = -Infinity;
+      const [f0, f1] = visibleNoteRange(index, t0, t1);
+      for (let i = f0; i < f1; i++) {
+        const n = index.notes[i];
+        if (!noteOverlaps(n, t0, t1)) continue;
+        if (n.midi_pitch < lo) lo = n.midi_pitch;
+        if (n.midi_pitch > hi) hi = n.midi_pitch;
+      }
+      if (hi >= lo) {
+        const centreRow = range.maxMidi - (lo + hi) / 2 + 0.5;
+        const goal = clamp(centreRow - roll.h / keyHeight / 2, 0, maxScroll);
+        const current = scrollRowsRef.current;
+        const next = dt === 0 ? goal : smoothTo(current, goal, dt, 0.2);
+        scrollRowsRef.current = Math.abs(next - goal) < 0.02 ? goal : next;
+        verticalSettled = scrollRowsRef.current === goal;
+      }
+    }
+    scrollRowsRef.current = clamp(scrollRowsRef.current, 0, maxScroll);
     const pitch: PitchAxis = {
       maxMidi: range.maxMidi,
       minMidi: range.minMidi,
@@ -178,22 +202,31 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     geometryRef.current = { layout, time, pitch };
 
     // --- warstwy statyczne (przebudowa tylko przy zmianie klucza) ---
+    // Warstwa obejmuje jeden wiersz więcej i jest przesuwana o część ułamkową — przebudowa tylko przy zmianie pełnego wiersza.
+    const wholeRows = Math.floor(scrollRowsRef.current);
+    const subRow = (scrollRowsRef.current - wholeRows) * keyHeight;
+    const layerHeight = Math.ceil(roll.h + keyHeight);
     const rowsKey: RowsLayerKey = {
       width,
-      height: roll.h,
+      height: layerHeight,
       dpr,
       minMidi: range.minMidi,
       maxMidi: range.maxMidi,
       keyHeight,
-      scrollRows: scrollRowsRef.current,
+      scrollRows: wholeRows,
       keyWidth: layout.keyWidth,
     };
     if (!rowsLayerRef.current || !rowsKeyEquals(rowsKeyRef.current, rowsKey)) {
-      rowsLayerRef.current = renderRowsLayer(rowsKey, pitch);
+      rowsLayerRef.current = renderRowsLayer(rowsKey, { ...pitch, scrollRows: wholeRows });
       rowsKeyRef.current = rowsKey;
     }
     const layers = rowsLayerRef.current;
-    ctx.drawImage(layers.rows, roll.x, roll.y, roll.w, roll.h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, roll.y, width, roll.h);
+    ctx.clip();
+    ctx.drawImage(layers.rows, roll.x, roll.y - subRow, roll.w, layerHeight);
+    ctx.restore();
 
     // --- siatka: tylko widoczne linie, 1 piksel urządzenia ---
     const line = 1 / dpr;
@@ -209,9 +242,9 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.beginPath();
     ctx.rect(roll.x, roll.y, roll.w, roll.h);
     ctx.clip();
-    const labelFontPx = clamp(keyHeight - 3, 7, 10);
+    const labelFontPx = clamp(keyHeight - 4, 9, 13);
     const drawLabels = p.showLabels && keyHeight >= MIN_LABEL_KEY_HEIGHT;
-    ctx.font = `${labelFontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.font = `600 ${labelFontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.textBaseline = 'middle';
     const active = activePitchesRef.current;
     active.length = 0;
@@ -245,8 +278,8 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.stroke();
       }
       if (drawLabels && w >= NOTE_LABEL_MIN_WIDTH) {
-        ctx.fillStyle = COLORS.noteLabel;
-        currentFill = COLORS.noteLabel;
+        ctx.fillStyle = fill === COLORS.noteDrums ? COLORS.noteLabelDark : COLORS.noteLabel;
+        currentFill = '';
         ctx.fillText(note.pitch_name, x + 4, y + keyHeight / 2);
       }
     }
@@ -261,7 +294,11 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.restore();
 
     // --- klawiatura z podświetleniem brzmiących nut ---
-    ctx.drawImage(layers.keys, 0, roll.y, layout.keyWidth, roll.h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, roll.y, layout.keyWidth, roll.h);
+    ctx.clip();
+    ctx.drawImage(layers.keys, 0, roll.y - subRow, layout.keyWidth, layerHeight);
     if (active.length > 0) {
       ctx.fillStyle = COLORS.keyActive;
       for (const midi of active) {
@@ -270,6 +307,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.fillRect(1, y + 1, layout.keyWidth - 3, keyHeight - 2);
       }
     }
+    ctx.restore();
 
     // --- linijka czasu ---
     ctx.fillStyle = COLORS.rulerBg;
@@ -324,7 +362,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     // --- nuta pod kursorem (też podczas przewijania pod nieruchomą myszą) ---
     updateHover(pitch, time);
 
-    return !settled;
+    return !(settled && verticalSettled);
   };
 
   const updateHover = (pitch: PitchAxis, time: TimeAxis) => {
@@ -483,6 +521,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         return;
       }
       if (e.shiftKey) {
+        if (view.mode !== 'free') setView({ mode: 'free' });
         scrollRowsRef.current += delta / geo.pitch.keyHeight;
         invalidate();
         return;

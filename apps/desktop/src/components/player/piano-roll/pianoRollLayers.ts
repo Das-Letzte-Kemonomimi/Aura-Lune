@@ -28,6 +28,7 @@ export const COLORS = {
   noteDrums: '#facc15',
   noteActive: '#fb7185',
   noteLabel: '#ffffff',
+  noteLabelDark: '#111827',
   noteOutline: 'rgba(255, 255, 255, 0.9)',
   minimapBg: '#0d1020',
   minimapBar: 'rgba(192, 132, 252, 0.7)',

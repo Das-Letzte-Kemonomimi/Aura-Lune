@@ -10,6 +10,7 @@ import {
   computeKeyHeight,
   maxScrollRows,
   MIN_KEY_HEIGHT,
+  LABEL_KEY_HEIGHT,
   computePitchRange,
   followOriginMs,
   hitTestNote,
@@ -254,5 +255,13 @@ describe('computeKeyHeight', () => {
     const keyHeight = computeKeyHeight(100, 88);
     expect(keyHeight).toBe(MIN_KEY_HEIGHT);
     expect(maxScrollRows(100, keyHeight, 88)).toBeGreaterThan(0);
+  });
+});
+
+describe('computeKeyHeight with a minimum for readable labels', () => {
+  it('keeps rows at the label height and leaves the rest to scrolling', () => {
+    const keyHeight = computeKeyHeight(300, 50, LABEL_KEY_HEIGHT);
+    expect(keyHeight).toBe(LABEL_KEY_HEIGHT);
+    expect(maxScrollRows(300, keyHeight, 50)).toBeGreaterThan(0);
   });
 });

@@ -123,6 +123,8 @@ export const MINIMAP_HEIGHT = 34;
 /** Poniżej tej wysokości canvasu minimapa jest ukrywana. */
 export const MINIMAP_MIN_CANVAS_HEIGHT = 220;
 export const MIN_KEY_HEIGHT = 5;
+/** Minimalna wysokość wiersza, gdy włączone są podpisy nut (czytelny tekst; reszta zakresu = przewijanie). */
+export const LABEL_KEY_HEIGHT = 16;
 export const MAX_KEY_HEIGHT = 22;
 
 export function computeLayout(width: number, height: number): Layout {
@@ -200,9 +202,9 @@ export function rowCount(range: PitchRange): number {
 }
 
 /** Wysokość wiersza: wypełnia obszar, ale w granicach czytelności (przy większej liczbie wierszy → przewijanie). */
-export function computeKeyHeight(rollHeight: number, rows: number): number {
-  if (rows <= 0 || rollHeight <= 0) return MIN_KEY_HEIGHT;
-  return clamp(rollHeight / rows, MIN_KEY_HEIGHT, MAX_KEY_HEIGHT);
+export function computeKeyHeight(rollHeight: number, rows: number, minKeyHeight = MIN_KEY_HEIGHT): number {
+  if (rows <= 0 || rollHeight <= 0) return minKeyHeight;
+  return clamp(rollHeight / rows, minKeyHeight, MAX_KEY_HEIGHT);
 }
 
 export function maxScrollRows(rollHeight: number, keyHeight: number, rows: number): number {
