@@ -356,7 +356,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **`views/changelog/`**:
   - `ChangelogView.tsx`: Paginated version history driven by [`src/data/changelog.json`](apps/desktop/src/data/changelog.json) with configurable page sizes (3, 5, 10), first/last, prev/next, and smart ellipsis page navigation.
 - **`views/settings/`**:
-  - `AppSettingsModal.tsx`: Tabbed settings container (themes, devices, transcode, **updates**, about, changelog, backup). `AboutSettingsView` shows the real version/channel/commit from `useUpdateManager`.
+  - `AppSettingsModal.tsx`: Tabbed settings container (themes, devices, transcode, **updates** — also hosts the changelog, about, backup). `AboutSettingsView` shows the real version/channel/commit from `useUpdateManager`.
 
 ### Domain Hooks (`src/hooks`)
 - **`usePlaybackController`**: Coordinates higher-level play, pause, next, previous, stop, seek, and loop operations.
@@ -366,7 +366,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **`useDspManager`**: DSP engine selection, 10-band graphic EQ, parametric EQ, compressor, saturator, limiter.
 - **`useThemeManager`**: Theme tokens, custom wallpaper uploads, overlay opacity, and blur radius.
 - **`useModalManager`**: Central modal router supporting typed `open()`, `close()`, `isOpen()`, and `Escape` key handling.
-- **`useUpdateManager`**: update state (`buildInfo`, `info`, `checking`, `installing`, `installed`, `progress`, `error`, `hasUpdate`) and actions `checkNow`/`install`/`restart`/`skip`/`setAutoCheck`. Listens to `auralune://update-available` and `auralune://update-progress`; reads settings `update_check_enabled` and `update_skipped_version`. `hasUpdate` drives the pulsing "Update" badge next to the version in `AppHeader`, which opens Settings → Updates (`views/settings/UpdatesSettingsView.tsx`, auto-check uses the shared `components/common/ToggleSwitch`, release notes render through `components/common/MarkdownText` + `utils/markdown.ts` (safe parser, no `innerHTML`), the Updates tab shows a pill while `hasUpdate`; managed installs get **Download & install** → **Restart now**, other install kinds a notice). Strings live in the `updates` locale namespace.
+- **`useUpdateManager`**: update state (`buildInfo`, `info`, `checking`, `installing`, `installed`, `progress`, `error`, `hasUpdate`) and actions `checkNow`/`install`/`restart`/`skip`/`setAutoCheck`. Listens to `auralune://update-available` and `auralune://update-progress`; reads settings `update_check_enabled` and `update_skipped_version`. `hasUpdate` drives the pulsing "Update" badge next to the version in `AppHeader`, which opens Settings → Updates (`views/settings/UpdatesSettingsView.tsx`, auto-check uses the shared `components/common/ToggleSwitch`, the update card is collapsed by default (pill, version, buttons; notes expand on demand), release notes render through `components/common/MarkdownText` + `utils/markdown.ts` (safe parser, no `innerHTML`), the Updates tab shows a pill while `hasUpdate`; managed installs get **Download & install** → **Restart now**, other install kinds a notice). Strings live in the `updates` locale namespace.
 - **`useAudioSettings`**: Audio device selection, buffer sizes, bit-perfect toggle, volume OSD configurations.
 - **`usePlaylistManager`**: Playlist CRUD, M3U8 import/export, and radio stations.
 - **`useTranscodeManager`**: Audio conversion jobs, background progress tracking, and range exports.

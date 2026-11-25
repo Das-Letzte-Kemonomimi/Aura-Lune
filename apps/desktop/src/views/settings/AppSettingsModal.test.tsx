@@ -12,7 +12,6 @@ describe('AppSettingsModal', () => {
     activeTab: 'themes' as const,
     onSelectTab: vi.fn(),
     loc,
-    language: 'en' as const,
     devicesProps: {} as any,
     transcodeProps: {} as any,
     themesProps: {

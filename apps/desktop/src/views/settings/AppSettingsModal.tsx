@@ -6,8 +6,7 @@ import { ThemesSettingsView, type ThemesSettingsViewProps } from './ThemesSettin
 import { UpdatesSettingsView, type UpdatesSettingsViewProps } from './UpdatesSettingsView';
 import { AboutSettingsView, type AboutSettingsViewProps } from './AboutSettingsView';
 import { BackupSettingsView, type BackupSettingsViewProps } from './BackupSettingsView';
-import { ChangelogView } from '../changelog/ChangelogView';
-import { type Language, type Translations } from '../../i18n';
+import { type Translations } from '../../i18n';
 
 export interface AppSettingsModalProps {
   isOpen: boolean;
@@ -15,7 +14,6 @@ export interface AppSettingsModalProps {
   activeTab: SettingsTab;
   onSelectTab: (tab: SettingsTab) => void;
   loc: Translations;
-  language: Language;
   devicesProps: AudioDevicesSettingsViewProps;
   transcodeProps: TranscodeSettingsViewProps;
   themesProps: ThemesSettingsViewProps;
@@ -31,7 +29,6 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
   activeTab,
   onSelectTab,
   loc,
-  language,
   devicesProps,
   transcodeProps,
   themesProps,
@@ -54,7 +51,6 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
       {activeTab === 'transcode' && <TranscodeSettingsView {...transcodeProps} />}
       {activeTab === 'updates' && <UpdatesSettingsView {...updatesProps} />}
       {activeTab === 'about' && <AboutSettingsView {...aboutProps} />}
-      {activeTab === 'changelog' && <ChangelogView currentLang={language} />}
       {activeTab === 'backup' && <BackupSettingsView {...backupProps} />}
     </SettingsModal>
   );

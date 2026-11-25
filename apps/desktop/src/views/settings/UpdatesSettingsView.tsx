@@ -1,11 +1,12 @@
 import React from 'react';
-import { Download, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';
 import { errorMessage, invoke } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo, InstallKind, UpdateInfo, UpdateProgress } from '../../types/updates';
 import { fmt } from '../../utils/fmt';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { MarkdownText } from '../../components/common/MarkdownText';
+import { ChangelogView } from '../changelog/ChangelogView';
 
 export interface UpdatesSettingsViewProps {
   language: Language;
@@ -99,6 +100,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
   onToggleAutoCheck,
 }) => {
   const [linkError, setLinkError] = React.useState<string | null>(null);
+  const [notesExpanded, setNotesExpanded] = React.useState(false);
   const t = loc.updates;
   const available = !!info?.available;
   const installKind = buildInfo?.install_kind ?? info?.install_kind ?? 'system';
@@ -152,6 +154,22 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
             {t.lastChecked}: {lastChecked}
           </span>
         </div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--border-subtle)',
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.autoCheck}</div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>{t.autoCheckDesc}</div>
+          </div>
+          <ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />
+        </div>
       </div>
 
       {info && !available && !installed && (
@@ -185,20 +203,23 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
               />
               {installed ? t.badgeInstalledTitle : t.available}
             </span>
-          </div>
-          <div>
-            <span style={LABEL}>{t.latestVersion}: </span>
             <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{info?.latest_version}</span>
-          </div>
-          {info?.release_notes && (
-            <details open>
-              <summary style={{ cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            {info?.release_notes && (
+              <button
+                type="button"
+                aria-expanded={notesExpanded}
+                onClick={() => setNotesExpanded((open) => !open)}
+                style={{ ...BUTTON, marginLeft: 'auto', padding: '4px 10px', fontSize: '0.75rem' }}
+              >
                 {t.releaseNotes}
-              </summary>
-              <div style={{ maxHeight: '260px', overflowY: 'auto', marginTop: '8px' }}>
-                <MarkdownText source={info.release_notes} onOpenLink={openLink} />
-              </div>
-            </details>
+                {notesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+          </div>
+          {notesExpanded && info?.release_notes && (
+            <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
+              <MarkdownText source={info.release_notes} onOpenLink={openLink} />
+            </div>
           )}
           {installing && (
             <div>
@@ -264,13 +285,8 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
         </div>
       )}
 
-      <div className="glass-card" style={{ ...CARD, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.autoCheck}</div>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>{t.autoCheckDesc}</div>
-        </div>
-        <ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />
-      </div>
+      <h3 style={{ margin: '8px 0 0', fontSize: '1.1rem', fontWeight: 800 }}>{loc.settings.changelog}</h3>
+      <ChangelogView currentLang={language} />
     </div>
   );
 };

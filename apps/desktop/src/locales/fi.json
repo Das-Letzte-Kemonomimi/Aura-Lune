@@ -1937,7 +1937,7 @@
     "rowHeightReset": "Rivin korkeus: palauta automaattinen napsauttamalla"
   },
   "updates": {
-    "tab": "Päivitykset",
+    "tab": "Päivitykset ja muutokset",
     "title": "Päivitykset",
     "currentVersion": "Asennettu versio",
     "channel": "Kanava",

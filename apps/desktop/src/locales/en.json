@@ -1937,7 +1937,7 @@
     "rowHeightReset": "Row height: click to reset to auto"
   },
   "updates": {
-    "tab": "Updates",
+    "tab": "Updates & Changelog",
     "title": "Updates",
     "currentVersion": "Installed version",
     "channel": "Channel",

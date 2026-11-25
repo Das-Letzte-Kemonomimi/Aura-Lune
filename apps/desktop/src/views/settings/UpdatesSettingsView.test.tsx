@@ -105,10 +105,25 @@ describe('UpdatesSettingsView release notes', () => {
         {...props({ info: { ...info, release_notes: '## Highlights\n- **Faster** startup\n- `code` bit' } })}
       />,
     );
+    // Karta jest domyślnie zwinięta: notatki pojawiają się po rozwinięciu.
+    expect(screen.queryByText('Faster')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: loc.updates.releaseNotes }));
     expect(screen.getByRole('heading', { name: 'Highlights' })).toBeTruthy();
     expect(screen.getByText('Faster').tagName).toBe('STRONG');
-    expect(screen.getAllByRole('listitem')).toHaveLength(2);
-    expect(screen.queryByText(/##/)).toBeNull();
+    expect(screen.getByText('code').tagName).toBe('CODE');
+    expect(screen.queryByText(/## Highlights/)).toBeNull();
     expect(screen.getByText(loc.updates.available)).toBeTruthy();
+  });
+});
+
+describe('UpdatesSettingsView layout', () => {
+  afterEach(cleanup);
+
+  it('keeps the automatic check switch next to "Check now" and lists the changelog below', () => {
+    const p = props();
+    render(<UpdatesSettingsView {...p} />);
+    fireEvent.click(screen.getByRole('switch', { name: loc.updates.autoCheck }));
+    expect(p.onToggleAutoCheck).toHaveBeenCalledWith(false);
+    expect(screen.getByText(loc.settings.changelog)).toBeTruthy();
   });
 });

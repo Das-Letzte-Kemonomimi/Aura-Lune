@@ -15,7 +15,7 @@ export type SettingsRedirectTab = 'devices' | 'transcode' | 'themes';
 export type AppTab = MainTabType | SettingsRedirectTab;
 
 /** Zakładki okna Ustawień. */
-export type SettingsTab = 'themes' | 'devices' | 'transcode' | 'updates' | 'about' | 'changelog' | 'backup';
+export type SettingsTab = 'themes' | 'devices' | 'transcode' | 'updates' | 'about' | 'backup';
 
 const MAIN_TABS: ReadonlySet<string> = new Set<MainTabType>([
   'player',

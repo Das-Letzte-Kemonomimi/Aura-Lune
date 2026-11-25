@@ -336,7 +336,7 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     language,
     loc,
     onOpenHealthCheck: () => about.setIsHealthCheckModalOpen(true),
-    onOpenChangelog: () => about.setSettingsTab('changelog'),
+    onOpenChangelog: () => about.setSettingsTab('updates'),
     onOpenOnboarding: () => about.setIsOnboardingOpen(true),
   };
 

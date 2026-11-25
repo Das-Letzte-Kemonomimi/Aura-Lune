@@ -1308,7 +1308,6 @@ export default function App() {
         activeTab={settingsTab}
         onSelectTab={setSettingsTab}
         loc={loc}
-        language={language}
         devicesProps={settingsModalProps.devicesProps}
         transcodeProps={settingsModalProps.transcodeProps}
         themesProps={settingsModalProps.themesProps}
