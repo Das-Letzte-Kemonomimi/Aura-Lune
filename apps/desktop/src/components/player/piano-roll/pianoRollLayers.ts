@@ -27,8 +27,8 @@ export const COLORS = {
   noteBass: '#38bdf8',
   noteDrums: '#facc15',
   noteActive: '#fb7185',
-  noteLabel: '#ffffff',
-  noteLabelDark: '#111827',
+  // Ciemny tekst ma ≥ 7:1 kontrastu na fioletowych, niebieskich, żółtych i różowych nutach (biały ≈ 2,4:1 na fiolecie).
+  noteLabel: '#0b1020',
   noteOutline: 'rgba(255, 255, 255, 0.9)',
   scrollTrack: 'rgba(148, 163, 184, 0.18)',
   scrollThumb: 'rgba(226, 232, 240, 0.6)',

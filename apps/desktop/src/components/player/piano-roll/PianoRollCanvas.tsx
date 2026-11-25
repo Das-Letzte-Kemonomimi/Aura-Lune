@@ -305,7 +305,9 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.fillStyle = fill;
         currentFill = fill;
       }
-      ctx.globalAlpha = isActive ? 1 : 0.5 + 0.5 * clamp(note.velocity / 127, 0, 1);
+      // Z podpisami tło nuty nie schodzi poniżej 0,75 krycia — inaczej ciemny tekst traci kontrast.
+      const velocityAlpha = clamp(note.velocity / 127, 0, 1);
+      ctx.globalAlpha = isActive ? 1 : drawLabels ? 0.75 + 0.25 * velocityAlpha : 0.5 + 0.5 * velocityAlpha;
       ctx.beginPath();
       roundRectPath(ctx, x, y + 1, w, keyHeight - 2, Math.min(3, w / 2));
       ctx.fill();
@@ -316,7 +318,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.stroke();
       }
       if (drawLabels && w >= NOTE_LABEL_MIN_WIDTH) {
-        ctx.fillStyle = fill === COLORS.noteDrums ? COLORS.noteLabelDark : COLORS.noteLabel;
+        ctx.fillStyle = COLORS.noteLabel;
         currentFill = '';
         ctx.fillText(note.pitch_name, x + 4, y + keyHeight / 2);
       }
