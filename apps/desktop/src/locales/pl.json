@@ -1931,6 +1931,10 @@
     "noteLabels": "Podpisy",
     "noteLabelsTooltip": "Pokaż nazwy nut na nutach (np. D2, C4)",
     "noChordsDetected": "Brak wykrytych akordów dla tego utworu.",
-    "exportChordsTitle": "Eksport akordów ({0})"
+    "exportChordsTitle": "Eksport akordów ({0})",
+    "rowHeightAuto": "Auto",
+    "rowHeightMore": "Wyższe wiersze",
+    "rowHeightLess": "Niższe wiersze",
+    "rowHeightReset": "Wysokość wierszy: kliknij, aby przywrócić automatyczną"
   }
 }

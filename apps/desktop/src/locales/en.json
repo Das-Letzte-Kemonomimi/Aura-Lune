@@ -1931,6 +1931,10 @@
     "noteLabels": "Labels",
     "noteLabelsTooltip": "Show note names on the notes (e.g. D2, C4)",
     "noChordsDetected": "No chords detected for this track.",
-    "exportChordsTitle": "Chord export ({0})"
+    "exportChordsTitle": "Chord export ({0})",
+    "rowHeightAuto": "Auto",
+    "rowHeightMore": "Taller rows",
+    "rowHeightLess": "Shorter rows",
+    "rowHeightReset": "Row height: click to reset to auto"
   }
 }

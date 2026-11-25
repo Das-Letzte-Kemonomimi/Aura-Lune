@@ -1,12 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronsUpDown, Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { errorMessage, invoke } from '../../../api/ipc';
 import type { TrackTranscriptionData } from '../../../types/analysis';
 import { getTranslations, type Language } from '../../../i18n';
 import { fmt } from '../../../utils/fmt';
 import { usePersistedState } from '../../../hooks/usePersistedState';
-import { PianoRollCanvas, type PianoRollViewMode } from './PianoRollCanvas';
-import { DEFAULT_PX_PER_SEC, MAX_PX_PER_SEC, MIN_PX_PER_SEC, buildNoteIndex, clamp } from './pianoRollModel';
+import { PianoRollCanvas, type PianoRollViewChange, type PianoRollViewMode } from './PianoRollCanvas';
+import {
+  DEFAULT_PX_PER_SEC,
+  DEFAULT_ROW_HEIGHT,
+  MAX_PX_PER_SEC,
+  MIN_PX_PER_SEC,
+  ROW_HEIGHT_STEP,
+  buildNoteIndex,
+  clamp,
+  clampRowHeight,
+} from './pianoRollModel';
 
 export interface PianoRollViewProps {
   currentLang?: Language;
@@ -26,6 +35,17 @@ export interface PianoRollViewProps {
 }
 
 const ZOOM_STEP = 1.25;
+
+const parsePxPerSec = (raw: string): number | undefined => {
+  const v = Number(raw);
+  return Number.isFinite(v) ? clamp(v, MIN_PX_PER_SEC, MAX_PX_PER_SEC) : undefined;
+};
+/** `null` = automatyczna wysokość wiersza. */
+const parseRowHeight = (raw: string): number | null | undefined => {
+  if (raw === 'auto') return null;
+  const v = Number(raw);
+  return Number.isFinite(v) ? clampRowHeight(v) : undefined;
+};
 
 const iconButton: React.CSSProperties = {
   padding: '4px',
@@ -60,7 +80,15 @@ export const PianoRollView = React.memo(function PianoRollView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [pxPerSec, setPxPerSec] = useState(DEFAULT_PX_PER_SEC);
+  // Szerokość (zoom czasu) i wysokość wierszy zapamiętujemy między sesjami.
+  const [pxPerSec, setPxPerSec] = usePersistedState('auralune_piano_roll_px_per_sec', DEFAULT_PX_PER_SEC, {
+    parse: parsePxPerSec,
+    serialize: (v) => String(Math.round(v * 10) / 10),
+  });
+  const [rowHeight, setRowHeight] = usePersistedState<number | null>('auralune_piano_roll_row_height', null, {
+    parse: parseRowHeight,
+    serialize: (v) => (v === null ? 'auto' : String(Math.round(v * 10) / 10)),
+  });
   const [mode, setMode] = useState<PianoRollViewMode>('follow');
   const [showLabels, setShowLabels] = usePersistedState('auralune_piano_roll_labels', true, {
     parse: (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined),
@@ -109,10 +137,17 @@ export const PianoRollView = React.memo(function PianoRollView({
     return Math.max(durationMs, last);
   }, [index, durationMs]);
 
-  const onViewChange = useCallback((change: { pxPerSec?: number; mode?: PianoRollViewMode }) => {
-    if (change.pxPerSec !== undefined) setPxPerSec(change.pxPerSec);
-    if (change.mode !== undefined) setMode(change.mode);
-  }, []);
+  const onViewChange = useCallback(
+    (change: PianoRollViewChange) => {
+      if (change.pxPerSec !== undefined) setPxPerSec(change.pxPerSec);
+      if (change.mode !== undefined) setMode(change.mode);
+      if (change.rowHeight !== undefined) setRowHeight(change.rowHeight);
+    },
+    [setPxPerSec, setRowHeight],
+  );
+
+  const stepRowHeight = (direction: 1 | -1) =>
+    setRowHeight((h) => clampRowHeight((h ?? DEFAULT_ROW_HEIGHT) + direction * ROW_HEIGHT_STEP));
 
   const labels = useMemo(
     () => ({ start: t.analysis.noteStart, length: t.analysis.noteLength, velocity: t.analysis.noteVelocity }),
@@ -244,7 +279,7 @@ export const PianoRollView = React.memo(function PianoRollView({
               <ZoomOut size={14} />
             </button>
             <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', padding: '0 6px', color: '#cbd5e1' }}>
-              {pxPerSec}px/s
+              {Math.round(pxPerSec)}px/s
             </span>
             <button
               type="button"
@@ -253,6 +288,40 @@ export const PianoRollView = React.memo(function PianoRollView({
               title={t.analysis.zoomIn}
             >
               <ZoomIn size={14} />
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px',
+              padding: '2px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <button type="button" onClick={() => stepRowHeight(-1)} style={iconButton} title={t.analysis.rowHeightLess}>
+              <ChevronsUpDown size={14} style={{ transform: 'scaleY(0.7)' }} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setRowHeight(null)}
+              title={t.analysis.rowHeightReset}
+              style={{
+                ...iconButton,
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-mono)',
+                padding: '0 6px',
+                color: rowHeight === null ? '#94a3b8' : '#cbd5e1',
+                minWidth: '44px',
+                justifyContent: 'center',
+              }}
+            >
+              {rowHeight === null ? t.analysis.rowHeightAuto : `${Math.round(rowHeight)}px`}
+            </button>
+            <button type="button" onClick={() => stepRowHeight(1)} style={iconButton} title={t.analysis.rowHeightMore}>
+              <ChevronsUpDown size={14} style={{ transform: 'scaleY(1.3)' }} />
             </button>
           </div>
 
@@ -365,6 +434,7 @@ export const PianoRollView = React.memo(function PianoRollView({
             fallbackPositionMs={currentTimeMs}
             pxPerSec={pxPerSec}
             mode={mode}
+            rowHeight={rowHeight}
             showLabels={showLabels}
             onViewChange={onViewChange}
             onSeek={onSeek}

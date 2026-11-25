@@ -31,7 +31,8 @@ function baseProps(overrides: Partial<PianoRollCanvasProps> = {}): PianoRollCanv
     fallbackPositionMs: 0,
     pxPerSec: 100,
     mode: 'follow',
-    showLabels: true,
+    rowHeight: null,
+  showLabels: true,
     onViewChange: vi.fn(),
     onSeek: vi.fn(),
     labels: { start: 'start', length: 'length', velocity: 'velocity' },
@@ -252,5 +253,27 @@ describe('PianoRollCanvas vertical navigation', () => {
     fireEvent.pointerDown(el, { clientX: 718, clientY: 300, button: 0, pointerId: 1 });
     fireEvent.pointerUp(el, { clientX: 718, clientY: 300, button: 0, pointerId: 1 });
     expect(props.onSeek).not.toHaveBeenCalled();
+  });
+});
+
+describe('PianoRollCanvas row height', () => {
+  it('a chosen row height makes rows overflow, so the wheel scrolls rows instead of leaving Follow', () => {
+    const props = baseProps({ showLabels: false, rowHeight: 30 });
+    mount(props, { width: 723, height: 411 }, 1);
+    raf.step();
+    const el = document.querySelector('canvas') as HTMLCanvasElement;
+    fireEvent.wheel(el, { deltaY: 120, clientX: 300, clientY: 150 });
+    expect(props.onViewChange).not.toHaveBeenCalled();
+  });
+
+  it('Alt+wheel changes the row height and reports it', () => {
+    const props = baseProps();
+    mount(props, { width: 723, height: 411 }, 1);
+    raf.step();
+    const el = document.querySelector('canvas') as HTMLCanvasElement;
+    const notCancelled = fireEvent.wheel(el, { deltaY: -200, altKey: true, clientX: 300, clientY: 150 });
+    expect(notCancelled).toBe(false);
+    const change = (props.onViewChange as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[0].rowHeight !== undefined);
+    expect(change?.[0].rowHeight).toBeGreaterThan(16);
   });
 });

@@ -207,6 +207,27 @@ export function computeKeyHeight(rollHeight: number, rows: number, minKeyHeight 
   return clamp(rollHeight / rows, minKeyHeight, MAX_KEY_HEIGHT);
 }
 
+/** Ręcznie wybierana wysokość wiersza (px); `null` w widoku = automatyczna. */
+export const ROW_HEIGHT_MIN = 8;
+export const ROW_HEIGHT_MAX = 40;
+export const ROW_HEIGHT_STEP = 2;
+/** Od tej wartości startują przyciski ±, gdy wysokość jest jeszcze automatyczna. */
+export const DEFAULT_ROW_HEIGHT = 14;
+
+export function clampRowHeight(px: number): number {
+  return clamp(Math.round(px), ROW_HEIGHT_MIN, ROW_HEIGHT_MAX);
+}
+
+/**
+ * Wysokość wiersza: automatyczna (`rowHeight === null`: wypełnia obszar, z podpisami nie mniej niż `LABEL_KEY_HEIGHT`)
+ * albo wybrana przez użytkownika — nigdy mniejsza niż potrzebna, by zakres wypełnił obszar (bez pustego pasa pod nutami).
+ */
+export function resolveKeyHeight(rollHeight: number, rows: number, rowHeight: number | null, showLabels: boolean): number {
+  if (rowHeight === null) return computeKeyHeight(rollHeight, rows, showLabels ? LABEL_KEY_HEIGHT : undefined);
+  const fit = rows > 0 ? rollHeight / rows : 0;
+  return clamp(Math.max(clampRowHeight(rowHeight), fit), ROW_HEIGHT_MIN, Math.max(ROW_HEIGHT_MAX, fit));
+}
+
 export function maxScrollRows(rollHeight: number, keyHeight: number, rows: number): number {
   return Math.max(0, rows - rollHeight / keyHeight);
 }

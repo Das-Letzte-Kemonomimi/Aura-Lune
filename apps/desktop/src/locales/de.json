@@ -1931,6 +1931,10 @@
     "noteLabels": "Beschriftung",
     "noteLabelsTooltip": "Notennamen auf den Noten anzeigen (z. B. D2, C4)",
     "noChordsDetected": "Für diesen Titel wurden keine Akkorde erkannt.",
-    "exportChordsTitle": "Akkord-Export ({0})"
+    "exportChordsTitle": "Akkord-Export ({0})",
+    "rowHeightAuto": "Auto",
+    "rowHeightMore": "Höhere Zeilen",
+    "rowHeightLess": "Niedrigere Zeilen",
+    "rowHeightReset": "Zeilenhöhe: Klicken für automatisch"
   }
 }

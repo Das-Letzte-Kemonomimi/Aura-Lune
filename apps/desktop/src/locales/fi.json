@@ -1931,6 +1931,10 @@
     "noteLabels": "Nimet",
     "noteLabelsTooltip": "Näytä nuottien nimet nuoteissa (esim. D2, C4)",
     "noChordsDetected": "Tälle kappaleelle ei havaittu sointuja.",
-    "exportChordsTitle": "Sointujen vienti ({0})"
+    "exportChordsTitle": "Sointujen vienti ({0})",
+    "rowHeightAuto": "Auto",
+    "rowHeightMore": "Korkeammat rivit",
+    "rowHeightLess": "Matalammat rivit",
+    "rowHeightReset": "Rivin korkeus: palauta automaattinen napsauttamalla"
   }
 }

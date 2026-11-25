@@ -14,6 +14,10 @@ import {
   computePitchRange,
   followOriginMs,
   hiddenNotesBeyondView,
+  clampRowHeight,
+  resolveKeyHeight,
+  ROW_HEIGHT_MAX,
+  ROW_HEIGHT_MIN,
   hitTestNote,
   followScrollGoal,
   pitchSpanInWindow,
@@ -313,5 +317,27 @@ describe('hiddenNotesBeyondView', () => {
     expect(hiddenNotesBeyondView({ ...base, span: { lo: 40, hi: 78 }, scrollRows: 5 })).toEqual({ above: true, below: true });
     expect(hiddenNotesBeyondView({ ...base, span: { lo: 72, hi: 78 }, scrollRows: 0 })).toEqual({ above: false, below: false });
     expect(hiddenNotesBeyondView({ ...base, span: null, scrollRows: 0 })).toEqual({ above: false, below: false });
+  });
+});
+
+describe('resolveKeyHeight', () => {
+  it('uses the automatic fit (or label minimum) when no height is chosen', () => {
+    expect(resolveKeyHeight(300, 50, null, true)).toBe(LABEL_KEY_HEIGHT);
+    expect(resolveKeyHeight(300, 20, null, false)).toBeCloseTo(15, 6);
+  });
+
+  it('honours a chosen height, within the allowed range', () => {
+    expect(resolveKeyHeight(300, 30, 20, false)).toBe(20);
+    expect(resolveKeyHeight(300, 30, 999, false)).toBe(ROW_HEIGHT_MAX);
+  });
+
+  it('never leaves an empty strip under the lowest row', () => {
+    // 24 wierszy po 8 px = 192 < 300 → wiersze rosną do wysokości obszaru
+    expect(resolveKeyHeight(300, 24, 8, false) * 24).toBeGreaterThanOrEqual(300 - 1e-9);
+  });
+
+  it('clamps and rounds user input', () => {
+    expect(clampRowHeight(2)).toBe(ROW_HEIGHT_MIN);
+    expect(clampRowHeight(14.6)).toBe(15);
   });
 });

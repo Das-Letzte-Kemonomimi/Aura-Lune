@@ -1931,6 +1931,10 @@
     "noteLabels": "Tituli",
     "noteLabelsTooltip": "Nomina notarum in notis ostende (e.g. D2, C4)",
     "noChordsDetected": "Nulli accordus in hoc cantu inventi sunt.",
-    "exportChordsTitle": "Exportatio accordorum ({0})"
+    "exportChordsTitle": "Exportatio accordorum ({0})",
+    "rowHeightAuto": "Auto",
+    "rowHeightMore": "Lineae altiores",
+    "rowHeightLess": "Lineae humiliores",
+    "rowHeightReset": "Altitudo linearum: preme ut automatica fiat"
   }
 }

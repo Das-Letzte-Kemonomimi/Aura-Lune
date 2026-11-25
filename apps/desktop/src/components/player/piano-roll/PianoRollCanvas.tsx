@@ -20,8 +20,8 @@ import {
   clamp,
   clampOriginMs,
   computeDensity,
-  computeKeyHeight,
-  LABEL_KEY_HEIGHT,
+  ROW_HEIGHT_MAX,
+  ROW_HEIGHT_MIN,
   computeLayout,
   computePitchRange,
   followOriginMs,
@@ -35,6 +35,7 @@ import {
   pitchSpanInWindow,
   pitchToY,
   rollRect,
+  resolveKeyHeight,
   rowCount,
   rulerTicks,
   timeToX,
@@ -52,6 +53,13 @@ import {
 import type { DetectedNote } from '../../../types/analysis';
 
 export type PianoRollViewMode = 'follow' | 'free';
+
+export interface PianoRollViewChange {
+  pxPerSec?: number;
+  mode?: PianoRollViewMode;
+  /** Wysokość wiersza w px albo `null` (auto). */
+  rowHeight?: number | null;
+}
 
 export interface PianoRollTooltipLabels {
   start: string;
@@ -72,7 +80,9 @@ export interface PianoRollCanvasProps {
   mode: PianoRollViewMode;
   /** Podpisy nut (np. D2, C4) wewnątrz prostokątów, o ile nuta jest dość szeroka. */
   showLabels: boolean;
-  onViewChange: (change: { pxPerSec?: number; mode?: PianoRollViewMode }) => void;
+  /** Wysokość wiersza (px); `null` = dopasowana automatycznie. */
+  rowHeight: number | null;
+  onViewChange: (change: PianoRollViewChange) => void;
   onSeek: (positionMs: number) => void;
   labels: PianoRollTooltipLabels;
   ariaLabel: string;
@@ -148,7 +158,7 @@ function scrollbarGeometry(roll: { x: number; y: number; w: number; h: number },
 export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoRollCanvasProps) {
   const { index } = props;
   const propsRef = useRef(props);
-  const viewRef = useRef({ mode: props.mode, pxPerSec: props.pxPerSec });
+  const viewRef = useRef({ mode: props.mode, pxPerSec: props.pxPerSec, rowHeight: props.rowHeight });
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
 
@@ -216,7 +226,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
 
     // --- oś wysokości ---
     const rows = rowCount(range);
-    const keyHeight = computeKeyHeight(roll.h, rows, p.showLabels ? LABEL_KEY_HEIGHT : undefined);
+    const keyHeight = resolveKeyHeight(roll.h, rows, view.rowHeight, p.showLabels);
     const maxScroll = maxScrollRows(roll.h, keyHeight, rows);
     const viewRows = roll.h / keyHeight;
     let verticalSettled = true;
@@ -280,7 +290,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.beginPath();
     ctx.rect(roll.x, roll.y, roll.w, roll.h);
     ctx.clip();
-    const labelFontPx = clamp(keyHeight - 4, 9, 13);
+    const labelFontPx = clamp(keyHeight - 4, 9, 18);
     const drawLabels = p.showLabels && keyHeight >= MIN_LABEL_KEY_HEIGHT;
     ctx.font = `600 ${labelFontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.textBaseline = 'middle';
@@ -459,7 +469,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
   // Najnowsze propsy dla pętli i handlerów; zmiana widoku/danych budzi uśpioną pętlę.
   useEffect(() => {
     propsRef.current = props;
-    viewRef.current = { mode: props.mode, pxPerSec: props.pxPerSec };
+    viewRef.current = { mode: props.mode, pxPerSec: props.pxPerSec, rowHeight: props.rowHeight };
     invalidate();
   });
 
@@ -483,7 +493,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
   };
 
-  const setView = (change: { pxPerSec?: number; mode?: PianoRollViewMode }) => {
+  const setView = (change: PianoRollViewChange) => {
     viewRef.current = { ...viewRef.current, ...change };
     propsRef.current.onViewChange(change);
     invalidate();
@@ -604,6 +614,17 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       const delta = e.deltaY || e.deltaX;
       const view = viewRef.current;
 
+      if (e.altKey) {
+        // Alt+kółko: wysokość wierszy; wiersz pod kursorem zostaje pod kursorem.
+        const { y } = toLocal(e.clientX, e.clientY);
+        const oldHeight = geo.pitch.keyHeight;
+        const next = clamp(oldHeight * Math.exp(-(e.deltaY || e.deltaX) * 0.0015), ROW_HEIGHT_MIN, ROW_HEIGHT_MAX);
+        const rowUnderCursor = (y - roll.y) / oldHeight + geo.pitch.scrollRows;
+        scrollRowsRef.current = rowUnderCursor - (y - roll.y) / next;
+        autoVerticalRef.current = false;
+        setView({ rowHeight: next });
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         const next = clamp(view.pxPerSec * Math.exp(-delta * 0.0015), MIN_PX_PER_SEC, MAX_PX_PER_SEC);
         if (view.mode === 'free') {
