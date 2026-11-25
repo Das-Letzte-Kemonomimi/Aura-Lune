@@ -157,21 +157,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           />
         </div>
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-          <h1
-            style={{
-              fontSize: '1.38rem',
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: 0,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span>Auralune</span>
-            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem', fontWeight: 600 }}>狐</span>
-          </h1>
           {updateAvailable && (
             <button
               type="button"
@@ -183,7 +168,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 alignItems: 'center',
                 gap: '4px',
                 fontSize: '0.6rem',
-              marginTop: '4px',
+              marginBottom: '4px',
                 lineHeight: 1,
                 padding: '2px 5px',
                 borderRadius: '4px',
@@ -207,6 +192,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {loc.updates.badge}
             </button>
           )}
+          <h1
+            style={{
+              fontSize: '1.38rem',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>Auralune</span>
+            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem', fontWeight: 600 }}>狐</span>
+          </h1>
           </div>
       </div>
 
