@@ -3,6 +3,7 @@ import {
   calculateBeatMatchedCrossfadeMs,
   calculateBpmMatchScore,
   evaluateHarmonicMatch,
+  harmonicBadgeLabel,
 } from './harmonicMixing';
 
 describe('calculateBpmMatchScore', () => {
@@ -68,7 +69,7 @@ describe('evaluateHarmonicMatch', () => {
     const r = evaluateHarmonicMatch('5B', 140, '5B', 70);
     expect(r.matchType).toBe('half_double');
     expect(r.bpmRelation).toBe('half');
-    expect(r.badgeLabel).toContain('Half-Time');
+    expect(r.badgeKey).toBe('badgePerfect');
   });
 
   it('falls back to a neutral key score and 128 BPM when data is missing', () => {
@@ -83,5 +84,27 @@ describe('evaluateHarmonicMatch', () => {
     const neighbour = evaluateHarmonicMatch('8A', 124, '9A', 124);
     const distant = evaluateHarmonicMatch('8A', 124, '2B', 124);
     expect(neighbour.keyScore).toBeGreaterThan(distant.keyScore);
+  });
+});
+
+describe('harmonicBadgeLabel', () => {
+  const labels = {
+    badgePerfect: 'Perfect',
+    badgeRelative: 'Relative',
+    badgeStepUp: 'Up',
+    badgeStepDown: 'Down',
+    badgeDiagonal: 'Diagonal',
+    badgeSemitone: 'Semitone',
+    badgeTwoSteps: 'Two steps',
+    badgeContrast: 'Contrast',
+    badgeDefault: 'Default',
+    badgeHalfTime: 'Half-time',
+    badgeDoubleTime: 'Double-time',
+  };
+
+  it('uses the translated key label and appends the tempo relation for half/double matches', () => {
+    expect(harmonicBadgeLabel(evaluateHarmonicMatch('5B', 140, '5B', 70), labels)).toBe('Perfect (Half-time)');
+    expect(harmonicBadgeLabel(evaluateHarmonicMatch('5B', 70, '5B', 140), labels)).toBe('Perfect (Double-time)');
+    expect(harmonicBadgeLabel(evaluateHarmonicMatch('8A', 124, '2B', 124), labels)).toBe('Contrast');
   });
 });

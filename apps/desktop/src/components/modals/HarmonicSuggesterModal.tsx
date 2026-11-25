@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
+import { fmt } from '../../utils/fmt';
 import {
   evaluateHarmonicMatch,
+  harmonicBadgeLabel,
   parseCamelotKey,
   calculateBeatMatchedCrossfadeMs,
 } from '../../utils/harmonicMixing';
@@ -570,7 +572,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 }}
                 title={loc.harmonicSuggester.disableCrossfade}
               >
-                <div>Off</div>
+                <div>{loc.harmonicSuggester.crossfadeOff}</div>
                 <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>0s</div>
               </button>
             </div>
@@ -740,7 +742,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                       }}
                     >
                       {match.score}%
-                      <span style={{ fontSize: '0.6rem', fontWeight: 600 }}>MATCH</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 600 }}>{loc.harmonicSuggester.matchWord}</span>
                     </div>
 
                     <div>
@@ -755,7 +757,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                           fontWeight: 700,
                         }}
                       >
-                        {match.badgeLabel}
+                        {harmonicBadgeLabel(match, loc.harmonicSuggester)}
                       </span>
                     </div>
                   </div>
@@ -797,7 +799,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                           fontWeight: 600,
                         }}
                       >
-                        {candCamelot ? `${candCamelot.raw} (${candCamelot.keyName})` : 'Klucz ?'}
+                        {candCamelot ? `${candCamelot.raw} (${candCamelot.keyName})` : loc.harmonicSuggester.keyShortUnknown}
                       </span>
                       <span
                         style={{
@@ -809,7 +811,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                           fontWeight: 600,
                         }}
                       >
-                        {track.bpm ? `${track.bpm.toFixed(1)} BPM` : 'BPM ?'}
+                        {track.bpm ? `${track.bpm.toFixed(1)} BPM` : loc.harmonicSuggester.bpmShortUnknown}
                       </span>
                       {match.bpmDiffPercent > 0 && (
                         <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
@@ -824,7 +826,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                     {track.bpm && effectiveBpm && Math.abs(track.bpm - effectiveBpm) > 0.5 && (
                       <button
                         onClick={() => onSyncTempo(track.bpm!)}
-                        title={`Dopasuj tempo suwaka DSP do tempa tego utworu (${track.bpm.toFixed(1)} BPM)`}
+                        title={fmt(loc.harmonicSuggester.syncTempoTooltip, track.bpm.toFixed(1))}
                         style={{
                           padding: '6px 10px',
                           borderRadius: '6px',

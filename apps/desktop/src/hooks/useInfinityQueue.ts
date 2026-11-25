@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
-import { evaluateHarmonicMatch } from '../utils/harmonicMixing';
+import { evaluateHarmonicMatch, harmonicBadgeLabel } from '../utils/harmonicMixing';
 import type { PlaybackStatus } from '../types/playback';
 import type { PlaybackQueue } from '../types/queue';
 import type { TrackRecord, AlbumRecord } from '../types/library';
@@ -103,7 +103,7 @@ export function useInfinityQueue({
           if (match.score > bestScore) {
             bestScore = match.score;
             bestTrack = cand;
-            bestBadge = `${match.badgeLabel} (${match.score}%)`;
+            bestBadge = `${harmonicBadgeLabel(match, loc.harmonicSuggester)} (${match.score}%)`;
           }
         }
       }
@@ -113,7 +113,7 @@ export function useInfinityQueue({
     if (bestScore < 60) {
       const randIdx = Math.floor(Math.random() * pool.length);
       bestTrack = pool[randIdx];
-      bestBadge = 'Smart Shuffle';
+      bestBadge = loc.harmonicSuggester.smartShuffle;
     }
 
     const payload = {
@@ -145,6 +145,7 @@ export function useInfinityQueue({
     albums,
     currentPlayingTrack,
     infinityQueue,
+    loc.harmonicSuggester,
     loc.notifications.infinityQueuePicked,
     queue.current_index,
     queue.items,

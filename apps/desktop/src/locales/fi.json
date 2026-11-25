@@ -155,7 +155,8 @@
     "tonearmRest": "Äänivarren lepoteline",
     "currentChord": "Nykyinen sointu:",
     "recomputeChordsTooltip": "Laske soinnut uudelleen",
-    "tapeDeckTitle": "STUDIONAUHURI"
+    "tapeDeckTitle": "STUDIONAUHURI",
+    "chordBarLabel": "Tahti {0}"
   },
   "waveform": {
     "title": "Aaltomuoto",
@@ -1557,7 +1558,24 @@
     "enqueueNext": "Lisää jonoon seuraavaksi",
     "nextBtn": "Seuraava",
     "playNowCrossfade": "Toista heti DJ Crossfadella",
-    "defaultBpm": "(oletuksena 128 BPM)"
+    "defaultBpm": "(oletuksena 128 BPM)",
+    "badgePerfect": "Täydellinen sävellaji",
+    "badgeRelative": "Tunnelman vaihto (duuri/molli)",
+    "badgeStepUp": "Energia nousee (+1)",
+    "badgeStepDown": "Energia laskee (-1)",
+    "badgeDiagonal": "Pehmeä modulaatio (diagonaali)",
+    "badgeSemitone": "Puolisävelmodulaatio (+1)",
+    "badgeTwoSteps": "Kahden askeleen hyppy",
+    "badgeContrast": "Kontrastoiva sävellaji",
+    "badgeDefault": "Harmoninen sopivuus",
+    "badgeHalfTime": "Half-time",
+    "badgeDoubleTime": "Double-time",
+    "matchWord": "SOPIVUUS",
+    "keyShortUnknown": "Sävellaji ?",
+    "bpmShortUnknown": "BPM ?",
+    "crossfadeOff": "Pois",
+    "syncTempoTooltip": "Sovita DSP-tempon liukusäädin tämän kappaleen tempoon ({0} BPM)",
+    "smartShuffle": "Älykäs sekoitus"
   },
   "facetsFilter": {
     "title": "Fasettisuodattimet (foobar2000 Facets)",

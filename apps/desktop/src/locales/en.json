@@ -155,7 +155,8 @@
     "tonearmRest": "Turntable tonearm rest (cradle)",
     "currentChord": "Current chord:",
     "recomputeChordsTooltip": "Recompute chords",
-    "tapeDeckTitle": "STUDIO TAPE DECK"
+    "tapeDeckTitle": "STUDIO TAPE DECK",
+    "chordBarLabel": "Bar {0}"
   },
   "waveform": {
     "title": "Track Waveform",
@@ -1557,7 +1558,24 @@
     "enqueueNext": "Enqueue as next track",
     "nextBtn": "Next",
     "playNowCrossfade": "Play now with DJ Crossfade",
-    "defaultBpm": "(128 BPM by default)"
+    "defaultBpm": "(128 BPM by default)",
+    "badgePerfect": "Perfect key match",
+    "badgeRelative": "Mood change (major/minor)",
+    "badgeStepUp": "Energy up (+1)",
+    "badgeStepDown": "Energy down (-1)",
+    "badgeDiagonal": "Smooth modulation (diagonal)",
+    "badgeSemitone": "Semitone modulation (+1)",
+    "badgeTwoSteps": "Two-step jump",
+    "badgeContrast": "Contrasting key",
+    "badgeDefault": "Harmonic match",
+    "badgeHalfTime": "Half-time",
+    "badgeDoubleTime": "Double-time",
+    "matchWord": "MATCH",
+    "keyShortUnknown": "Key ?",
+    "bpmShortUnknown": "BPM ?",
+    "crossfadeOff": "Off",
+    "syncTempoTooltip": "Match the DSP tempo slider to this track's tempo ({0} BPM)",
+    "smartShuffle": "Smart Shuffle"
   },
   "facetsFilter": {
     "title": "Facets Filters (foobar2000 Facets)",

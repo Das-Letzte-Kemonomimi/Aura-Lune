@@ -155,7 +155,8 @@
     "tonearmRest": "Tonarm-Ablage (Halterung)",
     "currentChord": "Aktueller Akkord:",
     "recomputeChordsTooltip": "Akkorde neu berechnen",
-    "tapeDeckTitle": "STUDIO-TONBANDGERÄT"
+    "tapeDeckTitle": "STUDIO-TONBANDGERÄT",
+    "chordBarLabel": "Takt {0}"
   },
   "waveform": {
     "title": "Wellenform",
@@ -1557,7 +1558,24 @@
     "enqueueNext": "Als nächsten Titel einreihen",
     "nextBtn": "Weiter",
     "playNowCrossfade": "Jetzt mit DJ-Crossfade abspielen",
-    "defaultBpm": "(standardmäßig 128 BPM)"
+    "defaultBpm": "(standardmäßig 128 BPM)",
+    "badgePerfect": "Perfekte Tonart",
+    "badgeRelative": "Stimmungswechsel (Dur/Moll)",
+    "badgeStepUp": "Energie steigt (+1)",
+    "badgeStepDown": "Energie sinkt (-1)",
+    "badgeDiagonal": "Sanfte Modulation (diagonal)",
+    "badgeSemitone": "Halbtonmodulation (+1)",
+    "badgeTwoSteps": "Sprung um zwei Schritte",
+    "badgeContrast": "Kontrastierende Tonart",
+    "badgeDefault": "Harmonische Übereinstimmung",
+    "badgeHalfTime": "Half-Time",
+    "badgeDoubleTime": "Double-Time",
+    "matchWord": "MATCH",
+    "keyShortUnknown": "Tonart ?",
+    "bpmShortUnknown": "BPM ?",
+    "crossfadeOff": "Aus",
+    "syncTempoTooltip": "DSP-Tempo-Regler an das Tempo dieses Titels anpassen ({0} BPM)",
+    "smartShuffle": "Smart Shuffle"
   },
   "facetsFilter": {
     "title": "Facettenfilter (foobar2000 Facets)",

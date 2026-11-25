@@ -110,6 +110,7 @@
 - **Tabela utworów**: kolumna `#` pokazuje numer pozycji w widoku (numer ścieżki z tagów jest w podpowiedzi), a ponowne kliknięcie nagłówka odwraca kolejność domyślną.
 
 #### Interfejs i ustawienia
+- **Asystent kolejki harmonicznej jest w pełni przetłumaczony**: etykiety dopasowania („Kontrastujący klucz”, „Dopasowanie harmoniczne”, half/double-time…), „MATCH”, „Off”, „Klucz ?/BPM ?”, podpowiedź synchronizacji tempa i „Smart Shuffle” (Infinity Queue) oraz „Takt N” na osi akordów w Studiu analizy muzyki korzystają teraz z tłumaczeń (en/pl/de/fi/la).
 - **`auralune --uninstall`** (oraz `auralune-dev --uninstall`): zainstalowany launcher potrafi sam odinstalować aplikację (AppImage, wpis w menu, ikony); biblioteka i ustawienia pozostają.
 - **Efekty Ambience są ostre**: canvas był rysowany w połowie rozdzielczości i rozciągany (piksele, artefakty); teraz bufor odpowiada rozdzielczości ekranu (HiDPI), a proporcje nie są już zniekształcane przez minimalny rozmiar 320×240.
 - **Statystyki → „Ostatnio odtwarzane”**: czas „temu” pokazuje teraz liczbę (np. „5 min temu”, „3 godz. temu”) — wcześniej tłumaczenia nie miały znacznika liczby, więc wyświetlało się samo „min temu”. Wspólny formatter `formatRelativeTime` w `utils/timeFormat.ts`.

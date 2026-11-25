@@ -155,7 +155,8 @@
     "tonearmRest": "Statio requietis brachii phonographici",
     "currentChord": "Harmonia praesens:",
     "recomputeChordsTooltip": "Harmonias denuo computare",
-    "tapeDeckTitle": "MAGNETOPHONUM STUDII"
+    "tapeDeckTitle": "MAGNETOPHONUM STUDII",
+    "chordBarLabel": "Mensura {0}"
   },
   "waveform": {
     "title": "Unda Cantus",
@@ -1557,7 +1558,24 @@
     "enqueueNext": "In seriem ut proximum adde",
     "nextBtn": "Sequens",
     "playNowCrossfade": "Nunc sona cum DJ Crossfade",
-    "defaultBpm": "(per defectum 128 BPM)"
+    "defaultBpm": "(per defectum 128 BPM)",
+    "badgePerfect": "Clavis perfecta",
+    "badgeRelative": "Mutatio animi (maior/minor)",
+    "badgeStepUp": "Energia crescit (+1)",
+    "badgeStepDown": "Energia decrescit (-1)",
+    "badgeDiagonal": "Modulatio lenis (diagonalis)",
+    "badgeSemitone": "Modulatio semitonii (+1)",
+    "badgeTwoSteps": "Saltus duorum graduum",
+    "badgeContrast": "Clavis contraria",
+    "badgeDefault": "Concordia harmonica",
+    "badgeHalfTime": "Dimidium tempus",
+    "badgeDoubleTime": "Duplex tempus",
+    "matchWord": "CONCORDIA",
+    "keyShortUnknown": "Clavis ?",
+    "bpmShortUnknown": "BPM ?",
+    "crossfadeOff": "Off",
+    "syncTempoTooltip": "Tempus DSP ad tempus huius carminis accommoda ({0} BPM)",
+    "smartShuffle": "Mixtio sollers"
   },
   "facetsFilter": {
     "title": "Filtra facietalia (foobar2000 Facets)",

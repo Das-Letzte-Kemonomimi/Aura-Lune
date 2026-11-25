@@ -21,6 +21,17 @@ export interface CamelotKey {
   keyName: string; // np. "A min" lub "C Maj"
 }
 
+export type HarmonicBadgeKey =
+  | 'badgePerfect'
+  | 'badgeRelative'
+  | 'badgeStepUp'
+  | 'badgeStepDown'
+  | 'badgeDiagonal'
+  | 'badgeSemitone'
+  | 'badgeTwoSteps'
+  | 'badgeContrast'
+  | 'badgeDefault';
+
 export interface HarmonicMatchResult {
   score: number; // 0 - 100
   keyScore: number; // 0 - 100
@@ -34,7 +45,8 @@ export interface HarmonicMatchResult {
     | 'half_double' // Dopasowanie połowiczne/podwójne BPM
     | 'compatible' // Akceptowalny miks
     | 'dissonant'; // Ryzyko dysonansu
-  badgeLabel: string;
+  /** Translation key (under `harmonicSuggester`) of the badge describing the key relation. */
+  badgeKey: HarmonicBadgeKey;
   badgeColor: string;
   bpmDiffPercent: number;
   bpmRelation: 'direct' | 'half' | 'double';
@@ -197,15 +209,15 @@ export function getCamelotDistance(num1: number, num2: number): number {
 export function calculateKeyHarmonicScore(
   k1: CamelotKey,
   k2: CamelotKey
-): { score: number; type: HarmonicMatchResult['matchType']; label: string } {
+): { score: number; type: HarmonicMatchResult['matchType']; badgeKey: HarmonicBadgeKey } {
   // Ten sam klucz (np. 8A -> 8A)
   if (k1.number === k2.number && k1.letter === k2.letter) {
-    return { score: 100, type: 'perfect', label: 'Idealna tonacja' };
+    return { score: 100, type: 'perfect', badgeKey: 'badgePerfect' };
   }
 
   // Odpowiednik molowy <-> durowy (np. 8A <-> 8B)
   if (k1.number === k2.number && k1.letter !== k2.letter) {
-    return { score: 95, type: 'relative', label: 'Zmiana nastroju (Dur/Mol)' };
+    return { score: 95, type: 'relative', badgeKey: 'badgeRelative' };
   }
 
   const dist = getCamelotDistance(k1.number, k2.number);
@@ -216,25 +228,25 @@ export function calculateKeyHarmonicScore(
     return {
       score: 90,
       type: 'adjacent',
-      label: isStepUp ? 'Wzrost energii (+1)' : 'Spadek energii (-1)',
+      badgeKey: isStepUp ? 'badgeStepUp' : 'badgeStepDown',
     };
   }
 
   // Przekątna: ±1 i zmiana litery (np. 8A -> 7B lub 9B)
   if (dist === 1 && k1.letter !== k2.letter) {
-    return { score: 85, type: 'diagonal', label: 'Płynna modulacja (Przekątna)' };
+    return { score: 85, type: 'diagonal', badgeKey: 'badgeDiagonal' };
   }
 
   // Podbicie energii +1 semiton (+7 godzin na Camelocie, np. 8A -> 3A)
   if (dist === 5 || dist === 7) {
-    return { score: 80, type: 'energy_boost', label: 'Modulacja semitonowa (+1)' };
+    return { score: 80, type: 'energy_boost', badgeKey: 'badgeSemitone' };
   }
 
   if (dist === 2 && k1.letter === k2.letter) {
-    return { score: 65, type: 'compatible', label: 'Krok 2 tonów' };
+    return { score: 65, type: 'compatible', badgeKey: 'badgeTwoSteps' };
   }
 
-  return { score: Math.max(10, 50 - dist * 8), type: 'dissonant', label: 'Kontrastujący klucz' };
+  return { score: Math.max(10, 50 - dist * 8), type: 'dissonant', badgeKey: 'badgeContrast' };
 }
 
 /**
@@ -324,14 +336,14 @@ export function evaluateHarmonicMatch(
 
   let keyScore = 50;
   let matchType: HarmonicMatchResult['matchType'] = 'compatible';
-  let badgeLabel = 'Dopasowanie harmoniczne';
+  let badgeKey: HarmonicBadgeKey = 'badgeDefault';
   let badgeColor = '#60a5fa'; // Blue
 
   if (currentKey && candidateKey) {
     const keyEval = calculateKeyHarmonicScore(currentKey, candidateKey);
     keyScore = keyEval.score;
     matchType = keyEval.type;
-    badgeLabel = keyEval.label;
+    badgeKey = keyEval.badgeKey;
 
     if (matchType === 'perfect') {
       badgeColor = '#10b981'; // Emerald green
@@ -354,7 +366,6 @@ export function evaluateHarmonicMatch(
   if (bpmEval.relation !== 'direct') {
     if (matchType === 'perfect' || matchType === 'adjacent') {
       matchType = 'half_double';
-      badgeLabel = `${badgeLabel} (${bpmEval.relation === 'half' ? 'Half-Time' : 'Double-Time'})`;
     }
   }
 
@@ -367,10 +378,26 @@ export function evaluateHarmonicMatch(
     keyScore,
     bpmScore,
     matchType,
-    badgeLabel,
+    badgeKey,
     badgeColor,
     bpmDiffPercent: bpmEval.diffPercent,
     bpmRelation: bpmEval.relation,
     suggestedCrossfadeMs,
   };
+}
+
+/** Labels needed to render a match badge (a slice of `loc.harmonicSuggester`). */
+export type HarmonicBadgeLabels = Record<HarmonicBadgeKey, string> & {
+  badgeHalfTime: string;
+  badgeDoubleTime: string;
+};
+
+/** Localized badge text, e.g. "Perfect key match (Half-time)". */
+export function harmonicBadgeLabel(
+  match: Pick<HarmonicMatchResult, 'badgeKey' | 'matchType' | 'bpmRelation'>,
+  labels: HarmonicBadgeLabels,
+): string {
+  const base = labels[match.badgeKey];
+  if (match.matchType !== 'half_double') return base;
+  return `${base} (${match.bpmRelation === 'half' ? labels.badgeHalfTime : labels.badgeDoubleTime})`;
 }

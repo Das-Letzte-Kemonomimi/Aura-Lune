@@ -456,7 +456,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8' }}>
-                      <span>Takt {chordSeg.bar}</span>
+                      <span>{fmt(t.player.chordBarLabel, chordSeg.bar)}</span>
                       <span>{(chordSeg.confidence * 100).toFixed(0)}%</span>
                     </div>
 

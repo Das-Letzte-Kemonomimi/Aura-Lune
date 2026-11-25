@@ -155,7 +155,8 @@
     "tonearmRest": "Uchwyt spoczynkowy ramienia gramofonowego",
     "currentChord": "Aktualny akord:",
     "recomputeChordsTooltip": "Przelicz akordy ponownie",
-    "tapeDeckTitle": "STUDYJNY MAGNETOFON SZPULOWY"
+    "tapeDeckTitle": "STUDYJNY MAGNETOFON SZPULOWY",
+    "chordBarLabel": "Takt {0}"
   },
   "waveform": {
     "title": "Przebieg utworu",
@@ -1557,7 +1558,24 @@
     "enqueueNext": "Kolejkuj jako następny utwór",
     "nextBtn": "Następny",
     "playNowCrossfade": "Odtwórz natychmiast z płynnym przenikaniem DJ Crossfade",
-    "defaultBpm": "(domyślnie 128 BPM)"
+    "defaultBpm": "(domyślnie 128 BPM)",
+    "badgePerfect": "Idealna tonacja",
+    "badgeRelative": "Zmiana nastroju (dur/moll)",
+    "badgeStepUp": "Wzrost energii (+1)",
+    "badgeStepDown": "Spadek energii (-1)",
+    "badgeDiagonal": "Płynna modulacja (przekątna)",
+    "badgeSemitone": "Modulacja półtonowa (+1)",
+    "badgeTwoSteps": "Skok o 2 kroki",
+    "badgeContrast": "Kontrastująca tonacja",
+    "badgeDefault": "Dopasowanie harmoniczne",
+    "badgeHalfTime": "Half-time",
+    "badgeDoubleTime": "Double-time",
+    "matchWord": "DOPASOWANIE",
+    "keyShortUnknown": "Tonacja ?",
+    "bpmShortUnknown": "BPM ?",
+    "crossfadeOff": "Wył.",
+    "syncTempoTooltip": "Dopasuj tempo suwaka DSP do tempa tego utworu ({0} BPM)",
+    "smartShuffle": "Inteligentne mieszanie"
   },
   "facetsFilter": {
     "title": "Filtry fasetowe (foobar2000 Facets)",
