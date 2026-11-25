@@ -104,6 +104,7 @@ show_help() {
     echo "  ./install.sh --uninstall    Uninstall current channel"
     echo "  ./install.sh --uninstall --dev     Uninstall only Development version"
     echo "  ./install.sh --uninstall --stable  Uninstall only Stable version"
+    echo "  ${BIN_NAME} --uninstall      Same, from the installed launcher (no script needed)"
     echo "  ./install.sh --help         Show this help"
     echo ""
 }
@@ -289,6 +290,18 @@ cat > "$LAUNCHER_DEST" <<EOF
 # ${APP_NAME} smart launcher with automatic FUSE 2 fallback and GStreamer plugin detection
 APPIMAGE="${APPIMAGE_DEST}"
 export AURALUNE_CHANNEL="${CHANNEL}"
+
+# \`${BIN_NAME} --uninstall\` removes this channel's launcher, AppImage, menu entry and icons.
+if [ "\${1:-}" = "--uninstall" ]; then
+    echo "Uninstalling ${APP_NAME}..."
+    rm -rf "${DATA_DIR}"
+    rm -f "${DESKTOP_DEST}" "${ICONS_128_DIR}/${ICON_NAME}.png" "${ICONS_512_DIR}/${ICON_NAME}.png"
+    command -v update-desktop-database &>/dev/null && update-desktop-database "${APPS_DIR}" 2>/dev/null
+    command -v gtk-update-icon-cache &>/dev/null && gtk-update-icon-cache -f -t "${HOME}/.local/share/icons/hicolor" 2>/dev/null
+    rm -f "${LAUNCHER_DEST}"
+    echo "${APP_NAME} has been removed. Your library database and settings were kept."
+    exit 0
+fi
 
 if [ ! -f "\$APPIMAGE" ]; then
     echo "Error: Could not find ${APP_NAME} AppImage at \$APPIMAGE" >&2
