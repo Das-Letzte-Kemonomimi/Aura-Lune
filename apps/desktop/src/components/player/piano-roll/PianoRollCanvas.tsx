@@ -25,6 +25,7 @@ import {
   computeLayout,
   computePitchRange,
   followOriginMs,
+  fitLabelFontPx,
   followScrollGoal,
   hiddenNotesBeyondView,
   hitTestNote,
@@ -91,10 +92,11 @@ export interface PianoRollCanvasProps {
 /** Przesunięcie kursora (px) powyżej którego kliknięcie staje się przeciąganiem (panoramowaniem). */
 const DRAG_THRESHOLD_PX = 4;
 const NOTE_MIN_WIDTH = 3;
-const NOTE_LABEL_MIN_WIDTH = 26;
 /** Poniżej tej wysokości wiersza podpis byłby nieczytelny. */
 const MIN_LABEL_KEY_HEIGHT = 10;
 /** Różnica pozycji (ms), poniżej której uznajemy głowicę za ustaloną i usypiamy pętlę. */
+/** Odstęp podpisu od krawędzi nuty (z każdej strony). */
+const LABEL_PAD_PX = 4;
 const SETTLED_EPSILON_MS = 0.5;
 
 /** Nuty z tego okna wokół głowicy decydują o pionowym śledzeniu w trybie Follow. */
@@ -292,7 +294,9 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.clip();
     const labelFontPx = clamp(keyHeight - 4, 9, 18);
     const drawLabels = p.showLabels && keyHeight >= MIN_LABEL_KEY_HEIGHT;
-    ctx.font = `600 ${labelFontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    const labelFont = (px: number) => `600 ${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    let currentFontPx = labelFontPx;
+    ctx.font = labelFont(currentFontPx);
     ctx.textBaseline = 'middle';
     const active = activePitchesRef.current;
     active.length = 0;
@@ -327,10 +331,20 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.lineWidth = 1;
         ctx.stroke();
       }
-      if (drawLabels && w >= NOTE_LABEL_MIN_WIDTH) {
-        ctx.fillStyle = COLORS.noteLabel;
-        currentFill = '';
-        ctx.fillText(note.pitch_name, x + 4, y + keyHeight / 2);
+      if (drawLabels) {
+        // Podpis zaczyna się przy lewej krawędzi widocznej części nuty i musi się w niej zmieścić (zmniejszamy czcionkę albo pomijamy).
+        const labelX = Math.max(x, roll.x) + LABEL_PAD_PX;
+        const room = x + w - labelX - LABEL_PAD_PX;
+        const fontPx = fitLabelFontPx(note.pitch_name.length, room, labelFontPx);
+        if (fontPx !== null) {
+          if (fontPx !== currentFontPx) {
+            ctx.font = labelFont(fontPx);
+            currentFontPx = fontPx;
+          }
+          ctx.fillStyle = COLORS.noteLabel;
+          currentFill = '';
+          ctx.fillText(note.pitch_name, labelX, y + keyHeight / 2);
+        }
       }
     }
     ctx.globalAlpha = 1;

@@ -232,6 +232,21 @@ export function maxScrollRows(rollHeight: number, keyHeight: number, rows: numbe
   return Math.max(0, rows - rollHeight / keyHeight);
 }
 
+/** Szerokość znaku czcionki monospace względem jej rozmiaru (z zapasem dla zamienników `ui-monospace`). */
+const LABEL_CHAR_EM = 0.62;
+export const MIN_LABEL_FONT_PX = 8;
+
+/**
+ * Rozmiar czcionki podpisu, który mieści się w `room` px: `maxFontPx`, jeśli wystarcza miejsca, w przeciwnym razie
+ * pomniejszony (nie poniżej `MIN_LABEL_FONT_PX`); `null`, gdy nawet wtedy tekst się nie zmieści.
+ */
+export function fitLabelFontPx(chars: number, room: number, maxFontPx: number): number | null {
+  if (chars <= 0 || room <= 0) return null;
+  const fitting = Math.floor(room / (chars * LABEL_CHAR_EM));
+  const px = Math.min(maxFontPx, fitting);
+  return px >= MIN_LABEL_FONT_PX ? px : null;
+}
+
 export interface PitchSpan {
   lo: number;
   hi: number;

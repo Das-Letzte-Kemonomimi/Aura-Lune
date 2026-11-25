@@ -14,6 +14,8 @@ import {
   computePitchRange,
   followOriginMs,
   hiddenNotesBeyondView,
+  fitLabelFontPx,
+  MIN_LABEL_FONT_PX,
   clampRowHeight,
   resolveKeyHeight,
   ROW_HEIGHT_MAX,
@@ -339,5 +341,23 @@ describe('resolveKeyHeight', () => {
   it('clamps and rounds user input', () => {
     expect(clampRowHeight(2)).toBe(ROW_HEIGHT_MIN);
     expect(clampRowHeight(14.6)).toBe(15);
+  });
+});
+
+describe('fitLabelFontPx', () => {
+  it('keeps the full size when the label fits', () => {
+    expect(fitLabelFontPx(3, 80, 13)).toBe(13);
+  });
+
+  it('shrinks the font so a label fits a narrower note', () => {
+    const px = fitLabelFontPx(3, 20, 13) as number;
+    expect(px).toBeLessThan(13);
+    expect(px).toBeGreaterThanOrEqual(MIN_LABEL_FONT_PX);
+    expect(3 * px * 0.62).toBeLessThanOrEqual(20);
+  });
+
+  it('skips the label when even the smallest font would overflow', () => {
+    expect(fitLabelFontPx(3, 12, 13)).toBeNull();
+    expect(fitLabelFontPx(3, 0, 13)).toBeNull();
   });
 });
