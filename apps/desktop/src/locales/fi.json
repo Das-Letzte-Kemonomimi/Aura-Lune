@@ -156,7 +156,13 @@
     "currentChord": "Nykyinen sointu:",
     "recomputeChordsTooltip": "Laske soinnut uudelleen",
     "tapeDeckTitle": "STUDIONAUHURI",
-    "chordBarLabel": "Tahti {0}"
+    "chordBarLabel": "Tahti {0}",
+    "chordLegendMajor": "Duuri",
+    "chordLegendMinor": "Molli",
+    "chordLegendSeventh": "Septimi",
+    "chordLegendOther": "Muut",
+    "chordNext": "Seuraava",
+    "chordLowConfidence": "Matala varmuus ({0}%)"
   },
   "waveform": {
     "title": "Aaltomuoto",

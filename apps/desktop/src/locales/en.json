@@ -156,7 +156,13 @@
     "currentChord": "Current chord:",
     "recomputeChordsTooltip": "Recompute chords",
     "tapeDeckTitle": "STUDIO TAPE DECK",
-    "chordBarLabel": "Bar {0}"
+    "chordBarLabel": "Bar {0}",
+    "chordLegendMajor": "Major",
+    "chordLegendMinor": "Minor",
+    "chordLegendSeventh": "Seventh",
+    "chordLegendOther": "Other",
+    "chordNext": "Next",
+    "chordLowConfidence": "Low confidence ({0}%)"
   },
   "waveform": {
     "title": "Track Waveform",

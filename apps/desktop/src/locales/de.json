@@ -156,7 +156,13 @@
     "currentChord": "Aktueller Akkord:",
     "recomputeChordsTooltip": "Akkorde neu berechnen",
     "tapeDeckTitle": "STUDIO-TONBANDGERÄT",
-    "chordBarLabel": "Takt {0}"
+    "chordBarLabel": "Takt {0}",
+    "chordLegendMajor": "Dur",
+    "chordLegendMinor": "Moll",
+    "chordLegendSeventh": "Septakkord",
+    "chordLegendOther": "Andere",
+    "chordNext": "Nächster",
+    "chordLowConfidence": "Geringe Sicherheit ({0}%)"
   },
   "waveform": {
     "title": "Wellenform",

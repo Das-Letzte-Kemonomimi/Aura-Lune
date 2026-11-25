@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Music,
   RotateCcw,
   Download,
-  Edit3,
-  Check,
   X,
   Repeat,
   Sparkles,
@@ -13,6 +11,17 @@ import { invoke } from '../../api/ipc';
 import type { TrackChordsData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { fmt } from '../../utils/fmt';
+import {
+  chordTone,
+  findActiveCell,
+  findNextDistinctCell,
+  groupByBar,
+  mergeChordSegments,
+  type ChordCell,
+  TONE_COLORS,
+  type ChordTone,
+} from '../../utils/chordChart';
+import { ChordChart, ChordOverview } from './ChordChart';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -70,11 +79,10 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showTransposed, setShowTransposed] = useState<boolean>(true);
-  const [editingChordIdx, setEditingChordIdx] = useState<number | null>(null);
-  const [editChordValue, setEditChordValue] = useState<string>('');
+  const [editingCell, setEditingCell] = useState<ChordCell | null>(null);
+  const [editValue, setEditChordValue] = useState<string>('');
   const [exportFormat, setExportFormat] = useState<'chordpro' | 'text' | 'json'>('text');
   const [exportOutput, setExportOutput] = useState<string | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Pobranie danych lub analiza
   useEffect(() => {
@@ -136,40 +144,24 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
     }
   };
 
-  // Znajdź aktywny akord dla aktualnego czasu odtwarzania
-  const activeChord = useMemo(() => {
-    if (!data || !data.chords.length) return null;
-    return data.chords.find(
-      (c) => currentTimeMs >= c.start_ms && currentTimeMs < c.end_ms
-    );
-  }, [data, currentTimeMs]);
+  const cells = useMemo(() => mergeChordSegments(data?.chords ?? []), [data]);
+  const bars = useMemo(() => groupByBar(cells), [cells]);
+  const activeIdx = findActiveCell(cells, currentTimeMs);
+  const activeChord = activeIdx >= 0 ? cells[activeIdx] : null;
+  const nextChord = findNextDistinctCell(cells, activeIdx);
 
-  // Autoprzewijanie osi czasu za pozycją odtwarzania
-  useEffect(() => {
-    if (!activeChord || !scrollContainerRef.current) return;
-    const container = scrollContainerRef.current;
-    const activeEl = container.querySelector('.chord-active-block') as HTMLElement | null;
-    if (activeEl) {
-      const containerLeft = container.scrollLeft;
-      const containerWidth = container.clientWidth;
-      const elLeft = activeEl.offsetLeft;
-      const elWidth = activeEl.clientWidth;
+  const transposeBy = showTransposed ? Math.round(pitchSemitones) : 0;
+  const displayChord = (chord: string) => transposeChordName(chord, transposeBy);
 
-      if (elLeft < containerLeft || elLeft + elWidth > containerLeft + containerWidth) {
-        container.scrollTo({
-          left: elLeft - containerWidth / 2 + elWidth / 2,
-          behavior: 'smooth',
-        });
-      }
-    }
-  }, [activeChord]);
-
-  const handleSaveOverride = async (idx: number) => {
-    if (!data || !trackId) return;
-    const updated = [...data.chords];
-    updated[idx] = { ...updated[idx], chord: editChordValue };
+  const handleSaveOverride = async () => {
+    if (!data || !trackId || !editingCell) return;
+    const value = editValue.trim();
+    const cell = editingCell;
+    setEditingCell(null);
+    if (!value || value === cell.chord) return;
+    // Zmiana dotyczy wszystkich scalonych detekcji tego akordu w takcie.
+    const updated = data.chords.map((c, i) => (cell.idxs.includes(i) ? { ...c, chord: value } : c));
     setData({ ...data, chords: updated });
-    setEditingChordIdx(null);
 
     try {
       await invoke('save_chord_overrides', {
@@ -197,11 +189,15 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
     }
   };
 
-  const currentDisplayChord = activeChord
-    ? showTransposed && pitchSemitones !== 0
-      ? transposeChordName(activeChord.chord, Math.round(pitchSemitones))
-      : activeChord.chord
-    : '—';
+  const currentDisplayChord = activeChord ? displayChord(activeChord.chord) : '—';
+  const activeColor = TONE_COLORS[activeChord ? chordTone(activeChord.quality) : 'none'];
+
+  const legend: Array<[ChordTone, string]> = [
+    ['major', t.player.chordLegendMajor],
+    ['minor', t.player.chordLegendMinor],
+    ['seventh', t.player.chordLegendSeventh],
+    ['other', t.player.chordLegendOther],
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', width: '100%' }}>
@@ -320,7 +316,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         </div>
       </div>
 
-      {/* Duży wskaźnik aktualnego akordu (Hero Banner) */}
+      {/* Aktualny i następny akord */}
       <div
         style={{
           display: 'flex',
@@ -328,32 +324,55 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           justifyContent: 'space-between',
           padding: '16px 20px',
           borderRadius: '16px',
-          background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(168, 85, 247, 0.12))',
-          border: '1px solid rgba(244, 63, 94, 0.25)',
+          background: `linear-gradient(135deg, ${activeColor}1f, rgba(15, 20, 34, 0.4))`,
+          border: `1px solid ${activeColor}55`,
           flexWrap: 'wrap',
-          gap: '12px',
+          gap: '16px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px' }}>
-          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', fontWeight: 700 }}>
-            {t.player.currentChord}
-          </span>
-          <span
-            style={{
-              fontSize: '2.4rem',
-              fontWeight: 900,
-              color: '#f43f5e',
-              fontFamily: 'var(--font-mono)',
-              textShadow: '0 0 20px rgba(244, 63, 94, 0.5)',
-              lineHeight: 1,
-            }}
-          >
-            {currentDisplayChord}
-          </span>
-          {pitchSemitones !== 0 && showTransposed && activeChord && (
-            <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
-              ({t.player.transposedOrig.toLowerCase()} {activeChord.chord})
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
+              {t.player.currentChord}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+              <span
+                style={{
+                  fontSize: '3rem',
+                  fontWeight: 900,
+                  color: activeColor,
+                  fontFamily: 'var(--font-mono)',
+                  textShadow: `0 0 22px ${activeColor}80`,
+                  lineHeight: 1,
+                }}
+              >
+                {currentDisplayChord}
+              </span>
+              {transposeBy !== 0 && activeChord && (
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                  ({t.player.transposedOrig.toLowerCase()} {activeChord.chord})
+                </span>
+              )}
+            </div>
+          </div>
+
+          {nextChord && (
+            <div>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
+                {t.player.chordNext}
+              </div>
+              <span
+                style={{
+                  fontSize: '1.7rem',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  color: TONE_COLORS[chordTone(nextChord.quality)],
+                  opacity: 0.9,
+                }}
+              >
+                {displayChord(nextChord.chord)}
+              </span>
+            </div>
           )}
         </div>
 
@@ -366,9 +385,9 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               gap: '6px',
               padding: '8px 14px',
               borderRadius: '10px',
-              background: 'rgba(244, 63, 94, 0.18)',
-              border: '1px solid rgba(244, 63, 94, 0.4)',
-              color: '#fda4af',
+              background: 'rgba(255, 255, 255, 0.07)',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              color: '#e2e8f0',
               fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -380,8 +399,8 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         )}
       </div>
 
-      {/* Oś czasu (Timeline) */}
-      <div style={{ flex: 1, minHeight: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* Oś czasu: przegląd całego utworu + siatka taktów */}
+      <div style={{ flex: 1, minHeight: '220px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px', gap: '12px' }}>
             <Sparkles size={28} color="#f43f5e" style={{ animation: 'spin 1.5s linear infinite' }} />
@@ -402,133 +421,37 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           >
             {error}
           </div>
-        ) : data && data.chords.length > 0 ? (
-          <div
-            ref={scrollContainerRef}
-            style={{
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              paddingBottom: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '10px', minWidth: 'max-content', padding: '8px 4px' }}>
-              {data.chords.map((chordSeg, idx) => {
-                const isActive = currentTimeMs >= chordSeg.start_ms && currentTimeMs < chordSeg.end_ms;
-                const isMinor = chordSeg.quality.includes('min');
-                const is7th = chordSeg.quality.includes('7');
-                const displayLabel = showTransposed && pitchSemitones !== 0
-                  ? transposeChordName(chordSeg.chord, Math.round(pitchSemitones))
-                  : chordSeg.chord;
-
-                return (
-                  <div
-                    key={`${chordSeg.start_ms}-${idx}`}
-                    onClick={() => onSeek(chordSeg.start_ms)}
-                    className={isActive ? 'chord-active-block' : undefined}
-                    style={{
-                      position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      padding: '12px',
-                      borderRadius: '14px',
-                      cursor: 'pointer',
-                      minWidth: '110px',
-                      height: '115px',
-                      transition: 'all 0.18s ease',
-                      border: isActive
-                        ? '2px solid #f43f5e'
-                        : isMinor
-                        ? '1px solid rgba(168, 85, 247, 0.35)'
-                        : is7th
-                        ? '1px solid rgba(245, 158, 11, 0.35)'
-                        : '1px solid rgba(255, 255, 255, 0.1)',
-                      background: isActive
-                        ? 'rgba(244, 63, 94, 0.22)'
-                        : isMinor
-                        ? 'rgba(88, 28, 135, 0.25)'
-                        : is7th
-                        ? 'rgba(120, 53, 15, 0.25)'
-                        : 'rgba(255, 255, 255, 0.04)',
-                      boxShadow: isActive ? '0 0 20px rgba(244, 63, 94, 0.4)' : 'none',
-                      transform: isActive ? 'scale(1.04)' : 'scale(1)',
-                      zIndex: isActive ? 2 : 1,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8' }}>
-                      <span>{fmt(t.player.chordBarLabel, chordSeg.bar)}</span>
-                      <span>{(chordSeg.confidence * 100).toFixed(0)}%</span>
-                    </div>
-
-                    <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.25rem', color: '#f8fafc' }}>
-                      {editingChordIdx === idx ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="text"
-                            value={editChordValue}
-                            onChange={(e) => setEditChordValue(e.target.value)}
-                            style={{
-                              width: '56px',
-                              padding: '2px 4px',
-                              background: '#090a12',
-                              border: '1px solid #f43f5e',
-                              borderRadius: '6px',
-                              textAlign: 'center',
-                              fontSize: '0.78rem',
-                              color: '#ffffff',
-                              fontFamily: 'var(--font-mono)',
-                            }}
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => handleSaveOverride(idx)}
-                            style={{
-                              padding: '2px',
-                              background: 'none',
-                              border: 'none',
-                              color: '#34d399',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <Check size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span>{displayLabel}</span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8' }}>
-                      <span>
-                        {Math.floor(chordSeg.start_ms / 1000 / 60)}:
-                        {String(Math.floor((chordSeg.start_ms / 1000) % 60)).padStart(2, '0')}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingChordIdx(idx);
-                          setEditChordValue(chordSeg.chord);
-                        }}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '3px',
-                          color: '#cbd5e1',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
-                        title={t.common.edit}
-                      >
-                        <Edit3 size={11} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+        ) : cells.length > 0 ? (
+          <>
+            <ChordOverview cells={cells} currentTimeMs={currentTimeMs} onSeek={onSeek} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '0.72rem', color: '#94a3b8' }}>
+              {legend.map(([tone, label]) => (
+                <span key={tone} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: TONE_COLORS[tone] }} />
+                  {label}
+                </span>
+              ))}
             </div>
-          </div>
+            <ChordChart
+              bars={bars}
+              currentTimeMs={currentTimeMs}
+              displayChord={displayChord}
+              onSeek={onSeek}
+              canEdit={!!trackId}
+              editingCell={editingCell}
+              editValue={editValue}
+              onEditValueChange={setEditChordValue}
+              onStartEdit={(cell) => {
+                setEditingCell(cell);
+                setEditChordValue(cell.chord);
+              }}
+              onCommitEdit={handleSaveOverride}
+              onCancelEdit={() => setEditingCell(null)}
+              barLabel={(bar) => fmt(t.player.chordBarLabel, bar)}
+              lowConfidenceLabel={(pct) => fmt(t.player.chordLowConfidence, pct)}
+              editLabel={t.common.edit}
+            />
+          </>
         ) : (
           <div style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '0.85rem' }}>
             {t.analysis.noChordsDetected}

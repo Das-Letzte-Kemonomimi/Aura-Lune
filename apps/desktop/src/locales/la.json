@@ -156,7 +156,13 @@
     "currentChord": "Harmonia praesens:",
     "recomputeChordsTooltip": "Harmonias denuo computare",
     "tapeDeckTitle": "MAGNETOPHONUM STUDII",
-    "chordBarLabel": "Mensura {0}"
+    "chordBarLabel": "Mensura {0}",
+    "chordLegendMajor": "Maior",
+    "chordLegendMinor": "Minor",
+    "chordLegendSeventh": "Septimus",
+    "chordLegendOther": "Alia",
+    "chordNext": "Proximus",
+    "chordLowConfidence": "Fiducia parva ({0}%)"
   },
   "waveform": {
     "title": "Unda Cantus",

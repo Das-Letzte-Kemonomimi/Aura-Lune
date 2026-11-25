@@ -156,7 +156,13 @@
     "currentChord": "Aktualny akord:",
     "recomputeChordsTooltip": "Przelicz akordy ponownie",
     "tapeDeckTitle": "STUDYJNY MAGNETOFON SZPULOWY",
-    "chordBarLabel": "Takt {0}"
+    "chordBarLabel": "Takt {0}",
+    "chordLegendMajor": "Dur",
+    "chordLegendMinor": "Moll",
+    "chordLegendSeventh": "Septymowy",
+    "chordLegendOther": "Inne",
+    "chordNext": "Następny",
+    "chordLowConfidence": "Niska pewność ({0}%)"
   },
   "waveform": {
     "title": "Przebieg utworu",

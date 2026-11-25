@@ -110,6 +110,7 @@
 - **Tabela utworów**: kolumna `#` pokazuje numer pozycji w widoku (numer ścieżki z tagów jest w podpowiedzi), a ponowne kliknięcie nagłówka odwraca kolejność domyślną.
 
 #### Interfejs i ustawienia
+- **Przeprojektowana oś „Harmonia i akordy”** (Studio analizy muzyki): akordy ułożone w siatkę taktów zamiast długiego paska, powtórzenia scalone, pasek przeglądu całego utworu (klik = przewinięcie), kolory rodzin akordów z legendą, podgląd następnego akordu, wyciszone takty już zagrane, postęp w bieżącym akordzie, niska pewność oznaczona kropkowaną krawędzią, edycja akordu po najechaniu. Autoprzewijanie pauzuje po ręcznym przewinięciu.
 - **Asystent kolejki harmonicznej jest w pełni przetłumaczony**: etykiety dopasowania („Kontrastujący klucz”, „Dopasowanie harmoniczne”, half/double-time…), „MATCH”, „Off”, „Klucz ?/BPM ?”, podpowiedź synchronizacji tempa i „Smart Shuffle” (Infinity Queue) oraz „Takt N” na osi akordów w Studiu analizy muzyki korzystają teraz z tłumaczeń (en/pl/de/fi/la).
 - **`auralune --uninstall`** (oraz `auralune-dev --uninstall`): zainstalowany launcher potrafi sam odinstalować aplikację (AppImage, wpis w menu, ikony); biblioteka i ustawienia pozostają.
 - **Efekty Ambience są ostre**: canvas był rysowany w połowie rozdzielczości i rozciągany (piksele, artefakty); teraz bufor odpowiada rozdzielczości ekranu (HiDPI), a proporcje nie są już zniekształcane przez minimalny rozmiar 320×240.
