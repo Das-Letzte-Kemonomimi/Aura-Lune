@@ -152,6 +152,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 key={tab.id}
                 onClick={() => onSelectTab(tab.id)}
                 style={{
+                  position: 'relative',
                   padding: '8px 14px',
                   borderRadius: '8px',
                   background: isActive ? 'var(--accent-purple)' : 'transparent',
@@ -172,7 +173,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span
                     data-testid="updates-tab-pill"
                     style={{
-                      fontSize: '0.6rem',
+                      // Na krawędzi przycisku, nad nim — zakładka nie robi się szersza.
+                      position: 'absolute',
+                      top: '-7px',
+                      right: '-4px',
+                      fontSize: '0.55rem',
                       fontWeight: 800,
                       lineHeight: 1,
                       padding: '2px 6px',
@@ -180,6 +185,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       background: '#22c55e',
                       color: '#04210f',
                       textTransform: 'uppercase',
+                      boxShadow: '0 0 0 2px var(--bg-deep)',
+                      pointerEvents: 'none',
                     }}
                   >
                     {loc.updates.badge}
