@@ -65,6 +65,8 @@ export interface PianoRollCanvasProps {
   fallbackPositionMs: number;
   pxPerSec: number;
   mode: PianoRollViewMode;
+  /** Podpisy nut (np. D2, C4) wewnątrz prostokątów, o ile nuta jest dość szeroka. */
+  showLabels: boolean;
   onViewChange: (change: { pxPerSec?: number; mode?: PianoRollViewMode }) => void;
   onSeek: (positionMs: number) => void;
   labels: PianoRollTooltipLabels;
@@ -74,7 +76,9 @@ export interface PianoRollCanvasProps {
 /** Przesunięcie kursora (px) powyżej którego kliknięcie staje się przeciąganiem (panoramowaniem). */
 const DRAG_THRESHOLD_PX = 4;
 const NOTE_MIN_WIDTH = 3;
-const NOTE_LABEL_MIN_WIDTH = 28;
+const NOTE_LABEL_MIN_WIDTH = 24;
+/** Poniżej tej wysokości wiersza podpis byłby nieczytelny. */
+const MIN_LABEL_KEY_HEIGHT = 8;
 /** Różnica pozycji (ms), poniżej której uznajemy głowicę za ustaloną i usypiamy pętlę. */
 const SETTLED_EPSILON_MS = 0.5;
 
@@ -205,7 +209,9 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.beginPath();
     ctx.rect(roll.x, roll.y, roll.w, roll.h);
     ctx.clip();
-    ctx.font = FONT_MONO;
+    const labelFontPx = clamp(keyHeight - 3, 7, 10);
+    const drawLabels = p.showLabels && keyHeight >= MIN_LABEL_KEY_HEIGHT;
+    ctx.font = `${labelFontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.textBaseline = 'middle';
     const active = activePitchesRef.current;
     active.length = 0;
@@ -238,7 +244,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.lineWidth = 1;
         ctx.stroke();
       }
-      if (w >= NOTE_LABEL_MIN_WIDTH && keyHeight >= 12) {
+      if (drawLabels && w >= NOTE_LABEL_MIN_WIDTH) {
         ctx.fillStyle = COLORS.noteLabel;
         currentFill = COLORS.noteLabel;
         ctx.fillText(note.pitch_name, x + 4, y + keyHeight / 2);

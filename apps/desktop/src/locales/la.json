@@ -1928,6 +1928,8 @@
     "noteStart": "initium",
     "noteLength": "longitudo",
     "noteVelocity": "vis",
+    "noteLabels": "Tituli",
+    "noteLabelsTooltip": "Nomina notarum in notis ostende (e.g. D2, C4)",
     "noChordsDetected": "Nulli accordus in hoc cantu inventi sunt.",
     "exportChordsTitle": "Exportatio accordorum ({0})"
   }

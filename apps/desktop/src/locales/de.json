@@ -1928,6 +1928,8 @@
     "noteStart": "Start",
     "noteLength": "Länge",
     "noteVelocity": "Velocity",
+    "noteLabels": "Beschriftung",
+    "noteLabelsTooltip": "Notennamen auf den Noten anzeigen (z. B. D2, C4)",
     "noChordsDetected": "Für diesen Titel wurden keine Akkorde erkannt.",
     "exportChordsTitle": "Akkord-Export ({0})"
   }

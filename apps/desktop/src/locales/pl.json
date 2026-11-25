@@ -1928,6 +1928,8 @@
     "noteStart": "start",
     "noteLength": "długość",
     "noteVelocity": "głośność",
+    "noteLabels": "Podpisy",
+    "noteLabelsTooltip": "Pokaż nazwy nut na nutach (np. D2, C4)",
     "noChordsDetected": "Brak wykrytych akordów dla tego utworu.",
     "exportChordsTitle": "Eksport akordów ({0})"
   }

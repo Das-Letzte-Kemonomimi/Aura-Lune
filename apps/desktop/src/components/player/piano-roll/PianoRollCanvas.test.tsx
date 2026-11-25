@@ -31,6 +31,7 @@ function baseProps(overrides: Partial<PianoRollCanvasProps> = {}): PianoRollCanv
     fallbackPositionMs: 0,
     pxPerSec: 100,
     mode: 'follow',
+    showLabels: true,
     onViewChange: vi.fn(),
     onSeek: vi.fn(),
     labels: { start: 'start', length: 'length', velocity: 'velocity' },

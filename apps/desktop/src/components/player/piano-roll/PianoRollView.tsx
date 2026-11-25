@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Crosshair, Download, Piano, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { errorMessage, invoke } from '../../../api/ipc';
 import type { TrackTranscriptionData } from '../../../types/analysis';
 import { getTranslations, type Language } from '../../../i18n';
 import { fmt } from '../../../utils/fmt';
+import { usePersistedState } from '../../../hooks/usePersistedState';
 import { PianoRollCanvas, type PianoRollViewMode } from './PianoRollCanvas';
 import { DEFAULT_PX_PER_SEC, MAX_PX_PER_SEC, MIN_PX_PER_SEC, buildNoteIndex, clamp } from './pianoRollModel';
 
@@ -61,6 +62,9 @@ export const PianoRollView = React.memo(function PianoRollView({
   const [exportError, setExportError] = useState<string | null>(null);
   const [pxPerSec, setPxPerSec] = useState(DEFAULT_PX_PER_SEC);
   const [mode, setMode] = useState<PianoRollViewMode>('follow');
+  const [showLabels, setShowLabels] = usePersistedState('auralune_piano_roll_labels', true, {
+    parse: (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined),
+  });
 
   useEffect(() => {
     if (!trackId && !trackPath) return;
@@ -196,6 +200,29 @@ export const PianoRollView = React.memo(function PianoRollView({
           >
             <Crosshair size={14} />
             <span>{t.analysis.followMode}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowLabels((v) => !v)}
+            aria-pressed={showLabels}
+            title={t.analysis.noteLabelsTooltip}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              color: showLabels ? '#c084fc' : '#94a3b8',
+              background: showLabels ? 'rgba(192, 132, 252, 0.16)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${showLabels ? 'rgba(192, 132, 252, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
+            }}
+          >
+            <Type size={14} />
+            <span>{t.analysis.noteLabels}</span>
           </button>
 
           <div
@@ -338,6 +365,7 @@ export const PianoRollView = React.memo(function PianoRollView({
             fallbackPositionMs={currentTimeMs}
             pxPerSec={pxPerSec}
             mode={mode}
+            showLabels={showLabels}
             onViewChange={onViewChange}
             onSeek={onSeek}
             labels={labels}

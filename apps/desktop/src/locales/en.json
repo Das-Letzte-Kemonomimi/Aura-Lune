@@ -1928,6 +1928,8 @@
     "noteStart": "start",
     "noteLength": "length",
     "noteVelocity": "velocity",
+    "noteLabels": "Labels",
+    "noteLabelsTooltip": "Show note names on the notes (e.g. D2, C4)",
     "noChordsDetected": "No chords detected for this track.",
     "exportChordsTitle": "Chord export ({0})"
   }

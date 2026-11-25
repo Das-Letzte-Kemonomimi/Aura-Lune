@@ -1928,6 +1928,8 @@
     "noteStart": "alku",
     "noteLength": "kesto",
     "noteVelocity": "voimakkuus",
+    "noteLabels": "Nimet",
+    "noteLabelsTooltip": "Näytä nuottien nimet nuoteissa (esim. D2, C4)",
     "noChordsDetected": "Tälle kappaleelle ei havaittu sointuja.",
     "exportChordsTitle": "Sointujen vienti ({0})"
   }
