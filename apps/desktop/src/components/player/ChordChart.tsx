@@ -303,13 +303,24 @@ export interface ChordOverviewProps {
   cells: ChordCell[];
   currentTimeMs: number;
   onSeek: (positionMs: number) => void;
+  /** Track length; when known the strip spans the whole song (gaps before/after the chords stay empty). */
+  durationMs?: number;
 }
 
 /** Thin whole-song strip: colour per chord family, playhead, click to seek. */
-export const ChordOverview: React.FC<ChordOverviewProps> = ({ cells, currentTimeMs, onSeek }) => {
+export const ChordOverview: React.FC<ChordOverviewProps> = ({
+  cells,
+  currentTimeMs,
+  onSeek,
+  durationMs,
+}) => {
   if (cells.length === 0) return null;
-  const start = cells[0].start_ms;
-  const total = Math.max(1, cells[cells.length - 1].end_ms - start);
+  const lastEnd = cells[cells.length - 1].end_ms;
+  const spansTrack = !!durationMs && durationMs > 0;
+  const start = spansTrack ? 0 : cells[0].start_ms;
+  const total = Math.max(1, (spansTrack ? Math.max(durationMs, lastEnd) : lastEnd) - start);
+  const leadMs = cells[0].start_ms - start;
+  const tailMs = start + total - lastEnd;
   const playhead = Math.min(100, Math.max(0, ((currentTimeMs - start) / total) * 100));
   return (
     <div
@@ -328,6 +339,7 @@ export const ChordOverview: React.FC<ChordOverviewProps> = ({ cells, currentTime
         background: 'rgba(255, 255, 255, 0.04)',
       }}
     >
+      {leadMs > 0 && <div style={{ flex: `${leadMs} 0 0` }} />}
       {cells.map((cell) => (
         <div
           key={cell.start_ms}
@@ -339,6 +351,7 @@ export const ChordOverview: React.FC<ChordOverviewProps> = ({ cells, currentTime
           }}
         />
       ))}
+      {tailMs > 0 && <div style={{ flex: `${tailMs} 0 0` }} />}
       <div
         style={{
           position: 'absolute',

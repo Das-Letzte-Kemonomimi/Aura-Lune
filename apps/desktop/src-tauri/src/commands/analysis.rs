@@ -5,7 +5,8 @@ use crate::AppState;
 use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_transcription, export_chords_to_chordpro,
     export_chords_to_json, export_chords_to_text, export_transcription_to_midi,
-    get_analysis_capabilities as engine_get_analysis_capabilities, TrackKeyBpm,
+    get_analysis_capabilities as engine_get_analysis_capabilities, parse_chord_symbol, TrackKeyBpm,
+    CHORD_ANALYZER_VERSION,
 };
 use domain::analysis::{
     AnalysisCapabilities, ChordSegment, TrackChordsData, TrackTranscriptionData,
@@ -87,8 +88,13 @@ pub async fn get_analysis_capabilities() -> Result<AnalysisCapabilities, Command
 /// Nakłada ręczne poprawki akordów (dopasowane po `start_ms`) na wynik analizy.
 fn apply_chord_overrides(chords: &mut [ChordSegment], overrides: &[ChordSegment]) {
     for ov in overrides {
+        let (root, quality) = parse_chord_symbol(&ov.chord);
         for ch in chords.iter_mut().filter(|ch| ch.start_ms == ov.start_ms) {
             ch.chord = ov.chord.clone();
+            ch.quality = quality.to_string();
+            if quality != "N" {
+                ch.root_note = root.clone();
+            }
         }
     }
 }
@@ -148,7 +154,7 @@ pub async fn detect_track_chords(
     let recompute = force_recompute.unwrap_or(false);
 
     if let (false, Some(id)) = (recompute, track_id) {
-        if let Ok(Some(cached)) = state.db.get_track_chords(id).await {
+        if let Ok(Some(cached)) = state.db.get_track_chords(id, CHORD_ANALYZER_VERSION).await {
             if let Some(data) = chords_from_cache(&state, id, cached).await {
                 return Ok(data);
             }
@@ -189,7 +195,10 @@ pub async fn get_cached_chords(
     track_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<TrackChordsData>, CommandError> {
-    let cached = state.db.get_track_chords(track_id).await?;
+    let cached = state
+        .db
+        .get_track_chords(track_id, CHORD_ANALYZER_VERSION)
+        .await?;
     match cached {
         Some(cached) => Ok(chords_from_cache(&state, track_id, cached).await),
         None => Ok(None),

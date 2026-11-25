@@ -13,6 +13,11 @@ impl Database {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM track_chords WHERE track_id = ?1;")
+            .bind(entry.track_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query(
             r#"
             INSERT INTO track_chords (track_id, file_hash, analyzer_version, beat_grid_json, chords_json,
@@ -29,40 +34,48 @@ impl Database {
         .bind(entry.bpm)
         .bind(entry.musical_key)
         .bind(entry.camelot)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(())
     }
 
-    /// Pobiera najnowsze zapisane dane akordów i siatki taktów dla danego utworu.
+    /// Pobiera zapisane dane akordów i siatki taktów dla danego utworu, o ile pochodzą z podanej
+    /// wersji analizatora (wpis innej wersji jest traktowany jak brak).
     pub async fn get_track_chords(
         &self,
         track_id: i64,
+        analyzer_version: &str,
     ) -> Result<Option<CachedTrackChords>, StorageError> {
         let row = sqlx::query_as::<_, CachedTrackChords>(
             r#"
             SELECT file_hash, analyzer_version, beat_grid_json, chords_json, user_overrides_json,
                    bpm, musical_key, camelot
-            FROM track_chords WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;
+            FROM track_chords WHERE track_id = ?1 AND analyzer_version = ?2
+            ORDER BY id DESC LIMIT 1;
             "#,
         )
         .bind(track_id)
+        .bind(analyzer_version)
         .fetch_optional(&self.pool)
         .await?;
         Ok(row)
     }
 
-    /// Zapisuje ręczne poprawki akordów wprowadzone przez użytkowniczkę.
+    /// Zapisuje ręczne poprawki akordów wprowadzone przez użytkowniczkę (do najnowszego wpisu).
     pub async fn save_chord_overrides(
         &self,
         track_id: i64,
         overrides_json: &str,
     ) -> Result<(), StorageError> {
-        sqlx::query("UPDATE track_chords SET user_overrides_json = ?1 WHERE track_id = ?2;")
-            .bind(overrides_json)
-            .bind(track_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE track_chords SET user_overrides_json = ?1 \
+             WHERE id = (SELECT MAX(id) FROM track_chords WHERE track_id = ?2);",
+        )
+        .bind(overrides_json)
+        .bind(track_id)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 

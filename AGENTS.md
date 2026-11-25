@@ -212,7 +212,7 @@ Aura-Lune/
   - `dsp_node.rs`: Custom `auralune_dsp` element switching Bypass / RubberBand / SoundTouch. **Real-time model:** bypass is lock-free (atomic engine flag, bit-perfect passthrough); processing holds the state lock only for one buffer; `prepare()` for new formats/block sizes runs outside the lock and the processors are swapped in; output blocks are collected on the stack (no per-buffer heap allocation); format comes from the Caps event only.
   - `rt.rs`: Streaming-thread helpers — alignment-checked `f32` views of buffer bytes (`f32_samples`, `map_f32_samples_in_place`, `map_stereo_frames_in_place`, `extend_f32_samples`) with copy fallback, and `RateLimiter` for hot-path logging. Never cast buffer bytes with `slice::from_raw_parts`.
   - `spectrum.rs`: Pure spectrum math (dB normalisation, 64 → 16 perceptual bands, stereo assembly).
-  - `analysis/`: `mod.rs` (Camelot/Krumhansl tables, `TrackKeyBpm`), `decode.rs` (`DecodeSession` — the only appsink decoder: timed pulls, bus error check, `Null` on drop; `decode_snippet_for_analysis`, `decode_stereo_for_stems`), `key_bpm.rs`, `chords.rs`, `transcription.rs`, `replaygain.rs`, `waveform.rs` (streaming `WaveformAccumulator`, 256-sample blocks — never buffer a whole track), `silence.rs`.
+  - `analysis/`: `mod.rs` (Camelot/Krumhansl tables, `TrackKeyBpm`), `decode.rs` (`DecodeSession` — the only appsink decoder: timed pulls, bus error check, `Null` on drop; `decode_snippet_for_analysis` — timeout `max(6 s, max/10)`, partial result logs a warning; `decode_complete_for_analysis` — timeout after partial audio is an error, used for cached chord analysis; `decode_stereo_for_stems`), `key_bpm.rs` (incl. `read_bpm_tag`), `chroma.rs` (windowed FFT → spectral peaks with parabolic interpolation, global tuning estimate, log compression, bass/harmonic attenuation; per-beat **median** chroma), `beat_grid.rs` (`f64` beat period, onset-histogram phase, downbeat pick, per-bar phase snapping), `chords.rs` (templates with `prior`, cosine emissions → softmax, log-domain Viterbi with normalised transitions, segments split per bar, `CHORD_ANALYZER_VERSION`, `parse_chord_symbol`; tunables are named `const`s), `transcription.rs`, `replaygain.rs`, `waveform.rs` (streaming `WaveformAccumulator`, 256-sample blocks — never buffer a whole track), `silence.rs`.
   - `metadata_editor.rs`: Full tag reading and writing using `lofty`.
   - `model_manager.rs`: AI model catalog and SHA-256 verification.
   - `device.rs`: `DeviceManager` with PipeWire/ALSA card parsing.
@@ -231,7 +231,7 @@ Aura-Lune/
   - [`src/settings.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/settings.rs): Key-value app settings, DSP presets, custom theme storage.
   - [`src/playlists.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/playlists.rs): Playlists CRUD, track ordering, and playback queue persistence (`PlaybackQueue`).
   - [`src/stats.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/stats.rs): Favorites, ratings, playback history, Recap summaries, and smart playlist queries.
-  - [`src/analysis.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/analysis.rs): Musical analysis cache (chords, beat grid, notes, waveform peaks) and AI model registry.
+  - [`src/analysis.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/analysis.rs): Musical analysis cache (chords, beat grid, notes, waveform peaks) and AI model registry. `get_track_chords(track_id, analyzer_version)` ignores rows of any other version (stale cache = miss → recompute); `save_track_chords` keeps exactly one row per track; `save_chord_overrides` updates the newest row only.
   - [`src/stems.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/stems.rs): Stem tracks and multitrack project storage.
   - [`src/lib.rs`](file:///home/kamu/Projects/Aura-Lune/crates/storage/src/lib.rs): Slim facade (74 lines) exposing `Database`.
 - **Tests**: Fully separated in `crates/storage/tests/` (`database_crud_test.rs`, `bookmarks_and_cues_test.rs`, `settings_and_dsp_presets_test.rs`, `waveforms_and_transcription_test.rs`, `stem_projects_multitrack_test.rs`, `smart_playlists_and_stats_test.rs`, `playlist_and_queue_persistence_test.rs`, `schema_migrations_test.rs`).
@@ -422,6 +422,7 @@ Builders merge domain-hook results ("managers") with values from `App`. Managers
 - `player.ts`: `DspEngineType`, `DEFAULT_PLAYBACK_STATUS`; re-exports `TrackRecord`/`AlbumRecord` (from `library.ts`), `PlaybackStatus`/`DspCapabilities` (from `playback.ts`) and `AudioCard` (from `audioDevices.ts`). Define each backend contract **once**, in its domain module.
 - `navigation.ts`: `MainTabType` (routed views), `SettingsRedirectTab`, `AppTab`, `SettingsTab`, `isMainTab()`.
 - `analysis.ts`: `TrackKeyBpm`, `ChordSegment`, `AiModelInfo`.
+- `utils/chordChart.ts`: `groupByBar(cells, bpm)` also splits any cell longer than one bar (legacy data) using `60000/bpm*4`; `ChordOverview` takes `durationMs` to span the whole track.
 
 ### DSP & Audio Math Utilities (`src/utils`)
 - `parametricEqMath.ts`: Biquad filter transfer functions, frequency response curves, safe preamp calculations.

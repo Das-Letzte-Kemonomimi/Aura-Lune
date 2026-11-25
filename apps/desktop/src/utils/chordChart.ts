@@ -63,9 +63,31 @@ export function mergeChordSegments(chords: ChordSegment[]): ChordCell[] {
   return cells;
 }
 
-export function groupByBar(cells: ChordCell[]): ChordBar[] {
+/** Length of one 4/4 bar in ms for a tempo; 0 when the tempo is unknown. */
+function barLengthMs(bpm?: number): number {
+  return bpm && bpm > 0 ? (60000 / bpm) * 4 : 0;
+}
+
+/**
+ * Splits a cell spanning several bars into one cell per bar (legacy or hand-edited data can carry
+ * a single long run). Split cells share `idxs`, so an edit still reaches every original detection.
+ */
+function splitCellByBar(cell: ChordCell, barMs: number): ChordCell[] {
+  const count = barMs > 0 ? Math.round((cell.end_ms - cell.start_ms) / barMs) : 1;
+  if (count <= 1) return [cell];
+  const parts: ChordCell[] = [];
+  for (let k = 0; k < count; k++) {
+    const start = Math.round(cell.start_ms + k * barMs);
+    const end = k === count - 1 ? cell.end_ms : Math.round(cell.start_ms + (k + 1) * barMs);
+    parts.push({ ...cell, start_ms: start, end_ms: end, bar: cell.bar + k });
+  }
+  return parts;
+}
+
+export function groupByBar(cells: ChordCell[], bpm?: number): ChordBar[] {
+  const barMs = barLengthMs(bpm);
   const bars: ChordBar[] = [];
-  for (const cell of cells) {
+  for (const cell of cells.flatMap((c) => splitCellByBar(c, barMs))) {
     const last = bars[bars.length - 1];
     if (last && last.bar === cell.bar) {
       last.cells.push(cell);

@@ -56,6 +56,13 @@
 - **Romaji w tekstach piosenek**: katakana w półszerokiej formie (ｱｲｳ, ｶﾞ) oraz rzadkie znaki kana (ヶ, ヵ, ヰ, ヱ, ヴ-warianty, ㇰ…) są teraz transliterowane zamiast pozostawać jako znaki.
 - **Biblioteka**: przyciski akcji w wierszu utworu układają się w siatkę 5×2, dzięki czemu żadna ikona nie jest ucięta.
 
+#### Analiza muzyczna (akordy i harmonia)
+- **Rozpoznawanie akordów od nowa** (`2.0.0-chroma-hmm`): chromagram z okienkowanego FFT (szczyty widma, interpolacja paraboliczna, automatyczna korekta strojenia, kompresja logarytmiczna, tłumienie basu i alikwotów, mediana na uderzenie), podobieństwo cosinusowe do szablonów (trójdźwięki wygrywają z septymami, dopóki septyma nie jest wyraźnie słyszalna) oraz Viterbi ze znormalizowanymi przejściami — akord zmienia się po 1–2 uderzeniach wyraźnych dowodów, a nie co ~20 uderzeń. Stałe algorytmu są nazwanymi `const`.
+- **Karta dla każdego taktu**: każdy segment akordu mieści się w jednym takcie i niesie jego prawdziwy numer; ostatni segment sięga końca audio. Widok akordów dodatkowo dzieli starsze, wielotaktowe wpisy po tempie, a przegląd całego utworu skaluje się do długości utworu.
+- **Pamięć podręczna akordów sprawdza wersję analizatora**: wpis ze starszej wersji jest traktowany jak brak i przeliczany automatycznie; zapis zostawia jeden wiersz na utwór, a ręczne poprawki trafiają do najnowszego wiersza i odświeżają jakość akordu.
+- **Siatka uderzeń**: okres uderzenia liczony w `f64` (bez dryfu przez zaokrąglanie), faza z histogramu onsetów, wykrywanie pierwszego uderzenia taktu i lokalna korekta fazy każdego taktu; tempo z tagu pliku ma pierwszeństwo.
+- **Dekodowanie do analizy akordów**: cały utwór (do 15 min) zamiast 360 s, limit czasu rośnie z długością (`max(6 s, czas/10)`), a przekroczenie limitu jest błędem — niepełny wynik nie trafia już do pamięci podręcznej.
+
 #### Odtwarzanie i kolejka
 - **Otwarcie projektu stemów nie psuje kolejki**: wpis kolejki był podmieniany (inne `id`), a kursor tasowania nie podążał za utworem, więc następny utwór pomijał bieżący i wypadał losowo. `PlaybackQueue::set_active_item` zachowuje wpis i synchronizuje kursor tasowania.
 - **Głośność nie wraca do poprzedniej wartości**, gdy zmiana trafiła na moment zajętości silnika (np. ładowanie utworu).

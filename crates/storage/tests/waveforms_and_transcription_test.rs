@@ -56,7 +56,11 @@ async fn test_track_chords_and_overrides() {
     .await
     .unwrap();
 
-    let cached = db.get_track_chords(track_id).await.unwrap().unwrap();
+    let cached = db
+        .get_track_chords(track_id, "1.0.0")
+        .await
+        .unwrap()
+        .unwrap();
     assert!(cached.beat_grid_json.contains("beat_number"));
     assert!(cached.chords_json.contains("\"chord\":\"C\""));
     assert!(cached.user_overrides_json.is_none());
@@ -72,11 +76,69 @@ async fn test_track_chords_and_overrides() {
     )
     .await
     .unwrap();
-    let chords2 = db.get_track_chords(track_id).await.unwrap().unwrap();
+    let chords2 = db
+        .get_track_chords(track_id, "1.0.0")
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
         chords2.user_overrides_json,
         Some(r#"[{"start_ms":0,"end_ms":2000,"chord":"Cmaj7"}]"#.to_string())
     );
+}
+
+#[tokio::test]
+async fn test_track_chords_ignore_stale_version_and_keep_one_row() {
+    let db = setup_test_db().await;
+    let track = make_dummy_track("/music/stale_chords.flac", "Stale", "Artist");
+    let track_id = db.upsert_track(&track).await.unwrap();
+    let save = |version: &str, chords: &str| {
+        let db = db.clone();
+        let version = version.to_string();
+        let chords = chords.to_string();
+        async move {
+            db.save_track_chords(&storage::NewTrackChords {
+                track_id,
+                file_hash: "h",
+                analyzer_version: &version,
+                beat_grid_json: "[]",
+                chords_json: &chords,
+                bpm: None,
+                musical_key: None,
+                camelot: None,
+            })
+            .await
+            .unwrap();
+        }
+    };
+
+    save("1.0.0", r#"[{"chord":"old"}]"#).await;
+    assert!(db
+        .get_track_chords(track_id, "2.0.0")
+        .await
+        .unwrap()
+        .is_none());
+
+    save("2.0.0", r#"[{"chord":"new"}]"#).await;
+    assert!(db
+        .get_track_chords(track_id, "1.0.0")
+        .await
+        .unwrap()
+        .is_none());
+    let current = db
+        .get_track_chords(track_id, "2.0.0")
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(current.chords_json.contains("new"));
+
+    db.save_chord_overrides(track_id, "[]").await.unwrap();
+    let again = db
+        .get_track_chords(track_id, "2.0.0")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(again.user_overrides_json.as_deref(), Some("[]"));
 }
 
 #[tokio::test]

@@ -254,6 +254,22 @@ fn pearson_correlation(x: &[f64; 12], y: &[f64; 12]) -> f64 {
     }
 }
 
+/// Odczytuje wiarygodne tempo (40–280 BPM) z tagów pliku lokalnego.
+pub fn read_bpm_tag(uri_or_path: &str) -> Option<f64> {
+    let local = crate::uri::local_path(uri_or_path);
+    let tagged = lofty::probe::Probe::open(local.as_path())
+        .ok()?
+        .read()
+        .ok()?;
+    let tag = tagged.primary_tag().or_else(|| tagged.first_tag())?;
+    let bpm: f64 = tag
+        .get_string(lofty::tag::ItemKey::Bpm)?
+        .trim()
+        .parse()
+        .ok()?;
+    (40.0..=280.0).contains(&bpm).then_some(bpm)
+}
+
 /// Główna funkcja analityczna: bada plik i zwraca kompleksowy wynik BPM oraz tonacji.
 pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisError> {
     // 1. Próba odczytu tagów z pliku za pomocą lofty (jeśli to plik lokalny)

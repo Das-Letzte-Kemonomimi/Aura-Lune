@@ -73,3 +73,24 @@ describe('chordChart', () => {
     ]);
   });
 });
+
+describe('groupByBar with long cells', () => {
+  it('splits a run spanning many bars into one bar per cell', () => {
+    const barMs = (60000 / 120) * 4;
+    const long = [seg('Dm7', 'min7', 34000, 34000 + 111 * barMs, 17)];
+    const bars = groupByBar(mergeChordSegments(long), 120);
+    expect(bars).toHaveLength(111);
+    expect(bars[0].bar).toBe(17);
+    expect(bars[110].bar).toBe(127);
+    expect(bars[110].end_ms).toBe(34000 + 111 * barMs);
+    expect(bars.every((b) => b.cells.length === 1 && b.end_ms > b.start_ms)).toBe(true);
+  });
+
+  it('leaves one-bar cells alone and ignores an unknown tempo', () => {
+    const cells = mergeChordSegments([seg('C', 'maj', 0, 2000, 1), seg('G', 'maj', 2000, 4000, 2)]);
+    expect(groupByBar(cells, 120).map((b) => b.bar)).toEqual([1, 2]);
+    const long = mergeChordSegments([seg('C', 'maj', 0, 20000, 1)]);
+    expect(groupByBar(long)).toHaveLength(1);
+    expect(groupByBar(long, 0)).toHaveLength(1);
+  });
+});

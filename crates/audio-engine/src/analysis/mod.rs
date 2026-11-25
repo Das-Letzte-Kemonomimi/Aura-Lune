@@ -6,7 +6,9 @@
 //! 2. Algorytm autokorelacji obwiedni transjentów energii (onset detection) do wykrywania BPM.
 //! 3. Opcjonalne odczytywanie metadanych tagów ID3/Vorbis (BPM, TKEY/INITIALKEY) jeśli są dostępne.
 
+mod beat_grid;
 mod chords;
+mod chroma;
 mod decode;
 mod key_bpm;
 mod replaygain;

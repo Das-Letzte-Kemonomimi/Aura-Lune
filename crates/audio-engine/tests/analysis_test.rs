@@ -730,3 +730,214 @@ fn test_extract_track_waveform_peaks() {
         "Wykres fali powinien odzwierciedlać dynamikę utworu"
     );
 }
+
+/// Trójdźwięk z kilkoma alikwotami (basowa pryma o oktawę niżej), `cents` odstrojenia.
+fn synth_triad(
+    root_midi: f64,
+    intervals: [f64; 3],
+    seconds: f64,
+    cents: f64,
+    sample_rate: f64,
+) -> Vec<f32> {
+    let n = (seconds * sample_rate) as usize;
+    let mut out = vec![0.0f32; n];
+    let freq = |midi: f64| 440.0 * 2.0f64.powf((midi - 69.0 + cents / 100.0) / 12.0);
+    let mut notes: Vec<f64> = intervals.iter().map(|i| root_midi + i).collect();
+    notes.push(root_midi - 12.0);
+    for midi in notes {
+        let f = freq(midi);
+        for (h, amp) in [(1.0, 1.0), (2.0, 0.5), (3.0, 0.33), (4.0, 0.25)] {
+            for (i, s) in out.iter_mut().enumerate() {
+                let t = i as f64 / sample_rate;
+                *s += (amp * 0.15 * (2.0 * PI * f * h * t).sin()) as f32;
+            }
+        }
+    }
+    out
+}
+
+/// Siatka 4/4 co `beat_ms` od zera.
+fn fixed_grid(beats: usize, beat_ms: u64) -> Vec<domain::analysis::BeatPoint> {
+    (0..beats)
+        .map(|i| domain::analysis::BeatPoint {
+            time_ms: i as u64 * beat_ms,
+            beat_number: (i % 4) as u32 + 1,
+            is_downbeat: i % 4 == 0,
+        })
+        .collect()
+}
+
+const MAJOR: [f64; 3] = [0.0, 4.0, 7.0];
+const MINOR: [f64; 3] = [0.0, 3.0, 7.0];
+
+fn progression_audio(cents: f64, sample_rate: f64) -> Vec<f32> {
+    // C – G – Am – F, po 2 takty (4 s przy 120 BPM) na akord.
+    let mut audio = Vec::new();
+    for (root, intervals) in [(60.0, MAJOR), (55.0, MAJOR), (57.0, MINOR), (53.0, MAJOR)] {
+        audio.extend(synth_triad(root, intervals, 4.0, cents, sample_rate));
+    }
+    audio
+}
+
+#[test]
+fn test_chord_progression_c_g_am_f_detected_per_bar() {
+    use audio_engine::analysis::detect_chords_with_grid;
+    let sample_rate = 22050.0;
+    let audio = progression_audio(0.0, sample_rate);
+    let grid = fixed_grid(32, 500);
+    let chords = detect_chords_with_grid(&audio, sample_rate, &grid, Some(0), Some(false));
+
+    for seg in &chords {
+        assert!(
+            seg.end_ms - seg.start_ms <= 2000,
+            "Segment {seg:?} przekracza jeden takt"
+        );
+    }
+    let expected = ["C", "C", "G", "G", "Am", "Am", "F", "F"];
+    let mut correct = 0;
+    for (bar0, want) in expected.iter().enumerate() {
+        let bar = bar0 as u32 + 1;
+        let in_bar: Vec<_> = chords.iter().filter(|c| c.bar == bar).collect();
+        assert!(!in_bar.is_empty(), "Brak segmentu dla taktu {bar}");
+        let best = in_bar.iter().max_by_key(|c| c.end_ms - c.start_ms).unwrap();
+        if best.chord == *want {
+            correct += 1;
+        }
+    }
+    assert!(
+        correct >= 7,
+        "Poprawnie rozpoznano {correct}/8 taktów: {chords:?}"
+    );
+}
+
+#[test]
+fn test_chord_detection_tolerates_detuning() {
+    use audio_engine::analysis::detect_chords_with_grid;
+    let sample_rate = 22050.0;
+    let audio = synth_triad(60.0, MAJOR, 8.0, 30.0, sample_rate);
+    let grid = fixed_grid(16, 500);
+    let chords = detect_chords_with_grid(&audio, sample_rate, &grid, None, None);
+    assert!(!chords.is_empty());
+    assert!(
+        chords.iter().all(|c| c.chord == "C"),
+        "Odstrojone +30 centów C-dur powinno nadal być C: {chords:?}"
+    );
+}
+
+#[test]
+fn test_last_chord_segment_reaches_audio_end() {
+    use audio_engine::analysis::detect_chords_with_grid;
+    let sample_rate = 22050.0;
+    // 7,3 s – ostatnie uderzenie siatki zaczyna się 7,0 s, a audio kończy po 300 ms.
+    let audio = synth_triad(60.0, MAJOR, 7.3, 0.0, sample_rate);
+    let grid = fixed_grid(15, 500);
+    let chords = detect_chords_with_grid(&audio, sample_rate, &grid, None, None);
+    let last = chords.last().unwrap();
+    assert_eq!(last.end_ms, 7300);
+}
+
+#[test]
+fn test_chord_segments_are_contiguous_and_numbered_per_bar() {
+    use audio_engine::analysis::detect_chords_with_grid;
+    let sample_rate = 22050.0;
+    let audio = progression_audio(0.0, sample_rate);
+    let grid = fixed_grid(32, 500);
+    let chords = detect_chords_with_grid(&audio, sample_rate, &grid, None, None);
+    for pair in chords.windows(2) {
+        assert_eq!(pair[0].end_ms, pair[1].start_ms);
+        assert!(pair[1].bar == pair[0].bar || pair[1].bar == pair[0].bar + 1);
+    }
+    assert_eq!(chords.last().unwrap().bar, 8);
+}
+
+#[test]
+fn test_viterbi_switches_within_two_beats_of_clear_evidence() {
+    use audio_engine::analysis::{
+        chord_emissions, generate_chord_templates, viterbi_smooth_chords,
+    };
+    let defs = generate_chord_templates();
+    let index_of = |s: &str| defs.iter().position(|d| d.symbol == s).unwrap();
+    let (c, g) = (index_of("C"), index_of("G"));
+
+    let emissions: Vec<Vec<f64>> = (0..16)
+        .map(|beat| {
+            let target = if beat < 8 { c } else { g };
+            chord_emissions(&defs[target].template, false, &defs).0
+        })
+        .collect();
+    let path = viterbi_smooth_chords(&emissions, &defs, None, None);
+
+    assert!(path[..8].iter().all(|&s| s == c));
+    let first_g = path.iter().position(|&s| s == g).unwrap();
+    assert!(
+        (8 - 2..=8 + 2).contains(&first_g),
+        "Zmiana akordu na uderzeniu {first_g}, oczekiwano w pobliżu 8"
+    );
+    assert!(path[first_g..].iter().all(|&s| s == g));
+}
+
+#[test]
+fn test_silence_is_no_chord() {
+    use audio_engine::analysis::detect_chords_with_grid;
+    let sample_rate = 22050.0;
+    let mut audio = synth_triad(60.0, MAJOR, 4.0, 0.0, sample_rate);
+    audio.extend(vec![0.0f32; (4.0 * sample_rate) as usize]);
+    let grid = fixed_grid(16, 500);
+    let chords = detect_chords_with_grid(&audio, sample_rate, &grid, None, None);
+    let tail = chords.iter().rev().find(|c| c.start_ms >= 5000).unwrap();
+    assert_eq!(tail.chord, "N");
+}
+
+#[test]
+fn test_parse_chord_symbol_roundtrips_generated_templates() {
+    use audio_engine::analysis::{generate_chord_templates, parse_chord_symbol};
+    for def in generate_chord_templates()
+        .iter()
+        .filter(|d| d.quality != "N")
+    {
+        let (root, quality) = parse_chord_symbol(&def.symbol);
+        assert_eq!(
+            root, CHROMATIC_NOTES_FOR_TEST[def.root_idx],
+            "{}",
+            def.symbol
+        );
+        assert_eq!(quality, def.quality, "{}", def.symbol);
+    }
+    assert_eq!(parse_chord_symbol("Dm7/F"), ("D".to_string(), "min7"));
+    assert_eq!(parse_chord_symbol("N"), ("N".to_string(), "N"));
+}
+
+const CHROMATIC_NOTES_FOR_TEST: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
+
+#[test]
+fn test_beat_grid_follows_click_track_without_drift() {
+    use audio_engine::analysis::extract_beat_grid;
+    let sample_rate = 22050.0;
+    let seconds = 40.0;
+    let n = (sample_rate * seconds) as usize;
+    let mut samples = vec![0.0f32; n];
+    // 119,5 BPM (okres 502,09 ms), a siatka dostaje zaokrąglone 120 – korekta fazy musi dryf wyłapać.
+    let period = 60.0 / 119.5;
+    let mut t = 0.123;
+    while t < seconds - 0.1 {
+        let start = (t * sample_rate) as usize;
+        for k in 0..200 {
+            samples[start + k] = 0.8 * (-(k as f32) / 40.0).exp();
+        }
+        t += period;
+    }
+    let grid = extract_beat_grid(&samples, sample_rate, 120.0);
+    assert!(grid.len() > 70);
+    let last = grid.last().unwrap();
+    let click_idx = ((last.time_ms as f64 / 1000.0 - 0.123) / period).round();
+    let click_ms = (0.123 + click_idx * period) * 1000.0;
+    assert!(
+        (last.time_ms as f64 - click_ms).abs() < 40.0,
+        "Ostatni beat siatki {} ms dryfuje względem klika {} ms",
+        last.time_ms,
+        click_ms
+    );
+    assert!(grid[0].is_downbeat || grid[..4].iter().any(|b| b.is_downbeat));
+}

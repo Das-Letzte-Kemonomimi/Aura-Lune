@@ -67,7 +67,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   trackTitle,
   trackArtist,
   currentTimeMs,
-  durationMs: _durationMs,
+  durationMs,
   pitchSemitones = 0,
   onSeek,
   onSetLoop,
@@ -145,7 +145,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   };
 
   const cells = useMemo(() => mergeChordSegments(data?.chords ?? []), [data]);
-  const bars = useMemo(() => groupByBar(cells), [cells]);
+  const bars = useMemo(() => groupByBar(cells, data?.bpm), [cells, data?.bpm]);
   const activeIdx = findActiveCell(cells, currentTimeMs);
   const activeChord = activeIdx >= 0 ? cells[activeIdx] : null;
   const nextChord = findNextDistinctCell(cells, activeIdx);
@@ -423,7 +423,12 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           </div>
         ) : cells.length > 0 ? (
           <>
-            <ChordOverview cells={cells} currentTimeMs={currentTimeMs} onSeek={onSeek} />
+            <ChordOverview
+              cells={cells}
+              currentTimeMs={currentTimeMs}
+              onSeek={onSeek}
+              durationMs={durationMs}
+            />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '0.72rem', color: '#94a3b8' }}>
               {legend.map(([tone, label]) => (
                 <span key={tone} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>

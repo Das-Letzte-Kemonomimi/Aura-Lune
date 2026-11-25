@@ -195,11 +195,43 @@ pub(super) fn finish<T>(
 }
 
 /// Dekoduje reprezentatywny fragment utworu do pamięci (mono, 22050 Hz F32LE).
+/// Limit czasu dekodowania rośnie z długością fragmentu: `max(6 s, max_duration_sec / 10)`.
+/// Po przekroczeniu limitu zwracany jest częściowy wynik (z ostrzeżeniem w logu).
 pub fn decode_snippet_for_analysis(
     uri_or_path: &str,
     max_duration_sec: f64,
 ) -> Result<Vec<f32>, AnalysisError> {
-    decode_mono_22k(uri_or_path, max_duration_sec, Duration::from_millis(6000))
+    decode_mono_22k(
+        uri_or_path,
+        max_duration_sec,
+        analysis_timeout(max_duration_sec),
+    )
+}
+
+/// Jak [`decode_snippet_for_analysis`], ale przekroczenie limitu czasu po zebraniu części próbek
+/// jest błędem – dla wyników zapisywanych w pamięci podręcznej, które nie mogą być obcięte.
+pub fn decode_complete_for_analysis(
+    uri_or_path: &str,
+    max_duration_sec: f64,
+) -> Result<Vec<f32>, AnalysisError> {
+    let session = DecodeSession::open(uri_or_path, ANALYSIS_SAMPLE_RATE, 1)?;
+    let target = (max_duration_sec * ANALYSIS_SAMPLE_RATE as f64).round() as usize;
+    let mut collected: Vec<f32> =
+        Vec::with_capacity(target.min(ANALYSIS_SAMPLE_RATE as usize * 600));
+    let end = session.run(analysis_timeout(max_duration_sec), |chunk| {
+        let room = target.saturating_sub(collected.len());
+        collected.extend_from_slice(&chunk[..chunk.len().min(room)]);
+        collected.len() < target
+    });
+    if end == DecodeEnd::TimedOut && !collected.is_empty() {
+        return Err("Przekroczono czas dekodowania utworu do analizy".into());
+    }
+    let any = !collected.is_empty();
+    finish(any, end, collected, "mono")
+}
+
+fn analysis_timeout(max_duration_sec: f64) -> Duration {
+    Duration::from_secs_f64((max_duration_sec / 10.0).max(6.0))
 }
 
 /// Dekoduje do `max_duration_sec` sekund utworu (mono, [`ANALYSIS_SAMPLE_RATE`] Hz, F32LE),
@@ -218,6 +250,12 @@ pub(super) fn decode_mono_22k(
         collected.extend_from_slice(&chunk[..chunk.len().min(room)]);
         collected.len() < target
     });
+    if end == DecodeEnd::TimedOut && !collected.is_empty() {
+        tracing::warn!(
+            "Dekodowanie do analizy przerwane limitem czasu — użyto {} s audio",
+            collected.len() / ANALYSIS_SAMPLE_RATE as usize
+        );
+    }
     let any = !collected.is_empty();
     finish(any, end, collected, "mono")
 }

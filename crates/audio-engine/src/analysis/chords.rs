@@ -1,8 +1,39 @@
-//! Rozpoznawanie akordów (chromagram + Viterbi), siatka beatów, transpozycja i eksport.
+//! Rozpoznawanie akordów (chromagram → emisje cosinusowe → Viterbi), podział na takty,
+//! transpozycja i eksport.
+//!
+//! Przepływ: `chroma.rs` (STFT, szczyty, strój) → mediana chromagramu na uderzenie →
+//! podobieństwo cosinusowe do szablonów → softmax z temperaturą → Viterbi → segmenty
+//! (każdy w obrębie jednego taktu).
 
+use super::chroma::{normalize_chroma, StftChroma};
 use super::*;
 use crate::AnalysisError;
-use std::f64::consts::PI;
+
+pub use super::beat_grid::extract_beat_grid;
+pub use super::chroma::extract_chroma_frame;
+
+/// Wersja algorytmu akordów zapisywana w pamięci podręcznej; wpisy innej wersji są ignorowane.
+pub const CHORD_ANALYZER_VERSION: &str = "2.0.0-chroma-hmm";
+
+/// Maksymalna długość analizowanego audio (sekundy).
+pub const CHORD_ANALYSIS_MAX_SECONDS: f64 = 900.0;
+
+/// Prawdopodobieństwo pozostania w tym samym akordzie na kolejnym uderzeniu.
+pub const SELF_TRANSITION_PROB: f64 = 0.6;
+/// Ile razy bardziej prawdopodobny jest ruch o kwartę/kwintę niż inna zmiana akordu.
+pub const FOURTH_FIFTH_TRANSITION_BONUS: f64 = 2.0;
+/// Temperatura softmaxu emisji (mniejsza = ostrzejsze dowody z chromagramu).
+pub const EMISSION_TEMPERATURE: f64 = 0.1;
+/// Mnożnik podobieństwa dla akordów z septymą, sus, zmniejszonych i zwiększonych.
+pub const COMPLEX_CHORD_PRIOR: f64 = 0.92;
+/// Słaby przyrost prawdopodobieństwa akordów diatonicznych (≤ 1,1×).
+pub const DIATONIC_PRIOR: f64 = 1.1;
+/// Absolutny próg RMS ciszy.
+const SILENCE_RMS_ABS: f64 = 1e-3;
+/// Uderzenie jest ciszą, gdy jego RMS < ten ułamek mediany RMS utworu.
+const SILENCE_RMS_REL: f64 = 0.05;
+/// Podłoga prawdopodobieństwa przed logarytmem.
+const MIN_PROB: f64 = 1e-12;
 
 /// Struktura definicji akordu dla szablonów chromatycznych.
 #[derive(Debug, Clone)]
@@ -11,6 +42,8 @@ pub struct ChordDef {
     pub quality: &'static str,
     pub symbol: String,
     pub template: [f64; 12],
+    /// Mnożnik podobieństwa cosinusowego (< 1 dla akordów złożonych, by trójdźwięki wygrywały).
+    pub prior: f64,
 }
 
 /// Generuje komplet szablonów chromagramu dla 12 tonacji i 9 typów akordów (+ stan ciszy/brak akordu).
@@ -36,32 +69,26 @@ pub fn generate_chord_templates() -> Vec<ChordDef> {
                 let note_idx = (root + interval) % 12;
                 template[note_idx] = weights[idx];
             }
-            // Normalizacja L2 szablonu
-            let norm = template.iter().map(|&w| w * w).sum::<f64>().sqrt();
-            if norm > 1e-6 {
-                for w in template.iter_mut() {
-                    *w /= norm;
-                }
-            }
+            normalize_chroma(&mut template);
 
-            let symbol = match *q_name {
-                "maj" => root_name.to_string(),
-                "min" => format!("{}m", root_name),
-                "7" => format!("{}7", root_name),
-                "maj7" => format!("{}maj7", root_name),
-                "min7" => format!("{}m7", root_name),
-                "sus4" => format!("{}sus4", root_name),
-                "sus2" => format!("{}sus2", root_name),
-                "dim" => format!("{}dim", root_name),
-                "aug" => format!("{}aug", root_name),
-                _ => format!("{}{}", root_name, q_name),
+            let suffix = match *q_name {
+                "maj" => "",
+                "min" => "m",
+                "min7" => "m7",
+                other => other,
+            };
+            let prior = if matches!(*q_name, "maj" | "min") {
+                1.0
+            } else {
+                COMPLEX_CHORD_PRIOR
             };
 
             defs.push(ChordDef {
                 root_idx: root,
                 quality: q_name,
-                symbol,
+                symbol: format!("{root_name}{suffix}"),
                 template,
+                prior,
             });
         }
     }
@@ -72,216 +99,204 @@ pub fn generate_chord_templates() -> Vec<ChordDef> {
         quality: "N",
         symbol: "N".to_string(),
         template: [0.0; 12],
+        prior: 1.0,
     });
 
     defs
 }
 
-/// Ekstrahuje wektor chromagramu (12 klas wysokości dźwięku) dla pojedynczej klatki próbek PCM
-/// przy użyciu algorytmu Goertzela dla częstotliwości stroju równomiernie temperowanego (C2 do B5).
-pub fn extract_chroma_frame(frame: &[f32], sample_rate: f64) -> [f64; 12] {
-    let mut chroma = [0.0f64; 12];
-    if frame.len() < 128 {
-        return chroma;
+/// Wyznacza korzeń i jakość akordu z jego symbolu (np. `"Dm7"`, `"C#maj7/G"`); nieznane
+/// przyrostki dają jakość `"maj"`. Zwraca `("N", "N")` dla braku akordu.
+pub fn parse_chord_symbol(symbol: &str) -> (String, &'static str) {
+    let main = symbol.trim().split('/').next().unwrap_or("");
+    if main.is_empty() || main == "N" {
+        return ("N".to_string(), "N");
     }
-
-    let n = frame.len() as f64;
-
-    // Zakres oktaw od C2 (MIDI 36, ~65.4 Hz) do B5 (MIDI 71, ~987.8 Hz)
-    for midi in 36..=71 {
-        let pitch_class = (midi % 12) as usize;
-        let freq = 440.0 * 2.0f64.powf((midi as f64 - 69.0) / 12.0);
-        let k = (n * freq / sample_rate).round();
-        if k < 1.0 || k >= (frame.len() / 2) as f64 {
-            continue;
-        }
-
-        let omega = 2.0 * PI * k / n;
-        let coeff = 2.0 * omega.cos();
-
-        let mut s1 = 0.0;
-        let mut s2 = 0.0;
-
-        for &sample in frame.iter() {
-            let s0 = (sample as f64) + coeff * s1 - s2;
-            s2 = s1;
-            s1 = s0;
-        }
-
-        let power = s1 * s1 + s2 * s2 - s1 * s2 * coeff;
-        chroma[pitch_class] += power.max(0.0);
+    let mut chars = main.chars();
+    let mut root = String::new();
+    if let Some(c) = chars.next() {
+        root.push(c.to_ascii_uppercase());
     }
+    let rest: String = chars.collect();
+    let (accidental, suffix) = match rest.strip_prefix(['#', 'b']) {
+        Some(tail) => (&rest[..1], tail),
+        None => ("", rest.as_str()),
+    };
+    root.push_str(accidental);
 
-    // Normalizacja wektora energii chromatycznej L2
-    let norm = chroma.iter().map(|&v| v * v).sum::<f64>().sqrt();
-    if norm > 1e-5 {
-        for v in chroma.iter_mut() {
-            *v /= norm;
+    let quality = match suffix {
+        "" | "M" => "maj",
+        "m" | "min" | "-" => "min",
+        "7" => "7",
+        "maj7" | "M7" => "maj7",
+        "m7" | "min7" | "-7" => "min7",
+        "sus4" | "sus" => "sus4",
+        "sus2" => "sus2",
+        "dim" | "o" => "dim",
+        "aug" | "+" => "aug",
+        s if s.starts_with("maj") => "maj7",
+        s if s.starts_with("min") || (s.starts_with('m') && !s.starts_with("ma")) => {
+            if s.contains('7') {
+                "min7"
+            } else {
+                "min"
+            }
         }
+        s if s.contains('7') => "7",
+        _ => "maj",
+    };
+    (root, quality)
+}
+
+/// Emisje jednego uderzenia: `(prawdopodobieństwa, podobieństwa)` dla każdego stanu.
+///
+/// Podobieństwo to cosinus chromagramu i szablonu razy `prior` akordu. Prawdopodobieństwa to
+/// softmax podobieństw z temperaturą [`EMISSION_TEMPERATURE`], więc skala dowodów jest zgodna ze
+/// skalą prawdopodobieństw przejść. Dla ciszy wygrywa stan „N”.
+pub fn chord_emissions(
+    chroma: &[f64; 12],
+    silent: bool,
+    defs: &[ChordDef],
+) -> (Vec<f64>, Vec<f64>) {
+    let no_chord = defs.len() - 1;
+    let mut sims = vec![0.0f64; defs.len()];
+    if silent {
+        sims[no_chord] = 1.0;
     } else {
-        chroma = [0.0; 12];
-    }
-
-    chroma
-}
-
-/// Wyznacza siatkę uderzeń (Beat Grid) na podstawie próbek audio i wykrytego tempa BPM.
-pub fn extract_beat_grid(samples: &[f32], sample_rate: f64, bpm: f64) -> Vec<BeatPoint> {
-    if samples.is_empty() || bpm <= 10.0 {
-        return Vec::new();
-    }
-
-    let beat_duration_sec = 60.0 / bpm;
-    let beat_duration_ms = (beat_duration_sec * 1000.0).round();
-    let total_duration_sec = samples.len() as f64 / sample_rate;
-    let total_duration_ms = (total_duration_sec * 1000.0).round() as u64;
-
-    // Poszukaj pierwszego silnego uderzenia (transjentu) w pierwszych 4 uderzeniach utworu
-    let scan_samples = ((beat_duration_sec * 4.0) * sample_rate) as usize;
-    let search_window = scan_samples.min(samples.len());
-
-    let hop_size = 256;
-    let num_hops = search_window / hop_size;
-    let mut best_hop = 0;
-    let mut max_energy = 0.0f64;
-
-    for h in 0..num_hops {
-        let chunk = &samples[h * hop_size..(h + 1) * hop_size];
-        let energy: f64 = chunk.iter().map(|&s| (s as f64) * (s as f64)).sum();
-        if energy > max_energy {
-            max_energy = energy;
-            best_hop = h;
+        for (idx, def) in defs.iter().enumerate().take(no_chord) {
+            let dot: f64 = chroma
+                .iter()
+                .zip(def.template.iter())
+                .map(|(c, t)| c * t)
+                .sum();
+            sims[idx] = (dot * def.prior).clamp(0.0, 1.0);
         }
     }
-
-    let initial_offset_sec = (best_hop * hop_size) as f64 / sample_rate;
-    let mut current_time_ms = ((initial_offset_sec % beat_duration_sec) * 1000.0).round() as u64;
-
-    let mut beat_grid = Vec::new();
-    let mut beat_count = 0u32;
-
-    while current_time_ms < total_duration_ms {
-        let beat_in_bar = (beat_count % 4) + 1;
-        beat_grid.push(BeatPoint {
-            time_ms: current_time_ms,
-            beat_number: beat_in_bar,
-            is_downbeat: beat_in_bar == 1,
-        });
-
-        current_time_ms += beat_duration_ms as u64;
-        beat_count += 1;
+    let max = sims.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let mut probs: Vec<f64> = sims
+        .iter()
+        .map(|s| ((s - max) / EMISSION_TEMPERATURE).exp())
+        .collect();
+    let total: f64 = probs.iter().sum();
+    for p in probs.iter_mut() {
+        *p /= total;
     }
-
-    beat_grid
+    (probs, sims)
 }
 
-/// Wygładzanie sekwencji akordów algorytmem Viterbiego (HMM) z faworyzowaniem ciągłości taktu
-/// oraz tonacji diatonicznej utworu.
+/// Macierz log-prawdopodobieństw przejść (wiersz = stan poprzedni, kolumna = następny).
+/// Wiersze są znormalizowane; pozostanie = [`SELF_TRANSITION_PROB`], reszta rozłożona równo
+/// z premią [`FOURTH_FIFTH_TRANSITION_BONUS`] dla ruchów o kwartę/kwintę.
+fn log_transition_matrix(defs: &[ChordDef]) -> Vec<f64> {
+    let n = defs.len();
+    let no_chord = n - 1;
+    let mut log_trans = vec![0.0f64; n * n];
+    for prev in 0..n {
+        let weight = |next: usize| -> f64 {
+            if next == prev {
+                return 0.0;
+            }
+            if prev == no_chord || next == no_chord {
+                return 1.0;
+            }
+            let diff = (defs[next].root_idx + 12 - defs[prev].root_idx) % 12;
+            if diff == 5 || diff == 7 {
+                FOURTH_FIFTH_TRANSITION_BONUS
+            } else {
+                1.0
+            }
+        };
+        let total: f64 = (0..n).map(weight).sum();
+        for next in 0..n {
+            let p = if next == prev {
+                SELF_TRANSITION_PROB
+            } else {
+                (1.0 - SELF_TRANSITION_PROB) * weight(next) / total
+            };
+            log_trans[prev * n + next] = p.max(MIN_PROB).ln();
+        }
+    }
+    log_trans
+}
+
+/// Wygładzanie sekwencji akordów algorytmem Viterbiego (HMM).
+///
+/// `emission_probs[t][s]` to prawdopodobieństwa emisji (np. z [`chord_emissions`]). Przejścia
+/// są znormalizowane, a tonacja daje tylko słaby prior diatoniczny ([`DIATONIC_PRIOR`]).
 pub fn viterbi_smooth_chords(
-    emission_scores: &[Vec<f64>],
+    emission_probs: &[Vec<f64>],
     chord_defs: &[ChordDef],
     key_root: Option<usize>,
     key_is_minor: Option<bool>,
 ) -> Vec<usize> {
-    if emission_scores.is_empty() {
+    if emission_probs.is_empty() {
         return Vec::new();
     }
 
-    let num_frames = emission_scores.len();
-    let num_states = chord_defs.len();
-    let no_chord_idx = num_states - 1;
+    let num_frames = emission_probs.len();
+    let n = chord_defs.len();
 
-    // Profil wag diatonicznych jeśli znana jest tonacja utworu
-    let mut diatonic_bias = vec![1.0f64; num_states];
+    let mut diatonic_log = vec![0.0f64; n];
     if let (Some(root), Some(minor)) = (key_root, key_is_minor) {
-        let diatonic_intervals: &[usize] = if minor {
-            // Skala naturalna molowa: I, ii°, III, iv, v, VI, VII (np. Am -> Am, Bdim, C, Dm, Em, F, G)
+        let scale: &[usize] = if minor {
             &[0, 2, 3, 5, 7, 8, 10]
         } else {
-            // Skala durowa: I, ii, iii, IV, V, vi, vii° (np. C -> C, Dm, Em, F, G, Am, Bdim)
             &[0, 2, 4, 5, 7, 9, 11]
         };
-
         for (idx, def) in chord_defs.iter().enumerate() {
-            if def.quality == "N" {
-                continue;
-            }
-            let interval = (def.root_idx + 12 - root) % 12;
-            if diatonic_intervals.contains(&interval) {
-                diatonic_bias[idx] = 1.35; // Bonus za zgodność ze skalą utworu
-            } else {
-                diatonic_bias[idx] = 0.85; // Lekka kara za akordy poza tonacją
+            if def.quality != "N" && scale.contains(&((def.root_idx + 12 - root) % 12)) {
+                diatonic_log[idx] = DIATONIC_PRIOR.ln();
             }
         }
     }
 
-    // viterbi DP table: [frame][state]
-    let mut v = vec![vec![f64::NEG_INFINITY; num_states]; num_frames];
-    let mut backpointer = vec![vec![0usize; num_states]; num_frames];
+    let log_trans = log_transition_matrix(chord_defs);
+    let log_emit = |t: usize, s: usize| emission_probs[t][s].max(MIN_PROB).ln() + diatonic_log[s];
 
-    // Inicjalizacja pierwszej klatki
-    for s in 0..num_states {
-        let emit = emission_scores[0][s].max(1e-6);
-        v[0][s] = emit.ln() + (diatonic_bias[s]).ln();
-    }
+    let mut score: Vec<f64> = (0..n).map(|s| log_emit(0, s)).collect();
+    let mut next_score = vec![0.0f64; n];
+    let mut backpointer = vec![0u16; num_frames * n];
 
-    // Pętla dynamicznego programowania
     for t in 1..num_frames {
-        for s in 0..num_states {
-            let mut best_val = f64::NEG_INFINITY;
+        for s in 0..n {
+            let mut best = f64::NEG_INFINITY;
             let mut best_prev = 0usize;
-
-            for prev_s in 0..num_states {
-                // Prawdopodobieństwo przejścia:
-                // Pozostanie w tym samym akordzie ma wysoką wagę (0.80),
-                // przejście do innego akordu (0.20), przejście do ciszy (0.05).
-                let trans_prob: f64 = if prev_s == s {
-                    0.82
-                } else if s == no_chord_idx || prev_s == no_chord_idx {
-                    0.05
-                } else {
-                    // Sprawdź czy odległość kwintowa (V lub IV)
-                    let r1 = chord_defs[prev_s].root_idx;
-                    let r2 = chord_defs[s].root_idx;
-                    let diff = (r2 + 12 - r1) % 12;
-                    if diff == 7 || diff == 5 {
-                        0.15
-                    } else {
-                        0.08
-                    }
-                };
-
-                let val = v[t - 1][prev_s] + trans_prob.ln();
-                if val > best_val {
-                    best_val = val;
-                    best_prev = prev_s;
+            for (prev, &prev_score) in score.iter().enumerate() {
+                let val = prev_score + log_trans[prev * n + s];
+                if val > best {
+                    best = val;
+                    best_prev = prev;
                 }
             }
-
-            let emit = emission_scores[t][s].max(1e-6);
-            v[t][s] = best_val + emit.ln() + (diatonic_bias[s]).ln();
-            backpointer[t][s] = best_prev;
+            next_score[s] = best + log_emit(t, s);
+            backpointer[t * n + s] = best_prev as u16;
         }
+        std::mem::swap(&mut score, &mut next_score);
     }
 
-    // Backtracking
-    let mut path = vec![0usize; num_frames];
-    let mut max_final = f64::NEG_INFINITY;
     let mut best_last = 0usize;
-
-    for (s, &score) in v[num_frames - 1].iter().enumerate().take(num_states) {
-        if score > max_final {
-            max_final = score;
+    let mut best_val = f64::NEG_INFINITY;
+    for (s, &v) in score.iter().enumerate() {
+        if v > best_val {
+            best_val = v;
             best_last = s;
         }
     }
+    let mut path = vec![0usize; num_frames];
     path[num_frames - 1] = best_last;
-
     for t in (1..num_frames).rev() {
-        path[t - 1] = backpointer[t][path[t]];
+        path[t - 1] = backpointer[t * n + path[t]] as usize;
     }
-
     path
+}
+
+/// Pojedyncze uderzenie wstawione między dwa identyczne akordy jest szumem – wchłaniamy je.
+fn absorb_single_beat_flickers(path: &mut [usize]) {
+    for i in 1..path.len().saturating_sub(1) {
+        if path[i] != path[i - 1] && path[i - 1] == path[i + 1] {
+            path[i] = path[i - 1];
+        }
+    }
 }
 
 /// Wykonuje pełną analizę harmoniczną próbek audio (siatka taktowa + akordy + Viterbi).
@@ -293,114 +308,77 @@ pub fn detect_chords_from_samples(
     key_is_minor: Option<bool>,
 ) -> (Vec<BeatPoint>, Vec<ChordSegment>) {
     let beat_grid = extract_beat_grid(samples, sample_rate, bpm);
-    if beat_grid.is_empty() || samples.len() < 2048 {
-        return (beat_grid, Vec::new());
+    let chords = detect_chords_with_grid(samples, sample_rate, &beat_grid, key_root, key_is_minor);
+    (beat_grid, chords)
+}
+
+/// Rozpoznaje akordy na zadanej siatce uderzeń. Każdy zwrócony segment mieści się w jednym takcie
+/// i niesie jego rzeczywisty numer; ostatni segment sięga końca analizowanego audio.
+/// Uderzenia przed pierwszym uderzeniem taktu (przedtakt) są pomijane.
+pub fn detect_chords_with_grid(
+    samples: &[f32],
+    sample_rate: f64,
+    beat_grid: &[BeatPoint],
+    key_root: Option<usize>,
+    key_is_minor: Option<bool>,
+) -> Vec<ChordSegment> {
+    let first = beat_grid.iter().position(|b| b.is_downbeat).unwrap_or(0);
+    let beats = &beat_grid[first..];
+    if beats.is_empty() || sample_rate <= 0.0 {
+        return Vec::new();
     }
+    let stft = StftChroma::compute(samples, sample_rate);
+    if stft.chroma.is_empty() {
+        return Vec::new();
+    }
+    let audio_end_ms = (samples.len() as f64 / sample_rate * 1000.0).round() as u64;
 
     let chord_defs = generate_chord_templates();
-    let num_defs = chord_defs.len();
-    let no_chord_idx = num_defs - 1;
+    let mut rms_sorted = stft.rms.clone();
+    rms_sorted.sort_by(|a, b| a.total_cmp(b));
+    let median_rms = rms_sorted[rms_sorted.len() / 2];
+    let silence_rms = SILENCE_RMS_ABS.max(SILENCE_RMS_REL * median_rms);
 
-    // Analiza w oknach uderzeń (per-beat analysis)
-    let mut emission_scores = Vec::with_capacity(beat_grid.len());
-
-    let frame_len = (sample_rate * 0.45).round() as usize; // ok. 450 ms okna analizy
-
-    for (i, beat) in beat_grid.iter().enumerate() {
-        let start_sample = ((beat.time_ms as f64 / 1000.0) * sample_rate) as usize;
-        let end_sample = if i + 1 < beat_grid.len() {
-            ((beat_grid[i + 1].time_ms as f64 / 1000.0) * sample_rate) as usize
-        } else {
-            (start_sample + frame_len).min(samples.len())
-        };
-
-        if start_sample >= samples.len() {
-            break;
-        }
-
-        let slice = &samples[start_sample..end_sample.min(samples.len())];
-        let chroma = extract_chroma_frame(slice, sample_rate);
-
-        let energy_sum: f64 = chroma.iter().sum();
-        let mut scores = vec![0.0f64; num_defs];
-
-        if energy_sum < 1e-4 {
-            // Cisza / brak energii
-            scores[no_chord_idx] = 1.0;
-        } else {
-            for (idx, def) in chord_defs.iter().enumerate() {
-                if idx == no_chord_idx {
-                    scores[idx] = 0.05; // Niski koszt dla ciszy w trakcie muzyki
-                } else {
-                    // Cosine similarity
-                    let dot: f64 = chroma
-                        .iter()
-                        .zip(def.template.iter())
-                        .map(|(&c, &t)| c * t)
-                        .sum();
-                    scores[idx] = dot.max(0.01).powf(1.8); // Nieliniowe wzmocnienie szczytu
-                }
-            }
-        }
-
-        emission_scores.push(scores);
+    let mut emissions = Vec::with_capacity(beats.len());
+    let mut similarities = Vec::with_capacity(beats.len());
+    for (i, beat) in beats.iter().enumerate() {
+        let end_ms = beats.get(i + 1).map_or(audio_end_ms, |b| b.time_ms);
+        let (chroma, rms) = stft.beat_chroma(beat.time_ms as f64, end_ms as f64);
+        let silent = rms < silence_rms || chroma.iter().all(|&c| c == 0.0);
+        let (probs, sims) = chord_emissions(&chroma, silent, &chord_defs);
+        emissions.push(probs);
+        similarities.push(sims);
     }
 
-    if emission_scores.is_empty() {
-        return (beat_grid, Vec::new());
-    }
+    let mut path = viterbi_smooth_chords(&emissions, &chord_defs, key_root, key_is_minor);
+    absorb_single_beat_flickers(&mut path);
 
-    // Wygładzenie HMM (Viterbi)
-    let best_path = viterbi_smooth_chords(&emission_scores, &chord_defs, key_root, key_is_minor);
+    segments_per_bar(beats, &path, &similarities, &chord_defs, audio_end_ms)
+}
 
-    // Grupowanie identycznych sąsiadujących akordów w spójne segmenty czasowe
+/// Zamienia ścieżkę akordów (po jednym stanie na uderzenie) na segmenty nieprzekraczające taktu.
+fn segments_per_bar(
+    beats: &[BeatPoint],
+    path: &[usize],
+    similarities: &[Vec<f64>],
+    chord_defs: &[ChordDef],
+    audio_end_ms: u64,
+) -> Vec<ChordSegment> {
     let mut segments = Vec::new();
-    let mut seg_start_idx = 0usize;
+    let mut bar = 0u32;
+    let mut run_start = 0usize;
+    let mut run_bar = 0u32;
 
-    for i in 1..best_path.len() {
-        if best_path[i] != best_path[seg_start_idx] {
-            let chord_idx = best_path[seg_start_idx];
-            let def = &chord_defs[chord_idx];
-            let start_ms = beat_grid[seg_start_idx].time_ms;
-            let end_ms = beat_grid[i].time_ms;
-            let bar = (seg_start_idx as u32 / 4) + 1;
-            let beat = (seg_start_idx as u32 % 4) + 1;
-
-            let conf = emission_scores[seg_start_idx][chord_idx].min(1.0) as f32;
-
-            segments.push(ChordSegment {
-                start_ms,
-                end_ms,
-                chord: def.symbol.clone(),
-                root_note: CHROMATIC_NOTES[def.root_idx].to_string(),
-                quality: def.quality.to_string(),
-                bass_note: None,
-                confidence: conf,
-                beat,
-                bar,
-            });
-
-            seg_start_idx = i;
-        }
-    }
-
-    // Ostatni segment
-    if seg_start_idx < best_path.len() {
-        let chord_idx = best_path[seg_start_idx];
-        let def = &chord_defs[chord_idx];
-        let start_ms = beat_grid[seg_start_idx].time_ms;
-        let end_ms = if best_path.len() < beat_grid.len() {
-            beat_grid
-                .last()
-                .map(|b| b.time_ms)
-                .unwrap_or(start_ms + 1000)
-        } else {
-            start_ms + ((60.0 / bpm) * 1000.0) as u64
-        };
-        let bar = (seg_start_idx as u32 / 4) + 1;
-        let beat = (seg_start_idx as u32 % 4) + 1;
-        let conf = emission_scores[seg_start_idx][chord_idx].min(1.0) as f32;
-
+    let flush = |run_start: usize, run_end: usize, run_bar: u32, segments: &mut Vec<_>| {
+        let def = &chord_defs[path[run_start]];
+        let start_ms = beats[run_start].time_ms;
+        let end_ms = beats
+            .get(run_end)
+            .map_or(audio_end_ms.max(start_ms + 1), |b| b.time_ms);
+        let confidence = (run_start..run_end)
+            .map(|i| similarities[i][path[i]])
+            .sum::<f64>()
+            / (run_end - run_start) as f64;
         segments.push(ChordSegment {
             start_ms,
             end_ms,
@@ -408,13 +386,28 @@ pub fn detect_chords_from_samples(
             root_note: CHROMATIC_NOTES[def.root_idx].to_string(),
             quality: def.quality.to_string(),
             bass_note: None,
-            confidence: conf,
-            beat,
-            bar,
+            confidence: confidence as f32,
+            beat: beats[run_start].beat_number,
+            bar: run_bar,
         });
-    }
+    };
 
-    (beat_grid, segments)
+    for (i, beat) in beats.iter().enumerate() {
+        if beat.is_downbeat {
+            bar += 1;
+        }
+        if i == 0 {
+            run_bar = bar.max(1);
+            continue;
+        }
+        if beat.is_downbeat || path[i] != path[run_start] {
+            flush(run_start, i, run_bar, &mut segments);
+            run_start = i;
+            run_bar = bar.max(1);
+        }
+    }
+    flush(run_start, beats.len(), run_bar, &mut segments);
+    segments
 }
 
 /// Transponuje symbol akordu o zadaną liczbę półtonów (z obsługą notacji z basem np. C/G).
@@ -546,16 +539,19 @@ pub fn export_chords_to_json(data: &TrackChordsData) -> Result<String, serde_jso
 }
 
 /// Główna funkcja wykonująca analizę harmoniczną dla podanej ścieżki pliku lub URI.
+///
+/// Analizuje cały utwór (do [`CHORD_ANALYSIS_MAX_SECONDS`]). Przekroczenie limitu czasu
+/// dekodowania jest błędem, więc niepełny wynik nigdy nie trafia do pamięci podręcznej.
+/// Tempo z tagu pliku (jeśli wiarygodne) ma pierwszeństwo przed detekcją akustyczną.
 pub fn analyze_track_chords_and_grid(
     uri_or_path: &str,
     track_id: i64,
 ) -> Result<TrackChordsData, AnalysisError> {
-    // 1. Zdekoduj próbki do analizy (do 360 sekund)
-    let samples = decode_snippet_for_analysis(uri_or_path, 360.0)?;
-    let sample_rate = 22050.0;
+    let samples = decode_complete_for_analysis(uri_or_path, CHORD_ANALYSIS_MAX_SECONDS)?;
+    let sample_rate = ANALYSIS_SAMPLE_RATE as f64;
 
-    // 2. Wykryj BPM i tonację
-    let bpm = detect_bpm_from_samples(&samples, sample_rate);
+    let bpm =
+        read_bpm_tag(uri_or_path).unwrap_or_else(|| detect_bpm_from_samples(&samples, sample_rate));
     let (key_idx, is_minor) = detect_key_from_samples(&samples, sample_rate);
     let key_name = format!(
         "{} {}",
@@ -568,11 +564,9 @@ pub fn analyze_track_chords_and_grid(
         CAMELOT_MAJOR[key_idx].to_string()
     };
 
-    // 3. Detekcja siatki taktów i akordów
     let (beat_grid, chords) =
         detect_chords_from_samples(&samples, sample_rate, bpm, Some(key_idx), Some(is_minor));
 
-    // 4. Obliczenie hasha pliku dla unikalnego cache
     let local = crate::uri::local_path(uri_or_path);
     let path = local.as_path();
     let file_hash = if path.exists() {
@@ -589,6 +583,6 @@ pub fn analyze_track_chords_and_grid(
         camelot,
         beat_grid,
         chords,
-        analyzer_version: "1.1.0-classic".to_string(),
+        analyzer_version: CHORD_ANALYZER_VERSION.to_string(),
     })
 }
