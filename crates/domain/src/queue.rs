@@ -70,8 +70,12 @@ impl PlaybackQueue {
             i.uri == item.uri
                 || (i.track_id.is_some() && item.track_id.is_some() && i.track_id == item.track_id)
         }) {
+            // Wpis kolejki zostaje nietknięty (jego `id` identyfikuje go w UI), a kursor tasowania
+            // musi wskazywać ten sam utwór — inaczej następny utwór wypada z pominięciem bieżącego.
             self.current_index = Some(pos);
-            self.items[pos] = item;
+            if let Some(cursor) = self.shuffle_order.iter().position(|&i| i == pos) {
+                self.shuffle_cursor = cursor;
+            }
         } else {
             self.current_index = None;
         }

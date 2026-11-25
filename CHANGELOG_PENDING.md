@@ -57,6 +57,7 @@
 - **Biblioteka**: przyciski akcji w wierszu utworu układają się w siatkę 5×2, dzięki czemu żadna ikona nie jest ucięta.
 
 #### Odtwarzanie i kolejka
+- **Otwarcie projektu stemów nie psuje kolejki**: wpis kolejki był podmieniany (inne `id`), a kursor tasowania nie podążał za utworem, więc następny utwór pomijał bieżący i wypadał losowo. `PlaybackQueue::set_active_item` zachowuje wpis i synchronizuje kursor tasowania.
 - **Głośność nie wraca do poprzedniej wartości**, gdy zmiana trafiła na moment zajętości silnika (np. ładowanie utworu).
 - **Pliki dodane naraz (przeciągnięcie, argumenty startowe) dostają unikalne identyfikatory** — wcześniej miały ten sam, co psuło MPRIS, pomijanie ciszy i usuwanie z kolejki.
 - **Błędy odtwarzania (GStreamer) są pokazywane w interfejsie** jako komunikat zamiast cichego zatrzymania.

@@ -135,3 +135,33 @@ fn test_set_items_with_start_index_drops_stale_active_stream() {
     q.current_index = None;
     assert!(q.current_item().is_none());
 }
+
+#[test]
+fn set_active_item_keeps_queue_entry_and_shuffle_position() {
+    let mk = |id: &str, track: i64| QueueItem {
+        id: id.to_string(),
+        track_id: Some(track),
+        uri: format!("file:///{track}.flac"),
+        title: format!("Song {track}"),
+        artist: "A".into(),
+        album: None,
+        duration_ms: 1000,
+    };
+    let mut q = PlaybackQueue::new();
+    q.set_items((1..=6).map(|n| mk(&format!("q{n}"), n)).collect(), Some(0));
+    q.set_shuffle(true);
+
+    // Stem studio re-announces the playing track under a different id.
+    let playing = q.current_item().unwrap().clone();
+    let mut announced = playing.clone();
+    announced.id = "stem-project-9".into();
+    q.set_active_item(announced);
+
+    assert_eq!(q.current_item().unwrap().id, playing.id);
+    assert_eq!(q.shuffle_order[q.shuffle_cursor], q.current_index.unwrap());
+
+    // Next must advance to the following shuffled track, not skip or restart.
+    let expected = q.shuffle_order[q.shuffle_cursor + 1];
+    q.next();
+    assert_eq!(q.current_index, Some(expected));
+}
