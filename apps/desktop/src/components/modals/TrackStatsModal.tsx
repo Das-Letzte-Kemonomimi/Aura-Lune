@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Flame, Clock, BarChart3, RefreshCw, X, RotateCcw } from 'lucide-react';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
-import { formatTime } from '../../utils/timeFormat';
+import { formatTime, formatRelativeTime as formatRelativeTimeBase } from '../../utils/timeFormat';
 
 export interface TrackStatsData {
   id: number;
@@ -56,16 +56,19 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
     return date.toLocaleString();
   };
 
-  const formatRelativeTime = (timestamp?: number | null) => {
-    if (!timestamp) return loc.player.neverPlayed;
-    const diff = currentTimestamp - timestamp;
-    if (diff < 60) return loc.stats.relativeJustNow;
-    if (diff < 3600) return loc.stats.relativeMinutesAgo.replace('{m}', String(Math.floor(diff / 60)));
-    if (diff < 86400) return loc.stats.relativeHoursAgo.replace('{h}', String(Math.floor(diff / 3600)));
-    const days = Math.floor(diff / 86400);
-    if (days === 1) return loc.stats.relativeOneDayAgo;
-    return loc.stats.relativeDaysAgo.replace('{d}', String(days));
-  };
+  const formatRelativeTime = (timestamp?: number | null) =>
+    formatRelativeTimeBase(
+      timestamp,
+      {
+        never: loc.player.neverPlayed,
+        justNow: loc.stats.relativeJustNow,
+        minutesAgo: loc.stats.relativeMinutesAgo,
+        hoursAgo: loc.stats.relativeHoursAgo,
+        daysAgo: loc.stats.relativeDaysAgo,
+        oneDayAgo: loc.stats.relativeOneDayAgo,
+      },
+      currentTimestamp,
+    );
 
   const totalListenedMs = (track.play_count || 0) * track.duration_ms;
 

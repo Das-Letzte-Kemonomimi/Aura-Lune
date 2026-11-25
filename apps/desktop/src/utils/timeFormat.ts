@@ -1,3 +1,5 @@
+import { fmt } from './fmt';
+
 /**
  * Centralized Time Formatting & Parsing Utilities
  * Single Source of Truth for audio playback timing in Auralune.
@@ -100,4 +102,32 @@ export function parseTimeToMs(input: string): number | null {
   // 5. Plain integer digits -> milliseconds
   const val = parseInt(str, 10);
   return isNaN(val) ? null : Math.max(0, val);
+}
+
+export interface RelativeTimeLabels {
+  never: string;
+  justNow: string;
+  /** Templates with a `{0}` placeholder for the count. */
+  minutesAgo: string;
+  hoursAgo: string;
+  daysAgo: string;
+  oneDayAgo: string;
+}
+
+/**
+ * Formats a unix timestamp (seconds) as "5 min ago" / "3 h ago" / "2 days ago".
+ * `nowSec` is injectable for deterministic tests.
+ */
+export function formatRelativeTime(
+  timestampSec: number | null | undefined,
+  labels: RelativeTimeLabels,
+  nowSec: number = Math.floor(Date.now() / 1000),
+): string {
+  if (!timestampSec) return labels.never;
+  const diff = Math.max(0, nowSec - timestampSec);
+  if (diff < 60) return labels.justNow;
+  if (diff < 3600) return fmt(labels.minutesAgo, Math.floor(diff / 60));
+  if (diff < 86400) return fmt(labels.hoursAgo, Math.floor(diff / 3600));
+  const days = Math.floor(diff / 86400);
+  return days === 1 ? labels.oneDayAgo : fmt(labels.daysAgo, days);
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatTime,
+  formatRelativeTime,
   formatTimeMs,
   formatDuration,
   parseTimeToMs,
@@ -112,5 +113,29 @@ describe('timeFormat utility', () => {
       expect(parseTimeToMs('500')).toBe(500);
       expect(parseTimeToMs('60000')).toBe(60000);
     });
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const labels = {
+    never: 'Never',
+    justNow: 'Just now',
+    minutesAgo: '{0} min ago',
+    hoursAgo: '{0} h ago',
+    daysAgo: '{0} days ago',
+    oneDayAgo: '1 day ago',
+  };
+  const now = 1_000_000;
+
+  it('includes the count for minutes, hours and days', () => {
+    expect(formatRelativeTime(now - 5 * 60, labels, now)).toBe('5 min ago');
+    expect(formatRelativeTime(now - 3 * 3600, labels, now)).toBe('3 h ago');
+    expect(formatRelativeTime(now - 4 * 86400, labels, now)).toBe('4 days ago');
+  });
+
+  it('handles never, just now and singular day', () => {
+    expect(formatRelativeTime(null, labels, now)).toBe('Never');
+    expect(formatRelativeTime(now - 10, labels, now)).toBe('Just now');
+    expect(formatRelativeTime(now - 86400, labels, now)).toBe('1 day ago');
   });
 });

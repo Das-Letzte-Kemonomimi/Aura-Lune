@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
+import { formatRelativeTime as formatRelativeTimeBase } from '../../utils/timeFormat';
 
 export interface StatsDashboardViewProps {
   tracks: TrackRecord[];
@@ -116,17 +117,15 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
     return `${totalSecs} ${loc.stats.secsUnit}`;
   };
 
-  const formatRelativeTime = (timestamp?: number | null) => {
-    if (!timestamp) return loc.stats.relativeNever;
-    const now = Math.floor(Date.now() / 1000);
-    const diff = now - timestamp;
-    if (diff < 60) return loc.stats.relativeJustNow;
-    if (diff < 3600) return loc.stats.relativeMinutesAgo.replace('{m}', String(Math.floor(diff / 60)));
-    if (diff < 86400) return loc.stats.relativeHoursAgo.replace('{h}', String(Math.floor(diff / 3600)));
-    const days = Math.floor(diff / 86400);
-    if (days === 1) return loc.stats.relativeOneDayAgo;
-    return loc.stats.relativeDaysAgo.replace('{d}', String(days));
-  };
+  const formatRelativeTime = (timestamp?: number | null) =>
+    formatRelativeTimeBase(timestamp, {
+      never: loc.stats.relativeNever,
+      justNow: loc.stats.relativeJustNow,
+      minutesAgo: loc.stats.relativeMinutesAgo,
+      hoursAgo: loc.stats.relativeHoursAgo,
+      daysAgo: loc.stats.relativeDaysAgo,
+      oneDayAgo: loc.stats.relativeOneDayAgo,
+    });
 
   const getTracksInLibraryText = (count: number) => {
     if (count === 1) return loc.stats.tracksInLibrarySingle.replace('{n}', '1');
