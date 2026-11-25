@@ -13,13 +13,13 @@ pub use super::beat_grid::extract_beat_grid;
 pub use super::chroma::extract_chroma_frame;
 
 /// Wersja algorytmu akordów zapisywana w pamięci podręcznej; wpisy innej wersji są ignorowane.
-pub const CHORD_ANALYZER_VERSION: &str = "2.0.0-chroma-hmm";
+pub const CHORD_ANALYZER_VERSION: &str = "2.1.0-chroma-hmm";
 
 /// Maksymalna długość analizowanego audio (sekundy).
 pub const CHORD_ANALYSIS_MAX_SECONDS: f64 = 900.0;
 
 /// Prawdopodobieństwo pozostania w tym samym akordzie na kolejnym uderzeniu.
-pub const SELF_TRANSITION_PROB: f64 = 0.6;
+pub const SELF_TRANSITION_PROB: f64 = 0.4;
 /// Ile razy bardziej prawdopodobny jest ruch o kwartę/kwintę niż inna zmiana akordu.
 pub const FOURTH_FIFTH_TRANSITION_BONUS: f64 = 2.0;
 /// Temperatura softmaxu emisji (mniejsza = ostrzejsze dowody z chromagramu).
