@@ -25,7 +25,7 @@ pub const FOURTH_FIFTH_TRANSITION_BONUS: f64 = 2.0;
 /// Temperatura softmaxu emisji (mniejsza = ostrzejsze dowody z chromagramu).
 pub const EMISSION_TEMPERATURE: f64 = 0.1;
 /// Mnożnik podobieństwa dla akordów z septymą, sus, zmniejszonych i zwiększonych.
-pub const COMPLEX_CHORD_PRIOR: f64 = 0.86;
+pub const COMPLEX_CHORD_PRIOR: f64 = 0.92;
 /// Słaby przyrost prawdopodobieństwa akordów diatonicznych (≤ 1,1×).
 pub const DIATONIC_PRIOR: f64 = 1.1;
 /// Absolutny próg RMS ciszy.
