@@ -135,15 +135,28 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
     if (!ctx) return;
 
     let animationFrameId: number;
-    const scale = 0.5;
-    let width = (canvas.width = Math.max(320, Math.floor(window.innerWidth * scale)));
-    let height = (canvas.height = Math.max(240, Math.floor(window.innerHeight * scale)));
+    // Logical drawing space is half the CSS size (particle sizes/speeds are tuned for it), but the
+    // backing store matches the device pixel ratio and a transform scales drawing up, so it stays
+    // crisp on HiDPI screens instead of being a 0.5x bitmap stretched by the compositor.
+    const LOGICAL_SCALE = 0.5;
+    let width = 0;
+    let height = 0;
+    let pxScale = 1; // backing-store pixels per logical unit; shadowBlur is not affected by transforms
 
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = Math.max(320, Math.floor(window.innerWidth * scale));
-      height = canvas.height = Math.max(240, Math.floor(window.innerHeight * scale));
+    const applySize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cssW = Math.max(1, window.innerWidth);
+      const cssH = Math.max(1, window.innerHeight);
+      width = cssW * LOGICAL_SCALE;
+      height = cssH * LOGICAL_SCALE;
+      pxScale = dpr / LOGICAL_SCALE;
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
     };
+    applySize();
+
+    const handleResize = applySize;
     window.addEventListener('resize', handleResize);
 
     // 1. Inicjalizacja płatków Sakury
@@ -522,7 +535,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.beginPath();
           ctx.arc(m.x, m.y, m.thickness * 1.4, 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 8 * pxScale;
           ctx.shadowColor = m.tailColor;
           ctx.fill();
           ctx.restore();
@@ -552,7 +565,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
               // Prowadzący znak - biały, świecący
               ctx.fillStyle = '#ffffff';
               ctx.shadowColor = '#4ade80';
-              ctx.shadowBlur = 6;
+              ctx.shadowBlur = 6 * pxScale;
             } else {
               // Ogon zielono-neonowy z zanikaniem
               const alpha = Math.max(0.1, 1 - i / drop.chars.length);
@@ -616,7 +629,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
           ctx.fillStyle = e.coreColor;
           ctx.shadowColor = e.glowColor;
-          ctx.shadowBlur = 8 + pulse * 8;
+          ctx.shadowBlur = (8 + pulse * 8) * pxScale;
           ctx.globalAlpha = alpha;
           ctx.fill();
           ctx.restore();
@@ -648,9 +661,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
         zIndex: 2,
         opacity,
         transition: 'opacity 0.5s ease',
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-      }}
+              }}
     />
   );
 };

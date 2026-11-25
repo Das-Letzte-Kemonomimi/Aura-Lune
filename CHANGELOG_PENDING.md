@@ -109,6 +109,8 @@
 - **Tabela utworów**: kolumna `#` pokazuje numer pozycji w widoku (numer ścieżki z tagów jest w podpowiedzi), a ponowne kliknięcie nagłówka odwraca kolejność domyślną.
 
 #### Interfejs i ustawienia
+- **Efekty Ambience są ostre**: canvas był rysowany w połowie rozdzielczości i rozciągany (piksele, artefakty); teraz bufor odpowiada rozdzielczości ekranu (HiDPI), a proporcje nie są już zniekształcane przez minimalny rozmiar 320×240.
+- **Statystyki → „Ostatnio odtwarzane”**: czas „temu” pokazuje teraz liczbę (np. „5 min temu”, „3 godz. temu”) — wcześniej tłumaczenia nie miały znacznika liczby, więc wyświetlało się samo „min temu”. Wspólny formatter `formatRelativeTime` w `utils/timeFormat.ts`.
 - **Ustawienie powiadomień systemowych jest zapamiętywane** — przełącznik zapisywał wartość pod innym kluczem niż odczytywany przy starcie; zapisana wcześniej wartość jest przenoszona.
 - **„Dodaj do kolejki” i „Odtwórz jako następny”** w tabeli utworów i widoku albumu działają.
 - **Skan ReplayGain pojedynczego utworu** z biblioteki działa.
