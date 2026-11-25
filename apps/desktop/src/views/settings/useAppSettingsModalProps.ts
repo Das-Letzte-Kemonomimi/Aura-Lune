@@ -6,12 +6,14 @@ import type { useSessionManager } from '../../hooks/useSessionManager';
 import type { useScrobblerManager } from '../../hooks/useScrobblerManager';
 import type { useDspManager } from '../../hooks/useDspManager';
 import type { usePlaybackController } from '../../hooks/usePlaybackController';
+import type { UpdateManager } from '../../hooks/useUpdateManager';
 import type { useAudioMasteringEffects } from '../../hooks/useAudioMasteringEffects';
 import React from 'react';
 import type { Language, Translations } from '../../i18n';
 import type { AudioDevicesSettingsViewProps } from './AudioDevicesSettingsView';
 import type { TranscodeSettingsViewProps } from './TranscodeSettingsView';
 import type { ThemesSettingsViewProps } from './ThemesSettingsView';
+import type { UpdatesSettingsViewProps } from './UpdatesSettingsView';
 import type { AboutSettingsViewProps } from './AboutSettingsView';
 import type { BackupSettingsViewProps } from './BackupSettingsView';
 
@@ -25,8 +27,10 @@ export interface UseAppSettingsModalPropsParams {
   dspManager?: ReturnType<typeof useDspManager>;
   playbackController?: ReturnType<typeof usePlaybackController>;
   masteringEffects?: ReturnType<typeof useAudioMasteringEffects>;
+  updateManager: UpdateManager;
   language: Language;
   loc: Translations;
+  appVersion: string;
   audioDevices?: Partial<{
     instantVolume: boolean;
     setInstantVolume: React.Dispatch<React.SetStateAction<boolean>>;
@@ -104,7 +108,7 @@ export interface UseAppSettingsModalPropsParams {
  * (typy pól są sprawdzane, kompletność — nie; docelowo zastąpią to konteksty Reacta).
  */
 export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams) {
-  const { language, loc } = params;
+  const { language, loc, updateManager } = params;
 
   const audioDevices = {
     ...(params.audioSettings || {}),
@@ -306,8 +310,29 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onImportTheme: themes.handleImportTheme,
   };
 
+  const updatesProps: UpdatesSettingsViewProps = {
+    language,
+    loc,
+    buildInfo: updateManager.buildInfo,
+    info: updateManager.info,
+    checking: updateManager.checking,
+    installing: updateManager.installing,
+    installed: updateManager.installed,
+    progress: updateManager.progress,
+    error: updateManager.error,
+    isSkipped: updateManager.isSkipped,
+    autoCheckEnabled: updateManager.autoCheckEnabled,
+    onCheckNow: () => void updateManager.checkNow(),
+    onInstall: () => void updateManager.install(),
+    onRestart: () => void updateManager.restart(),
+    onSkip: () => void updateManager.skip(),
+    onToggleAutoCheck: (enabled) => void updateManager.setAutoCheck(enabled),
+  };
+
   const aboutProps: AboutSettingsViewProps = {
     appIconStyle: about.appIconStyle,
+    appVersion: params.appVersion,
+    buildInfo: updateManager.buildInfo,
     language,
     loc,
     onOpenHealthCheck: () => about.setIsHealthCheckModalOpen(true),
@@ -358,6 +383,7 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     devicesProps,
     transcodeProps,
     themesProps,
+    updatesProps,
     aboutProps,
     backupProps,
   };

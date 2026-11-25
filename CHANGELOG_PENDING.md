@@ -34,6 +34,12 @@
 - **Komunikat o błędzie przy nieudanym starcie** (baza danych, katalog danych, GStreamer) w oknie systemowym (zenity/kdialog) zamiast cichej awarii.
 - **Kilka komunikatów o błędach naraz** (do 3) — każdy znika po własnym czasie, kliknięcie zamyka komunikat, identyczne komunikaty nie są dublowane.
 
+#### Aktualizacje w aplikacji
+- **Ustawienia → Aktualizacje** i odznaka „Aktualizacja” przy wersji w nagłówku: aplikacja sprawdza nowe wydania przy starcie (po ok. 30 s) i co 6 godzin (można wyłączyć), a „Sprawdź teraz” robi to na żądanie. Nic nie jest pobierane bez Twojej zgody; wersję można pominąć.
+- **Kanały nigdy się nie mieszają**: kanał stable porównuje wersję (semver) z najnowszym wydaniem, a kanał dev — commit wbudowany w aplikację z commitem ruchomego wydania `dev-build`.
+- **Samoaktualizacja AppImage z `install.sh`**: pobranie, weryfikacja SHA-256, atomowa podmiana pliku i restart przez launcher. Instalacje z pakietów (AUR/deb) oraz AppImage spoza `install.sh` pokazują tylko informację o nowej wersji. Bez sumy kontrolnej w wydaniu instalacja jest odrzucana.
+- **Wydania publikują `SHA256SUMS`** (workflow `publish-dev-release` i `packaging/sync-public-repo.sh`); wydanie dev zawiera też AppImage pod stałą nazwą `Auralune-dev-x86_64.AppImage` (fallback `install.sh`).
+
 #### Instalacja, wydania i narzędzia deweloperskie
 - **Kanał deweloperski instalatora** (`install.sh`): wersja `auralune-dev` instalowana obok stabilnej, z osobnymi plikami, profilem i skrótami; automatyczne wykrywanie wtyczek GStreamera (np. na Arch Linux).
 - **Automatyczne wydania testowe**: każda zmiana w gałęzi deweloperskiej publikuje w GitHub Actions świeży AppImage oznaczony `dev`.
@@ -126,6 +132,7 @@
 - **Tabela utworów**: kolumna `#` pokazuje numer pozycji w widoku (numer ścieżki z tagów jest w podpowiedzi), a ponowne kliknięcie nagłówka odwraca kolejność domyślną.
 
 #### Interfejs i ustawienia
+- **Ustawienia → O programie** pokazują rzeczywistą wersję, kanał i commit zamiast zakodowanego na stałe „v1.0.0 Golden Master”.
 - **Przeprojektowana oś „Harmonia i akordy”** (Studio analizy muzyki): akordy ułożone w siatkę taktów zamiast długiego paska, powtórzenia scalone, pasek przeglądu całego utworu (klik = przewinięcie), kolory rodzin akordów z legendą, podgląd następnego akordu, wyciszone takty już zagrane, postęp w bieżącym akordzie, niska pewność oznaczona kropkowaną krawędzią, edycja akordu po najechaniu. Autoprzewijanie pauzuje po ręcznym przewinięciu.
 - **Asystent kolejki harmonicznej jest w pełni przetłumaczony**: etykiety dopasowania („Kontrastujący klucz”, „Dopasowanie harmoniczne”, half/double-time…), „MATCH”, „Off”, „Klucz ?/BPM ?”, podpowiedź synchronizacji tempa i „Smart Shuffle” (Infinity Queue) oraz „Takt N” na osi akordów w Studiu analizy muzyki korzystają teraz z tłumaczeń (en/pl/de/fi/la).
 - **`auralune --uninstall`** (oraz `auralune-dev --uninstall`): zainstalowany launcher potrafi sam odinstalować aplikację (AppImage, wpis w menu, ikony); biblioteka i ustawienia pozostają.
@@ -155,6 +162,7 @@
 - **CSP**: usunięto nieużywany protokół `asset:`; import kopii profilu sprawdza poprawność motywów.
 
 #### Budowanie i CI
+- **`packaging/sync-public-repo.sh`** aktualizuje opis właściwego repozytorium (`Aura-Lune` zamiast nieistniejącego `Auralune`).
 - **Usługi sieciowe odporne na chwilowe awarie**: zapytania do MusicBrainz i AcoustID są ponawiane (do 3 prób z narastającym odstępem) przy błędach sieci i odpowiedziach 429/502/503/504; AcoustID ma limit 3 zapytań na sekundę; zawieszony `fpcalc` jest przerywany po 60 s; wszystkie usługi wysyłają jeden User-Agent z aktualną wersją (wcześniej m.in. na sztywno `0.1.0`), a teksty piosenek korzystają z jednego klienta HTTP zamiast tworzyć nowy dla każdego utworu.
 - **CI**: sprawdzanie składni skryptów powłoki (`bash -n`), informacyjny audyt zależności `cargo-deny` (podatności, licencje, duplikaty), test dymny uruchamiany raz zamiast dwa razy, uprawnienia pamięci podręcznej apt ograniczone do odczytu zamiast `777`.
 - **Usunięto 11 nieużywanych zależności** z crate'ów (m.in. `libc` i `thiserror` w modułach DSP, `storage` w `downloads` i `metadata`).

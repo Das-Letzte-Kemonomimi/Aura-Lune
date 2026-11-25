@@ -7,8 +7,10 @@ pub mod playback_ticker;
 pub mod shutdown;
 pub mod silence_trim;
 pub mod tray;
+pub mod update_checker;
 
 pub use app_init::init_app;
 pub use linux_env::init_linux_environment;
 pub use playback_ticker::spawn_playback_ticker;
 pub use tray::setup_tray_and_window_events;
+pub use update_checker::spawn_update_checker;

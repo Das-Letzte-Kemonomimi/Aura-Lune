@@ -23,6 +23,10 @@ import { fmt } from '../../utils/fmt';
 
 export interface AppHeaderProps {
   appVersion: string;
+  /** Nowa wersja (niepominięta) albo pobrana aktualizacja czekająca na restart. */
+  updateAvailable: boolean;
+  updateTitle: string;
+  onOpenUpdates: () => void;
   appIconStyle: string;
   activeTab: MainTabType;
   onSelectTab: (tab: MainTabType) => void;
@@ -62,6 +66,9 @@ export interface AppHeaderProps {
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   appVersion,
+  updateAvailable,
+  updateTitle,
+  onOpenUpdates,
   appIconStyle,
   activeTab,
   onSelectTab,
@@ -130,6 +137,40 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           >
             v{appVersion}
           </span>
+          {updateAvailable && (
+            <button
+              type="button"
+              onClick={onOpenUpdates}
+              title={updateTitle}
+              aria-label={updateTitle}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.6rem',
+                lineHeight: 1,
+                padding: '2px 5px',
+                borderRadius: '4px',
+                background: 'rgba(34, 197, 94, 0.2)',
+                color: '#4ade80',
+                fontWeight: 700,
+                border: '1px solid rgba(34, 197, 94, 0.45)',
+                cursor: 'pointer',
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: '#4ade80',
+                  animation: 'update-dot-pulse 1.6s ease-in-out infinite',
+                }}
+              />
+              {loc.updates.badge}
+            </button>
+          )}
           <img
             src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
             alt="Auralune Logo"

@@ -116,11 +116,18 @@ Tell the user what each step does and wait. These are hard to reverse.
     user what it does first: it recreates a local `release` branch from the
     current branch, removes `AGENTS.md`, **force-pushes** to `public/main`,
     force-moves the tag `vX.Y.Z`, creates or updates the GitHub Release
-    (uploading the AppImage, and the Bazzite one from `target/dist/` if present)
-    and edits the repository descriptions. It only strips `AGENTS.md`; anything
+    (uploading the AppImage, the Bazzite one from `target/dist/` if present, and a
+    generated `SHA256SUMS` covering them) and edits the repository descriptions. It only strips `AGENTS.md`; anything
     else that must not be public (for example `skills/`) is pushed too, so ask
     whether other internal files should be removed first. It needs `gh`
     authenticated.
+    `SHA256SUMS` is part of the update contract: the in-app updater (Settings →
+    Updates) refuses to install an AppImage it cannot verify, using the release
+    asset `digest` from the GitHub API or, failing that, this file. A release
+    without it is announced but can only be updated manually. Stable builds embed
+    their channel from the version (no `-dev` suffix → `stable`) and the commit
+    from `git rev-parse HEAD` in `apps/desktop/src-tauri/build.rs`, so build the
+    release AppImage from the tagged commit.
 3.  **AUR**: `packaging/archlinux/publish-to-aur.sh` publishes `auralune-bin`
     (needs an SSH key registered on the AUR). Run it only after the GitHub
     Release exists, since the AppImage URL must resolve.

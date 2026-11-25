@@ -47,8 +47,11 @@ describe('AppSettingsModal', () => {
       onJsonImportContentChange: vi.fn(),
       onImportTheme: vi.fn(),
     },
+    updatesProps: {} as any,
     aboutProps: {
       appIconStyle: 'classic' as const,
+      appVersion: '1.2.3',
+      buildInfo: null,
       language: 'en' as const,
       loc,
       onOpenHealthCheck: vi.fn(),

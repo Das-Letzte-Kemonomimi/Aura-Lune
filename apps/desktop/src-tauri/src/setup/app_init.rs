@@ -442,6 +442,7 @@ pub fn init_app(
     let state_for_cli = app_state.clone();
     app.manage(app_state);
     crate::setup::spawn_playback_ticker(app.handle().clone());
+    crate::setup::spawn_update_checker(app.handle().clone());
 
     let cli_args = std::env::args().collect::<Vec<String>>();
     let initial_files = extract_audio_paths_from_args(&cli_args, None);

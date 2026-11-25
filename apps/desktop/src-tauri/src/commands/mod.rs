@@ -16,3 +16,4 @@ pub mod renamer;
 pub mod stems;
 pub mod system;
 pub mod themes;
+pub mod updates;

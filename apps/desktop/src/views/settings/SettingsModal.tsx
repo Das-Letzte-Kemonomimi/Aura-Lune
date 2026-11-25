@@ -8,6 +8,7 @@ import {
   Info,
   History,
   Save,
+  Download,
 } from 'lucide-react';
 import { type Translations } from '../../i18n';
 
@@ -37,6 +38,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     { id: 'themes', label: loc.settings.themes, icon: <Palette size={15} /> },
     { id: 'devices', label: loc.settings.audioDevices, icon: <Radio size={15} /> },
     { id: 'transcode', label: loc.settings.exportOpus, icon: <FileAudio size={15} /> },
+    { id: 'updates', label: loc.updates.tab, icon: <Download size={15} /> },
     { id: 'about', label: loc.settings.about, icon: <Info size={15} /> },
     { id: 'changelog', label: loc.settings.changelog, icon: <History size={15} /> },
     { id: 'backup', label: loc.settings.backupTitle, icon: <Save size={15} /> },

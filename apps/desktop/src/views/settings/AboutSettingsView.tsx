@@ -9,9 +9,12 @@ import {
   Keyboard,
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
+import type { BuildInfo } from '../../types/updates';
 
 export interface AboutSettingsViewProps {
   appIconStyle: 'lineout' | 'classic';
+  appVersion: string;
+  buildInfo: BuildInfo | null;
   language: Language;
   loc: Translations;
   onOpenHealthCheck: () => void;
@@ -21,6 +24,8 @@ export interface AboutSettingsViewProps {
 
 export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
   appIconStyle,
+  appVersion,
+  buildInfo,
   language: _language,
   loc,
   onOpenHealthCheck,
@@ -57,18 +62,15 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
           <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>Auralune</span>
             <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem' }}>狐 Kitsune</span>
-            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))', color: '#fff', fontWeight: 800 }}>v1.0.0 Golden Master</span>
+            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))', color: '#fff', fontWeight: 800 }}>v{appVersion}</span>
           </h3>
           <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
-            {loc.settings.version} 1.0.0 „Kitsune Golden Master” • {loc.settings.author}: Das Letzte Kemonomimi
+            {loc.settings.version} {appVersion}{buildInfo ? ` (${buildInfo.channel} • ${buildInfo.commit_short})` : ''} • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
           <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics & real-time pitch/tempo modulation.
           </p>
           <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', fontWeight: 600 }}>
-              {loc.settings.officialRelease || 'Official Stable Release 1.0.0'}
-            </span>
             <button
               onClick={onOpenHealthCheck}
               style={{

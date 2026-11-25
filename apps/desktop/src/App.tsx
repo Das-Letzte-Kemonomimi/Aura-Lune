@@ -33,7 +33,7 @@ import { useBottomPlaybackDockProps } from './components/layout/useBottomPlaybac
 import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from './api/ipc';
 import { setSetting } from './api/settings';
 import {
@@ -61,6 +61,7 @@ import { useSleepTimer } from './hooks/useSleepTimer';
 import { fmt } from './utils/fmt';
 import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
 import { useToasts } from './hooks/useToasts';
+import { useUpdateManager } from './hooks/useUpdateManager';
 import { usePlaybackErrorToasts } from './hooks/usePlaybackErrorToasts';
 
 export type { AlbumPlaybackBehavior };
@@ -108,6 +109,7 @@ export default function App() {
   // Kolejka komunikatów (useToasts): stabilny `showMessage` dla hooków, osobny licznik czasu
   // dla każdego komunikatu. Komunikaty informacyjne są celowo pomijane; widoczne są tylko błędy.
   const { toasts, showMessage, dismiss: dismissToast } = useToasts();
+  const updateManager = useUpdateManager();
   usePlaybackErrorToasts(showMessage);
 
   const mainContentRef = useRef<HTMLElement | null>(null);
@@ -893,6 +895,8 @@ export default function App() {
   const settingsModalProps = useAppSettingsModalProps({
     language,
     loc,
+    appVersion,
+    updateManager,
     audioSettings,
     transcodeManager,
     themeManager,
@@ -1092,8 +1096,18 @@ export default function App() {
     showMessage,
   });
 
+  const openUpdatesSettings = useCallback(() => {
+    setSettingsTab('updates');
+    setIsSettingsOpen(true);
+  }, [setSettingsTab, setIsSettingsOpen]);
+
   const appHeaderProps = useAppHeaderProps({
     appVersion,
+    updateAvailable: updateManager.hasUpdate,
+    updateTitle: updateManager.installed
+      ? loc.updates.badgeInstalledTitle
+      : fmt(loc.updates.badgeTitle, updateManager.info?.latest_version ?? ''),
+    onOpenUpdates: openUpdatesSettings,
     themeManager,
     modalManager,
     // Zakładki przekierowujące do Ustawień są natychmiast zamieniane na `player` (efekt powyżej).
@@ -1298,6 +1312,7 @@ export default function App() {
         devicesProps={settingsModalProps.devicesProps}
         transcodeProps={settingsModalProps.transcodeProps}
         themesProps={settingsModalProps.themesProps}
+        updatesProps={settingsModalProps.updatesProps}
         aboutProps={settingsModalProps.aboutProps}
         backupProps={settingsModalProps.backupProps}
       />

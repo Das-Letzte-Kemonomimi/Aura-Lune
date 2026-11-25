@@ -100,8 +100,23 @@ if [[ -f "$BAZZITE_APPIMAGE" ]]; then
     gh release upload "$TAG_NAME" "$BAZZITE_APPIMAGE" --repo "$PUBLIC_REPO" --clobber
 fi
 
+# 8b. SHA256SUMS — aktualizator w aplikacji weryfikuje nim pobrany AppImage i odmawia instalacji
+# bez sumy kontrolnej. Zawiera wszystkie AppImage wydania (bazowy i opcjonalny bazzite).
+SUMS_DIR="$(mktemp -d)"
+trap 'rm -rf "$SUMS_DIR"' EXIT
+for f in "$APPIMAGE_PATH" "$BAZZITE_APPIMAGE"; do
+    [[ -f "$f" ]] && cp "$f" "$SUMS_DIR/"
+done
+if compgen -G "$SUMS_DIR/*.AppImage" >/dev/null; then
+    (cd "$SUMS_DIR" && sha256sum -- *.AppImage > SHA256SUMS)
+    echo "🔐 SHA256SUMS:"; cat "$SUMS_DIR/SHA256SUMS"
+    gh release upload "$TAG_NAME" "$SUMS_DIR/SHA256SUMS" --repo "$PUBLIC_REPO" --clobber
+else
+    echo "⚠️  Brak plików AppImage — pominięto SHA256SUMS (aktualizacje w aplikacji będą niedostępne)."
+fi
+
 # 9. Aktualizacja opisu repozytoriów na GitHubie (sekcja About)
-ORIGIN_REPO="Das-Letzte-Kemonomimi/Auralune"
+ORIGIN_REPO="Das-Letzte-Kemonomimi/Aura-Lune"
 NEW_DESC="v${CURRENT_VERSION} | Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP)"
 gh repo edit "$ORIGIN_REPO" --description "$NEW_DESC" &>/dev/null || true
 gh repo edit "$PUBLIC_REPO" --description "$NEW_DESC" &>/dev/null || true

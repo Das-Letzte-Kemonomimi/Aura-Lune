@@ -15,6 +15,7 @@ use tracing::info;
 
 pub mod commands;
 pub mod setup;
+pub mod updater;
 
 pub use commands::analysis::*;
 pub use commands::bookmarks::*;
@@ -32,6 +33,7 @@ pub use commands::renamer::*;
 pub use commands::stems::*;
 pub use commands::system::*;
 pub use commands::themes::*;
+pub use commands::updates::*;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -297,6 +299,11 @@ pub fn run() {
             restore_original_track,
             apply_stem_project_mix,
             export_stem_project_zip,
+            get_build_info,
+            get_cached_update_info,
+            check_for_update,
+            install_update,
+            restart_after_update,
         ])
         .build(tauri::generate_context!())
         .expect("Błąd podczas uruchamiania aplikacji Tauri")

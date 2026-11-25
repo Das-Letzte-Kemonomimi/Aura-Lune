@@ -181,6 +181,8 @@ describe('useAppSettingsModalProps', () => {
     const result = useAppSettingsModalProps({
       language: 'en',
       loc,
+      appVersion: '1.2.3',
+      updateManager: {} as any,
       audioDevices: mockAudioDevices,
       transcode: mockTranscode,
       themes: mockThemes,
@@ -215,6 +217,8 @@ describe('useAppSettingsModalProps', () => {
     const result = useAppSettingsModalProps({
       language: 'en',
       loc,
+      appVersion: '1.2.3',
+      updateManager: {} as any,
       // Częściowe mocki menedżerów — test sprawdza tylko pola zakładki About.
       themeManager: mockThemeManager as unknown as UseAppSettingsModalPropsParams['themeManager'],
       modalManager: mockModalManager as unknown as UseAppSettingsModalPropsParams['modalManager'],

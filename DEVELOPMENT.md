@@ -406,6 +406,15 @@ The installer automatically determines the target channel based on the following
 ### Wayland & Desktop Icons
 Aura-Lune installs themed icons into `~/.local/share/icons/hicolor` and triggers `gtk-update-icon-cache` automatically when toggling between `lineout` and `classic` styles in the Settings view.
 
+### Testing In-App Updates
+The updater (Settings → Updates, `apps/desktop/src-tauri/src/updater/`) decides everything from the build identity and the environment, so it can be exercised without publishing a release:
+
+- **Build identity** is embedded by `apps/desktop/src-tauri/build.rs`: `AURALUNE_BUILD_COMMIT` (else `GITHUB_SHA`, else `git rev-parse HEAD`) and `AURALUNE_BUILD_CHANNEL` (`dev`/`stable`, else derived from a `-dev` version suffix). Fake an outdated dev build with `AURALUNE_BUILD_COMMIT=0000000 npm --prefix apps/desktop run tauri build -- --bundles appimage`, then install it with `./install.sh --dev` from the local bundle; the badge appears ~30 s after startup, **Download & install** verifies the checksum and swaps the AppImage, **Restart now** relaunches through `~/.local/bin/auralune-dev`.
+- **Install kind** comes from `APPIMAGE` (self-update only when it sits directly in `~/.local/share/auralune{,-dev}/` and is writable) and the build profile: unset `APPIMAGE` in a release build → `system` notice; debug builds without `APPIMAGE` → `dev_server` (no background checks). Exporting `APPIMAGE=~/.local/share/auralune-dev/auralune-dev.AppImage` and `AURALUNE_CHANNEL=dev` for `npm run tauri dev` exercises the managed UI path (do not press Install against your real AppImage).
+- **Throttling**: the last check time and result live in the `update_last_checked` / `update_last_result` settings; a non-forced check within 6 h returns the cached result. **Check now** always forces a request.
+- **Checksums**: releases must ship `SHA256SUMS` (or an asset `digest` from the API). The installer refuses to proceed without either.
+- Rust tests: `cargo test -p auralune-desktop --test updates_test --test install_identity_test` (a local HTTP server stands in for GitHub); `cargo test -p domain --test version_test`. Vitest: `useUpdateManager.test.ts`, `UpdatesSettingsView.test.tsx`.
+
 ---
 
 ## 9. Continuous Integration (CI/CD)

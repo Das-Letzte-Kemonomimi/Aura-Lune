@@ -197,6 +197,9 @@ jobs:
           npm --prefix apps/desktop run build
 
       - name: Build Tauri AppImage bundle
+        env:
+          # Wbudowuje kanał i commit (apps/desktop/src-tauri/build.rs); GITHUB_SHA ustawia GitHub.
+          AURALUNE_BUILD_CHANNEL: dev
         run: |
           npm --prefix apps/desktop run tauri build -- --bundles appimage
 
@@ -211,11 +214,18 @@ jobs:
           fi
           echo "Found generated AppImage: $APPIMAGE_PATH"
 
+          # Pliki wydania: AppImage pod nazwą z Tauri oraz pod stałą nazwą (fallback install.sh),
+          # a obok SHA256SUMS — aktualizator w aplikacji odmawia instalacji bez sumy kontrolnej.
+          RELEASE_DIR="$(mktemp -d)"
+          cp "$APPIMAGE_PATH" "$RELEASE_DIR/$(basename "$APPIMAGE_PATH")"
+          cp "$APPIMAGE_PATH" "$RELEASE_DIR/Auralune-dev-x86_64.AppImage"
+          (cd "$RELEASE_DIR" && sha256sum -- *.AppImage > SHA256SUMS && cat SHA256SUMS)
+
           echo "Updating rolling 'dev-build' pre-release on GitHub..."
           gh release delete dev-build --yes --cleanup-tag || true
 
           gh release create dev-build \
-            "$APPIMAGE_PATH" \
+            "$RELEASE_DIR"/*.AppImage "$RELEASE_DIR/SHA256SUMS" \
             --target "${{ github.sha }}" \
             --title "Auralune (Development Build)" \
             --notes "### 🌸 Auralune — Rolling Development Build

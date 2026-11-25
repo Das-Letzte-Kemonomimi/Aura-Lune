@@ -3,6 +3,7 @@ import { SettingsModal, type SettingsTab } from './SettingsModal';
 import { AudioDevicesSettingsView, type AudioDevicesSettingsViewProps } from './AudioDevicesSettingsView';
 import { TranscodeSettingsView, type TranscodeSettingsViewProps } from './TranscodeSettingsView';
 import { ThemesSettingsView, type ThemesSettingsViewProps } from './ThemesSettingsView';
+import { UpdatesSettingsView, type UpdatesSettingsViewProps } from './UpdatesSettingsView';
 import { AboutSettingsView, type AboutSettingsViewProps } from './AboutSettingsView';
 import { BackupSettingsView, type BackupSettingsViewProps } from './BackupSettingsView';
 import { ChangelogView } from '../changelog/ChangelogView';
@@ -18,6 +19,7 @@ export interface AppSettingsModalProps {
   devicesProps: AudioDevicesSettingsViewProps;
   transcodeProps: TranscodeSettingsViewProps;
   themesProps: ThemesSettingsViewProps;
+  updatesProps: UpdatesSettingsViewProps;
   aboutProps: AboutSettingsViewProps;
   backupProps: BackupSettingsViewProps;
 }
@@ -32,6 +34,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
   devicesProps,
   transcodeProps,
   themesProps,
+  updatesProps,
   aboutProps,
   backupProps,
 }) => {
@@ -46,6 +49,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
       {activeTab === 'themes' && <ThemesSettingsView {...themesProps} />}
       {activeTab === 'devices' && <AudioDevicesSettingsView {...devicesProps} />}
       {activeTab === 'transcode' && <TranscodeSettingsView {...transcodeProps} />}
+      {activeTab === 'updates' && <UpdatesSettingsView {...updatesProps} />}
       {activeTab === 'about' && <AboutSettingsView {...aboutProps} />}
       {activeTab === 'changelog' && <ChangelogView currentLang={language} />}
       {activeTab === 'backup' && <BackupSettingsView {...backupProps} />}

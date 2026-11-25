@@ -17,6 +17,7 @@ pub mod silence;
 pub mod stem_project;
 pub mod theme;
 pub mod transcode;
+pub mod version;
 
 pub use analysis::{
     AiModelInfo, AiTaskType, AnalysisCapabilities, BeatPoint, ChordSegment, DetectedNote,

@@ -381,3 +381,15 @@ button:disabled,
   justify-content: center;
   padding: 3px !important;
 }
+
+@keyframes update-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.45;
+  }
+}

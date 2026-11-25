@@ -36,6 +36,7 @@ gstreamer = { workspace = true }
 glib = { workspace = true }
 walkdir = { workspace = true }
 url = "2"
+reqwest = { workspace = true }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

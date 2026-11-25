@@ -107,7 +107,7 @@ Aura-Lune/
 │       │   └── main.tsx             # React DOM root entrypoint
 │       └── src-tauri/               # Tauri Rust Backend (crate: auralune-desktop)
 │           ├── src/
-│           │   ├── commands/        # Modularized Tauri command handlers (184 commands)
+│           │   ├── commands/        # Modularized Tauri command handlers (189 commands)
 │           │   │   ├── analysis.rs  # Key/BPM, chords, waveform peaks, transcription
 │           │   │   ├── bookmarks.rs # Track A-B repeat bookmarks & cues
 │           │   │   ├── devices.rs   # Audio cards, Bluetooth codecs, master volume
@@ -123,13 +123,16 @@ Aura-Lune/
 │           │   │   ├── renamer.rs   # File renamer pattern preview & execution
 │           │   │   ├── stems.rs     # AI separation, stem mixer, stem projects
 │           │   │   ├── system.rs    # Audio health check, process memory, desktop icons
+│           │   │   ├── updates.rs   # Build info, update check, AppImage self-update, restart
 │           │   │   └── themes.rs    # Themes CRUD, wallpaper uploads, anime presets
 │           │   ├── setup/           # Application lifecycle & environment configuration
 │           │   │   ├── app_init.rs  # DB connection, state init, command-line arguments
 │           │   │   ├── linux_env.rs # GStreamer plugin paths & WebKit2GTK configuration
 │           │   │   ├── playback_ticker.rs # Backend status loop: bus draining, status events, MPRIS on track change, listening time
 │           │   │   ├── silence_trim.rs # Silence trimming (detect + cache + skip lead/trail)
+│           │   │   ├── update_checker.rs # Background update check (30 s after start, then every 6 h)
 │           │   │   └── tray.rs      # System tray icon, context menu, minimize-to-tray
+│           │   ├── updater/         # Update logic: build identity, GitHub release check, AppImage install
 │           │   ├── lib.rs           # Lightweight Tauri entrypoint (< 350 lines)
 │           │   └── main.rs          # Native binary main function
 │           ├── tests/
@@ -178,10 +181,12 @@ Aura-Lune/
   - `renamer`: Pattern formatting (`%artist% - %title%`) and path sanitization.
   - `cue`: CUE sheet parser and track splitter.
   - `transcode`: Format choices (`Opus`, `Flac`, `Wav`) and `TimeRange` clipping validation.
+  - `version`: semver comparison (`Version::parse`, `is_newer`) — prerelease `1.1.6-dev` < `1.1.6`; used by the updater.
 - **Tests**: Located in `crates/domain/tests/`:
   - `dsp_models_test.rs`: EQ, parametric EQ, compressor, saturator, crossfeed, silence trimming.
   - `stem_and_library_models_test.rs`: Stem volume mappings, renamer, theme validation, bluetooth codecs.
   - `cue_and_m3u_parsers_test.rs`: CUE pregap calculation and M3U/M3U8 roundtrip export.
+  - `version_test.rs`: semver ordering and malformed version rejection.
 
 ### `crates/dsp-api`
 - **Purpose**: DSP abstraction layer defining unified traits implemented by DSP backends.
@@ -279,10 +284,11 @@ The Tauri host binary orchestrates the backend crates and exposes IPC commands t
 - [`setup/shutdown.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/shutdown.rs): `RunEvent::Exit` handler — saves the final queue and the master volume (`playback_volume` setting, restored by `app_init` at startup independently of session restore) synchronously, stops the engine and control IPC, removes the Waybar file.
 - `setup/fatal.rs`: startup failures (DB, app data dir, GStreamer) show a zenity/kdialog error and exit instead of panicking.
 - Queue persistence: `persist_queue_state` only signals `AppState.queue_saver` (`QueueSaver`, single debounced writer, 300 ms). Never spawn ad-hoc save tasks.
+- [`setup/update_checker.rs`](apps/desktop/src-tauri/src/setup/update_checker.rs): tokio task started by `init_app`: first check `STARTUP_DELAY_SECS` (30 s) after startup so launch is not slowed, then every `CHECK_INTERVAL_SECS` (6 h); skipped when `update_check_enabled` = `false` and in debug builds without `APPIMAGE` (`DevServer`). It only emits `auralune://update-available` (`UpdateInfo`); nothing is downloaded without the user.
 - [`setup/silence_trim.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/setup/silence_trim.rs): Detects silence bounds in the background (`audio_engine::detect_silence_bounds`, cached in `track_silence_bounds`), seeks past leading silence and seeks to just before EOS at trailing silence so the engine's normal EOS path handles loop / stop-after-current / crossfade. Pure decisions live in `domain::silence::{find_silence_bounds, trim_action}`.
 
 ### Modular Command Handlers (`commands/`)
-All 184 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
+All 189 commands are organized by domain under `apps/desktop/src-tauri/src/commands/`:
 
 **Dead commands** — a command no frontend `invoke()` uses is removed (the storage/engine method stays). The cleanup in Phase 6 removed 31 such wrappers.
 
@@ -315,6 +321,15 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 | [`integrations.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/integrations.rs) | Discord RPC & Waybar status | `get_discord_rpc_status`, `set_discord_rpc_enabled`, `trigger_waybar_refresh` |
 | [`dialogs.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/dialogs.rs) | Native file & folder pickers | `open_file_dialog`, `open_folder_dialog`, `save_file_dialog` |
 | [`system.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/system.rs) | Diagnostics & system info | `get_system_audio_health`, `get_app_memory_stats`, `show_in_file_manager` |
+| [`updates.rs`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/src/commands/updates.rs) | Channel-aware updates (see below) | `get_build_info`, `get_cached_update_info`, `check_for_update(force)`, `install_update`, `restart_after_update` |
+
+**Updates** (`commands/updates.rs` + `src/updater/`) — all GitHub traffic runs in Rust (the WebView CSP blocks it; `security_config_test.rs` must keep passing, never loosen `connect-src` for this):
+- **Build identity**: `build.rs` embeds `AURALUNE_BUILD_COMMIT` (env → `GITHUB_SHA` → `git rev-parse HEAD` → `unknown`) and `AURALUNE_BUILD_CHANNEL` (env, else `dev` when the version has a `-dev` suffix); read through `updater::{BUILD_COMMIT, BUILD_CHANNEL, current_build_info}`. The effective channel is `dev` when `install_identity` says so (`AURALUNE_CHANNEL`/AppImage path) or the build is dev.
+- **Channels never cross**: stable → `GET releases/latest`, compare `tag_name` with the version via `domain::version`; dev → `GET releases/tags/dev-build`, compare `target_commitish` (resolved through `commits/{ref}` when it is a branch name) with the embedded commit; an `unknown` commit never reports an update.
+- **Install kinds** (`updater::InstallKind`, from `APPIMAGE`, `$HOME`, writability, build profile): `app_image_managed` (AppImage directly in `~/.local/share/auralune{,-dev}/`, writable — the only kind that may self-update), `app_image_other`, `system` (AUR/deb), `dev_server`. Others get a notice only; `install_update` rejects them.
+- **Throttle**: settings `update_last_checked` (unix s) and `update_last_result` (`UpdateInfo` JSON, valid only for the same version+commit+install kind); a non-forced check inside 6 h returns the cache (`updater::should_check`). Rate limits (`403/429` + `X-RateLimit-*`) map to a `network` error.
+- **Release contract**: every release carries `SHA256SUMS` (`sha256sum *.AppImage`), uploaded by `ci.yml` (`publish-dev-release`, which also uploads `Auralune-dev-x86_64.AppImage`) and `packaging/sync-public-repo.sh`. The checksum is the asset API `digest` (`sha256:…`) or, failing that, the `SHA256SUMS` line for the asset (`check::resolve_sha256`); with neither, installation is refused (`validation`).
+- **Install**: asset URL must be https on `github.com`/`*.githubusercontent.com`; the `crates/downloads` `HttpDownloadProvider` streams to `<appimage>.update` next to `$APPIMAGE` with SHA-256 verification, then ELF check, `chmod 755` and atomic `rename` over `$APPIMAGE` (progress: `auralune://update-progress`). `restart_after_update` spawns a detached `sh -c 'sleep 2; exec launcher'` (launcher `~/.local/bin/auralune{,-dev}`, else the AppImage; the delay lets the single-instance lock go), then `app.exit(0)` so `shutdown::on_exit` saves state.
 
 ---
 
@@ -341,7 +356,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **`views/changelog/`**:
   - `ChangelogView.tsx`: Paginated version history driven by [`src/data/changelog.json`](apps/desktop/src/data/changelog.json) with configurable page sizes (3, 5, 10), first/last, prev/next, and smart ellipsis page navigation.
 - **`views/settings/`**:
-  - `AppSettingsModal.tsx`: Tabbed settings container.
+  - `AppSettingsModal.tsx`: Tabbed settings container (themes, devices, transcode, **updates**, about, changelog, backup). `AboutSettingsView` shows the real version/channel/commit from `useUpdateManager`.
 
 ### Domain Hooks (`src/hooks`)
 - **`usePlaybackController`**: Coordinates higher-level play, pause, next, previous, stop, seek, and loop operations.
@@ -351,6 +366,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **`useDspManager`**: DSP engine selection, 10-band graphic EQ, parametric EQ, compressor, saturator, limiter.
 - **`useThemeManager`**: Theme tokens, custom wallpaper uploads, overlay opacity, and blur radius.
 - **`useModalManager`**: Central modal router supporting typed `open()`, `close()`, `isOpen()`, and `Escape` key handling.
+- **`useUpdateManager`**: update state (`buildInfo`, `info`, `checking`, `installing`, `installed`, `progress`, `error`, `hasUpdate`) and actions `checkNow`/`install`/`restart`/`skip`/`setAutoCheck`. Listens to `auralune://update-available` and `auralune://update-progress`; reads settings `update_check_enabled` and `update_skipped_version`. `hasUpdate` drives the pulsing "Update" badge next to the version in `AppHeader`, which opens Settings → Updates (`views/settings/UpdatesSettingsView.tsx`; managed installs get **Download & install** → **Restart now**, other install kinds a notice). Strings live in the `updates` locale namespace.
 - **`useAudioSettings`**: Audio device selection, buffer sizes, bit-perfect toggle, volume OSD configurations.
 - **`usePlaylistManager`**: Playlist CRUD, M3U8 import/export, and radio stations.
 - **`useTranscodeManager`**: Audio conversion jobs, background progress tracking, and range exports.
@@ -456,14 +472,14 @@ All tests across the workspace are decoupled from production source files into d
 | Crate | Test Files | Description |
 |---|---|---|
 | `crates/storage` | `tests/database_crud_test.rs`<br>`tests/bookmarks_and_cues_test.rs`<br>`tests/settings_and_dsp_presets_test.rs`<br>`tests/waveforms_and_transcription_test.rs`<br>`tests/stem_projects_multitrack_test.rs`<br>`tests/smart_playlists_and_stats_test.rs`<br>`tests/playlist_and_queue_persistence_test.rs`<br>`tests/schema_migrations_test.rs` (incl. silence cache) | Full SQLite persistence and query test suite |
-| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs`<br>`tests/silence_trim_test.rs` | Domain entities, parsers, and DSP model math |
+| `crates/domain` | `tests/dsp_models_test.rs`<br>`tests/stem_and_library_models_test.rs`<br>`tests/cue_and_m3u_parsers_test.rs`<br>`tests/queue_test.rs`<br>`tests/silence_trim_test.rs`<br>`tests/version_test.rs` | Domain entities, parsers, DSP model math, and semver comparison |
 | `crates/audio-engine` | `tests/playback_test.rs`<br>`tests/flac_slow_test.rs`<br>`tests/opus_and_transcode_test.rs`<br>`tests/metadata_editor_test.rs`<br>`tests/device_and_model_manager_test.rs`<br>`tests/dsp_boundary_and_concurrency_test.rs`<br>`tests/uri_test.rs`<br>`tests/silence_detection_test.rs`<br>`tests/decode_and_waveform_test.rs`<br>`tests/dsp_node_test.rs`<br>`tests/rt_helpers_test.rs`<br>`tests/spectrum_test.rs`<br>`src/hpss_test.rs`<br>`src/sync_test.rs` | GStreamer playback, bit-perfect bypass & DSP output length/PTS, aligned/unaligned sample casts, spectrum pooling, lock-order deadlock regression, URI encoding, DSP switching, tag editing, FFT |
 | `crates/metadata` | `tests/acoustid_fingerprint_test.rs`<br>`tests/scrobbler_test.rs`<br>`tests/lyrics_parser_test.rs`<br>`tests/cover_art_archive_test.rs`<br>`tests/http_retry_test.rs`<br>`tests/net_guard_test.rs` | Network services, retry/backoff and rate limiting (local test server), LRC parsing, AcoustID, SSRF guard |
 | `crates/downloads` | `tests/download_manager_test.rs` | Model download jobs & path traversal checks |
 | `crates/desktop-integration` | `tests/desktop_integration_test.rs`<br>`tests/discord_rpc_test.rs`<br>`tests/mpris_test.rs`<br>`tests/waybar_and_ipc_test.rs`<br>`tests/runtime_dir_test.rs` | MPRIS, Discord RPC, Waybar atomic status, private runtime dir |
 | `crates/dsp-api` | `tests/dsp_api_test.rs` | DSP parameters, semitone & cent math |
 | `crates/library` | `tests/scanner_test.rs` | Incremental scan, album-artist grouping, scoped stale-track cleanup |
-| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs`<br>`tests/ipc_contract_test.rs`<br>`tests/command_error_test.rs`<br>`tests/playback_ticker_test.rs`<br>`tests/install_identity_test.rs`<br>`tests/queue_item_id_test.rs`<br>`tests/security_config_test.rs` | DTO validation, `AppState` Send+Sync safety, frontend `invoke()` ↔ `generate_handler!` ↔ `commands.generated.ts` contract, `CommandError` JSON shape and code mapping |
+| `apps/desktop/src-tauri` | `tests/commands_dto_test.rs`<br>`tests/ipc_contract_test.rs`<br>`tests/command_error_test.rs`<br>`tests/playback_ticker_test.rs`<br>`tests/install_identity_test.rs`<br>`tests/queue_item_id_test.rs`<br>`tests/security_config_test.rs`<br>`tests/updates_test.rs` | DTO validation, `AppState` Send+Sync safety, frontend `invoke()` ↔ `generate_handler!` ↔ `commands.generated.ts` contract, `CommandError` JSON shape and code mapping, updater logic (asset choice, `SHA256SUMS`, channel comparison, throttle, install kinds) incl. local-server release checks |
 
 ---
 

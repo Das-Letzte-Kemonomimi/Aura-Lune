@@ -10,6 +10,9 @@ import { soundscapeEngine } from '../../utils/soundscapeAudio';
 
 export interface UseAppHeaderPropsOptions {
   appVersion: string;
+  updateAvailable: boolean;
+  updateTitle: string;
+  onOpenUpdates: () => void;
   themeManager: ReturnType<typeof useThemeManager>;
   modalManager: ReturnType<typeof useModalManager>;
   activeTab: MainTabType;
@@ -38,6 +41,9 @@ export interface UseAppHeaderPropsOptions {
 export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderProps {
   const {
     appVersion,
+    updateAvailable,
+    updateTitle,
+    onOpenUpdates,
     themeManager,
     modalManager,
     activeTab,
@@ -65,6 +71,9 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
 
   return useMemo<AppHeaderProps>(() => ({
     appVersion,
+    updateAvailable,
+    updateTitle,
+    onOpenUpdates,
     appIconStyle: themeManager.appIconStyle,
     activeTab,
     onSelectTab: (tab) => setActiveTab(tab),
@@ -101,6 +110,9 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     onLanguageChange: setLanguage,
   }), [
     appVersion,
+    updateAvailable,
+    updateTitle,
+    onOpenUpdates,
     themeManager.appIconStyle,
     themeManager.uiScale,
     themeManager.handleIncreaseScale,

@@ -30,6 +30,9 @@ export const SETTING_KEYS = [
   'seek_fade_enabled',
   'stereo_widener_active',
   'stereo_widener_amount',
+  'update_check_enabled',
+  'update_last_checked',
+  'update_skipped_version',
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];

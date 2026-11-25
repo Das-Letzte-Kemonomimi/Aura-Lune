@@ -27,6 +27,9 @@ describe('useAppHeaderProps', () => {
     const { result } = renderHook(() =>
       useAppHeaderProps({
         appVersion: '1.2.0',
+        updateAvailable: false,
+        updateTitle: '',
+        onOpenUpdates: vi.fn(),
         themeManager: mockThemeManager,
         modalManager: mockModalManager,
         activeTab: 'player',
