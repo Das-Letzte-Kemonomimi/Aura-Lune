@@ -5,7 +5,7 @@
 //! Ścieżki wynikowe (WAV/FLAC) zapisywane są w katalogu cache `~/.cache/auralune/stems/<hash>/`.
 //! Plik źródłowy utworu NIGDY nie jest modyfikowany.
 
-use crate::analysis::{decode_snippet_for_analysis, decode_stereo_for_stems};
+use crate::analysis::decode_stereo_for_stems;
 use crate::error::AudioEngineError;
 use crate::hpss::separate_stereo_hpss;
 use crate::model_manager::{
@@ -78,16 +78,10 @@ impl StemSeparator {
         }
 
         let uri = crate::uri::media_uri(&input_path.to_string_lossy());
-        let (left, right, sample_rate) = match decode_stereo_for_stems(&uri, 360.0) {
-            Ok(res) => res,
-            Err(e) => {
-                let mono = decode_snippet_for_analysis(&uri, 360.0).map_err(|e2| {
-                    AudioEngineError::Pipeline(format!("Błąd dekodowania: {} / {}", e, e2))
-                })?;
-                let r = mono.clone();
-                (mono, r, 22050)
-            }
-        };
+        // Bez zapasowego dekodowania mono z krótkim limitem czasu: obcięty wynik trafiłby
+        // do cache stemów na stałe.
+        let (left, right, sample_rate) = decode_stereo_for_stems(&uri, 360.0)
+            .map_err(|e| AudioEngineError::Pipeline(format!("Błąd dekodowania: {e}")))?;
 
         if let Some(ref mut cb) = progress_cb {
             cb(
@@ -165,16 +159,10 @@ impl StemSeparator {
         }
 
         let uri = crate::uri::media_uri(&input_path.to_string_lossy());
-        let (left, right, sample_rate) = match decode_stereo_for_stems(&uri, 360.0) {
-            Ok(res) => res,
-            Err(e) => {
-                let mono = decode_snippet_for_analysis(&uri, 360.0).map_err(|e2| {
-                    AudioEngineError::Pipeline(format!("Błąd dekodowania: {} / {}", e, e2))
-                })?;
-                let r = mono.clone();
-                (mono, r, 22050)
-            }
-        };
+        // Bez zapasowego dekodowania mono z krótkim limitem czasu: obcięty wynik trafiłby
+        // do cache stemów na stałe.
+        let (left, right, sample_rate) = decode_stereo_for_stems(&uri, 360.0)
+            .map_err(|e| AudioEngineError::Pipeline(format!("Błąd dekodowania: {e}")))?;
 
         let n = left.len().min(right.len());
 
@@ -571,6 +559,26 @@ pub fn write_wav_file(
         fs::create_dir_all(parent)?;
     }
 
+    // Zapis do pliku tymczasowego i `rename`: przerwany zapis nigdy nie zostawia obciętego
+    // pliku pod docelową nazwą (cache stemów uznałby go za gotowy).
+    let mut partial_name = path.as_os_str().to_owned();
+    partial_name.push(".partial");
+    let partial = std::path::PathBuf::from(partial_name);
+    let result = write_wav_contents(&partial, samples, sample_rate, channels)
+        .and_then(|()| fs::rename(&partial, path).map_err(AudioEngineError::Io));
+    if let Err(e) = result {
+        let _ = fs::remove_file(&partial);
+        return Err(e);
+    }
+    Ok(fs::metadata(path)?.len())
+}
+
+fn write_wav_contents(
+    path: &Path,
+    samples: &[f32],
+    sample_rate: u32,
+    channels: u16,
+) -> Result<(), AudioEngineError> {
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
 
@@ -606,8 +614,8 @@ pub fn write_wav_file(
     }
 
     writer.flush()?;
-    let meta = fs::metadata(path)?;
-    Ok(meta.len())
+    writer.get_ref().sync_all()?;
+    Ok(())
 }
 
 /// Zapisuje stereofoniczne próbki L i R do 16-bitowego pliku RIFF WAV (Stereo, 2 kanały).

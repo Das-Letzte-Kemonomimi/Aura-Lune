@@ -14,6 +14,7 @@ use crate::commands::playback::{seek_internal, PlaybackStatusDto};
 use crate::AppState;
 use domain::silence::{trim_action, SilenceBounds, TrimAction};
 use domain::PlaybackState;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
 
@@ -28,6 +29,8 @@ pub struct SilenceTrimmer {
     track_key: Option<String>,
     bounds: Option<SilenceBounds>,
     detection: Option<DetectionSlot>,
+    /// Anuluje dekodowanie poprzedniego utworu po zmianie utworu lub progu.
+    cancel: Option<Arc<AtomicBool>>,
     leading_done: bool,
     finished: bool,
 }
@@ -39,8 +42,10 @@ impl SilenceTrimmer {
             return;
         };
 
-        if self.track_key.as_deref() != Some(item.id.as_str()) {
-            self.reset_for(item.id.clone());
+        // Klucz obejmuje próg: zmiana progu w trakcie utworu uruchamia wykrywanie od nowa.
+        let key = format!("{}@{}", item.id, config.threshold_db);
+        if self.track_key.as_deref() != Some(key.as_str()) {
+            self.reset_for(key);
         }
         if !config.enabled || is_stream(&item.uri) {
             return;
@@ -92,6 +97,9 @@ impl SilenceTrimmer {
     }
 
     fn reset_for(&mut self, key: String) {
+        if let Some(cancel) = self.cancel.take() {
+            cancel.store(true, Ordering::Relaxed);
+        }
         *self = Self {
             track_key: Some(key),
             ..Self::default()
@@ -126,6 +134,8 @@ impl SilenceTrimmer {
     ) {
         let slot: DetectionSlot = Arc::new(Mutex::new(None));
         self.detection = Some(slot.clone());
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.cancel = Some(cancel.clone());
 
         let db = state.db.clone();
         let uri = item.uri.clone();
@@ -153,10 +163,20 @@ impl SilenceTrimmer {
             }
 
             let uri_for_task = uri.clone();
+            let cancel_for_task = cancel.clone();
             let detected = tokio::task::spawn_blocking(move || {
-                audio_engine::detect_silence_bounds(&uri_for_task, threshold_db, expected)
+                audio_engine::detect_silence_bounds(
+                    &uri_for_task,
+                    threshold_db,
+                    expected,
+                    Some(&cancel_for_task),
+                )
             })
             .await;
+            if cancel.load(Ordering::Relaxed) {
+                debug!("Wykrywanie ciszy anulowane (zmiana utworu): {}", uri);
+                return;
+            }
             let bounds = match detected {
                 Ok(Ok(b)) => b,
                 Ok(Err(e)) => {

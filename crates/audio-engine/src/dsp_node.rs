@@ -393,7 +393,8 @@ impl AuraluneDspImpl {
 
         // 2. Przetwarzanie DSP (Rubber Band lub SoundTouch)
         let mut blocks: [Option<gst::Buffer>; MAX_BLOCKS_PER_CHAIN] = Default::default();
-        {
+        // `true`: przepuść bufor wejściowy bez zmian — wypychany dopiero po zwolnieniu blokady.
+        let passthrough = 'locked: {
             let mut state = shared.state.lock_safe();
             if state.format.is_none() {
                 drop(state);
@@ -419,7 +420,13 @@ impl AuraluneDspImpl {
             };
 
             let status = match engine {
-                DspEngine::Bypass => Ok(dsp_api::ProcessStatus::Ok),
+                // Okno przełączania silnika: atomowa flaga mówiła "przetwarzaj", a stan jest już
+                // (lub jeszcze) Bypass — przepuść bufor bez zmian zamiast go zgubić.
+                DspEngine::Bypass => {
+                    drop(map);
+                    state.out_buffer = out_buffer;
+                    break 'locked true;
+                }
                 DspEngine::RubberBand => {
                     state.processors.rubberband.process(input, &mut out_buffer)
                 }
@@ -437,7 +444,7 @@ impl AuraluneDspImpl {
                 }
                 drop(map);
                 state.out_buffer = out_buffer;
-                return shared.srcpad.push(buffer);
+                break 'locked true;
             }
 
             // Umieść wyprodukowane próbki w elastycznym buforze FIFO
@@ -447,13 +454,24 @@ impl AuraluneDspImpl {
             // Drenujemy dostępne próbki w blokach do block_size ramek — natychmiastowe wypychanie
             // zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
             let fallback_pts = buffer.pts().map(|p| p.nseconds());
-            let block_size = state.block_size;
+            // Przy silnym spowolnieniu (tempo < 1) procesor produkuje więcej ramek niż
+            // MAX_BLOCKS_PER_CHAIN · block_size — powiększ blok, aby w każdym wywołaniu
+            // opróżnić całe FIFO (inaczej rośnie bez końca: realokacje i narastające opóźnienie).
+            let channels = state.format.map_or(1, |f| (f.channels as usize).max(1));
+            let queued_frames = state.fifo.len() / channels;
+            let block_size = state
+                .block_size
+                .max(queued_frames.div_ceil(MAX_BLOCKS_PER_CHAIN));
             for slot in blocks.iter_mut() {
                 match state.take_block(block_size, fallback_pts) {
                     Some(b) => *slot = Some(b),
                     None => break,
                 }
             }
+            false
+        };
+        if passthrough {
+            return shared.srcpad.push(buffer);
         }
 
         // Wypychanie poza blokadą — element w dół potoku może blokować.
@@ -466,7 +484,7 @@ impl AuraluneDspImpl {
     fn sink_event(shared: &Shared, event: gst::Event) -> bool {
         use gst::EventView;
         match event.view() {
-            EventView::FlushStop(..) | EventView::Seek(..) => {
+            EventView::FlushStop(..) => {
                 shared.state.lock_safe().reset();
                 shared.srcpad.push_event(event)
             }

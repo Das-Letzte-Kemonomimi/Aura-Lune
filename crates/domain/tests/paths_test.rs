@@ -59,3 +59,15 @@ fn test_extension_and_token_helpers() {
     assert!(!is_safe_file_token("../../etc/x"));
     assert!(!is_safe_file_token(""));
 }
+
+#[test]
+fn test_library_database_is_never_writable_even_in_app_data_dir() {
+    for p in [
+        "/home/kitsune/.local/share/com.auralune.player/auralune_library.db",
+        "/home/kitsune/.local/share/com.auralune.player/auralune_library.db-wal",
+        "/home/kitsune/.local/share/com.auralune.player/auralune_library.db-shm",
+        "/home/kitsune/Music/auralune_library.db",
+    ] {
+        assert!(!ok(p), "baza biblioteki musi być chroniona: {p}");
+    }
+}

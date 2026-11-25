@@ -1,4 +1,6 @@
-use sqlx::Row;
+use sqlx::sqlite::SqliteRow;
+use sqlx::{Row, SqliteConnection};
+use std::collections::HashMap;
 
 use crate::{Database, StorageError};
 
@@ -93,6 +95,7 @@ impl Database {
             domain::StemProjectStatus::Failed => "failed",
         };
 
+        let mut tx = self.pool.begin().await?;
         let row = sqlx::query(
             r#"
             INSERT INTO stem_projects (
@@ -116,15 +119,13 @@ impl Database {
         .bind(&project.active_mix_name)
         .bind(&project.created_at)
         .bind(&project.updated_at)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
         let project_id: i64 = row.get(0);
-
-        if !project.channels.is_empty() {
-            self.save_stem_project_channels(project_id, &project.channels)
-                .await?;
-        }
+        // Projekt i jego kanały w jednej transakcji: nigdy projekt bez kanałów.
+        write_channels(&mut tx, project_id, &project.channels).await?;
+        tx.commit().await?;
 
         Ok(project_id)
     }
@@ -195,6 +196,7 @@ impl Database {
         .fetch_all(&self.pool)
         .await?;
 
+        let mut channels_by_project = self.all_stem_project_channels().await?;
         let mut projects = Vec::new();
         for row in rows {
             let pid: i64 = row.get("id");
@@ -205,7 +207,7 @@ impl Database {
                 "failed" => domain::StemProjectStatus::Failed,
                 _ => domain::StemProjectStatus::Queued,
             };
-            let channels = self.get_stem_project_channels(pid).await?;
+            let channels = channels_by_project.remove(&pid).unwrap_or_default();
 
             projects.push(domain::StemProject {
                 id: pid,
@@ -284,18 +286,22 @@ impl Database {
 
     /// Usuwa projekt stemów (kaskadowo usuwając kanały i miksy).
     pub async fn delete_stem_project(&self, project_id: i64) -> Result<(), StorageError> {
+        // Jawne DELETE (a nie tylko CASCADE) w jednej transakcji — działa także na starszych
+        // bazach, w których klucz obcy mógł powstać bez kaskady.
+        let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
             .bind(project_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
         sqlx::query("DELETE FROM stem_project_mixes WHERE project_id = ?1;")
             .bind(project_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
         sqlx::query("DELETE FROM stem_projects WHERE id = ?1;")
             .bind(project_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
+        tx.commit().await?;
 
         Ok(())
     }
@@ -308,43 +314,8 @@ impl Database {
     ) -> Result<(), StorageError> {
         // Jedna transakcja: błąd w połowie nie zostawia projektu bez kanałów.
         let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
-            .bind(project_id)
-            .execute(&mut *tx)
-            .await?;
-
-        for ch in channels {
-            let quality_str = match ch.quality_tier {
-                domain::StemQualityTier::HighQuality => "high_quality",
-                domain::StemQualityTier::Experimental => "experimental",
-                domain::StemQualityTier::DspFallback => "dsp_fallback",
-                domain::StemQualityTier::Unavailable => "unavailable",
-            };
-
-            sqlx::query(
-                r#"
-                INSERT INTO stem_project_channels (
-                    project_id, stem_id, name, parent_stem, file_path,
-                    color_hex, quality_tier, volume, pan, mute, solo
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11);
-                "#,
-            )
-            .bind(project_id)
-            .bind(&ch.id)
-            .bind(&ch.name)
-            .bind(&ch.parent_stem)
-            .bind(&ch.file_path)
-            .bind(&ch.color_hex)
-            .bind(quality_str)
-            .bind(ch.volume as f64)
-            .bind(ch.pan as f64)
-            .bind(ch.mute as i32)
-            .bind(ch.solo as i32)
-            .execute(&mut *tx)
-            .await?;
-        }
+        write_channels(&mut tx, project_id, channels).await?;
         tx.commit().await?;
-
         Ok(())
     }
 
@@ -366,31 +337,32 @@ impl Database {
         .fetch_all(&self.pool)
         .await?;
 
-        let mut channels = Vec::new();
-        for r in rows {
-            let q_str: String = r.get("quality_tier");
-            let quality_tier = match q_str.as_str() {
-                "high_quality" => domain::StemQualityTier::HighQuality,
-                "experimental" => domain::StemQualityTier::Experimental,
-                "unavailable" => domain::StemQualityTier::Unavailable,
-                _ => domain::StemQualityTier::DspFallback,
-            };
+        Ok(rows.iter().map(channel_from_row).collect())
+    }
 
-            channels.push(domain::StemChannel {
-                id: r.get("stem_id"),
-                name: r.get("name"),
-                parent_stem: r.get("parent_stem"),
-                file_path: r.get("file_path"),
-                color_hex: r.get("color_hex"),
-                quality_tier,
-                volume: r.get::<f64, _>("volume") as f32,
-                pan: r.get::<f64, _>("pan") as f32,
-                mute: r.get::<i32, _>("mute") != 0,
-                solo: r.get::<i32, _>("solo") != 0,
-            });
+    /// Kanały wszystkich projektów jednym zapytaniem (zamiast jednego zapytania na projekt).
+    async fn all_stem_project_channels(
+        &self,
+    ) -> Result<HashMap<i64, Vec<domain::StemChannel>>, StorageError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT project_id, stem_id, name, parent_stem, file_path, color_hex,
+                   quality_tier, volume, pan, mute, solo
+            FROM stem_project_channels
+            ORDER BY project_id ASC, id ASC;
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut by_project: HashMap<i64, Vec<domain::StemChannel>> = HashMap::new();
+        for r in &rows {
+            by_project
+                .entry(r.get("project_id"))
+                .or_default()
+                .push(channel_from_row(r));
         }
-
-        Ok(channels)
+        Ok(by_project)
     }
 
     /// Zapisuje miks parametrów dla projektu stemów.
@@ -495,5 +467,72 @@ impl Database {
                 .execute(&self.pool)
                 .await?;
         Ok(res.rows_affected())
+    }
+}
+
+/// Zastępuje kanały projektu w ramach przekazanej transakcji.
+async fn write_channels(
+    conn: &mut SqliteConnection,
+    project_id: i64,
+    channels: &[domain::StemChannel],
+) -> Result<(), StorageError> {
+    sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
+        .bind(project_id)
+        .execute(&mut *conn)
+        .await?;
+
+    for ch in channels {
+        let quality_str = match ch.quality_tier {
+            domain::StemQualityTier::HighQuality => "high_quality",
+            domain::StemQualityTier::Experimental => "experimental",
+            domain::StemQualityTier::DspFallback => "dsp_fallback",
+            domain::StemQualityTier::Unavailable => "unavailable",
+        };
+
+        sqlx::query(
+            r#"
+            INSERT INTO stem_project_channels (
+                project_id, stem_id, name, parent_stem, file_path,
+                color_hex, quality_tier, volume, pan, mute, solo
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11);
+            "#,
+        )
+        .bind(project_id)
+        .bind(&ch.id)
+        .bind(&ch.name)
+        .bind(&ch.parent_stem)
+        .bind(&ch.file_path)
+        .bind(&ch.color_hex)
+        .bind(quality_str)
+        .bind(ch.volume as f64)
+        .bind(ch.pan as f64)
+        .bind(ch.mute as i32)
+        .bind(ch.solo as i32)
+        .execute(&mut *conn)
+        .await?;
+    }
+    Ok(())
+}
+
+/// Mapuje wiersz `stem_project_channels` na kanał domenowy.
+fn channel_from_row(r: &SqliteRow) -> domain::StemChannel {
+    let q_str: String = r.get("quality_tier");
+    let quality_tier = match q_str.as_str() {
+        "high_quality" => domain::StemQualityTier::HighQuality,
+        "experimental" => domain::StemQualityTier::Experimental,
+        "unavailable" => domain::StemQualityTier::Unavailable,
+        _ => domain::StemQualityTier::DspFallback,
+    };
+    domain::StemChannel {
+        id: r.get("stem_id"),
+        name: r.get("name"),
+        parent_stem: r.get("parent_stem"),
+        file_path: r.get("file_path"),
+        color_hex: r.get("color_hex"),
+        quality_tier,
+        volume: r.get::<f64, _>("volume") as f32,
+        pan: r.get::<f64, _>("pan") as f32,
+        mute: r.get::<i32, _>("mute") != 0,
+        solo: r.get::<i32, _>("solo") != 0,
     }
 }

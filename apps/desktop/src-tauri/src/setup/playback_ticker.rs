@@ -5,16 +5,14 @@
 //! zdławione okno WebView zatrzymywało więc przechodzenie między utworami.
 //!
 //! Ticker działa w osobnym wątku niezależnie od interfejsu i w każdym takcie:
-//! 1. buduje status przez [`get_status_internal`] (opróżnia magistralę, aktualizuje Waybar),
+//! 1. buduje status przez [`tick_status`] (opróżnia magistralę, aktualizuje Waybar),
 //! 2. zapamiętuje go jako migawkę zwracaną przez komendę `get_status`,
 //! 3. emituje zdarzenie [`PLAYBACK_STATUS_EVENT`] do frontendu,
 //! 4. synchronizuje MPRIS po automatycznej zmianie utworu,
 //! 5. nalicza czas słuchania do statystyk (Recap),
 //! 6. stosuje pomijanie ciszy na początku i końcu utworu (jeśli włączone).
 
-use crate::commands::playback::{
-    get_status_internal, sync_mpris_from_queue_item, PlaybackStatusDto,
-};
+use crate::commands::playback::{sync_mpris_from_queue_item, tick_status, PlaybackStatusDto};
 use crate::setup::silence_trim::SilenceTrimmer;
 use crate::AppState;
 use domain::PlaybackState;
@@ -24,11 +22,24 @@ use tracing::{info, warn};
 
 /// Nazwa zdarzenia ze statusem odtwarzania (`PlaybackStatusDto`).
 pub const PLAYBACK_STATUS_EVENT: &str = "auralune://playback-status";
+/// Zdarzenie z komunikatem błędu odtwarzania (GStreamer) dla interfejsu: `{ "message": "…" }`.
+pub const PLAYBACK_ERROR_EVENT: &str = "auralune://playback-error";
 
 /// Interwał taktu podczas odtwarzania (płynny pasek postępu i wizualizacje).
 pub const TICK_PLAYING: Duration = Duration::from_millis(100);
 /// Interwał taktu w pauzie / po zatrzymaniu.
 pub const TICK_IDLE: Duration = Duration::from_millis(250);
+
+/// Flaga zatrzymania tickera i blokada trwającego taktu — [`stop_playback_ticker`] czeka, aż
+/// bieżący takt się skończy, więc po powrocie ticker nie zapisze już statusu Waybara.
+static STOP_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static TICK_IN_PROGRESS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Zatrzymuje ticker (przy zamykaniu aplikacji) i czeka na zakończenie trwającego taktu.
+pub fn stop_playback_ticker() {
+    STOP_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
+    drop(TICK_IN_PROGRESS.lock());
+}
 
 /// Uruchamia ticker w dedykowanym wątku. Wywoływane raz, po `app.manage(AppState)`.
 pub fn spawn_playback_ticker(app: AppHandle) {
@@ -52,8 +63,22 @@ fn run(app: AppHandle) {
     let mut track_watch = TrackChangeWatcher::default();
     let mut trimmer = SilenceTrimmer::default();
 
+    let mut errors = Vec::new();
     loop {
-        let status = get_status_internal(&state);
+        let tick_guard = TICK_IN_PROGRESS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if STOP_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
+            info!("Ticker odtwarzania zatrzymany");
+            return;
+        }
+        let status = tick_status(&state, &mut errors);
+        for message in errors.drain(..) {
+            let _ = app.emit(
+                PLAYBACK_ERROR_EVENT,
+                serde_json::json!({ "message": message }),
+            );
+        }
         let now_ms = started.elapsed().as_millis() as u64;
 
         if let Ok(mut cached) = state.last_status.write() {
@@ -79,6 +104,7 @@ fn run(app: AppHandle) {
         }
 
         trimmer.on_tick(&state, &status);
+        drop(tick_guard);
 
         std::thread::sleep(next_interval(&status));
     }

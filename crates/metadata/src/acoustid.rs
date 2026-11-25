@@ -84,9 +84,15 @@ impl AcoustidClient {
         }
 
         // Limit czasu: zawieszony fpcalc (np. uszkodzony plik) nie blokuje identyfikacji na zawsze.
+        // Ścieżka zaczynająca się od `-` zostałaby odczytana przez fpcalc jako opcja.
+        let path_arg = if path.as_os_str().to_string_lossy().starts_with('-') {
+            Path::new(".").join(path)
+        } else {
+            path.to_path_buf()
+        };
         let run = tokio::process::Command::new("fpcalc")
             .arg("-json")
-            .arg(path)
+            .arg(&path_arg)
             .kill_on_drop(true)
             .output();
         let output = tokio::time::timeout(FPCALC_TIMEOUT, run)

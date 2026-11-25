@@ -11,6 +11,9 @@ use std::time::Duration;
 use tauri::{Emitter, State};
 use tracing::{error, info};
 
+/// Najdłuższy czas pobierania przez yt-dlp (duże playlisty); zawieszony proces jest zabijany.
+const YTDLP_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportedItemDto {
     pub file_path: String,
@@ -60,6 +63,8 @@ pub struct AudioSystemHealthDto {
     pub mpris_active: bool,
     pub waybar_ipc_active: bool,
     pub fifo_ipc_active: bool,
+    pub waybar_ipc_path: String,
+    pub fifo_ipc_path: String,
 }
 
 #[tauri::command]
@@ -98,7 +103,19 @@ pub async fn transcode_file(
     dsp_settings: Option<DspExportSettings>,
     time_range: Option<TimeRange>,
 ) -> Result<(), CommandError> {
-    super::paths::ensure_writable(std::path::Path::new(&output_path))?;
+    let input_path = if input_path.starts_with("http://") || input_path.starts_with("https://") {
+        input_path
+    } else {
+        super::paths::ensure_readable(
+            &audio_engine::uri::local_path(&input_path),
+            super::paths::AUDIO_EXTENSIONS,
+        )?
+        .to_string_lossy()
+        .into_owned()
+    };
+    let output_path = super::paths::ensure_writable(std::path::Path::new(&output_path))?
+        .to_string_lossy()
+        .into_owned();
     info!(
         "Tauri command: transcode_file('{}' -> '{}')",
         input_path, output_path
@@ -133,27 +150,30 @@ pub fn get_app_version() -> String {
 }
 
 #[tauri::command]
-pub fn show_desktop_notification(
+pub async fn show_desktop_notification(
     title: String,
     body: String,
     icon: Option<String>,
 ) -> Result<(), CommandError> {
-    let mut cmd = std::process::Command::new("notify-send");
-    cmd.arg("-a").arg("Auralune");
-    cmd.arg("-u").arg("normal");
-    cmd.arg("-h").arg("string:desktop-entry:auralune");
-    if let Some(ic) = icon {
-        cmd.arg("-i").arg(ic);
-    }
-    // `--` kończy opcje: tytuł zaczynający się od `-` nie zostanie odczytany jako flaga.
-    cmd.arg("--").arg(&title).arg(&body);
-    // Proces potomny jest zbierany w tle, aby nie zostawiać procesów zombie.
-    if let Ok(mut child) = cmd.spawn() {
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
-    }
-    Ok(())
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        let mut cmd = std::process::Command::new("notify-send");
+        cmd.arg("-a").arg("Auralune");
+        cmd.arg("-u").arg("normal");
+        cmd.arg("-h").arg("string:desktop-entry:auralune");
+        if let Some(ic) = icon {
+            cmd.arg("-i").arg(ic);
+        }
+        // `--` kończy opcje: tytuł zaczynający się od `-` nie zostanie odczytany jako flaga.
+        cmd.arg("--").arg(&title).arg(&body);
+        // Proces potomny jest zbierany w tle, aby nie zostawiać procesów zombie.
+        if let Ok(mut child) = cmd.spawn() {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        Ok(())
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -161,10 +181,12 @@ pub async fn get_audio_system_health(
     state: State<'_, AppState>,
 ) -> Result<AudioSystemHealthDto, CommandError> {
     // 1. Sprawdź serwer PipeWire
-    let pw_status = std::process::Command::new("pw-cli")
+    let pw_status = tokio::process::Command::new("pw-cli")
         .arg("info")
         .arg("0")
-        .output();
+        .kill_on_drop(true)
+        .output()
+        .await;
     let (pipewire_active, pipewire_version) = if let Ok(out) = pw_status {
         if out.status.success() {
             let txt = String::from_utf8_lossy(&out.stdout);
@@ -236,8 +258,10 @@ pub async fn get_audio_system_health(
     let db_status = "Spójna (WAL mode, PRAGMA foreign_keys = ON)".to_string();
 
     // 4. IPC & System
-    let waybar_ipc_active = std::path::Path::new("/tmp/auralune.json").exists();
-    let fifo_ipc_active = std::path::Path::new("/tmp/auralune_ctl").exists();
+    let waybar_path = desktop_integration::waybar_status_path();
+    let fifo_path = desktop_integration::control_fifo_path();
+    let waybar_ipc_active = waybar_path.exists();
+    let fifo_ipc_active = fifo_path.exists();
     let mpris_active = state.mpris.is_some();
 
     let audio_buffer_ms = state.engine.audio_buffer_duration_ms();
@@ -260,6 +284,8 @@ pub async fn get_audio_system_health(
         mpris_active,
         waybar_ipc_active,
         fifo_ipc_active,
+        waybar_ipc_path: waybar_path.display().to_string(),
+        fifo_ipc_path: fifo_path.display().to_string(),
     })
 }
 
@@ -290,15 +316,21 @@ pub async fn import_audio_from_url(
     folder_structure: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<UrlImportResultDto, CommandError> {
-    if let Some(dir) = &target_dir {
-        super::paths::ensure_writable(std::path::Path::new(dir))?;
-    }
+    let target_dir = target_dir
+        .as_deref()
+        .map(|dir| {
+            super::paths::ensure_writable(std::path::Path::new(dir))
+                .map(|p| p.to_string_lossy().into_owned())
+        })
+        .transpose()?;
     let clean_url = url.trim().to_string();
     if clean_url.is_empty() {
-        return Err("Adres URL nie może być pusty.".into());
+        return Err(CommandError::validation("Adres URL nie może być pusty."));
     }
     if !clean_url.starts_with("http://") && !clean_url.starts_with("https://") {
-        return Err("Nieprawidłowy protokół URL (wymagany http:// lub https://).".into());
+        return Err(CommandError::validation(
+            "Nieprawidłowy protokół URL (wymagany http:// lub https://).",
+        ));
     }
 
     info!(
@@ -317,7 +349,7 @@ pub async fn import_audio_from_url(
     };
 
     if !has_ytdlp {
-        return Err("Narzędzie 'yt-dlp' nie zostało znalezione w Twoim systemie.\n\nAby korzystać z importera audio URL, zainstaluj 'yt-dlp' oraz 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg".into());
+        return Err(CommandError::not_found("Narzędzie 'yt-dlp' nie zostało znalezione w Twoim systemie.\n\nAby korzystać z importera audio URL, zainstaluj 'yt-dlp' oraz 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg"));
     }
 
     // 2. Określ folder docelowy
@@ -377,7 +409,9 @@ pub async fn import_audio_from_url(
         "playlist" => "%(playlist_title,album,uploader,channel|Downloads)s/%(playlist_index&{:02d} - |)s%(title)s.%(ext)s",
         _ => "%(title)s.%(ext)s",
     };
-    let output_template = format!("{}/{}", dest_dir.display(), template_rel);
+    // `%` w nazwie folderu yt-dlp odczytałby jako pole szablonu — escapujemy go jako `%%`.
+    let escaped_dir = dest_dir.to_string_lossy().replace('%', "%%");
+    let output_template = format!("{}/{}", escaped_dir, template_rel);
 
     let is_playlist = download_playlist.unwrap_or(false);
     info!(
@@ -410,11 +444,18 @@ pub async fn import_audio_from_url(
         .arg(&output_template)
         .arg("--print")
         .arg("after_move:filepath")
-        .arg(&clean_url);
+        .arg("--")
+        .arg(&clean_url)
+        .kill_on_drop(true);
 
-    let output = cmd
-        .output()
+    let output = tokio::time::timeout(YTDLP_TIMEOUT, cmd.output())
         .await
+        .map_err(|_| {
+            CommandError::validation(format!(
+                "Przekroczono limit czasu pobierania yt-dlp ({} min)",
+                YTDLP_TIMEOUT.as_secs() / 60
+            ))
+        })?
         .map_err(|e| CommandError::from(e).context("Błąd uruchomienia procesu yt-dlp"))?;
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
@@ -447,9 +488,13 @@ pub async fn import_audio_from_url(
             if let Ok(mut read_dir) = tokio::fs::read_dir(&current_dir).await {
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path();
-                    if path.is_dir() {
+                    // `file_type()` nie podąża za dowiązaniami — pętla dowiązań nie zawiesi szukania.
+                    let Ok(file_type) = entry.file_type().await else {
+                        continue;
+                    };
+                    if file_type.is_dir() {
                         dirs_to_visit.push(path);
-                    } else if path.is_file() {
+                    } else if file_type.is_file() {
                         let ext = path
                             .extension()
                             .and_then(|e| e.to_str())

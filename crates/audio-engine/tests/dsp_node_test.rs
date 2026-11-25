@@ -146,3 +146,22 @@ fn test_block_size_change_while_idle_is_applied() {
     dsp.set_block_size(1024);
     assert_eq!(dsp.block_size(), 1024);
 }
+
+#[test]
+fn test_very_slow_tempo_keeps_all_audio_and_monotonic_timestamps() {
+    // Tempo 0.25 daje ~4× więcej ramek, niż wchodzi — więcej niż 16 bloków na wywołanie
+    // `chain`; całe wyjście musi dotrzeć w kolejności, bez zgubionych próbek.
+    let input_frames = run(None, None).frames();
+    let params = DspParams {
+        engine: DspEngine::SoundTouch,
+        tempo_ratio: 0.25,
+        ..DspParams::default()
+    };
+    let out = run(Some(params), None);
+    let ratio = out.frames() as f64 / input_frames as f64;
+    assert!(
+        (3.2..=4.8).contains(&ratio),
+        "oczekiwano ~4× długości, jest {ratio:.3}"
+    );
+    assert!(out.pts_ns.windows(2).all(|w| w[1] > w[0]));
+}

@@ -7,58 +7,50 @@ use tracing::info;
 
 /// Lists all audio cards and endpoints detected on the host system via PipeWire / ALSA.
 #[tauri::command]
-pub fn list_devices() -> Result<Vec<AudioCard>, CommandError> {
-    DeviceManager::list_cards().map_err(CommandError::from)
+pub async fn list_devices() -> Result<Vec<AudioCard>, CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<Vec<AudioCard>, CommandError> {
+        DeviceManager::list_cards().map_err(CommandError::from)
+    })
+    .await?
 }
 
 /// Sets Bluetooth audio codec (LDAC, aptX HD, AAC, SBC).
 #[tauri::command]
-pub fn set_bluetooth_codec(card_name: String, codec: BluetoothCodec) -> Result<(), CommandError> {
-    DeviceManager::set_bluetooth_codec(&card_name, &codec).map_err(CommandError::from)
+pub async fn set_bluetooth_codec(
+    card_name: String,
+    codec: BluetoothCodec,
+) -> Result<(), CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        DeviceManager::set_bluetooth_codec(&card_name, &codec).map_err(CommandError::from)
+    })
+    .await?
 }
 
 /// Enables Pro Audio mode on the given audio card.
 #[tauri::command]
-pub fn enable_pro_audio(card_name: String) -> Result<(), CommandError> {
-    DeviceManager::enable_pro_audio(&card_name).map_err(CommandError::from)
+pub async fn enable_pro_audio(card_name: String) -> Result<(), CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        DeviceManager::enable_pro_audio(&card_name).map_err(CommandError::from)
+    })
+    .await?
 }
 
 /// Disables Pro Audio mode and restores previous profile.
 #[tauri::command]
-pub fn disable_pro_audio(card_name: String) -> Result<String, CommandError> {
-    DeviceManager::disable_pro_audio(&card_name).map_err(CommandError::from)
+pub async fn disable_pro_audio(card_name: String) -> Result<String, CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
+        DeviceManager::disable_pro_audio(&card_name).map_err(CommandError::from)
+    })
+    .await?
 }
 
 /// Alias for set_device_profile.
 #[tauri::command]
-pub fn set_card_profile(card_name: String, profile: String) -> Result<(), CommandError> {
-    DeviceManager::set_card_profile(&card_name, &profile).map_err(CommandError::from)
-}
-
-pub fn list_devices_internal() -> Result<Vec<AudioCard>, CommandError> {
-    list_devices()
-}
-
-pub fn set_device_profile_internal(
-    card_name: &str,
-    profile_name: &str,
-) -> Result<(), CommandError> {
-    DeviceManager::set_card_profile(card_name, profile_name).map_err(CommandError::from)
-}
-
-pub fn set_bluetooth_codec_internal(
-    card_name: &str,
-    codec: &BluetoothCodec,
-) -> Result<(), CommandError> {
-    DeviceManager::set_bluetooth_codec(card_name, codec).map_err(CommandError::from)
-}
-
-pub fn enable_pro_audio_internal(card_name: &str) -> Result<(), CommandError> {
-    DeviceManager::enable_pro_audio(card_name).map_err(CommandError::from)
-}
-
-pub fn disable_pro_audio_internal(card_name: &str) -> Result<String, CommandError> {
-    DeviceManager::disable_pro_audio(card_name).map_err(CommandError::from)
+pub async fn set_card_profile(card_name: String, profile: String) -> Result<(), CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        DeviceManager::set_card_profile(&card_name, &profile).map_err(CommandError::from)
+    })
+    .await?
 }
 
 /// Retrieves current Discord Rich Presence status.

@@ -39,7 +39,7 @@ pub async fn identify_track_fingerprint_internal(
     let client = AcoustidClient::new(client_key);
     let path_buf = PathBuf::from(path);
     if !path_buf.exists() {
-        return Err("Plik audio nie istnieje na dysku".into());
+        return Err(CommandError::not_found("Plik audio nie istnieje na dysku"));
     }
 
     let (duration, fingerprint) = AcoustidClient::generate_fingerprint(&path_buf).await?;
@@ -136,7 +136,7 @@ pub async fn apply_cover_url_internal(
         let art = artist.as_deref().unwrap_or("Unknown");
         state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err("Nieprawidłowe ID albumu".into());
+        return Err(CommandError::validation("Nieprawidłowe ID albumu"));
     };
 
     let path = state
@@ -156,9 +156,7 @@ pub async fn apply_cover_url_internal(
 
     sync_cover_to_discord_cache(state, artist.as_deref(), album_title.as_deref(), cover_url);
 
-    let bytes = std::fs::read(&path)?;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Ok(format!("data:image/jpeg;base64,{}", b64))
+    cover_file_data_uri(&path).await
 }
 
 /// Applies a local file as an album cover.
@@ -176,7 +174,7 @@ pub async fn apply_custom_cover_file_internal(
     );
     let path = Path::new(file_path);
     if !path.exists() {
-        return Err("Wskazany plik nie istnieje".into());
+        return Err(CommandError::not_found("Wskazany plik nie istnieje"));
     }
 
     let ext = path
@@ -196,10 +194,13 @@ pub async fn apply_custom_cover_file_internal(
         }
     };
 
-    let bytes =
-        std::fs::read(path).map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
+    let bytes = tokio::fs::read(path)
+        .await
+        .map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
     if bytes.len() > 25 * 1024 * 1024 {
-        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".into());
+        return Err(CommandError::validation(
+            "Plik graficzny jest zbyt duży (maks. 25 MB)",
+        ));
     }
 
     let actual_album_id = if album_id > 0 {
@@ -208,7 +209,7 @@ pub async fn apply_custom_cover_file_internal(
         let art = artist.as_deref().unwrap_or("Unknown");
         state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err("Nieprawidłowe ID albumu".into());
+        return Err(CommandError::validation("Nieprawidłowe ID albumu"));
     };
 
     let saved_path = state
@@ -292,7 +293,8 @@ pub async fn lastfm_get_auth_url_internal(
     let token = state.lastfm.get_auth_token(Some(key)).await?;
     let auth_url = format!(
         "https://www.last.fm/api/auth/?api_key={}&token={}",
-        key, token
+        metadata::urlencoding::encode(key),
+        metadata::urlencoding::encode(&token)
     );
     Ok(LastFmAuthUrlResult { token, auth_url })
 }
@@ -382,17 +384,37 @@ pub async fn lastfm_scrobble_internal(
 // ==========================================
 
 #[tauri::command]
-pub fn save_lyrics_lrc(track_path: String, lrc_content: String) -> Result<String, CommandError> {
-    metadata::save_lrc_file(&track_path, &lrc_content)
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(CommandError::from)
+pub async fn save_lyrics_lrc(
+    track_path: String,
+    lrc_content: String,
+) -> Result<String, CommandError> {
+    tokio::task::spawn_blocking(move || {
+        // Plik .lrc trafia wyłącznie obok istniejącego pliku audio.
+        let track = super::paths::ensure_readable(
+            &audio_engine::uri::local_path(&track_path),
+            super::paths::AUDIO_EXTENSIONS,
+        )?;
+        let lrc_path = super::paths::ensure_writable(&track.with_extension("lrc"))?;
+        std::fs::write(&lrc_path, lrc_content)
+            .map_err(|e| CommandError::from(e).context("Błąd zapisu pliku LRC"))?;
+        info!("Zapisano zsynchronizowany plik LRC: {}", lrc_path.display());
+        Ok(lrc_path.to_string_lossy().into_owned())
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn get_track_metadata(
+pub async fn get_track_metadata(
     path: String,
 ) -> Result<audio_engine::TrackMetadataFullDto, CommandError> {
-    audio_engine::read_track_metadata(&path).map_err(CommandError::from)
+    tokio::task::spawn_blocking(move || {
+        let resolved = super::paths::ensure_readable(
+            &audio_engine::uri::local_path(&path),
+            super::paths::AUDIO_EXTENSIONS,
+        )?;
+        audio_engine::read_track_metadata(&resolved.to_string_lossy()).map_err(CommandError::from)
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -402,8 +424,28 @@ pub async fn update_track_metadata(
     meta: audio_engine::TrackMetadataFullDto,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
+    // Tagi zapisujemy tylko do pliku, który biblioteka zna pod tym `track_id` —
+    // interfejs nie może wskazać dowolnego innego pliku.
+    let track =
+        state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Nie znaleziono utworu o ID {track_id}"))
+        })?;
+    let library_path = audio_engine::uri::local_path(&track.path);
+    if library_path != audio_engine::uri::local_path(&path) {
+        return Err(CommandError::validation(
+            "Ścieżka pliku nie odpowiada utworowi w bibliotece",
+        ));
+    }
+
     // 1. Zapis do pliku fizycznego audio przez lofty
-    audio_engine::write_track_metadata(&path, &meta)?;
+    let meta_for_file = meta.clone();
+    tokio::task::spawn_blocking(move || {
+        let resolved =
+            super::paths::ensure_readable(&library_path, super::paths::AUDIO_EXTENSIONS)?;
+        audio_engine::write_track_metadata(&resolved.to_string_lossy(), &meta_for_file)
+            .map_err(CommandError::from)
+    })
+    .await??;
 
     // 2. Aktualizacja w bazie SQLite
     state
@@ -466,9 +508,7 @@ pub async fn fetch_and_apply_cover(
         .update_album_cover(album_id, &path_str, Some(&mbid))
         .await?;
 
-    let bytes = std::fs::read(&path)?;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Ok(format!("data:image/jpeg;base64,{}", b64))
+    cover_file_data_uri(&path).await
 }
 
 #[tauri::command]
@@ -497,9 +537,7 @@ pub async fn auto_fetch_album_cover(
                     .update_album_cover(album_id, &path_str, Some(&best.mbid))
                     .await?;
 
-                let bytes = std::fs::read(&path)?;
-                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                return Ok(Some(format!("data:image/jpeg;base64,{}", b64)));
+                return Ok(Some(cover_file_data_uri(&path).await?));
             }
             Err(e) => {
                 tracing::warn!("Nie udało się pobrać okładki dla MBID {}: {}", best.mbid, e);
@@ -540,10 +578,11 @@ pub async fn apply_custom_cover_file(
     track_id: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
-    super::paths::ensure_readable(
+    let resolved = super::paths::ensure_readable(
         std::path::Path::new(&file_path),
         &["png", "jpg", "jpeg", "webp", "gif"],
     )?;
+    let file_path = resolved.to_string_lossy();
     apply_custom_cover_file_internal(&state, album_id, &file_path, album_title, artist, track_id)
         .await
 }
@@ -574,7 +613,9 @@ pub async fn apply_custom_cover_data(
         .map_err(|e| CommandError::validation(format!("Błąd dekodowania Base64: {}", e)))?;
 
     if bytes.len() > 25 * 1024 * 1024 {
-        return Err("Plik graficzny jest zbyt duży (maks. 25 MB)".into());
+        return Err(CommandError::validation(
+            "Plik graficzny jest zbyt duży (maks. 25 MB)",
+        ));
     }
 
     let clean_ext = match extension.to_lowercase().as_str() {
@@ -597,7 +638,7 @@ pub async fn apply_custom_cover_data(
         let art = artist.as_deref().unwrap_or("Unknown");
         state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err("Nieprawidłowe ID albumu".into());
+        return Err(CommandError::validation("Nieprawidłowe ID albumu"));
     };
 
     let saved_path = state
@@ -659,59 +700,63 @@ pub async fn apply_custom_cover_data(
 }
 
 #[tauri::command]
-pub fn get_track_cover(track_path: String) -> Result<Option<String>, CommandError> {
-    use lofty::file::TaggedFileExt;
-    let clean_path = if let Some(stripped) = track_path.strip_prefix("file://") {
-        stripped
-    } else {
-        &track_path
-    };
-    let path = std::path::Path::new(clean_path);
-    if !path.exists() {
-        return Ok(None);
-    }
+pub async fn get_track_cover(track_path: String) -> Result<Option<String>, CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<Option<String>, CommandError> {
+        use lofty::file::TaggedFileExt;
+        let clean_path = if let Some(stripped) = track_path.strip_prefix("file://") {
+            stripped
+        } else {
+            &track_path
+        };
+        let path = std::path::Path::new(clean_path);
+        if !path.exists() {
+            return Ok(None);
+        }
 
-    if let Ok(probe) = lofty::probe::Probe::open(path) {
-        if let Ok(tagged_file) = probe.read() {
-            if let Some(tag) = tagged_file
-                .primary_tag()
-                .or_else(|| tagged_file.first_tag())
-            {
-                if let Some(pic) = tag.pictures().first() {
-                    let data = pic.data();
-                    let mime = match pic.mime_type() {
-                        Some(lofty::picture::MimeType::Png) => "image/png",
-                        Some(lofty::picture::MimeType::Jpeg) => "image/jpeg",
-                        _ => "image/jpeg",
-                    };
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(data);
-                    return Ok(Some(format!("data:{};base64,{}", mime, b64)));
+        if let Ok(probe) = lofty::probe::Probe::open(path) {
+            if let Ok(tagged_file) = probe.read() {
+                if let Some(tag) = tagged_file
+                    .primary_tag()
+                    .or_else(|| tagged_file.first_tag())
+                {
+                    if let Some(pic) = tag.pictures().first() {
+                        let data = pic.data();
+                        let mime = match pic.mime_type() {
+                            Some(lofty::picture::MimeType::Png) => "image/png",
+                            Some(lofty::picture::MimeType::Jpeg) => "image/jpeg",
+                            _ => "image/jpeg",
+                        };
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(data);
+                        return Ok(Some(format!("data:{};base64,{}", mime, b64)));
+                    }
                 }
             }
         }
-    }
 
-    if let Some(parent) = path.parent() {
-        for cand in &[
-            "cover.jpg",
-            "cover.png",
-            "folder.jpg",
-            "folder.png",
-            "front.jpg",
-            "front.png",
-            "Cover.jpg",
-            "Folder.jpg",
-        ] {
-            let cand_path = parent.join(cand);
-            if cand_path.is_file() {
-                if let Some(data_uri) = resolve_cover_to_data_uri(&cand_path.to_string_lossy()) {
-                    return Ok(Some(data_uri));
+        if let Some(parent) = path.parent() {
+            for cand in &[
+                "cover.jpg",
+                "cover.png",
+                "folder.jpg",
+                "folder.png",
+                "front.jpg",
+                "front.png",
+                "Cover.jpg",
+                "Folder.jpg",
+            ] {
+                let cand_path = parent.join(cand);
+                if cand_path.is_file() {
+                    if let Some(data_uri) = resolve_cover_to_data_uri(&cand_path.to_string_lossy())
+                    {
+                        return Ok(Some(data_uri));
+                    }
                 }
             }
         }
-    }
 
-    Ok(None)
+        Ok(None)
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -733,4 +778,11 @@ pub async fn get_lyrics(
     )
     .await;
     Ok(lyrics)
+}
+
+/// Odczytuje zapisaną w cache okładkę i zwraca ją jako `data:` URI (typ MIME z rozszerzenia).
+async fn cover_file_data_uri(path: &std::path::Path) -> Result<String, CommandError> {
+    let bytes = tokio::fs::read(path).await?;
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
+    Ok(crate::commands::library::image_data_uri(ext, &bytes))
 }

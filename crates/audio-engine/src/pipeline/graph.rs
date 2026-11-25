@@ -419,7 +419,6 @@ impl AudioEngine {
             reverb_level: 0.0,
             base_media_pos: Duration::ZERO,
             base_sink_pts: Duration::ZERO,
-            user_volume: 1.0,
             seek_seq: 0,
             _stereo_widener: stereo_widener,
             stereo_widener_config,
@@ -430,8 +429,6 @@ impl AudioEngine {
             active_stem_project_id: None,
         }));
 
-        let replaygain_mode = Arc::new(AtomicU8::new(ReplayGainMode::Off as u8));
-
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
         let stop_after_current = Arc::new(AtomicBool::new(false));
         let fade_generation = Arc::new(AtomicU64::new(0));
@@ -439,7 +436,6 @@ impl AudioEngine {
         Ok(Self {
             inner,
             queue,
-            replaygain_mode,
             stop_after_current,
             fade_generation,
             is_fading_in,

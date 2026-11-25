@@ -11,9 +11,6 @@ impl AudioEngine {
         self.atomic_volume
             .store(clamped.to_bits(), Ordering::Relaxed);
         self.volume_element.set_property("volume", clamped);
-        if let Ok(mut inner) = self.inner.try_lock() {
-            inner.user_volume = clamped;
-        }
         debug!("Ustawiono głośność na: {:.2}", clamped);
         Ok(())
     }
@@ -30,9 +27,6 @@ impl AudioEngine {
         let current_vol = self.volume();
         self.atomic_volume
             .store(clamped.to_bits(), Ordering::Relaxed);
-        if let Ok(mut inner) = self.inner.try_lock() {
-            inner.user_volume = clamped;
-        }
 
         if duration.is_zero() || (current_vol - clamped).abs() < 0.005 {
             self.volume_element.set_property("volume", clamped);
@@ -161,11 +155,7 @@ impl AudioEngine {
             }
             inner.volume.set_property("volume", 0.0f64);
             inner.state = PlaybackState::Playing;
-            (
-                inner.pipeline.clone(),
-                inner.volume.clone(),
-                inner.user_volume,
-            )
+            (inner.pipeline.clone(), inner.volume.clone(), self.volume())
         };
 
         // Zmiana stanu potoku poza blokadą mutexu inner

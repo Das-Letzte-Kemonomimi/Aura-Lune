@@ -108,7 +108,7 @@ impl AudioEngine {
         inner.stem_mixer_state = initial_state;
         inner.current_uri = Some(format!("stems://{}", stems.track_id));
 
-        Self::start_stem_source(&mut inner, seek_pos, start_playing);
+        Self::start_stem_source(&mut inner, self.volume(), seek_pos, start_playing);
 
         info!("Załadowano stemy dla utworu {}", stems.track_id);
         Ok(())
@@ -175,7 +175,7 @@ impl AudioEngine {
         });
         inner.current_uri = Some(format!("stemproject://{}", project_id));
 
-        Self::start_stem_source(&mut inner, seek_pos, start_playing);
+        Self::start_stem_source(&mut inner, self.volume(), seek_pos, start_playing);
 
         info!(
             "Załadowano projekt stemów {} (liczba kanałów: {})",
@@ -219,8 +219,7 @@ impl AudioEngine {
             let was_playing = inner.state == PlaybackState::Playing;
             let uri = inner.original_track_uri.clone().or_else(|| {
                 self.queue
-                    .lock()
-                    .unwrap()
+                    .lock_safe()
                     .current_item()
                     .map(|it| it.uri.clone())
             });
@@ -387,6 +386,7 @@ impl AudioEngine {
     /// (zachowanie miejsca w utworze) i opcjonalny start odtwarzania z przewinięciem.
     fn start_stem_source(
         inner: &mut PipelineInner,
+        user_volume: f64,
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) {
@@ -399,7 +399,7 @@ impl AudioEngine {
             return;
         }
         inner.state = PlaybackState::Playing;
-        inner.volume.set_property("volume", inner.user_volume);
+        inner.volume.set_property("volume", user_volume);
         let _ = inner.pipeline.set_state(gst::State::Playing);
         if let Some(pos) = seek_pos {
             let _ = inner.pipeline.seek_simple(

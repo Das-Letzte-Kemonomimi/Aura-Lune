@@ -35,7 +35,7 @@ pub async fn set_active_theme(
         .db
         .get_theme(&theme_id)
         .await?
-        .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
+        .ok_or_else(|| CommandError::not_found(format!("Motyw '{}' nie istnieje", theme_id)))?;
     state
         .db
         .set_app_setting("active_theme_id", &theme_id)
@@ -55,7 +55,7 @@ pub async fn update_theme_background(
         .db
         .get_theme(&theme_id)
         .await?
-        .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
+        .ok_or_else(|| CommandError::not_found(format!("Motyw '{}' nie istnieje", theme_id)))?;
     theme.background_ref = background_ref;
     theme.overlay_opacity = overlay_opacity;
     theme.blur_radius = blur_radius;
@@ -73,7 +73,7 @@ pub async fn export_theme_json(
         .db
         .get_theme(&theme_id)
         .await?
-        .ok_or_else(|| format!("Motyw '{}' nie istnieje", theme_id))?;
+        .ok_or_else(|| CommandError::not_found(format!("Motyw '{}' nie istnieje", theme_id)))?;
     serde_json::to_string_pretty(&theme).map_err(CommandError::from)
 }
 
@@ -94,49 +94,52 @@ pub async fn import_theme_json(
 }
 
 #[tauri::command]
-pub fn upload_background_image(file_path: String) -> Result<String, CommandError> {
-    // Rozwiązanie dowiązań: rozszerzenie sprawdzane jest na pliku docelowym.
-    let resolved = super::paths::ensure_readable(
-        std::path::Path::new(&file_path),
-        &["png", "jpg", "jpeg", "webp", "gif", "mp4", "webm"],
-    )?;
-    let path = resolved.as_path();
-    let ext = path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-    let mime = match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "mp4" => "video/mp4",
-        "webm" => "video/webm",
-        _ => {
-            return Err(CommandError::validation(
-                "Obsługiwane są pliki PNG, JPG, WebP oraz animowane wideo tła MP4/WebM",
-            ))
+pub async fn upload_background_image(file_path: String) -> Result<String, CommandError> {
+    tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
+        // Rozwiązanie dowiązań: rozszerzenie sprawdzane jest na pliku docelowym.
+        let resolved = super::paths::ensure_readable(
+            std::path::Path::new(&file_path),
+            &["png", "jpg", "jpeg", "webp", "gif", "mp4", "webm"],
+        )?;
+        let path = resolved.as_path();
+        let ext = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let mime = match ext.as_str() {
+            "png" => "image/png",
+            "jpg" | "jpeg" => "image/jpeg",
+            "webp" => "image/webp",
+            "mp4" => "video/mp4",
+            "webm" => "video/webm",
+            _ => {
+                return Err(CommandError::validation(
+                    "Obsługiwane są pliki PNG, JPG, WebP oraz animowane wideo tła MP4/WebM",
+                ))
+            }
+        };
+
+        let bytes =
+            std::fs::read(path).map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
+        let max_size = if mime.starts_with("video/") {
+            100 * 1024 * 1024
+        } else {
+            25 * 1024 * 1024
+        };
+        if bytes.len() > max_size {
+            return Err(format!(
+                "Plik tła jest zbyt duży (maks. {} MB)",
+                max_size / (1024 * 1024)
+            )
+            .into());
         }
-    };
 
-    let bytes =
-        std::fs::read(path).map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
-    let max_size = if mime.starts_with("video/") {
-        100 * 1024 * 1024
-    } else {
-        25 * 1024 * 1024
-    };
-    if bytes.len() > max_size {
-        return Err(format!(
-            "Plik tła jest zbyt duży (maks. {} MB)",
-            max_size / (1024 * 1024)
-        )
-        .into());
-    }
-
-    use base64::Engine;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Ok(format!("data:{};base64,{}", mime, b64))
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        Ok(format!("data:{};base64,{}", mime, b64))
+    })
+    .await?
 }
 
 /// Tożsamość instalacji w systemie (kanał stable / dev), używana do nazw ikon i wpisu .desktop.
@@ -258,7 +261,8 @@ pub async fn set_app_icon_style(
     };
     state.db.set_app_setting("app_icon_style", clean).await?;
 
-    update_system_icons(&app, clean)?;
+    // ~20 zapisów plików i `gtk-update-icon-cache` — poza wątkami Tokio.
+    tokio::task::spawn_blocking(move || update_system_icons(&app, clean)).await??;
     Ok(clean.to_string())
 }
 

@@ -16,14 +16,49 @@ pub const MAX_ATTEMPTS: u32 = 3;
 /// Najdłuższe respektowane `Retry-After`, aby interfejs nie czekał w nieskończoność.
 const MAX_RETRY_AFTER: Duration = Duration::from_secs(5);
 
+/// Maksymalna liczba przekierowań jednego zapytania.
+const MAX_REDIRECTS: usize = 5;
+
 /// Klient HTTP z jednolitym User-Agentem, limitem połączenia i całego zapytania.
+///
+/// Przekierowania z publicznego hosta na `localhost` lub adres IP spoza internetu są
+/// odrzucane (ochrona przed SSRF przez przekierowanie, zob. [`crate::net_guard`]).
 pub fn build_client(timeout: Duration) -> reqwest::Client {
+    let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= MAX_REDIRECTS {
+            return attempt.error("too many redirects");
+        }
+        let from_public = attempt
+            .previous()
+            .first()
+            .is_some_and(|first| !is_local_target(first));
+        if from_public && is_local_target(attempt.url()) {
+            return attempt.error("redirect to a local address is not allowed");
+        }
+        attempt.follow()
+    });
     reqwest::Client::builder()
         .user_agent(USER_AGENT)
         .connect_timeout(Duration::from_secs(5).min(timeout))
         .timeout(timeout)
+        .redirect(redirect_policy)
         .build()
         .unwrap_or_default()
+}
+
+/// Czy URL wskazuje bezpośrednio na `localhost` albo niepubliczny adres IP.
+fn is_local_target(url: &reqwest::Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return true;
+    };
+    let host = host.trim_matches(['[', ']']);
+    match host.parse::<std::net::IpAddr>() {
+        Ok(ip) => !crate::net_guard::is_public_ip(ip),
+        Err(_) => {
+            let lower = host.to_ascii_lowercase();
+            lower == "localhost" || lower.ends_with(".localhost")
+        }
+    }
 }
 
 /// Czy odpowiedź oznacza chwilowy problem, który warto ponowić.

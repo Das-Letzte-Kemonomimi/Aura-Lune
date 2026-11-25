@@ -12,7 +12,6 @@ use downloads::DownloadProvider;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{Emitter, State};
-use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StemProgressPayload {
@@ -59,11 +58,11 @@ pub async fn download_ai_model_internal(
     let model = catalog
         .into_iter()
         .find(|m| m.id == model_id)
-        .ok_or_else(|| format!("Unknown AI model: {}", model_id))?;
+        .ok_or_else(|| CommandError::not_found(format!("Unknown AI model: {}", model_id)))?;
 
     let url = model
         .download_url
-        .ok_or_else(|| "Model has no download URL defined".to_string())?;
+        .ok_or_else(|| CommandError::validation("Model has no download URL defined"))?;
 
     let dest_path = PathBuf::from(&model.file_path);
     if let Some(parent) = dest_path.parent() {
@@ -256,11 +255,9 @@ pub async fn create_stem_project_internal(
     requested_packs: Vec<String>,
     app_handle: &tauri::AppHandle,
 ) -> Result<StemProject, CommandError> {
-    let track = state
-        .db
-        .get_track_by_id(track_id)
-        .await?
-        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
+    let track = state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+        CommandError::not_found(format!("Nie znaleziono utworu o ID {}", track_id))
+    })?;
 
     let track_path = track.path.clone();
     // SHA-256 całego pliku audio (setki MB dla hi-res) — poza wątkami Tokio.
@@ -323,7 +320,7 @@ pub async fn create_stem_project_internal(
         .db
         .get_stem_project(project_id)
         .await?
-        .ok_or_else(|| "Błąd odczytu nowo utworzonego projektu".to_string())?;
+        .ok_or_else(|| CommandError::internal("Błąd odczytu nowo utworzonego projektu"))?;
 
     // Asynchroniczne zadanie separacji kaskadowej w tle
     let db_clone = state.db.clone();
@@ -525,10 +522,14 @@ pub async fn load_stem_project_internal(
         .db
         .get_stem_project(project_id)
         .await?
-        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
+        .ok_or_else(|| {
+            CommandError::not_found(format!("Nie znaleziono projektu o ID {}", project_id))
+        })?;
 
     if project.channels.is_empty() {
-        return Err("Projekt nie posiada wygenerowanych ścieżek audio".into());
+        return Err(CommandError::validation(
+            "Projekt nie posiada wygenerowanych ścieżek audio",
+        ));
     }
 
     let orig_track = state
@@ -598,34 +599,6 @@ pub fn apply_stem_project_mix_internal(
         .map_err(CommandError::from)
 }
 
-/// Exports mixed stems into a target file.
-pub async fn export_stem_project_mix_internal(
-    state: &AppState,
-    project_id: i64,
-    export_path: &str,
-) -> Result<String, CommandError> {
-    let project = state
-        .db
-        .get_stem_project(project_id)
-        .await?
-        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
-
-    let target = export_path.to_string();
-    tokio::task::spawn_blocking(move || {
-        let export_target = Path::new(&target);
-        if let Some(parent) = export_target.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-
-        info!("Eksportowanie miksu projektu {} do {}", project_id, target);
-        if let Some(first) = project.channels.first() {
-            let _ = std::fs::copy(&first.file_path, export_target);
-        }
-        Ok(target)
-    })
-    .await?
-}
-
 /// Packages project stems and metadata into a ZIP file.
 pub async fn export_stem_project_zip_internal(
     state: &AppState,
@@ -636,30 +609,48 @@ pub async fn export_stem_project_zip_internal(
         .db
         .get_stem_project(project_id)
         .await?
-        .ok_or_else(|| format!("Nie znaleziono projektu o ID {}", project_id))?;
+        .ok_or_else(|| {
+            CommandError::not_found(format!("Nie znaleziono projektu o ID {}", project_id))
+        })?;
 
     let target = export_path.to_string();
     tokio::task::spawn_blocking(move || {
         let proj_dir = get_stem_projects_cache_dir().join(project_id.to_string());
         if !proj_dir.exists() {
-            return Err("Katalog stemów projektu nie istnieje na dysku".into());
+            return Err(CommandError::not_found(
+                "Katalog stemów projektu nie istnieje na dysku",
+            ));
         }
 
-        let json_str = serde_json::to_string_pretty(&project).unwrap_or_default();
-        let _ = std::fs::write(proj_dir.join("project.json"), json_str);
+        let json_str = serde_json::to_string_pretty(&project)?;
+        std::fs::write(proj_dir.join("project.json"), json_str)
+            .map_err(|e| CommandError::from(e).context("Błąd zapisu project.json"))?;
 
+        // `zip -r` dopisuje do istniejącego archiwum — pakujemy do świeżego pliku
+        // tymczasowego i dopiero po sukcesie podmieniamy cel (bez starych wpisów i połówek).
+        let partial = format!("{target}.partial.zip");
+        let _ = std::fs::remove_file(&partial);
         let output = std::process::Command::new("zip")
+            .arg("-q")
             .arg("-r")
-            .arg(&target)
+            .arg(&partial)
             .arg(".")
             .current_dir(&proj_dir)
             .output()
             .map_err(|e| CommandError::from(e).context("Błąd uruchomienia /usr/bin/zip"))?;
 
         if !output.status.success() {
+            let _ = std::fs::remove_file(&partial);
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Błąd pakowania ZIP: {}", stderr).into());
+            return Err(CommandError::from(format!(
+                "Błąd pakowania ZIP: {}",
+                stderr
+            )));
         }
+        std::fs::rename(&partial, &target).map_err(|e| {
+            let _ = std::fs::remove_file(&partial);
+            CommandError::from(e).context("Błąd zapisu archiwum ZIP")
+        })?;
 
         Ok(target)
     })
@@ -834,6 +825,6 @@ pub async fn export_stem_project_zip(
     export_path: String,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
-    super::paths::ensure_writable(std::path::Path::new(&export_path))?;
-    export_stem_project_zip_internal(&state, project_id, &export_path).await
+    let resolved = super::paths::ensure_writable(std::path::Path::new(&export_path))?;
+    export_stem_project_zip_internal(&state, project_id, &resolved.to_string_lossy()).await
 }

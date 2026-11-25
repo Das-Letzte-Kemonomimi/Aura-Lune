@@ -5,17 +5,8 @@ use crate::{Database, StorageError};
 impl Database {
     /// Inicjalizuje tabele i indeksy w bazie danych oraz aplikuje migracje schematu.
     pub async fn run_migrations(&self) -> Result<(), StorageError> {
-        // Zastosuj pragmy optymalizacyjne dla SQLite (pamięć podręczna 64MB, temp_store w RAM, MMAP)
-        let _ = sqlx::query("PRAGMA temp_store = MEMORY;")
-            .execute(&self.pool)
-            .await;
-        let _ = sqlx::query("PRAGMA cache_size = -64000;")
-            .execute(&self.pool)
-            .await;
-        let _ = sqlx::query("PRAGMA mmap_size = 268435456;")
-            .execute(&self.pool)
-            .await;
-
+        // Pragmy wydajnościowe (cache, temp_store, mmap) są ustawiane per połączenie
+        // w `Database::connect_options`, nie tutaj (tu trafiłyby tylko do jednego połączenia puli).
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS artists (
@@ -228,9 +219,6 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
             CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
-            CREATE INDEX IF NOT EXISTS idx_tracks_favorite ON tracks(is_favorite);
-            CREATE INDEX IF NOT EXISTS idx_tracks_last_played ON tracks(last_played_at);
-            CREATE INDEX IF NOT EXISTS idx_tracks_rating ON tracks(rating);
             CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums(album_artist);
             CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON playlist_tracks(playlist_id);
             CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track ON playlist_tracks(track_id);
@@ -259,78 +247,10 @@ impl Database {
         // Zgodność wsteczna: wersjonowane migracje z użyciem PRAGMA user_version
         let user_version: i32 = sqlx::query_scalar("PRAGMA user_version;")
             .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+            .await?;
 
         if user_version < 1 {
-            let track_cols: Vec<String> =
-                sqlx::query_scalar("SELECT name FROM pragma_table_info('tracks');")
-                    .fetch_all(&self.pool)
-                    .await
-                    .unwrap_or_default();
-
-            if !track_cols.contains(&"is_favorite".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN is_favorite BOOLEAN DEFAULT 0;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"play_count".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN play_count INTEGER DEFAULT 0;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"last_played_at".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN last_played_at INTEGER;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"total_play_time_ms".to_string()) {
-                let _ = sqlx::query(
-                    "ALTER TABLE tracks ADD COLUMN total_play_time_ms INTEGER DEFAULT 0;",
-                )
-                .execute(&self.pool)
-                .await;
-            }
-            if !track_cols.contains(&"bpm".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN bpm REAL;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"initial_key".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN initial_key TEXT;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"replaygain_track_gain".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN replaygain_track_gain REAL;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"replaygain_track_peak".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN replaygain_track_peak REAL;")
-                    .execute(&self.pool)
-                    .await;
-            }
-            if !track_cols.contains(&"rating".to_string()) {
-                let _ = sqlx::query("ALTER TABLE tracks ADD COLUMN rating INTEGER DEFAULT 0;")
-                    .execute(&self.pool)
-                    .await;
-            }
-
-            let album_cols: Vec<String> =
-                sqlx::query_scalar("SELECT name FROM pragma_table_info('albums');")
-                    .fetch_all(&self.pool)
-                    .await
-                    .unwrap_or_default();
-            if !album_cols.contains(&"release_mbid".to_string()) {
-                let _ = sqlx::query("ALTER TABLE albums ADD COLUMN release_mbid TEXT;")
-                    .execute(&self.pool)
-                    .await;
-            }
-
-            let _ = sqlx::query("PRAGMA user_version = 1;")
-                .execute(&self.pool)
-                .await;
+            self.migrate_v1().await?;
         }
 
         if user_version < 2 {
@@ -351,6 +271,56 @@ impl Database {
                 .await?;
         }
 
+        Ok(())
+    }
+
+    /// v1: kolumny statystyk/analizy w `tracks`, `release_mbid` w `albums` i ich indeksy.
+    ///
+    /// Bazy sprzed v1 nie mają tych kolumn, więc indeksy na nich powstają dopiero tutaj
+    /// (w pierwszym bloku DDL zakończyłyby inicjalizację błędem "no such column").
+    /// Cały krok jest jedną transakcją: błąd ALTER nie oznaczy bazy jako zmigrowanej.
+    async fn migrate_v1(&self) -> Result<(), StorageError> {
+        const TRACK_COLUMNS: &[(&str, &str)] = &[
+            ("is_favorite", "BOOLEAN DEFAULT 0"),
+            ("play_count", "INTEGER DEFAULT 0"),
+            ("last_played_at", "INTEGER"),
+            ("total_play_time_ms", "INTEGER DEFAULT 0"),
+            ("bpm", "REAL"),
+            ("initial_key", "TEXT"),
+            ("replaygain_track_gain", "REAL"),
+            ("replaygain_track_peak", "REAL"),
+            ("rating", "INTEGER DEFAULT 0"),
+        ];
+        const ALBUM_COLUMNS: &[(&str, &str)] = &[("release_mbid", "TEXT")];
+
+        let mut tx = self.pool.begin().await?;
+        for (table, columns) in [("tracks", TRACK_COLUMNS), ("albums", ALBUM_COLUMNS)] {
+            let existing: Vec<String> =
+                sqlx::query_scalar("SELECT name FROM pragma_table_info(?);")
+                    .bind(table)
+                    .fetch_all(&mut *tx)
+                    .await?;
+            for (name, ddl) in columns {
+                if existing.iter().any(|c| c == name) {
+                    continue;
+                }
+                // Nazwy tabel i kolumn są stałymi z tego pliku — bez danych z zewnątrz.
+                sqlx::query(&format!("ALTER TABLE {table} ADD COLUMN {name} {ddl};"))
+                    .execute(&mut *tx)
+                    .await?;
+            }
+        }
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_tracks_favorite ON tracks(is_favorite);
+            CREATE INDEX IF NOT EXISTS idx_tracks_last_played ON tracks(last_played_at);
+            CREATE INDEX IF NOT EXISTS idx_tracks_rating ON tracks(rating);
+            PRAGMA user_version = 1;
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(())
     }
 

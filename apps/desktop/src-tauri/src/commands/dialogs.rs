@@ -314,6 +314,12 @@ pub async fn pick_custom_file(
     title: String,
     filter: String,
 ) -> Result<Option<String>, CommandError> {
+    // Filtr jest argumentem pozycyjnym kdialog — wartość zaczynająca się od `-` byłaby opcją.
+    if filter.trim_start().starts_with('-') {
+        return Err(CommandError::validation(format!(
+            "Nieprawidłowy filtr plików: {filter}"
+        )));
+    }
     tokio::task::spawn_blocking(move || {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
 
@@ -392,6 +398,7 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, Command
                     .arg("--select")
                     .arg(&abs_path)
                     .spawn()
+                    .map(reap_in_background)
                     .is_ok()
                 {
                     return Ok(target_dir.to_string_lossy().to_string());
@@ -399,6 +406,7 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, Command
             } else if std::process::Command::new("dolphin")
                 .arg(&target_dir)
                 .spawn()
+                .map(reap_in_background)
                 .is_ok()
             {
                 return Ok(target_dir.to_string_lossy().to_string());
@@ -407,7 +415,7 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, Command
 
         // 2. Standard DBus: org.freedesktop.FileManager1.ShowItems (Dolphin, Nautilus, Nemo, Thunar)
         if abs_path.exists() && !abs_path.is_dir() {
-            let uri = format!("file://{}", abs_path.to_string_lossy());
+            let uri = audio_engine::uri::media_uri(&abs_path.to_string_lossy());
             if let Ok(mut child) = std::process::Command::new("dbus-send")
                 .args([
                     "--session",
@@ -435,6 +443,7 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, Command
                     .arg("--select")
                     .arg(&abs_path)
                     .spawn()
+                    .map(reap_in_background)
                     .is_ok()
                 {
                     return Ok(target_dir.to_string_lossy().to_string());
@@ -443,9 +452,10 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, Command
         }
 
         // 4. Uniwersalny fallback: xdg-open na katalogu nadrzędnym
-        let _ = std::process::Command::new("xdg-open")
+        std::process::Command::new("xdg-open")
             .arg(&target_dir)
             .spawn()
+            .map(reap_in_background)
             .map_err(|e| {
                 CommandError::from(e).context("Błąd otwierania folderu w menedżerze plików")
             })?;
@@ -458,11 +468,24 @@ pub async fn open_containing_folder(file_path: String) -> Result<String, Command
 #[tauri::command]
 pub fn open_external_url(url: String) -> Result<(), CommandError> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
-        return Err("Dozwolone są wyłącznie bezpieczne adresy URL (http/https)".into());
+        return Err(CommandError::validation(
+            "Dozwolone są wyłącznie bezpieczne adresy URL (http/https)",
+        ));
     }
     std::process::Command::new("xdg-open")
         .arg(&url)
         .spawn()
+        .map(reap_in_background)
         .map_err(|e| CommandError::from(e).context("Błąd otwierania odnośnika w przeglądarce"))?;
     Ok(())
+}
+
+/// Odbiera status zakończenia uruchomionego procesu w tle, aby nie zostawał po nim zombie
+/// (menedżer plików / przeglądarka działają dłużej niż komenda).
+fn reap_in_background(mut child: std::process::Child) {
+    let _ = std::thread::Builder::new()
+        .name("auralune-child-reaper".into())
+        .spawn(move || {
+            let _ = child.wait();
+        });
 }

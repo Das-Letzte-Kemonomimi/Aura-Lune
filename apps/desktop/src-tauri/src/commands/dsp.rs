@@ -1,5 +1,5 @@
 use super::error::CommandError;
-use crate::commands::playback::{get_status_internal, PlaybackStatusDto};
+use crate::commands::playback::{snapshot_status, PlaybackStatusDto};
 use crate::AppState;
 use audio_engine::{
     analyze_track_replaygain, write_replaygain_tags_to_file, ReplayGainAnalysisResult,
@@ -71,7 +71,10 @@ pub fn set_equalizer_band_internal(
     gain_db: f64,
 ) -> Result<(), CommandError> {
     if band >= 10 {
-        return Err(format!("Numer pasma {} jest nieprawidłowy (dozwolone 0-9)", band).into());
+        return Err(CommandError::validation(format!(
+            "Numer pasma {} jest nieprawidłowy (dozwolone 0-9)",
+            band
+        )));
     }
     let clamped = gain_db.clamp(-24.0, 24.0);
     state
@@ -151,60 +154,76 @@ pub fn set_parametric_eq_state_internal(
 // ----------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn set_pitch(semitones: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
-    set_pitch_internal(&state, semitones)
+pub async fn set_pitch(semitones: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        set_pitch_internal(&state, semitones)
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn set_tempo(
+pub async fn set_tempo(
     tempo_ratio: Option<f64>,
     ratio: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    set_tempo_internal(&state, tempo_ratio, ratio)
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        set_tempo_internal(&state, tempo_ratio, ratio)
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn set_rate(
+pub async fn set_rate(
     rate_ratio: Option<f64>,
     rate: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    set_rate_internal(&state, rate_ratio, rate)
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        set_rate_internal(&state, rate_ratio, rate)
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn set_dsp_params(
+pub async fn set_dsp_params(
     engine: Option<String>,
     pitch_semitones: Option<f64>,
     tempo_ratio: Option<f64>,
     rate_ratio: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<PlaybackStatusDto, CommandError> {
-    let current = state.engine.dsp_params();
-    let target_engine = if let Some(ref eng_str) = engine {
-        DspEngine::from_name(eng_str)
-    } else {
-        current.engine
-    };
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<PlaybackStatusDto, CommandError> {
+        let current = state.engine.dsp_params();
+        let target_engine = if let Some(ref eng_str) = engine {
+            DspEngine::from_name(eng_str)
+        } else {
+            current.engine
+        };
 
-    let target_pitch = pitch_semitones.unwrap_or(current.pitch_semitones);
-    let target_tempo = tempo_ratio.unwrap_or(current.tempo_ratio);
-    let target_rate = rate_ratio.unwrap_or(current.rate_ratio);
+        let target_pitch = pitch_semitones.unwrap_or(current.pitch_semitones);
+        let target_tempo = tempo_ratio.unwrap_or(current.tempo_ratio);
+        let target_rate = rate_ratio.unwrap_or(current.rate_ratio);
 
-    state.engine.set_dsp_engine(target_engine)?;
+        state.engine.set_dsp_engine(target_engine)?;
 
-    let params = DspParams::new(target_engine, target_pitch, target_tempo, target_rate)?;
+        let params = DspParams::new(target_engine, target_pitch, target_tempo, target_rate)?;
 
-    state.engine.set_dsp_params(params)?;
+        state.engine.set_dsp_params(params)?;
 
-    Ok(get_status_internal(&state))
+        Ok(snapshot_status(&state))
+    })
+    .await?
 }
 
 /// Applies a whole DSP profile (engine, tempo, pitch, rate and graphic EQ) in one IPC round trip and
 /// returns the resulting status. Used by the one-click vibe presets (Nightcore, Slowed, ...).
 #[tauri::command]
-pub fn apply_dsp_profile(
+pub async fn apply_dsp_profile(
     engine: Option<String>,
     tempo_ratio: f64,
     pitch_semitones: f64,
@@ -213,27 +232,35 @@ pub fn apply_dsp_profile(
     equalizer_enabled: bool,
     state: State<'_, AppState>,
 ) -> Result<PlaybackStatusDto, CommandError> {
-    let current = state.engine.dsp_params();
-    let target_engine = engine
-        .as_deref()
-        .map(DspEngine::from_name)
-        .unwrap_or(current.engine);
-    let params = DspParams::new(target_engine, pitch_semitones, tempo_ratio, rate_ratio)?;
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<PlaybackStatusDto, CommandError> {
+        let current = state.engine.dsp_params();
+        let target_engine = engine
+            .as_deref()
+            .map(DspEngine::from_name)
+            .unwrap_or(current.engine);
+        let params = DspParams::new(target_engine, pitch_semitones, tempo_ratio, rate_ratio)?;
 
-    state.engine.set_dsp_engine(target_engine)?;
-    state.engine.set_dsp_params(params)?;
-    set_equalizer_bands_internal(&state, &equalizer_bands)?;
-    set_equalizer_enabled_internal(&state, equalizer_enabled)?;
+        state.engine.set_dsp_engine(target_engine)?;
+        state.engine.set_dsp_params(params)?;
+        set_equalizer_bands_internal(&state, &equalizer_bands)?;
+        set_equalizer_enabled_internal(&state, equalizer_enabled)?;
 
-    Ok(get_status_internal(&state))
+        Ok(snapshot_status(&state))
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, CommandError> {
-    let current = state.engine.dsp_params();
-    let reset_params = DspParams::new(current.engine, 0.0, 1.0, 1.0)?;
-    state.engine.set_dsp_params(reset_params)?;
-    Ok(get_status_internal(&state))
+pub async fn reset_dsp(state: State<'_, AppState>) -> Result<PlaybackStatusDto, CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<PlaybackStatusDto, CommandError> {
+        let current = state.engine.dsp_params();
+        let reset_params = DspParams::new(current.engine, 0.0, 1.0, 1.0)?;
+        state.engine.set_dsp_params(reset_params)?;
+        Ok(snapshot_status(&state))
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -290,13 +317,17 @@ pub fn set_crossfade_duration(
 }
 
 #[tauri::command]
-pub fn set_dsp_engine(
+pub async fn set_dsp_engine(
     engine: DspEngine,
     state: State<'_, AppState>,
 ) -> Result<PlaybackStatusDto, CommandError> {
-    info!("Tauri command: set_dsp_engine({:?})", engine);
-    state.engine.set_dsp_engine(engine)?;
-    Ok(get_status_internal(&state))
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<PlaybackStatusDto, CommandError> {
+        info!("Tauri command: set_dsp_engine({:?})", engine);
+        state.engine.set_dsp_engine(engine)?;
+        Ok(snapshot_status(&state))
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -324,19 +355,23 @@ pub fn get_audio_buffer_duration_ms(state: State<'_, AppState>) -> Result<u64, C
 }
 
 #[tauri::command]
-pub fn set_dsp_block_size(
+pub async fn set_dsp_block_size(
     block_size: usize,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    info!("Tauri command: set_dsp_block_size({} ramek)", block_size);
-    state.engine.set_dsp_block_size(block_size)?;
-    let db = state.db.clone();
-    state.rt.spawn(async move {
-        let _ = db
-            .set_app_setting("dsp_block_size", &block_size.to_string())
-            .await;
-    });
-    Ok(())
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        info!("Tauri command: set_dsp_block_size({} ramek)", block_size);
+        state.engine.set_dsp_block_size(block_size)?;
+        let db = state.db.clone();
+        state.rt.spawn(async move {
+            let _ = db
+                .set_app_setting("dsp_block_size", &block_size.to_string())
+                .await;
+        });
+        Ok(())
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -377,21 +412,25 @@ pub async fn list_dsp_presets(
 }
 
 #[tauri::command]
-pub fn load_dsp_preset(
+pub async fn load_dsp_preset(
     preset: DspPresetRecord,
     state: State<'_, AppState>,
 ) -> Result<PlaybackStatusDto, CommandError> {
-    let engine = DspEngine::from_name(&preset.engine);
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<PlaybackStatusDto, CommandError> {
+        let engine = DspEngine::from_name(&preset.engine);
 
-    let params = DspParams::new(
-        engine,
-        preset.pitch_semitones,
-        preset.tempo_ratio,
-        preset.rate_ratio,
-    )?;
+        let params = DspParams::new(
+            engine,
+            preset.pitch_semitones,
+            preset.tempo_ratio,
+            preset.rate_ratio,
+        )?;
 
-    state.engine.set_dsp_params(params)?;
-    Ok(get_status_internal(&state))
+        state.engine.set_dsp_params(params)?;
+        Ok(snapshot_status(&state))
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -562,13 +601,13 @@ pub async fn scan_track_replaygain(
         "Tauri command: scan_track_replaygain(track_id={}, write_tags={})",
         track_id, write_tags
     );
-    let track = state
-        .db
-        .get_track_by_id(track_id)
-        .await?
-        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
+    let track = state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+        CommandError::not_found(format!("Nie znaleziono utworu o ID {}", track_id))
+    })?;
 
-    let result = analyze_track_replaygain(&track.path)?;
+    // Pełne dekodowanie utworu — poza wątkami Tokio.
+    let path = track.path.clone();
+    let result = tokio::task::spawn_blocking(move || analyze_track_replaygain(&path)).await??;
 
     // Zapis do bazy danych SQLite
     let gain = result.track_gain_db;
@@ -580,7 +619,11 @@ pub async fn scan_track_replaygain(
 
     // Opcjonalny zapis tagów do pliku
     if write_tags {
-        if let Err(e) = write_replaygain_tags_to_file(&track.path, gain, peak) {
+        let path = track.path.clone();
+        let written =
+            tokio::task::spawn_blocking(move || write_replaygain_tags_to_file(&path, gain, peak))
+                .await?;
+        if let Err(e) = written {
             warn!(
                 "Nie udało się zapisać tagów ReplayGain do {}: {}",
                 track.path, e
@@ -607,15 +650,22 @@ pub async fn scan_library_replaygain(
     let mut errors = 0;
 
     for track in tracks {
-        match analyze_track_replaygain(&track.path) {
+        // Analiza (pełne dekodowanie) i zapis tagów poza wątkami Tokio.
+        let path = track.path.clone();
+        let analyzed = tokio::task::spawn_blocking(move || {
+            let res = analyze_track_replaygain(&path)?;
+            if write_tags {
+                let _ = write_replaygain_tags_to_file(&path, res.track_gain_db, res.track_peak);
+            }
+            Ok::<_, audio_engine::AnalysisError>(res)
+        })
+        .await?;
+        match analyzed {
             Ok(res) => {
-                let tid = track.id;
-                let g = res.track_gain_db;
-                let p = res.track_peak;
-                let _ = state.db.update_track_replaygain(tid, g, p).await;
-                if write_tags {
-                    let _ = write_replaygain_tags_to_file(&track.path, g, p);
-                }
+                let _ = state
+                    .db
+                    .update_track_replaygain(track.id, res.track_gain_db, res.track_peak)
+                    .await;
                 scanned += 1;
             }
             Err(err) => {

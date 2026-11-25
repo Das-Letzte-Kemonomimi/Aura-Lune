@@ -11,7 +11,10 @@ pub struct DeviceManager;
 impl DeviceManager {
     /// Pobiera listę wszystkich wykrytych kart dźwiękowych i ich profili.
     pub fn list_cards() -> Result<Vec<AudioCard>, AudioEngineError> {
+        // Parser rozpoznaje angielskie etykiety ("Card #", "Name:", "Profiles:") —
+        // wymuś nietłumaczone wyjście niezależnie od języka systemu.
         let output = Command::new("pactl")
+            .env("LC_ALL", "C")
             .arg("list")
             .arg("cards")
             .output()
@@ -36,8 +39,10 @@ impl DeviceManager {
             card_name, profile_name
         );
 
+        // `--`: nazwy z interfejsu nigdy nie są interpretowane jako opcje pactl (`--server=…`).
         let status = Command::new("pactl")
             .arg("set-card-profile")
+            .arg("--")
             .arg(card_name)
             .arg(profile_name)
             .status()

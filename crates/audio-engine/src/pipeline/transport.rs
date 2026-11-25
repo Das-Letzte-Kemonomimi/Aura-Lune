@@ -9,8 +9,7 @@ impl AudioEngine {
             let inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 self.queue
-                    .lock()
-                    .unwrap()
+                    .lock_safe()
                     .current_item()
                     .map(|it| it.uri.clone())
             } else {
@@ -29,12 +28,8 @@ impl AudioEngine {
                 return Ok(());
             }
             inner.state = PlaybackState::Playing;
-            inner.volume.set_property("volume", inner.user_volume);
-            (
-                inner.pipeline.clone(),
-                inner.volume.clone(),
-                inner.user_volume,
-            )
+            inner.volume.set_property("volume", self.volume());
+            (inner.pipeline.clone(), inner.volume.clone(), self.volume())
         };
         pipeline.set_state(gst::State::Playing)?;
         volume.set_property("volume", user_vol);
@@ -55,8 +50,7 @@ impl AudioEngine {
             let inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
                 self.queue
-                    .lock()
-                    .unwrap()
+                    .lock_safe()
                     .current_item()
                     .map(|it| it.uri.clone())
             } else {
@@ -76,11 +70,7 @@ impl AudioEngine {
             }
             inner.volume.set_property("volume", 0.0f64);
             inner.state = PlaybackState::Playing;
-            (
-                inner.pipeline.clone(),
-                inner.volume.clone(),
-                inner.user_volume,
-            )
+            (inner.pipeline.clone(), inner.volume.clone(), self.volume())
         };
 
         // Wykonanie zmiany stanu potoku poza blokadą mutexu inner
@@ -118,11 +108,7 @@ impl AudioEngine {
 
         let (pipeline, volume, target_vol) = {
             let inner = self.inner.lock_safe();
-            (
-                inner.pipeline.clone(),
-                inner.volume.clone(),
-                inner.user_volume,
-            )
+            (inner.pipeline.clone(), inner.volume.clone(), self.volume())
         };
 
         let steps = 4;
@@ -262,7 +248,7 @@ impl AudioEngine {
             let mut inner = self.inner.lock_safe();
             inner.seek_seq = inner.seek_seq.wrapping_add(1);
             let is_playing = inner.pipeline.current_state() == gst::State::Playing;
-            (is_playing, inner.user_volume, inner.seek_seq)
+            (is_playing, self.volume(), inner.seek_seq)
         };
 
         if !is_playing || target_vol <= 0.001 {

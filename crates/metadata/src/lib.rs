@@ -20,6 +20,7 @@ pub mod http;
 pub mod lastfm;
 pub mod listenbrainz;
 pub mod lyrics;
+pub mod net_guard;
 pub use acoustid::*;
 pub use lastfm::*;
 pub use listenbrainz::*;
@@ -218,39 +219,52 @@ pub fn clean_album_title(title: &str) -> String {
         }
     }
 
-    let mut result = cleaned;
-    // 2. Usunięcie typowych słów-kluczy szumu, gdyby nie były w nawiasach
-    let noise_patterns = [
-        "remastered",
-        "remaster",
-        "deluxe edition",
-        "deluxe",
-        "special edition",
-        "anniversary edition",
-        "expanded edition",
-        "bonus tracks",
-        "bonus track",
-        "original soundtrack",
-        "soundtrack",
-        "ost",
-        "disc 1",
-        "disc 2",
-        "disc 3",
-        "cd 1",
-        "cd 2",
-        "cd 3",
-        "cd1",
-        "cd2",
+    // 2. Usunięcie typowych słów-kluczy szumu, gdyby nie były w nawiasach. Dopasowanie po
+    //    całych słowach (bez rozróżniania wielkości liter): "Ghost" ani "Lost" nie tracą "ost",
+    //    a znaki, których małe litery mają inną długość (np. "İ"), nie psują indeksów.
+    const NOISE_PATTERNS: &[&[&str]] = &[
+        &["remastered"],
+        &["remaster"],
+        &["deluxe", "edition"],
+        &["deluxe"],
+        &["special", "edition"],
+        &["anniversary", "edition"],
+        &["expanded", "edition"],
+        &["bonus", "tracks"],
+        &["bonus", "track"],
+        &["original", "soundtrack"],
+        &["soundtrack"],
+        &["ost"],
+        &["disc", "1"],
+        &["disc", "2"],
+        &["disc", "3"],
+        &["cd", "1"],
+        &["cd", "2"],
+        &["cd", "3"],
+        &["cd1"],
+        &["cd2"],
     ];
 
-    for pat in noise_patterns {
-        let lower = result.to_lowercase();
-        if let Some(pos) = lower.find(pat) {
-            result = format!("{} {}", &result[..pos], &result[pos + pat.len()..]);
+    let mut words: Vec<&str> = cleaned.split_whitespace().collect();
+    let normalized = |w: &str| {
+        w.trim_matches(|c: char| !c.is_alphanumeric())
+            .to_lowercase()
+    };
+    for pat in NOISE_PATTERNS {
+        let mut i = 0;
+        while i + pat.len() <= words.len() {
+            let matches = words[i..i + pat.len()]
+                .iter()
+                .zip(pat.iter())
+                .all(|(w, p)| normalized(w) == *p);
+            if matches {
+                words.drain(i..i + pat.len());
+            } else {
+                i += 1;
+            }
         }
     }
 
-    let words: Vec<&str> = result.split_whitespace().collect();
     let final_str = words.join(" ");
 
     if final_str.is_empty() {
@@ -643,11 +657,7 @@ impl CoverArtArchiveClient {
         file_stem: &str,
     ) -> Result<PathBuf, MetadataError> {
         ensure_safe_token(file_stem)?;
-        if !(url.starts_with("https://") || url.starts_with("http://")) {
-            return Err(MetadataError::Query(format!(
-                "Nieobsługiwany adres okładki: {url}"
-            )));
-        }
+        net_guard::ensure_public_https_url(url).await?;
         let covers_dir = self.cache_dir.join("covers");
         tokio::fs::create_dir_all(&covers_dir).await?;
 
@@ -798,9 +808,14 @@ async fn read_image_body(resp: reqwest::Response) -> Result<Vec<u8>, MetadataErr
     {
         return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
     }
-    let bytes = resp.bytes().await?;
-    if bytes.len() as u64 > MAX_COVER_BYTES {
-        return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
+    // Strumieniowo: serwer bez Content-Length (chunked) też nie przekroczy limitu.
+    let mut resp = resp;
+    let mut bytes = Vec::new();
+    while let Some(chunk) = resp.chunk().await? {
+        if bytes.len() as u64 + chunk.len() as u64 > MAX_COVER_BYTES {
+            return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
+        }
+        bytes.extend_from_slice(&chunk);
     }
-    Ok(bytes.to_vec())
+    Ok(bytes)
 }

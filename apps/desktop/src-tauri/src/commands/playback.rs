@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tauri::{Emitter, Manager, State};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::commands::queue::persist_queue_state;
 
@@ -203,46 +203,46 @@ pub async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| "Nieznany utwór".to_string());
 
-        let (title, artist, album, duration_ms) =
-            if let Ok(m) = audio_engine::read_track_metadata(path) {
-                let t = if !m.title.trim().is_empty() {
-                    m.title
-                } else if fallback_stem.contains(" - ") {
-                    fallback_stem
-                        .split_once(" - ")
-                        .map(|(_, t)| t.trim().to_string())
-                        .unwrap_or_else(|| fallback_stem.clone())
-                } else {
-                    fallback_stem.clone()
-                };
-
-                let a = if !m.artist.trim().is_empty() {
-                    m.artist
-                } else if fallback_stem.contains(" - ") {
-                    fallback_stem
-                        .split_once(" - ")
-                        .map(|(a, _)| a.trim().to_string())
-                        .unwrap_or_else(|| "Plik lokalny".to_string())
-                } else {
-                    "Plik lokalny".to_string()
-                };
-
-                (t, a, m.album, 0)
+        // Odczyt tagów (lofty) to blokujące I/O — poza wątkami Tokio.
+        let owned_path = path.to_string();
+        let tags =
+            tokio::task::spawn_blocking(move || audio_engine::read_track_metadata(&owned_path))
+                .await
+                .ok()
+                .and_then(Result::ok);
+        let (title, artist, album, duration_ms) = if let Some(m) = tags {
+            let t = if !m.title.trim().is_empty() {
+                m.title
             } else if fallback_stem.contains(" - ") {
-                let (a, t) = fallback_stem.split_once(" - ").unwrap();
-                (t.trim().to_string(), a.trim().to_string(), None, 0)
+                fallback_stem
+                    .split_once(" - ")
+                    .map(|(_, t)| t.trim().to_string())
+                    .unwrap_or_else(|| fallback_stem.clone())
             } else {
-                (fallback_stem, "Plik lokalny".to_string(), None, 0)
+                fallback_stem.clone()
             };
 
+            let a = if !m.artist.trim().is_empty() {
+                m.artist
+            } else if fallback_stem.contains(" - ") {
+                fallback_stem
+                    .split_once(" - ")
+                    .map(|(a, _)| a.trim().to_string())
+                    .unwrap_or_else(|| "Plik lokalny".to_string())
+            } else {
+                "Plik lokalny".to_string()
+            };
+
+            (t, a, m.album, 0)
+        } else if fallback_stem.contains(" - ") {
+            let (a, t) = fallback_stem.split_once(" - ").unwrap();
+            (t.trim().to_string(), a.trim().to_string(), None, 0)
+        } else {
+            (fallback_stem, "Plik lokalny".to_string(), None, 0)
+        };
+
         QueueItem {
-            id: format!(
-                "file-{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis()
-            ),
+            id: crate::commands::queue::new_queue_item_id("file"),
             track_id: None,
             uri: path.to_string(),
             title,
@@ -398,18 +398,16 @@ pub fn normalize_art_url(art_url: Option<&str>) -> Option<String> {
     if url.is_empty() {
         return None;
     }
-    if url.starts_with("http://")
-        || url.starts_with("https://")
-        || url.starts_with("data:image/")
-        || url.starts_with("file://")
-    {
+    if url.starts_with("http://") || url.starts_with("https://") || url.starts_with("data:image/") {
         return Some(url.to_string());
     }
-    let path = Path::new(url);
-    if path.exists() && path.is_file() {
-        return Some(format!("file://{}", path.to_string_lossy()));
-    }
-    None
+    // Lokalna okładka trafia do powłoki pulpitu (MPRIS) — tylko istniejące pliki obrazów.
+    let path = super::paths::ensure_readable(
+        &audio_engine::uri::local_path(url),
+        super::paths::IMAGE_EXTENSIONS,
+    )
+    .ok()?;
+    Some(audio_engine::uri::media_uri(&path.to_string_lossy()))
 }
 
 /// Synchronizes currently playing track metadata to MPRIS and Discord Rich Presence.
@@ -520,11 +518,9 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
     }
 }
 
-pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
-    let q = state.engine.queue();
-    let current_track = q.current_item().cloned();
-
-    let is_live_stream = if let Some(ref item) = current_track {
+/// Czy bieżące źródło to strumień na żywo (radio internetowe).
+fn is_live_stream(state: &AppState, current_track: Option<&QueueItem>) -> bool {
+    if let Some(item) = current_track {
         item.id.starts_with("radio-")
             || (item.track_id.is_none()
                 && (item.uri.starts_with("http://") || item.uri.starts_with("https://")))
@@ -532,7 +528,16 @@ pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
         uri.starts_with("http://") || uri.starts_with("https://")
     } else {
         false
-    };
+    }
+}
+
+/// Jeden takt tickera odtwarzania — **jedyne** miejsce, które opróżnia magistralę silnika
+/// (`poll_events`: EOS → następny utwór, zapętlenie, tagi, widmo), wykrywa cofnięcia pozycji
+/// i zapisuje status Waybara. Wołane wyłącznie przez `setup::playback_ticker`; komendy
+/// czytają [`snapshot_status`] albo zbuforowany `AppState.last_status`.
+pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatusDto {
+    let current_track = state.engine.queue().current_item().cloned();
+    let is_live_stream = is_live_stream(state, current_track.as_ref());
 
     let events = state.engine.poll_events();
     for event in events {
@@ -639,6 +644,10 @@ pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
                     }
                 }
             }
+            PlayerEvent::Error(message) => {
+                error!("Błąd odtwarzania: {}", message);
+                errors.push(message);
+            }
             _ => {}
         }
     }
@@ -672,9 +681,6 @@ pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
             }
         }
     }
-
-    let dsp = state.engine.dsp_params();
-    let capabilities = state.engine.dsp_capabilities();
 
     let should_update_waybar = if let Ok(mut last_t) = state.last_waybar_write.lock() {
         if last_t.elapsed() >= Duration::from_millis(500) {
@@ -760,6 +766,24 @@ pub fn get_status_internal(state: &AppState) -> PlaybackStatusDto {
         let _ = desktop_integration::write_waybar_status(&waybar);
     }
 
+    snapshot_status(state)
+}
+
+/// Bieżący status odtwarzania bez efektów ubocznych na magistrali silnika (nie wywołuje
+/// `poll_events`, nie zapisuje Waybara) — bezpieczny do wołania z komend.
+pub fn snapshot_status(state: &AppState) -> PlaybackStatusDto {
+    let q = state.engine.queue();
+    let current_track = q.current_item().cloned();
+    let is_live_stream = is_live_stream(state, current_track.as_ref());
+    let pos_ms = state
+        .engine
+        .position()
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let dur_ms = state.engine.duration().map(|d| d.as_millis() as u64);
+    let dsp = state.engine.dsp_params();
+    let capabilities = state.engine.dsp_capabilities();
+
     let spectrum = state
         .latest_spectrum
         .lock()
@@ -831,27 +855,37 @@ pub async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), C
 }
 
 #[tauri::command]
-pub fn play(state: State<'_, AppState>) -> Result<(), CommandError> {
-    play_internal(&state)
+pub async fn play(state: State<'_, AppState>) -> Result<(), CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> { play_internal(&state) })
+        .await?
 }
 
 #[tauri::command]
-pub fn pause(state: State<'_, AppState>) -> Result<(), CommandError> {
-    pause_internal(&state)
+pub async fn pause(state: State<'_, AppState>) -> Result<(), CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> { pause_internal(&state) })
+        .await?
 }
 
 #[tauri::command]
-pub fn stop(state: State<'_, AppState>) -> Result<(), CommandError> {
-    stop_internal(&state)
+pub async fn stop(state: State<'_, AppState>) -> Result<(), CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> { stop_internal(&state) })
+        .await?
 }
 
 #[tauri::command]
-pub fn seek(
+pub async fn seek(
     position_ms: u64,
     fade: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    seek_internal(&state, position_ms, fade)
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        seek_internal(&state, position_ms, fade)
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -878,13 +912,13 @@ pub fn set_volume(
 }
 
 /// Zwraca ostatni status wyliczony przez ticker odtwarzania (tania kopia migawki).
-/// Przed pierwszym taktem tickera status jest liczony na żądanie.
+/// Przed pierwszym taktem tickera zwracana jest migawka bez opróżniania magistrali.
 #[tauri::command]
 pub fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
     if let Some(cached) = state.last_status.read().ok().and_then(|s| s.clone()) {
         return cached;
     }
-    get_status_internal(&state)
+    snapshot_status(&state)
 }
 
 #[tauri::command]

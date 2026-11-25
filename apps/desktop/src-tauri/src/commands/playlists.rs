@@ -20,41 +20,45 @@ pub fn parse_cue_sheet_content(cue_content: String) -> Result<CueSheet, CommandE
 }
 
 #[tauri::command]
-pub fn load_radio_stream(
+pub async fn load_radio_stream(
     url: String,
     station_name: String,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    info!(
-        "Tauri command: load_radio_stream('{}', '{}')",
-        station_name, url
-    );
-    state.engine.load_uri(&url)?;
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        info!(
+            "Tauri command: load_radio_stream('{}', '{}')",
+            station_name, url
+        );
+        state.engine.load_uri(&url)?;
 
-    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-        *t = None;
-    }
+        if let Ok(mut t) = state.latest_live_stream_tag.lock() {
+            *t = None;
+        }
 
-    let queue_item = QueueItem {
-        id: format!(
-            "radio-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis()
-        ),
-        track_id: None,
-        uri: url.clone(),
-        title: station_name.clone(),
-        artist: station_name.clone(),
-        album: Some("Radio internetowe".to_string()),
-        duration_ms: 0,
-    };
+        let queue_item = QueueItem {
+            id: format!(
+                "radio-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+            ),
+            track_id: None,
+            uri: url.clone(),
+            title: station_name.clone(),
+            artist: station_name.clone(),
+            album: Some("Radio internetowe".to_string()),
+            duration_ms: 0,
+        };
 
-    state.engine.set_active_item(queue_item.clone());
-    crate::commands::playback::sync_mpris_from_queue_item(&queue_item, &state);
-    state.engine.play()?;
-    Ok(())
+        state.engine.set_active_item(queue_item.clone());
+        crate::commands::playback::sync_mpris_from_queue_item(&queue_item, &state);
+        state.engine.play()?;
+        Ok(())
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -65,7 +69,7 @@ pub async fn save_queue_as_playlist(
     info!("Tauri command: save_queue_as_playlist('{}')", name);
     let queue = state.engine.queue();
     if queue.items.is_empty() {
-        return Err("Kolejka odtwarzania jest pusta".into());
+        return Err(CommandError::validation("Kolejka odtwarzania jest pusta"));
     }
 
     let pl_id = state.db.create_playlist(&name).await?;
@@ -174,7 +178,7 @@ pub async fn export_playlist_m3u8(
         "Tauri command: export_playlist_m3u8(playlist_id: {}, export_path: '{}', relative: {})",
         playlist_id, export_path, use_relative_paths
     );
-    super::paths::ensure_writable(std::path::Path::new(&export_path))?;
+    let export_path = super::paths::ensure_writable(std::path::Path::new(&export_path))?;
     let tracks = state
         .db
         .get_playlist_tracks(playlist_id)
@@ -203,7 +207,7 @@ pub async fn export_playlist_m3u8(
         })
         .collect();
 
-    let export_dir = std::path::Path::new(&export_path).parent();
+    let export_dir = export_path.parent();
     let content =
         M3uPlaylist::export_to_m3u8(&playlist_name, &entries, export_dir, use_relative_paths);
 
@@ -224,9 +228,10 @@ pub async fn import_playlist_m3u8(
     state: State<'_, AppState>,
 ) -> Result<ImportM3uResult, CommandError> {
     info!("Tauri command: import_playlist_m3u8('{}')", file_path);
-    super::paths::ensure_readable(std::path::Path::new(&file_path), &["m3u", "m3u8"])?;
+    let resolved =
+        super::paths::ensure_readable(std::path::Path::new(&file_path), &["m3u", "m3u8"])?;
 
-    let content = fs::read_to_string(&file_path)
+    let content = fs::read_to_string(&resolved)
         .map_err(|e| CommandError::from(e).context("Nie udało się odczytać pliku M3U/M3U8"))?;
 
     let path_obj = std::path::Path::new(&file_path);

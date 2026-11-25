@@ -61,6 +61,7 @@ import { useSleepTimer } from './hooks/useSleepTimer';
 import { fmt } from './utils/fmt';
 import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
 import { useToasts } from './hooks/useToasts';
+import { usePlaybackErrorToasts } from './hooks/usePlaybackErrorToasts';
 
 export type { AlbumPlaybackBehavior };
 
@@ -107,6 +108,7 @@ export default function App() {
   // Kolejka komunikatów (useToasts): stabilny `showMessage` dla hooków, osobny licznik czasu
   // dla każdego komunikatu. Komunikaty informacyjne są celowo pomijane; widoczne są tylko błędy.
   const { toasts, showMessage, dismiss: dismissToast } = useToasts();
+  usePlaybackErrorToasts(showMessage);
 
   const mainContentRef = useRef<HTMLElement | null>(null);
 

@@ -238,13 +238,7 @@ pub fn init_app(
                             }
                         } else {
                             QueueItem {
-                                id: format!(
-                                    "restored-session-{}",
-                                    std::time::SystemTime::now()
-                                        .duration_since(std::time::UNIX_EPOCH)
-                                        .unwrap_or_default()
-                                        .as_millis()
-                                ),
+                                id: crate::commands::queue::new_queue_item_id("restored-session"),
                                 track_id: session.track_id,
                                 uri: uri.clone(),
                                 title: session.title.clone().unwrap_or_else(|| {

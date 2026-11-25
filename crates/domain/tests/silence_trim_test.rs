@@ -90,3 +90,22 @@ fn test_trim_action_keeps_short_or_unknown_trailing_silence() {
     };
     assert_eq!(trim_action(6_900, 7_000, &unknown, true), None);
 }
+
+#[test]
+fn streaming_scanner_matches_whole_buffer_analysis_for_any_chunking() {
+    use domain::silence::{find_silence_bounds, SilenceScanner};
+    let rate = 22_050;
+    let mut samples = vec![0.0f32; rate as usize]; // 1 s ciszy
+    samples.extend((0..rate as usize * 2).map(|i| (i as f32 * 0.05).sin() * 0.5)); // 2 s tonu
+    samples.extend(vec![0.0f32; rate as usize / 2 + 123]); // cisza z niepełnym oknem
+    let expected = find_silence_bounds(&samples, rate, -50.0);
+    assert!(expected.is_some());
+
+    for chunk in [1usize, 7, 441, 4096, samples.len()] {
+        let mut scanner = SilenceScanner::new(rate, -50.0);
+        for part in samples.chunks(chunk) {
+            scanner.push(part);
+        }
+        assert_eq!(scanner.finish(), expected, "porcje po {chunk} próbek");
+    }
+}

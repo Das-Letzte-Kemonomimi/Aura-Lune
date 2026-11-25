@@ -4,6 +4,22 @@ use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use tauri::State;
 use tracing::{info, warn};
 
+/// Unikalny identyfikator pozycji kolejki spoza biblioteki (`<prefix>-<ms>-<licznik>`).
+///
+/// Sam znacznik czasu nie wystarcza: pliki dodawane w pętli (drag & drop, argumenty CLI)
+/// dostawały ten sam identyfikator, co psuło synchronizację MPRIS, przycinanie ciszy
+/// i usuwanie z kolejki po ID.
+pub fn new_queue_item_id(prefix: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{prefix}-{ms}-{n}")
+}
+
 /// Zleca zapis stanu kolejki. Zapisy są łączone (debounce) i wykonywane przez jeden wątek
 /// zapisujący, więc nie mogą się wyprzedzić i nadpisać nowszego stanu starszym.
 pub fn persist_queue_state(state: &AppState) {
@@ -52,15 +68,19 @@ pub fn get_queue(state: State<'_, AppState>) -> PlaybackQueue {
 }
 
 #[tauri::command]
-pub fn set_queue(
+pub async fn set_queue(
     items: Vec<QueueItem>,
     start_index: Option<usize>,
     state: State<'_, AppState>,
 ) -> Result<Option<QueueItem>, CommandError> {
-    info!("Tauri command: set_queue ({} utworów)", items.len());
-    let active = state.engine.set_queue(items, start_index)?;
-    after_track_switch(&state, active.as_ref());
-    Ok(active)
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<Option<QueueItem>, CommandError> {
+        info!("Tauri command: set_queue ({} utworów)", items.len());
+        let active = state.engine.set_queue(items, start_index)?;
+        after_track_switch(&state, active.as_ref());
+        Ok(active)
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -131,12 +151,8 @@ pub async fn add_uris_to_queue(
                 .and_then(|n| n.to_str())
                 .unwrap_or(uri)
                 .to_string();
-            let ts = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_micros();
             QueueItem {
-                id: format!("drop-{}-{}", ts, added),
+                id: new_queue_item_id("drop"),
                 track_id: None,
                 uri: uri.to_string(),
                 title,
@@ -184,49 +200,61 @@ pub fn reorder_queue(
 }
 
 #[tauri::command]
-pub fn clear_queue(state: State<'_, AppState>) -> Result<(), CommandError> {
-    info!("Tauri command: clear_queue()");
-    state.engine.clear_queue();
-    persist_queue_state(&state);
-    Ok(())
+pub async fn clear_queue(state: State<'_, AppState>) -> Result<(), CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        info!("Tauri command: clear_queue()");
+        state.engine.clear_queue();
+        persist_queue_state(&state);
+        Ok(())
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn play_queue_index(
+pub async fn play_queue_index(
     index: usize,
     expected_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Option<QueueItem>, CommandError> {
-    info!(
-        "Tauri command: play_queue_index({}, expected_id: {:?})",
-        index, expected_id
-    );
-    let target_index = if let Some(ref target_id) = expected_id {
-        let q = state.engine.queue();
-        if index < q.items.len() && q.items[index].id == *target_id {
-            index
-        } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
-            warn!(
-                "play_queue_index: korekta indeksu z {} na {} dla utworu {}",
-                index, found, target_id
-            );
-            found
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<Option<QueueItem>, CommandError> {
+        info!(
+            "Tauri command: play_queue_index({}, expected_id: {:?})",
+            index, expected_id
+        );
+        let target_index = if let Some(ref target_id) = expected_id {
+            let q = state.engine.queue();
+            if index < q.items.len() && q.items[index].id == *target_id {
+                index
+            } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
+                warn!(
+                    "play_queue_index: korekta indeksu z {} na {} dla utworu {}",
+                    index, found, target_id
+                );
+                found
+            } else {
+                index
+            }
         } else {
             index
-        }
-    } else {
-        index
-    };
+        };
 
-    let active = state.engine.play_index(target_index)?;
-    after_track_switch(&state, active.as_ref());
-    Ok(active)
+        let active = state.engine.play_index(target_index)?;
+        after_track_switch(&state, active.as_ref());
+        Ok(active)
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
-    info!("Tauri command: play_next()");
-    play_next_internal(&state)
+pub async fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<Option<QueueItem>, CommandError> {
+        info!("Tauri command: play_next()");
+        play_next_internal(&state)
+    })
+    .await?
 }
 
 /// Następny utwór + synchronizacja MPRIS i zapis kolejki (komenda, zasobnik systemowy).
@@ -237,9 +265,13 @@ pub fn play_next_internal(state: &AppState) -> Result<Option<QueueItem>, Command
 }
 
 #[tauri::command]
-pub fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
-    info!("Tauri command: play_previous()");
-    play_previous_internal(&state)
+pub async fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueItem>, CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<Option<QueueItem>, CommandError> {
+        info!("Tauri command: play_previous()");
+        play_previous_internal(&state)
+    })
+    .await?
 }
 
 /// Poprzedni utwór + synchronizacja MPRIS i zapis kolejki (komenda, zasobnik systemowy).
@@ -316,11 +348,9 @@ pub async fn set_active_track(
     if state.engine.state() == domain::PlaybackState::Playing {
         return Ok(());
     }
-    let track = state
-        .db
-        .get_track_by_id(track_id)
-        .await?
-        .ok_or_else(|| format!("Nie znaleziono utworu o ID {}", track_id))?;
+    let track = state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+        CommandError::not_found(format!("Nie znaleziono utworu o ID {}", track_id))
+    })?;
     let item = state.db.queue_item_for_track(&track).await;
     state.engine.set_active_item(item);
     state.engine.load_uri(&track.path)?;

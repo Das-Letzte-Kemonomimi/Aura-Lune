@@ -84,7 +84,7 @@ impl AudioEngine {
         let (user_vol, is_playing, volume, current_uri) = {
             let inner = self.inner.lock_safe();
             (
-                inner.user_volume,
+                self.volume(),
                 inner.pipeline.current_state() == gst::State::Playing,
                 inner.volume.clone(),
                 inner.current_uri.clone(),
@@ -233,7 +233,7 @@ impl AudioEngine {
         let inner = self.inner.lock_safe();
         SwitchContext {
             crossfade_ms: inner.crossfade_duration_ms,
-            user_vol: inner.user_volume,
+            user_vol: self.volume(),
             is_playing: inner.pipeline.current_state() == gst::State::Playing,
             volume: inner.volume.clone(),
         }

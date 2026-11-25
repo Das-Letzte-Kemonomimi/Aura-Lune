@@ -85,6 +85,28 @@ fn test_clean_album_title() {
 }
 
 #[test]
+fn test_clean_album_title_matches_whole_words_only() {
+    assert_eq!(clean_album_title("Ghost Stories"), "Ghost Stories");
+    assert_eq!(clean_album_title("Lost Highway"), "Lost Highway");
+    assert_eq!(
+        clean_album_title("Lost in Translation OST"),
+        "Lost in Translation"
+    );
+    assert_eq!(clean_album_title("Discovery CD 1"), "Discovery");
+    assert_eq!(
+        clean_album_title("Abbey Road Remastered Deluxe Edition"),
+        "Abbey Road"
+    );
+}
+
+#[test]
+fn test_clean_album_title_handles_case_folding_that_changes_length() {
+    // "İ".to_lowercase() ma więcej bajtów niż "İ" — wcześniej powodowało to panikę przy cięciu.
+    assert_eq!(clean_album_title("İstanbul Remastered"), "İstanbul");
+    assert_eq!(clean_album_title("STRAẞE Deluxe"), "STRAẞE");
+}
+
+#[test]
 fn test_clean_artist_name() {
     assert_eq!(clean_artist_name("In Extremo (Live)"), "In Extremo");
     assert_eq!(clean_artist_name("Linkin Park"), "Linkin Park");

@@ -207,3 +207,97 @@ async fn test_silence_bounds_cache_matches_threshold_and_file_version() {
         "CASCADE"
     );
 }
+
+/// Baza sprzed v1 (bez kolumn statystyk w `tracks` i `release_mbid` w `albums`) otwiera się
+/// i migruje do najnowszej wersji — indeksy na nowych kolumnach powstają dopiero w kroku v1.
+#[tokio::test]
+async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
+    let path = temp_db_path("v0_upgrade");
+    {
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true);
+        let pool = sqlx::SqlitePool::connect_with(opts).await.unwrap();
+        sqlx::query(
+            "CREATE TABLE albums (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 title TEXT NOT NULL,
+                 album_artist TEXT NOT NULL,
+                 year INTEGER,
+                 cover_path TEXT,
+                 UNIQUE(title, album_artist)
+             );
+             CREATE TABLE tracks (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 path TEXT NOT NULL UNIQUE,
+                 title TEXT NOT NULL,
+                 artist TEXT NOT NULL,
+                 album_artist TEXT,
+                 album_id INTEGER REFERENCES albums(id),
+                 disc_no INTEGER,
+                 track_no INTEGER,
+                 duration_ms INTEGER NOT NULL,
+                 format TEXT NOT NULL,
+                 sample_rate INTEGER NOT NULL,
+                 channels INTEGER NOT NULL,
+                 bit_depth INTEGER,
+                 file_size INTEGER NOT NULL,
+                 modified_time INTEGER NOT NULL
+             );
+             INSERT INTO tracks (path, title, artist, duration_ms, format, sample_rate, channels,
+                                 file_size, modified_time)
+             VALUES ('/music/old.flac', 'Old', 'Artist', 1000, 'flac', 44100, 2, 1, 1);",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+    }
+
+    let db = Database::open(&path)
+        .await
+        .expect("baza sprzed v1 musi się zmigrować");
+    let version: i32 = sqlx::query_scalar("PRAGMA user_version;")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(version, 3);
+
+    let indexes: Vec<String> =
+        sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
+            .fetch_all(db.pool())
+            .await
+            .unwrap();
+    for idx in [
+        "idx_tracks_favorite",
+        "idx_tracks_last_played",
+        "idx_tracks_rating",
+    ] {
+        assert!(indexes.iter().any(|i| i == idx), "brak indeksu {idx}");
+    }
+    let tracks = db.list_tracks().await.unwrap();
+    assert_eq!(tracks.len(), 1, "dane sprzed migracji zachowane");
+    db.pool().close().await;
+    remove_db(&path);
+}
+
+/// Pragmy wydajnościowe obowiązują na każdym połączeniu puli, nie tylko na pierwszym.
+#[tokio::test]
+async fn test_performance_pragmas_apply_to_every_pooled_connection() {
+    let path = temp_db_path("pragmas");
+    let db = Database::open(&path).await.unwrap();
+    let mut conns = Vec::new();
+    for _ in 0..3 {
+        conns.push(db.pool().acquire().await.unwrap());
+    }
+    for conn in conns.iter_mut() {
+        let cache: i64 = sqlx::query_scalar("PRAGMA cache_size;")
+            .fetch_one(&mut **conn)
+            .await
+            .unwrap();
+        assert_eq!(cache, -64000);
+    }
+    drop(conns);
+    db.pool().close().await;
+    remove_db(&path);
+}

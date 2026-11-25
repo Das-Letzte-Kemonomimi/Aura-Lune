@@ -34,7 +34,7 @@ use gst::prelude::*;
 use gst_base::prelude::BaseTransformExt;
 use gstreamer as gst;
 use gstreamer_base as gst_base;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
@@ -98,7 +98,6 @@ struct PipelineInner {
     reverb_level: f64,
     base_media_pos: Duration,
     base_sink_pts: Duration,
-    user_volume: f64,
     seek_seq: u64,
     _stereo_widener: gst::Element,
     stereo_widener_config: Arc<AtomicCell<domain::dynamics::StereoWidenerConfig>>,
@@ -138,7 +137,6 @@ impl PipelineInner {
 pub struct AudioEngine {
     inner: Arc<Mutex<PipelineInner>>,
     queue: Arc<Mutex<PlaybackQueue>>,
-    replaygain_mode: Arc<AtomicU8>,
     stop_after_current: Arc<AtomicBool>,
     fade_generation: Arc<AtomicU64>,
     is_fading_in: Arc<AtomicBool>,

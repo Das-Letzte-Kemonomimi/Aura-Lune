@@ -94,7 +94,8 @@ impl LastFmClient {
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
         let url = format!(
             "{}/?method=auth.getToken&api_key={}&format=json",
-            self.base_url, key
+            self.base_url,
+            crate::urlencoding::encode(key)
         );
 
         let res = self.client.get(&url).send().await.map_err(|e| {

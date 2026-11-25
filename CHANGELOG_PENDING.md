@@ -57,6 +57,12 @@
 - **Biblioteka**: przyciski akcji w wierszu utworu układają się w siatkę 5×2, dzięki czemu żadna ikona nie jest ucięta.
 
 #### Odtwarzanie i kolejka
+- **Głośność nie wraca do poprzedniej wartości**, gdy zmiana trafiła na moment zajętości silnika (np. ładowanie utworu).
+- **Pliki dodane naraz (przeciągnięcie, argumenty startowe) dostają unikalne identyfikatory** — wcześniej miały ten sam, co psuło MPRIS, pomijanie ciszy i usuwanie z kolejki.
+- **Błędy odtwarzania (GStreamer) są pokazywane w interfejsie** jako komunikat zamiast cichego zatrzymania.
+- **Zdarzenia silnika (koniec utworu, zapętlenie, tagi radia) obsługuje wyłącznie ticker odtwarzania** — komendy DSP nie przełączają już utworu równolegle z nim.
+- **Bardzo wolne tempo (np. 0.25×) nie zwiększa opóźnienia w nieskończoność**, a przełączenie silnika DSP w trakcie odtwarzania nie gubi bufora dźwięku.
+- **Tytuły albumów** z literami jak „İ” nie powodują awarii, a słowa „Ghost” / „Lost” nie tracą fragmentu „ost” przy wyszukiwaniu okładek.
 - **Utwory przechodzą dalej także przy ukrytym lub zminimalizowanym oknie.** Koniec utworu, przejście do następnego i zapętlenie były obsługiwane tylko wtedy, gdy interfejs odpytywał stan. Obsługuje je teraz osobny wątek backendu (`setup/playback_ticker.rs`), który też aktualizuje MPRIS po automatycznej zmianie utworu.
 - **Pomijanie ciszy (Silence Trimming) wreszcie działa.** Element `cutter` nigdy nie był podłączony do potoku (i wymusiłby dźwięk 16-bitowy). Cisza na początku i końcu jest teraz wykrywana w tle, zapamiętywana w bazie i pomijana — z zachowaniem powtarzania, „stop po bieżącym” i crossfade. Koniec utworu nie jest ucinany, jeśli analiza nie objęła całego pliku.
 - **Losowe odtwarzanie całej biblioteki (Shuffle All) znów działa** — frontend wywoływał nieistniejącą komendę `set_shuffle`. Kolejność losowa zmienia się też między kolejkami.
@@ -83,6 +89,14 @@
 - **Analiza akordów i transkrypcja z pamięci podręcznej** zwracają zapisane tempo, tonację i kod Camelot zamiast stałych `120 BPM` / „Detected”; eksport MIDI używa rzeczywistego tempa.
 
 #### Biblioteka i dane
+- **Migracja bardzo starych baz (sprzed v1)** nie kończy się błędem „no such column”; każdy krok migracji jest jedną transakcją, a błąd nie oznacza bazy jako zmigrowanej.
+- **Ustawienia wydajności SQLite (cache 64 MB, mmap) obowiązują na każdym połączeniu**, nie tylko na jednym z pięciu; ścieżki bazy z `?`, `#` czy `%` działają poprawnie.
+- **Brak połowicznych plików**: stemy WAV, eksporty (transkoder) i archiwa ZIP projektów powstają w pliku tymczasowym i zastępują cel dopiero po sukcesie; eksport ZIP nie dopisuje do starego archiwum; długi eksport nie jest przerywany po 180 s (limit dotyczy tylko zastoju).
+- **Separacja stemów nie zapisuje w cache obciętego wyniku** po przekroczeniu czasu dekodowania.
+- **Usunięcie utworu „z plikiem”** zgłasza błąd, gdy pliku nie udało się usunąć, zamiast zostawiać go na dysku.
+- **Projekty stemów** tworzone i usuwane atomowo (nigdy projekt bez kanałów).
+- **Pobieranie modeli**: anulowanie działa także przy zawieszonym połączeniu, równoległe pobierania nie dzielą pliku tymczasowego ani identyfikatora.
+- **Lista kart dźwiękowych działa przy polskim (i każdym innym) języku systemu.**
 - **Skaner zapisuje prawdziwego wykonawcę albumu** (tag `ALBUMARTIST`), więc kompilacje nie rozpadają się na osobne albumy; istniejące rekordy naprawia migracja bazy.
 - **Pliki usunięte z dysku znikają z biblioteki po ponownym skanowaniu** — tylko w obrębie skanowanego folderu i tylko po kompletnym przejściu (odmontowany dysk nie wyczyści biblioteki).
 - **Usuwanie utworu z zapisaną zakładką** nie kończy się błędem klucza obcego.
@@ -110,6 +124,13 @@
 - **Kontrola ścieżek wskazanych w interfejsie**: zapis (eksporty, renderowanie, pobieranie, kopie zapasowe) jest odrzucany dla katalogów systemowych i ukrytych folderów w katalogu domowym; odczyt okładek, tapet, kopii i playlist sprawdza rozszerzenie po rozwiązaniu dowiązań.
 - **Bezpieczniejsze okładki**: limit 20 MB, wymagany typ obrazu, tylko adresy http(s), bezpieczne nazwy plików.
 - **Kolejka FIFO i gniazdo sterowania** są dostępne tylko dla bieżącego użytkownika; ikona aplikacji nie jest wczytywana z `/tmp`; serwer deweloperski Vite nasłuchuje tylko na `127.0.0.1`.
+- **Pliki IPC w prywatnym katalogu**: status Waybara, kolejka FIFO i gniazdo sterowania przeniesiono z `/tmp` do `$XDG_RUNTIME_DIR/auralune/` (katalog `0700`). **Konfigurację Waybara trzeba wskazać na `$XDG_RUNTIME_DIR/auralune/auralune.json`**, a skrypty — na `$XDG_RUNTIME_DIR/auralune/ctl` / `auralune.sock`. Gniazdo Discorda w `/tmp` jest używane tylko, gdy należy do bieżącego użytkownika. Polecenia IPC mają limit długości i liczby połączeń, a zamknięcie aplikacji rzeczywiście zatrzymuje nasłuch.
+- **Ochrona bazy biblioteki**: eksporty nie mogą nadpisać `auralune_library.db`; wszystkie komendy zapisują i czytają przez ścieżkę po rozwiązaniu dowiązań (bez wyścigu z podmianą dowiązania).
+- **Nowe kontrole ścieżek**: zapis pliku `.lrc` tylko obok istniejącego pliku audio, edytor tagów zapisuje wyłącznie do pliku przypisanego do utworu w bibliotece, okładki z folderu utworu muszą być obrazami (dowiązanie `cover.jpg` → klucz SSH nie zostanie odczytane), wejście transkodera musi być plikiem audio.
+- **Pobieranie okładek z adresu URL**: tylko `https` i wyłącznie publiczne hosty (bez `localhost`, sieci LAN i przekierowań do nich); limit 20 MB działa także bez nagłówka `Content-Length`.
+- **Argumenty programów zewnętrznych**: `pactl`, `fpcalc`, `kdialog` i `yt-dlp` nie zinterpretują już wartości z interfejsu jako opcji; `yt-dlp` ma limit czasu i jest zabijany przy anulowaniu, a `%` w nazwie folderu nie psuje szablonu.
+- **MPRIS `OpenUri`** przyjmuje tylko strumienie http(s) i istniejące lokalne pliki audio; okładki przekazywane do MPRIS muszą być obrazami.
+- **CSP**: usunięto nieużywany protokół `asset:`; import kopii profilu sprawdza poprawność motywów.
 
 #### Budowanie i CI
 - **Usługi sieciowe odporne na chwilowe awarie**: zapytania do MusicBrainz i AcoustID są ponawiane (do 3 prób z narastającym odstępem) przy błędach sieci i odpowiedziach 429/502/503/504; AcoustID ma limit 3 zapytań na sekundę; zawieszony `fpcalc` jest przerywany po 60 s; wszystkie usługi wysyłają jeden User-Agent z aktualną wersją (wcześniej m.in. na sztywno `0.1.0`), a teksty piosenek korzystają z jednego klienta HTTP zamiast tworzyć nowy dla każdego utworu.
@@ -124,6 +145,10 @@
 ### 🔄 Zmieniono (Changed)
 
 #### Wydajność
+- **Odtwarzanie, przewijanie, przełączanie utworów, zmiany DSP i polecenia `pactl` nie blokują już głównego wątku okna** (wcześniej mikro-wyciszenia i dekodowanie zamrażały interfejs na 30–150 ms).
+- **Wykrywanie ciszy działa strumieniowo** (stała pamięć zamiast do ~635 MB dla 2-godzinnego pliku) i jest anulowane przy zmianie utworu lub progu.
+- **Skanowanie biblioteki**: jedno zapytanie o wszystkie znane pliki zamiast osobnego dla każdego pliku; lista projektów stemów jednym zapytaniem.
+- **Analiza ReplayGain, okładki albumów, ikony systemowe, PipeWire i wyszukiwanie gniazda Discorda** nie blokują wątków asynchronicznych.
 - **Interfejs nie renderuje się w całości 10× na sekundę podczas odtwarzania**: stan przychodzi zdarzeniem `auralune://playback-status` (backend wysyła go co 100 ms przy odtwarzaniu i co 250 ms w spoczynku; frontend nie odpytuje). Pozycja i widmo trafiają do lekkiego magazynu `src/state/livePlayback.ts`, więc w każdej klatce odświeżają się tylko paski postępu i wizualizacje.
 - **Szybszy start**:
   - ustawienia wczytywane jednym zapytaniem, bez trzykrotnego ładowania całej biblioteki;

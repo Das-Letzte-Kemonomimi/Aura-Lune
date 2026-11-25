@@ -59,6 +59,7 @@ fn resolve_for_write(path: &Path) -> PathBuf {
 }
 
 /// Sprawdza cel zapisu wskazany przez interfejs (eksporty, renderowanie, pobieranie).
+#[must_use = "zapisuj pod zwróconą (rozwiązaną) ścieżką"]
 pub fn ensure_writable(path: &Path) -> Result<PathBuf, CommandError> {
     let resolved = resolve_for_write(path);
     let roots = app_dirs();
@@ -69,6 +70,7 @@ pub fn ensure_writable(path: &Path) -> Result<PathBuf, CommandError> {
 
 /// Sprawdza plik, którego zawartość zostanie odczytana na żądanie interfejsu: musi istnieć,
 /// być zwykłym plikiem i (po rozwiązaniu dowiązań) mieć jedno z `extensions`.
+#[must_use = "czytaj spod zwróconej (rozwiązanej) ścieżki"]
 pub fn ensure_readable(path: &Path, extensions: &[&str]) -> Result<PathBuf, CommandError> {
     let resolved = path
         .canonicalize()
@@ -88,3 +90,9 @@ pub fn ensure_readable(path: &Path, extensions: &[&str]) -> Result<PathBuf, Comm
     }
     Ok(resolved)
 }
+
+/// Rozszerzenia plików audio (wspólna lista z `domain::paths`).
+pub use domain::paths::AUDIO_EXTENSIONS;
+
+/// Rozszerzenia obrazów okładek i tapet.
+pub const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "gif"];

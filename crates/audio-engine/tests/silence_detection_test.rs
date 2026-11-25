@@ -17,7 +17,7 @@ fn silence_padded_wav(name: &str) -> std::path::PathBuf {
 #[test]
 fn test_detects_silence_around_tone_in_real_file() {
     let path = silence_padded_wav("silence_bounds");
-    let bounds = detect_silence_bounds(path.to_str().unwrap(), -50.0, Some(7_000))
+    let bounds = detect_silence_bounds(path.to_str().unwrap(), -50.0, Some(7_000), None)
         .expect("analiza")
         .expect("plik zawiera dźwięk");
 
@@ -32,7 +32,7 @@ fn test_trailing_bound_is_dropped_when_track_is_longer_than_decoded_audio() {
     // Biblioteka twierdzi, że utwór ma 60 s — dekodowanie objęło tylko 7 s,
     // więc koniec nie może być przycięty.
     let path = silence_padded_wav("silence_partial");
-    let bounds = detect_silence_bounds(path.to_str().unwrap(), -50.0, Some(60_000))
+    let bounds = detect_silence_bounds(path.to_str().unwrap(), -50.0, Some(60_000), None)
         .unwrap()
         .unwrap();
     assert_eq!(bounds.end_ms, None);

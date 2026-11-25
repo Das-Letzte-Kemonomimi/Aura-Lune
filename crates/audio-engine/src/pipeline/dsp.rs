@@ -162,10 +162,15 @@ impl AudioEngine {
     /// Ustawia rozmiar bloku bufora przetwarzania DSP w ramkach.
     /// Domyślnie: 2048 ramek (~46 ms). Dostępne wartości: 512 do 16384 ramek.
     pub fn set_dsp_block_size(&self, block_size: usize) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock_safe();
         let clamped = block_size.clamp(512, 16384);
-        inner.dsp_block_size = clamped;
-        inner.dsp.set_block_size(clamped);
+        // `set_block_size` przygotowuje oba procesory od nowa (kosztowne) — poza blokadą
+        // `inner`, aby `position()`, MPRIS i komendy nie czekały.
+        let dsp = {
+            let mut inner = self.inner.lock_safe();
+            inner.dsp_block_size = clamped;
+            inner.dsp.clone()
+        };
+        dsp.set_block_size(clamped);
         info!("Zaktualizowano rozmiar bloku DSP na {} ramek", clamped);
         Ok(())
     }

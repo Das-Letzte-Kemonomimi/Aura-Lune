@@ -37,7 +37,10 @@ impl AuraluneMprisHandler {
     }
 
     pub fn set_track_info(&self, info: MprisTrackInfo) {
-        let mut cur = self.current_track.lock().unwrap();
+        let mut cur = self
+            .current_track
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         *cur = Some(info);
     }
 }
@@ -200,6 +203,11 @@ impl PlayerInterface for AuraluneMprisHandler {
 
     async fn open_uri(&self, uri: String) -> fdo::Result<()> {
         info!("MPRIS D-Bus: OpenUri({})", uri);
+        if !is_openable_uri(&uri) {
+            return Err(fdo::Error::InvalidArgs(format!(
+                "Unsupported URI (expected an existing local audio file or http(s) stream): {uri}"
+            )));
+        }
         self.on_engine(move |e| e.load_uri(&uri).and_then(|_| e.play()))
             .await;
         Ok(())
@@ -238,7 +246,12 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn set_rate(&self, rate: PlaybackRate) -> mpris_server::zbus::Result<()> {
-        let _ = self.engine.set_rate_ratio(rate);
+        // MPRIS: Rate 0.0 oznacza pauzę. Zmiana tempa przebudowuje DSP — poza executorem D-Bus.
+        if rate <= 0.0 {
+            self.on_engine(|e| e.pause()).await;
+        } else {
+            self.on_engine(move |e| e.set_rate_ratio(rate)).await;
+        }
         Ok(())
     }
 
@@ -252,7 +265,10 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn metadata(&self) -> fdo::Result<Metadata> {
-        let cur = self.current_track.lock().unwrap();
+        let cur = self
+            .current_track
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(track) = cur.as_ref() {
             let mut builder = Metadata::builder()
                 .title(&track.title)
@@ -424,4 +440,22 @@ impl MprisController {
             debug!("Błąd wysyłania PropertiesChanged(Volume): {}", e);
         }
     }
+}
+
+/// Czy `OpenUri` z magistrali sesji może zostać odtworzony: strumień `http(s)` albo istniejący
+/// lokalny plik audio (`file://` lub ścieżka) — żaden inny klient D-Bus nie poda przez to
+/// dowolnego pliku czy schematu GStreamera.
+fn is_openable_uri(uri: &str) -> bool {
+    if uri.starts_with("http://") || uri.starts_with("https://") {
+        return true;
+    }
+    if uri.contains("://") && !uri.starts_with("file://") {
+        return false;
+    }
+    let path = audio_engine::uri::local_path(uri);
+    let Ok(resolved) = path.canonicalize() else {
+        return false;
+    };
+    resolved.is_file()
+        && domain::paths::has_allowed_extension(&resolved, domain::paths::AUDIO_EXTENSIONS)
 }

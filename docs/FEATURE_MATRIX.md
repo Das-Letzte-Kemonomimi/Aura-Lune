@@ -216,9 +216,9 @@
 - [x] **MPRIS v2 (D-Bus)**:
   - Pełna integracja z KDE Plasma, GNOME, Waybar, Polybar, klawiszami multimedialnymi laptopa i słuchawek.
   - Obsługa metadanych (tytuł, artysta, okładka, czas), Play, Pause, Next, Prev, Seek, Volume, Shuffle, LoopStatus.
-- [x] **Linux Ricing IPC Waybar Status (`/tmp/auralune.json`)**:
+- [x] **Linux Ricing IPC Waybar Status (`$XDG_RUNTIME_DIR/auralune/auralune.json`)**:
   - Atomowy eksport stanu odtwarzacza w standardzie modułów custom Waybara (`text`, `alt`, `tooltip`, `class`, `percentage`, `volume`, `art_url`, `position_ms`, `duration_ms`). Umożliwia natychmiastowe zintegrowanie odtwarzacza z Waybarem, Polybarem, Hyprlandem i skryptami środowiska bez odpytywania D-Bus.
-- [x] **Kanały sterowania FIFO & Unix Socket (`/tmp/auralune_ctl`, `/tmp/auralune.sock`)**:
+- [x] **Kanały sterowania FIFO & Unix Socket (`$XDG_RUNTIME_DIR/auralune/ctl`, `$XDG_RUNTIME_DIR/auralune/auralune.sock`)**:
   - Natywne, błyskawiczne sterowanie odtwarzaczem (polecenia: `play`, `pause`, `toggle`, `next`, `prev`, `stop`, `vol_up`, `vol_down`, `mute`, `seek`) z poziomu skrótów Hyprland `bind`, Sway, i3, sxhkd lub skryptów powłoki.
 - [x] **Discord Rich Presence (RPC)**:
   - Wyświetlanie aktualnie odtwarzanego utworu, okładki, upływającego czasu oraz własnego Client ID.

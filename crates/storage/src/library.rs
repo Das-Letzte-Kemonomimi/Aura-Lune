@@ -193,6 +193,20 @@ impl Database {
         Ok(())
     }
 
+    /// Rozmiar i czas modyfikacji wszystkich zindeksowanych plików (`path → (size, mtime)`),
+    /// jednym zapytaniem — skaner porównuje je w pamięci zamiast pytać bazę o każdy plik.
+    pub async fn track_file_stamps(
+        &self,
+    ) -> Result<std::collections::HashMap<String, (i64, i64)>, StorageError> {
+        let rows = sqlx::query("SELECT path, file_size, modified_time FROM tracks;")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.get("path"), (r.get("file_size"), r.get("modified_time"))))
+            .collect())
+    }
+
     /// Pobiera utwór po ścieżce na dysku.
     pub async fn get_track_by_path(&self, path: &str) -> Result<Option<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>("SELECT * FROM tracks WHERE path = ?1 LIMIT 1;")

@@ -156,7 +156,7 @@ impl AudioEngine {
         }
         let (crossfade_ms, user_vol) = {
             let inner = self.inner.lock_safe();
-            (inner.crossfade_duration_ms, inner.user_volume)
+            (inner.crossfade_duration_ms, self.volume())
         };
         if crossfade_ms > 0 && user_vol > 0.001 {
             let _ = self.play_with_fade_duration(Duration::from_millis(crossfade_ms / 2));
@@ -186,7 +186,7 @@ impl AudioEngine {
             (
                 inner.state == PlaybackState::Playing,
                 inner.crossfade_duration_ms,
-                inner.user_volume,
+                self.volume(),
                 inner.volume.clone(),
             )
         };

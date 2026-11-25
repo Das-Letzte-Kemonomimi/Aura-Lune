@@ -40,6 +40,8 @@ export interface AudioSystemHealth {
   mpris_active: boolean;
   waybar_ipc_active: boolean;
   fifo_ipc_active: boolean;
+  waybar_ipc_path: string;
+  fifo_ipc_path: string;
 }
 
 interface AudioHealthCheckModalProps {
@@ -96,8 +98,8 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
       `DSP engine SoundTouch: ${health.soundtouch_available ? 'AVAILABLE (WSOLA)' : 'MISSING'}`,
       `SQLite database: ${health.db_status} (${health.tracks_count} tracks, ${health.albums_count} albums)`,
       `MPRIS v2 D-Bus: ${health.mpris_active ? 'ACTIVE' : 'INACTIVE'}`,
-      `Linux IPC Waybar (/tmp/auralune.json): ${health.waybar_ipc_active ? 'READY' : 'MISSING'}`,
-      `Linux IPC FIFO (/tmp/auralune_ctl): ${health.fifo_ipc_active ? 'READY' : 'MISSING'}`,
+      `Linux IPC Waybar (${health.waybar_ipc_path}): ${health.waybar_ipc_active ? 'READY' : 'MISSING'}`,
+      `Linux IPC FIFO (${health.fifo_ipc_path}): ${health.fifo_ipc_active ? 'READY' : 'MISSING'}`,
       '--------------------------------------------------',
       'GStreamer audio decoder codecs:',
       ...health.codecs.map(

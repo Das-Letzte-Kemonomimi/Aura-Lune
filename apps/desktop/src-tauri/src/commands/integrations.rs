@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use storage::DspPresetRecord;
 use tauri::State;
-use tracing::info;
+use tracing::{info, warn};
 
 pub use crate::commands::metadata::{LastFmAuthUrlResult, LastFmScrobbleRequest};
 
@@ -31,9 +31,10 @@ pub async fn export_profile_backup(
         "Tauri command: export_profile_backup(dest: {:?})",
         destination_path
     );
-    if let Some(dest) = &destination_path {
-        super::paths::ensure_writable(std::path::Path::new(dest))?;
-    }
+    let destination = destination_path
+        .as_deref()
+        .map(|dest| super::paths::ensure_writable(std::path::Path::new(dest)))
+        .transpose()?;
     let presets = state.db.list_dsp_presets().await.unwrap_or_default();
     let themes = state.db.list_themes().await.unwrap_or_default();
     let playlists = state.db.list_playlists().await.unwrap_or_default();
@@ -67,10 +68,13 @@ pub async fn export_profile_backup(
     let json = serde_json::to_string_pretty(&backup)
         .map_err(|e| CommandError::from(e).context("Błąd serializacji kopii profilu"))?;
 
-    if let Some(dest) = destination_path {
+    if let Some(dest) = destination {
         fs::write(&dest, &json)
             .map_err(|e| CommandError::from(e).context("Błąd zapisu pliku kopii zapasowej"))?;
-        Ok(format!("Pomyślnie zapisano kopię profilu w: {}", dest))
+        Ok(format!(
+            "Pomyślnie zapisano kopię profilu w: {}",
+            dest.display()
+        ))
     } else {
         Ok(json)
     }
@@ -85,8 +89,9 @@ pub async fn import_profile_backup(
     let json_content = if file_path_or_json.trim().starts_with('{') {
         file_path_or_json
     } else {
-        super::paths::ensure_readable(std::path::Path::new(&file_path_or_json), &["json"])?;
-        fs::read_to_string(&file_path_or_json)
+        let resolved =
+            super::paths::ensure_readable(std::path::Path::new(&file_path_or_json), &["json"])?;
+        fs::read_to_string(&resolved)
             .map_err(|e| CommandError::from(e).context("Błąd odczytu pliku kopii zapasowej"))?
     };
 
@@ -116,6 +121,13 @@ pub async fn import_profile_backup(
     }
 
     for theme in backup.themes {
+        if let Err(e) = theme.validate() {
+            warn!(
+                "Pominięto nieprawidłowy motyw '{}' z kopii profilu: {}",
+                theme.id, e
+            );
+            continue;
+        }
         if state.db.save_theme(&theme).await.is_ok() {
             restored_themes += 1;
         }

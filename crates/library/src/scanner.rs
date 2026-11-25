@@ -110,6 +110,9 @@ impl LibraryScanner {
         summary.errors += walk.unreadable_paths.len();
         active_paths.extend(walk.unreadable_paths);
 
+        // Jedno zapytanie zamiast `get_track_by_path` dla każdego pliku.
+        let known = db.track_file_stamps().await.unwrap_or_default();
+
         for file in walk.files {
             summary.total_files_found += 1;
             active_paths.push(file.path_str.clone());
@@ -119,11 +122,9 @@ impl LibraryScanner {
 
             // PRZYROSTOWE SPRAWDZENIE:
             // Czy plik już istnieje i nie zmienił się rozmiar ani czas modyfikacji?
-            if let Ok(Some(existing)) = db.get_track_by_path(&path_str).await {
-                if existing.file_size == file_size && existing.modified_time == modified_time {
-                    summary.skipped_unchanged += 1;
-                    continue;
-                }
+            if known.get(&path_str) == Some(&(file_size, modified_time)) {
+                summary.skipped_unchanged += 1;
+                continue;
             }
 
             // Pełna ekstrakcja tagów przez lofty

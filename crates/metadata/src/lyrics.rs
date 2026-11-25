@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::{debug, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -123,16 +123,6 @@ pub fn find_local_lrc(track_path: &str) -> Option<LyricsDto> {
     }
 
     None
-}
-
-/// Zapisuje zsynchronizowany plik .lrc obok utworu audio.
-pub fn save_lrc_file(track_path: &str, content: &str) -> std::io::Result<PathBuf> {
-    let clean_path = track_path.strip_prefix("file://").unwrap_or(track_path);
-    let path = Path::new(clean_path);
-    let lrc_path = path.with_extension("lrc");
-    fs::write(&lrc_path, content)?;
-    info!("Zapisano zsynchronizowany plik LRC: {:?}", lrc_path);
-    Ok(lrc_path)
 }
 
 /// Pobiera teksty piosenek (najpierw szuka lokalnego pliku .lrc, potem z LRCLIB API).

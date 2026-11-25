@@ -54,26 +54,84 @@ pub fn find_silence_bounds(
     sample_rate: u32,
     threshold_db: f64,
 ) -> Option<SilenceBounds> {
-    if samples.is_empty() || sample_rate == 0 {
-        return None;
+    let mut scanner = SilenceScanner::new(sample_rate, threshold_db);
+    scanner.push(samples);
+    scanner.finish()
+}
+
+/// Strumieniowa wersja [`find_silence_bounds`]: próbki podawane porcjami (np. prosto
+/// z dekodera), pamięć stała — nie trzeba trzymać całego utworu.
+#[derive(Debug, Clone)]
+pub struct SilenceScanner {
+    sample_rate: u32,
+    window: usize,
+    threshold_rms: f64,
+    window_sum_sq: f64,
+    window_len: usize,
+    samples_seen: usize,
+    first_audible_start: Option<usize>,
+    last_audible_end: Option<usize>,
+}
+
+impl SilenceScanner {
+    pub fn new(sample_rate: u32, threshold_db: f64) -> Self {
+        let window = ((sample_rate as u64 * SILENCE_WINDOW_MS) / 1000).max(1) as usize;
+        Self {
+            sample_rate,
+            window,
+            threshold_rms: 10f64.powf(threshold_db / 20.0),
+            window_sum_sq: 0.0,
+            window_len: 0,
+            samples_seen: 0,
+            first_audible_start: None,
+            last_audible_end: None,
+        }
     }
-    let window = ((sample_rate as u64 * SILENCE_WINDOW_MS) / 1000).max(1) as usize;
-    let threshold_rms = 10f64.powf(threshold_db / 20.0);
-    let is_audible = |chunk: &[f32]| {
-        let sum_sq: f64 = chunk.iter().map(|&s| (s as f64) * (s as f64)).sum();
-        (sum_sq / chunk.len() as f64).sqrt() > threshold_rms
-    };
 
-    let chunks: Vec<&[f32]> = samples.chunks(window).collect();
-    let first = chunks.iter().position(|c| is_audible(c))?;
-    let last = chunks.iter().rposition(|c| is_audible(c))?;
+    /// Dodaje kolejną porcję próbek.
+    pub fn push(&mut self, samples: &[f32]) {
+        for &s in samples {
+            self.window_sum_sq += (s as f64) * (s as f64);
+            self.window_len += 1;
+            self.samples_seen += 1;
+            if self.window_len == self.window {
+                self.close_window();
+            }
+        }
+    }
 
-    let to_ms = |sample_idx: usize| (sample_idx as u64 * 1000) / sample_rate as u64;
-    let end_sample = (last * window + chunks[last].len()).min(samples.len());
-    Some(SilenceBounds {
-        start_ms: to_ms(first * window),
-        end_ms: Some(to_ms(end_sample)),
-    })
+    /// Liczba dotychczas przetworzonych próbek.
+    pub fn samples_seen(&self) -> usize {
+        self.samples_seen
+    }
+
+    /// Kończy analizę (z niepełnym ostatnim oknem) i zwraca granice dźwięku.
+    pub fn finish(mut self) -> Option<SilenceBounds> {
+        if self.window_len > 0 {
+            self.close_window();
+        }
+        if self.sample_rate == 0 {
+            return None;
+        }
+        let first = self.first_audible_start?;
+        let last_end = self.last_audible_end?;
+        let to_ms = |sample_idx: usize| (sample_idx as u64 * 1000) / self.sample_rate as u64;
+        Some(SilenceBounds {
+            start_ms: to_ms(first),
+            end_ms: Some(to_ms(last_end)),
+        })
+    }
+
+    fn close_window(&mut self) {
+        let rms = (self.window_sum_sq / self.window_len as f64).sqrt();
+        if rms > self.threshold_rms {
+            let start = self.samples_seen - self.window_len;
+            self.first_audible_start.get_or_insert(start);
+            self.last_audible_end = Some(self.samples_seen);
+        }
+        self.window_sum_sq = 0.0;
+        self.window_len = 0;
+    }
 }
 
 /// Działanie, które odtwarzacz powinien wykonać w ramach pomijania ciszy.

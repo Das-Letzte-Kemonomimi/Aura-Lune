@@ -427,7 +427,10 @@ impl DiscordRpcWorker {
         }
         self.last_connect_attempt = Some(SystemTime::now());
 
-        let candidates = find_discord_socket_candidates();
+        // ~130 sprawdzeń `exists()` i `read_dir` — poza wątkami Tokio.
+        let candidates = tokio::task::spawn_blocking(find_discord_socket_candidates)
+            .await
+            .unwrap_or_default();
         for path in candidates {
             if !path.exists() {
                 continue;
@@ -617,6 +620,8 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         }
 
         let app_prefixes = [
+            "snap.discord",
+            "snap.discord-canary",
             ".flatpak/dev.vencord.Vesktop/xdg-run",
             ".flatpak/com.discordapp.Discord/xdg-run",
             ".flatpak/com.discordapp.DiscordCanary/xdg-run",
@@ -633,19 +638,26 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         }
     }
 
-    // 2. /run/user/<UID>
-    let uid = libc_getuid();
-    let run_user = PathBuf::from(format!("/run/user/{}", uid));
-    if run_user.exists() {
+    // 2. /run/user/<UID> (gdy XDG_RUNTIME_DIR nie jest ustawione)
+    if let Some(uid) = crate::runtime_dir::current_uid() {
+        let run_user = PathBuf::from(format!("/run/user/{uid}"));
         for i in 0..10 {
             candidates.push(run_user.join(format!("discord-ipc-{}", i)));
         }
     }
 
-    // 3. /tmp fallback
-    let tmp = PathBuf::from("/tmp");
-    for i in 0..10 {
-        candidates.push(tmp.join(format!("discord-ipc-{}", i)));
+    // 3. /tmp (Discord bez XDG_RUNTIME_DIR) — wyłącznie gniazda należące do bieżącego
+    //    użytkownika; obcy socket w /tmp mógłby przechwytywać metadane odtwarzania.
+    if let Some(uid) = crate::runtime_dir::current_uid() {
+        for i in 0..10 {
+            let p = PathBuf::from(format!("/tmp/discord-ipc-{i}"));
+            let owned = std::fs::symlink_metadata(&p)
+                .map(|m| std::os::unix::fs::MetadataExt::uid(&m) == uid)
+                .unwrap_or(false);
+            if owned {
+                candidates.push(p);
+            }
+        }
     }
 
     // Zwróć tylko unikalne ścieżki, które faktycznie istnieją w systemie
@@ -660,13 +672,8 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
     existing
 }
 
-fn libc_getuid() -> u32 {
-    // Bezpieczne pobranie UID bieżącego użytkownika Linuksa bez zewnętrznych zależności
-    extern "C" {
-        fn getuid() -> u32;
-    }
-    unsafe { getuid() }
-}
+/// Limit czasu zapisu jednej ramki do gniazda Discorda.
+const IPC_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Zapisuje ramkę binarną protokołu Discord IPC:
 /// [opcode: u32 LE][length: u32 LE][payload JSON UTF-8]
@@ -680,10 +687,14 @@ where
     header[0..4].copy_from_slice(&opcode.to_le_bytes());
     header[4..8].copy_from_slice(&length.to_le_bytes());
 
-    writer.write_all(&header).await?;
-    writer.write_all(payload_bytes).await?;
-    writer.flush().await?;
-    Ok(())
+    // Zawieszony klient Discorda nie może blokować wątku integracji w nieskończoność.
+    tokio::time::timeout(IPC_WRITE_TIMEOUT, async {
+        writer.write_all(&header).await?;
+        writer.write_all(payload_bytes).await?;
+        writer.flush().await
+    })
+    .await
+    .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "Discord IPC write timed out"))?
 }
 
 /// Odczytuje pojedynczą ramkę binarną Discord IPC z gniazda.

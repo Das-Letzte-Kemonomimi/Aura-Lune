@@ -4,8 +4,8 @@ use super::error::CommandError;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
-use storage::{AlbumRecord, ArtistRecord, DuplicateGroup, RecapSummaryDto, TrackRecord};
+use std::path::PathBuf;
+use storage::{AlbumRecord, DuplicateGroup, RecapSummaryDto, TrackRecord};
 use tauri::State;
 use tracing::info;
 
@@ -17,7 +17,13 @@ pub struct ScanSummaryDto {
     pub errors: usize,
 }
 
+/// Maksymalny rozmiar lokalnego pliku okładki zwracanego do interfejsu jako data: URI.
+const MAX_COVER_FILE_BYTES: u64 = 20 * 1024 * 1024;
+
 /// Rozwiązuje ścieżkę do okładki (plik lokalny lub URL) do postaci data: URI w formacie Base64.
+///
+/// Plik lokalny musi (po rozwiązaniu dowiązań) być obrazem — `cover.jpg` będący dowiązaniem
+/// do np. `~/.ssh/id_rsa` nie zostanie odczytany.
 pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
     if path_str.starts_with("data:")
         || path_str.starts_with("http://")
@@ -26,33 +32,34 @@ pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
         return Some(path_str.to_string());
     }
 
-    let clean_path = if let Some(stripped) = path_str.strip_prefix("file://") {
-        stripped
-    } else {
-        path_str
-    };
-
-    let path = Path::new(clean_path);
-    if !path.exists() {
+    let path = super::paths::ensure_readable(
+        &audio_engine::uri::local_path(path_str),
+        super::paths::IMAGE_EXTENSIONS,
+    )
+    .ok()?;
+    if fs::metadata(&path).ok()?.len() > MAX_COVER_FILE_BYTES {
         return None;
     }
-
-    let bytes = fs::read(path).ok()?;
+    let bytes = fs::read(&path).ok()?;
     let ext = path
         .extension()
         .and_then(|s| s.to_str())
         .unwrap_or("jpg")
         .to_lowercase();
-    let mime = match ext.as_str() {
+    Some(image_data_uri(&ext, &bytes))
+}
+
+/// Koduje bajty obrazu jako `data:<mime>;base64,…` (typ MIME z rozszerzenia).
+pub fn image_data_uri(extension: &str, bytes: &[u8]) -> String {
+    let mime = match extension.to_ascii_lowercase().as_str() {
         "png" => "image/png",
         "webp" => "image/webp",
         "gif" => "image/gif",
         _ => "image/jpeg",
     };
-
     use base64::Engine;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Some(format!("data:{};base64,{}", mime, b64))
+    let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+    format!("data:{mime};base64,{b64}")
 }
 
 /// Performs recursive library scan over the specified folder.
@@ -61,7 +68,9 @@ pub async fn scan_library_internal(
     folder_path: &str,
 ) -> Result<ScanSummaryDto, CommandError> {
     if folder_path.trim().is_empty() {
-        return Err("Ścieżka do skanowania nie może być pusta".into());
+        return Err(CommandError::validation(
+            "Ścieżka do skanowania nie może być pusta",
+        ));
     }
 
     info!("Library scan started for: {}", folder_path);
@@ -108,20 +117,6 @@ pub async fn get_library_tracks_internal(
     state.db.list_tracks().await.map_err(CommandError::from)
 }
 
-/// Retrieves all indexed albums from the database.
-pub async fn get_library_albums_internal(
-    state: &AppState,
-) -> Result<Vec<AlbumRecord>, CommandError> {
-    state.db.list_albums().await.map_err(CommandError::from)
-}
-
-/// Retrieves all indexed artists from the database.
-pub async fn get_library_artists_internal(
-    state: &AppState,
-) -> Result<Vec<ArtistRecord>, CommandError> {
-    state.db.list_artists().await.map_err(CommandError::from)
-}
-
 #[tauri::command]
 pub async fn scan_library(
     folder_path: String,
@@ -151,14 +146,20 @@ pub async fn get_library_albums(
 ) -> Result<Vec<AlbumRecord>, CommandError> {
     let albums = state.db.list_albums().await?;
 
-    let mut resolved = Vec::with_capacity(albums.len());
-    for mut album in albums {
-        if let Some(cp) = &album.cover_path {
-            album.cover_path = resolve_cover_to_data_uri(cp);
-        }
-        resolved.push(album);
-    }
-    Ok(resolved)
+    // Odczyt i kodowanie Base64 wszystkich okładek to blokujące I/O — poza wątkami Tokio.
+    tokio::task::spawn_blocking(move || {
+        albums
+            .into_iter()
+            .map(|mut album| {
+                if let Some(cp) = &album.cover_path {
+                    album.cover_path = resolve_cover_to_data_uri(cp);
+                }
+                album
+            })
+            .collect()
+    })
+    .await
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -252,10 +253,17 @@ pub async fn delete_track_record(
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
     if delete_file {
-        if let Ok(Some(track)) = state.db.get_track_by_id(track_id).await {
-            let p = PathBuf::from(&track.path);
-            if p.exists() {
-                let _ = fs::remove_file(p);
+        if let Some(track) = state.db.get_track_by_id(track_id).await? {
+            // Rekord usuwamy dopiero po udanym usunięciu pliku — inaczej interfejs zgłosiłby
+            // sukces, a plik zostałby na dysku (i wrócił przy następnym skanowaniu).
+            let p = audio_engine::uri::local_path(&track.path);
+            match tokio::fs::remove_file(&p).await {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => {
+                    return Err(CommandError::from(e)
+                        .context(format!("Nie udało się usunąć pliku {}", p.display())));
+                }
             }
         }
     }

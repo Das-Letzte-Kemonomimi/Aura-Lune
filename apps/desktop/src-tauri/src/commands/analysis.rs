@@ -219,7 +219,7 @@ pub async fn export_chords_file(
 ) -> Result<String, CommandError> {
     let chords_data = get_cached_chords(track_id, state)
         .await?
-        .ok_or_else(|| "Brak przeanalizowanych akordów dla tego utworu".to_string())?;
+        .ok_or_else(|| CommandError::not_found("Brak przeanalizowanych akordów dla tego utworu"))?;
 
     match format.to_lowercase().as_str() {
         "chordpro" | "cho" => Ok(export_chords_to_chordpro(&chords_data, &title, &artist)),
@@ -320,6 +320,6 @@ pub async fn export_transcription_midi(
         Some(cached) => transcription_from_cache(&state, track_id, cached).await,
         None => None,
     }
-    .ok_or_else(|| "Brak zapisanej transkrypcji dla tego utworu".to_string())?;
+    .ok_or_else(|| CommandError::not_found("Brak zapisanej transkrypcji dla tego utworu"))?;
     Ok(export_transcription_to_midi(&data.notes, data.bpm))
 }

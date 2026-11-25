@@ -35,11 +35,26 @@ pub struct Database {
 }
 
 impl Database {
+    /// Pragmy wydajnościowe stosowane do **każdego** połączenia puli (są per-połączenie):
+    /// pamięć podręczna 64 MB, tabele tymczasowe w RAM, mmap 256 MB.
+    fn with_performance_pragmas(opts: SqliteConnectOptions) -> SqliteConnectOptions {
+        opts.pragma("temp_store", "MEMORY")
+            .pragma("cache_size", "-64000")
+            .pragma("mmap_size", "268435456")
+    }
+
     /// Tworzy bazę danych w pamięci RAM (przydatne do testów i sesji ulotnych).
+    ///
+    /// Każde połączenie `sqlite::memory:` to osobna, pusta baza — pula ma więc dokładnie
+    /// jedno połączenie, inaczej zapytania mogłyby trafić do bazy bez schematu.
     pub async fn new_in_memory() -> Result<Self, StorageError> {
+        let opts =
+            Self::with_performance_pragmas(SqliteConnectOptions::from_str("sqlite::memory:")?);
         let pool = SqlitePoolOptions::new()
-            .max_connections(5)
-            .connect("sqlite::memory:")
+            .max_connections(1)
+            .idle_timeout(None)
+            .max_lifetime(None)
+            .connect_with(opts)
             .await?;
 
         let db = Self { pool };
@@ -48,9 +63,13 @@ impl Database {
     }
 
     /// Otwiera lub tworzy bazę danych w podanej ścieżce na dysku.
+    ///
+    /// Ścieżka jest przekazywana jako nazwa pliku (nie URL), więc `?`, `#`, `%` i nazwy
+    /// spoza UTF-8 działają poprawnie.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let path_str = path.as_ref().to_str().unwrap_or("auralune.db");
-        let opts = SqliteConnectOptions::from_str(path_str)?
+        let path = path.as_ref();
+        let opts = SqliteConnectOptions::new()
+            .filename(path)
             .create_if_missing(true)
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(sqlx::sqlite::SqliteSynchronous::Normal)
@@ -58,12 +77,12 @@ impl Database {
 
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
-            .connect_with(opts)
+            .connect_with(Self::with_performance_pragmas(opts))
             .await?;
 
         let db = Self { pool };
         db.run_migrations().await?;
-        info!("Baza danych SQLite zainicjalizowana: {}", path_str);
+        info!("Baza danych SQLite zainicjalizowana: {}", path.display());
         Ok(db)
     }
 

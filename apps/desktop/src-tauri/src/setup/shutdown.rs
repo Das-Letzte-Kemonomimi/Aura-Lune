@@ -24,6 +24,7 @@ pub fn on_exit(app: &AppHandle) {
     ) {
         warn!("Nie udało się zapisać głośności przy zamykaniu: {}", e);
     }
+    crate::setup::playback_ticker::stop_playback_ticker();
     let _ = state.engine.stop();
     if let Some(ipc) = &state.control_ipc {
         ipc.stop();

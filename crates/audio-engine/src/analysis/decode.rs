@@ -175,7 +175,7 @@ impl Drop for DecodeSession {
 }
 
 /// Zamienia błąd dekodera na `AnalysisError`, gdy nie zebrano żadnych próbek.
-fn finish<T>(
+pub(super) fn finish<T>(
     collected_any: bool,
     end: DecodeEnd,
     value: T,
@@ -233,7 +233,10 @@ pub fn decode_stereo_for_stems(
     let capacity = target.min(STEMS_SAMPLE_RATE as usize * 600);
     let mut left: Vec<f32> = Vec::with_capacity(capacity);
     let mut right: Vec<f32> = Vec::with_capacity(capacity);
-    let end = session.run(Duration::from_secs(30), |chunk| {
+    // Stemy są zapisywane w cache na stałe — przerwane dekodowanie (limit czasu, błąd w połowie
+    // pliku) jest błędem, a nie krótszym wynikiem. Limit czasu rośnie z długością fragmentu.
+    let max_wait = Duration::from_secs_f64((max_duration_sec / 3.0).max(30.0));
+    let end = session.run(max_wait, |chunk| {
         for frame in chunk.as_chunks::<2>().0 {
             if left.len() >= target {
                 return false;
@@ -243,6 +246,18 @@ pub fn decode_stereo_for_stems(
         }
         left.len() < target
     });
+    match end {
+        DecodeEnd::TimedOut if !left.is_empty() => {
+            return Err("Przekroczono czas dekodowania utworu do separacji stemów".into());
+        }
+        DecodeEnd::Failed(e) if !left.is_empty() => {
+            return Err(format!("Dekodowanie do separacji stemów przerwane błędem: {e}").into());
+        }
+        DecodeEnd::Stopped => tracing::warn!(
+            "Utwór dłuższy niż {max_duration_sec} s — stemy obejmują tylko początek utworu"
+        ),
+        _ => {}
+    }
     let any = !left.is_empty();
     finish(any, end, (left, right, STEMS_SAMPLE_RATE), "stereo")
 }

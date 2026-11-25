@@ -30,3 +30,17 @@ fn test_style_nonce_injection_is_disabled_for_inline_style_attributes() {
     let disabled = security()["dangerousDisableAssetCspModification"].clone();
     assert_eq!(disabled, serde_json::json!(["style-src"]));
 }
+
+#[test]
+fn test_csp_does_not_allow_plain_http_or_unused_asset_protocol() {
+    for key in ["csp", "devCsp"] {
+        let csp = &security()[key];
+        for directive in ["img-src", "media-src"] {
+            let value = csp[directive].as_str().unwrap();
+            assert!(
+                !value.contains("http://") && !value.contains("asset:"),
+                "{key}.{directive} nie może dopuszczać http:// ani asset: ({value})"
+            );
+        }
+    }
+}

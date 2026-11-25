@@ -86,8 +86,6 @@ impl AudioEngine {
 
     /// Konfiguruje normalizację głośności ReplayGain (EBU R128 / ReplayGain 2.0).
     pub fn set_replaygain(&self, config: ReplayGainConfig) -> Result<(), AudioEngineError> {
-        self.replaygain_mode
-            .store(config.mode as u8, Ordering::Relaxed);
         let mut inner = self.inner.lock_safe();
         inner.replaygain_config = config;
         match config.mode {
@@ -139,8 +137,7 @@ impl AudioEngine {
     /// Czy element rgvolume używa obecnie Album Gain (true) czy Track Gain (false).
     pub fn replaygain_album_mode(&self) -> bool {
         self.inner
-            .lock()
-            .unwrap()
+            .lock_safe()
             .rgvolume
             .property::<bool>("album-mode")
     }

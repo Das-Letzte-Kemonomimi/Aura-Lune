@@ -17,9 +17,14 @@ const SYSTEM_PREFIXES: &[&str] = &[
 ];
 const ALLOWED_UNDER_SYSTEM: &[&str] = &["/run/media"];
 
+/// Pliki aplikacji, których interfejs nigdy nie może nadpisać — nawet w katalogu danych
+/// aplikacji (baza biblioteki i jej pliki WAL/SHM).
+const PROTECTED_FILE_PREFIXES: &[&str] = &["auralune_library.db"];
+
 /// Sprawdza, czy `path` jest dozwolonym celem zapisu.
 ///
 /// - ścieżka musi być absolutna i nie może zawierać `..`,
+/// - nie może nadpisywać chronionych plików aplikacji (baza biblioteki),
 /// - nie może leżeć w katalogu systemowym ([`SYSTEM_PREFIXES`]),
 /// - w katalogu domowym `home` nie może dotyczyć ukrytego wpisu (`~/.cokolwiek/...`),
 ///   chyba że leży w jednym z `allowed_roots` (np. katalog danych aplikacji).
@@ -33,6 +38,16 @@ pub fn check_write_target(
     }
     if path.components().any(|c| matches!(c, Component::ParentDir)) {
         return Err(invalid(path, "path must not contain '..'"));
+    }
+    let protected = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|name| PROTECTED_FILE_PREFIXES.iter().any(|p| name.starts_with(p)));
+    if protected {
+        return Err(invalid(
+            path,
+            "overwriting application data files is not allowed",
+        ));
     }
     if allowed_roots.iter().any(|root| path.starts_with(root)) {
         return Ok(());
@@ -83,3 +98,8 @@ pub fn is_safe_file_token(token: &str) -> bool {
 fn invalid(path: &Path, reason: &str) -> DomainError {
     DomainError::Validation(format!("Path not allowed {}: {}", path.display(), reason))
 }
+
+/// Rozszerzenia plików audio, które aplikacja odczytuje, taguje i odtwarza z dysku.
+pub const AUDIO_EXTENSIONS: &[&str] = &[
+    "flac", "mp3", "ogg", "opus", "wav", "m4a", "aac", "alac", "aiff", "aif", "wv", "ape",
+];

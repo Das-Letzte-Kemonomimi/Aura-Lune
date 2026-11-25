@@ -79,7 +79,7 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                     }
                 }
                 "tray_quit" => {
-                    desktop_integration::cleanup_waybar_status();
+                    // Sprzątanie (ticker, Waybar, IPC) wykonuje `shutdown::on_exit`.
                     app.exit(0);
                 }
                 _ => {}

@@ -59,7 +59,40 @@ impl Transcoder {
     }
 
     /// Wersja z raportowaniem postępu transkodowania w czasie rzeczywistym (wywołanie callbacku co ~150 ms).
+    ///
+    /// Wynik powstaje w `<cel>.partial` i dopiero po EOS zastępuje plik docelowy — przerwany
+    /// lub nieudany eksport nie zostawia połowicznego pliku ani nie niszczy istniejącego.
     pub fn transcode_with_dsp_and_progress<F>(
+        input_path: impl AsRef<Path>,
+        output_path: impl AsRef<Path>,
+        format: ExportFormat,
+        dsp_settings: Option<&DspExportSettings>,
+        time_range: Option<&TimeRange>,
+        progress_cb: Option<F>,
+    ) -> Result<(), AudioEngineError>
+    where
+        F: Fn(f64, u64, u64) + Send + 'static,
+    {
+        let output = crate::uri::local_path(&output_path.as_ref().to_string_lossy());
+        let mut partial_name = output.as_os_str().to_owned();
+        partial_name.push(".partial");
+        let partial = std::path::PathBuf::from(partial_name);
+        let result = Self::transcode_to(
+            input_path,
+            &partial,
+            format,
+            dsp_settings,
+            time_range,
+            progress_cb,
+        )
+        .and_then(|()| std::fs::rename(&partial, &output).map_err(AudioEngineError::Io));
+        if result.is_err() {
+            let _ = std::fs::remove_file(&partial);
+        }
+        result
+    }
+
+    fn transcode_to<F>(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
         format: ExportFormat,
@@ -400,11 +433,21 @@ impl Transcoder {
         })?;
 
         let mut got_eos = false;
-        let start_time = std::time::Instant::now();
-        let timeout = std::time::Duration::from_secs(180);
+        // Limit dotyczy zastoju, nie całego eksportu: długie utwory (i wolny RubberBand) mogą
+        // trwać dowolnie długo, dopóki pozycja potoku rośnie.
+        let stall_timeout = std::time::Duration::from_secs(60);
+        let mut last_advance = std::time::Instant::now();
+        let mut last_position: Option<u64> = None;
         let mut last_progress_report = std::time::Instant::now();
 
-        while start_time.elapsed() < timeout {
+        while last_advance.elapsed() < stall_timeout {
+            let position = pipeline
+                .query_position::<gst::ClockTime>()
+                .map(|t| t.nseconds());
+            if position.is_some() && position != last_position {
+                last_position = position;
+                last_advance = std::time::Instant::now();
+            }
             if let Some(msg) = bus.timed_pop_filtered(
                 gst::ClockTime::from_mseconds(150),
                 &[
@@ -490,8 +533,7 @@ impl Transcoder {
         if !got_eos {
             let _ = pipeline.set_state(gst::State::Null);
             return Err(AudioEngineError::Pipeline(
-                "Upłynął limit czasu transkodowania (timeout 180s) lub potok nie wygenerował EOS"
-                    .into(),
+                "Transkodowanie stoi w miejscu od 60 s (brak postępu i EOS)".into(),
             ));
         }
 

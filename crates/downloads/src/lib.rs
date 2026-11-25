@@ -8,12 +8,12 @@
 //! - Opcjonalna weryfikacja sumy kontrolnej SHA-256 w locie.
 
 use sha2::{Digest, Sha256};
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
+use tokio::io::AsyncWriteExt;
 use tracing::info;
 
 #[derive(Debug, Error)]
@@ -127,7 +127,7 @@ impl DownloadProvider for HttpDownloadProvider {
 
         // Upewnij się, że katalog docelowy istnieje
         if let Some(parent) = destination_path.parent() {
-            fs::create_dir_all(parent)?;
+            tokio::fs::create_dir_all(parent).await?;
         }
 
         // 2. Przygotowanie pliku tymczasowego obok pliku docelowego
@@ -135,7 +135,13 @@ impl DownloadProvider for HttpDownloadProvider {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("download");
-        let temp_filename = format!(".auralune_tmp_{}_{}", std::process::id(), file_stem);
+        // Licznik w nazwie: równoległe pobierania do tej samej nazwy nie dzielą pliku tymczasowego.
+        let temp_filename = format!(
+            ".auralune_tmp_{}_{}_{}",
+            std::process::id(),
+            next_sequence(),
+            file_stem
+        );
         let temp_path = destination_path
             .parent()
             .map(|p| p.join(&temp_filename))
@@ -156,7 +162,7 @@ impl DownloadProvider for HttpDownloadProvider {
         }
 
         let total_bytes = res.content_length();
-        let mut file = File::create(&temp_path)?;
+        let mut file = tokio::fs::File::create(&temp_path).await?;
         // Usuwa plik tymczasowy przy każdym wcześniejszym wyjściu (błąd sieci/dysku, anulowanie,
         // niezgodna suma kontrolna). Rozbrajany dopiero po atomowym przeniesieniu.
         let mut temp_guard = TempFileGuard::new(temp_path.clone());
@@ -164,13 +170,30 @@ impl DownloadProvider for HttpDownloadProvider {
         let mut downloaded_bytes: u64 = 0;
 
         let mut stream = res;
-        while let Some(chunk) = stream.chunk().await? {
+        let mut last_data = std::time::Instant::now();
+        loop {
             if cancel_flag.load(Ordering::Relaxed) {
-                drop(file);
                 return Err(DownloadError::Cancelled);
             }
+            // Krótki limit na porcję: anulowanie działa także przy zawieszonym połączeniu.
+            let chunk = match tokio::time::timeout(CANCEL_POLL_INTERVAL, stream.chunk()).await {
+                Err(_) => {
+                    if last_data.elapsed() > STALL_TIMEOUT {
+                        return Err(DownloadError::General(format!(
+                            "Brak danych od {} s — przerwano pobieranie",
+                            STALL_TIMEOUT.as_secs()
+                        )));
+                    }
+                    continue;
+                }
+                Ok(chunk) => match chunk? {
+                    Some(chunk) => chunk,
+                    None => break,
+                },
+            };
+            last_data = std::time::Instant::now();
 
-            file.write_all(&chunk)?;
+            file.write_all(&chunk).await?;
             hasher.update(&chunk);
             downloaded_bytes += chunk.len() as u64;
 
@@ -179,7 +202,8 @@ impl DownloadProvider for HttpDownloadProvider {
             }
         }
 
-        file.flush()?;
+        file.flush().await?;
+        file.sync_all().await?;
         drop(file);
 
         // 4. Weryfikacja sumy kontrolnej SHA-256
@@ -199,7 +223,7 @@ impl DownloadProvider for HttpDownloadProvider {
         }
 
         // 5. Atomowe przeniesienie pliku tymczasowego na ścieżkę docelową
-        fs::rename(&temp_path, destination_path)?;
+        tokio::fs::rename(&temp_path, destination_path).await?;
         temp_guard.disarm();
         info!(
             "Pobieranie ukończone sukcesem! Zapisano atomowo w: {:?}",
@@ -246,7 +270,7 @@ impl DownloadManager {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis(),
-            remote_url.len()
+            next_sequence()
         );
 
         let now_ts = std::time::SystemTime::now()
@@ -270,13 +294,19 @@ impl DownloadManager {
         };
 
         {
-            let mut list = self.jobs.lock().unwrap();
+            let mut list = self
+                .jobs
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             list.push(job);
         }
 
         let cancel_flag = Arc::new(AtomicBool::new(false));
         {
-            let mut flags = self.active_cancel_flags.lock().unwrap();
+            let mut flags = self
+                .active_cancel_flags
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             flags.insert(job_id.clone(), cancel_flag.clone());
         }
 
@@ -287,7 +317,9 @@ impl DownloadManager {
 
         tokio::spawn(async move {
             {
-                let mut list = jobs_ref.lock().unwrap();
+                let mut list = jobs_ref
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Some(j) = list.iter_mut().find(|x| x.id == target_job_id) {
                     j.state = DownloadJobState::Downloading;
                 }
@@ -298,7 +330,9 @@ impl DownloadManager {
             let progress_id = target_job_id.clone();
 
             let progress_cb = Box::new(move |downloaded: u64, total: Option<u64>| {
-                let mut list = jobs_progress.lock().unwrap();
+                let mut list = jobs_progress
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Some(j) = list.iter_mut().find(|x| x.id == progress_id) {
                     j.downloaded_bytes = downloaded;
                     j.total_bytes = total;
@@ -315,7 +349,9 @@ impl DownloadManager {
                 )
                 .await;
 
-            let mut list = jobs_ref.lock().unwrap();
+            let mut list = jobs_ref
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some(j) = list.iter_mut().find(|x| x.id == target_job_id) {
                 match res {
                     Ok(_) => {
@@ -337,7 +373,9 @@ impl DownloadManager {
                 }
             }
 
-            let mut flags = flags_ref.lock().unwrap();
+            let mut flags = flags_ref
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             flags.remove(&target_job_id);
         });
 
@@ -346,7 +384,10 @@ impl DownloadManager {
 
     /// Anuluje aktywne zadanie pobierania.
     pub fn cancel_download(&self, job_id: &str) -> bool {
-        let flags = self.active_cancel_flags.lock().unwrap();
+        let flags = self
+            .active_cancel_flags
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(flag) = flags.get(job_id) {
             flag.store(true, Ordering::Relaxed);
             true
@@ -357,7 +398,10 @@ impl DownloadManager {
 
     /// Zwraca listę wszystkich zadań pobierania.
     pub fn list_jobs(&self) -> Vec<DownloadJob> {
-        self.jobs.lock().unwrap().clone()
+        self.jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 }
 
@@ -407,4 +451,15 @@ impl Drop for TempFileGuard {
             let _ = fs::remove_file(&self.path);
         }
     }
+}
+
+/// Co ile sprawdzana jest flaga anulowania, gdy serwer nie przysyła danych.
+const CANCEL_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+/// Po takim czasie bez żadnych danych pobieranie jest przerywane.
+const STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// Rosnący licznik procesu — unikalne identyfikatory zadań i nazwy plików tymczasowych.
+fn next_sequence() -> u64 {
+    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    SEQUENCE.fetch_add(1, Ordering::Relaxed)
 }
