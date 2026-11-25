@@ -137,6 +137,41 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           >
             v{appVersion}
           </span>
+          <img
+            src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
+            alt="Auralune Logo"
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '11px',
+              objectFit: 'contain',
+              background: 'rgba(0, 0, 0, 0.25)',
+              boxShadow:
+                appIconStyle === 'classic'
+                  ? '0 0 16px rgba(168, 85, 247, 0.45)'
+                  : '0 0 16px rgba(236, 72, 153, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              padding: appIconStyle === 'classic' ? '0' : '2px',
+              flexShrink: 0,
+            }}
+          />
+        </div>
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          <h1
+            style={{
+              fontSize: '1.38rem',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>Auralune</span>
+            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem', fontWeight: 600 }}>狐</span>
+          </h1>
           {updateAvailable && (
             <button
               type="button"
@@ -148,6 +183,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 alignItems: 'center',
                 gap: '4px',
                 fontSize: '0.6rem',
+              marginTop: '4px',
                 lineHeight: 1,
                 padding: '2px 5px',
                 borderRadius: '4px',
@@ -171,42 +207,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {loc.updates.badge}
             </button>
           )}
-          <img
-            src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
-            alt="Auralune Logo"
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '11px',
-              objectFit: 'contain',
-              background: 'rgba(0, 0, 0, 0.25)',
-              boxShadow:
-                appIconStyle === 'classic'
-                  ? '0 0 16px rgba(168, 85, 247, 0.45)'
-                  : '0 0 16px rgba(236, 72, 153, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              padding: appIconStyle === 'classic' ? '0' : '2px',
-              flexShrink: 0,
-            }}
-          />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <h1
-            style={{
-              fontSize: '1.38rem',
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: 0,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span>Auralune</span>
-            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem', fontWeight: 600 }}>狐</span>
-          </h1>
-        </div>
+          </div>
       </div>
 
       {/* Zakładki nawigacyjne */}
