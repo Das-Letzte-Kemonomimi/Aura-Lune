@@ -156,7 +156,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             }}
           />
         </div>
-        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+        {/* Z pigułką aktualizacji: pigułka równo z plakietką wersji (góra), tytuł równo z logo (dół). */}
+        <div
+          style={{
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            alignSelf: updateAvailable ? 'stretch' : undefined,
+            justifyContent: updateAvailable ? 'space-between' : undefined,
+          }}
+        >
           {updateAvailable && (
             <button
               type="button"
@@ -167,8 +177,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                fontSize: '0.6rem',
-              marginBottom: '4px',
+                fontSize: '0.62rem',
                 lineHeight: 1,
                 padding: '2px 5px',
                 borderRadius: '4px',
