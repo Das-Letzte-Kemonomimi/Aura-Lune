@@ -148,7 +148,7 @@ fn build_info(
 ) -> UpdateInfo {
     let asset = update_asset(release, ctx.prefer_bazzite);
     let can_install =
-        available && ctx.install_kind == InstallKind::AppImageManaged && asset.is_some();
+        available && super::can_self_install(ctx.install_kind, ctx.channel) && asset.is_some();
     UpdateInfo {
         available,
         channel: ctx.channel.to_string(),

@@ -415,14 +415,25 @@ pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> 
         ("XDG_CACHE_HOME", ".cache"),
     ]
     .iter()
-    .filter_map(|(var, fallback)| {
-        std::env::var_os(var)
-            .map(std::path::PathBuf::from)
-            .or_else(|| home.as_ref().map(|h| h.join(fallback)))
+    .flat_map(|(var, fallback)| {
+        // Zmienna XDG oraz stała lokalizacja w $HOME: `install.sh` instaluje AppImage zawsze
+        // w `~/.local/share/auralune{,-dev}`, niezależnie od `XDG_DATA_HOME`.
+        [
+            std::env::var_os(var).map(std::path::PathBuf::from),
+            home.as_ref().map(|h| h.join(fallback)),
+        ]
     })
+    .flatten()
     // Modele AI i cache stemów leżą w `<base>/auralune/...` (audio_engine::model_manager),
-    // a dane Tauri w `<base>/com.auralune.player` — oba katalogi należą do aplikacji.
-    .flat_map(|base| [base.join("auralune"), base.join("com.auralune.player")])
+    // dane Tauri w `<base>/com.auralune.player`, a AppImage kanału dev (aktualizator) w
+    // `<base>/auralune-dev` — wszystkie te katalogi należą do aplikacji.
+    .flat_map(|base| {
+        [
+            base.join("auralune"),
+            base.join("auralune-dev"),
+            base.join("com.auralune.player"),
+        ]
+    })
     .collect();
     let roots: Vec<&Path> = app_roots.iter().map(|p| p.as_path()).collect();
     domain::paths::check_write_target(path, home.as_deref(), &roots)

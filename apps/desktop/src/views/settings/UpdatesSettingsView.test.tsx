@@ -95,3 +95,20 @@ describe('UpdatesSettingsView', () => {
     expect(screen.getByRole('alert').textContent).toContain('boom');
   });
 });
+
+describe('UpdatesSettingsView release notes', () => {
+  afterEach(cleanup);
+
+  it('renders markdown release notes instead of raw syntax and shows the update pill', () => {
+    render(
+      <UpdatesSettingsView
+        {...props({ info: { ...info, release_notes: '## Highlights\n- **Faster** startup\n- `code` bit' } })}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Highlights' })).toBeTruthy();
+    expect(screen.getByText('Faster').tagName).toBe('STRONG');
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByText(/##/)).toBeNull();
+    expect(screen.getByText(loc.updates.available)).toBeTruthy();
+  });
+});

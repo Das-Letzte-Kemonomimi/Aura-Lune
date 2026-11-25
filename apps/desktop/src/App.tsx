@@ -1315,6 +1315,7 @@ export default function App() {
         updatesProps={settingsModalProps.updatesProps}
         aboutProps={settingsModalProps.aboutProps}
         backupProps={settingsModalProps.backupProps}
+        updateAvailable={updateManager.hasUpdate}
       />
 
       <AppModalsContainer {...appModalsProps} />

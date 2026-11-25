@@ -6,7 +6,7 @@
 use crate::commands::error::CommandError;
 use crate::updater::check::{self, CheckContext};
 use crate::updater::{
-    self, install, BuildInfo, InstallKind, UpdateInfo, GITHUB_API_BASE, SETTING_LAST_CHECKED,
+    self, install, BuildInfo, UpdateInfo, GITHUB_API_BASE, SETTING_LAST_CHECKED,
     SETTING_LAST_RESULT,
 };
 use crate::AppState;
@@ -51,6 +51,16 @@ fn prefer_bazzite() -> bool {
     std::fs::read_to_string("/etc/os-release")
         .map(|s| check::is_bazzite_like(&s))
         .unwrap_or(false)
+}
+
+fn current_install_target(build: &BuildInfo) -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    updater::install_target(
+        build.install_kind,
+        &build.channel,
+        std::env::var("APPIMAGE").ok().as_deref(),
+        home.as_deref(),
+    )
 }
 
 /// Wersja, commit, kanał i rodzaj instalacji uruchomionej aplikacji.
@@ -122,14 +132,15 @@ pub async fn install_update(
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
     let build = updater::current_build_info();
-    if build.install_kind != InstallKind::AppImageManaged {
+    if !updater::can_self_install(build.install_kind, &build.channel) {
         return Err(CommandError::validation(
-            "Automatyczna aktualizacja działa tylko dla AppImage zainstalowanego przez install.sh",
+            "Automatyczna aktualizacja działa tylko dla AppImage zainstalowanego przez install.sh \
+             oraz dla uruchomienia deweloperskiego kanału dev",
         ));
     }
-    let target = std::env::var_os("APPIMAGE")
-        .map(std::path::PathBuf::from)
-        .ok_or_else(|| CommandError::validation("Brak ścieżki AppImage (zmienna APPIMAGE)"))?;
+    let target = current_install_target(&build).ok_or_else(|| {
+        CommandError::validation("Nie ustalono pliku AppImage do podmiany (APPIMAGE / HOME)")
+    })?;
     let _guard = InstallGuard::acquire()?;
 
     // Wymuszone sprawdzenie: ruchome wydanie dev mogło się zmienić od ostatniego razu.
@@ -151,7 +162,7 @@ pub async fn restart_after_update(app: AppHandle) -> Result<(), CommandError> {
     let build = updater::current_build_info();
     let is_dev = build.channel == "dev";
     let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
-    let appimage = std::env::var("APPIMAGE").ok();
+    let appimage = current_install_target(&build).map(|p| p.to_string_lossy().into_owned());
     let target = install::restart_target(home.as_deref(), is_dev, appimage.as_deref())
         .ok_or_else(|| CommandError::validation("Nie znaleziono launchera ani pliku AppImage"))?;
     install::spawn_detached_restart(&target, is_dev)?;

@@ -37,7 +37,10 @@
 #### Aktualizacje w aplikacji
 - **Ustawienia → Aktualizacje** i odznaka „Aktualizacja” przy wersji w nagłówku: aplikacja sprawdza nowe wydania przy starcie (po ok. 30 s) i co 6 godzin (można wyłączyć), a „Sprawdź teraz” robi to na żądanie. Nic nie jest pobierane bez Twojej zgody; wersję można pominąć.
 - **Kanały nigdy się nie mieszają**: kanał stable porównuje wersję (semver) z najnowszym wydaniem, a kanał dev — commit wbudowany w aplikację z commitem ruchomego wydania `dev-build`.
-- **Samoaktualizacja AppImage z `install.sh`**: pobranie, weryfikacja SHA-256, atomowa podmiana pliku i restart przez launcher. Instalacje z pakietów (AUR/deb) oraz AppImage spoza `install.sh` pokazują tylko informację o nowej wersji. Bez sumy kontrolnej w wydaniu instalacja jest odrzucana.
+- **Samoaktualizacja AppImage z `install.sh`**: pobranie, weryfikacja SHA-256, atomowa podmiana pliku i restart przez launcher. Instalacje z pakietów (AUR/deb) oraz AppImage spoza `install.sh` pokazują tylko informację o nowej wersji. Uruchomienie deweloperskie kanału dev (`tauri dev`) też może zaktualizować się przyciskiem — pobiera AppImage do instalacji dev (`~/.local/share/auralune-dev/`). Bez sumy kontrolnej w wydaniu instalacja jest odrzucana.
+- **Pigułka „Aktualizacja”** w nagłówku, przy zakładce Aktualizacje i w karcie wydania oraz **notatki wydania w formacie Markdown** (nagłówki, listy, pogrubienie, kod, linki) renderowane bez surowego HTML.
+- **Przełącznik-suwak** (`ToggleSwitch`) przy automatycznym sprawdzaniu aktualizacji.
+- **Instalator pobiera do katalogów `~/.local/share/auralune{,-dev}`** także przy ustawionym `XDG_DATA_HOME` (polityka ścieżek `crates/downloads` wcześniej odrzucała katalog `auralune-dev`).
 - **Wydania publikują `SHA256SUMS`** (workflow `publish-dev-release` i `packaging/sync-public-repo.sh`); wydanie dev zawiera też AppImage pod stałą nazwą `Auralune-dev-x86_64.AppImage` (fallback `install.sh`).
 
 #### Instalacja, wydania i narzędzia deweloperskie

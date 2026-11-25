@@ -21,6 +21,8 @@ export interface SettingsModalProps {
   activeTab: SettingsTab;
   onSelectTab: (tab: SettingsTab) => void;
   loc: Translations;
+  /** Pokazuje pigułkę „nowe” przy zakładce Aktualizacje. */
+  updateAvailable?: boolean;
   children: React.ReactNode;
 }
 
@@ -30,6 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   activeTab,
   onSelectTab,
   loc,
+  updateAvailable = false,
   children,
 }) => {
   if (!isOpen) return null;
@@ -165,6 +168,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 {tab.icon}
                 {tab.label}
+                {tab.id === 'updates' && updateAvailable && (
+                  <span
+                    data-testid="updates-tab-pill"
+                    style={{
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      padding: '2px 6px',
+                      borderRadius: '999px',
+                      background: '#22c55e',
+                      color: '#04210f',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {loc.updates.badge}
+                  </span>
+                )}
               </button>
             );
           })}

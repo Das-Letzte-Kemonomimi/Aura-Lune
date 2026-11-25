@@ -161,6 +161,13 @@ fn test_destination_policy_allows_ai_model_dirs_under_xdg_data() {
             )
             .is_ok());
         }
+        // Aktualizator zapisuje AppImage obu kanałów w katalogach instalacji `install.sh`.
+        for dir in ["auralune", "auralune-dev"] {
+            assert!(validate_safe_destination_path(
+                &home.join(format!(".local/share/{dir}/{dir}.AppImage.update"))
+            )
+            .is_ok());
+        }
         if std::env::var_os("XDG_CACHE_HOME").is_none() {
             assert!(
                 validate_safe_destination_path(&home.join(".cache/auralune/stems/x.wav")).is_ok()

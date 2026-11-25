@@ -28,7 +28,9 @@ fn stable_is_the_default() {
 }
 
 mod install_kind {
-    use auralune_desktop::updater::{classify_install, effective_channel, InstallKind};
+    use auralune_desktop::updater::{
+        can_self_install, classify_install, effective_channel, install_target, InstallKind,
+    };
     use std::path::Path;
 
     const HOME: &str = "/home/u";
@@ -89,5 +91,36 @@ mod install_kind {
         assert_eq!(effective_channel(true, "stable"), "dev");
         assert_eq!(effective_channel(false, "dev"), "dev");
         assert_eq!(effective_channel(false, "stable"), "stable");
+    }
+
+    #[test]
+    fn dev_builds_of_the_dev_channel_install_into_the_dev_appimage() {
+        assert!(can_self_install(InstallKind::AppImageManaged, "stable"));
+        assert!(can_self_install(InstallKind::DevServer, "dev"));
+        assert!(!can_self_install(InstallKind::DevServer, "stable"));
+        assert!(!can_self_install(InstallKind::System, "dev"));
+        assert!(!can_self_install(InstallKind::AppImageOther, "dev"));
+
+        let home = Some(Path::new(HOME));
+        assert_eq!(
+            install_target(InstallKind::DevServer, "dev", None, home),
+            Some(
+                Path::new("/home/u/.local/share/auralune-dev/auralune-dev.AppImage").to_path_buf()
+            )
+        );
+        assert_eq!(
+            install_target(
+                InstallKind::AppImageManaged,
+                "dev",
+                Some("/x/a.AppImage"),
+                home
+            ),
+            Some(Path::new("/x/a.AppImage").to_path_buf())
+        );
+        assert_eq!(
+            install_target(InstallKind::DevServer, "stable", None, home),
+            None
+        );
+        assert_eq!(install_target(InstallKind::System, "dev", None, home), None);
     }
 }

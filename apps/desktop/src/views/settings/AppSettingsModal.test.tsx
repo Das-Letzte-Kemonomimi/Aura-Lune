@@ -66,6 +66,13 @@ describe('AppSettingsModal', () => {
     expect(screen.getAllByText(loc.settings.themes).length).toBeGreaterThan(0);
   });
 
+  it('shows a pill on the Updates tab only when an update is available', () => {
+    const { rerender } = render(<AppSettingsModal {...defaultProps} />);
+    expect(screen.queryByTestId('updates-tab-pill')).toBeNull();
+    rerender(<AppSettingsModal {...defaultProps} updateAvailable />);
+    expect(screen.getByTestId('updates-tab-pill')).toBeTruthy();
+  });
+
   it('does not render when isOpen is false', () => {
     const { container } = render(<AppSettingsModal {...defaultProps} isOpen={false} />);
     expect(container.firstChild).toBeNull();

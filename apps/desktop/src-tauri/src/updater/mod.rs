@@ -26,6 +26,9 @@ pub const UPDATE_AVAILABLE_EVENT: &str = "auralune://update-available";
 /// Zdarzenie: postęp pobierania (`{ downloaded, total }`).
 pub const UPDATE_PROGRESS_EVENT: &str = "auralune://update-progress";
 
+/// Nazwa pliku AppImage kanału dev, jak w `install.sh`.
+pub const DEV_APPIMAGE_NAME: &str = "auralune-dev.AppImage";
+
 /// Klucze ustawień (tabela `app_settings`).
 pub const SETTING_ENABLED: &str = "update_check_enabled";
 pub const SETTING_LAST_CHECKED: &str = "update_last_checked";
@@ -96,6 +99,29 @@ pub fn classify_install(
         InstallKind::AppImageManaged
     } else {
         InstallKind::AppImageOther
+    }
+}
+
+/// Czy aplikacja może zainstalować aktualizację sama: AppImage z `install.sh` oraz uruchomienie
+/// deweloperskie kanału dev (aktualizacja trafia wtedy do instalacji dev z `install.sh`).
+pub fn can_self_install(kind: InstallKind, channel: &str) -> bool {
+    kind == InstallKind::AppImageManaged || (kind == InstallKind::DevServer && channel == "dev")
+}
+
+/// Plik AppImage, który podmienia instalator: własny `$APPIMAGE` albo — dla uruchomienia
+/// deweloperskiego — `~/.local/share/auralune-dev/auralune-dev.AppImage`.
+pub fn install_target(
+    kind: InstallKind,
+    channel: &str,
+    appimage: Option<&str>,
+    home: Option<&Path>,
+) -> Option<std::path::PathBuf> {
+    match kind {
+        InstallKind::AppImageManaged => appimage.map(std::path::PathBuf::from),
+        InstallKind::DevServer if channel == "dev" => {
+            home.map(|h| h.join(".local/share/auralune-dev").join(DEV_APPIMAGE_NAME))
+        }
+        _ => None,
     }
 }
 
@@ -190,7 +216,7 @@ pub struct UpdateInfo {
     pub release_notes: Option<String>,
     pub asset: Option<UpdateAsset>,
     pub install_kind: InstallKind,
-    /// Czy aplikacja może zainstalować aktualizację sama (`AppImageManaged` + jest asset).
+    /// Czy aplikacja może zainstalować aktualizację sama (`can_self_install` + jest asset).
     pub can_install: bool,
     /// Unix (s) czasu sprawdzenia.
     pub checked_at: u64,

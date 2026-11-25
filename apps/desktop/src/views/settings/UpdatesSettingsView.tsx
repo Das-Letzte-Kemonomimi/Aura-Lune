@@ -4,6 +4,8 @@ import { errorMessage, invoke } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo, InstallKind, UpdateInfo, UpdateProgress } from '../../types/updates';
 import { fmt } from '../../utils/fmt';
+import { ToggleSwitch } from '../../components/common/ToggleSwitch';
+import { MarkdownText } from '../../components/common/MarkdownText';
 
 export interface UpdatesSettingsViewProps {
   language: Language;
@@ -108,13 +110,12 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
     ? new Date(info.checked_at * 1000).toLocaleString(language)
     : t.never;
   const channelLabel = buildInfo?.channel === 'dev' ? t.channelDev : t.channelStable;
-  const installNotice = notice(loc, installKind);
+  const installNotice = info?.can_install ? null : notice(loc, installKind);
 
-  const openRelease = async () => {
-    if (!info?.release_url) return;
+  const openLink = async (url: string) => {
     setLinkError(null);
     try {
-      await invoke('open_external_url', { url: info.release_url });
+      await invoke('open_external_url', { url });
     } catch (e: unknown) {
       setLinkError(errorMessage(e));
     }
@@ -161,27 +162,42 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
 
       {(available || installed) && (
         <div className="glass-card" style={{ ...CARD, border: '1px solid var(--border-accent)' }}>
-          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>{t.available}</h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                background: 'rgba(34, 197, 94, 0.2)',
+                border: '1px solid rgba(34, 197, 94, 0.45)',
+                color: '#4ade80',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4ade80', animation: 'update-dot-pulse 1.6s ease-in-out infinite' }}
+              />
+              {installed ? t.badgeInstalledTitle : t.available}
+            </span>
+          </div>
           <div>
             <span style={LABEL}>{t.latestVersion}: </span>
             <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{info?.latest_version}</span>
           </div>
           {info?.release_notes && (
-            <details>
+            <details open>
               <summary style={{ cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 {t.releaseNotes}
               </summary>
-              <pre
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  fontSize: '0.75rem',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {info.release_notes}
-              </pre>
+              <div style={{ maxHeight: '260px', overflowY: 'auto', marginTop: '8px' }}>
+                <MarkdownText source={info.release_notes} onOpenLink={openLink} />
+              </div>
             </details>
           )}
           {installing && (
@@ -222,7 +238,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
               )
             )}
             {info?.release_url && (
-              <button type="button" style={BUTTON} onClick={openRelease}>
+              <button type="button" style={BUTTON} onClick={() => info.release_url && openLink(info.release_url)}>
                 <ExternalLink size={14} /> {t.openRelease}
               </button>
             )}
@@ -253,12 +269,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
           <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.autoCheck}</div>
           <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>{t.autoCheckDesc}</div>
         </div>
-        <input
-          type="checkbox"
-          aria-label={t.autoCheck}
-          checked={autoCheckEnabled}
-          onChange={(e) => onToggleAutoCheck(e.target.checked)}
-        />
+        <ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />
       </div>
     </div>
   );

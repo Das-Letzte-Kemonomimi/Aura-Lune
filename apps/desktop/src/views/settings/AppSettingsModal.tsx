@@ -22,6 +22,7 @@ export interface AppSettingsModalProps {
   updatesProps: UpdatesSettingsViewProps;
   aboutProps: AboutSettingsViewProps;
   backupProps: BackupSettingsViewProps;
+  updateAvailable?: boolean;
 }
 
 export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
@@ -37,6 +38,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
   updatesProps,
   aboutProps,
   backupProps,
+  updateAvailable,
 }) => {
   return (
     <SettingsModal
@@ -45,6 +47,7 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
       activeTab={activeTab}
       onSelectTab={onSelectTab}
       loc={loc}
+      updateAvailable={updateAvailable}
     >
       {activeTab === 'themes' && <ThemesSettingsView {...themesProps} />}
       {activeTab === 'devices' && <AudioDevicesSettingsView {...devicesProps} />}

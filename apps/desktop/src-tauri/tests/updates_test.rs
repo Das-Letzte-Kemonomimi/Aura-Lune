@@ -167,6 +167,12 @@ fn dev_update_compares_commits_and_never_looks_at_versions() {
     let current = ctx("dev", "1.1.6-dev", NEW_COMMIT, InstallKind::AppImageManaged);
     assert!(!evaluate_dev(&rel, NEW_COMMIT, &current).available);
 
+    // Uruchomienie deweloperskie kanału dev może zainstalować aktualizację z przycisku.
+    let dev_server = ctx("dev", "1.1.6-dev", OLD_COMMIT, InstallKind::DevServer);
+    assert!(evaluate_dev(&rel, NEW_COMMIT, &dev_server).can_install);
+    let system = ctx("dev", "1.1.6-dev", OLD_COMMIT, InstallKind::System);
+    assert!(!evaluate_dev(&rel, NEW_COMMIT, &system).can_install);
+
     let unknown = ctx("dev", "1.1.6-dev", "unknown", InstallKind::AppImageManaged);
     assert!(!evaluate_dev(&rel, NEW_COMMIT, &unknown).available);
 }
