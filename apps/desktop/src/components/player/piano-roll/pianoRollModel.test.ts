@@ -13,7 +13,10 @@ import {
   LABEL_KEY_HEIGHT,
   computePitchRange,
   followOriginMs,
+  hiddenNotesBeyondView,
   hitTestNote,
+  followScrollGoal,
+  pitchSpanInWindow,
   noteOverlaps,
   pitchToY,
   rulerTicks,
@@ -263,5 +266,52 @@ describe('computeKeyHeight with a minimum for readable labels', () => {
     const keyHeight = computeKeyHeight(300, 50, LABEL_KEY_HEIGHT);
     expect(keyHeight).toBe(LABEL_KEY_HEIGHT);
     expect(maxScrollRows(300, keyHeight, 50)).toBeGreaterThan(0);
+  });
+});
+
+describe('vertical follow', () => {
+  const notes = [note(0, 500, 40), note(1000, 500, 70), note(9000, 500, 90)];
+  const index = buildNoteIndex(notes);
+
+  it('reports the pitch span of notes inside a window, or null when empty', () => {
+    expect(pitchSpanInWindow(index, 0, 2000)).toEqual({ lo: 40, hi: 70 });
+    expect(pitchSpanInWindow(index, 3000, 4000)).toBeNull();
+  });
+
+  it('does not move when the span already fits (no jitter)', () => {
+    const goal = followScrollGoal({ span: { lo: 60, hi: 64 }, maxMidi: 80, viewRows: 20, current: 5, maxScroll: 30 });
+    expect(goal).toBe(5); // wiersze 16–21 mieszczą się w oknie 5–25
+  });
+
+  it('scrolls up by the minimum needed when notes rise above the view', () => {
+    const goal = followScrollGoal({ span: { lo: 76, hi: 80 }, maxMidi: 80, viewRows: 20, current: 10, maxScroll: 30 });
+    expect(goal).toBe(0); // górna krawędź (wiersz 0) wraca do widoku
+  });
+
+  it('scrolls down by the minimum needed when notes fall below the view', () => {
+    const goal = followScrollGoal({ span: { lo: 30, hi: 34 }, maxMidi: 80, viewRows: 20, current: 0, maxScroll: 40 });
+    expect(goal).toBeGreaterThan(0);
+    const bottomRow = 80 - 30 + 1;
+    expect(goal + 20).toBeGreaterThanOrEqual(bottomRow);
+  });
+
+  it('centres a span taller than the view and stays within the scroll range', () => {
+    const goal = followScrollGoal({ span: { lo: 30, hi: 70 }, maxMidi: 80, viewRows: 20, current: 0, maxScroll: 30 });
+    expect(goal).toBeGreaterThan(0);
+    expect(goal).toBeLessThanOrEqual(30);
+  });
+
+  it('keeps the current scroll when there are no notes nearby', () => {
+    expect(followScrollGoal({ span: null, maxMidi: 80, viewRows: 20, current: 7, maxScroll: 30 })).toBe(7);
+    expect(followScrollGoal({ span: null, maxMidi: 80, viewRows: 20, current: 99, maxScroll: 30 })).toBe(30);
+  });
+});
+
+describe('hiddenNotesBeyondView', () => {
+  it('flags notes above and below the visible rows', () => {
+    const base = { maxMidi: 80, viewRows: 10 };
+    expect(hiddenNotesBeyondView({ ...base, span: { lo: 40, hi: 78 }, scrollRows: 5 })).toEqual({ above: true, below: true });
+    expect(hiddenNotesBeyondView({ ...base, span: { lo: 72, hi: 78 }, scrollRows: 0 })).toEqual({ above: false, below: false });
+    expect(hiddenNotesBeyondView({ ...base, span: null, scrollRows: 0 })).toEqual({ above: false, below: false });
   });
 });

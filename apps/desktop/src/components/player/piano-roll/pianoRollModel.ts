@@ -211,6 +211,65 @@ export function maxScrollRows(rollHeight: number, keyHeight: number, rows: numbe
   return Math.max(0, rows - rollHeight / keyHeight);
 }
 
+export interface PitchSpan {
+  lo: number;
+  hi: number;
+}
+
+/** Najniższy i najwyższy dźwięk nut nachodzących na okno czasu (`null`, gdy okno jest puste). */
+export function pitchSpanInWindow(index: NoteIndex, t0: number, t1: number): PitchSpan | null {
+  let lo = Infinity;
+  let hi = -Infinity;
+  const [first, last] = visibleNoteRange(index, t0, t1);
+  for (let i = first; i < last; i++) {
+    const n = index.notes[i];
+    if (!noteOverlaps(n, t0, t1)) continue;
+    if (n.midi_pitch < lo) lo = n.midi_pitch;
+    if (n.midi_pitch > hi) hi = n.midi_pitch;
+  }
+  return hi >= lo ? { lo, hi } : null;
+}
+
+/** Wiersze (od góry, ułamkowo) zajmowane przez zakres dźwięków: `[górna krawędź, dolna krawędź]`. */
+function spanRows(maxMidi: number, span: PitchSpan): [number, number] {
+  return [maxMidi - span.hi, maxMidi - span.lo + 1];
+}
+
+/**
+ * Cel przewinięcia pionowego w trybie Follow: najmniejszy ruch, po którym cały zakres `span` jest widoczny
+ * (bez drgań, gdy już się mieści). Gdy zakres jest wyższy niż okno, centruje go.
+ */
+export function followScrollGoal(args: {
+  span: PitchSpan | null;
+  maxMidi: number;
+  viewRows: number;
+  current: number;
+  maxScroll: number;
+}): number {
+  const { span, maxMidi, viewRows, current, maxScroll } = args;
+  if (!span) return clamp(current, 0, maxScroll);
+  const [top, bottom] = spanRows(maxMidi, span);
+  const margin = Math.min(0.5, Math.max(0, (viewRows - (bottom - top)) / 2));
+  let goal = current;
+  if (bottom - top > viewRows) goal = (top + bottom) / 2 - viewRows / 2;
+  else if (top - margin < current) goal = top - margin;
+  else if (bottom + margin > current + viewRows) goal = bottom + margin - viewRows;
+  return clamp(goal, 0, maxScroll);
+}
+
+/** Czy w oknie czasu są nuty całkowicie powyżej / poniżej widocznych wierszy (do znaczników na krawędziach). */
+export function hiddenNotesBeyondView(args: {
+  span: PitchSpan | null;
+  maxMidi: number;
+  viewRows: number;
+  scrollRows: number;
+}): { above: boolean; below: boolean } {
+  const { span, maxMidi, viewRows, scrollRows } = args;
+  if (!span) return { above: false, below: false };
+  const [top, bottom] = spanRows(maxMidi, span);
+  return { above: top + 1 <= scrollRows + 1e-6, below: bottom - 1 >= scrollRows + viewRows - 1e-6 };
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Widok czasowy: follow / free
 // ---------------------------------------------------------------------------------------------------------------

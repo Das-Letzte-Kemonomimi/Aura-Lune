@@ -200,3 +200,57 @@ describe('PianoRollCanvas note labels', () => {
     expect(on).toBeGreaterThan(off);
   });
 });
+
+describe('PianoRollCanvas vertical navigation', () => {
+  // 24 wiersze po 16 px (podpisy) w obszarze ≈357 px → jest co przewijać.
+  const open = (overrides: Partial<PianoRollCanvasProps> = {}) => {
+    const props = baseProps(overrides);
+    mount(props, { width: 723, height: 411 }, 1);
+    raf.step();
+    return { props, el: document.querySelector('canvas') as HTMLCanvasElement };
+  };
+
+  it('mouse wheel scrolls rows without leaving Follow when rows overflow', () => {
+    const { props, el } = open();
+    const notCancelled = fireEvent.wheel(el, { deltaY: 120, clientX: 300, clientY: 150 });
+    expect(notCancelled).toBe(false);
+    expect(props.onViewChange).not.toHaveBeenCalled();
+  });
+
+  it('Shift+wheel moves time (and switches to Free) even when rows overflow', () => {
+    const { props, el } = open();
+    fireEvent.wheel(el, { deltaY: 120, shiftKey: true, clientX: 300, clientY: 150 });
+    expect(props.onViewChange).toHaveBeenCalledWith({ mode: 'free' });
+  });
+
+  it('mouse wheel moves time when every row already fits', () => {
+    const { props, el } = open({ showLabels: false });
+    fireEvent.wheel(el, { deltaY: 120, clientX: 300, clientY: 150 });
+    expect(props.onViewChange).toHaveBeenCalledWith({ mode: 'free' });
+  });
+
+  it('a vertical drag scrolls rows, stays in Follow and does not seek', () => {
+    const { props, el } = open();
+    fireEvent.pointerDown(el, { clientX: 300, clientY: 200, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(el, { clientX: 301, clientY: 140, pointerId: 1 });
+    fireEvent.pointerUp(el, { clientX: 301, clientY: 140, button: 0, pointerId: 1 });
+    expect(props.onViewChange).not.toHaveBeenCalled();
+    expect(props.onSeek).not.toHaveBeenCalled();
+  });
+
+  it('grabbing the scrollbar neither seeks nor leaves Follow', () => {
+    const { props, el } = open();
+    fireEvent.pointerDown(el, { clientX: 718, clientY: 100, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(el, { clientX: 718, clientY: 160, pointerId: 1 });
+    fireEvent.pointerUp(el, { clientX: 718, clientY: 160, button: 0, pointerId: 1 });
+    expect(props.onSeek).not.toHaveBeenCalled();
+    expect(props.onViewChange).not.toHaveBeenCalled();
+  });
+
+  it('a click on the scrollbar track does not seek', () => {
+    const { props, el } = open();
+    fireEvent.pointerDown(el, { clientX: 718, clientY: 300, button: 0, pointerId: 1 });
+    fireEvent.pointerUp(el, { clientX: 718, clientY: 300, button: 0, pointerId: 1 });
+    expect(props.onSeek).not.toHaveBeenCalled();
+  });
+});
