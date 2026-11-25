@@ -96,6 +96,10 @@ export const ChordChart: React.FC<ChordChartProps> = ({
       {bars.map((bar, barIdx) => {
         const isActiveBar = barIdx === activeBarIdx;
         const isPast = bar.end_ms <= currentTimeMs;
+        // Pewność taktu = najniższa pewność jego akordów (najsłabsze ogniwo).
+        const barConfidence = Math.min(...bar.cells.map((c) => c.confidence));
+        const barConfidencePct = Math.round(barConfidence * 100);
+        const barLowConfidence = barConfidence < LOW_CONFIDENCE;
         return (
           <div
             key={`${bar.bar}-${bar.start_ms}`}
@@ -122,7 +126,10 @@ export const ChordChart: React.FC<ChordChartProps> = ({
               }}
             >
               <span>{barLabel(bar.bar)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{formatTime(bar.start_ms)}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+                {formatTime(bar.start_ms)}
+                <span style={{ marginLeft: '6px', color: barLowConfidence ? '#fbbf24' : '#94a3b8' }}>{barConfidencePct}%</span>
+              </span>
             </div>
 
             <div style={{ display: 'flex', gap: '6px' }}>
