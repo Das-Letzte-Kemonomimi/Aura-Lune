@@ -92,6 +92,12 @@ impl Database {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
+        // Jeden wpis na utwór: stare (także innej wersji analizatora) usuwamy w tej samej transakcji.
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM track_transcriptions WHERE track_id = ?1;")
+            .bind(track_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query(
             r#"
             INSERT INTO track_transcriptions (track_id, file_hash, analyzer_version, notes_json, created_at, bpm)
@@ -104,23 +110,28 @@ impl Database {
         .bind(notes_json)
         .bind(now)
         .bind(bpm)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(())
     }
 
-    /// Pobiera najnowszą zapisaną transkrypcję nutową utworu.
+    /// Pobiera zapisaną transkrypcję nutową utworu, o ile pochodzi z podanej wersji analizatora
+    /// (wpis innej wersji jest traktowany jak brak).
     pub async fn get_track_transcription(
         &self,
         track_id: i64,
+        analyzer_version: &str,
     ) -> Result<Option<CachedTrackTranscription>, StorageError> {
         let row = sqlx::query_as::<_, CachedTrackTranscription>(
             r#"
             SELECT file_hash, analyzer_version, notes_json, bpm
-            FROM track_transcriptions WHERE track_id = ?1 ORDER BY id DESC LIMIT 1;
+            FROM track_transcriptions WHERE track_id = ?1 AND analyzer_version = ?2
+            ORDER BY id DESC LIMIT 1;
             "#,
         )
         .bind(track_id)
+        .bind(analyzer_version)
         .fetch_optional(&self.pool)
         .await?;
         Ok(row)

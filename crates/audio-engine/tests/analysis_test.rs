@@ -941,3 +941,28 @@ fn test_beat_grid_follows_click_track_without_drift() {
     );
     assert!(grid[0].is_downbeat || grid[..4].iter().any(|b| b.is_downbeat));
 }
+
+#[test]
+fn test_note_onsets_do_not_drift_with_fractional_hop() {
+    use audio_engine::analysis::detect_notes_from_samples;
+
+    // Przy 22,05 kHz krok ramki to 46,44 ms. Obcięcie do 46 ms przesuwało nuty o ~1% (≈3 s po 5 minutach).
+    let sample_rate = 22050.0;
+    let total = (130.0 * sample_rate) as usize;
+    let onset_s = 120.0;
+    let mut samples = vec![0.0f32; total];
+    let start = (onset_s * sample_rate) as usize;
+    let end = ((onset_s + 2.0) * sample_rate) as usize;
+    for (i, s) in samples.iter_mut().enumerate().take(end).skip(start) {
+        let t = i as f64 / sample_rate;
+        *s = (2.0 * PI * 440.0 * t).sin() as f32;
+    }
+
+    let notes = detect_notes_from_samples(&samples, sample_rate, None);
+    let a4 = notes
+        .iter()
+        .find(|n| n.midi_pitch == 69)
+        .expect("powinna zostać wykryta nuta A4");
+    let error_ms = (a4.onset_ms as i64 - (onset_s * 1000.0) as i64).abs();
+    assert!(error_ms <= 60, "dryf początku nuty: {error_ms} ms");
+}

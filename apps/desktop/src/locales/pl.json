@@ -1920,6 +1920,14 @@
     "exportMidiTooltip": "Eksportuj do standardowego pliku MIDI (.mid)",
     "downloadMidi": "Pobierz MIDI (.mid)",
     "transcriptionDefault": "Transkrypcja",
+    "transcribingNotes": "Analiza spektralna salience i transkrypcja nut...",
+    "followMode": "Podążaj",
+    "followModeTooltip": "Podążaj za głowicą (przeciągnij lub przewiń, by przeglądać swobodnie)",
+    "noNotesDetected": "Nie wykryto nut w tym utworze.",
+    "midiSaved": "Zapisano MIDI: {0}",
+    "noteStart": "start",
+    "noteLength": "długość",
+    "noteVelocity": "głośność",
     "noChordsDetected": "Brak wykrytych akordów dla tego utworu.",
     "exportChordsTitle": "Eksport akordów ({0})"
   }

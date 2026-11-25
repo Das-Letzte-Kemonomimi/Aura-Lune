@@ -1920,6 +1920,14 @@
     "exportMidiTooltip": "In Standard-MIDI-Datei (.mid) exportieren",
     "downloadMidi": "MIDI herunterladen (.mid)",
     "transcriptionDefault": "Transkription",
+    "transcribingNotes": "Spektrale Salienz-Analyse und Notentranskription...",
+    "followMode": "Folgen",
+    "followModeTooltip": "Dem Abspielkopf folgen (ziehen oder scrollen für freie Ansicht)",
+    "noNotesDetected": "In diesem Titel wurden keine Noten erkannt.",
+    "midiSaved": "MIDI gespeichert: {0}",
+    "noteStart": "Start",
+    "noteLength": "Länge",
+    "noteVelocity": "Velocity",
     "noChordsDetected": "Für diesen Titel wurden keine Akkorde erkannt.",
     "exportChordsTitle": "Akkord-Export ({0})"
   }

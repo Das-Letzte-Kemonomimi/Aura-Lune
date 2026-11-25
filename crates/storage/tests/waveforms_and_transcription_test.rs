@@ -156,10 +156,47 @@ async fn test_track_transcription() {
     )
     .await
     .unwrap();
-    let trans = db.get_track_transcription(track_id).await.unwrap().unwrap();
+    let trans = db
+        .get_track_transcription(track_id, "1.0.0")
+        .await
+        .unwrap()
+        .unwrap();
     assert!(trans.notes_json.contains("\"midi_pitch\":60"));
     assert_eq!(trans.bpm, Some(96.0));
     assert_eq!(trans.file_hash, "hash123");
+}
+
+#[tokio::test]
+async fn test_transcription_cache_ignores_other_versions_and_keeps_one_row() {
+    let db = setup_test_db().await;
+    let track = make_dummy_track("/music/trans_ver.flac", "Trans Ver", "Artist");
+    let track_id = db.upsert_track(&track).await.unwrap();
+
+    db.save_track_transcription(track_id, "h1", "1.0.0", "[]", Some(100.0))
+        .await
+        .unwrap();
+    assert!(db
+        .get_track_transcription(track_id, "2.0.0")
+        .await
+        .unwrap()
+        .is_none());
+
+    db.save_track_transcription(track_id, "h2", "2.0.0", "[]", Some(110.0))
+        .await
+        .unwrap();
+    assert!(
+        db.get_track_transcription(track_id, "1.0.0")
+            .await
+            .unwrap()
+            .is_none(),
+        "stary wpis powinien zostać usunięty przy zapisie nowej wersji"
+    );
+    let current = db
+        .get_track_transcription(track_id, "2.0.0")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.file_hash, "h2");
 }
 
 #[tokio::test]

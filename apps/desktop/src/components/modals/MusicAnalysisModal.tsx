@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Music,
   Piano,
@@ -9,12 +9,11 @@ import {
   Sliders,
 } from 'lucide-react';
 import { ChordTimelineView } from '../player/ChordTimelineView';
-import { PianoRollCanvas } from '../player/PianoRollCanvas';
+import { PianoRollView } from '../player/piano-roll/PianoRollView';
 import { StemMixerModal } from './StemMixerModal';
 import { ModelManagerModal } from './ModelManagerModal';
 import { StemProjectsLibraryView } from '../../views/stems/StemProjectsLibraryView';
 import { type Language, getTranslations } from '../../i18n';
-import { useLivePositionMs } from '../../state/livePlayback';
 
 export interface MusicAnalysisModalProps {
   isOpen: boolean;
@@ -23,8 +22,13 @@ export interface MusicAnalysisModalProps {
   trackPath?: string;
   trackTitle?: string;
   trackArtist?: string;
+  /** Pozycja zapasowa (do pierwszego statusu na żywo); karty czytają pozycję na żywo same. */
   currentTimeMs: number;
   durationMs?: number;
+  isPlaying?: boolean;
+  /** Prędkość czasu źródła względem rzeczywistego (zob. `playbackSpeed`). */
+  playbackSpeed?: number;
+  onNotify?: (message: string, isError?: boolean) => void;
   pitchSemitones?: number;
   onSeek: (positionMs: number) => void;
   onSetLoop?: (startMs: number, endMs: number) => void;
@@ -41,8 +45,11 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   trackPath,
   trackTitle,
   trackArtist,
-  currentTimeMs: currentTimeMsProp,
+  currentTimeMs,
   durationMs = 180000,
+  isPlaying = false,
+  playbackSpeed,
+  onNotify,
   pitchSemitones = 0,
   onSeek,
   onSetLoop,
@@ -51,8 +58,6 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   onOpenCreateProject,
   currentLang = 'en',
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
-  const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const displayTitle = trackTitle || t.player.track;
   const displayArtist = trackArtist || t.player.artist;
@@ -75,16 +80,14 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
-  const tabItems: Array<{
+  const tabItems = useMemo<Array<{
     id: 'chords' | 'pianoroll' | 'stems' | 'projects' | 'models';
     label: string;
     icon: React.ReactNode;
     color: string;
     activeBg: string;
     activeBorder: string;
-  }> = [
+  }>>(() => [
       {
         id: 'chords',
         label: t.analysis.tabChords,
@@ -125,7 +128,9 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
         activeBg: 'rgba(245, 158, 11, 0.18)',
         activeBorder: 'rgba(245, 158, 11, 0.45)',
       },
-    ];
+    ], [t]);
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -310,13 +315,16 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
           )}
 
           {activeTab === 'pianoroll' && (
-            <PianoRollCanvas
+            <PianoRollView
               trackId={trackId}
               trackPath={trackPath}
               trackTitle={displayTitle}
               currentTimeMs={currentTimeMs}
               durationMs={durationMs}
+              isPlaying={isPlaying}
+              speed={playbackSpeed}
               onSeek={onSeek}
+              onNotify={onNotify}
               currentLang={currentLang}
             />
           )}

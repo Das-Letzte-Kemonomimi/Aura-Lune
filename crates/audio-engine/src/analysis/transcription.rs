@@ -4,6 +4,14 @@ use super::*;
 use crate::AnalysisError;
 use std::f64::consts::PI;
 
+/// Wersja algorytmu transkrypcji. Zmiana unieważnia zapisane wyniki (cache jest wersjonowany).
+pub const TRANSCRIPTION_ANALYZER_VERSION: &str = "1.2.0-salience-f64";
+
+/// Czas (ms) początku ramki o danym indeksie, liczony w `f64` (bez kumulowania obciętego kroku).
+fn frame_to_ms(frame: u64, hop_ms: f64) -> u64 {
+    (frame as f64 * hop_ms).round() as u64
+}
+
 /// Konwertuje numer nuty MIDI (0 .. 127) na czytelną nazwę wysokości (np. 60 -> "C4", 69 -> "A4").
 pub fn midi_pitch_to_name(pitch: u8) -> String {
     let note_names = [
@@ -26,7 +34,8 @@ pub fn detect_notes_from_samples(
 
     let window_size = 2048;
     let hop_size = 1024;
-    let hop_ms = (hop_size as f64 / sample_rate * 1000.0) as u64;
+    // Ułamkowy krok ramki (ms): obcięcie do liczby całkowitej (46,44 → 46) przesuwało nuty o ~1% wcześniej.
+    let hop_ms = hop_size as f64 / sample_rate * 1000.0;
     let num_frames = if samples.len() > window_size {
         (samples.len() - window_size) / hop_size
     } else {
@@ -126,8 +135,8 @@ pub fn detect_notes_from_samples(
                 let (midi, start_f, last_f, max_e) = active_notes.remove(i);
                 still_active.remove(i);
                 if last_f > start_f {
-                    let onset_ms = start_f * hop_ms;
-                    let duration_ms = ((last_f - start_f + 1) * hop_ms).max(50);
+                    let onset_ms = frame_to_ms(start_f, hop_ms);
+                    let duration_ms = frame_to_ms(last_f - start_f + 1, hop_ms).max(50);
                     let vel = ((max_e.sqrt() * 100.0).clamp(40.0, 127.0)) as u8;
                     finished_notes.push(DetectedNote {
                         onset_ms,
@@ -154,13 +163,13 @@ pub fn detect_notes_from_samples(
 fn finalize_active_notes(
     active_notes: &mut Vec<(u8, u64, u64, f64)>,
     finished_notes: &mut Vec<DetectedNote>,
-    hop_ms: u64,
+    hop_ms: f64,
     stem_name: Option<&str>,
 ) {
     for (midi, start_f, last_f, max_e) in active_notes.drain(..) {
         if last_f > start_f {
-            let onset_ms = start_f * hop_ms;
-            let duration_ms = ((last_f - start_f + 1) * hop_ms).max(50);
+            let onset_ms = frame_to_ms(start_f, hop_ms);
+            let duration_ms = frame_to_ms(last_f - start_f + 1, hop_ms).max(50);
             let vel = ((max_e.sqrt() * 100.0).clamp(40.0, 127.0)) as u8;
             finished_notes.push(DetectedNote {
                 onset_ms,
@@ -340,6 +349,6 @@ pub fn analyze_track_transcription(
         file_hash,
         notes,
         bpm,
-        analyzer_version: "1.1.0-salience".to_string(),
+        analyzer_version: TRANSCRIPTION_ANALYZER_VERSION.to_string(),
     })
 }

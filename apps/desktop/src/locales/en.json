@@ -1920,6 +1920,14 @@
     "exportMidiTooltip": "Export to standard MIDI file (.mid)",
     "downloadMidi": "Download MIDI (.mid)",
     "transcriptionDefault": "Transcription",
+    "transcribingNotes": "Spectral salience analysis and note transcription...",
+    "followMode": "Follow",
+    "followModeTooltip": "Follow the playhead (drag or scroll to browse freely)",
+    "noNotesDetected": "No notes detected in this track.",
+    "midiSaved": "MIDI saved: {0}",
+    "noteStart": "start",
+    "noteLength": "length",
+    "noteVelocity": "velocity",
     "noChordsDetected": "No chords detected for this track.",
     "exportChordsTitle": "Chord export ({0})"
   }

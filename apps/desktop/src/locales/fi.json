@@ -1920,6 +1920,14 @@
     "exportMidiTooltip": "Vie tavalliseen MIDI-tiedostoon (.mid)",
     "downloadMidi": "Lataa MIDI (.mid)",
     "transcriptionDefault": "Transkriptio",
+    "transcribingNotes": "Spektrinen salienssianalyysi ja nuottien transkriptio...",
+    "followMode": "Seuraa",
+    "followModeTooltip": "Seuraa toisto-osoitinta (vedä tai vieritä selataksesi vapaasti)",
+    "noNotesDetected": "Tästä kappaleesta ei havaittu nuotteja.",
+    "midiSaved": "MIDI tallennettu: {0}",
+    "noteStart": "alku",
+    "noteLength": "kesto",
+    "noteVelocity": "voimakkuus",
     "noChordsDetected": "Tälle kappaleelle ei havaittu sointuja.",
     "exportChordsTitle": "Sointujen vienti ({0})"
   }

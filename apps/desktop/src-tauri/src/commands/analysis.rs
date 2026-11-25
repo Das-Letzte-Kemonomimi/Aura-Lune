@@ -6,7 +6,7 @@ use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_transcription, export_chords_to_chordpro,
     export_chords_to_json, export_chords_to_text, export_transcription_to_midi,
     get_analysis_capabilities as engine_get_analysis_capabilities, parse_chord_symbol, TrackKeyBpm,
-    CHORD_ANALYZER_VERSION,
+    CHORD_ANALYZER_VERSION, TRANSCRIPTION_ANALYZER_VERSION,
 };
 use domain::analysis::{
     AnalysisCapabilities, ChordSegment, TrackChordsData, TrackTranscriptionData,
@@ -274,7 +274,11 @@ pub async fn detect_track_transcription(
     let recompute = force_recompute.unwrap_or(false);
 
     if let (false, Some(id)) = (recompute, track_id) {
-        if let Ok(Some(cached)) = state.db.get_track_transcription(id).await {
+        if let Ok(Some(cached)) = state
+            .db
+            .get_track_transcription(id, TRANSCRIPTION_ANALYZER_VERSION)
+            .await
+        {
             if let Some(data) = transcription_from_cache(&state, id, cached).await {
                 return Ok(data);
             }
@@ -312,23 +316,42 @@ pub async fn get_cached_transcription(
     track_id: i64,
     state: State<'_, AppState>,
 ) -> Result<Option<TrackTranscriptionData>, CommandError> {
-    let cached = state.db.get_track_transcription(track_id).await?;
+    let cached = state
+        .db
+        .get_track_transcription(track_id, TRANSCRIPTION_ANALYZER_VERSION)
+        .await?;
     match cached {
         Some(cached) => Ok(transcription_from_cache(&state, track_id, cached).await),
         None => Ok(None),
     }
 }
 
+/// Zapisuje transkrypcję utworu jako plik `.mid` pod wskazaną ścieżką (po walidacji celu zapisu).
+/// Zwraca ścieżkę, pod którą plik faktycznie zapisano.
 #[tauri::command]
 pub async fn export_transcription_midi(
     track_id: i64,
+    export_path: String,
     state: State<'_, AppState>,
-) -> Result<Vec<u8>, CommandError> {
-    let cached = state.db.get_track_transcription(track_id).await?;
+) -> Result<String, CommandError> {
+    let resolved = super::paths::ensure_writable(std::path::Path::new(&export_path))?;
+    if !domain::paths::has_allowed_extension(&resolved, &["mid", "midi"]) {
+        return Err(CommandError::validation(
+            "Plik MIDI musi mieć rozszerzenie .mid lub .midi",
+        ));
+    }
+    let cached = state
+        .db
+        .get_track_transcription(track_id, TRANSCRIPTION_ANALYZER_VERSION)
+        .await?;
     let data = match cached {
         Some(cached) => transcription_from_cache(&state, track_id, cached).await,
         None => None,
     }
     .ok_or_else(|| CommandError::not_found("Brak zapisanej transkrypcji dla tego utworu"))?;
-    Ok(export_transcription_to_midi(&data.notes, data.bpm))
+    let bytes = export_transcription_to_midi(&data.notes, data.bpm);
+    tokio::fs::write(&resolved, bytes)
+        .await
+        .map_err(|e| CommandError::from(e).context("Nie udało się zapisać pliku MIDI"))?;
+    Ok(resolved.to_string_lossy().into_owned())
 }

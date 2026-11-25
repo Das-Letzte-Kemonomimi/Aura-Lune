@@ -46,6 +46,7 @@ const SaveQueueModal = React.lazy(() => import('./SaveQueueModal').then((m) => (
 const AddRadioStationModal = React.lazy(() => import('./AddRadioStationModal').then((m) => ({ default: m.AddRadioStationModal })));
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
 import { fmt } from '../../utils/fmt';
+import { playbackSpeed } from '../../utils/playbackSpeed';
 
 export interface AppModalsContainerProps {
   language: Language;
@@ -762,6 +763,13 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || undefined}
         currentTimeMs={status.position_ms}
         durationMs={status.duration_ms ?? undefined}
+        isPlaying={status.state === 'Playing'}
+        playbackSpeed={playbackSpeed({
+          engine: status.engine,
+          tempo: status.tempo_ratio,
+          rate: status.rate_ratio,
+        })}
+        onNotify={showMessage}
         pitchSemitones={status.pitch_semitones ?? 0}
         onSeek={handleSeek}
         onSetLoop={(start, end) => {

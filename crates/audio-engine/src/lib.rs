@@ -23,7 +23,7 @@ pub use analysis::{
     extract_chroma_frame, extract_track_waveform_peaks, generate_chord_templates,
     midi_pitch_to_name, parse_chord_symbol, transpose_chord, viterbi_smooth_chords,
     write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult, TrackKeyBpm,
-    WaveformAccumulator, CHORD_ANALYZER_VERSION,
+    WaveformAccumulator, CHORD_ANALYZER_VERSION, TRANSCRIPTION_ANALYZER_VERSION,
 };
 pub use device::DeviceManager;
 pub use error::{AnalysisError, AudioEngineError, TagError};

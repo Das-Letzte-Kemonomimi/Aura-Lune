@@ -11,6 +11,7 @@ import { invoke } from '../../api/ipc';
 import type { TrackChordsData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { fmt } from '../../utils/fmt';
+import { useLivePositionMs } from '../../state/livePlayback';
 import {
   chordTone,
   findActiveCell,
@@ -66,7 +67,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   trackPath,
   trackTitle,
   trackArtist,
-  currentTimeMs,
+  currentTimeMs: currentTimeMsProp,
   durationMs,
   pitchSemitones = 0,
   onSeek,
@@ -74,6 +75,8 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   onClose,
   currentLang = 'en',
 }) => {
+  // Pozycja na żywo czytana tutaj, a nie w modalu — modal nie renderuje się przy każdym ticku.
+  const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const [data, setData] = useState<TrackChordsData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);

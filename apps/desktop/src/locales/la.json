@@ -1920,6 +1920,14 @@
     "exportMidiTooltip": "Exportare in fasciculum MIDI (.mid)",
     "downloadMidi": "Depromere MIDI (.mid)",
     "transcriptionDefault": "Transcriptio",
+    "transcribingNotes": "Analysis spectralis et transcriptio notarum...",
+    "followMode": "Sequi",
+    "followModeTooltip": "Sequere indicem (trahe vel volve ad libere spectandum)",
+    "noNotesDetected": "In hoc cantu nullae notae repertae sunt.",
+    "midiSaved": "MIDI servatum: {0}",
+    "noteStart": "initium",
+    "noteLength": "longitudo",
+    "noteVelocity": "vis",
     "noChordsDetected": "Nulli accordus in hoc cantu inventi sunt.",
     "exportChordsTitle": "Exportatio accordorum ({0})"
   }

@@ -3,7 +3,7 @@ export * from './TapeDeckWidget';
 export * from './VuMeterWidget';
 export * from './SpectrumVisualizer';
 export * from './WaveformCanvas';
-export * from './PianoRollCanvas';
+export * from './piano-roll/PianoRollView';
 export * from './ChordTimelineView';
 export * from './DesktopLyricsOverlay';
 export * from './LyricsView';

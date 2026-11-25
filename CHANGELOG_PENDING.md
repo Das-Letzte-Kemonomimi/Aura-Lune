@@ -25,6 +25,9 @@
 
 - **Zapamiętywanie głośności**: ostatnia głośność jest zapisywana przy zamykaniu aplikacji i przywracana przy starcie, niezależnie od opcji przywracania sesji.
 
+#### Analiza muzyczna (Piano-Roll i MIDI)
+- **Piano-Roll od nowa**: ostry obraz przy każdym skalowaniu (bufor w rozdzielczości urządzenia zamiast stałego 900×686), płynny ruch głowicy z częstotliwością odświeżania ekranu, rysowanie tylko widocznych nut i pętla, która śpi podczas pauzy. Tryb „Podążaj” (głowica przy 30% szerokości) oraz tryb swobodny: przeciąganie i kółko myszy przesuwają widok, Ctrl+kółko przybliża oś czasu, Shift+kółko przewija w pionie. Dodano linijkę czasu, siatkę uderzeń i taktów z tempa, podświetlanie klawiszy brzmiących nut, podpowiedź nuty (wysokość, start, długość, głośność) i minimapę gęstości nut z widocznym oknem (klik = przewinięcie).
+
 #### Interfejs
 - **Historia wydań z paginacją**: dane wydań w pliku [`changelog.json`](./apps/desktop/src/data/changelog.json), wybór 3/5/10 wydań na stronę, skróty do pierwszej/ostatniej strony i wielokropek przy wielu stronach.
 - **Przycisk podsumowania Recap** w nagłówku panelu statystyk.
@@ -62,6 +65,12 @@
 - **Pamięć podręczna akordów sprawdza wersję analizatora**: wpis ze starszej wersji jest traktowany jak brak i przeliczany automatycznie; zapis zostawia jeden wiersz na utwór, a ręczne poprawki trafiają do najnowszego wiersza i odświeżają jakość akordu.
 - **Siatka uderzeń**: okres uderzenia liczony w `f64` (bez dryfu przez zaokrąglanie), faza z histogramu onsetów, wykrywanie pierwszego uderzenia taktu i lokalna korekta fazy każdego taktu; tempo z tagu pliku ma pierwszeństwo.
 - **Dekodowanie do analizy akordów**: cały utwór (do 15 min) zamiast 360 s, limit czasu rośnie z długością (`max(6 s, czas/10)`), a przekroczenie limitu jest błędem — niepełny wynik nie trafia już do pamięci podręcznej.
+
+#### Piano-Roll i transkrypcja
+- **Kliknięcie w Piano-Rollu przewija we właściwe miejsce**: przeliczanie używa pikseli CSS, a nie rozmiaru bufora canvasu.
+- **Wszystkie wykryte nuty są widoczne**: zakres wysokości wynika z danych (wcześniej obcięty do C2–C6, mimo że detekcja obejmuje E1–C7).
+- **Znaczniki czasu nut nie dryfują**: krok ramki (46,44 ms) był obcinany do 46 ms, przez co nuty wypadały wcześniej o ok. 1% (~3 s po 5 minutach). Czasy liczone są w `f64`; pamięć podręczna transkrypcji jest wersjonowana (`1.2.0-salience-f64`), więc stare wyniki zostaną przeliczone, a zapis zostawia jeden wiersz na utwór.
+- **Eksport MIDI** zapisuje plik przez systemowe okno zapisu i backend (walidacja ścieżki i rozszerzenia `.mid`); błędy i potwierdzenie trafiają do powiadomień zamiast `alert()`. Komunikat ładowania Piano-Rolla jest tłumaczony (był zapisany na sztywno po polsku), a `ctx.roundRect` ma zapasową ścieżkę dla starszego WebKitGTK.
 
 #### Odtwarzanie i kolejka
 - **Otwarcie projektu stemów nie psuje kolejki**: wpis kolejki był podmieniany (inne `id`), a kursor tasowania nie podążał za utworem, więc następny utwór pomijał bieżący i wypadał losowo. `PlaybackQueue::set_active_item` zachowuje wpis i synchronizuje kursor tasowania.
@@ -158,6 +167,7 @@
 ### 🔄 Zmieniono (Changed)
 
 #### Wydajność
+- **Studio analizy muzyki nie renderuje się przy każdym ticku odtwarzania**: modal nie czyta już pozycji na żywo, a lista zakładek jest zapamiętana; pozycję czytają tylko karty, które jej potrzebują (oś akordów i Piano-Roll).
 - **Odtwarzanie, przewijanie, przełączanie utworów, zmiany DSP i polecenia `pactl` nie blokują już głównego wątku okna** (wcześniej mikro-wyciszenia i dekodowanie zamrażały interfejs na 30–150 ms).
 - **Wykrywanie ciszy działa strumieniowo** (stała pamięć zamiast do ~635 MB dla 2-godzinnego pliku) i jest anulowane przy zmianie utworu lub progu.
 - **Skanowanie biblioteki**: jedno zapytanie o wszystkie znane pliki zamiast osobnego dla każdego pliku; lista projektów stemów jednym zapytaniem.
