@@ -3,11 +3,12 @@ import type { Translations } from '../../../i18n';
 import { ShieldCheck, AlertTriangle } from '../../ui/icons';
 import { type ParametricEqPresetDto, type ParametricEqStateDto } from '../../../utils/parametricEqMath';
 import { fmt } from '../../../utils/fmt';
+import { presetDescription, presetLabel } from '../../../utils/dspPresetLabels';
 import { Badge, Button, RangeSlider, Select } from '../../ui';
 
 export type PeqPresetBarProps = {
-  selectedPresetName: string;
-  handleSelectPreset: (presetName: string) => void;
+  selectedPresetId: string;
+  handleSelectPreset: (presetId: string) => void;
   loc: Translations;
   presets: ParametricEqPresetDto[];
   state: ParametricEqStateDto;
@@ -25,7 +26,7 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
   maxEffectiveBoost,
   presets,
   safePreampDb,
-  selectedPresetName,
+  selectedPresetId,
   state,
 }) => {
   const preamp = state.preamp_db;
@@ -33,11 +34,11 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-black/25 px-6 py-3">
       <label className="flex items-center gap-2 text-ui font-semibold text-fg-secondary">
         Preset:
-        <Select size="sm" value={selectedPresetName} onChange={(e) => handleSelectPreset(e.target.value)} className="w-auto">
+        <Select size="sm" value={selectedPresetId} onChange={(e) => handleSelectPreset(e.target.value)} className="w-auto">
           <option value="">{loc.parametricEq.customProfile}</option>
           {presets.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
+            <option key={p.id} value={p.id} title={presetDescription(loc, 'peq', p.id, p.description)}>
+              {presetLabel(loc, 'peq', p.id, p.name)}
             </option>
           ))}
         </Select>

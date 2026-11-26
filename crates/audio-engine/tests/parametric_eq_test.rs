@@ -59,7 +59,7 @@ fn test_audio_engine_parametric_eq_lifecycle() {
     // 6. Harman factory preset
     let harman = ParametricEqPreset::default_presets()
         .into_iter()
-        .find(|p| p.name.contains("Harman"))
+        .find(|p| p.id == "harman")
         .expect("Harman preset");
 
     engine

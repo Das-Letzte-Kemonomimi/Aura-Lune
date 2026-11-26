@@ -41,7 +41,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
   });
 
   const [presets, setPresets] = useState<ParametricEqPresetDto[]>([]);
-  const [selectedPresetName, setSelectedPresetName] = useState<string>('');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [selectedBandId, setSelectedBandId] = useState<string | null>(null);
 
   // Import/export modal
@@ -180,12 +180,12 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
       bands: state.bands.map((b) => ({ ...b, gain_db: 0.0 })),
     };
     applyStateToBackend(updated, true);
-    setSelectedPresetName('');
+    setSelectedPresetId('');
   };
 
   // Apply a preset
-  const handleSelectPreset = (presetName: string) => {
-    const found = presets.find((p) => p.name === presetName);
+  const handleSelectPreset = (presetId: string) => {
+    const found = presets.find((p) => p.id === presetId);
     if (found) {
       const updated: ParametricEqStateDto = {
         enabled: true,
@@ -196,7 +196,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
         })),
       };
       applyStateToBackend(updated, true);
-      setSelectedPresetName(presetName);
+      setSelectedPresetId(presetId);
       if (updated.bands.length > 0) {
         setSelectedBandId(updated.bands[0].id);
       }
@@ -379,7 +379,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* PRESET AND PREAMP CONTROL BAR */}
-          <PeqPresetBar {...props} selectedPresetName={selectedPresetName} handleSelectPreset={handleSelectPreset} loc={loc} presets={presets} state={state} handlePreampChange={handlePreampChange} maxEffectiveBoost={maxEffectiveBoost} handleApplySafePreamp={handleApplySafePreamp} safePreampDb={safePreampDb} />
+          <PeqPresetBar {...props} selectedPresetId={selectedPresetId} handleSelectPreset={handleSelectPreset} loc={loc} presets={presets} state={state} handlePreampChange={handlePreampChange} maxEffectiveBoost={maxEffectiveBoost} handleApplySafePreamp={handleApplySafePreamp} safePreampDb={safePreampDb} />
 
           {/* FREQUENCY CHART (INTERACTIVE SVG CANVAS) */}
           <PeqResponseChart {...props} state={state} loc={loc} svgRef={svgRef} draggingBandId={draggingBandId} handlePointerMove={handlePointerMove} handlePointerUp={handlePointerUp} svgAreaD={svgAreaD} svgPathD={svgPathD} selectedBandId={selectedBandId} handlePointerDown={handlePointerDown} />

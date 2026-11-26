@@ -17,6 +17,7 @@ import {
   type Tone,
 } from '../ui';
 import { textTones } from '../ui/tones';
+import { presetDescription, presetLabel } from '../../utils/dspPresetLabels';
 
 export type SaturatorMode = 'Off' | 'TubeWarmth' | 'TapeSaturation' | 'Overdrive';
 
@@ -339,8 +340,14 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           {loc.dynamicsStudio.presets}
         </span>
         {presets.map((p) => (
-          <Chip key={p.id} pressed={activePresetId === p.id} onClick={() => handleSelectPreset(p)} className="shrink-0 rounded-full">
-            {p.name}
+          <Chip
+            key={p.id}
+            pressed={activePresetId === p.id}
+            onClick={() => handleSelectPreset(p)}
+            title={presetDescription(loc, 'dynamics', p.id, p.description)}
+            className="shrink-0 rounded-full"
+          >
+            {presetLabel(loc, 'dynamics', p.id, p.name)}
           </Chip>
         ))}
       </div>

@@ -5,38 +5,13 @@ import type { PlaybackStatus, DspPresetRecord } from '../types/playback';
 import type { EqualizerPreset } from '../types/equalizer';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { CUSTOM_EQ_PRESET_ID, FLAT_EQ_PRESET_ID, presetLabel } from '../utils/dspPresetLabels';
 
 export interface UseDspManagerOptions {
   status: PlaybackStatus;
   setStatus: React.Dispatch<React.SetStateAction<PlaybackStatus>>;
   showMessage: (msg: string, isError?: boolean) => void;
   loc: Translations;
-}
-
-export function getEqPresetDisplayName(name: string, locOrIsPl?: Translations | boolean): string {
-  if (locOrIsPl && typeof locOrIsPl === 'object' && 'dsp' in locOrIsPl) {
-    const l = locOrIsPl as Translations;
-    switch (name) {
-      case 'Flat':
-      case 'Płaski (Flat)':
-        return l.dsp.presetFlat;
-      case 'Bass Boost':
-      case 'Mocny Bass (Bass Boost)':
-        return l.dsp.presetBassBoost;
-      case 'Electronic / Dance':
-      case 'Elektroniczna / Dance':
-        return l.dsp.presetElectronic;
-      case 'Classical / Acoustic':
-      case 'Klasyczna / Akustyczna':
-        return l.dsp.presetAcoustic;
-      case 'Custom':
-      case 'Własny (Custom)':
-        return l.dsp.presetCustom;
-      default:
-        return name;
-    }
-  }
-  return name;
 }
 
 /** Saves the DSP parameters restored at app start-up (the `dsp_saved_settings` setting). */
@@ -55,7 +30,7 @@ export function useDspManager({
 }: UseDspManagerOptions) {
   // 1. Equalizer State & Menu
   const [eqPresets, setEqPresets] = useState<EqualizerPreset[]>([]);
-  const [selectedEqPreset, setSelectedEqPreset] = useState<string>('Płaski (Flat)');
+  const [selectedEqPreset, setSelectedEqPreset] = useState<string>(FLAT_EQ_PRESET_ID);
   const [isEqPresetMenuOpen, setIsEqPresetMenuOpen] = useState<boolean>(false);
 
   // 2. DSP Engine Settings & Preferences
@@ -503,12 +478,12 @@ export function useDspManager({
           newBands[bandIndex] = gainDb;
           return { ...prev, equalizer_bands: newBands, equalizer_enabled: true };
         });
-        setSelectedEqPreset(loc.notifications.eqCustom);
+        setSelectedEqPreset(CUSTOM_EQ_PRESET_ID);
       } catch (e: unknown) {
         console.error('Failed to change the EQ band:', e);
       }
     },
-    [setStatus, loc]
+    [setStatus]
   );
 
   const handleEqToggle = useCallback(async () => {
@@ -523,35 +498,21 @@ export function useDspManager({
   }, [status.equalizer_enabled, setStatus, showMessage, loc]);
 
   const handleApplyEqPreset = useCallback(
-    async (presetName: string) => {
-      let targetBands: number[] | null = null;
-      let targetName = presetName;
-
-      const preset = eqPresets.find(
-        (p) =>
-          p.name === presetName ||
-          getEqPresetDisplayName(p.name, true) === presetName ||
-          getEqPresetDisplayName(p.name, false) === presetName
-      );
-
-      if (preset) {
-        targetBands = preset.bands;
-        targetName = preset.name;
-      } else if (presetName === 'Flat' || presetName === 'Płaski (Flat)') {
-        targetBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        targetName = loc.notifications.eqFlat;
-      }
-
+    async (presetId: string) => {
+      const preset = eqPresets.find((p) => p.id === presetId);
+      // The presets may not be loaded yet; Flat is always available.
+      const targetBands =
+        preset?.bands ?? (presetId === FLAT_EQ_PRESET_ID ? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] : null);
       if (!targetBands) return;
 
-      setSelectedEqPreset(targetName);
+      setSelectedEqPreset(presetId);
       setIsEqPresetMenuOpen(false);
 
       try {
         await invoke('set_equalizer_params', { enabled: true, bands: targetBands });
         await invoke('set_equalizer_bands', { bands: targetBands }).catch(() => {});
         setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands], equalizer_enabled: true }));
-        showMessage(fmt(loc.notifications.eqAppliedPreset, getEqPresetDisplayName(targetName, loc)));
+        showMessage(fmt(loc.notifications.eqAppliedPreset, presetLabel(loc, 'eq', presetId, preset?.name ?? presetId)));
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
@@ -565,7 +526,7 @@ export function useDspManager({
       await invoke('set_equalizer_params', { enabled: true, bands: flatBands });
       await invoke('set_equalizer_bands', { bands: flatBands }).catch(() => {});
       await invoke('set_equalizer_preamp', { preampDb: 0.0 }).catch(() => {});
-      setSelectedEqPreset(loc.notifications.eqFlat);
+      setSelectedEqPreset(FLAT_EQ_PRESET_ID);
       setIsEqPresetMenuOpen(false);
       setStatus((prev) => ({ ...prev, equalizer_bands: flatBands, equalizer_enabled: true }));
       showMessage(loc.notifications.dspPresetFlat);
@@ -658,7 +619,6 @@ export function useDspManager({
     handleApplyEqPreset,
     handleResetEq,
     handleUpdateReverb,
-    getEqPresetDisplayName,
     lastActiveDspEngineRef,
   };
 }

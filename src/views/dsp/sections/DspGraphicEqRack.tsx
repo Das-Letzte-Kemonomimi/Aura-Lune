@@ -16,11 +16,11 @@ import {
   StatusDot,
 } from '../../../components/ui';
 import { cn } from '../../../utils/cn';
+import { presetLabel } from '../../../utils/dspPresetLabels';
 
 export type DspGraphicEqRackProps = Pick<
   DspStudioViewProps,
   | 'loc'
-  | 'getEqPresetDisplayName'
   | 'selectedEqPreset'
   | 'eqPresets'
   | 'handleApplyEqPreset'
@@ -41,7 +41,6 @@ const formatGain = (gain: number) => `${gain > 0 ? '+' : ''}${gain.toFixed(1)} d
 export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
   eqAutoStartup,
   eqPresets,
-  getEqPresetDisplayName,
   handleApplyEqPreset,
   handleEqBandChange,
   handleEqToggle,
@@ -56,12 +55,14 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
 }) => {
   const [isPresetMenuOpen, setIsPresetMenuOpen] = useState(false);
   const closePresetMenu = () => setIsPresetMenuOpen(false);
-  // Presets are matched by display name too, so legacy stored names still select the right row.
-  const isSelected = (name: string) =>
-    selectedEqPreset === name ||
-    getEqPresetDisplayName(selectedEqPreset, true) === getEqPresetDisplayName(name, true);
-  // Sliders moved by hand leave a name that is not in the list: show it as a "custom" row.
-  const isCustom = Boolean(selectedEqPreset) && !eqPresets.some((p) => isSelected(p.name));
+  // Sliders moved by hand leave the "custom" sentinel id, which is not in the list: show it as its own row.
+  const isCustom = Boolean(selectedEqPreset) && !eqPresets.some((p) => p.id === selectedEqPreset);
+  const selectedLabel = presetLabel(
+    loc,
+    'eq',
+    selectedEqPreset,
+    eqPresets.find((p) => p.id === selectedEqPreset)?.name ?? selectedEqPreset,
+  );
   const dynamicsOn = status.compressor_enabled || status.saturator_enabled;
 
   return (
@@ -89,7 +90,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
               onClick={() => setIsPresetMenuOpen((open) => !open)}
             >
               <Sliders size={13} className="text-accent-pink" />
-              {getEqPresetDisplayName(selectedEqPreset, loc)}
+              {selectedLabel}
               <ChevronDown
                 size={12}
                 className={cn('text-fg-muted transition-transform duration-200', isPresetMenuOpen && 'rotate-180')}
@@ -100,16 +101,16 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <div aria-hidden="true" className="label-caps px-3 py-1">{loc.dsp.eqPresets}</div>
           {isCustom && (
             <MenuItem selected onClick={closePresetMenu}>
-              {getEqPresetDisplayName(selectedEqPreset, loc)}
+              {selectedLabel}
             </MenuItem>
           )}
           {eqPresets.map((preset) => (
             <MenuItem
-              key={preset.name}
-              selected={isSelected(preset.name)}
-              onClick={() => handleApplyEqPreset(preset.name)}
+              key={preset.id}
+              selected={preset.id === selectedEqPreset}
+              onClick={() => handleApplyEqPreset(preset.id)}
             >
-              {getEqPresetDisplayName(preset.name, loc)}
+              {presetLabel(loc, 'eq', preset.id, preset.name)}
             </MenuItem>
           ))}
         </Popover>

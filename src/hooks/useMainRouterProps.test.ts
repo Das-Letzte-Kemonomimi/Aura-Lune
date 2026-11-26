@@ -247,7 +247,6 @@ describe('useMainRouterProps', () => {
       handleApplySignatureProfile: vi.fn(),
       handleToggleEqAutoStartup: vi.fn(),
       handleApplyEqPreset: vi.fn(),
-      getEqPresetDisplayName: vi.fn(),
       handleResetEq: vi.fn(),
       handleEqToggle: vi.fn(),
       handleEqBandChange: vi.fn(),

@@ -1,4 +1,7 @@
 export interface EqualizerPreset {
+  /** Stable kebab-case key: select and localise by this, never by `name`. */
+  id: string;
+  /** English fallback text from the backend. */
   name: string;
   bands: number[];
 }

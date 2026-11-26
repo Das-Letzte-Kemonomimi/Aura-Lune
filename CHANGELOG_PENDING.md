@@ -118,6 +118,7 @@
 - **Analiza nie zawiesza się na uszkodzonych plikach**: dekodowanie do analizy (tonacja/BPM, akordy, transkrypcja, cisza, stemy, falogram) kończy się błędem, gdy dekoder zgłosi problem (uszkodzony plik, brak kodeka), zamiast blokować wątek na zawsze.
 - **Falogram obejmuje cały utwór**: wcześniej dekodowanie było przerywane po 12 s lub 20 mln próbek (~30 min), więc długie miksy miały ucięty przebieg.
 - **Separacja stemów (HPSS) zużywa wielokrotnie mniej pamięci**: zamiast 16 pełnych macierzy spektrogramu (ok. 1,7 GB dla 5-minutowego utworu) widmo jest liczone w buforze 15 ramek; wynik jest identyczny bit w bit.
+- **Nazwy i opisy wbudowanych presetów DSP są tłumaczone na każdy język interfejsu** (korektor graficzny, parametryczny i Dynamics Studio): backend zwraca teraz angielskie nazwy oraz stabilne identyfikatory (`id`), a interfejs wybiera i rozpoznaje presety po `id` zamiast po nazwie. Wcześniej niektóre nazwy były zawsze po polsku, a dla pozostałych języków brakowało tłumaczeń; opisy presetów są widoczne jako podpowiedzi.
 - **Analiza akordów i transkrypcja z pamięci podręcznej** zwracają zapisane tempo, tonację i kod Camelot zamiast stałych `120 BPM` / „Detected”; eksport MIDI używa rzeczywistego tempa.
 
 #### Biblioteka i dane

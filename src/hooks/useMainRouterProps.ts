@@ -358,7 +358,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     handleApplySignatureProfile: p.handleApplySignatureProfile,
     handleToggleEqAutoStartup: p.handleToggleEqAutoStartup,
     handleApplyEqPreset: p.handleApplyEqPreset,
-    getEqPresetDisplayName: p.getEqPresetDisplayName,
     handleResetEq: p.handleResetEq,
     handleEqToggle: p.handleEqToggle,
     handleEqBandChange: p.handleEqBandChange,

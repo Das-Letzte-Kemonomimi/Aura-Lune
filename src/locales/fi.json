@@ -290,11 +290,64 @@
     "noBaseBpm": " (ei perus-BPM:ää)",
     "spatialReverbTitle": "Tila-kaiku (Freeverb DSP)",
     "spatialReverbDesc": "Studion huone- ja sali-akustiikan simulointi",
-    "presetFlat": "Tasainen (Flat)",
-    "presetBassBoost": "Basson tehostus",
-    "presetElectronic": "Elektroninen / Dance",
-    "presetAcoustic": "Klassinen / Akustinen",
-    "presetCustom": "Mukautettu",
+    "eqPreset": {
+      "flat": "Tasainen (Flat)",
+      "anime-ost": "Anime OST / Selkeä laulu",
+      "bass-boost": "Basson tehostus",
+      "electronic": "Elektroninen / Dance",
+      "rock": "Rock",
+      "pop": "Pop",
+      "acoustic": "Klassinen / Akustinen",
+      "custom": "Mukautettu"
+    },
+    "peqPreset": {
+      "flat": {
+        "name": "Tasainen (Flat)",
+        "description": "Neutraali, muuttamaton taajuusvaste."
+      },
+      "harman": {
+        "name": "Harman-tavoitekäyrä",
+        "description": "Napakka basso ja selkeä ylälaita Harman-tavoitekäyrän mukaan."
+      },
+      "vocal-clarity": {
+        "name": "Selkeä laulu",
+        "description": "Korostaa puheen ja laulun taajuusaluetta (1 kHz - 3,5 kHz) ja vaimentaa jyskyttävää bassoa."
+      },
+      "sub-bass-punch": {
+        "name": "Subbasson potku",
+        "description": "Nostaa alimpia rekistereitä (30-80 Hz) sumentamatta keskialuetta."
+      },
+      "de-esser": {
+        "name": "S-vaimennin (De-Esser)",
+        "description": "Leikkaa tarkasti terävät sihinäänet (s/sh/ch) noin 6-8 kHz:n alueelta."
+      }
+    },
+    "dynamicsPreset": {
+      "vintage-tube": {
+        "name": "Vintage-putkivahvistin",
+        "description": "Lämmin triodisaturaatio parillisille harmonisille ja lempeä 2:1-kompressio."
+      },
+      "analog-tape": {
+        "name": "Lämmin analoginen nauhuri",
+        "description": "Tiivis analoginen basso, pehmeämmät diskantit ja magneettinauhan tiukka dynamiikka."
+      },
+      "vocal-broadcast": {
+        "name": "Anime-lähetys ja radio",
+        "description": "Selkeä laulu, tiukka radiokompressio ja paras puheen ja laulun ymmärrettävyys."
+      },
+      "lofi-crunch": {
+        "name": "Lo-Fi-rahiseva vinyyli",
+        "description": "Voimakkaampi harmoninen saturaatio, vinyyli-estetiikka ja lo-fi hip-hop."
+      },
+      "ear-safe": {
+        "name": "Kuulokkeiden kuulonsuojaus",
+        "description": "Hienovarainen dynamiikan tasaus ja aktiivinen limitteri, joka suojaa korvia äkillisiltä voimakkuushypyiltä."
+      },
+      "bypass": {
+        "name": "Direct Bypass",
+        "description": "Kaikki dynamiikka- ja saturaatiomoduulit pois (bit-perfect)."
+      }
+    },
     "spectrumCycleTooltip": "Napsauta vaihtaaksesi visualisointityyliä (FFT-palkit • Retro Hi-Fi VFD • Anime Core • Vektorioskilloskooppi • Neonaalto • Pyöreä Halo • Stereopeili)",
     "dampingLabel": "Vaimennus",
     "stereoWidthLabel": "Stereoleveys",

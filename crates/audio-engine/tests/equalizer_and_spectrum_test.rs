@@ -28,7 +28,7 @@ fn test_audio_engine_equalizer_and_spectrum() {
 
     // Apply a preset
     let presets = EqualizerPreset::default_presets();
-    let bass_preset = presets.iter().find(|p| p.name.contains("Bass")).unwrap();
+    let bass_preset = presets.iter().find(|p| p.id == "bass-boost").unwrap();
     engine
         .set_equalizer_bands(&bass_preset.bands)
         .expect("set preset failed");
