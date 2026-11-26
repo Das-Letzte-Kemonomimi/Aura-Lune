@@ -78,7 +78,7 @@ export function PresetOptionCard({
               disabled={isDefault}
               title={resetTitle}
             >
-              <RotateCcw size={12} /> {resetLabel}
+              <RotateCcw size={14} /> {resetLabel}
             </Button>
           </>
         }

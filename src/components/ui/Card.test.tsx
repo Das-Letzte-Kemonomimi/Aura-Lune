@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { Card, SectionHeader, SettingRow } from './Card';
+import { Card, PageHeader, SectionHeader, SettingRow } from './Card';
 import { Callout } from './Callout';
 
 afterEach(cleanup);
@@ -53,6 +53,23 @@ describe('SectionHeader', () => {
     expect(screen.getByText('Where the sound goes')).toBeTruthy();
     expect(screen.getByTestId('icon')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reset' })).toBeTruthy();
+  });
+});
+
+describe('PageHeader', () => {
+  it('uses the medium tile and title by default', () => {
+    render(<PageHeader title="Library" icon={<svg data-testid="icon" />} />);
+    const tile = screen.getByTestId('icon').parentElement as HTMLElement;
+    expect(tile.className).toContain('size-9');
+    expect(screen.getByRole('heading', { level: 2, name: 'Library' }).className).toContain('text-lg');
+  });
+
+  it('grows the tile and title for size="lg"', () => {
+    render(<PageHeader size="lg" title="Themes" icon={<svg data-testid="icon" />} />);
+    const tile = screen.getByTestId('icon').parentElement as HTMLElement;
+    expect(tile.className).toContain('size-10');
+    expect(tile.className).not.toContain('size-9');
+    expect(screen.getByRole('heading', { level: 2, name: 'Themes' }).className).toContain('text-xl');
   });
 });
 

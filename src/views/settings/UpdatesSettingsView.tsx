@@ -110,7 +110,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
   return (
     <SettingsPage>
       <Card className="flex flex-col gap-3">
-        <SectionHeader icon={<RefreshCw size={18} />} tone="cyan" title={t.title} />
+        <SectionHeader icon={<RefreshCw size={20} />} tone="cyan" title={t.title} />
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-3">
           <div>
             <div className="label-caps">{t.currentVersion}</div>
@@ -131,7 +131,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={onCheckNow} disabled={checking || installing}>
-            <RefreshCw size={14} className={cn(checking && 'motion-safe:animate-spin')} />
+            <RefreshCw size={16} className={cn(checking && 'motion-safe:animate-spin')} />
             {checking ? t.checking : t.checkNow}
           </Button>
           <span className="text-ui text-fg-muted">
@@ -147,7 +147,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
       </Card>
 
       {info && !available && !installed && (
-        <Callout tone="green" icon={<CheckCircle size={16} />} className="font-semibold text-accent-green">
+        <Callout tone="green" icon={<CheckCircle size={18} />} className="font-semibold text-accent-green">
           {t.upToDate}
         </Callout>
       )}
@@ -188,18 +188,18 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
           <div className="flex flex-wrap gap-2.5">
             {installed ? (
               <Button variant="primary" onClick={onRestart}>
-                <RotateCw size={14} /> {t.restartNow}
+                <RotateCw size={16} /> {t.restartNow}
               </Button>
             ) : (
               info?.can_install && (
                 <Button variant="primary" onClick={onInstall} disabled={installing}>
-                  <Download size={14} /> {installing ? t.installing : t.install}
+                  <Download size={16} /> {installing ? t.installing : t.install}
                 </Button>
               )
             )}
             {info?.release_url && (
               <Button onClick={() => info.release_url && openLink(info.release_url)}>
-                <ExternalLink size={14} /> {t.openRelease}
+                <ExternalLink size={16} /> {t.openRelease}
               </Button>
             )}
             {!installed && !isSkipped && (
@@ -213,7 +213,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
       )}
 
       {(error || linkError) && (
-        <Callout role="alert" tone="danger" icon={<AlertTriangle size={16} />} className="text-ui text-accent-red">
+        <Callout role="alert" tone="danger" icon={<AlertTriangle size={18} />} className="text-ui text-accent-red">
           {t.errorPrefix}: {error ?? linkError}
         </Callout>
       )}

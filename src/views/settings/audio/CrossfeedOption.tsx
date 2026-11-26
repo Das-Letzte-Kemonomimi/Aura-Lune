@@ -26,7 +26,7 @@ export const CrossfeedOption: React.FC<CrossfeedOptionProps> = ({
 
   return (
     <ToggleCard
-      icon={<Headphones size={18} />}
+      icon={<Headphones size={20} />}
       tone="cyan"
       title={loc.settings.crossfeedTitle}
       description={loc.settings.crossfeedDesc}

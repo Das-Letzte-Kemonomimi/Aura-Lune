@@ -137,7 +137,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
   const formatLabels = { Opus: 'Ogg Opus', Flac: loc.settings.losslessFlac, Wav: loc.settings.wavPcm } as const;
 
   return (
-    <SettingsPage title={loc.settings.exportOpus} icon={<FileAudio size={18} />} tone="pink">
+    <SettingsPage title={loc.settings.exportOpus} icon={<FileAudio size={22} />} tone="pink">
       {/* Safety banner */}
       <Callout tone="green" icon={<ShieldCheck size={20} />}>
         <strong className="text-sm text-accent-green">{loc.settings.transcodeIntegrity}</strong>
@@ -152,7 +152,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
             </FieldLabel>
             {(currentPlayingTrack?.path || status.current_track?.uri) && (
               <Button variant="tinted" tone="pink" size="sm" onClick={onUseCurrentTrackAsSource}>
-                <Music size={12} />
+                <Music size={14} />
                 {loc.settings.useCurrentTrack}
               </Button>
             )}
@@ -226,7 +226,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
 
       {/* Add the rendered file to the queue automatically */}
       <ToggleCard
-        icon={<ListPlus size={18} />}
+        icon={<ListPlus size={20} />}
         tone="cyan"
         title={loc.settings.transcodeAutoEnqueue}
         checked={transcodeAutoEnqueue}
@@ -257,7 +257,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
           />
           <div className="flex justify-end">
             <Button variant="tinted" tone="cyan" size="sm" onClick={onMinimizeToBackground}>
-              <ArrowRight size={13} />
+              <ArrowRight size={14} />
               {loc.settings.transcodeRunInBackground}
             </Button>
           </div>

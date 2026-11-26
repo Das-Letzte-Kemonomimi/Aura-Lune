@@ -31,7 +31,7 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
       return (
         <Card key={card.name} padding="sm" className="flex flex-col gap-3">
           <SectionHeader
-            icon={card.is_bluetooth ? <Headphones size={18} /> : <Zap size={18} />}
+            icon={card.is_bluetooth ? <Headphones size={20} /> : <Zap size={20} />}
             tone={card.is_bluetooth ? 'cyan' : 'amber'}
             title={card.description}
             description={
@@ -47,11 +47,11 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
             <div>
               {card.active_profile === 'pro-audio' ? (
                 <Button variant="tinted" tone="pink" onClick={() => onDisableProAudio(card.name)}>
-                  <X size={14} /> Pro Audio OFF (Stereo)
+                  <X size={16} /> Pro Audio OFF (Stereo)
                 </Button>
               ) : (
                 <Button size="sm" onClick={() => onEnableProAudio(card.name)}>
-                  <Check size={13} /> Pro Audio ON (Bit-Perfect Direct ALSA)
+                  <Check size={14} /> Pro Audio ON (Bit-Perfect Direct ALSA)
                 </Button>
               )}
             </div>
@@ -73,7 +73,7 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
                       onClick={() => onSetCardProfile(card.name, p.name)}
                       title={p.description || p.name}
                     >
-                      {isCurrent && <Check size={12} />}
+                      {isCurrent && <Check size={14} />}
                       {p.description || p.name}
                     </Chip>
                   );

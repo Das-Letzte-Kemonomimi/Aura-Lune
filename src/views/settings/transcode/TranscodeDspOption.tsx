@@ -19,7 +19,7 @@ export const TranscodeDspOption: React.FC<TranscodeDspOptionProps> = ({
   const pitch = status.pitch_semitones ?? 0;
   return (
     <ToggleCard
-      icon={<Wand2 size={18} />}
+      icon={<Wand2 size={20} />}
       tone="pink"
       title={loc.settings.transcodeApplyDsp}
       description={loc.settings.transcodeApplyDspDesc}
