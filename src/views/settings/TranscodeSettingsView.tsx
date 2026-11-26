@@ -15,6 +15,7 @@ import { TranscodeResultPanel } from './transcode/TranscodeResultPanel';
 import { TranscodeRangeOption } from './transcode/TranscodeRangeOption';
 import { TranscodeDspOption } from './transcode/TranscodeDspOption';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
 
 export interface TranscodeSettingsViewProps {
   language: Language;
@@ -127,104 +128,63 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
   const isOrderInvalid = parsedB !== null && parsedB <= parsedA;
 
   return (
-    <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
-      <h2 style={{ fontSize: '1.2rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <FileAudio size={20} color="var(--accent-pink)" /> {loc.settings.exportOpus}
+    <div className="glass-panel mx-auto my-0 max-w-200 p-7">
+      <h2 className="mb-3.5 flex items-center gap-2 text-xl">
+        <FileAudio size={20} className="text-accent-pink" /> {loc.settings.exportOpus}
       </h2>
 
       {/* Baner bezpieczeństwa */}
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '14px 18px',
-          borderRadius: '12px',
-          background: 'rgba(16, 185, 129, 0.1)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          marginBottom: '24px',
-        }}
+        className="mb-6 flex items-center gap-3 rounded-xl border border-accent-green/30 bg-accent-green/10 px-4.5 py-3.5"
       >
-        <ShieldCheck size={24} color="var(--accent-green)" />
+        <ShieldCheck size={24} className="text-accent-green" />
         <div>
-          <strong style={{ color: 'var(--accent-green)', fontSize: '0.85rem' }}>{loc.settings.transcodeIntegrity}</strong>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <strong className="text-sm text-accent-green">{loc.settings.transcodeIntegrity}</strong>
+          <p className="text-ui text-fg-secondary">
             {loc.settings.transcodeIntegrityDesc}
           </p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex flex-col gap-4">
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="text-sm text-fg-secondary">
               {loc.settings.sourceFile}
             </label>
             {(currentPlayingTrack?.path || status.current_track?.uri) && (
               <button
                 type="button"
                 onClick={onUseCurrentTrackAsSource}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  background: 'rgba(236, 72, 153, 0.15)',
-                  border: '1px solid rgba(236, 72, 153, 0.35)',
-                  color: 'var(--accent-pink)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  transition: 'all 0.2s ease',
-                }}
+                className="flex items-center gap-1.5 rounded-md border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-xs font-semibold text-accent-pink transition-all duration-200"
               >
                 <Music size={12} />
                 {loc.settings.useCurrentTrack}
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="flex gap-2">
             <input
               type="text"
               value={filePath}
               onChange={(e) => onFilePathChange(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                background: 'rgba(0,0,0,0.3)',
-                color: '#fff',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.85rem',
-              }}
+              className="flex-1 rounded-xl border border-line bg-black/30 px-3.5 py-2.5 font-mono text-sm text-fg"
             />
             <button
               type="button"
               disabled={isPickingSource}
               onClick={onPickTranscodeSource}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(168, 85, 247, 0.25))',
-                border: '1px solid rgba(56, 189, 248, 0.4)',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: isPickingSource ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-                opacity: isPickingSource ? 0.7 : 1,
-              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl border border-sky-400/40 bg-linear-135 from-sky-400/25 to-accent-purple/25 px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg',
+                isPickingSource ? 'cursor-not-allowed' : 'cursor-pointer',
+                isPickingSource ? 'opacity-70' : 'opacity-100',
+              )}
               title={loc.settings.chooseSource}
             >
               {isPickingSource ? (
-                <Loader2 size={16} className="spin" color="var(--accent-cyan)" />
+                <Loader2 size={16} className="text-accent-cyan spin" />
               ) : (
-                <FolderOpen size={16} color="var(--accent-cyan)" />
+                <FolderOpen size={16} className="text-accent-cyan" />
               )}
               {loc.settings.chooseFile}
             </button>
@@ -232,50 +192,31 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
         </div>
 
         <div>
-          <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+          <label className="mb-1.5 block text-sm text-fg-secondary">
             {loc.settings.outputFile}
           </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="flex gap-2">
             <input
               type="text"
               value={transcodeOutput}
               onChange={(e) => onTranscodeOutputChange(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                background: 'rgba(0,0,0,0.3)',
-                color: '#fff',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.85rem',
-              }}
+              className="flex-1 rounded-xl border border-line bg-black/30 px-3.5 py-2.5 font-mono text-sm text-fg"
             />
             <button
               type="button"
               disabled={isPickingDestination}
               onClick={onPickTranscodeDestination}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: isPickingDestination ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-                opacity: isPickingDestination ? 0.7 : 1,
-              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl border border-line bg-white/8 px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg',
+                isPickingDestination ? 'cursor-not-allowed' : 'cursor-pointer',
+                isPickingDestination ? 'opacity-70' : 'opacity-100',
+              )}
               title={loc.settings.chooseDestination}
             >
               {isPickingDestination ? (
-                <Loader2 size={16} className="spin" color="var(--accent-pink)" />
+                <Loader2 size={16} className="text-accent-pink spin" />
               ) : (
-                <Save size={16} color="var(--accent-pink)" />
+                <Save size={16} className="text-accent-pink" />
               )}
               {loc.settings.chooseDestination}
             </button>
@@ -283,22 +224,18 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
         </div>
 
         <div>
-          <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+          <label className="mb-2 block text-sm text-fg-secondary">
             {loc.settings.targetFormat}
           </label>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex gap-2.5">
             {(['Opus', 'Flac', 'Wav'] as const).map((fmt) => (
               <button
                 key={fmt}
                 onClick={() => onTranscodeFormatChange(fmt)}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  background: transcodeFormat === fmt ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                }}
+                className={cn(
+                  'rounded-xl px-5 py-2.5 text-sm font-semibold text-fg',
+                  transcodeFormat === fmt ? 'bg-accent-purple' : 'bg-white/6',
+                )}
               >
                 {fmt === 'Opus' ? 'Ogg Opus' : fmt === 'Flac' ? loc.settings.losslessFlac : loc.settings.wavPcm}
               </button>
@@ -308,8 +245,8 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
 
         {transcodeFormat === 'Opus' && (
           <div>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-              {loc.settings.opusBitrate} <strong style={{ color: 'var(--accent-cyan)' }}>{transcodeBitrate} kbps</strong>
+            <label className="mb-1.5 block text-sm text-fg-secondary">
+              {loc.settings.opusBitrate} <strong className="text-accent-cyan">{transcodeBitrate} kbps</strong>
             </label>
             <input
               type="range"
@@ -318,7 +255,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
               step={32}
               value={transcodeBitrate}
               onChange={(e) => onTranscodeBitrateChange(Number(e.target.value))}
-              style={{ width: '100%' }}
+              className="w-full"
             />
           </div>
         )}
@@ -331,23 +268,16 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
 
         {/* Opcja automatycznego dodania do kolejki */}
         <label
-          style={{
-            marginTop: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            cursor: 'pointer',
-            userSelect: 'none',
-            fontSize: '0.84rem',
-            color: transcodeAutoEnqueue ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-            fontWeight: 600,
-          }}
+          className={cn(
+            'mt-2.5 flex cursor-pointer select-none items-center gap-2.5 text-ui font-semibold',
+            transcodeAutoEnqueue ? 'text-accent-cyan' : 'text-fg-secondary',
+          )}
         >
           <input
             type="checkbox"
             checked={transcodeAutoEnqueue}
             onChange={(e) => onTranscodeAutoEnqueueChange(e.target.checked)}
-            style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
+            className="h-4 w-4 accent-accent-cyan"
           />
           <span>{loc.settings.transcodeAutoEnqueue}</span>
         </label>
@@ -355,76 +285,49 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
         {/* Aktywny panel postępu renderowania w tle */}
         {isTranscoding && (
           <div
-            className="glass-card"
-            style={{
-              marginTop: '16px',
-              padding: '16px 20px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(236, 72, 153, 0.12) 100%)',
-              border: '1px solid var(--accent-pink)',
-              boxShadow: '0 4px 24px rgba(236, 72, 153, 0.22)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              animation: 'fadeIn 0.2s ease',
-            }}
+            className="glass-card mt-4 flex flex-col gap-3 rounded-xl border border-accent-pink bg-linear-135 from-accent-purple/15 to-pink-500/10 px-5 py-4 shadow-xl shadow-pink-500/20 motion-safe:animate-fade-in"
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Loader2 size={18} className="spin" color="var(--accent-pink)" />
-                <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#fff' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Loader2 size={18} className="text-accent-pink spin" />
+                <span className="text-md font-bold text-fg">
                   {loc.settings.transcodeRendering}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-ui text-fg-muted">
                   {Math.floor(transcodeElapsedSeconds / 60)}:{(transcodeElapsedSeconds % 60).toString().padStart(2, '0')}
                 </span>
-                <span style={{ fontSize: '0.94rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)' }}>
+                <span className="font-mono text-md font-extrabold text-accent-pink">
                   {transcodeProgress && transcodeProgress.percent > 0 ? `${Math.round(transcodeProgress.percent)}%` : '0%'}
                 </span>
               </div>
             </div>
 
             {/* Pasek postępu */}
-            <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+            <div className="h-1.5 w-full overflow-hidden rounded-sm bg-white/10">
               <div
+                className={cn(
+                  'h-full rounded-sm bg-linear-to-r from-accent-pink to-accent-purple shadow-halo-sm shadow-pink-500/50 transition-[width] duration-200',
+                  !transcodeProgress || transcodeProgress.percent === 0 && 'motion-safe:animate-pulse',
+                )}
                 style={{
                   width: transcodeProgress && transcodeProgress.percent > 0
                     ? `${Math.min(100, Math.max(3, transcodeProgress.percent))}%`
                     : '12%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, var(--accent-pink), var(--accent-purple))',
-                  borderRadius: '3px',
-                  transition: 'width 0.2s ease',
-                  boxShadow: '0 0 10px rgba(236, 72, 153, 0.5)',
-                  animation: !transcodeProgress || transcodeProgress.percent === 0 ? 'pulse 1.5s ease-in-out infinite' : 'none',
                 }}
               />
             </div>
 
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            <p className="m-0 text-ui leading-snug text-fg-secondary">
               {loc.settings.transcodeGstreamerBgDesc}
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+            <div className="mt-0.5 flex justify-end">
               <button
                 type="button"
                 onClick={onMinimizeToBackground}
-                className="glass-card"
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  fontSize: '0.76rem',
-                  fontWeight: 600,
-                  color: 'var(--accent-cyan)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
-                  background: 'rgba(6, 182, 212, 0.08)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="glass-card flex items-center gap-1.5 rounded-lg border border-accent-cyan/30 bg-accent-cyan/8 px-3 py-1.5 text-xs font-semibold text-accent-cyan"
               >
                 <ArrowRight size={13} />
                 {loc.settings.transcodeRunInBackground}
@@ -436,25 +339,13 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
         <button
           onClick={onTranscode}
           disabled={isTranscoding}
-          style={{
-            marginTop: '14px',
-            padding: '14px',
-            borderRadius: '12px',
-            background: isTranscoding
-              ? 'rgba(168, 85, 247, 0.35)'
-              : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            boxShadow: isTranscoding ? 'none' : 'var(--shadow-glow)',
-            cursor: isTranscoding ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            opacity: isTranscoding ? 0.75 : 1,
-            transition: 'all 0.2s ease',
-          }}
+          className={cn(
+            'mt-3.5 flex items-center justify-center gap-2 rounded-xl p-3.5 text-md font-bold text-fg transition-all duration-200',
+            isTranscoding ? 'bg-accent-purple/35' : 'bg-accent-gradient',
+            isTranscoding ? 'shadow-none' : 'shadow-accent-glow',
+            isTranscoding ? 'cursor-not-allowed' : 'cursor-pointer',
+            isTranscoding ? 'opacity-75' : 'opacity-100',
+          )}
         >
           {isTranscoding && <Loader2 size={18} className="spin" />}
           {isTranscoding

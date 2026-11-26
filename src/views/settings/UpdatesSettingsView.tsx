@@ -124,49 +124,40 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '750px', margin: '0 auto' }}>
+    <div className="mx-auto my-0 flex max-w-187.5 flex-col gap-4">
       <div className="glass-card" style={CARD}>
-        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>{t.title}</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+        <h3 className="m-0 text-lg font-extrabold">{t.title}</h3>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
           <div>
             <div style={LABEL}>{t.currentVersion}</div>
-            <div style={{ fontWeight: 700 }}>v{buildInfo?.version ?? '…'}</div>
+            <div className="font-bold">v{buildInfo?.version ?? '…'}</div>
           </div>
           <div>
             <div style={LABEL}>{t.channel}</div>
-            <div style={{ fontWeight: 700 }}>{channelLabel}</div>
+            <div className="font-bold">{channelLabel}</div>
           </div>
           <div>
             <div style={LABEL}>{t.commit}</div>
-            <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{buildInfo?.commit_short ?? '…'}</div>
+            <div className="font-mono font-bold">{buildInfo?.commit_short ?? '…'}</div>
           </div>
           <div>
             <div style={LABEL}>{t.installKind}</div>
-            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{kindLabel(loc, installKind)}</div>
+            <div className="text-ui font-semibold">{kindLabel(loc, installKind)}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-3">
           <button type="button" style={BUTTON} onClick={onCheckNow} disabled={checking || installing}>
             <RefreshCw size={14} style={checking ? { animation: 'spin 1s linear infinite' } : undefined} />
             {checking ? t.checking : t.checkNow}
           </button>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          <span className="text-ui text-fg-muted">
             {t.lastChecked}: {lastChecked}
           </span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            paddingTop: '12px',
-            borderTop: '1px solid var(--border-subtle)',
-          }}
-        >
+        <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
           <div>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.autoCheck}</div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>{t.autoCheckDesc}</div>
+            <div className="text-sm font-semibold">{t.autoCheck}</div>
+            <div className="mt-0.5 text-xs text-fg-muted">{t.autoCheckDesc}</div>
           </div>
           <ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />
         </div>
@@ -180,30 +171,17 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
 
       {(available || installed) && (
         <div className="glass-card" style={{ ...CARD, border: '1px solid var(--border-accent)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-2.5">
             <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '3px 10px',
-                borderRadius: '999px',
-                background: 'rgba(34, 197, 94, 0.2)',
-                border: '1px solid rgba(34, 197, 94, 0.45)',
-                color: '#4ade80',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-green-500/45 bg-green-500/20 px-2.5 py-1 text-xs font-extrabold tracking-wider text-green-400 uppercase"
             >
               <span
                 aria-hidden="true"
-                style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4ade80', animation: 'update-dot-pulse 1.6s ease-in-out infinite' }}
+                className="h-2 w-2 rounded-full bg-green-400 motion-safe:animate-update-dot"
               />
               {installed ? t.badgeInstalledTitle : t.available}
             </span>
-            <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{info?.latest_version}</span>
+            <span className="font-mono font-bold">{info?.latest_version}</span>
             {info?.release_notes && (
               <button
                 type="button"
@@ -217,36 +195,32 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
             )}
           </div>
           {notesExpanded && info?.release_notes && (
-            <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
+            <div className="max-h-65 overflow-y-auto">
               <MarkdownText source={info.release_notes} onOpenLink={openLink} />
             </div>
           )}
           {installing && (
             <div>
-              <div style={{ fontSize: '0.8rem', marginBottom: '4px' }}>{fmt(t.downloading, percent)}</div>
+              <div className="mb-1 text-ui">{fmt(t.downloading, percent)}</div>
               <div
                 role="progressbar"
                 aria-valuenow={percent}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                style={{ height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}
+                className="h-1.5 overflow-hidden rounded-sm bg-white/10"
               >
                 <div
-                  style={{
-                    width: `${percent}%`,
-                    height: '100%',
-                    background: 'linear-gradient(90deg, var(--accent-pink), var(--accent-purple))',
-                    transition: 'width 0.2s',
-                  }}
+                  className="h-full bg-linear-to-r from-accent-pink to-accent-purple transition-[width] duration-200"
+                  style={{ width: `${percent}%` }}
                 />
               </div>
             </div>
           )}
-          {installed && <div style={{ color: 'var(--accent-green)', fontWeight: 600 }}>{t.installedReady}</div>}
+          {installed && <div className="font-semibold text-accent-green">{t.installedReady}</div>}
           {!installed && installNotice && (
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{installNotice}</div>
+            <div className="text-ui leading-normal text-fg-secondary">{installNotice}</div>
           )}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap gap-2.5">
             {installed ? (
               <button type="button" style={PRIMARY_BUTTON} onClick={onRestart}>
                 <RotateCw size={14} /> {t.restartNow}
@@ -270,7 +244,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
             )}
           </div>
           {isSkipped && !installed && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.skipped}</div>
+            <div className="text-xs text-fg-muted">{t.skipped}</div>
           )}
         </div>
       )}
@@ -285,7 +259,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
         </div>
       )}
 
-      <h3 style={{ margin: '8px 0 0', fontSize: '1.1rem', fontWeight: 800 }}>{loc.settings.changelog}</h3>
+      <h3 className="mx-0 mt-2 mb-0 text-lg font-extrabold">{loc.settings.changelog}</h3>
       <ChangelogView currentLang={language} />
     </div>
   );

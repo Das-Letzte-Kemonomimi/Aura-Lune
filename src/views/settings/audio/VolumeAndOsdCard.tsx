@@ -2,6 +2,7 @@ import React from 'react';
 import { Volume2 } from 'lucide-react';
 import { type VolumeOsdPosition } from '../../../components/player/VolumeOsd';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import { cn } from '../../../utils/cn';
 
 export type VolumeAndOsdCardProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'instantVolume' | 'onToggleInstantVolume' | 'volumeUnit' | 'onSetVolumeUnit' | 'volumeOsdPosition' | 'onSetVolumeOsdPosition' | 'onToggleRecapOptIn' | 'recapOptIn'>;
 
@@ -16,19 +17,19 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   volumeOsdPosition,
   volumeUnit,
 }) => (
-    <div className="glass-card" style={{ padding: '20px', marginBottom: '14px', borderRadius: '12px' }}>
-      <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Volume2 size={18} color="var(--accent-cyan)" /> {loc.settings.volumeSectionTitle}
+    <div className="glass-card mb-3.5 rounded-xl p-5">
+      <h4 className="mx-0 mt-0 mb-4 flex items-center gap-2 text-base font-bold text-fg">
+        <Volume2 size={18} className="text-accent-cyan" /> {loc.settings.volumeSectionTitle}
       </h4>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.84rem' }}>
+      <div className="flex flex-col gap-3.5 text-ui">
         {/* Tryb głośności: Natychmiastowy vs Płynny */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <div style={{ fontWeight: 600, color: '#fff' }}>
+            <div className="font-semibold text-fg">
               {loc.settings.volumeSliderResponse}
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            <div className="text-xs text-fg-muted">
               {instantVolume
                 ? loc.settings.volumeSliderInstantDesc
                 : loc.settings.volumeSliderSmoothDesc}
@@ -36,61 +37,47 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
           </div>
           <button
             onClick={onToggleInstantVolume}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.76rem',
-              fontWeight: 700,
-              background: instantVolume ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-              border: `1px solid ${instantVolume ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
-              color: instantVolume ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
+              instantVolume ? 'bg-accent-cyan/25' : 'bg-white/6',
+              instantVolume ? 'border-accent-cyan' : 'border-line',
+              instantVolume ? 'text-accent-cyan' : 'text-fg-muted',
+            )}
           >
             {instantVolume ? loc.settings.volumeSliderInstant : loc.settings.volumeSliderSmooth}
           </button>
         </div>
 
         {/* Jednostka wyświetlania głośności: Procenty vs Decybele */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <div style={{ fontWeight: 600, color: '#fff' }}>
+            <div className="font-semibold text-fg">
               {loc.settings.volumeUnitTitle}
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            <div className="text-xs text-fg-muted">
               {volumeUnit === 'db' ? loc.settings.volumeUnitDb : loc.settings.volumeUnitPercent}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+          <div className="flex gap-1 rounded-lg border border-line bg-black/30 p-1">
             <button
               type="button"
               onClick={() => onSetVolumeUnit('percent')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                border: 'none',
-                background: volumeUnit === 'percent' ? 'var(--accent-pink)' : 'transparent',
-                color: volumeUnit === 'percent' ? '#fff' : 'var(--text-muted)',
-              }}
+              className={cn(
+                'rounded-md border-0 px-2.5 py-1 text-xs font-bold',
+                volumeUnit === 'percent' ? 'bg-accent-pink' : 'bg-transparent',
+                volumeUnit === 'percent' ? 'text-fg' : 'text-fg-muted',
+              )}
             >
               %
             </button>
             <button
               type="button"
               onClick={() => onSetVolumeUnit('db')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                border: 'none',
-                background: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'transparent',
-                color: volumeUnit === 'db' ? '#fff' : 'var(--text-muted)',
-              }}
+              className={cn(
+                'rounded-md border-0 px-2.5 py-1 text-xs font-bold',
+                volumeUnit === 'db' ? 'bg-accent-cyan' : 'bg-transparent',
+                volumeUnit === 'db' ? 'text-fg' : 'text-fg-muted',
+              )}
             >
               dB
             </button>
@@ -98,66 +85,48 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
         </div>
 
         {/* Pozycja OSD głośności */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <div style={{ fontWeight: 600, color: '#fff' }}>
+            <div className="font-semibold text-fg">
               {loc.settings.volumeOsdPosTitle}
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            <div className="text-xs text-fg-muted">
               {loc.settings.volumeOsdPosDesc}
             </div>
           </div>
           <select
             value={volumeOsdPosition}
             onChange={(e) => onSetVolumeOsdPosition(e.target.value as VolumeOsdPosition)}
-            style={{
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              background: 'rgba(20, 24, 44, 0.95)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              padding: '6px 30px 6px 12px',
-              color: '#fff',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 10px center',
-            }}
+            className="rounded-lg"
           >
-            <option value="bottom-center" style={{ background: '#121420' }}>{loc.settings.volumeOsdBottomCenter}</option>
-            <option value="center" style={{ background: '#121420' }}>{loc.settings.volumeOsdCenter}</option>
-            <option value="top-right" style={{ background: '#121420' }}>{loc.settings.volumeOsdTopRight}</option>
-            <option value="top-left" style={{ background: '#121420' }}>{loc.settings.volumeOsdTopLeft}</option>
-            <option value="bottom-right" style={{ background: '#121420' }}>{loc.settings.volumeOsdBottomRight}</option>
-            <option value="bottom-left" style={{ background: '#121420' }}>{loc.settings.volumeOsdBottomLeft}</option>
-            <option value="off" style={{ background: '#121420' }}>{loc.settings.volumeOsdOff}</option>
+            <option value="bottom-center">{loc.settings.volumeOsdBottomCenter}</option>
+            <option value="center">{loc.settings.volumeOsdCenter}</option>
+            <option value="top-right">{loc.settings.volumeOsdTopRight}</option>
+            <option value="top-left">{loc.settings.volumeOsdTopLeft}</option>
+            <option value="bottom-right">{loc.settings.volumeOsdBottomRight}</option>
+            <option value="bottom-left">{loc.settings.volumeOsdBottomLeft}</option>
+            <option value="off">{loc.settings.volumeOsdOff}</option>
           </select>
         </div>
 
         {/* Zgoda na Auralune Recap (Opt-In) */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <div style={{ fontWeight: 600, color: '#fff' }}>
+            <div className="font-semibold text-fg">
               {loc.settings.recapTitle}
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            <div className="text-xs text-fg-muted">
               {loc.settings.recapDesc}
             </div>
           </div>
           <button
             onClick={onToggleRecapOptIn}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.76rem',
-              fontWeight: 700,
-              background: recapOptIn ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-              border: `1px solid ${recapOptIn ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-              color: recapOptIn ? 'var(--accent-pink)' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
+              recapOptIn ? 'bg-accent-pink/25' : 'bg-white/6',
+              recapOptIn ? 'border-accent-pink' : 'border-line',
+              recapOptIn ? 'text-accent-pink' : 'text-fg-muted',
+            )}
           >
             {recapOptIn ? loc.settings.recapEnabled : loc.settings.recapDisabled}
           </button>

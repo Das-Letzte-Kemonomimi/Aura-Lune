@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layers, RotateCcw } from 'lucide-react';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import { cn } from '../../../utils/cn';
 
 export type OutputBufferOptionProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'audioBufferMs' | 'onSetAudioBuffer'>;
 
@@ -9,49 +10,37 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
   loc,
   onSetAudioBuffer,
 }) => (
-    <div
-      className="glass-card"
-      style={{
-        padding: '18px 20px',
-        marginBottom: '14px',
-        borderRadius: '12px',
-        border: '1px solid var(--border-subtle)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+    <div className="glass-card mb-3.5 rounded-xl border border-line px-5 py-4.5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Layers size={17} color="var(--accent-cyan)" />
+          <div className="mb-1 flex items-center gap-2 text-md font-bold text-fg">
+            <Layers size={17} className="text-accent-cyan" />
             {loc.settings.audioBufferTitle}
             {audioBufferMs === 600 && (
-              <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
+              <span className="rounded-xl bg-accent-green/20 px-2 py-0.5 text-xxs font-semibold text-accent-green">
                 {loc.settings.audioBufferDefault}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
+          <div className="max-w-130 text-ui leading-snug text-fg-secondary">
             {loc.settings.audioBufferDesc}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.05rem', fontWeight: 700, color: audioBufferMs === 600 ? 'var(--accent-green)' : 'var(--accent-pink)' }}>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'text-base font-bold',
+            audioBufferMs === 600 ? 'text-accent-green' : 'text-accent-pink',
+          )}>
             {audioBufferMs} ms
           </span>
           <button
             onClick={() => onSetAudioBuffer(600)}
             disabled={audioBufferMs === 600}
-            className="glass-card"
-            style={{
-              padding: '6px 10px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              opacity: audioBufferMs === 600 ? 0.4 : 1,
-              cursor: audioBufferMs === 600 ? 'default' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              color: 'var(--accent-green)',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-accent-green',
+              audioBufferMs === 600 ? 'opacity-40' : 'opacity-100',
+              audioBufferMs === 600 ? 'cursor-default' : 'cursor-pointer',
+            )}
             title={loc.settings.audioBufferReset}
           >
             <RotateCcw size={12} /> {loc.settings.audioBufferDefaultLabel}
@@ -60,7 +49,7 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
       </div>
 
       {/* Suwak + Presety */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '8px' }}>
+      <div className="mt-2 flex items-center gap-3.5">
         <input
           type="range"
           min={50}
@@ -68,32 +57,23 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
           step={25}
           value={audioBufferMs}
           onChange={(e) => onSetAudioBuffer(Number(e.target.value))}
-          style={{ flex: 1, accentColor: 'var(--accent-pink)', cursor: 'pointer' }}
+          className="flex-1 cursor-pointer accent-accent-pink"
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="flex items-center gap-1">
           <input
             type="number"
             min={50}
             max={4000}
             value={audioBufferMs}
             onChange={(e) => onSetAudioBuffer(Number(e.target.value))}
-            style={{
-              width: '70px',
-              padding: '6px 8px',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              textAlign: 'center',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
-            }}
+            className="w-17.5 rounded-md border border-line bg-white/5 px-2 py-1.5 text-center text-ui text-fg"
           />
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ms</span>
+          <span className="text-ui text-fg-muted">ms</span>
         </div>
       </div>
 
       {/* Szybkie presety bufora audio */}
-      <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
         {[
           { label: '80 ms (Ultra-low)', value: 80 },
           { label: loc.settings.audioBufferPreset250, value: 250 },
@@ -106,23 +86,13 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
             <button
               key={preset.value}
               onClick={() => onSetAudioBuffer(preset.value)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '0.72rem',
-                fontWeight: isActive ? 700 : 500,
-                background: isActive
-                  ? (preset.isDefault ? 'rgba(16, 185, 129, 0.25)' : 'rgba(236, 72, 153, 0.25)')
-                  : 'rgba(255, 255, 255, 0.04)',
-                border: isActive
-                  ? (preset.isDefault ? '1px solid var(--accent-green)' : '1px solid var(--accent-pink)')
-                  : '1px solid var(--border-subtle)',
-                color: isActive
-                  ? (preset.isDefault ? 'var(--accent-green)' : 'var(--accent-pink)')
-                  : 'var(--text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={cn(
+                'rounded-md border px-2.5 py-1 text-xs transition-all duration-150',
+                isActive ? 'font-bold' : 'font-medium',
+                isActive ? preset.isDefault ? 'bg-accent-green/25' : 'bg-pink-500/25' : 'bg-white/4',
+                isActive ? preset.isDefault ? 'border-accent-green' : 'border-accent-pink' : 'border-line',
+                isActive ? preset.isDefault ? 'text-accent-green' : 'text-accent-pink' : 'text-fg-secondary',
+              )}
             >
               {preset.label}
             </button>

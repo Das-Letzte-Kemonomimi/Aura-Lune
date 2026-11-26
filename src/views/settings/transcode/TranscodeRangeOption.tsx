@@ -3,6 +3,7 @@ import { Scissors, Repeat, Bookmark } from 'lucide-react';
 import { formatTimeMs } from '../../../utils/timeFormat';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type TranscodeRangeOptionProps = Pick<TranscodeSettingsViewProps, 'transcodeApplyRange' | 'onTranscodeApplyRangeChange' | 'loc' | 'loopPointA' | 'loopPointB' | 'currentTrackBookmarks' | 'onTranscodeRangeAChange' | 'onTranscodeRangeBChange' | 'transcodeRangeA' | 'status' | 'transcodeRangeB'> & {
   handleApplyLoopFromPlayer: () => void;
@@ -31,93 +32,49 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
   transcodeRangeB,
 }) => (
     <div
-      style={{
-        marginTop: '10px',
-        padding: '12px 14px',
-        borderRadius: '10px',
-        background: transcodeApplyRange
-          ? 'rgba(6, 182, 212, 0.12)'
-          : 'rgba(255, 255, 255, 0.03)',
-        border: transcodeApplyRange
-          ? '1px solid var(--accent-cyan)'
-          : '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        transition: 'all 0.2s ease',
-      }}
+      className={cn(
+        'mt-2.5 flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all duration-200',
+        transcodeApplyRange ? 'bg-accent-cyan/10' : 'bg-white/3',
+        transcodeApplyRange ? 'border-accent-cyan' : 'border-line',
+      )}
     >
       <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          fontWeight: 600,
-          fontSize: '0.88rem',
-          color: transcodeApplyRange ? 'var(--accent-cyan)' : 'var(--text-primary)',
-        }}
+        className={cn(
+          'flex cursor-pointer select-none items-center gap-2.5 text-sm font-semibold',
+          transcodeApplyRange ? 'text-accent-cyan' : 'text-fg',
+        )}
       >
         <input
           type="checkbox"
           checked={transcodeApplyRange}
           onChange={(e) => onTranscodeApplyRangeChange(e.target.checked)}
-          style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
+          className="h-4 w-4 accent-accent-cyan"
         />
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+        <span className="flex flex-wrap items-center gap-1.5">
           <Scissors size={15} color={transcodeApplyRange ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
           {loc.settings.transcodeApplyRange}
           {(loopPointA !== null || loopPointB !== null) && (
             <span
-              style={{
-                fontSize: '0.72rem',
-                padding: '1px 8px',
-                borderRadius: '10px',
-                background: 'rgba(6, 182, 212, 0.22)',
-                color: 'var(--accent-cyan)',
-                fontWeight: 700,
-                border: '1px solid rgba(6, 182, 212, 0.35)',
-              }}
+              className="rounded-xl border border-accent-cyan/35 bg-accent-cyan/20 px-2 py-px text-xs font-bold text-accent-cyan"
             >
               {loc.settings.transcodeLoopAB} {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
             </span>
           )}
         </span>
       </label>
-      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '26px' }}>
+      <p className="m-0 pl-6.5 text-ui text-fg-muted">
         {loc.settings.transcodeApplyRangeDesc}
       </p>
 
       {transcodeApplyRange && (
-        <div
-          style={{
-            paddingLeft: '26px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            marginTop: '4px',
-          }}
-        >
+        <div className="mt-1 flex flex-col gap-2.5 pl-6.5">
           {/* Przyciski synchronizacji z pętlą A-B z odtwarzacza oraz zapisanymi znacznikami */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-2">
             {(loopPointA !== null || loopPointB !== null) && (
               <button
                 type="button"
                 onClick={handleApplyLoopFromPlayer}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
-                  color: 'var(--accent-cyan)',
-                  fontSize: '0.76rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
+                className="flex items-center gap-1.5 rounded-md border border-accent-cyan/30 bg-accent-cyan/15 px-2.5 py-1 text-xs font-semibold text-accent-cyan"
               >
                 <Repeat size={12} />
                 {loc.settings.transcodeFromPlayer} ({loopPointA !== null ? `A: ${formatTimeMs(loopPointA)}` : 'A: 0ms'} → {loopPointB !== null ? `B: ${formatTimeMs(loopPointB)}` : 'B: —'})
@@ -128,19 +85,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
               <button
                 type="button"
                 onClick={handleApplyBookmarksRange}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  background: 'rgba(236, 72, 153, 0.15)',
-                  border: '1px solid rgba(236, 72, 153, 0.35)',
-                  color: 'var(--accent-pink)',
-                  fontSize: '0.76rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
+                className="flex items-center gap-1.5 rounded-md border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-xs font-semibold text-accent-pink"
               >
                 <Bookmark size={12} />
                 {fmt(loc.settings.transcodeApplySavedBookmarks, String(currentTrackBookmarks.length))}
@@ -149,17 +94,17 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
           </div>
 
           {currentTrackBookmarks.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Zapisane znaczniki utworu:</span>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/5 bg-white/2 px-2.5 py-1.5">
+              <span className="text-xs text-fg-muted">Zapisane znaczniki utworu:</span>
               {currentTrackBookmarks.map((bm) => (
-                <div key={bm.id} style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem' }}>
-                  <span style={{ color: '#fff', fontWeight: 600 }}>{bm.name}</span>
-                  <span style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>({formatTimeMs(bm.position_ms)})</span>
+                <div key={bm.id} className="flex items-center gap-1 rounded-sm bg-white/6 px-1.5 py-0.5 text-xxs">
+                  <span className="font-semibold text-fg">{bm.name}</span>
+                  <span className="font-mono text-accent-cyan">({formatTimeMs(bm.position_ms)})</span>
                   <button
                     type="button"
                     onClick={() => onTranscodeRangeAChange(formatTimeMs(bm.position_ms))}
                     title={`Ustaw "${bm.name}" jako Punkt A`}
-                    style={{ background: 'rgba(6,182,212,0.2)', border: 'none', color: 'var(--accent-cyan)', borderRadius: '3px', padding: '1px 4px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                    className="rounded-sm border-0 bg-accent-cyan/20 px-1 py-px text-xxs font-bold text-accent-cyan"
                   >
                     A
                   </button>
@@ -167,7 +112,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                     type="button"
                     onClick={() => onTranscodeRangeBChange(formatTimeMs(bm.position_ms))}
                     title={`Ustaw "${bm.name}" jako Punkt B`}
-                    style={{ background: 'rgba(236,72,153,0.2)', border: 'none', color: 'var(--accent-pink)', borderRadius: '3px', padding: '1px 4px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                    className="rounded-sm border-0 bg-pink-500/20 px-1 py-px text-xxs font-bold text-accent-pink"
                   >
                     B
                   </button>
@@ -176,48 +121,30 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5">
             {/* Punkt A */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <span className="text-ui font-semibold text-accent-cyan">
                   {loc.settings.transcodePointA}
                 </span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                <span className="font-mono text-xs text-fg-muted">
                   {formatTimeMs(parsedA)}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className="flex gap-1.5">
                 <input
                   type="text"
                   placeholder="np. 0:00.000, 0:22.449, 860ms"
                   value={transcodeRangeA}
                   onChange={(e) => onTranscodeRangeAChange(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.8rem',
-                  }}
+                  className="flex-1 rounded-md border border-line bg-black/30 px-2.5 py-1.5 font-mono text-ui text-fg"
                 />
                 <button
                   type="button"
                   onClick={() => onTranscodeRangeAChange(formatTimeMs(status.position_ms))}
                   title={loc.settings.transcodeSetCurrentPos}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="rounded-md border border-line bg-white/6 px-2 py-1.5 text-xs whitespace-nowrap text-fg-secondary"
                 >
                   {loc.settings.transcodeSetCurrentTime}
                 </button>
@@ -226,16 +153,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                     type="button"
                     onClick={() => onTranscodeRangeAChange(formatTimeMs(loopPointA))}
                     title={loc.settings.transcodeGetLoopA}
-                    style={{
-                      padding: '6px 8px',
-                      borderRadius: '6px',
-                      background: 'rgba(6, 182, 212, 0.2)',
-                      border: '1px solid var(--accent-cyan)',
-                      color: 'var(--accent-cyan)',
-                      fontSize: '0.72rem',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
+                    className="rounded-md border border-accent-cyan bg-accent-cyan/20 px-2 py-1.5 text-xs font-semibold text-accent-cyan"
                   >
                     A
                   </button>
@@ -244,48 +162,30 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
             </div>
 
             {/* Punkt B */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--accent-pink)', fontWeight: 600 }}>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <span className="text-ui font-semibold text-accent-pink">
                   {loc.settings.transcodePointB}
                 </span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                <span className="font-mono text-xs text-fg-muted">
                   {parsedB !== null
                     ? formatTimeMs(parsedB)
                     : loc.settings.transcodeEndOfTrack}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className="flex gap-1.5">
                 <input
                   type="text"
                   placeholder={loc.settings.transcodeTimePlaceholder}
                   value={transcodeRangeB}
                   onChange={(e) => onTranscodeRangeBChange(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.8rem',
-                  }}
+                  className="flex-1 rounded-md border border-line bg-black/30 px-2.5 py-1.5 font-mono text-ui text-fg"
                 />
                 <button
                   type="button"
                   onClick={() => onTranscodeRangeBChange(formatTimeMs(status.position_ms))}
                   title={loc.settings.transcodeSetCurrentPos}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="rounded-md border border-line bg-white/6 px-2 py-1.5 text-xs whitespace-nowrap text-fg-secondary"
                 >
                   {loc.settings.transcodeSetCurrentTime}
                 </button>
@@ -294,16 +194,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                     type="button"
                     onClick={() => onTranscodeRangeBChange(formatTimeMs(loopPointB))}
                     title={loc.settings.transcodeGetLoopB}
-                    style={{
-                      padding: '6px 8px',
-                      borderRadius: '6px',
-                      background: 'rgba(244, 63, 94, 0.2)',
-                      border: '1px solid var(--accent-pink)',
-                      color: 'var(--accent-pink)',
-                      fontSize: '0.72rem',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
+                    className="rounded-md border border-accent-pink bg-accent-pink/20 px-2 py-1.5 text-xs font-semibold text-accent-pink"
                   >
                     B
                   </button>
@@ -314,42 +205,15 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
 
           {/* Podsumowanie zakresu i walidacja */}
           {isOrderInvalid ? (
-            <div
-              style={{
-                color: 'var(--accent-pink)',
-                fontSize: '0.76rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontWeight: 600,
-              }}
-            >
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-accent-pink">
               <span>⚠️ {loc.settings.transcodeEndMustBeGreater}</span>
             </div>
           ) : parsedB !== null ? (
-            <div
-              style={{
-                color: 'var(--accent-cyan)',
-                fontSize: '0.76rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
+            <div className="flex items-center gap-1.5 font-mono text-xs text-accent-cyan">
               <span>✂️ {fmt(loc.settings.transcodeRangeDuration, `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`)}</span>
             </div>
           ) : (
-            <div
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '0.76rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
+            <div className="flex items-center gap-1.5 font-mono text-xs text-fg-muted">
               <span>✂️ {fmt(loc.settings.transcodeExportRangeText, formatTimeMs(parsedA))}</span>
             </div>
           )}
