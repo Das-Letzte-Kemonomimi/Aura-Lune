@@ -18,7 +18,6 @@ import { PlayerProgressSection } from './sections/PlayerProgressSection';
 import { PlayerQuickDspVibes } from './sections/PlayerQuickDspVibes';
 import { PlayerVisualColumn } from './sections/PlayerVisualColumn';
 import { PlayerToolbar } from './sections/PlayerToolbar';
-import { cn } from '../../utils/cn';
 import { Badge, Button, Card, Chip, StatusDot } from '../../components/ui';
 
 export interface PlayerViewProps {
@@ -152,7 +151,6 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
     setStatsModalTrack,
     showLyrics,
     setShowLyrics,
-    nowPlayingVisualMode,
     handleSeek,
     handleToggleFavorite,
     handleOpenContainingFolder,
@@ -176,13 +174,8 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                 {/* Top toolbar: audio engine and a discreet open-file button */}
                 <PlayerToolbar {...props} status={statusProp} />
 
-                {/* Main player deck: 2-column layout (cover/vinyl + controls & spectrogram) */}
-                <div
-                  className={cn(
-                    'grid items-center gap-6.5 transition-[grid-template-columns] duration-200',
-                    nowPlayingVisualMode === 'cover' ? 'grid-cols-[--spacing(60)_1fr]' : 'grid-cols-[--spacing(69)_1fr]',
-                  )}
-                >
+                {/* Main player deck: 2-column layout (fixed visual stage width + controls & spectrogram) */}
+                <div className="grid grid-cols-[--spacing(69)_minmax(0,1fr)] items-center gap-6.5">
                   {/* Left column: cover / vinyl / tape / VU meter */}
                   <PlayerVisualColumn {...props} status={status} />
 

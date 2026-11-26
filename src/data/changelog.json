@@ -178,6 +178,13 @@
         "de": "Pfad- und Cover-Sicherheit gehärtet, lokale Steuerdateien in einen privaten Laufzeitordner verschoben und automatische Wiederholungen für MusicBrainz/AcoustID ergänzt.",
         "fi": "Vahvistettu polku- ja kansikuvaturvaa, siirretty ohjaustiedostot yksityiseen kansioon ja lisätty uudelleenyritykset MusicBrainz/AcoustID-hauille.",
         "la": "Securitas viarum et imaginum firmata et repetitiones automaticae pro MusicBrainz/AcoustID additae."
+      },
+      {
+        "en": "Fixed the album cover action buttons overflowing onto the track controls and kept the Now Playing visual column width steady when switching between Cover, Vinyl, Tape, and VU modes.",
+        "pl": "Poprawiono układ przycisków pod okładką albumu, aby nie nachodziły na panel utworu, oraz ustabilizowano szerokość kolumny przy przełączaniu trybów Okładka, Winyl, Taśma i VU.",
+        "de": "Überlaufende Cover-Schaltflächen behoben und die Breite der visuellen Spalte beim Wechsel zwischen Cover, Vinyl, Kassette und VU-Meter stabilisiert.",
+        "fi": "Korjattiin kansikuvan painikkeiden valuminen kappaleen säätimien päälle ja pidettiin näkymäpalstan leveys vakaana vaihdettaessa Kansi-, Vinyyli-, Kasetti- ja VU-tilojen välillä.",
+        "la": "Emendatae sunt tesserae tegumenti ne super cantum extendantur et latitudo columnae stabilita inter modos Imago, Vinylium, Taenia et VU."
       }
     ]
   },
