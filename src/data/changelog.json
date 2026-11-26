@@ -162,6 +162,13 @@
         "de": "Der Lautstärkeregler folgt jetzt dem Gehör: die Lautstärke ändert sich gleichmäßig über den ganzen Regler statt nur ganz unten. In den Einstellungen wählst du eine kubische oder eine Dezibel-Kurve; der Wechsel behält die aktuelle Lautstärke.",
         "fi": "Äänenvoimakkuussäädin seuraa nyt korvaa: äänenvoimakkuus muuttuu tasaisesti koko säätimen matkalla eikä vain aivan alhaalla. Valitse asetuksista kuutiollinen tai desibelikäyrä; vaihto säilyttää nykyisen äänenvoimakkuuden.",
         "la": "Regula voluminis nunc aures sequitur: volumen aequaliter per totam regulam mutatur, non solum in imo. In optionibus curvam cubicam vel decibelium eligis; mutatio volumen praesens servat."
+      },
+      {
+        "en": "The Albums view is much smoother with large libraries, and the album buttons were redesigned: a simple Play button, add to queue and MusicBrainz, with cover matching kept on the cover.",
+        "pl": "Widok albumów działa dużo płynniej przy dużych bibliotekach, a przyciski albumów zostały przeprojektowane: prosty przycisk Odtwórz, dodawanie do kolejki i MusicBrainz, a dopasowanie okładki zostało na okładce.",
+        "de": "Die Albumansicht läuft mit großen Bibliotheken deutlich flüssiger, und die Album-Schaltflächen wurden neu gestaltet: schlichtes Abspielen, zur Warteschlange und MusicBrainz, das Cover-Matching bleibt auf dem Cover.",
+        "fi": "Albumit-näkymä toimii sujuvammin suurissa kirjastoissa, ja albumipainikkeet on uudistettu: yksinkertainen Toista-painike, jonoon lisäys ja MusicBrainz, ja kansikuvan haku pysyy kannessa.",
+        "la": "Conspectus albumorum in magnis bibliothecis multo levior est, et claves albumorum renovatae sunt: simplex clavis Lude, ad ordinem adde et MusicBrainz, et cover-accommodatio in tegmine manet."
       }
     ],
     "fixed": [
