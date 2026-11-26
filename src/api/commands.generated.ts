@@ -188,6 +188,7 @@ export const COMMAND_NAMES = [
   'toggle_shuffle',
   'toggle_stop_after_current',
   'transcode_file',
+  'trigger_background_cover_fetch',
   'update_mpris_metadata',
   'update_theme_background',
   'update_track_bookmark',

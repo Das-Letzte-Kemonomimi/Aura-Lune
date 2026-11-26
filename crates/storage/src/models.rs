@@ -125,6 +125,15 @@ pub struct AlbumRecord {
     pub release_mbid: Option<String>,
 }
 
+/// Album metadata together with track count and sample track titles for online cover
+/// disambiguation and background high-confidence matching.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlbumCoverLookupContext {
+    pub album: AlbumRecord,
+    pub track_count: usize,
+    pub sample_tracks: Vec<String>,
+}
+
 /// An artist record in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct ArtistRecord {

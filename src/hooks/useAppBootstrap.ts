@@ -16,6 +16,7 @@ export interface UseAppBootstrapOptions {
   setLanguage: (lang: Language) => void;
   setSeekFadeEnabled: (enabled: boolean) => void;
   setCloseToTray: (enabled: boolean) => void;
+  setAutoFetchCoversBg?: (enabled: boolean) => void;
   setCrossfadeDuration: (ms: number) => void;
   setBassBoost: (val: number) => void;
   setStereoWidenerActive: (active: boolean) => void;
@@ -83,6 +84,7 @@ export function useAppBootstrap({
   setLanguage,
   setSeekFadeEnabled,
   setCloseToTray,
+  setAutoFetchCoversBg,
   setCrossfadeDuration,
   setBassBoost,
   setStereoWidenerActive,
@@ -143,6 +145,12 @@ export function useAppBootstrap({
             if (!disposed) setCloseToTray(val !== 'false');
           })
           .catch((e) => console.warn('Failed to read close_to_tray:', e)),
+
+        getSetting('auto_fetch_covers_bg')
+          .then((val) => {
+            if (!disposed && setAutoFetchCoversBg) setAutoFetchCoversBg(val !== 'false');
+          })
+          .catch((e) => console.warn('Failed to read auto_fetch_covers_bg:', e)),
 
         getSetting('crossfade_duration')
           .then((val) => {

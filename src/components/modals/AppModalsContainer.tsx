@@ -438,7 +438,9 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               )
             );
             showMessage(fmt(loc.notifications.mbCoverMatched, coverPickerState.title));
-            await loadLibrary();
+            if (coverPickerState.albumId <= 0) {
+              await loadLibrary();
+            }
           }}
         />
       )}

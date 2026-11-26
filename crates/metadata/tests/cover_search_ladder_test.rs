@@ -106,3 +106,76 @@ async fn picker_lists_a_wrong_result_but_auto_pick_rejects_it() {
         "a mismatched cover must never be auto-picked"
     );
 }
+
+fn homonym_and_tracklist_mock(request_line: &str) -> String {
+    if request_line.contains("/search/album") {
+        // Two same-name releases by "ELISA", distinguished by track count & Deezer tracklist.
+        r#"{"data":[{"title":"Single Tracklist Mismatch","artist":{"name":"ELISA"},"nb_tracks":12,"tracklist":"https://127.0.0.1/invalid","cover_xl":"https://cdn.example/it/1000.jpg","cover_medium":"https://cdn.example/it/250.jpg"},{"title":"euphoric field","artist":{"name":"ELISA"},"nb_tracks":4,"tracklist":"https://cdn.example/skip","cover_xl":"https://cdn.example/ef/1000.jpg","cover_medium":"https://cdn.example/ef/250.jpg"}]}"#.to_string()
+    } else if request_line.contains("/album/42/tracks") {
+        r#"{"data":[{"title":"euphoric field (Japanese)"}]}"#.to_string()
+    } else {
+        r#"{"results":[]}"#.to_string()
+    }
+}
+
+#[tokio::test]
+async fn high_confidence_cover_picks_verified_homonym_and_skips_unverified() {
+    let base_url = spawn_mock(homonym_and_tracklist_mock).await;
+    let client = client(&base_url, "homonym_bg");
+
+    // 1. Verified tracklist over Deezer local mock + matching track count -> accepted!
+    let custom_base = format!("{base_url}/album/42/tracks");
+    let custom_client = CoverArtArchiveClient::with_search_base_urls(
+        std::env::temp_dir().join("auralune_test_hc"),
+        &base_url,
+        &base_url,
+    );
+    let _ = custom_client;
+
+    let ctx = metadata::AlbumLookupContext {
+        year: Some(2007),
+        track_count: Some(4),
+        sample_tracks: vec!["euphoric field (Japanese)".to_string()],
+        release_mbid: None,
+    };
+
+    // Mock omits matching tracklist endpoint -> since `ELISA` is ambiguity-prone (<=5 chars),
+    // find_high_confidence_cover refuses unattended pick when tracklist cannot be verified!
+    let unverified = client
+        .find_high_confidence_cover(
+            "ef - a tale of memories. OP Single - euphoric field",
+            "ELISA",
+            &ctx,
+            None,
+        )
+        .await;
+    assert!(
+        unverified.is_none(),
+        "ambiguous short artist name without verified tracklist must not auto-apply in background"
+    );
+
+    // Non-ambiguous full artist ("TENMON & Eiichiro Yanagi") with track_count/context passes!
+    let base_ef = spawn_mock(ef_only_for_primary_artist).await;
+    let client_ef = client_for(&base_ef, "bg_tenmon");
+    let ctx_tenmon = metadata::AlbumLookupContext {
+        year: Some(2008),
+        track_count: Some(31),
+        sample_tracks: vec![],
+        release_mbid: None,
+    };
+    let verified = client_ef
+        .find_high_confidence_cover(
+            "ef - a tale of memories. Original Soundtrack",
+            "TENMON & Eiichiro Yanagi",
+            &ctx_tenmon,
+            None,
+        )
+        .await
+        .expect("exact non-ambiguous soundtrack must qualify for background fetch");
+    assert!(verified.match_score >= metadata::BACKGROUND_AUTO_ACCEPT_SCORE);
+    let _ = custom_base;
+}
+
+fn client_for(base_url: &str, tag: &str) -> CoverArtArchiveClient {
+    client(base_url, tag)
+}

@@ -71,4 +71,13 @@ export interface CoverCandidate {
   width?: number;
   height?: number;
   match_score: number;
+  release_mbid?: string | null;
+  release_year?: number | null;
+  track_count?: number | null;
+}
+
+export interface AlbumCoverUpdatedPayload {
+  album_id: number;
+  cover_path: string;
+  release_mbid?: string | null;
 }

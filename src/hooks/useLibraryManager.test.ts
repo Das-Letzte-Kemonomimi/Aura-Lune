@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useLibraryManager } from './useLibraryManager';
 import { getTranslations } from '../i18n';
 import type { PlaybackStatus } from '../types/playback';
 import type { TrackRecord, AlbumRecord } from '../types/library';
 import { invokeMock as mockInvoke } from '../test/ipcMock';
+
+const eventListeners = vi.hoisted(() => new Map<string, (e: { payload: unknown }) => void>());
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn((eventName: string, cb: (e: { payload: unknown }) => void) => {
+    eventListeners.set(eventName, cb);
+    return Promise.resolve(() => eventListeners.delete(eventName));
+  }),
+}));
 
 
 describe('useLibraryManager hook', () => {
@@ -388,6 +397,36 @@ describe('useLibraryManager hook', () => {
       'Added to the library: 0 indexed (found: 10, failed: 10).',
       true,
     );
+  });
+
+  it('updates only the matching album when auralune://album-cover-updated fires', async () => {
+    eventListeners.clear();
+
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+    act(() => {
+      result.current.setAlbums([
+        { id: 1, title: 'espressivo', album_artist: 'TENMON', year: 2008, cover_path: null },
+        { id: 2, title: 'espressivo', album_artist: 'Other Artist', year: 2005, cover_path: null },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(eventListeners.has('auralune://album-cover-updated')).toBe(true);
+    });
+
+    act(() => {
+      eventListeners.get('auralune://album-cover-updated')!({
+        payload: {
+          album_id: 1,
+          cover_path: 'data:image/jpeg;base64,NEW_COVER',
+          release_mbid: 'd38b402a-ee1b-427a-b10c-b8127596d59c',
+        },
+      });
+    });
+
+    expect(result.current.albums[0].cover_path).toBe('data:image/jpeg;base64,NEW_COVER');
+    expect(result.current.albums[0].release_mbid).toBe('d38b402a-ee1b-427a-b10c-b8127596d59c');
+    expect(result.current.albums[1].cover_path).toBeNull();
   });
 });
 

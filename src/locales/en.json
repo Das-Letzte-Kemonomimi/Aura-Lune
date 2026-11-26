@@ -524,7 +524,9 @@
     "sortYearTooltip": "Click to sort by release year",
     "sortAddedTooltip": "Click to sort by the date added to the library",
     "unknownAlbum": "Unknown album",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "syncMissingCovers": "Sync Missing Covers",
+    "syncMissingCoversTooltip": "Fetch missing album covers in the background for high-confidence metadata matches"
   },
   "playlists": {
     "title": "Your Playlists",
@@ -710,6 +712,10 @@
     "importBackupBtn": "Restore Profile from JSON",
     "closeToTray": "Close to System Tray",
     "closeToTrayDesc": "Keep playing in the background when closing the main window with quick controls in the Linux tray.",
+    "autoFetchCoversTitle": "Background High-Confidence Covers",
+    "autoFetchCoversDesc": "Automatically fetch missing album covers in the background when metadata, release year and track count match with high confidence.",
+    "autoFetchCoversNow": "Fetch missing covers now",
+    "autoFetchCoversStarted": "Background cover search started for albums without artwork.",
     "discordRpcTitle": "Discord Rich Presence (RPC)",
     "discordRpcDesc": "Show currently playing song, artist, album, and progress bar on your Discord profile.",
     "discordConnected": "Connected to Discord",

@@ -43,7 +43,7 @@ async fn test_fresh_database_reaches_latest_schema_version() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
 }
 
 /// A version 1 database (bookmarks without CASCADE, `album_artist` holding the album title)
@@ -92,7 +92,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
 
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
@@ -261,7 +261,7 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
 
     let indexes: Vec<String> =
         sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
@@ -387,7 +387,7 @@ async fn test_upgrade_from_broken_v4_repairs_added_at_and_prunes_empty_albums() 
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
 
     let added_at: i64 = sqlx::query_scalar("SELECT added_at FROM tracks WHERE path = ?1;")
         .bind("/music/keep.flac")

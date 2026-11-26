@@ -84,8 +84,11 @@ export function useMusicBrainzManager({
       );
 
       showMessage(fmt(loc.notifications.caaCoverDownloaded, selectedAlbumForMb.title));
+      const updatedId = selectedAlbumForMb.id;
       setSelectedAlbumForMb(null);
-      await loadLibrary();
+      if (updatedId <= 0) {
+        await loadLibrary();
+      }
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     } finally {
@@ -107,7 +110,9 @@ export function useMusicBrainzManager({
           prev.map((a) => (a.id === album.id ? { ...a, cover_path: coverDataUri } : a))
         );
         showMessage(fmt(loc.notifications.mbCoverMatched, album.title));
-        await loadLibrary();
+        if (album.id <= 0) {
+          await loadLibrary();
+        }
       } else {
         showMessage(loc.notifications.mbCoverLowScore, true);
         handleOpenMbModal(album);
@@ -126,11 +131,15 @@ export function useMusicBrainzManager({
     const albumTitle = curTrack.album || curTrack.title;
     const artist = curTrack.artist || 'Unknown';
 
-    const foundAlbum = (albums || []).find(
-      (a) =>
-        a.title.toLowerCase() === albumTitle.toLowerCase() ||
-        (curTrack.album && a.title.toLowerCase() === curTrack.album.toLowerCase())
-    );
+    const normTitle = albumTitle.trim().toLowerCase();
+    const normArtist = (currentPlayingTrack?.album_artist || artist).trim().toLowerCase();
+    const foundAlbum =
+      currentAlbum ||
+      (albums || []).find(
+        (a) =>
+          a.title.trim().toLowerCase() === normTitle &&
+          a.album_artist.trim().toLowerCase() === normArtist
+      );
 
     if (foundAlbum) {
       await handleAutoFetchCover(foundAlbum);
@@ -145,7 +154,7 @@ export function useMusicBrainzManager({
       };
       handleOpenMbModal(tempAlbum);
     }
-  }, [albums, handleAutoFetchCover, handleOpenMbModal, loc.notifications.noCurrentTrackForCover, showMessage, status?.current_track]);
+  }, [albums, currentAlbum, currentPlayingTrack?.album_artist, handleAutoFetchCover, handleOpenMbModal, loc.notifications.noCurrentTrackForCover, showMessage, status?.current_track]);
 
   const handleUploadCustomCoverDirect = useCallback(async (album?: AlbumRecord | null) => {
     try {

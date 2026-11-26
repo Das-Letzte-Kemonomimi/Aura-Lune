@@ -200,6 +200,7 @@ describe('useMainRouterProps', () => {
       scanResult: null,
       refreshQueue: vi.fn(),
       loadLibrary: vi.fn(),
+      handleTriggerBackgroundCoverFetch: vi.fn(),
       // dsp:
       uiScale: 1,
       activeTrackKeyBpm: null,

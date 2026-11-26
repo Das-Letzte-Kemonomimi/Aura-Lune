@@ -53,26 +53,34 @@ export function useCurrentTrackInfo({
     return null;
   }, [tracks, status.current_track?.track_id, status.current_track?.uri, filePath, activeTrackId]);
 
-  // 2. Resolve matching AlbumRecord
+  // 2. Resolve matching AlbumRecord (never fall back to title-only matching across different artists)
   const currentAlbum = useMemo(() => {
     if (currentPlayingTrack?.album_id) {
       const found = albums.find((a) => a.id === currentPlayingTrack.album_id);
       if (found) return found;
     }
     const albTitle = (status.current_track?.album || '').trim().toLowerCase();
-    const albArtist = (currentPlayingTrack?.artist || currentPlayingTrack?.album_artist || status.current_track?.artist || '').trim().toLowerCase();
-    if (albTitle) {
-      if (albArtist) {
-        const foundExact = albums.find(
-          (a) => a.title.trim().toLowerCase() === albTitle && a.album_artist.trim().toLowerCase() === albArtist
-        );
-        if (foundExact) return foundExact;
-      }
-      const found = albums.find((a) => a.title.trim().toLowerCase() === albTitle);
-      if (found) return found;
+    const albArtist = (
+      currentPlayingTrack?.album_artist ||
+      currentPlayingTrack?.artist ||
+      status.current_track?.artist ||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+    if (albTitle && albArtist) {
+      const foundExact = albums.find(
+        (a) => a.title.trim().toLowerCase() === albTitle && a.album_artist.trim().toLowerCase() === albArtist
+      );
+      if (foundExact) return foundExact;
     }
     return null;
-  }, [albums, currentPlayingTrack, status.current_track?.album, status.current_track?.artist]);
+  }, [
+    albums,
+    currentPlayingTrack,
+    status.current_track?.album,
+    status.current_track?.artist,
+  ]);
 
   // 3. Dynamic Key & BPM with localStorage caching
   const activeTrackKeyBpm = useMemo(() => {

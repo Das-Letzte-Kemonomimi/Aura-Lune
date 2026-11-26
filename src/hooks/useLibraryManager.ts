@@ -1,12 +1,19 @@
 import { useState, useMemo, useRef, useCallback, useLayoutEffect, useDeferredValue } from 'react';
 import { invoke } from '../api/ipc';
-import type { TrackRecord, AlbumRecord, ScanSummaryDto, SampleTrackDto } from '../types/library';
+import type {
+  TrackRecord,
+  AlbumRecord,
+  ScanSummaryDto,
+  SampleTrackDto,
+  AlbumCoverUpdatedPayload,
+} from '../types/library';
 import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
 import { normalizeStr } from '../utils/textNormalize';
 import { fmt } from '../utils/fmt';
 import { trackComparator, type TrackSortField } from '../views/library/sections/trackModel';
 import { parseBoolean, usePersistedState } from './usePersistedState';
+import { useTauriEvent } from './useTauriEvent';
 
 export type LibrarySortField = 'default' | TrackSortField;
 export type AlbumSortField = 'title' | 'artist' | 'year' | 'tracks' | 'duration';
@@ -80,6 +87,21 @@ export function useLibraryManager({
 
   // 5. Album detail drilldown
   const [selectedAlbumDetail, setSelectedAlbumDetail] = useState<AlbumRecord | null>(null);
+
+  useTauriEvent<AlbumCoverUpdatedPayload>('auralune://album-cover-updated', (payload) => {
+    setAlbums((prev) =>
+      prev.map((a) =>
+        a.id === payload.album_id
+          ? { ...a, cover_path: payload.cover_path, release_mbid: payload.release_mbid ?? a.release_mbid }
+          : a
+      )
+    );
+    setSelectedAlbumDetail((prev) =>
+      prev && prev.id === payload.album_id
+        ? { ...prev, cover_path: payload.cover_path, release_mbid: payload.release_mbid ?? prev.release_mbid }
+        : prev
+    );
+  });
   const albumListScrollPosRef = useRef<number>(0);
   const isRestoringAlbumScrollRef = useRef<boolean>(false);
 

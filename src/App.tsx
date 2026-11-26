@@ -35,6 +35,7 @@ import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { StartupSplash } from './components/layout/StartupSplash';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { errorMessage, invoke } from './api/ipc';
 import { setSetting } from './api/settings';
 import {
   type TapeType,
@@ -222,6 +223,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<AppTab>('player');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
+  const [autoFetchCoversBg, setAutoFetchCoversBg] = useState<boolean>(true);
 
   // Album and playlist playback behaviour (autoplay and queue)
   const [albumPlaybackMode, setAlbumPlaybackMode] = usePersistedState<AlbumPlaybackBehavior>(
@@ -600,6 +602,7 @@ export default function App() {
     setLanguage,
     setSeekFadeEnabled,
     setCloseToTray,
+    setAutoFetchCoversBg,
     setCrossfadeDuration,
     setBassBoost,
     setStereoWidenerActive,
@@ -707,6 +710,24 @@ export default function App() {
       );
     } catch (e: unknown) {
       console.warn('Failed to save close_to_tray:', e);
+    }
+  };
+
+  const handleToggleAutoFetchCoversBg = async (enabled: boolean) => {
+    setAutoFetchCoversBg(enabled);
+    try {
+      await setSetting('auto_fetch_covers_bg', String(enabled));
+    } catch (e: unknown) {
+      console.warn('Failed to save auto_fetch_covers_bg:', e);
+    }
+  };
+
+  const handleTriggerBackgroundCoverFetch = async () => {
+    try {
+      await invoke('trigger_background_cover_fetch');
+      showMessage(loc.settings.autoFetchCoversStarted);
+    } catch (e: unknown) {
+      showMessage(`${t.common.errorPrefix} ${errorMessage(e)}`, true);
     }
   };
 
@@ -870,6 +891,9 @@ export default function App() {
       handleImportProfileBackup,
       closeToTray,
       handleToggleCloseToTray,
+      autoFetchCoversBg,
+      handleToggleAutoFetchCoversBg,
+      handleTriggerBackgroundCoverFetch,
       discordRpcEnabled,
       discordRpcConnected,
       discordClientId,
@@ -933,6 +957,7 @@ export default function App() {
     handleOpenCoverPicker,
     handleUploadCustomCoverDirect,
     handlePickFiles,
+    handleTriggerBackgroundCoverFetch,
     formatTime,
     formatTimeMs,
     showMessage,

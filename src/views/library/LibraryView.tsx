@@ -129,6 +129,7 @@ export interface LibraryViewProps {
   scanResult: LibraryManager['scanResult'];
   refreshQueue: () => Promise<void>;
   loadLibrary: () => Promise<void>;
+  handleTriggerBackgroundCoverFetch: () => Promise<void>;
   showMessage: (msg: string, isError?: boolean) => void;
   formatTime: (ms: number) => string;
 }

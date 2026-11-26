@@ -12,6 +12,8 @@ import {
   BrandDiscord,
   ChevronDown,
   ChevronRight,
+  Image as ImageIcon,
+  RefreshCw,
 } from '../../components/ui/icons';
 import {
   Badge,
@@ -49,6 +51,9 @@ export interface BackupSettingsViewProps {
   onImportBackup: () => void;
   closeToTray: boolean;
   onToggleCloseToTray: (enabled: boolean) => void;
+  autoFetchCoversBg: boolean;
+  onToggleAutoFetchCoversBg: (enabled: boolean) => void;
+  onTriggerBackgroundCoverFetch: () => void;
   discordRpcEnabled: boolean;
   discordRpcConnected: boolean;
   discordClientId: string;
@@ -88,6 +93,9 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
   onImportBackup,
   closeToTray,
   onToggleCloseToTray,
+  autoFetchCoversBg,
+  onToggleAutoFetchCoversBg,
+  onTriggerBackgroundCoverFetch,
   discordRpcEnabled,
   discordRpcConnected,
   discordClientId,
@@ -158,6 +166,25 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
         checked={closeToTray}
         onChange={onToggleCloseToTray}
       />
+
+      {/* Automatic background high-confidence cover art fetching */}
+      <ToggleCard
+        icon={<ImageIcon size={20} />}
+        tone="pink"
+        title={loc.settings.autoFetchCoversTitle}
+        description={loc.settings.autoFetchCoversDesc}
+        checked={autoFetchCoversBg}
+        onChange={onToggleAutoFetchCoversBg}
+      >
+        {autoFetchCoversBg && (
+          <div className="flex justify-end">
+            <Button variant="tinted" tone="pink" size="sm" onClick={onTriggerBackgroundCoverFetch}>
+              <RefreshCw size={14} />
+              {loc.settings.autoFetchCoversNow}
+            </Button>
+          </div>
+        )}
+      </ToggleCard>
 
       {/* Discord Rich Presence (RPC) */}
       <ToggleCard

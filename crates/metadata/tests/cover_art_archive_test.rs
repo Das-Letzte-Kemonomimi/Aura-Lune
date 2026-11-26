@@ -116,15 +116,20 @@ fn test_clean_artist_name() {
 async fn test_search_cover_candidates_in_extremo_local_mock() {
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
     let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_flag = stop.clone();
 
     let handle = std::thread::spawn(move || {
-        // Up to 5 concurrent/fallback requests (Deezer adv/gen + iTunes q1/q2/fallback)
-        for _ in 0..5 {
+        while !stop_flag.load(Ordering::Relaxed) {
             let Ok((mut stream, _)) = listener.accept() else {
-                break;
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                continue;
             };
             let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(500)));
             let mut buf = [0u8; 4096];
@@ -149,6 +154,7 @@ async fn test_search_cover_candidates_in_extremo_local_mock() {
     let candidates = client
         .search_cover_candidates("7 (2015 Remastered)", "In Extremo")
         .await;
+    stop.store(true, Ordering::Relaxed);
     drop(client);
     let _ = handle.join();
 

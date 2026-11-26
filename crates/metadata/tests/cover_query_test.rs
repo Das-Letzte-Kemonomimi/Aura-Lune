@@ -1,8 +1,11 @@
 use metadata::cover_query::{
-    album_variants, artists_match, is_unknown_album, match_score, normalize, query_ladder,
-    split_artists, CoverQuery,
+    album_variants, artists_match, is_ambiguity_prone, is_unknown_album, match_score,
+    match_score_with_context, normalize, query_ladder, split_artists, AlbumLookupContext,
+    CandidateContext, CoverQuery,
 };
-use metadata::{MusicBrainzClient, AUTO_ACCEPT_SCORE};
+use metadata::{
+    clean_artist_name, MusicBrainzClient, AUTO_ACCEPT_SCORE, BACKGROUND_AUTO_ACCEPT_SCORE,
+};
 
 const EF_ALBUM: &str = "ef - a tale of memories. ORIGINAL SOUNDTRACK -e";
 const EF_ARTIST: &str = "TENMON & Eiichiro Yanagi";
@@ -46,11 +49,13 @@ fn album_variants_cut_subtitles() {
 }
 
 #[test]
-fn ladder_goes_from_strict_to_album_only() {
+fn ladder_goes_from_strict_to_album_only_without_bare_short_prefix() {
     let ladder = query_ladder(EF_ALBUM, EF_ARTIST);
     assert_eq!(ladder[0].artist.as_deref(), Some(EF_ARTIST));
     assert_eq!(ladder[1].artist.as_deref(), Some("TENMON"));
-    assert!(ladder.iter().any(|q| q.album == "ef" && q.artist.is_none()));
+    // Derived 2-letter "ef" from a long title is tried with the artist, never artist-less.
+    assert!(ladder.iter().any(|q| q.album == "ef" && q.artist.is_some()));
+    assert!(!ladder.iter().any(|q| q.album == "ef" && q.artist.is_none()));
     let last: &CoverQuery = ladder.last().unwrap();
     assert!(last.artist.is_none());
 }
@@ -131,4 +136,90 @@ fn musicbrainz_queries_relax_from_strict_to_free_text() {
     assert!(queries[1].contains("artist:\"TENMON\""));
     assert!(queries.iter().any(|q| !q.contains("artist:")));
     assert!(MusicBrainzClient::release_queries("", "x").is_empty());
+}
+
+#[test]
+fn swedish_post_rock_ef_is_rejected_for_ef_ost_even_with_neutral_artist() {
+    let long_ost = "ef - a tale of memories. ORIGINAL SOUNDTRACK -espressivo-";
+    assert!(match_score(long_ost, "TENMON & Eiichiro Yanagi", "ef", "ef") < AUTO_ACCEPT_SCORE);
+    assert!(match_score(long_ost, "Unknown Artist", "ef", "ef") < AUTO_ACCEPT_SCORE);
+}
+
+#[test]
+fn homonymous_artists_are_not_confused_by_substring_match() {
+    assert!(!artists_match(
+        "ELISA",
+        "VANITY VAULT STUDIO by Elisa G. Music Artist"
+    ));
+    assert!(!artists_match("ELISA", "Elisa Toffoli"));
+    assert!(artists_match(
+        "Shindou Kei (cv: Okada Junko)",
+        "Kei Shindou & Junko Okada"
+    ));
+    assert!(artists_match(
+        "Tenmon & Eiichirou Yanagi",
+        "TENMON & Eiichiro Yanagi"
+    ));
+}
+
+#[test]
+fn clean_artist_name_strips_quoted_cv_credits() {
+    assert_eq!(
+        clean_artist_name("Yuko Amamiya \"cv. Yumiko Nakajima\""),
+        "Yuko Amamiya"
+    );
+    assert_eq!(
+        clean_artist_name("Miyako & Kei & Chihiro \"cv. Hiroko T. & Junko O.\""),
+        "Miyako & Kei & Chihiro"
+    );
+}
+
+#[test]
+fn euphoric_field_suffix_matches_elisa_single_high_confidence() {
+    let score = match_score(
+        "ef - a tale of memories. OP Single - euphoric field",
+        "ELISA",
+        "euphoric field",
+        "ELISA",
+    );
+    assert!(score >= BACKGROUND_AUTO_ACCEPT_SCORE, "score {score}");
+}
+
+#[test]
+fn context_disambiguates_same_title_and_same_name_artist_albums() {
+    let ctx = AlbumLookupContext {
+        year: Some(2008),
+        track_count: Some(31),
+        sample_tracks: vec!["Less than 45sec.".into()],
+        release_mbid: None,
+    };
+    let wrong_classical = CandidateContext {
+        title: "Espressivo",
+        artist: "村治佳織",
+        year: Some(2005),
+        track_count: Some(15),
+        release_mbid: None,
+    };
+    let right_ost = CandidateContext {
+        title: "ef – a tale of memories. ORIGINAL SOUNDTRACK 〜espressivo〜",
+        artist: "TENMON & Eiichiro Yanagi & minori",
+        year: Some(2008),
+        track_count: Some(31),
+        release_mbid: Some("d38b402a-ee1b-427a-b10c-b8127596d59c"),
+    };
+    let bad = match_score_with_context(
+        "ef - a tale of memories. ORIGINAL SOUNDTRACK -espressivo-",
+        "TENMON & Eiichiro Yanagi",
+        &ctx,
+        &wrong_classical,
+    );
+    let good = match_score_with_context(
+        "ef - a tale of memories. ORIGINAL SOUNDTRACK -espressivo-",
+        "TENMON & Eiichiro Yanagi",
+        &ctx,
+        &right_ost,
+    );
+    assert!(bad < 50, "wrong score should be very low: {bad}");
+    assert!(good >= BACKGROUND_AUTO_ACCEPT_SCORE, "right score {good}");
+    assert!(is_ambiguity_prone("ef", "ELISA"));
 }

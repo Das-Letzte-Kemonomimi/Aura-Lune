@@ -95,6 +95,9 @@ export interface UseAppSettingsModalPropsParams {
     handleImportProfileBackup: () => Promise<void>;
     closeToTray: boolean;
     handleToggleCloseToTray: (enabled: boolean) => Promise<void>;
+    autoFetchCoversBg: boolean;
+    handleToggleAutoFetchCoversBg: (enabled: boolean) => Promise<void>;
+    handleTriggerBackgroundCoverFetch: () => Promise<void>;
     discordRpcEnabled: boolean;
     discordRpcConnected: boolean;
     discordClientId: string;
@@ -346,6 +349,9 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onImportBackup: backup.handleImportProfileBackup,
     closeToTray: backup.closeToTray,
     onToggleCloseToTray: backup.handleToggleCloseToTray,
+    autoFetchCoversBg: backup.autoFetchCoversBg ?? true,
+    onToggleAutoFetchCoversBg: backup.handleToggleAutoFetchCoversBg,
+    onTriggerBackgroundCoverFetch: backup.handleTriggerBackgroundCoverFetch,
     discordRpcEnabled: backup.discordRpcEnabled,
     discordRpcConnected: backup.discordRpcConnected,
     discordClientId: backup.discordClientId,

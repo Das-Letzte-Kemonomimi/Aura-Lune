@@ -1,16 +1,18 @@
 import React from 'react';
-import { Copy, Download, FileEdit, FilePlus, FolderOpen, FolderPlus, Globe, Layers, Music, RefreshCw, Shuffle } from '../../../components/ui/icons';
+import { Copy, Download, FileEdit, FilePlus, FolderOpen, FolderPlus, Globe, Image as ImageIcon, Layers, Music, RefreshCw, Shuffle } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import { Badge, Button, Chip, PageHeader } from '../../../components/ui';
 
-export type LibraryHeaderProps = Pick<LibraryViewProps, 'loc' | 'filteredTracks' | 'tracks' | 'handleShuffleAll' | 'setShowDownloadHub' | 'setIsUrlImportModalOpen' | 'handlePickFolder' | 'handlePickFiles' | 'setIsScanFolderOpen' | 'isScanFolderOpen' | 'loadLibrary' | 'setIsFacetsFilterEnabled' | 'isFacetsFilterEnabled' | 'setIsDuplicateFinderOpen' | 'setIsFileRenamerOpen'>;
+export type LibraryHeaderProps = Pick<LibraryViewProps, 'loc' | 'filteredTracks' | 'tracks' | 'albumsWithoutCoverCount' | 'handleShuffleAll' | 'setShowDownloadHub' | 'setIsUrlImportModalOpen' | 'handlePickFolder' | 'handlePickFiles' | 'setIsScanFolderOpen' | 'isScanFolderOpen' | 'loadLibrary' | 'handleTriggerBackgroundCoverFetch' | 'setIsFacetsFilterEnabled' | 'isFacetsFilterEnabled' | 'setIsDuplicateFinderOpen' | 'setIsFileRenamerOpen'>;
 
 /** Library title with the track count, and the import, scan and tool actions. */
 export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
+  albumsWithoutCoverCount,
   filteredTracks,
   handlePickFiles,
   handlePickFolder,
   handleShuffleAll,
+  handleTriggerBackgroundCoverFetch,
   isFacetsFilterEnabled,
   isScanFolderOpen,
   loadLibrary,
@@ -58,6 +60,21 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
         </Chip>
         <Button onClick={loadLibrary}>
           <RefreshCw size={14} /> {loc.library.refresh}
+        </Button>
+        <Button
+          variant="tinted"
+          tone="pink"
+          onClick={() => {
+            void handleTriggerBackgroundCoverFetch();
+          }}
+          title={loc.library.syncMissingCoversTooltip}
+        >
+          <ImageIcon size={14} /> {loc.library.syncMissingCovers}
+          {albumsWithoutCoverCount > 0 && (
+            <Badge tone="amber" size="xs">
+              {albumsWithoutCoverCount}
+            </Badge>
+          )}
         </Button>
         <Chip tone="pink" pressed={isFacetsFilterEnabled} onClick={() => setIsFacetsFilterEnabled((prev) => !prev)} className="py-2 text-ui">
           <Layers size={14} /> {loc.library.facetsToggle}

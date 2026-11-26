@@ -41,6 +41,7 @@ pub fn init_app(
     }
     let db_path = data_dir.join("auralune_library.db");
     let cache_dir = data_dir.join("cache");
+    crate::commands::library::init_thumbnail_cache_dir(cache_dir.join("thumbs"));
 
     let db = match rt.block_on(Database::open(&db_path)) {
         Ok(db) => db,
@@ -431,12 +432,15 @@ pub fn init_app(
                 .unwrap_or(true),
         )),
         window_revealed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        cover_worker_notify: Arc::new(tokio::sync::Notify::new()),
+        cover_worker_force_run: Arc::new(std::sync::atomic::AtomicBool::new(false)),
     };
 
     let state_for_cli = app_state.clone();
     app.manage(app_state);
     crate::setup::spawn_playback_ticker(app.handle().clone());
     crate::setup::spawn_update_checker(app.handle().clone());
+    crate::setup::spawn_background_cover_worker(app.handle().clone());
 
     let cli_args = std::env::args().collect::<Vec<String>>();
     let initial_files = extract_audio_paths_from_args(&cli_args, None);

@@ -91,6 +91,10 @@ pub async fn set_app_setting(
         state
             .close_to_tray
             .store(value != "false", std::sync::atomic::Ordering::Relaxed);
+    } else if key == crate::setup::background_covers::SETTING_AUTO_FETCH_COVERS_BG
+        && value != "false"
+    {
+        state.cover_worker_notify.notify_one();
     }
     Ok(())
 }

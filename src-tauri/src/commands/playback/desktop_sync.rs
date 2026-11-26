@@ -102,12 +102,27 @@ fn parse_discord_metadata_keys(title: &str, artist: &str, album: &str) -> Parsed
     }
 }
 
+fn album_cache_key(album_id: Option<i64>) -> Option<String> {
+    album_id
+        .filter(|&id| id > 0)
+        .map(|id| format!("album:{id}"))
+}
+
 fn lookup_discord_cached_art(
     state: &AppState,
     keys: &ParsedMetadataKeys,
+    album_id: Option<i64>,
     cache_key: &str,
 ) -> Option<String> {
     state.discord_cover_cache.read().ok().and_then(|cache| {
+        if let Some(akey) = album_cache_key(album_id) {
+            if let Some(hit) = cache.get(&akey) {
+                return Some(hit.clone());
+            }
+            // When album_id is known, never fall back to a generic title-only cache entry across
+            // unrelated homonymous albums if the album itself had not been cached under album_id.
+            return cache.get(cache_key).cloned();
+        }
         cache.get(cache_key).cloned().or_else(|| {
             let title_key = format!(
                 "{}---{}",
@@ -135,7 +150,7 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
     };
 
     let keys = parse_discord_metadata_keys(&title, &artist, &album);
-    let cached_art = lookup_discord_cached_art(state, &keys, &keys.cache_key);
+    let cached_art = lookup_discord_cached_art(state, &keys, None, &keys.cache_key);
 
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
@@ -230,7 +245,7 @@ pub fn update_mpris_metadata(
                 }
                 Some(art.clone())
             }
-            _ => lookup_discord_cached_art(&state, &keys, &keys.cache_key),
+            _ => lookup_discord_cached_art(&state, &keys, None, &keys.cache_key),
         };
 
         discord.update_track(desktop_integration::DiscordTrackInfo {
@@ -330,9 +345,11 @@ fn remember_cover_miss(cache_key: String) {
 /// album artist from the database are cleaner than the queue item's track artist, and a
 /// MusicBrainz release id from the file tags identifies the cover exactly.
 struct CoverLookup {
+    album_id: Option<i64>,
     album: String,
     artist: String,
     release_mbid: Option<String>,
+    context: metadata::AlbumLookupContext,
 }
 
 async fn resolve_cover_lookup(
@@ -342,6 +359,7 @@ async fn resolve_cover_lookup(
     track_id: Option<i64>,
 ) -> CoverLookup {
     let mut lookup = CoverLookup {
+        album_id: None,
         album: if search_album {
             track.album.clone()
         } else {
@@ -349,6 +367,7 @@ async fn resolve_cover_lookup(
         },
         artist: track.artist.clone(),
         release_mbid: None,
+        context: metadata::AlbumLookupContext::default(),
     };
     if !search_album {
         return lookup;
@@ -363,9 +382,11 @@ async fn resolve_cover_lookup(
     let Some(album_id) = album_id else {
         return lookup;
     };
-    let Ok(Some(album)) = db.get_album_by_id(album_id).await else {
+    let Ok(Some(ctx)) = db.get_album_cover_context(album_id).await else {
         return lookup;
     };
+    let album = ctx.album;
+    lookup.album_id = Some(album.id);
     if !metadata::cover_query::is_unknown_album(&album.title) {
         lookup.album = album.title;
     }
@@ -373,14 +394,18 @@ async fn resolve_cover_lookup(
         lookup.artist = album.album_artist;
     }
     lookup.release_mbid = album.release_mbid.filter(|m| !m.trim().is_empty());
+    lookup.context = metadata::AlbumLookupContext {
+        year: album.year,
+        track_count: Some(ctx.track_count),
+        sample_tracks: ctx.sample_tracks,
+        release_mbid: lookup.release_mbid.clone(),
+    };
     lookup
 }
 
 /// Searches for a cover online in the background and updates Rich Presence.
 ///
-/// Order: the release id stored for the album (exact), then an album + artist search that
-/// only accepts a real match, then an exact artist + title song lookup. When nothing matches
-/// the default logo stays, which beats showing the wrong album.
+/// Order: album-id cache / stored release MBID -> context-aware best match -> exact song lookup.
 pub(super) fn spawn_discord_cover_search(
     state: &AppState,
     discord: &std::sync::Arc<desktop_integration::DiscordRpcController>,
@@ -399,6 +424,17 @@ pub(super) fn spawn_discord_cover_search(
     let cache = state.discord_cover_cache.clone();
     state.rt.spawn(async move {
         let lookup = resolve_cover_lookup(&db, &track, search_album, track_id).await;
+        if let Some(akey) = album_cache_key(lookup.album_id) {
+            if let Ok(c) = cache.read() {
+                if let Some(cached) = c.get(&akey) {
+                    discord.update_track(desktop_integration::DiscordTrackInfo {
+                        art_url: Some(cached.clone()),
+                        ..track
+                    });
+                    return;
+                }
+            }
+        }
 
         let mut found = match &lookup.release_mbid {
             Some(mbid) => cover_archive.release_front_url(mbid).await,
@@ -406,7 +442,13 @@ pub(super) fn spawn_discord_cover_search(
         };
         if found.is_none() {
             found = cover_archive
-                .find_best_cover(&lookup.album, &lookup.artist, Some(&track.title), Some(&mb))
+                .find_best_cover_for_album(
+                    &lookup.album,
+                    &lookup.artist,
+                    Some(&track.title),
+                    &lookup.context,
+                    Some(&mb),
+                )
                 .await
                 .map(|c| {
                     if c.thumbnail_url.is_empty() {
@@ -423,7 +465,11 @@ pub(super) fn spawn_discord_cover_search(
             return;
         };
         if let Ok(mut c) = cache.write() {
-            c.insert(cache_key, best_url.clone());
+            if let Some(akey) = album_cache_key(lookup.album_id) {
+                c.insert(akey, best_url.clone());
+            } else {
+                c.insert(cache_key, best_url.clone());
+            }
         }
         discord.update_track(desktop_integration::DiscordTrackInfo {
             art_url: Some(best_url),

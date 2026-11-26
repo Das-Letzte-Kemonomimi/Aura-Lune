@@ -524,7 +524,9 @@
     "sortYearTooltip": "Kliknij, aby posortować wg roku wydania",
     "sortAddedTooltip": "Kliknij, aby posortować wg daty dodania do biblioteki",
     "unknownAlbum": "Nieznany album",
-    "moreActions": "Więcej akcji"
+    "moreActions": "Więcej akcji",
+    "syncMissingCovers": "Synchronizuj brakujące okładki",
+    "syncMissingCoversTooltip": "Pobieraj brakujące okładki albumów w tle dla pewnych dopasowań metadanych"
   },
   "playlists": {
     "title": "Twoje Playlisty",
@@ -710,6 +712,10 @@
     "importBackupBtn": "Przywróć profil z pliku JSON",
     "closeToTray": "Zamykaj do zasobnika systemowego (System Tray)",
     "closeToTrayDesc": "Odtwarzaj muzykę w tle po zamknięciu głównego okna programu. Dostępne szybkie sterowanie z tacki systemowej Linuksa.",
+    "autoFetchCoversTitle": "Automatyczne okładki wysokiej pewności w tle",
+    "autoFetchCoversDesc": "Automatycznie pobieraj brakujące okładki w tle, gdy metadane, rok wydania i liczba utworów pasują z bardzo wysoką pewnością.",
+    "autoFetchCoversNow": "Pobierz brakujące okładki teraz",
+    "autoFetchCoversStarted": "Rozpoczęto wyszukiwanie brakujących okładek w tle.",
     "discordRpcTitle": "Discord Rich Presence (RPC)",
     "discordRpcDesc": "Wyświetlaj aktualnie słuchany utwór, wykonawcę, album oraz pasek postępu na swoim profilu Discord.",
     "discordConnected": "Połączono z Discordem",

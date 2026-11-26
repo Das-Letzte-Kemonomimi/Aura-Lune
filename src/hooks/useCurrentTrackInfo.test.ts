@@ -266,4 +266,41 @@ describe('useCurrentTrackInfo', () => {
       expect(setTrackDirectCover).toHaveBeenCalledWith(null);
     });
   });
+
+  it('does not fall back to a different artist album sharing the same album title', () => {
+    const albumA: AlbumRecord = {
+      id: 101,
+      title: 'Adagio',
+      album_artist: 'Artist A',
+      year: 2007,
+      cover_path: 'data:image/jpeg;base64,ARTIST_A_COVER',
+    };
+    const otherStatus: PlaybackStatus = {
+      ...baseStatus,
+      current_track: {
+        id: 'dropped-adagio',
+        track_id: null,
+        uri: '/tmp/other_adagio.flac',
+        title: 'Track',
+        artist: 'Artist B',
+        album: 'Adagio',
+        duration_ms: 180000,
+      },
+    };
+    const { result } = renderHook(() =>
+      useCurrentTrackInfo({
+        tracks: [],
+        albums: [albumA],
+        status: otherStatus,
+        filePath: '/tmp/other_adagio.flac',
+        activeTrackId: null,
+        trackDirectCover: null,
+        setTrackDirectCover: vi.fn(),
+        loc,
+      })
+    );
+
+    expect(result.current.currentAlbum).toBeNull();
+    expect(result.current.currentCover).toBeNull();
+  });
 });

@@ -524,7 +524,9 @@
     "sortYearTooltip": "Klicken, um nach Erscheinungsjahr zu sortieren",
     "sortAddedTooltip": "Klicken, um nach dem Datum des Hinzufügens zu sortieren",
     "unknownAlbum": "Unbekanntes Album",
-    "moreActions": "Weitere Aktionen"
+    "moreActions": "Weitere Aktionen",
+    "syncMissingCovers": "Fehlende Cover abrufen",
+    "syncMissingCoversTooltip": "Fehlende Albumcover im Hintergrund bei eindeutigen Metadaten-Treffern laden"
   },
   "playlists": {
     "title": "Deine Wiedergabelisten",
@@ -710,6 +712,10 @@
     "importBackupBtn": "Profil aus JSON wiederherstellen",
     "closeToTray": "In den Infobereich minimieren",
     "closeToTrayDesc": "Musik beim Schließen des Fensters im Hintergrund weiterspielen.",
+    "autoFetchCoversTitle": "Automatische Cover im Hintergrund",
+    "autoFetchCoversDesc": "Lädt fehlende Albumcover im Hintergrund herunter, wenn Metadaten, Erscheinungsjahr und Titelanzahl sehr sicher übereinstimmen.",
+    "autoFetchCoversNow": "Fehlende Cover jetzt suchen",
+    "autoFetchCoversStarted": "Hintergrundsuche nach fehlenden Covern gestartet.",
     "discordRpcTitle": "Discord Rich Presence (RPC)",
     "discordRpcDesc": "Aktuellen Titel, Interpreten, Album und Fortschrittsbalken im Discord-Profil anzeigen.",
     "discordConnected": "Mit Discord verbunden",

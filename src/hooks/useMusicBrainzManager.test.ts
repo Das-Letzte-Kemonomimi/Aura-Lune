@@ -89,5 +89,65 @@ describe('useMusicBrainzManager hook', () => {
     expect(showMessage).toHaveBeenCalledWith(loc.covers.customCoverSaved.replace('{0}', 'Neon Genesis'));
     expect(loadLibrary).toHaveBeenCalled();
   });
+
+  it('matches current track album by both title and artist instead of title alone', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    (invoke as any).mockResolvedValue('data:image/jpeg;base64,ELISA_COVER');
+
+    const otherElisaAlbum: AlbumRecord = {
+      id: 1,
+      title: 'euphoric field',
+      album_artist: 'Elisa Toffoli',
+      year: 2020,
+      cover_path: null,
+    };
+    const targetElisaAlbum: AlbumRecord = {
+      id: 2,
+      title: 'euphoric field',
+      album_artist: 'ELISA',
+      year: 2007,
+      cover_path: null,
+    };
+
+    const { result } = renderHook(() =>
+      useMusicBrainzManager({
+        setAlbums,
+        loadLibrary,
+        showMessage,
+        loc,
+        albums: [otherElisaAlbum, targetElisaAlbum],
+        status: {
+          state: 'Playing',
+          position_ms: 0,
+          duration_ms: 1000,
+          volume: 1,
+          engine: 'Bypass',
+          capabilities: {} as any,
+          pitch_semitones: 0,
+          tempo_ratio: 1,
+          rate_ratio: 1,
+          current_track: {
+            id: 't1',
+            track_id: null,
+            uri: '/music/ef/01.flac',
+            title: 'euphoric field',
+            artist: 'ELISA',
+            album: 'euphoric field',
+            duration_ms: 240000,
+          },
+        },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleFetchCurrentTrackCover();
+    });
+
+    expect(invoke).toHaveBeenCalledWith('auto_fetch_album_cover', {
+      albumId: 2,
+      albumTitle: 'euphoric field',
+      artist: 'ELISA',
+    });
+  });
 });
 

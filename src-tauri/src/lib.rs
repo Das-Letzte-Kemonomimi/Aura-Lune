@@ -64,6 +64,10 @@ pub struct AppState {
     pub window_revealed: Arc<std::sync::atomic::AtomicBool>,
     /// The only writer of the queue state (see `persist_queue_state`).
     pub queue_saver: commands::queue::QueueSaver,
+    /// Wakes the background high-confidence cover fetcher after scans or setting toggles.
+    pub cover_worker_notify: Arc<tokio::sync::Notify>,
+    /// Forces the next worker wake-up to run even when automatic background fetching is disabled.
+    pub cover_worker_force_run: Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub fn run() {
@@ -198,6 +202,7 @@ pub fn run() {
             search_musicbrainz_releases,
             fetch_and_apply_cover,
             auto_fetch_album_cover,
+            trigger_background_cover_fetch,
             search_cover_candidates,
             apply_cover_url,
             apply_custom_cover_file,

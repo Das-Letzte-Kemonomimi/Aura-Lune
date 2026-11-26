@@ -291,3 +291,80 @@ async fn test_save_scanned_track_atomic_and_prunes_empty_albums() {
     assert_eq!(removed, 1);
     assert!(db.list_albums().await.unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn test_background_cover_context_and_cooldowns() {
+    let db = setup_test_db().await;
+    let t1 = make_dummy_track(
+        "/music/ef/01.flac",
+        "Two, Only Two.",
+        "TENMON & Eiichiro Yanagi",
+    );
+    let t2 = make_dummy_track(
+        "/music/ef/02.flac",
+        "eternal feather",
+        "TENMON & Eiichiro Yanagi",
+    );
+    db.save_scanned_track(
+        &t1,
+        "ef - espressivo",
+        "TENMON & Eiichiro Yanagi",
+        Some(2008),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    db.save_scanned_track(
+        &t2,
+        "ef - espressivo",
+        "TENMON & Eiichiro Yanagi",
+        Some(2008),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let pending = db
+        .list_albums_needing_background_cover(1000, 1000, 10)
+        .await
+        .unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].track_count, 2);
+    assert_eq!(
+        pending[0].sample_tracks,
+        vec!["Two, Only Two.".to_string(), "eternal feather".to_string()]
+    );
+    let album_id = pending[0].album.id;
+
+    // Recording a recent `not_found` keeps the album out of the pending list until cooldown passes.
+    db.record_cover_lookup_attempt(album_id, "not_found", 1200, None)
+        .await
+        .unwrap();
+    assert!(db
+        .list_albums_needing_background_cover(1100, 1100, 10)
+        .await
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        db.list_albums_needing_background_cover(1200, 1100, 10)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+
+    // Setting cover_path via `update_album_cover_if_missing` succeeds once, then refuses overwrite.
+    assert!(db
+        .update_album_cover_if_missing(album_id, "/cache/covers/a1.jpg", Some("mbid-1"))
+        .await
+        .unwrap());
+    assert!(!db
+        .update_album_cover_if_missing(album_id, "/cache/covers/a2.jpg", None)
+        .await
+        .unwrap());
+    let updated = db.get_album_by_id(album_id).await.unwrap().unwrap();
+    assert_eq!(updated.cover_path.as_deref(), Some("/cache/covers/a1.jpg"));
+    assert_eq!(updated.release_mbid.as_deref(), Some("mbid-1"));
+}

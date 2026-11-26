@@ -524,7 +524,9 @@
     "sortYearTooltip": "Preme ad ordinandum secundum annum",
     "sortAddedTooltip": "Preme ad ordinandum secundum diem additum",
     "unknownAlbum": "Album ignotum",
-    "moreActions": "Plura facta"
+    "moreActions": "Plura facta",
+    "syncMissingCovers": "Quaere tegumenta absentia",
+    "syncMissingCoversTooltip": "Tegumenta albumorum absentia in curriculo cape cum indicia certissime congruunt"
   },
   "playlists": {
     "title": "Indices Cantuum Tui",
@@ -710,6 +712,10 @@
     "importBackupBtn": "Restituere profili ex JSON",
     "closeToTray": "In aream systematis claudere",
     "closeToTrayDesc": "Musica in curriculo manet cum fenestra principalis clauditur.",
+    "autoFetchCoversTitle": "Tegumenta altae fiduciae in curriculo",
+    "autoFetchCoversDesc": "Tegumenta alborum absentia in curriculo spontanee quaerit cum indicia, annus et numerus carminum certo congruunt.",
+    "autoFetchCoversNow": "Tegumenta absentia nunc quaerere",
+    "autoFetchCoversStarted": "Inquisitio tegumentorum absentium in curriculo incepta est.",
     "discordRpcTitle": "Praesentia Dives Discord (RPC)",
     "discordRpcDesc": "Monstra carmen, cantatorem, album et cursum temporis in tuo Discord profilo.",
     "discordConnected": "Cum Discord coniunctum",

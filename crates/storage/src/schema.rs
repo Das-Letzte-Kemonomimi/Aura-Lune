@@ -218,6 +218,13 @@ impl Database {
                 created_at INTEGER NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS cover_lookup_attempts (
+                album_id INTEGER PRIMARY KEY REFERENCES albums(id) ON DELETE CASCADE,
+                status TEXT NOT NULL,
+                attempted_at INTEGER NOT NULL,
+                error_detail TEXT
+            );
+
             CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
             CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
             CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums(album_artist);
@@ -265,6 +272,9 @@ impl Database {
         }
         if user_version < 5 {
             self.migrate_v5().await?;
+        }
+        if user_version < 6 {
+            self.migrate_v6().await?;
         }
 
         // Seed the default anime themes (make sure every theme exists)
@@ -465,6 +475,28 @@ impl Database {
             DELETE FROM albums
             WHERE NOT EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = albums.id);
             PRAGMA user_version = 5;
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Migration v6: tracks background cover-fetch attempts with per-album status & cooldowns.
+    async fn migrate_v6(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS cover_lookup_attempts (
+                album_id INTEGER PRIMARY KEY REFERENCES albums(id) ON DELETE CASCADE,
+                status TEXT NOT NULL,
+                attempted_at INTEGER NOT NULL,
+                error_detail TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_cover_lookup_attempts_status
+                ON cover_lookup_attempts(status, attempted_at);
+            PRAGMA user_version = 6;
             "#,
         )
         .execute(&mut *tx)

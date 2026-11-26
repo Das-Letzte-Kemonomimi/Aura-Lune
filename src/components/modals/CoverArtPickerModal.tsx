@@ -53,7 +53,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
 
   const performSearch = useCallback(async (album: string, artist: string) => {
     if (!album.trim() && !artist.trim()) return;
-    const cacheKey = `${album.trim().toLowerCase()}---${artist.trim().toLowerCase()}`;
+    const cacheKey = `${albumId}:${album.trim().toLowerCase()}---${artist.trim().toLowerCase()}`;
     if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
       setCandidates(localCoverCache.get(cacheKey)!);
       setIsSearching(false);
@@ -68,6 +68,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         await invoke<CoverCandidate[]>('search_cover_candidates', {
           album: album.trim(),
           artist: artist.trim(),
+          albumId: albumId > 0 ? albumId : null,
         }),
       );
       setCandidates(results);
@@ -80,13 +81,13 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
     } finally {
       setIsSearching(false);
     }
-  }, [t.covers.noCoversFound, t.covers.searchError]);
+  }, [albumId, t.covers.noCoversFound, t.covers.searchError]);
 
   useEffect(() => {
     if (isOpen) {
       setAlbumQuery(initialAlbum);
       setArtistQuery(initialArtist);
-      const cacheKey = `${initialAlbum.trim().toLowerCase()}---${initialArtist.trim().toLowerCase()}`;
+      const cacheKey = `${albumId}:${initialAlbum.trim().toLowerCase()}---${initialArtist.trim().toLowerCase()}`;
       if (localCoverCache.has(cacheKey) && localCoverCache.get(cacheKey)!.length > 0) {
         setCandidates(localCoverCache.get(cacheKey)!);
         setIsSearching(false);
@@ -95,7 +96,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         performSearch(initialAlbum, initialArtist);
       }
     }
-  }, [isOpen, initialAlbum, initialArtist, performSearch]);
+  }, [albumId, isOpen, initialAlbum, initialArtist, performSearch]);
 
   const handleApply = async (candidate: CoverCandidate) => {
     setIsApplying(candidate.full_url);

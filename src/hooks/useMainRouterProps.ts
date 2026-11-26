@@ -299,6 +299,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     scanResult: p.scanResult,
     refreshQueue: p.refreshQueue,
     loadLibrary: p.loadLibrary,
+    handleTriggerBackgroundCoverFetch: p.handleTriggerBackgroundCoverFetch,
     showMessage: p.showMessage,
     formatTime: p.formatTime,
   };

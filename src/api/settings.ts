@@ -10,6 +10,7 @@ import { invoke } from './ipc';
 export const SETTING_KEYS = [
   'album_playback_mode',
   'app_language',
+  'auto_fetch_covers_bg',
   'bass_boost',
   'close_to_tray',
   'crossfade_duration',

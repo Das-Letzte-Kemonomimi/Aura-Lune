@@ -59,8 +59,48 @@ pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
     Some(image_data_uri(&ext, &bytes))
 }
 
-/// Downscales image bytes to a JPEG thumbnail data: URI; `None` when they cannot be decoded.
-fn thumbnail_data_uri(bytes: &[u8]) -> Option<String> {
+type ThumbnailKey = (PathBuf, u64, std::time::SystemTime);
+
+static THUMBNAIL_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<ThumbnailKey, String>>,
+> = std::sync::OnceLock::new();
+
+static THUMBNAIL_DISK_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Configures the persistent on-disk directory used to cache 512px JPEG thumbnails.
+pub fn init_thumbnail_cache_dir(dir: PathBuf) {
+    let _ = THUMBNAIL_DISK_DIR.set(dir);
+}
+
+fn thumbnail_disk_path(
+    path: &std::path::Path,
+    size: u64,
+    mtime: std::time::SystemTime,
+) -> Option<PathBuf> {
+    let dir = THUMBNAIL_DISK_DIR.get()?;
+    let mtime_secs = mtime
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Deterministic 128-bit FNV-1a fingerprint so thumbnails survive restarts.
+    let mut h1: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut h2: u64 = 0xaf63_bd4c_8601_b7df;
+    for &b in path
+        .to_string_lossy()
+        .as_bytes()
+        .iter()
+        .chain(size.to_le_bytes().iter())
+        .chain(mtime_secs.to_le_bytes().iter())
+    {
+        h1 ^= u64::from(b);
+        h1 = h1.wrapping_mul(0x100_0000_01b3);
+        h2 = h2.wrapping_mul(0x100_0000_01b3) ^ u64::from(b);
+    }
+    Some(dir.join(format!("{h1:016x}{h2:016x}.jpg")))
+}
+
+/// Downscales image bytes into a JPEG payload and `data:image/jpeg;base64,…` URI.
+fn thumbnail_jpeg_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
     let image = image::load_from_memory(bytes).ok()?;
     let thumb = image
         .thumbnail(COVER_THUMBNAIL_EDGE, COVER_THUMBNAIL_EDGE)
@@ -69,18 +109,12 @@ fn thumbnail_data_uri(bytes: &[u8]) -> Option<String> {
     image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 85)
         .encode_image(&thumb)
         .ok()?;
-    Some(image_data_uri("jpg", &jpeg))
+    Some(jpeg)
 }
-
-type ThumbnailKey = (PathBuf, u64, std::time::SystemTime);
-
-static THUMBNAIL_CACHE: std::sync::OnceLock<
-    std::sync::Mutex<std::collections::HashMap<ThumbnailKey, String>>,
-> = std::sync::OnceLock::new();
 
 /// Like [`resolve_cover_to_data_uri`] but local files are downscaled, so a library of hundreds of
 /// albums does not ship (and the WebView does not decode) hundreds of full-size images. Results
-/// are cached per file (path, size, modification time) for the rest of the session.
+/// are cached in RAM (L1) and on disk under `cache/thumbs` (L2) keyed by `(path, size, mtime)`.
 pub fn resolve_cover_thumbnail(path_str: &str) -> Option<String> {
     if path_str.starts_with("data:") || is_remote(path_str) {
         return Some(path_str.to_string());
@@ -88,18 +122,39 @@ pub fn resolve_cover_thumbnail(path_str: &str) -> Option<String> {
 
     let path = local_cover_file(path_str)?;
     let meta = fs::metadata(&path).ok()?;
-    let key = (path.clone(), meta.len(), meta.modified().ok()?);
+    let mtime = meta.modified().ok()?;
+    let key = (path.clone(), meta.len(), mtime);
     let cache = THUMBNAIL_CACHE.get_or_init(Default::default);
     if let Some(hit) = cache.lock().ok()?.get(&key) {
         return Some(hit.clone());
     }
 
+    let disk_path = thumbnail_disk_path(&path, meta.len(), mtime);
+    if let Some(dp) = disk_path.as_ref().filter(|p| p.exists()) {
+        if let Ok(cached_jpeg) = fs::read(dp) {
+            let uri = image_data_uri("jpg", &cached_jpeg);
+            cache.lock().ok()?.insert(key, uri.clone());
+            return Some(uri);
+        }
+    }
+
     let bytes = fs::read(&path).ok()?;
-    // Undecodable images keep working as the original file.
-    let uri = thumbnail_data_uri(&bytes).or_else(|| {
+    let uri = if let Some(jpeg) = thumbnail_jpeg_bytes(&bytes) {
+        if let Some(dp) = disk_path {
+            if let Some(parent) = dp.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            let tmp = dp.with_extension("tmp");
+            if fs::write(&tmp, &jpeg).is_ok() {
+                let _ = fs::rename(&tmp, &dp);
+            }
+        }
+        image_data_uri("jpg", &jpeg)
+    } else {
+        // Undecodable images keep working as the original file.
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("jpg");
-        Some(image_data_uri(ext, &bytes))
-    })?;
+        image_data_uri(ext, &bytes)
+    };
     cache.lock().ok()?.insert(key, uri.clone());
     Some(uri)
 }
@@ -128,6 +183,7 @@ pub async fn scan_library_internal(
 
     info!("Library scan started for: {}", folder_path);
     let summary = state.scanner.scan_directory(folder_path, &state.db).await?;
+    state.cover_worker_notify.notify_one();
 
     Ok(ScanSummaryDto {
         total_files_found: summary.total_files_found,
@@ -154,6 +210,7 @@ pub async fn scan_paths_internal(
     info!("Scanning {} specific paths", paths.len());
     let path_bufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
     let summary = state.scanner.scan_paths(&path_bufs, &state.db).await?;
+    state.cover_worker_notify.notify_one();
 
     Ok(ScanSummaryDto {
         total_files_found: summary.total_files_found,

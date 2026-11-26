@@ -1,9 +1,10 @@
 //! Commands for fetching and editing metadata, album covers, lyrics (LRC) and audio fingerprinting.
 
 use super::error::CommandError;
-use crate::commands::library::resolve_cover_to_data_uri;
+use crate::commands::library::{resolve_cover_thumbnail, resolve_cover_to_data_uri};
 use crate::AppState;
 use base64::Engine;
+use metadata::cover_query::{match_score_with_context, AlbumLookupContext, CandidateContext};
 use metadata::{
     AcoustidClient, CoverCandidateDto, LastFmAuthOverride, LastFmSession, LastFmTrackInfo,
     LyricsDto, ReleaseCandidateDto, TrackFingerprintMatchDto,
@@ -52,25 +53,77 @@ pub async fn identify_track_fingerprint_internal(
         .map_err(CommandError::from)
 }
 
-/// Searches for album cover candidates using Cover Art Archive and MusicBrainz.
+async fn load_album_lookup_context(
+    db: &storage::Database,
+    album_id: Option<i64>,
+) -> AlbumLookupContext {
+    let Some(id) = album_id.filter(|&id| id > 0) else {
+        return AlbumLookupContext::default();
+    };
+    let Ok(Some(ctx)) = db.get_album_cover_context(id).await else {
+        return AlbumLookupContext::default();
+    };
+    AlbumLookupContext {
+        year: ctx.album.year,
+        track_count: Some(ctx.track_count),
+        sample_tracks: ctx.sample_tracks,
+        release_mbid: ctx.album.release_mbid,
+    }
+}
+
+/// Searches for album cover candidates using album verification context (year, track count,
+/// sample tracks) alongside Cover Art Archive and MusicBrainz.
 pub async fn search_cover_candidates_internal(
     state: &AppState,
     album: &str,
     artist: &str,
+    album_id: Option<i64>,
 ) -> Vec<CoverCandidateDto> {
     info!(
-        "Tauri command: search_cover_candidates('{}', '{}')",
-        album, artist
+        "Tauri command: search_cover_candidates('{}', '{}', album_id={:?})",
+        album, artist, album_id
     );
+    let ctx = load_album_lookup_context(&state.db, album_id).await;
     state
         .cover_archive
-        .search_cover_candidates_with(album, artist, Some(&state.mb))
+        .search_cover_candidates_for_album(album, artist, &ctx, Some(&state.mb))
         .await
 }
 
-/// Helper function to update discord rpc and cover cache when a cover is applied.
+fn push_discord_track_cover(state: &AppState, artist: &str, album: &str, art_url: Option<String>) {
+    let Some(discord) = &state.discord_rpc else {
+        return;
+    };
+    let dur = state
+        .engine
+        .duration()
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let pos = state
+        .engine
+        .position()
+        .map(|p| p.as_millis() as u64)
+        .unwrap_or(0);
+    let current_title = state
+        .engine
+        .queue()
+        .current_item()
+        .map(|i| i.title.clone())
+        .unwrap_or_default();
+    discord.update_track(desktop_integration::DiscordTrackInfo {
+        title: current_title,
+        artist: artist.to_string(),
+        album: album.to_string(),
+        duration_ms: dur,
+        art_url,
+    });
+    discord.update_playback_status(state.engine.state(), pos, dur);
+}
+
+/// Helper function to update Discord RPC and cover cache when a cover is applied.
 pub fn sync_cover_to_discord_cache(
     state: &AppState,
+    album_id: Option<i64>,
     artist: Option<&str>,
     album_title: Option<&str>,
     cover_url_or_data: &str,
@@ -87,35 +140,36 @@ pub fn sync_cover_to_discord_cache(
 
     if cover_url_or_data.starts_with("http://") || cover_url_or_data.starts_with("https://") {
         if let Ok(mut cache) = state.discord_cover_cache.write() {
+            if let Some(id) = album_id.filter(|&id| id > 0) {
+                cache.insert(format!("album:{id}"), cover_url_or_data.to_string());
+            }
             cache.insert(cache_key, cover_url_or_data.to_string());
         }
-        if let Some(discord) = &state.discord_rpc {
-            let dur = state
-                .engine
-                .duration()
-                .map(|d| d.as_millis() as u64)
-                .unwrap_or(0);
-            let pos = state
-                .engine
-                .position()
-                .map(|p| p.as_millis() as u64)
-                .unwrap_or(0);
-            let current_title = state
-                .engine
-                .queue()
-                .current_item()
-                .map(|i| i.title.clone())
-                .unwrap_or_default();
-            discord.update_track(desktop_integration::DiscordTrackInfo {
-                title: current_title,
-                artist: art.to_string(),
-                album: alb.to_string(),
-                duration_ms: dur,
-                art_url: Some(cover_url_or_data.to_string()),
-            });
-            discord.update_playback_status(state.engine.state(), pos, dur);
-        }
+        push_discord_track_cover(state, art, alb, Some(cover_url_or_data.to_string()));
     }
+}
+
+fn clear_discord_cover_cache(
+    state: &AppState,
+    album_id: Option<i64>,
+    artist: Option<&str>,
+    album_title: Option<&str>,
+) {
+    let (Some(art), Some(alb)) = (artist, album_title) else {
+        return;
+    };
+    let cache_key = format!(
+        "{}---{}",
+        art.trim().to_lowercase(),
+        alb.trim().to_lowercase()
+    );
+    if let Ok(mut cache) = state.discord_cover_cache.write() {
+        if let Some(id) = album_id.filter(|&id| id > 0) {
+            cache.remove(&format!("album:{id}"));
+        }
+        cache.remove(&cache_key);
+    }
+    push_discord_track_cover(state, art, alb, None);
 }
 
 /// Downloads and applies album cover from a URL.
@@ -156,9 +210,15 @@ pub async fn apply_cover_url_internal(
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
 
-    sync_cover_to_discord_cache(state, artist.as_deref(), album_title.as_deref(), cover_url);
+    sync_cover_to_discord_cache(
+        state,
+        Some(actual_album_id),
+        artist.as_deref(),
+        album_title.as_deref(),
+        cover_url,
+    );
 
-    cover_file_data_uri(&path).await
+    cover_file_thumbnail_uri(&path).await
 }
 
 /// Applies a local file as an album cover.
@@ -228,6 +288,13 @@ pub async fn apply_custom_cover_file_internal(
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
+
+    clear_discord_cover_cache(
+        state,
+        Some(actual_album_id),
+        artist.as_deref(),
+        album_title.as_deref(),
+    );
 
     let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(format!("data:{};base64,{}", mime, b64))
@@ -510,7 +577,18 @@ pub async fn fetch_and_apply_cover(
         .update_album_cover(album_id, &path_str, Some(&mbid))
         .await?;
 
-    cover_file_data_uri(&path).await
+    if let Ok(Some(album)) = state.db.get_album_by_id(album_id).await {
+        let caa_url = format!("https://coverartarchive.org/release/{mbid}/front-500");
+        sync_cover_to_discord_cache(
+            &state,
+            Some(album_id),
+            Some(&album.album_artist),
+            Some(&album.title),
+            &caa_url,
+        );
+    }
+
+    cover_file_thumbnail_uri(&path).await
 }
 
 #[tauri::command]
@@ -524,19 +602,37 @@ pub async fn auto_fetch_album_cover(
         "Tauri command: auto_fetch_album_cover('{}', '{}')",
         album_title, artist
     );
-    // MusicBrainz first: an exact release with art in the Cover Art Archive.
-    match state.mb.search_releases(&album_title, &artist).await {
+    let ctx = load_album_lookup_context(&state.db, Some(album_id)).await;
+
+    // MusicBrainz first: inspect up to top 3 qualified releases in case #1 has HTTP 404 on CAA.
+    match state
+        .mb
+        .search_releases_with_context(&album_title, &artist, &ctx.sample_tracks)
+        .await
+    {
         Ok(candidates) => {
-            let best = candidates.first().filter(|best| {
-                best.score >= 85
-                    && metadata::cover_query::match_score(
-                        &album_title,
-                        &artist,
-                        &best.title,
-                        &best.artist,
-                    ) >= metadata::AUTO_ACCEPT_SCORE
-            });
-            if let Some(best) = best {
+            let qualified = candidates
+                .into_iter()
+                .filter(|c| {
+                    let release_year = c
+                        .date
+                        .as_deref()
+                        .and_then(|d| d.get(..4))
+                        .and_then(|y| y.parse::<i64>().ok());
+                    let cand_ctx = CandidateContext {
+                        title: &c.title,
+                        artist: &c.artist,
+                        year: release_year,
+                        track_count: c.track_count,
+                        release_mbid: Some(&c.mbid),
+                    };
+                    c.score >= 85
+                        && match_score_with_context(&album_title, &artist, &ctx, &cand_ctx)
+                            >= metadata::AUTO_ACCEPT_SCORE
+                })
+                .take(3);
+
+            for best in qualified {
                 match state.cover_archive.fetch_and_cache_cover(&best.mbid).await {
                     Ok(path) => {
                         let path_str = path.to_string_lossy().to_string();
@@ -544,8 +640,18 @@ pub async fn auto_fetch_album_cover(
                             .db
                             .update_album_cover(album_id, &path_str, Some(&best.mbid))
                             .await?;
-
-                        return Ok(Some(cover_file_data_uri(&path).await?));
+                        let caa_url = format!(
+                            "https://coverartarchive.org/release/{}/front-500",
+                            best.mbid
+                        );
+                        sync_cover_to_discord_cache(
+                            &state,
+                            Some(album_id),
+                            Some(&artist),
+                            Some(&album_title),
+                            &caa_url,
+                        );
+                        return Ok(Some(cover_file_thumbnail_uri(&path).await?));
                     }
                     Err(e) => {
                         tracing::warn!("Failed to fetch the cover for MBID {}: {}", best.mbid, e);
@@ -556,10 +662,10 @@ pub async fn auto_fetch_album_cover(
         Err(e) => tracing::warn!("MusicBrainz search failed, trying other sources: {e}"),
     }
 
-    // Deezer / Apple Music, accepted only when the album and artist really match.
+    // Deezer / Apple Music / CAA ladder, accepted only when context & metadata match.
     let Some(found) = state
         .cover_archive
-        .find_best_cover(&album_title, &artist, None, Some(&state.mb))
+        .find_best_cover_for_album(&album_title, &artist, None, &ctx, Some(&state.mb))
         .await
     else {
         return Ok(None);
@@ -577,12 +683,24 @@ pub async fn auto_fetch_album_cover(
 }
 
 #[tauri::command]
+pub async fn trigger_background_cover_fetch(
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    state
+        .cover_worker_force_run
+        .store(true, std::sync::atomic::Ordering::Release);
+    state.cover_worker_notify.notify_one();
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn search_cover_candidates(
     album: String,
     artist: String,
+    album_id: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<Vec<CoverCandidateDto>, CommandError> {
-    Ok(search_cover_candidates_internal(&state, &album, &artist).await)
+    Ok(search_cover_candidates_internal(&state, &album, &artist, album_id).await)
 }
 
 #[tauri::command]
@@ -685,44 +803,12 @@ pub async fn apply_custom_cover_data(
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
 
-    if let Some(art) = &artist {
-        if let Some(alb) = &album_title {
-            let cache_key = format!(
-                "{}---{}",
-                art.trim().to_lowercase(),
-                alb.trim().to_lowercase()
-            );
-            if let Ok(mut cache) = state.discord_cover_cache.write() {
-                cache.remove(&cache_key);
-            }
-            if let Some(discord) = &state.discord_rpc {
-                let dur = state
-                    .engine
-                    .duration()
-                    .map(|d| d.as_millis() as u64)
-                    .unwrap_or(0);
-                let pos = state
-                    .engine
-                    .position()
-                    .map(|p| p.as_millis() as u64)
-                    .unwrap_or(0);
-                let current_title = state
-                    .engine
-                    .queue()
-                    .current_item()
-                    .map(|i| i.title.clone())
-                    .unwrap_or_default();
-                discord.update_track(desktop_integration::DiscordTrackInfo {
-                    title: current_title,
-                    artist: art.clone(),
-                    album: alb.clone(),
-                    duration_ms: dur,
-                    art_url: None,
-                });
-                discord.update_playback_status(state.engine.state(), pos, dur);
-            }
-        }
-    }
+    clear_discord_cover_cache(
+        &state,
+        Some(actual_album_id),
+        artist.as_deref(),
+        album_title.as_deref(),
+    );
 
     Ok(format!("data:{};base64,{}", mime, raw_b64))
 }
@@ -795,8 +881,16 @@ pub async fn get_lyrics(
     Ok(lyrics)
 }
 
-/// Reads a cached cover and returns it as a `data:` URI (MIME type from the extension).
-async fn cover_file_data_uri(path: &std::path::Path) -> Result<String, CommandError> {
+/// Reads a cached cover and returns it as a compact 512px thumbnail `data:` URI,
+/// falling back to the raw file if thumbnail decoding fails.
+async fn cover_file_thumbnail_uri(path: &std::path::Path) -> Result<String, CommandError> {
+    let path_buf = path.to_path_buf();
+    let thumb =
+        tokio::task::spawn_blocking(move || resolve_cover_thumbnail(&path_buf.to_string_lossy()))
+            .await?;
+    if let Some(uri) = thumb {
+        return Ok(uri);
+    }
     let bytes = tokio::fs::read(path).await?;
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
     Ok(crate::commands::library::image_data_uri(ext, &bytes))

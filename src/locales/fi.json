@@ -524,7 +524,9 @@
     "sortYearTooltip": "Napsauta lajitellaksesi julkaisuvuoden mukaan",
     "sortAddedTooltip": "Napsauta lajitellaksesi kirjastoon lisäyspäivän mukaan",
     "unknownAlbum": "Tuntematon albumi",
-    "moreActions": "Lisää toimintoja"
+    "moreActions": "Lisää toimintoja",
+    "syncMissingCovers": "Hae puuttuvat kansikuvat",
+    "syncMissingCoversTooltip": "Hae puuttuvat albumien kansikuvat taustalla, kun metatiedot täsmäävät varmasti"
   },
   "playlists": {
     "title": "Omat Soittolistat",
@@ -710,6 +712,10 @@
     "importBackupBtn": "Palauta profiili JSON-tiedostosta",
     "closeToTray": "Pienennä ilmaisinalueelle suljettaessa",
     "closeToTrayDesc": "Pidä musiikki soimassa taustalla, kun pääikkuna suljetaan.",
+    "autoFetchCoversTitle": "Automaattiset kansikuvat taustalla",
+    "autoFetchCoversDesc": "Hakee puuttuvat albumikannet taustalla automaattisesti, kun metatiedot, julkaisuvuosi ja kappalemäärä täsmäävät erittäin varmasti.",
+    "autoFetchCoversNow": "Hae puuttuvat kannet nyt",
+    "autoFetchCoversStarted": "Puuttuvien kansikuvien haku taustalla käynnistetty.",
     "discordRpcTitle": "Discord Rich Presence (RPC)",
     "discordRpcDesc": "Näytä parhaillaan toistettava kappale, esittäjä, albumi ja edistymispalkki Discord-profiilissasi.",
     "discordConnected": "Yhdistetty Discordiin",

@@ -1,6 +1,9 @@
 //! Music library operations: artists, albums, tracks, duplicates and path updates.
 
-use crate::{AlbumRecord, ArtistRecord, Database, DuplicateGroup, StorageError, TrackRecord};
+use crate::{
+    AlbumCoverLookupContext, AlbumRecord, ArtistRecord, Database, DuplicateGroup, StorageError,
+    TrackRecord,
+};
 use sqlx::{FromRow, Row};
 
 impl Database {
@@ -183,13 +186,14 @@ impl Database {
         Ok(track_id)
     }
 
-    /// Updates an album's cover and MBID.
+    /// Updates an album's cover and MBID, clearing any pending background lookup retry state.
     pub async fn update_album_cover(
         &self,
         album_id: i64,
         cover_path: &str,
         release_mbid: Option<&str>,
     ) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
         sqlx::query(
             r#"
             UPDATE albums
@@ -201,9 +205,149 @@ impl Database {
         .bind(cover_path)
         .bind(release_mbid)
         .bind(album_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM cover_lookup_attempts WHERE album_id = ?1;")
+            .bind(album_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+
+        Ok(())
+    }
+
+    /// Sets an album cover only if `albums.cover_path` is still NULL or empty (prevents overwriting
+    /// user-applied or locally scanned covers from a slower background task). Returns whether updated.
+    pub async fn update_album_cover_if_missing(
+        &self,
+        album_id: i64,
+        cover_path: &str,
+        release_mbid: Option<&str>,
+    ) -> Result<bool, StorageError> {
+        let mut tx = self.pool.begin().await?;
+        let res = sqlx::query(
+            r#"
+            UPDATE albums
+            SET cover_path = ?1,
+                release_mbid = COALESCE(NULLIF(albums.release_mbid, ''), ?2)
+            WHERE id = ?3
+              AND (cover_path IS NULL OR cover_path = '');
+            "#,
+        )
+        .bind(cover_path)
+        .bind(release_mbid)
+        .bind(album_id)
+        .execute(&mut *tx)
+        .await?;
+        let updated = res.rows_affected() > 0;
+        if updated {
+            sqlx::query("DELETE FROM cover_lookup_attempts WHERE album_id = ?1;")
+                .bind(album_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(updated)
+    }
+
+    /// Returns album details plus track count and up to 5 sample track titles for online
+    /// disambiguation and tracklist verification.
+    pub async fn get_album_cover_context(
+        &self,
+        album_id: i64,
+    ) -> Result<Option<AlbumCoverLookupContext>, StorageError> {
+        let Some(album) = self.get_album_by_id(album_id).await? else {
+            return Ok(None);
+        };
+        let track_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM tracks WHERE album_id = ?1;")
+                .bind(album_id)
+                .fetch_one(&self.pool)
+                .await?;
+        let sample_tracks: Vec<String> = sqlx::query_scalar(
+            r#"
+            SELECT title FROM tracks
+            WHERE album_id = ?1
+            ORDER BY COALESCE(disc_no, 1), COALESCE(track_no, 0), id
+            LIMIT 5;
+            "#,
+        )
+        .bind(album_id)
+        .fetch_all(&self.pool)
         .await?;
 
+        Ok(Some(AlbumCoverLookupContext {
+            album,
+            track_count: track_count.max(0) as usize,
+            sample_tracks,
+        }))
+    }
+
+    /// Lists albums lacking a cover whose background lookup cooldown has elapsed, prioritizing
+    /// albums with a `release_mbid` tag and newest additions.
+    pub async fn list_albums_needing_background_cover(
+        &self,
+        non_error_cutoff_unix: i64,
+        error_cutoff_unix: i64,
+        limit: i64,
+    ) -> Result<Vec<AlbumCoverLookupContext>, StorageError> {
+        let albums = sqlx::query_as::<_, AlbumRecord>(
+            r#"
+            SELECT a.*
+            FROM albums a
+            LEFT JOIN cover_lookup_attempts c ON c.album_id = a.id
+            WHERE (a.cover_path IS NULL OR a.cover_path = '')
+              AND TRIM(a.title) != ''
+              AND LOWER(TRIM(a.title)) != 'unknown album'
+              AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = a.id)
+              AND (
+                    c.album_id IS NULL
+                    OR (c.status = 'error' AND c.attempted_at <= ?2)
+                    OR (c.status IN ('not_found', 'ambiguous') AND c.attempted_at <= ?1)
+                  )
+            ORDER BY (a.release_mbid IS NOT NULL AND a.release_mbid != '') DESC, a.id DESC
+            LIMIT ?3;
+            "#,
+        )
+        .bind(non_error_cutoff_unix)
+        .bind(error_cutoff_unix)
+        .bind(limit.max(1))
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut contexts = Vec::with_capacity(albums.len());
+        for album in albums {
+            if let Some(ctx) = self.get_album_cover_context(album.id).await? {
+                contexts.push(ctx);
+            }
+        }
+        Ok(contexts)
+    }
+
+    /// Records the outcome of a background cover-fetch attempt so misses respect a cooldown.
+    pub async fn record_cover_lookup_attempt(
+        &self,
+        album_id: i64,
+        status: &str,
+        attempted_at: i64,
+        error_detail: Option<&str>,
+    ) -> Result<(), StorageError> {
+        sqlx::query(
+            r#"
+            INSERT INTO cover_lookup_attempts (album_id, status, attempted_at, error_detail)
+            VALUES (?1, ?2, ?3, ?4)
+            ON CONFLICT(album_id) DO UPDATE SET
+                status = excluded.status,
+                attempted_at = excluded.attempted_at,
+                error_detail = excluded.error_detail;
+            "#,
+        )
+        .bind(album_id)
+        .bind(status)
+        .bind(attempted_at)
+        .bind(error_detail)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
