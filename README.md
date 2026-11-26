@@ -104,12 +104,7 @@ The installer downloads the latest AppImage, installs icons, desktop entry (`aur
 
 ### 2. Standalone AppImage (Manual)
 Download the appropriate package from **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)** (or pre-release builds from **[GitHub Pre-releases (tag: dev)](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/dev)**):
-- **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
-  ```bash
-  chmod +x Auralune_*_bazzite_amd64.AppImage
-  ./Auralune_*_bazzite_amd64.AppImage
-  ```
-- **Arch / CachyOS / EndeavourOS / other distros**:
+- **Any Linux distribution (Arch, Fedora / Bazzite, Ubuntu, Steam Deck, …)**:
   ```bash
   chmod +x Auralune_*_amd64.AppImage
   ./Auralune_*_amd64.AppImage

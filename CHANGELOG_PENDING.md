@@ -42,7 +42,7 @@
 - **Historia zmian w zakładce Aktualizacje**: osobna zakładka „Historia zmian” zniknęła, a lista wersji jest pod kartą aktualizacji; przełącznik automatycznego sprawdzania (start + co 6 godzin) jest w jednej karcie z przyciskiem „Sprawdź teraz”. Zakładka nazywa się „Aktualizacje i zmiany”, a karta dostępnej aktualizacji jest domyślnie zwinięta (pigułka, wersja i przyciski; notatki wydania po rozwinięciu).
 - **Przełącznik-suwak** (`ToggleSwitch`) przy automatycznym sprawdzaniu aktualizacji.
 - **Instalator pobiera do katalogów `~/.local/share/auralune{,-dev}`** także przy ustawionym `XDG_DATA_HOME` (polityka ścieżek `crates/downloads` wcześniej odrzucała katalog `auralune-dev`).
-- **Wydania publikują `SHA256SUMS`** (workflow `publish-dev-release` i `packaging/sync-public-repo.sh`); wydanie dev zawiera też AppImage pod stałą nazwą `Auralune-dev-x86_64.AppImage` (fallback `install.sh`).
+- **Wydania publikują `SHA256SUMS`** (workflow `publish-dev-release` oraz `release-publish.yml`); wydanie dev zawiera też AppImage pod stałą nazwą `Auralune-dev-x86_64.AppImage` (fallback `install.sh`).
 
 #### Instalacja, wydania i narzędzia deweloperskie
 - **Kanał deweloperski instalatora** (`install.sh`): wersja `auralune-dev` instalowana obok stabilnej, z osobnymi plikami, profilem i skrótami; automatyczne wykrywanie wtyczek GStreamera (np. na Arch Linux).
@@ -60,6 +60,11 @@
   - dekodowanie do analizy (uszkodzone pliki, rozdział kanałów, długość), falogram długich utworów, równoważność nowego HPSS ze starą implementacją, ponawianie zapytań HTTP i limit częstotliwości.
 
 ---
+- **Wydania stabilne budują i publikują ręczne workflow GitHub Actions**: *Prepare release* (podbicie wersji + PR `release/vX.Y.Z` → `main`) i *Publish release* (pełne CI, AppImage, `SHA256SUMS`, wydanie GitHub, opis repozytorium; środowisko `release` jako opcjonalna bramka akceptacji). Merge do `main` niczego nie publikuje. Opis: [`docs/RELEASING.pl.md`](./docs/RELEASING.pl.md) / [`docs/RELEASING.md`](./docs/RELEASING.md).
+- **Skrypty wydania**: `packaging/bump-version.sh` (podmiana wersji we wszystkich plikach, także podbicie `-dev`), `packaging/check-release-content.sh` (changelog, tłumaczenia, README), `packaging/release-notes.sh` oraz `packaging/archlinux/update-aur-checksum.sh` (suma AppImage z opublikowanego `SHA256SUMS`).
+- **Wspólna akcja `.github/actions/setup-build-env`** dla buildu dev i stabilnego; `ci.yml` można wywołać z innego workflow (`workflow_call`).
+- **Usunięto `packaging/sync-public-repo.sh`** (wymuszony push na `main` z usuwaniem `AGENTS.md`). Wydania mają jeden AppImage (budowany na Ubuntu 24.04, glibc 2.39, więc działa także na Fedorze/Bazzite); osobny build Bazzite i jego gałąź w `install.sh` zostały usunięte.
+- **Pakiet AUR `auralune-bin`** instaluje cały obraz AppImage w `/opt/auralune` (z dołączonymi bibliotekami RubberBand/SoundTouch/GStreamer) z własnym wpisem `.desktop` i ikonami; wcześniej kopiował samą binarkę, a skrót uruchamiał nieistniejące polecenie `auralune-desktop`.
 
 ### 🛠️ Poprawiono (Fixed)
 - **Profile DSP (Nightcore, Slowed, …)**: zastosowanie profilu to jedno wywołanie IPC (`apply_dsp_profile`) zamiast sześciu, a przełączenie z Bypass na silnik DSP nie wykonuje już seeku (przebazowanie osi czasu), więc profil włącza się bez przerwy w dźwięku.
@@ -166,7 +171,6 @@
 - **CSP**: usunięto nieużywany protokół `asset:`; import kopii profilu sprawdza poprawność motywów.
 
 #### Budowanie i CI
-- **`packaging/sync-public-repo.sh`** aktualizuje opis właściwego repozytorium (`Aura-Lune` zamiast nieistniejącego `Auralune`).
 - **Usługi sieciowe odporne na chwilowe awarie**: zapytania do MusicBrainz i AcoustID są ponawiane (do 3 prób z narastającym odstępem) przy błędach sieci i odpowiedziach 429/502/503/504; AcoustID ma limit 3 zapytań na sekundę; zawieszony `fpcalc` jest przerywany po 60 s; wszystkie usługi wysyłają jeden User-Agent z aktualną wersją (wcześniej m.in. na sztywno `0.1.0`), a teksty piosenek korzystają z jednego klienta HTTP zamiast tworzyć nowy dla każdego utworu.
 - **CI**: sprawdzanie składni skryptów powłoki (`bash -n`), informacyjny audyt zależności `cargo-deny` (podatności, licencje, duplikaty), test dymny uruchamiany raz zamiast dwa razy, uprawnienia pamięci podręcznej apt ograniczone do odczytu zamiast `777`.
 - **Usunięto 11 nieużywanych zależności** z crate'ów (m.in. `libc` i `thiserror` w modułach DSP, `storage` w `downloads` i `metadata`).

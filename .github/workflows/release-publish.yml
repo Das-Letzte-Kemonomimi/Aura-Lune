@@ -1,0 +1,197 @@
+name: Publish release
+
+# Ręczny krok 2/2 wydania stabilnego. Uruchamiany na `main` po zmergowaniu PR z "Prepare release".
+# Buduje AppImage, uruchamia pełne CI na tym SHA i publikuje wydanie GitHub z SHA256SUMS.
+# Merge do main niczego nie publikuje. Opis procesu: docs/RELEASING.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Próba: zbuduj wszystko i zostaw wydanie jako szkic (bez publikacji i zmiany opisu repo)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Własna nazwa grupy (nie ${{ github.workflow }}), żeby nie kolidowała z grupą wywoływanego ci.yml.
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      codename: ${{ steps.ver.outputs.codename }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Require the main branch
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Wydanie można opublikować tylko z gałęzi main (wybrano: $GITHUB_REF)."
+            exit 1
+          fi
+
+      - name: Read and validate version
+        id: ver
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f 2)
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Wersja '$VERSION' na main nie jest stabilna (X.Y.Z). Czy PR z Prepare release został zmergowany?"
+            exit 1
+          fi
+          if [[ "$(grep -m1 '"version"' apps/desktop/src-tauri/tauri.conf.json | sed -E 's/.*"version": "([^"]+)".*/\1/')" != "$VERSION" ]]; then
+            echo "::error::tauri.conf.json ma inną wersję niż Cargo.toml."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag v$VERSION już istnieje — to wydanie zostało już opublikowane."
+            exit 1
+          fi
+          packaging/check-release-content.sh "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "codename=$(packaging/release-notes.sh "$VERSION" codename)" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: Full CI on the release commit
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+    # ci.yml zawiera job publish-dev-release z `contents: write` (pomijany przy wywołaniu,
+    # ale GitHub waliduje uprawnienia przed startem), więc wywołujący musi je dopuścić.
+    permissions:
+      contents: write
+
+  build-appimage:
+    name: Build stable AppImage
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup build environment (toolchains, system libraries, frontend bundle)
+        uses: ./.github/actions/setup-build-env
+
+      - name: Build Tauri AppImage bundle
+        env:
+          # Kanał i commit są wbudowywane w aplikację (build.rs); GITHUB_SHA ustawia GitHub.
+          AURALUNE_BUILD_CHANNEL: stable
+        run: npm --prefix apps/desktop run tauri build -- --bundles appimage
+
+      - name: Verify the AppImage name
+        run: |
+          set -euo pipefail
+          EXPECTED="target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+          if [[ ! -f "$EXPECTED" ]]; then
+            echo "::error::Brak $EXPECTED (install.sh, PKGBUILD-bin i aktualizator oczekują dokładnie tej nazwy)."
+            ls -la target/release/bundle/appimage/ || true
+            exit 1
+          fi
+          ls -lh "$EXPECTED"
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-stable
+          path: target/release/bundle/appimage/Auralune_${{ needs.verify.outputs.version }}_amd64.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    needs: [verify, ci, build-appimage]
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.ci.result == 'success' && needs.build-appimage.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Środowisko "release": opcjonalna bramka akceptacji (Settings → Environments → Required reviewers).
+    environment: release
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.verify.outputs.version }}
+      CODENAME: ${{ needs.verify.outputs.codename }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download AppImage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: appimage-*
+          merge-multiple: true
+          path: dist
+
+      - name: Generate SHA256SUMS and release notes
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -- *.AppImage > SHA256SUMS && cat SHA256SUMS)
+          packaging/release-notes.sh "$VERSION" notes > "$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md"
+
+      - name: Create the release as a draft with all assets
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+
+          # Szkic po poprzedniej próbie (dry run) blokowałby utworzenie wydania — usuń go.
+          if gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null | grep -qx true; then
+            echo "Usuwanie starego szkicu $TAG..."
+            gh release delete "$TAG" --yes
+          fi
+
+          # Wszystko w jednym wywołaniu i jako szkic: aktualizator nigdy nie zobaczy wydania bez SHA256SUMS.
+          gh release create "$TAG" dist/*.AppImage dist/SHA256SUMS \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Auralune $VERSION — $CODENAME" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Publish the release
+        if: ${{ !inputs.dry_run }}
+        run: gh release edit "v$VERSION" --draft=false --latest
+
+      - name: Update repository description
+        if: ${{ !inputs.dry_run }}
+        env:
+          # Zmiana opisu repozytorium wymaga uprawnień administratora — GITHUB_TOKEN ich nie ma.
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "::warning::Brak sekretu RELEASE_TOKEN — pominięto aktualizację opisu repozytorium (About)."
+            exit 0
+          fi
+          GH_TOKEN="$RELEASE_TOKEN" gh repo edit "$GITHUB_REPOSITORY" \
+            --description "v${VERSION} | Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP)"
+
+      - name: Summary
+        run: |
+          {
+            if [[ "$DRY_RUN" == "true" ]]; then
+              echo "### 🧪 Próba (dry run) — v$VERSION: wydanie zostało jako SZKIC"
+              echo "Sprawdź pliki w *Releases*, potem usuń szkic albo uruchom workflow ponownie bez dry run."
+            else
+              echo "### 🎉 Opublikowano v$VERSION — „$CODENAME”"
+            fi
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+            echo
+            echo "**Dalsze kroki (ręcznie):**"
+            echo "1. \`packaging/archlinux/update-aur-checksum.sh $VERSION\` → commit → \`packaging/archlinux/publish-to-aur.sh\`"
+            echo "2. Na \`dev\`: \`git merge origin/main\` i \`packaging/bump-version.sh <następna>-dev\`"
+          } >> "$GITHUB_STEP_SUMMARY"

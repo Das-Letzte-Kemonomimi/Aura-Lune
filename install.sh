@@ -190,14 +190,6 @@ if [[ -n "$SOURCE_APPIMAGE" ]]; then
 else
     # 4. Download AppImage from GitHub Releases
     echo -e "${BLUE}🔍 Fetching release assets from GitHub (${REPO})...${RESET}"
-    
-    # Detect Bazzite / Fedora for GLIBC 2.40 compatibility package
-    IS_BAZZITE_OR_FEDORA=false
-    if [[ "${1:-}" == "--bazzite" || "${2:-}" == "--bazzite" || "${3:-}" == "--bazzite" ]]; then
-        IS_BAZZITE_OR_FEDORA=true
-    elif [[ -f /etc/os-release ]] && grep -qiE 'ID=bazzite|ID=fedora|ID_LIKE=.*fedora|ID_LIKE=.*bazzite' /etc/os-release; then
-        IS_BAZZITE_OR_FEDORA=true
-    fi
 
     DOWNLOAD_URL=""
     if [[ "$CHANNEL" == "dev" ]]; then
@@ -235,22 +227,11 @@ else
                 VERSION="$DETECTED_TAG_VER"
             fi
 
-            if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
-                echo -e "${GREEN}🎮 Detected Bazzite / Fedora system — selecting GLIBC 2.40 compatible package!${RESET}"
-                DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "bazzite.*\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
-            fi
-
-            if [[ -z "$DOWNLOAD_URL" ]]; then
-                DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | grep -vi "bazzite" | head -n 1 | cut -d '"' -f 4 || echo "")
-            fi
+            DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep "browser_download_url" | grep -i "\.AppImage\"" | head -n 1 | cut -d '"' -f 4 || echo "")
         fi
 
         if [[ -z "$DOWNLOAD_URL" ]]; then
-            if [[ "$IS_BAZZITE_OR_FEDORA" == true ]]; then
-                DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_bazzite_amd64.AppImage"
-            else
-                DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"
-            fi
+            DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/Auralune_${VERSION}_amd64.AppImage"
         fi
     fi
 

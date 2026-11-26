@@ -104,12 +104,7 @@ Instalator automatycznie konfiguruje najnowszy AppImage, ikonę i skrót w menu 
 
 ### 2. Gotowa paczka AppImage (Ręcznie)
 Pobierz odpowiedni plik z sekcji **[GitHub Releases](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/latest)** (lub wersje przedpremierowe z **[GitHub Pre-releases (tag: dev)](https://github.com/Das-Letzte-Kemonomimi/Aura-Lune/releases/tag/dev)**):
-- **Bazzite / Fedora / Silverblue / Kinoite / Steam Deck**:
-  ```bash
-  chmod +x Auralune_*_bazzite_amd64.AppImage
-  ./Auralune_*_bazzite_amd64.AppImage
-  ```
-- **Arch / CachyOS / EndeavourOS / inne dystrybucje**:
+- **Dowolna dystrybucja Linuksa (Arch, Fedora / Bazzite, Ubuntu, Steam Deck, …)**:
   ```bash
   chmod +x Auralune_*_amd64.AppImage
   ./Auralune_*_amd64.AppImage

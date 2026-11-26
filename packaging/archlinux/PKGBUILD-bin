@@ -45,16 +45,45 @@ prepare() {
 package() {
     cd "$srcdir/squashfs-root"
 
-    # Główna binarka
-    install -Dm755 usr/bin/auralune-desktop "$pkgdir/usr/bin/auralune"
+    # Cały obraz AppImage (razem z dołączonymi bibliotekami: RubberBand, SoundTouch, GStreamer, GTK…)
+    # trafia do /opt/auralune. Dzięki temu aplikacja nie zależy od wersji bibliotek systemowych
+    # (AppImage z CI jest budowany na Ubuntu), a pacman odinstalowuje wszystko przez `pacman -R`.
+    install -dm755 "$pkgdir/opt/auralune"
+    cp -a --no-preserve=ownership . "$pkgdir/opt/auralune/"
+    chmod -R u+w,go+rX "$pkgdir/opt/auralune"
 
-    # Plik aktywatora pulpitu .desktop
-    install -Dm644 Auralune.desktop "$pkgdir/usr/share/applications/auralune.desktop"
+    # AppRun wylicza katalog z $0, więc symlink nie zadziała — potrzebny jest skrypt startowy.
+    install -dm755 "$pkgdir/usr/bin"
+    printf '#!/bin/sh\nexec /opt/auralune/AppRun "$@"\n' > "$pkgdir/usr/bin/auralune"
+    chmod 755 "$pkgdir/usr/bin/auralune"
 
-    # Ikony we wszystkich standardowych rozdzielczościach hicolor oraz pixmaps
-    install -Dm644 usr/share/icons/hicolor/32x32/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/32x32/apps/auralune.png" 2>/dev/null || true
-    install -Dm644 usr/share/icons/hicolor/128x128/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/auralune.png" 2>/dev/null || true
-    install -Dm644 usr/share/icons/hicolor/256x256/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/auralune.png" 2>/dev/null || true
-    install -Dm644 usr/share/icons/hicolor/512x512/apps/auralune-desktop.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/auralune.png" 2>/dev/null || true
+    # Własny plik .desktop (ten z AppImage ma Exec=auralune-desktop, którego nie ma w PATH).
+    install -dm755 "$pkgdir/usr/share/applications"
+    cat > "$pkgdir/usr/share/applications/auralune.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=Auralune
+GenericName=Music Player
+GenericName[pl]=Odtwarzacz muzyki
+Comment=Poweramp & foobar2000 inspired Linux music player with anime aesthetics and real-time DSP
+Comment[pl]=Inspirowany Powerampem i foobar2000 odtwarzacz muzyki dla Linuksa z estetyką anime i silnikiem DSP
+Exec=auralune %U
+Icon=auralune
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/flac;audio/mpeg;audio/ogg;audio/opus;audio/x-wav;audio/aac;audio/m4a;audio/x-m4a;
+StartupNotify=true
+StartupWMClass=auralune-desktop
+Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
+DESKTOP
+
+    # Ikony hicolor pod nazwą `auralune` (zgodną z Icon= powyżej) oraz pixmaps.
+    local size
+    for size in 32x32 64x64 128x128 256x256 512x512; do
+        if [ -f "usr/share/icons/hicolor/$size/apps/auralune-desktop.png" ]; then
+            install -Dm644 "usr/share/icons/hicolor/$size/apps/auralune-desktop.png" \
+                "$pkgdir/usr/share/icons/hicolor/$size/apps/auralune.png"
+        fi
+    done
     install -Dm644 Auralune.png "$pkgdir/usr/share/pixmaps/auralune.png"
 }

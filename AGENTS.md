@@ -86,6 +86,9 @@ Aura-Lune is a Linux-first, Poweramp & foobar2000-inspired music player built wi
 
 ```
 Aura-Lune/
+├── .github/
+│   ├── actions/setup-build-env/     # Composite action: Node + Rust + system libs + frontend bundle (dev & stable builds)
+│   └── workflows/                   # ci.yml (quality + rolling dev release, workflow_call), release-prepare.yml, release-publish.yml
 ├── apps/
 │   └── desktop/                     # Tauri v2 Desktop Application
 │       ├── src/                     # React 19 Frontend
@@ -155,6 +158,7 @@ Aura-Lune/
 │   ├── run_all_tests.sh             # 7-stage native test runner (full CI parity)
 │   └── desktop_smoke_test.rs        # End-to-end desktop backend integration test
 ├── install.sh                       # Dual-channel Linux installer (stable & dev channels)
+├── docs/RELEASING.md / RELEASING.pl.md  # Release guide (manual GitHub Actions flow)
 ├── DEVELOPMENT.md                   # Environment setup & developer guidelines
 ├── CHANGELOG_PENDING.md             # Unreleased staging changelog
 ├── Cargo.toml                       # Root Cargo workspace manifest
@@ -328,7 +332,7 @@ Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))` —
 - **Channels never cross**: stable → `GET releases/latest`, compare `tag_name` with the version via `domain::version`; dev → `GET releases/tags/dev-build`, compare `target_commitish` (resolved through `commits/{ref}` when it is a branch name) with the embedded commit; an `unknown` commit never reports an update.
 - **Install kinds** (`updater::InstallKind`, from `APPIMAGE`, `$HOME`, writability, build profile): `app_image_managed` (AppImage directly in `~/.local/share/auralune{,-dev}/`, writable), `app_image_other`, `system` (AUR/deb), `dev_server`. `updater::can_self_install` allows `app_image_managed` plus `dev_server` on the dev channel (target: `~/.local/share/auralune-dev/auralune-dev.AppImage`, see `install_target`); others get a notice only and `install_update` rejects them. `crates/downloads` destinations accept `auralune`, `auralune-dev` and `com.auralune.player` under both `$XDG_DATA_HOME`/`$XDG_CACHE_HOME` and `~/.local/share`/`~/.cache`.
 - **Throttle**: settings `update_last_checked` (unix s) and `update_last_result` (`UpdateInfo` JSON, valid only for the same version+commit+install kind); a non-forced check inside 6 h returns the cache (`updater::should_check`). Rate limits (`403/429` + `X-RateLimit-*`) map to a `network` error.
-- **Release contract**: every release carries `SHA256SUMS` (`sha256sum *.AppImage`), uploaded by `ci.yml` (`publish-dev-release`, which also uploads `Auralune-dev-x86_64.AppImage`) and `packaging/sync-public-repo.sh`. The checksum is the asset API `digest` (`sha256:…`) or, failing that, the `SHA256SUMS` line for the asset (`check::resolve_sha256`); with neither, installation is refused (`validation`).
+- **Release contract**: every release carries `SHA256SUMS` (`sha256sum *.AppImage`), uploaded by `ci.yml` (`publish-dev-release`, which also uploads `Auralune-dev-x86_64.AppImage`) and `.github/workflows/release-publish.yml` (stable; the release is created as a draft with every asset and only then published). The checksum is the asset API `digest` (`sha256:…`) or, failing that, the `SHA256SUMS` line for the asset (`check::resolve_sha256`); with neither, installation is refused (`validation`).
 - **Install**: asset URL must be https on `github.com`/`*.githubusercontent.com`; the `crates/downloads` `HttpDownloadProvider` streams to `<appimage>.update` next to `$APPIMAGE` with SHA-256 verification, then ELF check, `chmod 755` and atomic `rename` over `$APPIMAGE` (progress: `auralune://update-progress`). `restart_after_update` spawns a detached `sh -c 'sleep 2; exec launcher'` (launcher `~/.local/bin/auralune{,-dev}`, else the AppImage; the delay lets the single-instance lock go), then `app.exit(0)` so `shutdown::on_exit` saves state.
 
 ---
@@ -573,10 +577,20 @@ When writing or refactoring code in Aura-Lune, agents **must strictly adhere** t
 4. Implement the query methods in the respective domain submodule (`library.rs`, `playlists.rs`, etc.).
 5. Add test coverage in `crates/storage/tests/`.
 
+### How to Cut a Stable Release (CI)
+Stable releases are built by GitHub Actions and run **only when triggered by hand** — merging never publishes. Full guide: [`docs/RELEASING.md`](./docs/RELEASING.md) (Polish: [`docs/RELEASING.pl.md`](./docs/RELEASING.pl.md)); keep both in sync with the workflows.
+1. On `dev`: content step (`CHANGELOG.md` block, 5-language `changelog.json`, README badges, reset `CHANGELOG_PENDING.md`) — see the `release` skill; check with `packaging/check-release-content.sh X.Y.Z`; push.
+2. Actions → **Prepare release** (on `dev`): validates, runs `packaging/bump-version.sh`, opens the `release/vX.Y.Z` → `main` PR.
+3. Review and merge the PR with a merge commit.
+4. Actions → **Publish release** (on `main`; `dry_run` leaves a draft): `verify` → `ci` (reusable `ci.yml`) + `build-appimage` → `publish` (environment `release`; draft with all assets → publish → repo description).
+5. Manual afterwards: `packaging/archlinux/update-aur-checksum.sh X.Y.Z` + `publish-to-aur.sh`; on `dev` merge `origin/main` and `packaging/bump-version.sh X.Y.(Z+1)-dev`.
+
+Never reintroduce force-pushes to `main` or a second release path. The `ci` job in `release-publish.yml` must keep `permissions: contents: write` (`ci.yml` contains the dev publish job). Stable assets must be named `Auralune_X.Y.Z_amd64.AppImage`  and accompanied by `SHA256SUMS`. One-time setup (`RELEASE_TOKEN` secret, `release` environment) is described in the guide.
+
 ### How to Record & Update Changelog Entries
 1. **During Active Development**:
    - Record every user-facing change, fix, and refactor in [`CHANGELOG_PENDING.md`](./CHANGELOG_PENDING.md) under Polish headings (`Dodano`, `Poprawiono`, `Zmieniono`).
-2. **On Release (Version Bump)**:
+2. **On Release (Version Bump)** (the CI flow is described in [`docs/RELEASING.md`](./docs/RELEASING.md)):
    - Move entries from `CHANGELOG_PENDING.md` into [`CHANGELOG.md`](./CHANGELOG.md) under a new version heading (`## [X.Y.Z] — „Kryptonim” - YYYY-MM-DD`).
    - Add the structured release object at the beginning of the array in [`apps/desktop/src/data/changelog.json`](./apps/desktop/src/data/changelog.json).
    - Ensure the structure matches `ChangelogRelease`:
