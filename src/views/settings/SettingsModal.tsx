@@ -13,6 +13,8 @@ import { type Translations } from '../../i18n';
 
 export type { SettingsTab } from '../../types/navigation';
 import type { SettingsTab } from '../../types/navigation';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../../components/ui';
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -46,160 +48,69 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   ];
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.72)',
-        backdropFilter: 'blur(16px)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        overflowY: 'auto',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      className="flex h-[86vh] max-h-215 max-w-240 flex-col overflow-hidden rounded-3xl border border-line-accent bg-deep shadow-2xl shadow-black/85"
     >
-      <div
-        className="glass-panel"
-        style={{
-          width: '100%',
-          maxWidth: '960px',
-          height: '86vh',
-          maxHeight: '860px',
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: '20px',
-          border: '1px solid var(--border-accent)',
-          overflow: 'hidden',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
-          background: 'var(--bg-deep)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Nagłówek okna ustawień */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(0, 0, 0, 0.35)',
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)',
-              }}
-            >
-              <Settings size={18} color="#fff" />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#fff' }}>
-                {loc.settings.title}
-              </h2>
-              <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: 0 }}>
-                {loc.settings.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="glass-card"
-            style={{
-              padding: '6px 10px',
-              color: 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-            }}
-            title={loc.settings.close}
+      {/* Nagłówek okna ustawień */}
+      <div className="flex shrink-0 items-center justify-between border-b border-line bg-black/35 px-6 py-4">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-linear-135 from-accent-purple to-accent-pink shadow-halo shadow-accent-purple/40"
           >
-            <X size={18} />
-          </button>
+            <Settings size={18} className="text-fg" />
+          </div>
+          <div>
+            <h2 className="m-0 text-lg font-bold text-fg">
+              {loc.settings.title}
+            </h2>
+            <p className="m-0 text-xs text-fg-muted">
+              {loc.settings.subtitle}
+            </p>
+          </div>
         </div>
 
-        {/* Pasek zakładek ustawień */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '8px',
-            padding: '10px 24px',
-            background: 'rgba(0, 0, 0, 0.2)',
-            borderBottom: '1px solid var(--border-subtle)',
-            overflowX: 'auto',
-            flexShrink: 0,
-          }}
+        <button
+          onClick={onClose}
+          className="glass-card flex items-center px-2.5 py-1.5 text-fg-muted"
+          title={loc.settings.close}
         >
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onSelectTab(tab.id)}
-                style={{
-                  position: 'relative',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: isActive ? 'var(--accent-purple)' : 'transparent',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                  transition: 'background 0.15s ease',
-                }}
-              >
-                {tab.icon}
-                {tab.label}
-                {tab.id === 'updates' && updateAvailable && (
-                  <span
-                    data-testid="updates-tab-pill"
-                    style={{
-                      // Na krawędzi przycisku, nad nim — zakładka nie robi się szersza.
-                      position: 'absolute',
-                      top: '-7px',
-                      right: '-4px',
-                      fontSize: '0.55rem',
-                      fontWeight: 800,
-                      lineHeight: 1,
-                      padding: '2px 6px',
-                      borderRadius: '999px',
-                      background: '#22c55e',
-                      color: '#04210f',
-                      textTransform: 'uppercase',
-                      boxShadow: '0 0 0 2px var(--bg-deep)',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {loc.updates.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Treść wybranej pod-zakładki ustawień */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px' }}>
-          {children}
-        </div>
+          <X size={18} />
+        </button>
       </div>
-    </div>
+
+      {/* Pasek zakładek ustawień */}
+      <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line bg-black/20 px-6 py-2.5">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onSelectTab(tab.id)}
+              className={cn(
+                'relative flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-2 text-ui font-semibold text-fg transition-colors duration-150',
+                isActive ? 'bg-accent-purple' : 'bg-transparent',
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.id === 'updates' && updateAvailable && (
+                <span
+                  data-testid="updates-tab-pill"
+                  className="pointer-events-none absolute -top-2 -right-1 rounded-full bg-green-500 px-1.5 py-0.5 text-2xs leading-none font-extrabold text-green-950 uppercase ring-2 ring-deep"
+                >
+                  {loc.updates.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Treść wybranej pod-zakładki ustawień */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        {children}
+      </div>
+    </ModalShell>
   );
 };

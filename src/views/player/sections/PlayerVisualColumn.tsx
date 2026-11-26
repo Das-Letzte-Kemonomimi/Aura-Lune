@@ -7,6 +7,7 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
 import { arePlayerVisualColumnPropsEqual } from './playerVisualColumnMemo';
+import { cn } from '../../../utils/cn';
 
 export type PlayerVisualColumnProps = Pick<PlayerViewProps, 'nowPlayingVisualMode' | 'handleSelectNowPlayingVisualMode' | 'loc' | 'language' | 'currentCover' | 'currentPlayingTrack' | 'tracks' | 'handlePlayPause' | 'vinylRpm' | 'handleSelectVinylRpm' | 'setIsLoFiModalOpen' | 'tapeType' | 'handleSelectTapeType' | 'tapeSpeed' | 'handleSelectTapeSpeed' | 'currentAlbum' | 'handleOpenCoverPicker' | 'albums' | 'handleUploadCustomCoverDirect' | 'dspBadgeTitle' | 'dspBadgeText'> & {
   status: PlaybackStatus;
@@ -48,98 +49,47 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div className="flex w-full flex-col items-center">
       {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Taśma • Wskaźnik VU */}
       <div
-        style={{
-          display: 'flex',
-          gap: '4px',
-          marginBottom: '10px',
-          background: 'rgba(0, 0, 0, 0.35)',
-          padding: '3px',
-          borderRadius: '8px',
-          width: '100%',
-          maxWidth: nowPlayingVisualMode === 'cover' ? '240px' : '275px',
-          transition: 'max-width 0.2s ease',
-        }}
+        className={cn(
+          'mb-2.5 flex w-full gap-1 rounded-lg bg-black/35 p-1 transition-[max-width] duration-200',
+          nowPlayingVisualMode === 'cover' ? 'max-w-60' : 'max-w-69',
+        )}
       >
         <button
           onClick={() => handleSelectNowPlayingVisualMode('cover')}
-          style={{
-            flex: 1,
-            padding: '4px 6px',
-            borderRadius: '6px',
-            border: 'none',
-            background: nowPlayingVisualMode === 'cover' ? 'var(--accent-pink)' : 'transparent',
-            color: nowPlayingVisualMode === 'cover' ? '#fff' : 'var(--text-muted)',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-          }}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
+            nowPlayingVisualMode === 'cover' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
+          )}
         >
           <Disc size={13} /> {loc.player.displayCover}
         </button>
         <button
           onClick={() => handleSelectNowPlayingVisualMode('turntable')}
-          style={{
-            flex: 1,
-            padding: '4px 6px',
-            borderRadius: '6px',
-            border: 'none',
-            background: nowPlayingVisualMode === 'turntable' ? 'var(--accent-pink)' : 'transparent',
-            color: nowPlayingVisualMode === 'turntable' ? '#fff' : 'var(--text-muted)',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-          }}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
+            nowPlayingVisualMode === 'turntable' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
+          )}
         >
           <Disc3 size={13} /> {loc.player.displayVinyl}
         </button>
         <button
           onClick={() => handleSelectNowPlayingVisualMode('tape')}
-          style={{
-            flex: 1,
-            padding: '4px 6px',
-            borderRadius: '6px',
-            border: 'none',
-            background: nowPlayingVisualMode === 'tape' ? 'var(--accent-pink)' : 'transparent',
-            color: nowPlayingVisualMode === 'tape' ? '#fff' : 'var(--text-muted)',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-          }}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
+            nowPlayingVisualMode === 'tape' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
+          )}
         >
           <CassetteTape size={13} /> {loc.player.displayTape}
         </button>
         <button
           onClick={() => handleSelectNowPlayingVisualMode('vumeter')}
-          style={{
-            flex: 1,
-            padding: '4px 6px',
-            borderRadius: '6px',
-            border: 'none',
-            background: nowPlayingVisualMode === 'vumeter' ? 'var(--accent-pink)' : 'transparent',
-            color: nowPlayingVisualMode === 'vumeter' ? '#fff' : 'var(--text-muted)',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-          }}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
+            nowPlayingVisualMode === 'vumeter' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
+          )}
         >
           <Gauge size={13} /> VU
         </button>
@@ -187,79 +137,43 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
           spectrum={status.spectrum}
           volume={status.volume}
           isPlaying={status.state === 'Playing'}
-          style={{ width: '100%', height: '175px' }}
+          className="h-44 w-full"
         />
       ) : (
         <div
+          className={cn(
+            'relative flex size-55 transform-gpu items-center justify-center overflow-hidden rounded-3xl transition-shadow duration-300 will-change-transform',
+            status.state === 'Playing' ? 'shadow-halo-xl shadow-accent-pink/45' : 'shadow-panel',
+          )}
           style={{
-            width: '220px',
-            height: '220px',
-            borderRadius: '20px',
-            position: 'relative',
-            overflow: 'hidden',
             background: currentCover
               ? `url("${currentCover}") center/cover no-repeat`
               : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
-            boxShadow: status.state === 'Playing'
-              ? '0 0 28px rgba(244, 63, 94, 0.45), 0 0 50px rgba(168, 85, 247, 0.3)'
-              : 'var(--shadow-card)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'box-shadow 0.3s ease',
-            willChange: 'transform',
-            transform: 'translateZ(0)',
           }}
         >
           {!currentCover && (
             <div
+              className={cn(
+                'flex h-47 w-47 items-center justify-center rounded-full border-2 border-white/8',
+                status.state === 'Playing' && 'animate-spin',
+              )}
               style={{
-                width: '188px',
-                height: '188px',
-                borderRadius: '50%',
                 background: 'radial-gradient(circle, #0b0f19 35%, #182032 50%, #0f172a 75%, #050811 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5)',
-                animation: status.state === 'Playing' ? 'spin 12s linear infinite' : 'none',
               }}
             >
               {/* Centrum winylu z logo Kitsune */}
               <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '3px solid rgba(0,0,0,0.6)',
-                  boxShadow: '0 0 10px rgba(244, 63, 94, 0.5)',
-                }}
+                className="flex h-16 w-16 items-center justify-center rounded-full border-3 border-black/60 bg-accent-gradient shadow-halo-sm shadow-accent-pink/50"
               >
-                <Disc size={28} color="#fff" />
+                <Disc size={28} className="text-fg" />
               </div>
             </div>
           )}
 
           {/* Badge formatu na okładce */}
           <div
-            style={{
-              position: 'absolute',
-              bottom: '10px',
-              right: '10px',
-              padding: '3px 8px',
-              borderRadius: '6px',
-              background: 'rgba(0, 0, 0, 0.88)',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              color: 'var(--accent-cyan)',
-              border: '1px solid rgba(6, 182, 212, 0.35)',
-              letterSpacing: '0.04em',
-            }}
+            className="absolute bottom-2.5 right-2.5 rounded-md border border-accent-cyan/35 bg-black/90 px-2 py-1 text-xxs font-bold tracking-wider text-accent-cyan"
           >
             {status.current_track?.duration_ms ? 'HI-RES AUDIO' : 'PIPEWIRE'}
           </div>
@@ -268,7 +182,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
 
       {/* Przyciski lub kontrolki pod elementem wizualnym w zależności od trybu */}
       {nowPlayingVisualMode === 'cover' ? (
-        <div style={{ marginTop: '10px', display: 'flex', gap: '8px', width: '100%', maxWidth: '240px' }}>
+        <div className="mt-2.5 flex w-full max-w-60 gap-2">
           <button
             onClick={() => {
               if (currentAlbum) {
@@ -298,133 +212,58 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
               }
             }}
             title={loc.covers.matchCoverTitle}
-            style={{
-              flex: 1,
-              padding: '7px 8px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.2))',
-              border: '1px solid rgba(244, 63, 94, 0.35)',
-              color: '#fff',
-              fontSize: '0.73rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              transition: 'all 0.2s',
-            }}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent-pink/35 bg-linear-135 from-accent-pink/20 to-accent-purple/20 p-2 text-xs font-bold text-fg transition-all duration-200"
           >
-            <Sparkles size={12} color="var(--accent-pink)" /> {loc.covers.matchCover}
+            <Sparkles size={12} className="text-accent-pink" /> {loc.covers.matchCover}
           </button>
           <button
             onClick={() => handleUploadCustomCoverDirect(currentAlbum)}
             title={loc.covers.uploadCustomCover}
-            style={{
-              flex: 1,
-              padding: '7px 8px',
-              borderRadius: '8px',
-              background: 'rgba(6, 182, 212, 0.15)',
-              border: '1px solid rgba(6, 182, 212, 0.35)',
-              color: '#fff',
-              fontSize: '0.73rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              transition: 'all 0.2s',
-            }}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent-cyan/35 bg-accent-cyan/15 p-2 text-xs font-bold text-fg transition-all duration-200"
           >
-            <Upload size={12} color="var(--accent-cyan)" /> {loc.covers.uploadCustomCover}
+            <Upload size={12} className="text-accent-cyan" /> {loc.covers.uploadCustomCover}
           </button>
         </div>
       ) : nowPlayingVisualMode === 'turntable' ? (
-        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <div className="mt-2 flex w-full justify-center">
           <div
             title={dspBadgeTitle}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-muted)',
-              fontSize: '0.68rem',
-              fontFamily: 'var(--font-mono)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              textAlign: 'center',
-            }}
+            className="flex flex-wrap items-center justify-center gap-1.5 rounded-md border border-line bg-black/40 px-2.5 py-1 text-center font-mono text-xxs text-fg-muted"
           >
-            <Disc3 size={11} color="var(--accent-pink)" />
+            <Disc3 size={11} className="text-accent-pink" />
             {status.state === 'Playing'
               ? `${fmt(loc.player.vinylPlayingStatus, vinylRpm === 33 ? '33⅓' : '45')} (${dspBadgeText})`
               : fmt(loc.player.vinylPausedStatus, vinylRpm === 33 ? '33⅓' : '45')}
           </div>
         </div>
       ) : nowPlayingVisualMode === 'tape' ? (
-        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <div className="mt-2 flex w-full justify-center">
           <div
             title={dspBadgeTitle}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-muted)',
-              fontSize: '0.68rem',
-              fontFamily: 'var(--font-mono)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              textAlign: 'center',
-            }}
+            className="flex flex-wrap items-center justify-center gap-1.5 rounded-md border border-line bg-black/40 px-2.5 py-1 text-center font-mono text-xxs text-fg-muted"
           >
-            <CassetteTape size={11} color="var(--accent-pink)" />
+            <CassetteTape size={11} className="text-accent-pink" />
             {status.state === 'Playing'
               ? `${fmt(loc.player.tapePlayingStatus, tapeSpeed === '7.5' ? '7½' : '3¾', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')} (${dspBadgeText})`
               : fmt(loc.player.tapePausedStatus, tapeSpeed === '7.5' ? '7½' : '3¾', tapeType === 'TYPE_I' ? 'FE-I' : tapeType === 'TYPE_II' ? 'CR-II' : 'METAL')}
           </div>
         </div>
       ) : (
-        <div
-          style={{
-            marginTop: '8px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            width: '100%',
-            maxWidth: '280px',
-            padding: '0 4px',
-          }}
-        >
-          <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        <div className="mt-2 flex w-full max-w-70 items-center justify-between px-1 py-0">
+          <span className="font-mono text-xxs text-fg-muted">
             0 VU = +4 dBu (1.23V)
           </span>
           <span
-            style={{
-              fontSize: '0.66rem',
-              color: status.state === 'Playing' ? 'var(--accent-green)' : 'var(--text-muted)',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={cn(
+              'flex items-center gap-1 text-xxs font-semibold',
+              status.state === 'Playing' ? 'text-accent-green' : 'text-fg-muted',
+            )}
           >
             <span
-              style={{
-                width: '5px',
-                height: '5px',
-                borderRadius: '50%',
-                background: status.state === 'Playing' ? 'var(--accent-green)' : 'var(--text-muted)',
-                boxShadow: status.state === 'Playing' ? '0 0 6px var(--accent-green)' : 'none',
-              }}
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                status.state === 'Playing' ? 'bg-accent-green shadow-halo-sm shadow-accent-green' : 'bg-fg-muted shadow-none',
+              )}
             />
             {status.state === 'Playing' ? loc.player.meterActive : loc.player.meterStandby}
           </span>

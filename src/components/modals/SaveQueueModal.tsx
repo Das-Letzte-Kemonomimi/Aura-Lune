@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { BookmarkPlus, X, Check, ListMusic } from 'lucide-react';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 interface SaveQueueModalProps {
   isOpen: boolean;
@@ -41,157 +43,77 @@ export const SaveQueueModal: React.FC<SaveQueueModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1100,
-        animation: 'fadeIn 0.2s ease',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="nested"
+      className="w-105 max-w-[92vw] rounded-2xl border border-line-accent p-6 shadow-2xl shadow-black/65"
     >
-      <div
-        className="glass-card"
-        style={{
-          width: '420px',
-          maxWidth: '92vw',
-          padding: '24px',
-          borderRadius: '16px',
-          background: 'linear-gradient(135deg, rgba(25, 20, 40, 0.95) 0%, rgba(15, 10, 25, 0.98) 100%)',
-          border: '1px solid var(--border-accent)',
-          boxShadow: '0 16px 48px rgba(0, 0, 0, 0.65)',
-          position: 'relative',
-        }}
-        onClick={(e) => e.stopPropagation()}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 border-0 bg-transparent p-1 text-fg-muted"
       >
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            padding: '4px',
-          }}
-        >
-          <X size={18} />
-        </button>
+        <X size={18} />
+      </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 16px rgba(236, 72, 153, 0.3)',
-            }}
-          >
-            <BookmarkPlus size={22} color="#fff" />
-          </div>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
-              {loc.queue.saveAsPlaylistTitle}
-            </h3>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {queueLength} {loc.library.tracks} {loc.queue.inCurrentQueue}
-            </p>
+      <div className="mb-4 flex items-center gap-3">
+        <div
+          className="flex h-10.5 w-10.5 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-pink-500/30"
+        >
+          <BookmarkPlus size={22} className="text-fg" />
+        </div>
+        <div>
+          <h3 className="m-0 text-xl font-bold text-fg">
+            {loc.queue.saveAsPlaylistTitle}
+          </h3>
+          <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
+            {queueLength} {loc.library.tracks} {loc.queue.inCurrentQueue}
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div className="mb-5">
+          <label className="mb-2 block text-ui font-semibold text-fg-secondary">
+            {loc.queue.newPlaylistName}
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              autoFocus
+              placeholder={loc.queue.playlistNamePlaceholder}
+              value={playlistName}
+              onChange={(e) => setPlaylistName(e.target.value)}
+              className="w-full rounded-xl border border-line bg-white/6 pl-9.5 pr-3.5 py-2.5 text-sm text-fg outline-none"
+            />
+            <ListMusic
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"
+            />
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                marginBottom: '8px',
-              }}
-            >
-              {loc.queue.newPlaylistName}
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                autoFocus
-                placeholder={loc.queue.playlistNamePlaceholder}
-                value={playlistName}
-                onChange={(e) => setPlaylistName(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px 10px 38px',
-                  borderRadius: '10px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#fff',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <ListMusic
-                size={16}
-                color="var(--text-muted)"
-                style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="glass-card"
-              style={{
-                padding: '9px 16px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-              }}
-            >
-              {loc.common.cancel}
-            </button>
-            <button
-              type="submit"
-              disabled={!playlistName.trim() || isSubmitting}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '9px 20px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 600,
-                fontSize: '0.86rem',
-                cursor: !playlistName.trim() || isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: !playlistName.trim() || isSubmitting ? 0.6 : 1,
-                boxShadow: '0 4px 16px rgba(236, 72, 153, 0.3)',
-              }}
-            >
-              <Check size={16} />
-              {loc.common.save}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="glass-card rounded-lg border border-line bg-white/6 px-4 py-2.5 text-sm text-fg-secondary"
+          >
+            {loc.common.cancel}
+          </button>
+          <button
+            type="submit"
+            disabled={!playlistName.trim() || isSubmitting}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border-0 bg-accent-gradient px-5 py-2.5 text-sm font-semibold text-on-accent shadow-lift shadow-pink-500/30',
+              !playlistName.trim() || isSubmitting ? 'cursor-not-allowed' : 'cursor-pointer',
+              !playlistName.trim() || isSubmitting ? 'opacity-60' : 'opacity-100',
+            )}
+          >
+            <Check size={16} />
+            {loc.common.save}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 };

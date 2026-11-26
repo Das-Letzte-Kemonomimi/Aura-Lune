@@ -13,6 +13,7 @@ import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { fmt } from '../../utils/fmt';
+import { Callout } from '../../components/ui';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
@@ -96,21 +97,14 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
   };
 
   return (
-    <div style={{ padding: '24px 0', width: '100%' }}>
+    <div className="w-full px-0 py-6">
       {/* Nagłówek sekcji biblioteki */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-        }}
-      >
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#f8fafc' }}>
+          <h2 className="m-0 text-2xl font-extrabold text-fg">
             {t.stems.title}
           </h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
+          <p className="mx-0 mt-1 mb-0 text-sm text-fg-secondary">
             {t.stems.subtitle}
           </p>
         </div>
@@ -118,20 +112,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
         {onOpenCreateProject && (
           <button
             onClick={onOpenCreateProject}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-              border: 'none',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(236, 72, 153, 0.3)',
-            }}
+            className="flex items-center gap-1.5 rounded-xl border-0 bg-linear-135 from-pink-500 to-violet-500 px-4 py-2 text-sm font-bold text-fg shadow-lift shadow-pink-500/30"
           >
             <Layers size={16} />
             {t.stems.newProject}
@@ -140,85 +121,42 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       </div>
 
       {error && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: '12px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#f87171',
-            fontSize: '0.85rem',
-            marginBottom: '16px',
-          }}
-        >
+        <Callout tone="red" className="mb-4 text-sm text-red-400">
           {error}
-        </div>
+        </Callout>
       )}
 
       {loading && projects.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
-          <Sparkles size={28} className="animate-spin" style={{ margin: '0 auto 12px auto' }} />
+        <div className="px-0 py-15 text-center text-fg-secondary">
+          <Sparkles size={28} className="mx-auto mt-0 mb-3 animate-spin" />
           <div>{t.stems.loadingProjects}</div>
         </div>
       ) : projects.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '70px 20px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            borderRadius: '20px',
-            border: '1px dashed rgba(255, 255, 255, 0.1)',
-          }}
-        >
+        <div className="rounded-3xl border border-dashed border-white/10 bg-white/2 px-5 py-17.5 text-center">
           <div
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '20px',
-              background: 'rgba(236, 72, 153, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto',
-              color: 'var(--accent-pink)',
-            }}
+            className="mx-auto mt-0 mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-pink-500/10 text-accent-pink"
           >
             <Layers size={32} />
           </div>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#f8fafc' }}>
+          <h3 className="mx-0 mt-0 mb-2 text-lg text-fg">
             {t.stems.noProjects}
           </h3>
-          <p style={{ margin: '0 0 20px 0', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '480px', marginInline: 'auto' }}>
+          <p className="mx-0 mt-0 mb-5 mx-auto max-w-120 text-sm text-fg-secondary">
             {t.stems.noProjectsDesc}
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '16px',
-          }}
-        >
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(80),1fr))] gap-4">
           {projects.map((project) => (
             <div
               key={project.id}
-              style={{
-                background: 'rgba(15, 23, 42, 0.75)',
-                borderRadius: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                transition: 'all 0.2s ease',
-              }}
+              className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-slate-900/75 p-4 transition-all duration-200"
             >
               {/* Tytuł i status */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="min-w-0 flex-1">
                   {editingProjectId === project.id ? (
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                    <div className="flex gap-1.5">
                       <input
                         type="text"
                         value={editingTitle}
@@ -227,44 +165,19 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                           if (e.key === 'Enter') handleSaveRename(project.id);
                           if (e.key === 'Escape') setEditingProjectId(null);
                         }}
-                        style={{
-                          flex: 1,
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid var(--accent-pink)',
-                          color: '#ffffff',
-                          fontSize: '0.9rem',
-                        }}
+                        className="flex-1 rounded-md border border-accent-pink bg-white/10 px-2 py-1 text-sm text-fg"
                         autoFocus
                       />
                       <button
                         onClick={() => handleSaveRename(project.id)}
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          background: 'var(--accent-pink)',
-                          border: 'none',
-                          color: '#ffffff',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
+                        className="rounded-md border-0 bg-accent-pink px-2 py-1 font-bold text-on-accent"
                       >
                         OK
                       </button>
                     </div>
                   ) : (
                     <h3
-                      style={{
-                        margin: 0,
-                        fontSize: '1rem',
-                        fontWeight: 800,
-                        color: '#f8fafc',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        cursor: 'pointer',
-                      }}
+                      className="m-0 cursor-pointer truncate text-base font-extrabold text-fg"
                       onClick={() => onOpenProject(project.id)}
                       title={project.title}
                     >
@@ -272,16 +185,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                     </h3>
                   )}
 
-                  <p
-                    style={{
-                      margin: '2px 0 0 0',
-                      fontSize: '0.8rem',
-                      color: '#94a3b8',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                  <p className="mx-0 mt-0.5 mb-0 truncate text-ui text-fg-secondary">
                     {project.artist} • {project.album}
                   </p>
                 </div>
@@ -290,61 +194,26 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                 <div>
                   {project.status === 'ready' ? (
                     <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '8px',
-                        background: 'rgba(52, 211, 153, 0.15)',
-                        border: '1px solid rgba(52, 211, 153, 0.3)',
-                        color: '#34d399',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                      }}
+                      className="rounded-lg border border-emerald-400/30 bg-emerald-400/15 px-2 py-1 text-xxs font-bold text-emerald-400"
                     >
                       {t.stems.statusReady}
                     </span>
                   ) : project.status === 'separating' ? (
                     <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '8px',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                        color: '#f59e0b',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
+                      className="flex items-center gap-1 rounded-lg border border-accent-amber/30 bg-accent-amber/15 px-2 py-1 text-xxs font-bold text-accent-amber"
                     >
                       <Sparkles size={10} className="animate-spin" />
                       {fmt(t.stems.statusSeparating, String(Math.round(project.progress * 100)))}
                     </span>
                   ) : project.status === 'failed' ? (
                     <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '8px',
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#f87171',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                      }}
+                      className="rounded-lg border border-accent-red/30 bg-accent-red/15 px-2 py-1 text-xxs font-bold text-red-400"
                     >
                       {t.stems.statusFailed}
                     </span>
                   ) : (
                     <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '8px',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.3)',
-                        color: '#38bdf8',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                      }}
+                      className="rounded-lg border border-sky-400/30 bg-sky-400/15 px-2 py-1 text-xxs font-bold text-sky-400"
                     >
                       {t.stems.statusQueued}
                     </span>
@@ -353,81 +222,37 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
               </div>
 
               {/* Informacje techniczne */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  fontSize: '0.75rem',
-                  color: '#64748b',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                  paddingTop: '8px',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className="flex items-center gap-3.5 border-t border-white/5 pt-2 text-xs text-fg-muted">
+                <span className="flex items-center gap-1">
                   <Layers size={13} /> {fmt(t.stems.tracksCount, String(project.channels.length))}
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span className="flex items-center gap-1">
                   <HardDrive size={13} /> {formatBytes(project.disk_size_bytes)}
                 </span>
               </div>
 
               {/* Przyciski akcji */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginTop: 'auto',
-                  paddingTop: '6px',
-                }}
-              >
+              <div className="mt-auto flex items-center justify-between pt-1.5">
                 <button
                   onClick={() => onOpenProject(project.id)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                    border: 'none',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                  }}
+                  className="flex items-center gap-1.5 rounded-lg border-0 bg-linear-135 from-pink-500 to-violet-500 px-4 py-2 text-ui font-bold text-fg"
                 >
                   <Play size={14} fill="#ffffff" />
                   {t.stems.openStudio}
                 </button>
 
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div className="flex gap-1">
                   <button
                     onClick={() => handleStartRename(project)}
                     title={t.stems.renameProject}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                      padding: '6px',
-                      borderRadius: '6px',
-                    }}
+                    className="rounded-md border-0 bg-transparent p-1.5 text-fg-secondary"
                   >
                     <Edit3 size={15} />
                   </button>
                   <button
                     onClick={() => handleDelete(project.id, project.title)}
                     title={t.stems.deleteProject}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      padding: '6px',
-                      borderRadius: '6px',
-                    }}
+                    className="rounded-md border-0 bg-transparent p-1.5 text-accent-red"
                   >
                     <Trash2 size={15} />
                   </button>

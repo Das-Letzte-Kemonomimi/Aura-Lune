@@ -7,6 +7,8 @@ import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import { formatTime } from '../../../utils/timeFormat';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
+import { cssVars } from '../../../utils/cssVars';
 
 export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlaying' | 'durationMs' | 'currentLang' | 'onSeek' | 'onSeekPreview' | 'onSeekCommit' | 'tempoRatio' | 'onPrev' | 'onPlayPause' | 'onNext' | 'onVolumeChange' | 'onToggleVolumeUnit' | 'volumeUnit'> & {
   showHud: boolean;
@@ -44,45 +46,29 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
   waveformPeaks,
 }) => (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        opacity: showHud ? 1 : 0,
-        transition: 'opacity 0.4s ease',
-        pointerEvents: showHud ? 'auto' : 'none',
-      }}
+      className={cn(
+        'flex flex-col gap-3 transition-opacity duration-300',
+        showHud ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+      )}
     >
       {/* Neonowy wizualizator widma lub analogowy VU-Meter */}
-      <div style={{ position: 'relative', width: '100%' }}>
-        <div style={{ position: 'absolute', top: '-28px', right: '0', display: 'flex', gap: '6px', zIndex: 10 }}>
+      <div className="relative w-full">
+        <div className="absolute -top-7 right-0 z-10 flex gap-1.5">
           <button
             onClick={() => setBottomVisualMode('spectrum')}
-            style={{
-              padding: '2px 8px',
-              borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              background: bottomVisualMode === 'spectrum' ? 'var(--accent-pink)' : 'rgba(0,0,0,0.5)',
-              border: '1px solid var(--border-subtle)',
-              color: bottomVisualMode === 'spectrum' ? '#fff' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'rounded-md border border-line px-2 py-0.5 text-xxs font-bold',
+              bottomVisualMode === 'spectrum' ? 'bg-accent-pink text-fg' : 'bg-black/50 text-fg-muted',
+            )}
           >
             Spectrum
           </button>
           <button
             onClick={() => setBottomVisualMode('vumeter')}
-            style={{
-              padding: '2px 8px',
-              borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              background: bottomVisualMode === 'vumeter' ? 'var(--accent-pink)' : 'rgba(0,0,0,0.5)',
-              border: '1px solid var(--border-subtle)',
-              color: bottomVisualMode === 'vumeter' ? '#fff' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'rounded-md border border-line px-2 py-0.5 text-xxs font-bold',
+              bottomVisualMode === 'vumeter' ? 'bg-accent-pink text-fg' : 'bg-black/50 text-fg-muted',
+            )}
           >
             VU-Meter
           </button>
@@ -93,21 +79,21 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             spectrum={spectrum}
             volume={volume}
             isPlaying={isPlaying}
-            style={{ height: '90px', padding: '6px 12px' }}
+            className="h-22.5 px-3 py-1.5"
           />
         ) : (
-          <div style={{ height: '72px', width: '100%' }}>
+          <div className="h-18 w-full">
             <SpectrumVisualizer
               spectrum={spectrum}
               isPlaying={isPlaying}
-              style={{ height: '72px' }}
+              className="h-18"
             />
           </div>
         )}
       </div>
 
       {/* Seeker z wizualizacją fali (Waveform) i wskaźnikiem DSP */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="flex flex-col gap-1.5">
         {/* Waveform bars */}
         <WaveformCanvas
           peaks={waveformPeaks}
@@ -139,22 +125,14 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
           title={t.waveform.hint}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#fff' }}>
+        <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-ui font-bold text-fg">
               {formatTime(positionMs)}
             </span>
             {(tempoRatio !== 1.0) && (
               <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  padding: '1px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(168, 85, 247, 0.3)',
-                  color: 'var(--accent-purple)',
-                  border: '1px solid rgba(168, 85, 247, 0.5)',
-                }}
+                className="rounded-sm border border-accent-purple/50 bg-accent-purple/30 px-1.5 py-px text-xxs font-bold text-accent-purple"
                 title={`${t.dsp.tempo}: ${tempoRatio.toFixed(2)}x`}
               >
                 DSP {tempoRatio.toFixed(2)}x
@@ -168,48 +146,25 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
               const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
               onSeek(Math.floor(pct * durationMs));
             }}
-            style={{
-              flex: 1,
-              height: '6px',
-              borderRadius: '3px',
-              background: 'rgba(255, 255, 255, 0.12)',
-              cursor: 'pointer',
-              overflow: 'hidden',
-            }}
+            className="h-1.5 flex-1 cursor-pointer overflow-hidden rounded-sm bg-white/10"
           >
             <div
-              style={{
-                width: `${progress}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, var(--accent-cyan), var(--accent-pink))',
-                borderRadius: '3px',
-                boxShadow: '0 0 12px var(--accent-cyan)',
-              }}
+              className="h-full rounded-sm bg-linear-to-r from-accent-cyan to-accent-pink shadow-halo shadow-accent-cyan"
+              style={{ width: `${progress}%` }}
             />
           </div>
-          <span style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+          <span className="font-mono text-ui text-fg-muted">
             {durationMs ? formatTime(durationMs) : '--:--'}
           </span>
         </div>
       </div>
 
       {/* Przyciski sterowania */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+      <div className="flex items-center justify-center gap-5">
         <button
           onClick={onPrev}
           title={t.player.previous}
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: 'none',
-            borderRadius: '50%',
-            width: '46px',
-            height: '46px',
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          className="flex h-11.5 w-11.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
         >
           <SkipBack size={22} />
         </button>
@@ -217,47 +172,24 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         <button
           onClick={onPlayPause}
           title={isPlaying ? t.player.pause : t.player.play}
-          style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            border: 'none',
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 25px rgba(244, 63, 94, 0.55)',
-          }}
+          className="flex h-16 w-16 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent shadow-halo-xl shadow-accent-pink/55"
         >
-          {isPlaying ? <Pause size={28} /> : <Play size={28} style={{ marginLeft: '3px' }} />}
+          {isPlaying ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
         </button>
 
         <button
           onClick={onNext}
           title={t.player.next}
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: 'none',
-            borderRadius: '50%',
-            width: '46px',
-            height: '46px',
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          className="flex h-11.5 w-11.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
         >
           <SkipForward size={22} />
         </button>
 
-        <div style={{ position: 'absolute', right: '48px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="absolute right-12 flex items-center gap-2">
           <button
             onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)}
             title={volume === 0 ? t.player.unmute : t.player.mute}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+            className="flex border-0 bg-transparent text-fg-muted"
           >
             {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
@@ -275,29 +207,18 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
                 e.currentTarget.blur();
               }
             }}
-            style={{
-              width: '80px',
-              cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
-            }}
+            className="w-20 range-fill"
+            style={cssVars({ '--fill': `${Math.min(100, Math.max(0, volume * 100))}%` })}
           />
           <button
             type="button"
             onClick={onToggleVolumeUnit}
             title={volumeUnit === 'db' ? 'Volume in dB (Click to toggle %)' : 'Volume in % (Click to toggle dB)'}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.72rem',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              color: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'var(--accent-pink)',
-              cursor: onToggleVolumeUnit ? 'pointer' : 'default',
-              minWidth: '46px',
-              textAlign: 'center',
-            }}
+            className={cn(
+              'min-w-11.5 rounded-md border border-line bg-white/8 px-1.5 py-0.5 text-center font-mono text-xs font-bold',
+              volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink',
+              onToggleVolumeUnit ? 'cursor-pointer' : 'cursor-default',
+            )}
           >
             {volumeUnit === 'db'
               ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)

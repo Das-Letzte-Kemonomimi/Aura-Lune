@@ -372,34 +372,11 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10400,
-        background: 'rgba(0, 0, 0, 0.78)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        animation: 'fadeIn 0.2s ease',
-      }}
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 p-5 backdrop-blur-sm motion-safe:animate-fade-in"
       onClick={onClose}
     >
       <div
-        style={{
-          width: '100%',
-          maxWidth: '1080px',
-          maxHeight: '92vh',
-          background: 'var(--bg-glass, rgba(20, 24, 38, 0.95))',
-          borderRadius: '20px',
-          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          animation: 'scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
+        className="flex max-h-[92vh] w-full max-w-270 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl shadow-black/65 motion-safe:animate-fade-in-scale"
         onClick={(e) => e.stopPropagation()}
       >
         {/* NAGŁÓWEK OKNA */}

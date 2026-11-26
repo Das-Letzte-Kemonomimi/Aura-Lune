@@ -16,72 +16,36 @@ export const TranscodeResultPanel: React.FC<TranscodeResultPanelProps> = ({
   onPlayLibraryTrack,
 }) => (
     <div
-      className="glass-panel"
-      style={{
-        marginTop: '16px',
-        padding: '16px',
-        borderRadius: '12px',
-        background: 'rgba(34, 197, 94, 0.08)',
-        border: '1px solid rgba(34, 197, 94, 0.4)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        boxShadow: '0 4px 20px rgba(34, 197, 94, 0.1)',
-      }}
+      className="glass-panel mt-4 flex flex-col gap-2.5 rounded-xl border border-green-500/40 bg-green-500/8 p-4 shadow-xl shadow-green-500/10"
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CheckCircle size={18} color="var(--accent-green)" />
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CheckCircle size={18} className="text-accent-green" />
+          <span className="text-sm font-bold text-fg">
             {loc.settings.transcodeCompletedTitle}
           </span>
         </div>
         <button
           onClick={onDismissLastExported}
-          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+          className="border-0 bg-transparent p-1 text-fg-muted"
         >
           <X size={15} />
         </button>
       </div>
-      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>
+      <div className="font-mono text-ui break-all text-fg-secondary">
         {lastExportedTrack.path}
       </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+      <div className="mt-1 flex flex-wrap gap-2">
         <button
           onClick={() => onPlayLibraryTrack(lastExportedTrack)}
-          style={{
-            padding: '8px 14px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: '0.82rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            border: 'none',
-            boxShadow: '0 2px 8px rgba(244, 63, 94, 0.3)',
-          }}
+          className="flex items-center gap-1.5 rounded-lg border-0 bg-accent-gradient px-3.5 py-2 text-ui font-semibold text-on-accent shadow-md shadow-accent-pink/30"
         >
           <Play size={14} fill="#fff" />
           {loc.settings.playRenderedNow}
         </button>
         <button
           onClick={(e) => onAddTrackToQueue(lastExportedTrack, e)}
-          style={{
-            padding: '8px 14px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-cyan)',
-            fontWeight: 600,
-            fontSize: '0.82rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-          }}
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-3.5 py-2 text-ui font-semibold text-accent-cyan"
         >
           <Plus size={14} />
           {loc.settings.addRenderedToQueue}
@@ -91,38 +55,14 @@ export const TranscodeResultPanel: React.FC<TranscodeResultPanelProps> = ({
             e.stopPropagation();
             onAddToPlaylist(lastExportedTrack);
           }}
-          style={{
-            padding: '8px 14px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-purple)',
-            fontWeight: 600,
-            fontSize: '0.82rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-          }}
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-3.5 py-2 text-ui font-semibold text-accent-purple"
         >
           <ListPlus size={14} />
           {loc.settings.addRenderedToPlaylist}
         </button>
         <button
           onClick={(e) => onOpenContainingFolder(lastExportedTrack.path, e)}
-          style={{
-            padding: '8px 14px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            fontWeight: 600,
-            fontSize: '0.82rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-          }}
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-3.5 py-2 text-ui font-semibold text-fg-secondary"
         >
           <FolderOpen size={14} />
           {loc.settings.openRenderedFolder}

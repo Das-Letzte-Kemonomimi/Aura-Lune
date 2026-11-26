@@ -23,6 +23,8 @@ import {
   type ChordTone,
 } from '../../utils/chordChart';
 import { ChordChart, ChordOverview } from './ChordChart';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -203,61 +205,35 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', width: '100%' }}>
+    <div className="flex h-full w-full flex-col gap-4">
       {/* Pasek górny pod-widoku */}
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="flex items-center gap-2.5">
           <div
-            style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '10px',
-              background: 'rgba(244, 63, 94, 0.2)',
-              border: '1px solid rgba(244, 63, 94, 0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#f43f5e',
-            }}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-accent-pink/35 bg-accent-pink/20 text-accent-pink"
           >
             <Music size={18} />
           </div>
           <div>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
+            <span className="text-sm font-extrabold text-fg">
               {t.player.chordTimelineTitle}
             </span>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
+            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
               {data ? `${t.dsp.keyLabel}: ${data.key} (${data.camelot}) • ${data.bpm.toFixed(1)} BPM` : t.player.harmonicAnalysis}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           {pitchSemitones !== 0 && (
             <button
               onClick={() => setShowTransposed(!showTransposed)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: showTransposed ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
-                background: showTransposed ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                color: showTransposed ? '#fbbf24' : '#94a3b8',
-              }}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-ui font-semibold',
+                showTransposed ? 'border-accent-amber/40 bg-accent-amber/20 text-amber-400' : 'border-white/10 bg-white/4 text-fg-secondary',
+              )}
               title={t.player.transposeToggleTooltip}
             >
               {fmt(t.player.transposition, pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones), showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
@@ -267,35 +243,18 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           <button
             onClick={handleRecompute}
             disabled={loading}
-            style={{
-              padding: '8px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#94a3b8',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className={cn(
+              'flex items-center justify-center rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary',
+              loading ? 'cursor-not-allowed' : 'cursor-pointer',
+            )}
             title={t.player.recomputeChordsTooltip}
           >
-            <RotateCcw size={16} style={loading ? { animation: 'spin 1.5s linear infinite' } : undefined} />
+            <RotateCcw size={16} className={cn(loading && 'animate-spin')} />
           </button>
 
           <button
             onClick={() => handleExport(exportFormat)}
-            style={{
-              padding: '8px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className="flex items-center justify-center rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
             title={fmt(t.player.exportChords, exportFormat.toUpperCase())}
           >
             <Download size={16} />
@@ -304,14 +263,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              style={{
-                padding: '8px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#94a3b8',
-                cursor: 'pointer',
-              }}
+              className="rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
             >
               <X size={16} />
             </button>
@@ -321,38 +273,26 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
       {/* Aktualny i następny akord */}
       <div
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 20px',
-          borderRadius: '16px',
           background: `linear-gradient(135deg, ${activeColor}1f, rgba(15, 20, 34, 0.4))`,
           border: `1px solid ${activeColor}55`,
-          flexWrap: 'wrap',
-          gap: '16px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-7">
           <div>
-            <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
+            <div className="mb-1 text-xxs font-bold tracking-wider text-fg-secondary uppercase">
               {t.player.currentChord}
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+            <div className="flex items-baseline gap-2.5">
               <span
-                style={{
-                  fontSize: '3rem',
-                  fontWeight: 900,
-                  color: activeColor,
-                  fontFamily: 'var(--font-mono)',
-                  textShadow: `0 0 22px ${activeColor}80`,
-                  lineHeight: 1,
-                }}
+                className="font-mono text-5xl leading-none font-black"
+                style={{ color: activeColor, textShadow: `0 0 22px ${activeColor}80` }}
               >
                 {currentDisplayChord}
               </span>
               {transposeBy !== 0 && activeChord && (
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                <span className="font-mono text-sm text-fg-secondary">
                   ({t.player.transposedOrig.toLowerCase()} {activeChord.chord})
                 </span>
               )}
@@ -361,17 +301,12 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
           {nextChord && (
             <div>
-              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
+              <div className="mb-1 text-xxs font-bold tracking-wider text-fg-secondary uppercase">
                 {t.player.chordNext}
               </div>
               <span
-                style={{
-                  fontSize: '1.7rem',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: TONE_COLORS[chordTone(nextChord.quality)],
-                  opacity: 0.9,
-                }}
+                className="font-mono text-3xl font-extrabold opacity-90"
+                style={{ color: TONE_COLORS[chordTone(nextChord.quality)] }}
               >
                 {displayChord(nextChord.chord)}
               </span>
@@ -382,19 +317,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         {activeChord && onSetLoop && (
           <button
             onClick={() => onSetLoop(activeChord.start_ms, activeChord.end_ms)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.07)',
-              border: '1px solid rgba(255, 255, 255, 0.18)',
-              color: '#e2e8f0',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
+            className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/7 px-3.5 py-2 text-ui font-bold text-slate-200"
           >
             <Repeat size={14} />
             <span>{t.player.loopChord}</span>
@@ -403,25 +326,16 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
       </div>
 
       {/* Oś czasu: przegląd całego utworu + siatka taktów */}
-      <div style={{ flex: 1, minHeight: '220px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="flex min-h-55 flex-1 flex-col gap-3">
         {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px', gap: '12px' }}>
-            <Sparkles size={28} color="#f43f5e" style={{ animation: 'spin 1.5s linear infinite' }} />
-            <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1' }}>
+          <div className="flex flex-col items-center justify-center gap-3 p-12">
+            <Sparkles size={28} className="animate-spin text-accent-pink" />
+            <p className="m-0 text-sm text-slate-300">
               {t.player.detectingChords}
             </p>
           </div>
         ) : error ? (
-          <div
-            style={{
-              padding: '14px 18px',
-              borderRadius: '14px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#fca5a5',
-              fontSize: '0.85rem',
-            }}
-          >
+          <div className="rounded-2xl border border-accent-red/30 bg-accent-red/15 px-4.5 py-3.5 text-sm text-red-300">
             {error}
           </div>
         ) : cells.length > 0 ? (
@@ -432,10 +346,11 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               onSeek={onSeek}
               durationMs={durationMs}
             />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '0.72rem', color: '#94a3b8' }}>
+            <div className="flex flex-wrap gap-3.5 text-xs text-fg-secondary">
               {legend.map(([tone, label]) => (
-                <span key={tone} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: TONE_COLORS[tone] }} />
+                <span key={tone} className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm"
+                  style={{ background: TONE_COLORS[tone] }} />
                   {label}
                 </span>
               ))}
@@ -461,7 +376,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
             />
           </>
         ) : (
-          <div style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '0.85rem' }}>
+          <div className="p-9 text-center text-sm text-fg-secondary">
             {t.analysis.noChordsDetected}
           </div>
         )}
@@ -469,93 +384,41 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
       {/* Modal eksportu */}
       {exportOutput && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 10001,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-          }}
-          onClick={() => setExportOutput(null)}
+        <ModalShell
+          onClose={() => setExportOutput(null)}
+          layer="tool"
+          className="flex max-h-[80vh] max-w-140 flex-col gap-3.5 rounded-3xl border border-white/15 bg-ink p-5 shadow-2xl shadow-black/80"
         >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '560px',
-              background: '#0f1422',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '20px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              maxHeight: '80vh',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
-                {fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
-              </h3>
-              <button
-                onClick={() => setExportOutput(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <textarea
-              readOnly
-              value={exportOutput}
-              style={{
-                width: '100%',
-                height: '220px',
-                background: '#090a12',
-                color: '#f8fafc',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.78rem',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                resize: 'none',
-                outline: 'none',
-              }}
-            />
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(exportOutput);
-                  setExportOutput(null);
-                }}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #f43f5e, #c084fc)',
-                  border: 'none',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                }}
-              >
-                {t.common.copyToClipboard}
-              </button>
-            </div>
+          <div className="flex items-center justify-between border-b border-white/8 pb-3">
+            <h3 className="m-0 text-base font-extrabold text-fg">
+              {fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
+            </h3>
+            <button
+              onClick={() => setExportOutput(null)}
+              className="border-0 bg-transparent text-fg-secondary"
+            >
+              <X size={18} />
+            </button>
           </div>
-        </div>
+
+          <textarea
+            readOnly
+            value={exportOutput}
+            className="h-55 w-full resize-none rounded-xl border border-white/10 bg-deep p-3 font-mono text-ui text-fg outline-none"
+          />
+
+          <div className="flex justify-end gap-2.5">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(exportOutput);
+                setExportOutput(null);
+              }}
+              className="rounded-xl border-0 bg-linear-135 from-accent-pink to-purple-400 px-4.5 py-2 text-ui font-bold text-fg"
+            >
+              {t.common.copyToClipboard}
+            </button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

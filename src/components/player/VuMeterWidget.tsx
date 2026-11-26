@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Gauge } from 'lucide-react';
+import { cn } from '../../utils/cn';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { livePlayback } from '../../state/livePlayback';
 import { drawVuDynamic, renderVuFaceLayer } from './vuFace';
@@ -11,6 +12,7 @@ import {
   type VuChannelState,
   type VuTheme,
 } from './vuMeterMath';
+import { cssVars } from '../../utils/cssVars';
 
 interface VuMeterWidgetProps {
   spectrum?: number[];
@@ -99,39 +101,22 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
 
   return (
     <div
-      className={`glass-card ${className || ''}`}
-      style={{
-        padding: '8px 10px',
-        borderRadius: '14px',
-        background: 'rgba(15, 12, 28, 0.78)',
-        border: '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-        boxSizing: 'border-box',
-        ...style,
-      }}
+      className={cn('glass-card flex flex-col gap-1.5 rounded-2xl border-line bg-ink/80 px-2.5 py-2', className)}
+      style={style}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
-          <Gauge size={13} color="var(--accent-pink)" />
-          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#fff', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Gauge size={13} className="text-accent-pink" />
+          <span className="text-xs font-extrabold tracking-wider whitespace-nowrap text-fg">
             VU-METER
           </span>
-          <span
-            style={{
-              fontSize: '0.62rem',
-              color: 'var(--text-muted)',
-              fontFamily: 'var(--font-mono)',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span className="font-mono text-2xs whitespace-nowrap text-fg-muted">
             L/R
           </span>
         </div>
 
         {/* Selektor motywu podświetlenia wskaźnika (kompaktowe pigułki) */}
-        <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
+        <div className="flex shrink-0 gap-1">
           {[
             { id: 'amber', label: 'Amber', color: '#f59e0b' },
             { id: 'sakura', label: 'Sakura', color: '#ec4899' },
@@ -141,17 +126,9 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
               key={th.id}
               onClick={() => handleSelectTheme(th.id as VuTheme)}
               title={th.id === 'amber' ? 'Amber 70s' : th.id === 'sakura' ? 'Sakura Glow' : 'Cyber Neon'}
-              style={{
-                padding: '2px 6px',
-                borderRadius: '5px',
-                fontSize: '0.62rem',
-                fontWeight: 700,
-                background: theme === th.id ? `${th.color}33` : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${theme === th.id ? th.color : 'rgba(255, 255, 255, 0.1)'}`,
-                color: theme === th.id ? th.color : 'var(--text-muted)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              aria-pressed={theme === th.id}
+              className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-2xs font-bold text-fg-muted transition-all duration-150 aria-pressed:border-(--vu) aria-pressed:bg-(--vu)/20 aria-pressed:text-(--vu)"
+              style={cssVars({ '--vu': th.color })}
             >
               {th.label}
             </button>
@@ -161,13 +138,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
 
       <canvas
         ref={canvasRef}
-        style={{
-          width: '100%',
-          flex: 1,
-          minHeight: 0,
-          borderRadius: '8px',
-          display: 'block',
-        }}
+        className="block min-h-0 w-full flex-1 rounded-lg"
       />
     </div>
   );

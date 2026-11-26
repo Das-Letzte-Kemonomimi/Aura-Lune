@@ -5,6 +5,7 @@ import type { StemChannel } from '../../../types/analysis';
 import { sliderToDb } from '../../../types/analysis';
 import type { StemProjectStudioModalProps } from '../StemProjectStudioModal';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type StemStudioWorkspaceProps = Pick<StemProjectStudioModalProps, 'onOpenChords' | 'onOpenPianoRoll'> & {
   channels: StemChannel[];
@@ -41,18 +42,9 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
   setMasterVolume,
   t,
 }) => (
-    <div style={{ flex: 1, display: 'flex', gap: '14px', minHeight: 0 }}>
+    <div className="flex min-h-0 flex-1 gap-3.5">
       {/* Kontener suwaków kanałów (z przewijaniem poziomym) */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          gap: '12px',
-          overflowX: 'auto',
-          paddingBottom: '8px',
-          minHeight: 0,
-        }}
-      >
+      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
         {channels.map((ch) => {
           const isMuted = ch.mute || (anySoloActive && !ch.solo);
           const dbVal = sliderToDb(ch.volume);
@@ -62,95 +54,57 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
               key={ch.id}
               onMouseEnter={() => setHoveredChannelId(ch.id)}
               onMouseLeave={() => setHoveredChannelId(null)}
+              className="flex w-32.5 min-w-32.5 flex-col rounded-2xl bg-slate-900/65 px-2.5 py-3 transition-[border,box-shadow] duration-200"
               style={{
-                width: '130px',
-                minWidth: '130px',
-                background: 'rgba(15, 23, 42, 0.65)',
-                borderRadius: '16px',
                 border:
                   hoveredChannelId === ch.id
                     ? `1px solid ${ch.color_hex}`
                     : '1px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '12px 10px',
                 boxShadow:
                   hoveredChannelId === ch.id
                     ? `0 0 15px ${ch.color_hex}33`
                     : '0 4px 12px rgba(0,0,0,0.3)',
-                transition: 'border 0.2s ease, box-shadow 0.2s ease',
               }}
             >
               {/* Nagłówek kanału */}
-              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <div className="mb-2 text-center">
                 <div
-                  style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: ch.color_hex,
-                    margin: '0 auto 4px auto',
-                    boxShadow: `0 0 8px ${ch.color_hex}`,
-                  }}
+                  className="mx-auto mt-0 mb-1 h-2.5 w-2.5 rounded-full"
+                  style={{ background: ch.color_hex, boxShadow: `0 0 8px ${ch.color_hex}` }}
                 />
                 <span
-                  style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    color: isMuted ? '#64748b' : '#f8fafc',
-                    display: 'block',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
+                  className={cn('block truncate text-ui font-bold', isMuted ? 'text-fg-muted' : 'text-fg')}
                   title={ch.name}
                 >
                   {ch.name}
                 </span>
-                <span
-                  style={{
-                    fontSize: '0.65rem',
-                    color: '#94a3b8',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                  }}
-                >
+                <span className="text-xxs font-semibold text-fg-secondary uppercase">
                   {ch.quality_tier}
                 </span>
               </div>
 
               {/* Przyciski Solo i Mute */}
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+              <div className="mb-2.5 flex gap-1.5">
                 <button
                   onClick={() => handleToggleSolo(ch.id)}
-                  style={{
-                    flex: 1,
-                    padding: '4px 0',
-                    borderRadius: '6px',
-                    border: ch.solo ? '1px solid #facc15' : '1px solid rgba(255,255,255,0.1)',
-                    background: ch.solo ? '#facc15' : 'rgba(255,255,255,0.04)',
-                    color: ch.solo ? '#000000' : '#cbd5e1',
-                    fontWeight: 800,
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                  }}
+                  className={cn(
+                    'flex-1 rounded-md border px-0 py-1 text-xs font-extrabold',
+                    ch.solo ? 'border-yellow-400' : 'border-white/10',
+                    ch.solo ? 'bg-yellow-400' : 'bg-white/4',
+                    ch.solo ? 'text-black' : 'text-slate-300',
+                  )}
                   title={t.stems.soloTooltip}
                 >
                   S
                 </button>
                 <button
                   onClick={() => handleToggleMute(ch.id)}
-                  style={{
-                    flex: 1,
-                    padding: '4px 0',
-                    borderRadius: '6px',
-                    border: ch.mute ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
-                    background: ch.mute ? '#ef4444' : 'rgba(255,255,255,0.04)',
-                    color: ch.mute ? '#ffffff' : '#cbd5e1',
-                    fontWeight: 800,
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                  }}
+                  className={cn(
+                    'flex-1 rounded-md border px-0 py-1 text-xs font-extrabold',
+                    ch.mute ? 'border-accent-red' : 'border-white/10',
+                    ch.mute ? 'bg-accent-red' : 'bg-white/4',
+                    ch.mute ? 'text-fg' : 'text-slate-300',
+                  )}
                   title={t.stems.muteTooltip}
                 >
                   M
@@ -158,19 +112,11 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
               </div>
 
               {/* Suwak Panoramy (Pan) */}
-              <div style={{ marginBottom: '10px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.65rem',
-                    color: '#94a3b8',
-                    marginBottom: '2px',
-                  }}
-                >
+              <div className="mb-2.5">
+                <div className="mb-0.5 flex justify-between text-xxs text-fg-secondary">
                   <span>L</span>
                   <span
-                    style={{ cursor: 'pointer' }}
+                    className="cursor-pointer"
                     onClick={() => handlePanChange(ch.id, 0.0)}
                     title={t.stems.panResetTooltip}
                   >
@@ -189,21 +135,13 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                   step="0.05"
                   value={ch.pan}
                   onChange={(e) => handlePanChange(ch.id, parseFloat(e.target.value))}
-                  style={{ width: '100%', accentColor: ch.color_hex }}
+                  className="w-full"
+                  style={{ accentColor: ch.color_hex }}
                 />
               </div>
 
               {/* Suwak Fader Głośności (0 - 100%, 75% = 0 dB) */}
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                }}
-              >
+              <div className="relative flex flex-1 flex-col items-center justify-center">
                 <input
                   type="range"
                   min="0.0"
@@ -212,27 +150,17 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                   value={ch.volume}
                   onChange={(e) => handleVolumeChange(ch.id, parseFloat(e.target.value))}
                   onDoubleClick={() => handleVolumeChange(ch.id, 0.75)}
-                  style={{
-                    writingMode: 'vertical-lr',
-                    direction: 'rtl',
-                    width: '32px',
-                    height: '180px',
-                    accentColor: ch.color_hex,
-                    cursor: 'pointer',
-                  }}
+                  className="h-45 w-8 cursor-pointer [writing-mode:vertical-lr] [direction:rtl]"
+                  style={{ accentColor: ch.color_hex }}
                   title={t.stems.volumeResetTooltip}
                 />
               </div>
 
               {/* Odczyt decybeli / procentów */}
-              <div style={{ textAlign: 'center', marginTop: '8px' }}>
+              <div className="mt-2 text-center">
                 <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    fontFamily: 'var(--font-mono)',
-                    color: isMuted ? '#64748b' : ch.volume >= 0.75 ? ch.color_hex : '#cbd5e1',
-                  }}
+                  className="font-mono text-xs font-extrabold"
+                  style={{ color: isMuted ? '#64748b' : ch.volume >= 0.75 ? ch.color_hex : '#cbd5e1' }}
                 >
                   {isMuted
                     ? '-INF dB'
@@ -240,7 +168,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                     ? '-INF dB'
                     : `${dbVal >= 0 ? '+' : ''}${dbVal.toFixed(1)} dB`}
                 </span>
-                <div style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                <div className="text-xxs text-fg-muted">
                   {Math.round(ch.volume * 100)}%
                 </div>
               </div>
@@ -250,31 +178,20 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
       </div>
 
       {/* Panel boczny Master & Presety */}
-      <div
-        style={{
-          width: '260px',
-          background: 'rgba(15, 23, 42, 0.8)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
-        }}
-      >
-        <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>
+      <div className="flex w-65 flex-col gap-3.5 rounded-2xl border border-white/8 bg-slate-900/80 p-4">
+        <div className="border-b border-white/8 pb-2">
+          <span className="text-sm font-extrabold text-fg">
             {t.stems.masterAndPresets}
           </span>
         </div>
 
         {/* Suwak Master */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 600 }}>
+          <div className="mb-1 flex justify-between">
+            <span className="text-xs font-semibold text-slate-300">
               {t.stems.masterVolume}
             </span>
-            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-pink)' }}>
+            <span className="text-xs font-extrabold text-accent-pink">
               {Math.round(masterVolume * 100)}%
             </span>
           </div>
@@ -289,125 +206,58 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
               setMasterVolume(v);
               applyMixToEngine(channels, v);
             }}
-            style={{ width: '100%', accentColor: 'var(--accent-pink)' }}
+            className="w-full accent-accent-pink"
           />
         </div>
 
         {/* Przycisk Reset do 75% */}
         <button
           onClick={handleResetAllToUnity}
-          style={{
-            padding: '8px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            color: '#f8fafc',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-          }}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/6 p-2 text-xs font-bold text-fg"
         >
           <RotateCcw size={14} />
           {t.stems.resetAllUnity}
         </button>
 
         {/* Szybkie presety */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xxs font-bold text-fg-secondary uppercase">
             {t.stems.quickModes}
           </span>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => handleApplyPreset('karaoke')}
-              style={{
-                padding: '6px',
-                borderRadius: '6px',
-                background: 'rgba(236, 72, 153, 0.1)',
-                border: '1px solid rgba(236, 72, 153, 0.25)',
-                color: '#f43f5e',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-pink-500/25 bg-pink-500/10 p-1.5 text-xxs font-bold text-accent-pink"
             >
               {t.stems.karaokeMode}
             </button>
             <button
               onClick={() => handleApplyPreset('acapella')}
-              style={{
-                padding: '6px',
-                borderRadius: '6px',
-                background: 'rgba(139, 92, 246, 0.1)',
-                border: '1px solid rgba(139, 92, 246, 0.25)',
-                color: '#a855f7',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-violet-500/25 bg-violet-500/10 p-1.5 text-xxs font-bold text-accent-purple"
             >
               {t.stems.acapellaSolo}
             </button>
             <button
               onClick={() => handleApplyPreset('drums_only')}
-              style={{
-                padding: '6px',
-                borderRadius: '6px',
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                color: '#f59e0b',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-accent-amber/25 bg-accent-amber/10 p-1.5 text-xxs font-bold text-accent-amber"
             >
               {t.stems.drumsOnly}
             </button>
             <button
               onClick={() => handleApplyPreset('rhythm_section')}
-              style={{
-                padding: '6px',
-                borderRadius: '6px',
-                background: 'rgba(14, 165, 233, 0.1)',
-                border: '1px solid rgba(14, 165, 233, 0.25)',
-                color: '#0ea5e9',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-sky-500/25 bg-sky-500/10 p-1.5 text-xxs font-bold text-sky-500"
             >
               {t.stems.rhythmDrumsBass}
             </button>
             <button
               onClick={() => handleApplyPreset('instrumental')}
-              style={{
-                padding: '6px',
-                borderRadius: '6px',
-                background: 'rgba(52, 211, 153, 0.1)',
-                border: '1px solid rgba(52, 211, 153, 0.25)',
-                color: '#34d399',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-emerald-400/25 bg-emerald-400/10 p-1.5 text-xxs font-bold text-emerald-400"
             >
               {t.stems.instrumental}
             </button>
             <button
               onClick={() => handleApplyPreset('practice_guitar')}
-              style={{
-                padding: '6px',
-                borderRadius: '6px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: '#10b981',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-accent-green/25 bg-accent-green/10 p-1.5 text-xxs font-bold text-accent-green"
             >
               {t.stems.practiceNoGuitar}
             </button>
@@ -415,27 +265,15 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
         </div>
 
         {/* Narzędzia analityczne powiązane ze stemami */}
-        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px' }}>
-          <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+        <div className="mt-auto border-t border-white/8 pt-2.5">
+          <span className="mb-1.5 block text-xxs font-bold text-fg-secondary uppercase">
             {t.stems.trackAnalysis}
           </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="flex flex-col gap-1.5">
             {onOpenChords && (
               <button
                 onClick={onOpenChords}
-                style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  background: 'rgba(236, 72, 153, 0.15)',
-                  border: '1px solid rgba(236, 72, 153, 0.3)',
-                  color: 'var(--accent-pink)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="flex items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/15 p-2 text-xs font-bold text-accent-pink"
               >
                 <Music size={14} />
                 {t.stems.chordsFromBass}
@@ -444,19 +282,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
             {onOpenPianoRoll && (
               <button
                 onClick={onOpenPianoRoll}
-                style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  background: 'rgba(139, 92, 246, 0.15)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
-                  color: '#c084fc',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/15 p-2 text-xs font-bold text-purple-400"
               >
                 <Piano size={14} />
                 {t.stems.vocalPianoRollBtn}

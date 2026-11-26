@@ -19,6 +19,8 @@ import {
   type SoundscapeVolumes,
   type SoundscapePreset,
 } from '../../utils/soundscapeAudio';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 interface SoundscapeModalProps {
   isOpen: boolean;
@@ -148,371 +150,210 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   const isAnyActive = soundscapeEngine.isSoundscapeActive();
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(5, 7, 18, 0.82)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-145 flex-col gap-5 overflow-y-auto rounded-3xl border border-accent-purple/35 p-7 text-fg"
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '580px',
-          background: 'linear-gradient(145deg, rgba(20, 24, 45, 0.96), rgba(12, 14, 28, 0.98))',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          borderRadius: '24px',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.9), 0 0 32px rgba(168, 85, 247, 0.25)',
-          color: '#fff',
-          padding: '28px',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          boxSizing: 'border-box',
-        }}
-        onClick={(e) => e.stopPropagation()}
+      {/* Zamknięcie */}
+      <button
+        onClick={onClose}
+        className="absolute top-5 right-5 flex size-9 items-center justify-center rounded-full border-0 bg-white/8 text-fg transition-colors duration-200 hover:bg-white/20"
+        title={loc.common.close}
       >
-        {/* Zamknięcie */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: 'none',
-            borderRadius: '50%',
-            width: '36px',
-            height: '36px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
-          title={loc.common.close}
-        >
-          <X size={18} />
-        </button>
+        <X size={18} />
+      </button>
 
-        {/* Nagłówek */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.3))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#f472b6',
-              boxShadow: '0 0 16px rgba(236, 72, 153, 0.35)',
-            }}
-          >
-            <Waves size={24} />
-          </div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              {loc.soundscape.title}
-            </h2>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #a1a1aa)', marginTop: '2px' }}>
-              {loc.soundscape.subtitle}
-            </div>
-          </div>
-        </div>
-
-        {/* Główna głośność i stan Master */}
+      {/* Nagłówek */}
+      <div className="flex items-center gap-3">
         <div
-          style={{
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px 18px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-135 from-accent-purple/40 to-pink-500/30 text-pink-400 shadow-halo-lg shadow-pink-500/35"
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                onClick={handleToggleMute}
-                style={{
-                  background: isMuted ? 'rgba(239, 68, 68, 0.25)' : 'rgba(168, 85, 247, 0.22)',
-                  border: isMuted ? '1px solid #ef4444' : '1px solid #a855f7',
-                  borderRadius: '10px',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isMuted ? '#f87171' : '#c084fc',
-                  cursor: 'pointer',
-                }}
-                title={isMuted ? loc.soundscape.unmute : loc.soundscape.mute}
-              >
-                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              <div>
-                <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
-                  {loc.soundscape.masterVolume}
-                </span>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                  {isMuted
-                    ? loc.soundscape.muted
-                    : isAnyActive
-                    ? loc.soundscape.active
-                    : loc.soundscape.allSilent}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, minWidth: '40px', textAlign: 'right' }}>
-                {isMuted ? '0%' : `${Math.round(volumes.master * 100)}%`}
-              </span>
-              <button
-                onClick={handleResetAll}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '8px',
-                  padding: '6px 10px',
-                  color: '#94a3b8',
-                  fontSize: '0.78rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                }}
-                title={loc.soundscape.resetZero}
-              >
-                <RotateCcw size={12} />
-                <span>{loc.soundscape.resetZero}</span>
-              </button>
-            </div>
-          </div>
-
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={isMuted ? 0 : volumes.master}
-            onChange={(e) => handleMasterChange(parseFloat(e.target.value))}
-            style={{
-              width: '100%',
-              accentColor: '#c084fc',
-              cursor: 'pointer',
-              height: '6px',
-            }}
-          />
+          <Waves size={24} />
         </div>
-
-        {/* Gotowe presety */}
         <div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
-            {loc.soundscape.quickPresets}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {SOUNDSCAPE_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => handleApplyPreset(preset)}
-                style={{
-                  padding: '7px 12px',
-                  borderRadius: '10px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#e2e8f0',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)';
-                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
-                }}
-              >
-                <span>{preset.icon}</span>
-                <span>{preset.name[currentLang] || preset.name.en}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Lista kanałów ambientowych */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8' }}>
-            {loc.soundscape.individualLayers}
-          </div>
-
-          {channels.map((chan) => {
-            const vol = volumes[chan.key];
-            const isActive = vol > 0.01 && !isMuted;
-
-            return (
-              <div
-                key={chan.key}
-                style={{
-                  background: isActive ? chan.bgAccent : 'rgba(255, 255, 255, 0.03)',
-                  border: isActive ? `1px solid ${chan.color}60` : '1px solid rgba(255, 255, 255, 0.06)',
-                  borderRadius: '14px',
-                  padding: '12px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        color: chan.color,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 255, 255, 0.06)',
-                      }}
-                    >
-                      {chan.icon}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: isActive ? '#fff' : '#cbd5e1' }}>
-                        {chan.label}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                        {chan.sublabel}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        color: isActive ? chan.color : '#64748b',
-                        minWidth: '38px',
-                        textAlign: 'right',
-                      }}
-                    >
-                      {Math.round(vol * 100)}%
-                    </span>
-                    <button
-                      onClick={() => handleChannelChange(chan.key, vol > 0 ? 0 : 0.6)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '6px',
-                        padding: '3px 8px',
-                        fontSize: '0.72rem',
-                        color: '#94a3b8',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {vol > 0 ? loc.soundscape.mute : loc.soundscape.unmute}
-                    </button>
-                  </div>
-                </div>
-
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={vol}
-                  onChange={(e) => handleChannelChange(chan.key, parseFloat(e.target.value))}
-                  style={{
-                    width: '100%',
-                    accentColor: chan.color,
-                    cursor: 'pointer',
-                    height: '5px',
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Opcja synchronizacji z cząsteczkami anime */}
-        <div
-          onClick={handleAutoSyncToggle}
-          style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Sparkles size={16} color="#f472b6" />
-            <div>
-              <div style={{ fontSize: '0.84rem', fontWeight: 600 }}>
-                {loc.soundscape.autoSyncTitle}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                {loc.soundscape.autoSyncDesc}
-              </div>
-            </div>
-          </div>
-          <div
-            style={{
-              width: '38px',
-              height: '20px',
-              borderRadius: '20px',
-              background: autoSync ? '#c084fc' : 'rgba(255, 255, 255, 0.15)',
-              position: 'relative',
-              transition: 'background 0.2s',
-            }}
-          >
-            <div
-              style={{
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                background: '#fff',
-                position: 'absolute',
-                top: '2px',
-                left: autoSync ? '20px' : '2px',
-                transition: 'left 0.2s',
-              }}
-            />
+          <h2 className="m-0 text-xl font-bold tracking-tight">
+            {loc.soundscape.title}
+          </h2>
+          <div className="mt-0.5 text-sm text-fg-secondary">
+            {loc.soundscape.subtitle}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Główna głośność i stan Master */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleToggleMute}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-xl border',
+                isMuted ? 'bg-accent-red/25' : 'bg-accent-purple/20',
+                isMuted ? 'border-accent-red' : 'border-accent-purple',
+                isMuted ? 'text-red-400' : 'text-purple-400',
+              )}
+              title={isMuted ? loc.soundscape.unmute : loc.soundscape.mute}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+            <div>
+              <span className="text-md font-semibold">
+                {loc.soundscape.masterVolume}
+              </span>
+              <div className="text-ui text-fg-secondary">
+                {isMuted
+                  ? loc.soundscape.muted
+                  : isAnyActive
+                  ? loc.soundscape.active
+                  : loc.soundscape.allSilent}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="min-w-10 text-right text-sm font-bold">
+              {isMuted ? '0%' : `${Math.round(volumes.master * 100)}%`}
+            </span>
+            <button
+              onClick={handleResetAll}
+              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/6 px-2.5 py-1.5 text-ui text-fg-secondary"
+              title={loc.soundscape.resetZero}
+            >
+              <RotateCcw size={12} />
+              <span>{loc.soundscape.resetZero}</span>
+            </button>
+          </div>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={isMuted ? 0 : volumes.master}
+          onChange={(e) => handleMasterChange(parseFloat(e.target.value))}
+          className="h-1.5 w-full cursor-pointer accent-purple-400"
+        />
+      </div>
+
+      {/* Gotowe presety */}
+      <div>
+        <div className="mb-2 text-ui font-semibold text-fg-secondary">
+          {loc.soundscape.quickPresets}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {SOUNDSCAPE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => handleApplyPreset(preset)}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-ui font-semibold text-slate-200 transition-all duration-200 hover:border-accent-purple/40 hover:bg-accent-purple/20"
+            >
+              <span>{preset.icon}</span>
+              <span>{preset.name[currentLang] || preset.name.en}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista kanałów ambientowych */}
+      <div className="flex flex-col gap-2.5">
+        <div className="text-ui font-semibold text-fg-secondary">
+          {loc.soundscape.individualLayers}
+        </div>
+
+        {channels.map((chan) => {
+          const vol = volumes[chan.key];
+          const isActive = vol > 0.01 && !isMuted;
+
+          return (
+            <div
+              key={chan.key}
+              className="flex flex-col gap-2 rounded-2xl px-3.5 py-3 transition-all duration-200"
+              style={{
+                background: isActive ? chan.bgAccent : 'rgba(255, 255, 255, 0.03)',
+                border: isActive ? `1px solid ${chan.color}60` : '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-white/6"
+                    style={{ color: chan.color }}
+                  >
+                    {chan.icon}
+                  </div>
+                  <div>
+                    <div className={cn('text-sm font-semibold', isActive ? 'text-fg' : 'text-slate-300')}>
+                      {chan.label}
+                    </div>
+                    <div className="text-xs text-fg-secondary">
+                      {chan.sublabel}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className="min-w-9.5 text-right text-ui font-bold"
+                    style={{ color: isActive ? chan.color : '#64748b' }}
+                  >
+                    {Math.round(vol * 100)}%
+                  </span>
+                  <button
+                    onClick={() => handleChannelChange(chan.key, vol > 0 ? 0 : 0.6)}
+                    className="rounded-md border border-white/8 bg-white/6 px-2 py-1 text-xs text-fg-secondary"
+                  >
+                    {vol > 0 ? loc.soundscape.mute : loc.soundscape.unmute}
+                  </button>
+                </div>
+              </div>
+
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={vol}
+                onChange={(e) => handleChannelChange(chan.key, parseFloat(e.target.value))}
+                className="h-1.5 w-full cursor-pointer"
+                style={{ accentColor: chan.color }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Opcja synchronizacji z cząsteczkami anime */}
+      <div
+        onClick={handleAutoSyncToggle}
+        className="flex cursor-pointer items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3.5 py-3 transition-colors duration-200"
+      >
+        <div className="flex items-center gap-2.5">
+          <Sparkles size={16} className="text-pink-400" />
+          <div>
+            <div className="text-ui font-semibold">
+              {loc.soundscape.autoSyncTitle}
+            </div>
+            <div className="text-xs text-fg-secondary">
+              {loc.soundscape.autoSyncDesc}
+            </div>
+          </div>
+        </div>
+        <div
+          className={cn(
+            'relative h-5 w-9.5 rounded-3xl transition-colors duration-200',
+            autoSync ? 'bg-purple-400' : 'bg-white/15',
+          )}
+        >
+          <div
+            className={cn(
+              'absolute top-0.5 h-4 w-4 rounded-full bg-white transition-[left] duration-200',
+              autoSync ? 'left-5' : 'left-0.5',
+            )}
+          />
+        </div>
+      </div>
+    </ModalShell>
   );
 };

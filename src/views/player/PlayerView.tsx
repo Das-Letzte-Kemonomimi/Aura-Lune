@@ -18,6 +18,7 @@ import { PlayerProgressSection } from './sections/PlayerProgressSection';
 import { PlayerQuickDspVibes } from './sections/PlayerQuickDspVibes';
 import { PlayerVisualColumn } from './sections/PlayerVisualColumn';
 import { PlayerToolbar } from './sections/PlayerToolbar';
+import { cn } from '../../utils/cn';
 
 export interface PlayerViewProps {
   layoutMaxWidth: string;
@@ -170,115 +171,56 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
   );
 
   return (
-            <div style={{ maxWidth: layoutMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
-              <div className="glass-panel" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="mx-auto my-0 flex flex-col gap-5 pb-8" style={{ maxWidth: layoutMaxWidth }}>
+              <div className="glass-panel flex flex-col gap-5 px-7 py-6">
                 {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
                 <PlayerToolbar {...props} status={statusProp} />
 
                 {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
                 <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: nowPlayingVisualMode === 'cover' ? '240px 1fr' : '275px 1fr',
-                    gap: '26px',
-                    alignItems: 'center',
-                    transition: 'grid-template-columns 0.2s ease',
-                  }}
+                  className={cn(
+                    'grid items-center gap-6.5 transition-[grid-template-columns] duration-200',
+                    nowPlayingVisualMode === 'cover' ? 'grid-cols-[--spacing(60)_1fr]' : 'grid-cols-[--spacing(69)_1fr]',
+                  )}
                 >
                   {/* Kolumna lewa: Okładka / Winyl / Tape / VU-Meter */}
                   <PlayerVisualColumn {...props} status={status} />
 
                   {/* Kolumna prawa: Tytuł, Wykonawca, Spektrogram, Seeker i Przyciski */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
+                  <div className="flex min-w-0 flex-col gap-3.5">
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <div className="mb-1 flex items-center gap-2">
                         <span
-                          style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background:
-                              status.state === 'Playing'
-                                ? 'var(--accent-green)'
-                                : status.state === 'Paused'
-                                  ? 'var(--accent-amber)'
-                                  : 'var(--text-muted)',
-                            boxShadow: status.state === 'Playing' ? '0 0 8px var(--accent-green)' : 'none',
-                          }}
+                          className={cn(
+                            'h-2 w-2 rounded-full',
+                            status.state === 'Playing' ? 'shadow-halo-sm shadow-accent-green' : 'shadow-none',
+                            status.state === 'Playing' ? 'bg-accent-green' : status.state === 'Paused' ? 'bg-accent-amber' : 'bg-fg-muted',
+                          )}
                         />
-                        <span
-                          style={{
-                            fontSize: '0.72rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.06em',
-                            color: 'var(--text-muted)',
-                            fontWeight: 700,
-                          }}
-                        >
+                        <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
                           {status.state === 'Playing' ? loc.player.statePlaying : status.state === 'Paused' ? loc.player.statePaused : loc.player.stateStopped}
                         </span>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <h3
-                            style={{
-                              margin: 0,
-                              fontSize: '1.35rem',
-                              fontWeight: 800,
-                              color: '#fff',
-                              letterSpacing: '-0.02em',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="m-0 truncate text-2xl font-extrabold tracking-tight text-fg">
                             {effectiveDisplayTitle}
                           </h3>
-                          <p
-                            style={{
-                              margin: '4px 0 0 0',
-                              fontSize: '0.88rem',
-                              color: 'var(--accent-pink)',
-                              fontWeight: 600,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                          <p className="mx-0 mt-1 mb-0 truncate text-sm font-semibold text-accent-pink">
                             {effectiveDisplayArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
                           </p>
                           {cleanLiveTitle && (
                             <div
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                marginTop: '6px',
-                                padding: '3px 10px',
-                                borderRadius: '12px',
-                                background: 'rgba(236, 72, 153, 0.15)',
-                                border: '1px solid rgba(236, 72, 153, 0.35)',
-                                color: 'var(--accent-pink)',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                              }}
+                              className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-ui font-semibold text-accent-pink"
                             >
-                              <span
-                                style={{
-                                  width: '6px',
-                                  height: '6px',
-                                  borderRadius: '50%',
-                                  background: '#ff4757',
-                                  boxShadow: '0 0 8px #ff4757',
-                                }}
-                              />
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-halo-sm shadow-red-500" />
                               <span>LIVE: {cleanLiveTitle}</span>
                             </div>
                           )}
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <div className="flex shrink-0 items-center gap-2">
                           <button
                             onClick={() => {
                               if (currentPlayingTrack) {
@@ -300,20 +242,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                               }
                             }}
                             title={loc.player.trackStats}
-                            style={{
-                              background: 'rgba(245, 158, 11, 0.15)',
-                              border: '1px solid rgba(245, 158, 11, 0.35)',
-                              borderRadius: '8px',
-                              color: 'var(--accent-amber)',
-                              padding: '6px 12px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              transition: 'all 0.2s ease',
-                            }}
+                            className="flex items-center gap-1.5 rounded-lg border border-accent-amber/35 bg-accent-amber/15 px-3 py-1.5 text-ui font-semibold text-accent-amber transition-all duration-200"
                           >
                             <BarChart3 size={16} />
                             <span>{currentPlayingTrack?.play_count || 0} {loc.player.plays}</span>
@@ -323,22 +252,12 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                             <button
                               onClick={(e) => handleToggleFavorite(currentPlayingTrack.id, e)}
                               title={currentPlayingTrack.is_favorite ? loc.player.favoriteRemove : loc.player.favoriteAdd}
-                              style={{
-                                background: currentPlayingTrack.is_favorite ? 'rgba(255, 77, 148, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-                                border: currentPlayingTrack.is_favorite ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                                borderRadius: '8px',
-                                color: currentPlayingTrack.is_favorite ? 'var(--accent-pink)' : 'var(--text-muted)',
-                                padding: '6px 12px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                transition: 'all 0.2s ease',
-                              }}
+                              className={cn(
+                                'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-ui font-semibold transition-all duration-200',
+                                currentPlayingTrack.is_favorite ? 'border-accent-pink bg-accent-pink/20 text-accent-pink' : 'border-line bg-white/6 text-fg-muted',
+                              )}
                             >
-                              <Heart size={16} fill={currentPlayingTrack.is_favorite ? 'var(--accent-pink)' : 'none'} />
+                              <Heart className={cn(currentPlayingTrack.is_favorite && 'fill-accent-pink')} size={16} />
                               {currentPlayingTrack.is_favorite ? loc.player.favoriteRemove : loc.player.favoriteAdd}
                             </button>
                           )}
@@ -352,20 +271,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                                 )
                               }
                               title={loc.queue.openContainingFolder}
-                              style={{
-                                background: 'rgba(6, 182, 212, 0.15)',
-                                border: '1px solid rgba(6, 182, 212, 0.35)',
-                                borderRadius: '8px',
-                                color: 'var(--accent-cyan)',
-                                padding: '6px 12px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                transition: 'all 0.2s ease',
-                              }}
+                              className="flex items-center gap-1.5 rounded-lg border border-accent-cyan/35 bg-accent-cyan/15 px-3 py-1.5 text-ui font-semibold text-accent-cyan transition-all duration-200"
                             >
                               <FolderOpen size={15} />
                               <span>Dolphin</span>
@@ -398,7 +304,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
 
               {/* SEKCJA ZSYNCHRONIZOWANYCH TEKSTÓW PIOSENEK (LRC & LRCLIB) */}
               {showLyrics && (
-                <div style={{ height: '420px', width: '100%', marginBottom: '4px' }}>
+                <div className="mb-1 h-105 w-full">
                   <LyricsView
                     trackTitle={effectiveDisplayTitle}
                     trackArtist={effectiveDisplayArtist}

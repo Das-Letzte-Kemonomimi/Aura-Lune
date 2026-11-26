@@ -2,6 +2,7 @@ import React from 'react';
 import type { Translations } from '../../../i18n';
 import { X, Upload, AlertTriangle, Copy, Check } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
+import { ModalShell } from '../../ui';
 
 export type PeqImportExportDialogProps = {} & {
   setIsImportModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -26,146 +27,67 @@ export const PeqImportExportDialog: React.FC<PeqImportExportDialogProps> = ({
   setImportText,
   setIsImportModalOpen,
 }) => (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10600,
-        background: 'rgba(0, 0, 0, 0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={() => setIsImportModalOpen(false)}
+    <ModalShell
+      onClose={() => setIsImportModalOpen(false)}
+      layer="toolDialog"
+      className="flex max-w-170 flex-col gap-4 rounded-2xl border border-line bg-field p-6 shadow-2xl shadow-black/80"
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '680px',
-          background: '#161c2d',
-          borderRadius: '16px',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Upload size={18} color="#60a5fa" />
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
-              {loc.parametricEq.importExportTitle}
-            </h3>
-          </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Upload size={18} className="text-blue-400" />
+          <h3 className="m-0 text-lg font-extrabold">
+            {loc.parametricEq.importExportTitle}
+          </h3>
+        </div>
+        <button
+          onClick={() => setIsImportModalOpen(false)}
+          className="border-0 bg-transparent text-fg-muted"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <p className="m-0 text-ui text-fg-secondary">
+        {loc.parametricEq.importExportDesc}
+      </p>
+
+      <textarea
+        value={importText || exportedApoText}
+        onChange={(e) => setImportText(e.target.value)}
+        placeholder="Preamp: -6.5 dB&#10;Filter 1: ON PK Fc 31 Hz Gain 4.8 dB Q 1.41&#10;Filter 2: ON LSC Fc 105 Hz Gain 3.5 dB Q 0.71"
+        className="h-45 w-full resize-none rounded-lg border border-line bg-black/40 p-3 font-mono text-ui text-fg outline-none"
+      />
+
+      {importError && (
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-accent-pink">
+          <AlertTriangle size={13} />
+          {importError}
+        </div>
+      )}
+
+      <div className="flex justify-between gap-3">
+        <button
+          onClick={handleCopyExport}
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-4 py-2 text-ui font-semibold text-fg"
+        >
+          {copiedExport ? <Check size={14} className="text-accent-green" /> : <Copy size={14} />}
+          {copiedExport ? loc.parametricEq.copied : loc.parametricEq.copyConfig}
+        </button>
+
+        <div className="flex gap-2.5">
           <button
             onClick={() => setIsImportModalOpen(false)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-lg border border-line bg-transparent px-4 py-2 text-ui text-fg-muted"
           >
-            <X size={18} />
+            {loc.common.cancel}
           </button>
-        </div>
-
-        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          {loc.parametricEq.importExportDesc}
-        </p>
-
-        <textarea
-          value={importText || exportedApoText}
-          onChange={(e) => setImportText(e.target.value)}
-          placeholder="Preamp: -6.5 dB&#10;Filter 1: ON PK Fc 31 Hz Gain 4.8 dB Q 1.41&#10;Filter 2: ON LSC Fc 105 Hz Gain 3.5 dB Q 0.71"
-          style={{
-            width: '100%',
-            height: '180px',
-            padding: '12px',
-            borderRadius: '8px',
-            background: 'rgba(0, 0, 0, 0.4)',
-            border: '1px solid var(--border-subtle)',
-            color: '#fff',
-            fontFamily: 'monospace',
-            fontSize: '0.8rem',
-            outline: 'none',
-            resize: 'none',
-          }}
-        />
-
-        {importError && (
-          <div
-            style={{
-              color: '#f43f5e',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <AlertTriangle size={13} />
-            {importError}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
           <button
-            onClick={handleCopyExport}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            onClick={handleImportSubmit}
+            className="rounded-lg border-0 bg-linear-135 from-sky-600 to-blue-600 px-5 py-2 text-ui font-bold text-fg"
           >
-            {copiedExport ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-            {copiedExport ? loc.parametricEq.copied : loc.parametricEq.copyConfig}
+            {loc.parametricEq.applyPasted}
           </button>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() => setIsImportModalOpen(false)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: 'transparent',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-muted)',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-              }}
-            >
-              {loc.common.cancel}
-            </button>
-            <button
-              onClick={handleImportSubmit}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #0284c7, #2563eb)',
-                border: 'none',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {loc.parametricEq.applyPasted}
-            </button>
-          </div>
         </div>
       </div>
-    </div>
+    </ModalShell>
 );

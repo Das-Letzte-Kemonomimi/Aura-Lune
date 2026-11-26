@@ -3,6 +3,7 @@ import type { Translations } from '../../../i18n';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 import { type ParametricEqPresetDto, type ParametricEqStateDto } from '../../../utils/parametricEqMath';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type PeqPresetBarProps = {} & {
   selectedPresetName: string;
@@ -27,41 +28,20 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
   selectedPresetName,
   state,
 }) => (
-    <div
-      style={{
-        padding: '12px 24px',
-        background: 'rgba(0, 0, 0, 0.25)',
-        borderBottom: '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-      }}
-    >
+    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-black/25 px-6 py-3">
       {/* Wybór Presetu */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+      <div className="flex items-center gap-2">
+        <span className="text-ui font-semibold text-fg-secondary">
           Preset:
         </span>
         <select
           value={selectedPresetName}
           onChange={(e) => handleSelectPreset(e.target.value)}
-          style={{
-            padding: '6px 12px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary, #fff)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            outline: 'none',
-            cursor: 'pointer',
-          }}
+          className="cursor-pointer rounded-lg border border-line bg-white/8 px-3 py-1.5 text-ui font-semibold text-fg outline-none"
         >
           <option value="">{loc.parametricEq.customProfile}</option>
           {presets.map((p) => (
-            <option key={p.name} value={p.name} style={{ background: '#181e30' }}>
+            <option key={p.name} value={p.name}>
               {p.name}
             </option>
           ))}
@@ -69,9 +49,9 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
       </div>
 
       {/* Przedwzmacniacz (Preamp) z ochroną przed clippingiem */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+      <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-2">
+          <span className="text-ui font-semibold text-fg-secondary">
             Preamp:
           </span>
           <input
@@ -81,16 +61,13 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
             step="0.5"
             value={state.preamp_db}
             onChange={(e) => handlePreampChange(parseFloat(e.target.value))}
-            style={{ width: '100px', cursor: 'pointer' }}
+            className="w-25 cursor-pointer"
           />
           <span
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              fontFamily: 'monospace',
-              minWidth: '55px',
-              color: state.preamp_db < 0 ? '#60a5fa' : state.preamp_db > 0 ? '#f43f5e' : 'var(--text-muted)',
-            }}
+            className={cn(
+              'min-w-14 font-mono text-ui font-bold',
+              state.preamp_db < 0 ? 'text-blue-400' : state.preamp_db > 0 ? 'text-accent-pink' : 'text-fg-muted',
+            )}
           >
             {state.preamp_db > 0 ? `+${state.preamp_db.toFixed(1)}` : state.preamp_db.toFixed(1)} dB
           </span>
@@ -101,36 +78,14 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
           <button
             onClick={handleApplySafePreamp}
             title={fmt(loc.parametricEq.clippingRiskTitle, maxEffectiveBoost.toFixed(1), safePreampDb.toFixed(1))}
-            style={{
-              padding: '5px 10px',
-              borderRadius: '8px',
-              background: 'rgba(245, 158, 11, 0.18)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              color: '#fbbf24',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-            }}
+            className="flex items-center gap-1.5 rounded-lg border border-accent-amber/40 bg-accent-amber/20 px-2.5 py-1.5 text-xs font-bold text-amber-400"
           >
             <AlertTriangle size={13} />
             {fmt(loc.parametricEq.clippingRiskBadge, maxEffectiveBoost.toFixed(1))}
           </button>
         ) : (
           <span
-            style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: 'rgba(16, 185, 129, 0.12)',
-              color: 'var(--accent-green, #10b981)',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className="flex items-center gap-1 rounded-md bg-accent-green/10 px-2 py-1 text-xxs font-semibold text-accent-green"
           >
             <ShieldCheck size={12} /> {loc.parametricEq.headroomOk}
           </span>

@@ -30,27 +30,18 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
   onClose,
   result,
 }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div className="flex flex-col gap-4.5">
       <div
-        style={{
-          backgroundColor: 'rgba(34, 197, 94, 0.12)',
-          border: '1px solid rgba(34, 197, 94, 0.35)',
-          borderRadius: '12px',
-          padding: '14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          color: '#86efac',
-        }}
+        className="flex items-center gap-3 rounded-xl border border-green-500/35 bg-green-500/10 p-3.5 text-green-300"
       >
-        <CheckCircle2 size={24} style={{ flexShrink: 0 }} />
+        <CheckCircle2 size={24} className="shrink-0" />
         <div>
-          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+          <div className="text-md font-semibold">
             {result.items && result.items.length > 1
               ? fmt(loc.urlImport.successMultiTitle, String(result.items.length))
               : loc.urlImport.successSingleTitle}
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#bbf7d0', marginTop: '2px' }}>
+          <div className="mt-0.5 text-ui text-green-200">
             {loc.urlImport.successDesc}
           </div>
         </div>
@@ -58,80 +49,28 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
 
       {/* Wariant A: Pojedynczy utwór */}
       {(!result.items || result.items.length <= 1) && (
-        <div
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.35)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '12px',
-            padding: '16px',
-            display: 'flex',
-            gap: '16px',
-            alignItems: 'center',
-          }}
-        >
+        <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-black/35 p-4">
           <div
-            style={{
-              width: '60px',
-              height: '60px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(168, 85, 247, 0.2)',
-              border: '1px solid rgba(168, 85, 247, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#d8b4fe',
-              flexShrink: 0,
-            }}
+            className="flex h-15 w-15 shrink-0 items-center justify-center rounded-xl border border-accent-purple/30 bg-accent-purple/20 text-purple-300"
           >
             <Music size={28} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="min-w-0 flex-1">
             <h3
-              style={{
-                margin: 0,
-                fontSize: '1.05rem',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
+              className="m-0 truncate text-base font-semibold"
               title={result.title}
             >
               {result.title}
             </h3>
-            <div
-              style={{
-                fontSize: '0.84rem',
-                color: '#cbd5e1',
-                marginTop: '2px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+            <div className="mt-0.5 truncate text-ui text-slate-300">
               {result.artist} • {result.album || loc.urlImport.defaultAlbum}
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '6px', fontSize: '0.72rem' }}>
-              <span
-                style={{
-                  background: 'rgba(168, 85, 247, 0.25)',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  color: '#d8b4fe',
-                  fontWeight: 600,
-                }}
-              >
+            <div className="mt-1.5 flex gap-2 text-xs">
+              <span className="rounded-sm bg-accent-purple/25 px-1.5 py-0.5 font-semibold text-purple-300">
                 {result.format} {bitrate !== '0' ? `(${bitrate.toUpperCase()})` : ''}
               </span>
               {result.duration_ms && (
-                <span
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    color: '#94a3b8',
-                  }}
-                >
+                <span className="rounded-sm bg-white/10 px-1.5 py-0.5 text-fg-secondary">
                   {formatDuration(result.duration_ms)}
                 </span>
               )}
@@ -142,33 +81,13 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
 
       {/* Wariant B: Lista pobranych utworów (Playlista / Kanał) */}
       {result.items && result.items.length > 1 && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
+        <div className="flex flex-col gap-2">
           {/* Przyciski zbiorcze na górze listy */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
               onClick={handlePlayAll}
-              style={{
-                background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '12px',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
-              }}
+              className="flex items-center justify-center gap-2 rounded-lg border-0 bg-linear-135 from-accent-purple to-pink-500 p-3 text-sm font-semibold text-fg shadow-lift shadow-accent-purple/40"
             >
               <Play size={18} fill="#fff" />
               {loc.urlImport.playAll}
@@ -176,20 +95,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
             <button
               type="button"
               onClick={handleQueueAll}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '8px',
-                padding: '12px',
-                color: '#e2e8f0',
-                fontWeight: 500,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
+              className="flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/8 p-3 text-sm font-medium text-slate-200"
             >
               <ListPlus size={18} />
               {loc.urlImport.queueAll}
@@ -198,95 +104,38 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
 
           {/* Przewijana lista pobranych utworów */}
           <div
-            style={{
-              maxHeight: '260px',
-              overflowY: 'auto',
-              backgroundColor: 'rgba(0, 0, 0, 0.35)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '10px',
-              padding: '6px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-            }}
+            className="flex max-h-65 flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-black/35 p-1.5"
           >
             {result.items.map((item, idx) => (
               <div
                 key={item.file_path || idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  gap: '10px',
-                }}
+                className="flex items-center justify-between gap-2.5 rounded-md bg-white/3 px-2.5 py-2"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                  <span
-                    style={{
-                      fontSize: '0.78rem',
-                      color: '#94a3b8',
-                      width: '24px',
-                      textAlign: 'right',
-                      flexShrink: 0,
-                    }}
-                  >
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="w-6 shrink-0 text-right text-ui text-fg-secondary">
                     {idx + 1}.
                   </span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="min-w-0 flex-1">
                     <div
-                      style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        color: '#f8fafc',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
+                      className="truncate text-sm font-semibold text-fg"
                       title={item.title}
                     >
                       {item.title}
                     </div>
-                    <div
-                      style={{
-                        fontSize: '0.74rem',
-                        color: '#cbd5e1',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                    <div className="truncate text-xs text-slate-300">
                       {item.artist} {item.album ? `• ${item.album}` : ''}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      color: '#94a3b8',
-                      fontFamily: 'monospace',
-                    }}
-                  >
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="font-mono text-xs text-fg-secondary">
                     {formatDuration(item.duration_ms)}
                   </span>
                   <button
                     type="button"
                     onClick={() => handlePlaySingle(item)}
-                    style={{
-                      background: 'rgba(168, 85, 247, 0.2)',
-                      border: '1px solid rgba(168, 85, 247, 0.3)',
-                      borderRadius: '6px',
-                      padding: '4px 6px',
-                      color: '#d8b4fe',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                    className="flex items-center justify-center rounded-md border border-accent-purple/30 bg-accent-purple/20 px-1.5 py-1 text-purple-300"
                     title={loc.urlImport.playTrack}
                   >
                     <Play size={13} fill="#d8b4fe" />
@@ -294,17 +143,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleQueueSingle(item)}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '6px',
-                      padding: '4px 6px',
-                      color: '#e2e8f0',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                    className="flex items-center justify-center rounded-md border border-white/15 bg-white/8 px-1.5 py-1 text-slate-200"
                     title={loc.urlImport.queueTrack}
                   >
                     <ListPlus size={13} />
@@ -318,25 +157,11 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
 
       {/* Przyciski po sukcesie (pojedynczy utwór) */}
       {(!result.items || result.items.length <= 1) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => handlePlaySingle(result.items && result.items[0] ? result.items[0] : (result as any))}
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '12px',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
-            }}
+            className="flex items-center justify-center gap-2 rounded-lg border-0 bg-linear-135 from-accent-purple to-pink-500 p-3 text-sm font-semibold text-fg shadow-lift shadow-accent-purple/40"
           >
             <Play size={18} fill="#fff" />
             {loc.urlImport.playNow}
@@ -344,20 +169,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
           <button
             type="button"
             onClick={() => handleQueueSingle(result.items && result.items[0] ? result.items[0] : (result as any))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              padding: '12px',
-              color: '#e2e8f0',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
+            className="flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/8 p-3 text-sm font-medium text-slate-200"
           >
             <ListPlus size={18} />
             {loc.urlImport.addToQueue}
@@ -366,54 +178,28 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
       )}
 
       {/* Dolny pasek nawigacyjny po pobraniu */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+      <div className="mt-1.5 flex items-center justify-between">
         <button
           type="button"
           onClick={() => handleOpenFolder()}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#94a3b8',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.82rem',
-            padding: '6px 0',
-          }}
+          className="flex items-center gap-1.5 border-0 bg-transparent px-0 py-1.5 text-ui text-fg-secondary"
         >
           <FolderOpen size={15} />
           {loc.urlImport.showInFolder}
         </button>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="flex gap-2.5">
           <button
             type="button"
             onClick={handleResetForAnother}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#c084fc',
-              cursor: 'pointer',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-            }}
+            className="border-0 bg-transparent text-ui font-medium text-purple-400"
           >
             {loc.urlImport.downloadAnother}
           </button>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              color: '#cbd5e1',
-              cursor: 'pointer',
-              fontSize: '0.82rem',
-              fontWeight: 500,
-            }}
+            className="rounded-md border border-white/15 bg-white/8 px-3.5 py-1.5 text-ui font-medium text-slate-300"
           >
             {loc.urlImport.done}
           </button>

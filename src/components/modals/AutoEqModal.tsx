@@ -15,6 +15,8 @@ import {
   AUTO_EQ_BRANDS,
   type AutoEqProfile,
 } from '../../utils/autoEqDatabase';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 const EQUALIZER_LABELS = [
   '31 Hz',
@@ -94,527 +96,268 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10500,
-        background: 'rgba(0, 0, 0, 0.72)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="tool"
+      className="flex max-h-[90vh] max-w-240 flex-col overflow-hidden rounded-2xl border border-line bg-card text-fg"
     >
+      {/* NAGŁÓWEK */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '960px',
-          maxHeight: '90vh',
-          background: 'var(--bg-card, rgba(22, 22, 34, 0.95))',
-          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
-          borderRadius: '16px',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(236, 72, 153, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          color: 'var(--text-main, #f0f0f5)',
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/10 to-blue-500/8 px-6 py-4.5"
       >
-        {/* NAGŁÓWEK */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.12), rgba(59, 130, 246, 0.08))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #ec4899, #3b82f6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(236, 72, 153, 0.35)',
-              }}
-            >
-              <Headphones size={22} color="#fff" />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                {loc.autoEq.title}
-              </h2>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)' }}>
-                {loc.autoEq.subtitle}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted, #9ca3af)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* GÓRNY PASEK: WYSZUKIWARKA I FILTRY TYPU */}
-        <div
-          style={{
-            padding: '12px 24px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="flex items-center gap-3">
           <div
-            style={{
-              flex: 1,
-              minWidth: '220px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-            }}
+            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-blue-500 shadow-lift shadow-pink-500/35"
           >
-            <Search size={16} color="var(--text-muted, #9ca3af)" />
-            <input
-              type="text"
-              placeholder={loc.autoEq.searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'inherit',
-                fontSize: '0.85rem',
-              }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
-              >
-                <X size={14} />
-              </button>
-            )}
+            <Headphones size={22} className="text-fg" />
           </div>
-
-          {/* Filtry typów */}
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {['Wszystkie', 'Over-Ear', 'In-Ear', 'Wireless'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setSelectedType(type)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  background: selectedType === type ? '#ec4899' : 'rgba(255, 255, 255, 0.05)',
-                  color: selectedType === type ? '#fff' : '#9ca3af',
-                  border: '1px solid ' + (selectedType === type ? '#f472b6' : 'rgba(255, 255, 255, 0.1)'),
-                  cursor: 'pointer',
-                }}
-              >
-                {type === 'Wszystkie' ? loc.autoEq.all : type}
-              </button>
-            ))}
+          <div>
+            <h2 className="m-0 text-xl font-bold tracking-tight">
+              {loc.autoEq.title}
+            </h2>
+            <p className="m-0 text-ui text-fg-muted">
+              {loc.autoEq.subtitle}
+            </p>
           </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-2 text-fg-muted"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-          <button
-            onClick={() => {
-              onResetFlat();
-              setAppliedProfileName(loc.autoEq.flatProfile);
-            }}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '0.78rem',
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#9ca3af',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <RotateCcw size={12} /> Reset Flat
-          </button>
+      {/* GÓRNY PASEK: WYSZUKIWARKA I FILTRY TYPU */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
+        <div className="flex min-w-55 flex-1 items-center gap-2 rounded-lg border border-line bg-white/5 px-3 py-1.5">
+          <Search size={16} className="text-fg-muted" />
+          <input
+            type="text"
+            placeholder={loc.autoEq.searchPlaceholder}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 border-0 bg-transparent text-sm text-inherit outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="border-0 bg-transparent text-gray-400"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
-        {/* PRZEWIJANA LISTA MAREK */}
-        <div
-          style={{
-            padding: '8px 24px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
-            display: 'flex',
-            gap: '8px',
-            overflowX: 'auto',
-            background: 'rgba(0, 0, 0, 0.15)',
-          }}
-        >
-          {AUTO_EQ_BRANDS.map((brand) => (
+        {/* Filtry typów */}
+        <div className="flex gap-1.5">
+          {['Wszystkie', 'Over-Ear', 'In-Ear', 'Wireless'].map((type) => (
             <button
-              key={brand}
-              onClick={() => setSelectedBrand(brand)}
+              key={type}
+              onClick={() => setSelectedType(type)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-ui font-semibold',
+                selectedType === type ? 'bg-pink-500' : 'bg-white/5',
+                selectedType === type ? 'text-fg' : 'text-gray-400',
+              )}
               style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                background: selectedBrand === brand ? 'rgba(236, 72, 153, 0.2)' : 'transparent',
-                color: selectedBrand === brand ? '#ec4899' : 'var(--text-muted, #9ca3af)',
-                border: selectedBrand === brand ? '1px solid #ec4899' : '1px solid transparent',
-                cursor: 'pointer',
+                border: '1px solid ' + (selectedType === type ? '#f472b6' : 'rgba(255, 255, 255, 0.1)'),
               }}
             >
-              {brand === 'Wszystkie' ? loc.autoEq.all : brand}
+              {type === 'Wszystkie' ? loc.autoEq.all : type}
             </button>
           ))}
         </div>
 
-        {/* GŁÓWNA ZAWARTOŚĆ: DWIE KOLUMNY (LISTA PROFILI + PODGLĄD WYKRESU) */}
-        <div
-          style={{
-            flex: 1,
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            overflow: 'hidden',
+        <button
+          onClick={() => {
+            onResetFlat();
+            setAppliedProfileName(loc.autoEq.flatProfile);
           }}
+          className="flex items-center gap-1 rounded-md border border-white/10 bg-white/6 px-3 py-1.5 text-ui text-gray-400"
         >
-          {/* LEWA KOLUMNA: LISTA SŁUCHAWEK */}
-          <div
-            style={{
-              overflowY: 'auto',
-              padding: '16px 20px',
-              borderRight: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-            }}
-          >
-            {filteredProfiles.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af' }}>
-                {loc.autoEq.noModels}
-              </div>
-            ) : (
-              filteredProfiles.map((profile) => {
-                const isSelected = profile.id === selectedProfileId;
-                const isApplied = appliedProfileName === profile.name;
-                return (
-                  <div
-                    key={profile.id}
-                    onClick={() => setSelectedProfileId(profile.id)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      background: isSelected
-                        ? 'rgba(236, 72, 153, 0.15)'
-                        : 'rgba(255, 255, 255, 0.03)',
-                      border: isSelected
-                        ? '1px solid #ec4899'
-                        : '1px solid rgba(255, 255, 255, 0.06)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.12s ease',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>
-                        {profile.name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '0.72rem',
-                          color: 'var(--text-muted, #9ca3af)',
-                          marginTop: '2px',
-                        }}
-                      >
-                        {profile.brand} • {profile.type} • {profile.target}
-                      </div>
-                    </div>
+          <RotateCcw size={12} /> Reset Flat
+        </button>
+      </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isApplied && (
-                        <span
-                          style={{
-                            fontSize: '0.7rem',
-                            color: '#10b981',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '2px',
-                          }}
-                        >
-                          <Check size={12} /> {loc.autoEq.active}
-                        </span>
-                      )}
-                      <ChevronRight size={16} color={isSelected ? '#ec4899' : '#6b7280'} />
+      {/* PRZEWIJANA LISTA MAREK */}
+      <div className="flex gap-2 overflow-x-auto border-b border-line bg-black/15 px-6 py-2">
+        {AUTO_EQ_BRANDS.map((brand) => (
+          <button
+            key={brand}
+            onClick={() => setSelectedBrand(brand)}
+            className={cn(
+              'rounded-md border px-2.5 py-1 text-xs font-semibold whitespace-nowrap',
+              selectedBrand === brand ? 'bg-pink-500/20' : 'bg-transparent',
+              selectedBrand === brand ? 'text-pink-500' : 'text-fg-muted',
+              selectedBrand === brand ? 'border-pink-500' : 'border-transparent',
+            )}
+          >
+            {brand === 'Wszystkie' ? loc.autoEq.all : brand}
+          </button>
+        ))}
+      </div>
+
+      {/* GŁÓWNA ZAWARTOŚĆ: DWIE KOLUMNY (LISTA PROFILI + PODGLĄD WYKRESU) */}
+      <div className="grid flex-1 grid-cols-2 overflow-hidden">
+        {/* LEWA KOLUMNA: LISTA SŁUCHAWEK */}
+        <div className="flex flex-col gap-2 overflow-y-auto border-r border-line px-5 py-4">
+          {filteredProfiles.length === 0 ? (
+            <div className="px-0 py-7.5 text-center text-gray-400">
+              {loc.autoEq.noModels}
+            </div>
+          ) : (
+            filteredProfiles.map((profile) => {
+              const isSelected = profile.id === selectedProfileId;
+              const isApplied = appliedProfileName === profile.name;
+              return (
+                <div
+                  key={profile.id}
+                  onClick={() => setSelectedProfileId(profile.id)}
+                  className={cn(
+                    'flex cursor-pointer items-center justify-between rounded-xl border px-3.5 py-3 transition-all duration-100',
+                    isSelected ? 'bg-pink-500/15' : 'bg-white/3',
+                    isSelected ? 'border-pink-500' : 'border-white/6',
+                  )}
+                >
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {profile.name}
+                    </div>
+                    <div className="mt-0.5 text-xs text-fg-muted">
+                      {profile.brand} • {profile.type} • {profile.target}
                     </div>
                   </div>
-                );
-              })
+
+                  <div className="flex items-center gap-2">
+                    {isApplied && (
+                      <span className="flex items-center gap-0.5 text-xxs font-bold text-accent-green">
+                        <Check size={12} /> {loc.autoEq.active}
+                      </span>
+                    )}
+                    <ChevronRight size={16} color={isSelected ? '#ec4899' : '#6b7280'} />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* PRAWA KOLUMNA: WIZUALIZACJA I ZASTOSOWANIE WYBRANEGO PROFILU */}
+        <div className="flex flex-col justify-between overflow-y-auto bg-black/20 px-6 py-5">
+          <div>
+            {/* TYTUŁ I METRYKA */}
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="rounded-sm bg-pink-500/20 px-2 py-0.5 text-xxs font-bold text-pink-500">
+                  {activeProfile.brand} • {activeProfile.type}
+                </span>
+                <h3 className="mx-0 mt-1.5 mb-0.5 text-lg font-bold">
+                  {activeProfile.name}
+                </h3>
+                <div className="text-ui text-gray-400">
+                  {loc.autoEq.targetCurve} <strong>{activeProfile.target}</strong>
+                </div>
+              </div>
+            </div>
+
+            {activeProfile.description && (
+              <div
+                className="mx-0 my-3 rounded-lg border-l-3 border-pink-500 bg-white/4 px-3 py-2.5 text-ui leading-snug text-gray-200"
+              >
+                {activeProfile.description}
+              </div>
             )}
+
+            {/* WIZUALIZACJA 10 PASM */}
+            <div className="mt-4">
+              <div className="mb-2 flex justify-between text-xs font-semibold text-gray-400">
+                <span>{loc.autoEq.bandGain}</span>
+                <span>{loc.autoEq.range}</span>
+              </div>
+
+              <div
+                className="grid h-35 grid-cols-10 items-center gap-1.5 rounded-lg border border-white/6 bg-black/30 p-2"
+              >
+                {activeProfile.bands.map((gain, idx) => {
+                  // Skalowanie słupka: 0dB to środek (50%)
+                  const heightPercent = Math.min(100, Math.abs(gain) * 10);
+                  const isPositive = gain >= 0;
+                  return (
+                    <div
+                      key={idx}
+                      className="relative flex h-full flex-col items-center justify-end"
+                    >
+                      {/* Wartość dB */}
+                      <span
+                        className={cn(
+                          'mb-1 text-2xs font-bold',
+                          isPositive ? 'text-pink-400' : 'text-blue-400',
+                        )}
+                      >
+                        {gain > 0 ? `+${gain.toFixed(1)}` : gain.toFixed(1)}
+                      </span>
+
+                      {/* Kontener słupka */}
+                      <div className="relative h-17.5 w-3 overflow-hidden rounded-sm bg-white/5">
+                        {/* Linia 0 dB */}
+                        <div className="absolute top-1/2 left-0 right-0 h-px bg-white/25" />
+                        {/* Wypełnienie słupka */}
+                        <div
+                          className={cn(
+                            'absolute left-0 right-0 rounded-xs',
+                            isPositive && 'bottom-1/2',
+                            !isPositive && 'top-1/2',
+                            isPositive ? 'bg-linear-to-t from-pink-500 to-pink-400' : 'bg-linear-to-b from-blue-500 to-blue-400',
+                          )}
+                          style={{ height: `${heightPercent / 2}%` }}
+                        />
+                      </div>
+
+                      {/* Etykieta częstotliwości */}
+                      <span className="mt-1.5 text-2xs whitespace-nowrap text-gray-400">
+                        {EQUALIZER_LABELS[idx].replace(' Hz', '').replace(' kHz', 'k')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* OPCJA PREAMP */}
+            <div className="mt-4 flex items-center justify-between rounded-lg bg-white/4 px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-accent-green" />
+                <div>
+                  <div className="text-ui font-semibold">
+                    {loc.autoEq.preampCompensation} ({activeProfile.preampDb.toFixed(1)} dB)
+                  </div>
+                  <div className="text-xxs text-gray-400">
+                    {loc.autoEq.preampDesc}
+                  </div>
+                </div>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={applyPreamp}
+                onChange={(e) => setApplyPreamp(e.target.checked)}
+                className="h-4 w-4 cursor-pointer accent-pink-500"
+              />
+            </div>
           </div>
 
-          {/* PRAWA KOLUMNA: WIZUALIZACJA I ZASTOSOWANIE WYBRANEGO PROFILU */}
-          <div
-            style={{
-              padding: '20px 24px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              background: 'rgba(0, 0, 0, 0.2)',
-            }}
-          >
-            <div>
-              {/* TYTUŁ I METRYKA */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(236, 72, 153, 0.2)',
-                      color: '#ec4899',
-                    }}
-                  >
-                    {activeProfile.brand} • {activeProfile.type}
-                  </span>
-                  <h3 style={{ margin: '6px 0 2px 0', fontSize: '1.15rem', fontWeight: 700 }}>
-                    {activeProfile.name}
-                  </h3>
-                  <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>
-                    {loc.autoEq.targetCurve} <strong>{activeProfile.target}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {activeProfile.description && (
-                <div
-                  style={{
-                    margin: '12px 0',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    fontSize: '0.8rem',
-                    color: '#e5e7eb',
-                    lineHeight: 1.4,
-                    borderLeft: '3px solid #ec4899',
-                  }}
-                >
-                  {activeProfile.description}
-                </div>
-              )}
-
-              {/* WIZUALIZACJA 10 PASM */}
-              <div style={{ marginTop: '16px' }}>
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#9ca3af',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <span>{loc.autoEq.bandGain}</span>
-                  <span>{loc.autoEq.range}</span>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(10, 1fr)',
-                    gap: '6px',
-                    height: '140px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    padding: '8px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    alignItems: 'center',
-                  }}
-                >
-                  {activeProfile.bands.map((gain, idx) => {
-                    // Skalowanie słupka: 0dB to środek (50%)
-                    const heightPercent = Math.min(100, Math.abs(gain) * 10);
-                    const isPositive = gain >= 0;
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          height: '100%',
-                          justifyContent: 'flex-end',
-                          position: 'relative',
-                        }}
-                      >
-                        {/* Wartość dB */}
-                        <span
-                          style={{
-                            fontSize: '0.62rem',
-                            fontWeight: 700,
-                            color: isPositive ? '#f472b6' : '#60a5fa',
-                            marginBottom: '4px',
-                          }}
-                        >
-                          {gain > 0 ? `+${gain.toFixed(1)}` : gain.toFixed(1)}
-                        </span>
-
-                        {/* Kontener słupka */}
-                        <div
-                          style={{
-                            width: '12px',
-                            height: '70px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: '3px',
-                            position: 'relative',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {/* Linia 0 dB */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: '50%',
-                              left: 0,
-                              right: 0,
-                              height: '1px',
-                              background: 'rgba(255, 255, 255, 0.25)',
-                            }}
-                          />
-                          {/* Wypełnienie słupka */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: 0,
-                              right: 0,
-                              bottom: isPositive ? '50%' : undefined,
-                              top: !isPositive ? '50%' : undefined,
-                              height: `${heightPercent / 2}%`,
-                              background: isPositive
-                                ? 'linear-gradient(to top, #ec4899, #f472b6)'
-                                : 'linear-gradient(to bottom, #3b82f6, #60a5fa)',
-                              borderRadius: '2px',
-                            }}
-                          />
-                        </div>
-
-                        {/* Etykieta częstotliwości */}
-                        <span
-                          style={{
-                            fontSize: '0.58rem',
-                            color: '#9ca3af',
-                            marginTop: '6px',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {EQUALIZER_LABELS[idx].replace(' Hz', '').replace(' kHz', 'k')}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* OPCJA PREAMP */}
-              <div
-                style={{
-                  marginTop: '16px',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldCheck size={16} color="#10b981" />
-                  <div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {loc.autoEq.preampCompensation} ({activeProfile.preampDb.toFixed(1)} dB)
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                      {loc.autoEq.preampDesc}
-                    </div>
-                  </div>
-                </div>
-
-                <input
-                  type="checkbox"
-                  checked={applyPreamp}
-                  onChange={(e) => setApplyPreamp(e.target.checked)}
-                  style={{ width: '16px', height: '16px', accentColor: '#ec4899', cursor: 'pointer' }}
-                />
-              </div>
-            </div>
-
-            {/* PRZYCISK ZASTOSOWANIA */}
-            <div style={{ marginTop: '20px' }}>
-              <button
-                onClick={() => handleApply(activeProfile)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #ec4899, #3b82f6)',
-                  border: 'none',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 16px rgba(236, 72, 153, 0.35)',
-                  transition: 'opacity 0.15s ease',
-                }}
-              >
-                <Sparkles size={16} /> {`${loc.autoEq.applyBtn} ${activeProfile.name}`}
-              </button>
-            </div>
+          {/* PRZYCISK ZASTOSOWANIA */}
+          <div className="mt-5">
+            <button
+              onClick={() => handleApply(activeProfile)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-linear-135 from-pink-500 to-blue-500 p-3 text-sm font-bold text-fg shadow-lift shadow-pink-500/35 transition-opacity duration-150"
+            >
+              <Sparkles size={16} /> {`${loc.autoEq.applyBtn} ${activeProfile.name}`}
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

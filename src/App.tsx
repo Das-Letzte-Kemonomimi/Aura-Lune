@@ -58,6 +58,7 @@ import type {
 import { formatTime, formatTimeMs } from './utils/timeFormat';
 import { BackgroundExportBadge } from './components/layout/BackgroundExportBadge';
 import { useSleepTimer } from './hooks/useSleepTimer';
+import { cn } from './utils/cn';
 import { fmt } from './utils/fmt';
 import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
 import { useToasts } from './hooks/useToasts';
@@ -1184,17 +1185,10 @@ export default function App() {
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        maxHeight: '100%',
-        width: '100%',
-        overflow: 'hidden',
-        padding: uiScale >= 1.28 ? '12px 18px 8px' : uiScale >= 1.18 ? '14px 20px 10px' : '16px 24px 12px',
-        position: 'relative',
-        boxSizing: 'border-box',
-      }}
+      className={cn(
+        'relative flex size-full max-h-full flex-col overflow-hidden',
+        uiScale >= 1.28 ? 'px-4.5 pt-3 pb-2' : uiScale >= 1.18 ? 'px-5 pt-3.5 pb-2.5' : 'px-6 pt-4 pb-3',
+      )}
     >
       <BackgroundLayer
         themeBgImage={themeBgImage}
@@ -1209,7 +1203,7 @@ export default function App() {
       <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} />
 
       {/* Główny kontener interfejsu (ukrywany bez utraty stanu gdy aktywny jest tryb pełnoekranowy Kiosk) */}
-      <div style={{ display: isBigScreen ? 'none' : 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+      <div className={cn('h-full min-h-0 flex-1 flex-col overflow-hidden', isBigScreen ? 'hidden' : 'flex')}>
 
         <DragDropOverlay
           isDraggingOver={isDraggingOver}
@@ -1225,16 +1219,7 @@ export default function App() {
             key={toast.id}
             role={toast.level === 'error' ? 'alert' : 'status'}
             onClick={() => dismissToast(toast.id)}
-            style={{
-              padding: '10px 16px',
-              marginBottom: '8px',
-              borderRadius: '10px',
-              background: 'rgba(168, 85, 247, 0.2)',
-              border: '1px solid var(--accent-purple)',
-              color: '#fff',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-            }}
+            className="mb-2 cursor-pointer rounded-xl border border-accent-purple bg-accent-purple/20 px-4 py-2.5 text-sm text-fg"
           >
             {toast.level === 'error' ? `⚠️ ${toast.text}` : toast.text}
           </div>

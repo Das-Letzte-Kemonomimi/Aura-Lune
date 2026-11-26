@@ -19,6 +19,7 @@ import { type Language, type Translations } from '../../i18n';
 import { AppNavbar, type MainTabType } from './AppNavbar';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
+import { cn } from '../../utils/cn';
 import { fmt } from '../../utils/fmt';
 
 export interface AppHeaderProps {
@@ -64,6 +65,50 @@ export interface AppHeaderProps {
   onLanguageChange: (lang: Language) => void;
 }
 
+type HeaderTone = 'pink' | 'purple' | 'cyan' | 'sky';
+
+/** Always-tinted action (opens a tool). */
+const tintedTones: Record<HeaderTone, string> = {
+  pink: 'border-accent-pink/35 bg-accent-pink/15 text-accent-pink',
+  purple: 'border-accent-purple/35 bg-accent-purple/15 text-accent-purple',
+  cyan: 'border-accent-cyan/35 bg-accent-cyan/15 text-accent-cyan',
+  sky: 'border-sky-400/35 bg-sky-400/15 text-sky-400',
+};
+
+/** Pressed toggle (`aria-pressed`). */
+const pressedTones: Record<HeaderTone, string> = {
+  pink: 'aria-pressed:border-accent-pink aria-pressed:bg-accent-pink/25 aria-pressed:text-accent-pink',
+  purple:
+    'aria-pressed:border-accent-purple aria-pressed:bg-accent-purple/25 aria-pressed:text-accent-purple aria-pressed:shadow-halo aria-pressed:shadow-accent-purple/35',
+  cyan: 'aria-pressed:border-accent-cyan aria-pressed:bg-accent-cyan/20 aria-pressed:text-accent-cyan',
+  sky: 'aria-pressed:border-sky-400 aria-pressed:bg-sky-400/20 aria-pressed:text-sky-400',
+};
+
+interface HeaderButtonProps extends React.ComponentProps<'button'> {
+  /** Tinted action, or with `pressed` the colour of the pressed state. */
+  tone?: HeaderTone;
+  /** Makes the button a toggle: idle until pressed. */
+  pressed?: boolean;
+}
+
+/** Toolbar button: tinted action, toggle (idle → pressed tone) or plain. */
+function HeaderButton({ tone, pressed, className, ...props }: HeaderButtonProps) {
+  const isToggle = pressed !== undefined;
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      className={cn(
+        'flex shrink-0 items-center gap-1.5 border px-2.5 py-2 text-ui font-semibold',
+        isToggle || !tone ? 'border-line bg-white/5 text-fg-secondary hover:text-fg' : tintedTones[tone],
+        isToggle && tone && pressedTones[tone],
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export const AppHeader: React.FC<AppHeaderProps> = ({
   appVersion,
   updateAvailable,
@@ -104,119 +149,43 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenSettings,
   onLanguageChange,
 }) => {
+  const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   return (
-    <header
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '14px',
-        gap: '8px',
-        minWidth: 0,
-        flexWrap: 'wrap',
-        flexShrink: 0,
-        position: 'relative',
-        zIndex: 100,
-      }}
-    >
+    <header className="relative z-30 mb-3.5 flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2">
       {/* Logo i Nazwa Aplikacji */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flexShrink: 0 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
-          <span
-            style={{
-              fontSize: '0.62rem',
-              lineHeight: 1,
-              padding: '2px 5px',
-              borderRadius: '4px',
-              background: 'rgba(168, 85, 247, 0.25)',
-              color: 'var(--accent-purple)',
-              fontWeight: 700,
-              border: '1px solid rgba(168, 85, 247, 0.4)',
-              letterSpacing: '0.02em',
-            }}
-          >
+      <div className="flex min-w-0 shrink-0 items-center gap-3">
+        <div className="flex shrink-0 flex-col items-center gap-0.5">
+          <span className="rounded-sm border border-accent-purple/40 bg-accent-purple/25 px-1.5 py-0.5 text-2xs leading-none font-bold tracking-wide text-accent-purple">
             v{appVersion}
           </span>
           <img
             src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
             alt="Auralune Logo"
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '11px',
-              objectFit: 'contain',
-              background: 'rgba(0, 0, 0, 0.25)',
-              boxShadow:
-                appIconStyle === 'classic'
-                  ? '0 0 16px rgba(168, 85, 247, 0.45)'
-                  : '0 0 16px rgba(236, 72, 153, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              padding: appIconStyle === 'classic' ? '0' : '2px',
-              flexShrink: 0,
-            }}
+            className={cn(
+              'size-9.5 shrink-0 rounded-xl border border-white/15 bg-black/25 object-contain shadow-halo-lg',
+              appIconStyle === 'classic' ? 'shadow-accent-purple/45' : 'p-0.5 shadow-accent-pink/45',
+            )}
           />
         </div>
         {/* Z pigułką aktualizacji: pigułka równo z plakietką wersji (góra), tytuł równo z logo (dół). */}
-        <div
-          style={{
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            alignSelf: updateAvailable ? 'stretch' : undefined,
-            justifyContent: updateAvailable ? 'space-between' : undefined,
-          }}
-        >
+        <div className={cn('flex min-w-0 flex-col items-start', updateAvailable && 'self-stretch justify-between')}>
           {updateAvailable && (
             <button
               type="button"
               onClick={onOpenUpdates}
               title={updateTitle}
               aria-label={updateTitle}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.62rem',
-                lineHeight: 1,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                background: 'rgba(34, 197, 94, 0.2)',
-                color: '#4ade80',
-                fontWeight: 700,
-                border: '1px solid rgba(34, 197, 94, 0.45)',
-                cursor: 'pointer',
-              }}
+              className="inline-flex items-center gap-1 rounded-sm border border-green-500/45 bg-green-500/20 px-1.5 py-0.5 text-2xs leading-none font-bold text-green-400"
             >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  background: '#4ade80',
-                  animation: 'update-dot-pulse 1.6s ease-in-out infinite',
-                }}
-              />
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-green-400 motion-safe:animate-update-dot" />
               {loc.updates.badge}
             </button>
           )}
-          <h1
-            style={{
-              fontSize: '1.38rem',
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: 0,
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight whitespace-nowrap">
             <span>Auralune</span>
-            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem', fontWeight: 600 }}>狐</span>
+            <span className="text-lg font-semibold text-accent-pink">狐</span>
           </h1>
-          </div>
+        </div>
       </div>
 
       {/* Zakładki nawigacyjne */}
@@ -230,193 +199,67 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       />
 
       {/* Narzędzia i Ustawienia po prawej */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexShrink: 0 }}>
+      <div className="flex min-w-0 shrink-0 items-center gap-1.5">
         {/* Recap */}
-        <button
+        <HeaderButton
           onClick={onOpenRecap}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(168, 85, 247, 0.25))',
-            border: '1px solid rgba(244, 63, 94, 0.45)',
-            color: '#fff',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            boxShadow: '0 0 10px rgba(244, 63, 94, 0.2)',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
+          className="border-accent-pink/45 bg-linear-135 from-accent-pink/25 to-accent-purple/25 font-bold text-fg shadow-halo-sm shadow-accent-pink/20"
           title={loc.nav.recapTitle}
         >
-          <Flame size={14} color="var(--accent-pink)" />
-          <span className="header-action-text">{loc.nav.recap}</span>
-        </button>
+          <Flame size={14} className="text-accent-pink" />
+          <span className="max-actions:hidden">{loc.nav.recap}</span>
+        </HeaderButton>
 
         {/* Key & BPM */}
-        <button
-          onClick={onOpenKeyBpm}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'rgba(6, 182, 212, 0.15)',
-            border: '1px solid rgba(6, 182, 212, 0.35)',
-            color: 'var(--accent-cyan)',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
-          title={loc.nav.keyBpmTitle}
-        >
-          <Activity size={14} color="var(--accent-cyan)" />
-          <span className="header-action-text">Key & BPM</span>
-        </button>
+        <HeaderButton onClick={onOpenKeyBpm} tone="cyan" className="font-bold" title={loc.nav.keyBpmTitle}>
+          <Activity size={14} />
+          <span className="max-actions:hidden">Key & BPM</span>
+        </HeaderButton>
 
         {/* Music Analysis */}
-        <button
-          onClick={onOpenAnalysis}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'rgba(236, 72, 153, 0.15)',
-            border: '1px solid rgba(236, 72, 153, 0.35)',
-            color: 'var(--accent-pink)',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
-          title={loc.nav.analysisTitle}
-        >
-          <BarChart2 size={14} color="var(--accent-pink)" />
-          <span className="header-action-text">{loc.nav.analysisBtn}</span>
-        </button>
+        <HeaderButton onClick={onOpenAnalysis} tone="pink" className="font-bold" title={loc.nav.analysisTitle}>
+          <BarChart2 size={14} />
+          <span className="max-actions:hidden">{loc.nav.analysisBtn}</span>
+        </HeaderButton>
 
         {/* Sleep Timer */}
-        <button
+        <HeaderButton
           onClick={onOpenSleepTimer}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? 'linear-gradient(135deg, rgba(244, 63, 94, 0.4), rgba(6, 182, 212, 0.4))'
-                : 'rgba(255, 255, 255, 0.06)',
-            border:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? '1px solid var(--accent-cyan)'
-                : '1px solid var(--border-subtle)',
-            color:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? '#ffffff'
-                : 'var(--text-secondary)',
-            boxShadow:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? '0 0 14px rgba(6, 182, 212, 0.5)'
-                : 'none',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
+          pressed={sleepActive}
+          className="font-bold aria-pressed:border-accent-cyan aria-pressed:bg-linear-135 aria-pressed:from-accent-pink/40 aria-pressed:to-accent-cyan/40 aria-pressed:text-on-accent aria-pressed:shadow-halo-md aria-pressed:shadow-accent-cyan/50"
           title={loc.player.sleepTimer}
         >
-          <Moon size={14} color={sleepTimerRemainingSec !== null ? 'var(--accent-cyan)' : 'currentColor'} />
-          <span className="header-action-text">
+          <Moon size={14} className={cn(sleepTimerRemainingSec !== null && 'text-accent-cyan')} />
+          <span className="max-actions:hidden">
             {sleepTimerRemainingSec !== null
               ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
               : sleepTimerTargetMode === 'end_of_track'
                 ? loc.player.timerEnd
                 : 'Timer'}
           </span>
-        </button>
+        </HeaderButton>
 
         {/* Lyrics */}
-        <button
-          onClick={onToggleLyrics}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: showLyrics ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: showLyrics ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-            color: showLyrics ? 'var(--accent-cyan)' : '#fff',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-          title={loc.shortcuts.lyrics}
-        >
+        <HeaderButton onClick={onToggleLyrics} pressed={showLyrics} tone="cyan" title={loc.shortcuts.lyrics}>
           <Mic2 size={14} />
-          <span className="header-action-text">{loc.nav.lyrics}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.nav.lyrics}</span>
+        </HeaderButton>
 
         {/* Desktop Lyrics Overlay */}
-        <button
+        <HeaderButton
           onClick={onToggleDesktopLyrics}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: showDesktopLyrics ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: showDesktopLyrics ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-            color: showDesktopLyrics ? 'var(--accent-purple)' : '#fff',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: showDesktopLyrics ? '0 0 12px rgba(168, 85, 247, 0.35)' : undefined,
-            flexShrink: 0,
-          }}
+          pressed={showDesktopLyrics}
+          tone="purple"
           title={loc.lyricsView?.desktopLyricsToggle || 'Pulpit HUD / Tekst (Desktop Lyrics)'}
         >
           <Tv size={14} />
-          <span className="header-action-text">{loc.nav.desktopLrc}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.nav.desktopLrc}</span>
+        </HeaderButton>
 
         {/* Ambience cycle */}
-        <button
-          onClick={onCycleAmbience}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: ambienceMode !== 'off' ? 'rgba(255, 105, 180, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-            border: ambienceMode !== 'off' ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            color: ambienceMode !== 'off' ? 'var(--accent-pink)' : 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
-          title={`Ambience: ${ambienceMode}`}
-        >
+        <HeaderButton onClick={onCycleAmbience} pressed={ambienceMode !== 'off'} tone="pink" title={`Ambience: ${ambienceMode}`}>
           <Sparkles size={14} />
-          <span className="header-action-text">
+          <span className="max-actions:hidden">
             {ambienceMode === 'sakura'
               ? 'Sakura 🌸'
               : ambienceMode === 'neon_rain'
@@ -435,202 +278,72 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                             ? loc.player.ambienceEmbers
                             : loc.nav.effects}
           </span>
-        </button>
+        </HeaderButton>
 
         {/* Soundscape */}
-        <button
+        <HeaderButton
           onClick={onOpenSoundscape}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: isSoundscapeActive ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-            border: isSoundscapeActive ? '1px solid #38bdf8' : '1px solid var(--border-subtle)',
-            color: isSoundscapeActive ? '#38bdf8' : 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
+          pressed={isSoundscapeActive}
+          tone="sky"
           title={loc.nav.soundscape + ' (Lofi Ambience)'}
         >
           <Waves size={14} />
-          <span className="header-action-text">{loc.nav.soundscape}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.nav.soundscape}</span>
+        </HeaderButton>
 
         {/* Harmonic Suggester */}
-        <button
-          onClick={onOpenHarmonicSuggester}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'rgba(236, 72, 153, 0.16)',
-            border: '1px solid rgba(236, 72, 153, 0.35)',
-            color: 'var(--accent-pink, #f472b6)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
-          title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}
-        >
+        <HeaderButton onClick={onOpenHarmonicSuggester} tone="pink" title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}>
           <Disc3 size={14} />
-          <span className="header-action-text">{loc.nav.harmonicDj}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.nav.harmonicDj}</span>
+        </HeaderButton>
 
         {/* Command Palette */}
-        <button
-          onClick={onOpenCommandPalette}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'rgba(168, 85, 247, 0.16)',
-            border: '1px solid rgba(168, 85, 247, 0.35)',
-            color: 'var(--accent-purple, #c084fc)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0,
-          }}
-          title="Command Palette / Szukaj (Ctrl + K)"
-        >
+        <HeaderButton onClick={onOpenCommandPalette} tone="purple" title="Command Palette / Szukaj (Ctrl + K)">
           <Search size={14} />
-          <span style={{ fontSize: '0.72rem', opacity: 0.85, fontFamily: 'monospace' }}>Ctrl+K</span>
-        </button>
+          <span className="font-mono text-xs opacity-85">Ctrl+K</span>
+        </HeaderButton>
 
         {/* Fullscreen */}
-        <button
-          onClick={onOpenBigScreen}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-          title={loc.shortcuts.fullscreen}
-        >
+        <HeaderButton onClick={onOpenBigScreen} title={loc.shortcuts.fullscreen}>
           <Maximize2 size={14} />
-          <span className="header-action-text">{loc.nav.fullscreen}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.nav.fullscreen}</span>
+        </HeaderButton>
 
         {/* UI Scale Switcher */}
-        <button
+        <HeaderButton
           onClick={onIncreaseScale}
           onContextMenu={(e) => {
             e.preventDefault();
             onDecreaseScale();
           }}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: uiScale > 1.0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-            border: uiScale > 1.0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-            color: uiScale > 1.0 ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
+          pressed={uiScale > 1.0}
+          tone="cyan"
           title={fmt(loc.nav.uiScaleTooltip, String(Math.round(uiScale * 100)))}
         >
           <Maximize2 size={13} />
-          <span className="header-action-text">{Math.round(uiScale * 100)}%</span>
-        </button>
+          <span className="max-actions:hidden">{Math.round(uiScale * 100)}%</span>
+        </HeaderButton>
 
         {/* Mini Player */}
-        <button
-          onClick={onToggleMiniPlayer}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-          title={loc.shortcuts.miniPlayer}
-        >
+        <HeaderButton onClick={onToggleMiniPlayer} title={loc.shortcuts.miniPlayer}>
           <Minimize2 size={14} />
-          <span className="header-action-text">{loc.nav.miniPlayer}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.nav.miniPlayer}</span>
+        </HeaderButton>
 
         {/* Queue */}
-        <button
-          onClick={onToggleQueue}
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            background: isQueueOpen ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: isQueueOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            color: isQueueOpen ? 'var(--accent-pink)' : '#fff',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-          title={`${loc.nav.queue} (${queueCount})`}
-        >
+        <HeaderButton onClick={onToggleQueue} pressed={isQueueOpen} tone="pink" title={`${loc.nav.queue} (${queueCount})`}>
           <ListMusic size={14} />
-          <span className="header-action-text">{loc.nav.queue}</span> ({queueCount})
-        </button>
+          <span className="max-actions:hidden">{loc.nav.queue}</span> ({queueCount})
+        </HeaderButton>
 
         {/* Settings */}
-        <button
-          onClick={onOpenSettings}
-          className="glass-card"
-          style={{
-            padding: '7px 10px',
-            borderRadius: '8px',
-            color: isSettingsOpen ? 'var(--accent-purple)' : '#fff',
-            border: isSettingsOpen ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-            background: isSettingsOpen ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-          title={loc.settings.title}
-        >
+        <HeaderButton onClick={onOpenSettings} pressed={isSettingsOpen} tone="purple" title={loc.settings.title}>
           <Settings size={14} />
-          <span className="header-action-text">{loc.settings.title}</span>
-        </button>
+          <span className="max-actions:hidden">{loc.settings.title}</span>
+        </HeaderButton>
 
         {/* Language Selector */}
-        <div style={{ flexShrink: 0 }}>
+        <div className="shrink-0">
           <LanguageSelector currentLang={language} onLanguageChange={onLanguageChange} />
         </div>
       </div>

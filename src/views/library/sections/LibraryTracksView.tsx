@@ -3,9 +3,27 @@ import { Activity, BarChart3, Clock, FileCode, FilePlus, Flame, FolderOpen, Fold
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type LibraryTracksViewProps = Pick<LibraryViewProps, 'loc' | 'smartPlaylistFilter' | 'setSmartPlaylistFilter' | 'setIsCueModalOpen' | 'sortedTracks' | 'tracks' | 'sortField' | 'sortOrder' | 'librarySearch' | 'handlePlayLibraryTrack' | 'refreshQueue' | 'showMessage' | 'libraryTableRef' | 'handleSort' | 'handlePickFolder' | 'handlePickFiles' | 'setLibrarySearch' | 'trackTopSpacer' | 'trackStartIndex' | 'trackEndIndex' | 'activeTrackId' | 'currentPlayingTrack' | 'status' | 'formatTime' | 'setStatsModalTrack' | 'handleSetTrackRating' | 'handleToggleFavorite' | 'handleAddTrackToQueue' | 'setTagEditorTrack' | 'handleScanTrackReplayGain' | 'setCreateStemProjectTrack' | 'setIsCreateStemProjectOpen' | 'handleAddTrackNextToQueue' | 'setTrackToAddToPlaylist' | 'setShowPlaylistModal' | 'handleOpenContainingFolder' | 'trackBottomSpacer'> & {
   t: LibraryViewProps['loc'];
+};
+
+type SmartTone = 'purple' | 'pink' | 'amber' | 'cyan';
+
+/** Selected smart-collection chip: accent border and a soft glow in the chip's colour. */
+const SMART_TONES: Record<SmartTone, string> = {
+  purple: 'aria-pressed:border-accent-purple aria-pressed:shadow-accent-purple/25',
+  pink: 'aria-pressed:border-accent-pink aria-pressed:shadow-accent-pink/25',
+  amber: 'aria-pressed:border-accent-amber aria-pressed:shadow-accent-amber/25',
+  cyan: 'aria-pressed:border-accent-cyan aria-pressed:shadow-accent-cyan/25',
+};
+
+const SMART_ICON_TONES: Record<SmartTone, string> = {
+  purple: 'group-aria-pressed:text-accent-purple',
+  pink: 'group-aria-pressed:text-accent-pink',
+  amber: 'group-aria-pressed:text-accent-amber',
+  cyan: 'group-aria-pressed:text-accent-cyan',
 };
 
 export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
@@ -50,17 +68,17 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
 }) => (
     <div>
       {/* Inteligentne Playlisty (Smart Playlists) */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700 }}>{loc.library.collection}</span>
+      <div className="mb-3.5 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-fg-muted">{loc.library.collection}</span>
         {[
-          { id: 'all', label: loc.library.smartAll, icon: Music, color: 'var(--accent-purple)' },
-          { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, color: 'var(--accent-pink)' },
-          { id: 'top_rated', label: loc.library.quickVibeTopRated, icon: Star, color: 'var(--accent-amber)' },
-          { id: 'history', label: loc.library.smartHistory, icon: Clock, color: 'var(--accent-cyan)' },
-          { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, color: 'var(--accent-amber)' },
-          { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, color: 'var(--accent-purple)' },
-          { id: 'high_bpm', label: loc.library.quickVibeFastBpm, icon: Zap, color: 'var(--accent-pink)' },
-          { id: 'forgotten', label: loc.library.quickVibeForgotten, icon: Moon, color: 'var(--accent-cyan)' },
+          { id: 'all', label: loc.library.smartAll, icon: Music, tone: 'purple' },
+          { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, tone: 'pink' },
+          { id: 'top_rated', label: loc.library.quickVibeTopRated, icon: Star, tone: 'amber' },
+          { id: 'history', label: loc.library.smartHistory, icon: Clock, tone: 'cyan' },
+          { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, tone: 'amber' },
+          { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, tone: 'purple' },
+          { id: 'high_bpm', label: loc.library.quickVibeFastBpm, icon: Zap, tone: 'pink' },
+          { id: 'forgotten', label: loc.library.quickVibeForgotten, icon: Moon, tone: 'cyan' },
         ].map((item) => {
           const isSelected = smartPlaylistFilter === item.id;
           const Icon = item.icon;
@@ -68,23 +86,13 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
             <button
               key={item.id}
               onClick={() => setSmartPlaylistFilter(item.id as any)}
-              style={{
-                padding: '5px 12px',
-                borderRadius: '20px',
-                fontSize: '0.74rem',
-                fontWeight: 600,
-                background: isSelected ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                color: isSelected ? '#fff' : 'var(--text-secondary)',
-                border: isSelected ? `1px solid ${item.color}` : '1px solid var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: isSelected ? `0 0 10px ${item.color}40` : 'none',
-              }}
+              aria-pressed={isSelected}
+              className={cn(
+                'group flex items-center gap-1.5 rounded-3xl border border-line bg-white/4 px-3 py-1.5 text-xs font-semibold text-fg-secondary transition-all duration-150 aria-pressed:bg-white/10 aria-pressed:text-fg aria-pressed:shadow-halo-sm',
+                SMART_TONES[item.tone as SmartTone],
+              )}
             >
-              <Icon size={13} color={isSelected ? item.color : 'var(--text-muted)'} fill={item.id === 'favorites' && isSelected ? item.color : 'none'} />
+              <Icon size={13} className={cn('text-fg-muted', SMART_ICON_TONES[item.tone as SmartTone])} fill={item.id === 'favorites' && isSelected ? 'currentColor' : 'none'} />
               {item.label}
             </button>
           );
@@ -92,20 +100,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
 
         <button
           onClick={() => setIsCueModalOpen(true)}
-          style={{
-            padding: '5px 12px',
-            borderRadius: '20px',
-            fontSize: '0.74rem',
-            fontWeight: 600,
-            background: 'rgba(168, 85, 247, 0.12)',
-            color: 'var(--accent-purple, #c084fc)',
-            border: '1px solid rgba(168, 85, 247, 0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            marginLeft: 'auto',
-          }}
+          className="ml-auto flex items-center gap-1.5 rounded-3xl border border-accent-purple/40 bg-accent-purple/10 px-3 py-1.5 text-xs font-semibold text-accent-purple"
           title={loc.library.cueSheetOpenTooltip}
         >
           <FileCode size={13} />
@@ -113,8 +108,8 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
         </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-ui text-fg-muted">
           {sortedTracks.length !== tracks.length
             ? fmt(loc.library.resultsCount, String(sortedTracks.length), String(tracks.length))
             : fmt(loc.library.totalTracksCount, String(tracks.length))}
@@ -123,26 +118,14 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
           {smartPlaylistFilter === 'top_played' && ` • ${loc.library.sortedPlays}`}
         </span>
         {sortedTracks.length > 0 && (sortField !== 'default' || sortOrder !== 'asc' || librarySearch.trim() !== '' || smartPlaylistFilter !== 'all') && (
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="flex gap-2">
             <button
               onClick={() => {
                 if (sortedTracks.length > 0) {
                   handlePlayLibraryTrack(sortedTracks[0], sortedTracks);
                 }
               }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                border: 'none',
-              }}
+              className="flex items-center gap-1.5 rounded-lg border-0 bg-accent-gradient px-3.5 py-1.5 text-ui font-semibold text-on-accent"
             >
               <Play size={14} /> {loc.library.playSorted}
             </button>
@@ -154,19 +137,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                   showMessage(fmt(t.notifications.loadedTracksToQueueMsg, String(sortedTracks.length)));
                 }
               }}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '8px',
-                background: 'rgba(255,255,255,0.08)',
-                color: 'var(--accent-cyan)',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                border: 'none',
-              }}
+              className="flex items-center gap-1 rounded-lg border-0 bg-white/8 px-2.5 py-1.5 text-ui font-semibold text-accent-cyan"
               title={loc.library.addToQueue}
             >
               <Plus size={14} />
@@ -175,148 +146,99 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
         )}
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table ref={libraryTableRef} className="library-track-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(20, 16, 32, 0.95)', backdropFilter: 'blur(12px)' }}>
-            <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', height: '42px' }}>
+      <div className="overflow-x-auto">
+        <table ref={libraryTableRef} className="w-full table-fixed border-collapse text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md">
+            <tr className="h-10.5 border-b border-line text-fg-muted">
               <th
                 onClick={() => handleSort('default')}
-                style={{ width: '46px', padding: '10px 6px', cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
+                className="w-11.5 cursor-pointer select-none px-1.5 py-2.5 text-center"
                 title={loc.library.sortDefaultTooltip}
               >
                 # {sortField === 'default' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
               <th
                 onClick={() => handleSort('title')}
-                style={{ width: '28%', padding: '10px 10px', cursor: 'pointer', userSelect: 'none' }}
+                className="w-[28%] cursor-pointer select-none p-2.5"
                 title={loc.library.sortTitleTooltip}
               >
                 {loc.library.sortTitle} {sortField === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
               <th
                 onClick={() => handleSort('artist')}
-                style={{ width: '20%', padding: '10px 10px', cursor: 'pointer', userSelect: 'none' }}
+                className="w-1/5 cursor-pointer select-none p-2.5"
                 title={loc.library.sortArtistTooltip}
               >
                 {loc.library.sortArtist} {sortField === 'artist' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
               <th
                 onClick={() => handleSort('format')}
-                style={{ width: '110px', padding: '10px 8px', cursor: 'pointer', userSelect: 'none' }}
+                className="w-27.5 cursor-pointer select-none px-2 py-2.5"
                 title={loc.library.sortFormatTooltip}
               >
                 {loc.library.sortFormat} {sortField === 'format' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
-              <th style={{ width: '115px', padding: '10px 8px' }}>{loc.library.quality}</th>
+              <th className="w-29 px-2 py-2.5">{loc.library.quality}</th>
               <th
                 onClick={() => handleSort('duration')}
-                style={{ width: '75px', padding: '10px 8px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                className="w-19 cursor-pointer select-none px-2 py-2.5 text-right"
                 title={loc.library.sortDurationTooltip}
               >
                 {loc.queue.duration} {sortField === 'duration' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
               <th
                 onClick={() => handleSort('plays')}
-                style={{ width: '75px', padding: '10px 6px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                className="w-19 cursor-pointer select-none px-1.5 py-2.5 text-center"
                 title={loc.library.sortPlaysTooltip}
               >
                 {loc.library.playsCol} {sortField === 'plays' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
-              <th style={{ width: '95px', padding: '10px 6px', textAlign: 'center' }}>
+              <th className="w-24 px-1.5 py-2.5 text-center">
                 {loc.library.rating}
               </th>
-              <th style={{ width: '135px', padding: '10px 6px', textAlign: 'center' }}>{loc.library.actions}</th>
+              <th className="w-34 px-1.5 py-2.5 text-center">{loc.library.actions}</th>
             </tr>
           </thead>
           <tbody>
             {sortedTracks.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={9} className="p-9 text-center text-fg-muted">
                   {tracks.length === 0 ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '14px',
-                        padding: '24px 12px',
-                      }}
-                    >
+                    <div className="flex flex-col items-center gap-3.5 px-3 py-6">
                       <div
-                        style={{
-                          width: '56px',
-                          height: '56px',
-                          borderRadius: '50%',
-                          background: 'rgba(168, 85, 247, 0.15)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid var(--accent-purple)',
-                        }}
+                        className="flex h-14 w-14 items-center justify-center rounded-full border border-accent-purple bg-accent-purple/15"
                       >
-                        <FolderPlus size={28} color="var(--accent-purple)" />
+                        <FolderPlus size={28} className="text-accent-purple" />
                       </div>
                       <div>
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 6px 0', color: '#fff' }}>
+                        <h4 className="mx-0 mt-0 mb-1.5 text-base font-bold text-fg">
                           {loc.library.empty}
                         </h4>
-                        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        <p className="m-0 text-ui text-fg-secondary">
                           {loc.library.emptyHint}
                         </p>
                       </div>
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <div className="flex flex-wrap justify-center gap-2.5">
                         <button
                           onClick={handlePickFolder}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-                            color: '#fff',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
+                          className="flex items-center gap-1.5 rounded-lg border-0 bg-linear-135 from-accent-purple to-accent-pink px-4 py-2 text-ui font-semibold text-on-accent"
                         >
                           <FolderPlus size={14} /> {loc.library.addFolder}...
                         </button>
                         <button
                           onClick={handlePickFiles}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid var(--border-accent)',
-                            color: '#fff',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
+                          className="flex items-center gap-1.5 rounded-lg border border-line-accent bg-white/8 px-4 py-2 text-ui font-semibold text-fg"
                         >
-                          <FilePlus size={14} color="var(--accent-cyan)" /> {loc.library.addFiles}...
+                          <FilePlus size={14} className="text-accent-cyan" /> {loc.library.addFiles}...
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                    <div className="flex flex-col items-center gap-2.5">
                       <span>{fmt(loc.library.emptySearchTracks, librarySearch)}</span>
                       <button
                         onClick={() => setLibrarySearch('')}
-                        style={{
-                          padding: '5px 12px',
-                          borderRadius: '6px',
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid var(--border-subtle)',
-                          color: 'var(--accent-cyan)',
-                          fontSize: '0.78rem',
-                          cursor: 'pointer',
-                        }}
+                        className="rounded-md border border-line bg-white/8 px-3 py-1.5 text-ui text-accent-cyan"
                       >
                         {loc.library.clearSearch}
                       </button>
@@ -327,8 +249,9 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
             ) : (
               <>
                 {trackTopSpacer > 0 && (
-                  <tr style={{ height: `${trackTopSpacer}px`, pointerEvents: 'none' }}>
-                    <td colSpan={9} style={{ height: `${trackTopSpacer}px`, padding: 0, border: 'none' }} />
+                  <tr className="pointer-events-none" style={{ height: `${trackTopSpacer}px` }}>
+                    <td colSpan={9} className="border-0 p-0"
+                    style={{ height: `${trackTopSpacer}px` }} />
                   </tr>
                 )}
                 {sortedTracks.slice(trackStartIndex, trackEndIndex).map((t, localIdx) => {
@@ -338,93 +261,66 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                     <tr
                       key={t.id}
                       onClick={() => handlePlayLibraryTrack(t)}
-                      className="library-track-row glass-card"
-                      style={{
-                        cursor: 'pointer',
-                        background: isCurrent ? 'rgba(168, 85, 247, 0.22)' : 'transparent',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        height: '48px',
-                        maxHeight: '48px',
-                        boxSizing: 'border-box',
-                      }}
+                      className={cn(
+                        'glass-card h-12 max-h-12 cursor-pointer border-b border-white/3',
+                        isCurrent ? 'bg-accent-purple/20' : 'bg-transparent',
+                      )}
                     >
                       <td
-                        className="library-track-cell"
-                        style={{ padding: '0 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
+                        className="h-12 max-h-12 truncate px-2 py-0 text-center align-middle font-mono text-fg-muted"
                         title={t.track_no ? `#${idx + 1} (Track ${t.track_no})` : `#${idx + 1}`}
                       >
                         {isCurrent ? (
                           status.state === 'Playing' ? (
-                            <Zap size={14} color="var(--accent-pink)" />
+                            <Zap size={14} className="text-accent-pink" />
                           ) : (
-                            <Play size={13} color="var(--accent-pink)" fill="var(--accent-pink)" />
+                            <Play size={13} className="text-accent-pink fill-accent-pink" />
                           )
                         ) : (
                           idx + 1
                         )}
                       </td>
-                      <td className="library-track-cell" style={{ padding: '0 10px', fontWeight: 600, color: isCurrent ? 'var(--accent-pink)' : '#fff' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
+                      <td className={cn(
+                        'h-12 max-h-12 truncate px-2.5 py-0 align-middle font-semibold',
+                        isCurrent ? 'text-accent-pink' : 'text-fg',
+                      )}>
+                        <div className="flex items-center gap-1.5 truncate">
+                          {t.is_favorite && <Heart size={13} className="shrink-0 text-accent-pink fill-accent-pink" />}
+                          <span className="truncate" title={t.title}>{t.title}</span>
                         </div>
                       </td>
-                      <td className="library-track-cell" style={{ padding: '0 10px', color: 'var(--text-secondary)' }} title={t.artist}>
+                      <td className="h-12 max-h-12 truncate px-2.5 py-0 align-middle text-fg-secondary" title={t.artist}>
                         {t.artist}
                       </td>
-                      <td className="library-track-cell" style={{ padding: '0 8px' }}>
+                      <td className="h-12 max-h-12 truncate px-2 py-0 align-middle">
                         <span
-                          style={{
-                            background:
-                              (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
-                                ? 'rgba(6, 182, 212, 0.2)'
-                                : 'rgba(255,255,255,0.08)',
-                            color:
-                              (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
-                                ? 'var(--accent-cyan)'
-                                : 'inherit',
-                            padding: '2px 7px',
-                            borderRadius: '5px',
-                            fontSize: '0.7rem',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 600,
-                            border:
-                              (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200
-                                ? '1px solid rgba(6, 182, 212, 0.35)'
-                                : 'none',
-                          }}
+                          className={cn(
+                            'rounded-md px-2 py-0.5 font-mono text-xxs font-semibold',
+                            (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'bg-accent-cyan/20' : 'bg-white/8',
+                            (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'text-accent-cyan' : 'text-inherit',
+                            (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'border border-accent-cyan/35' : 'border-0',
+                          )}
                         >
                           {t.format}
                           {(t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? ' Hi-Res' : ''}
                         </span>
                         {t.replaygain_track_gain !== null && t.replaygain_track_gain !== undefined && (
                           <span
-                            style={{
-                              marginLeft: '6px',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '0.66rem',
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: 700,
-                              background: 'rgba(168, 85, 247, 0.2)',
-                              color: 'var(--accent-purple, #c084fc)',
-                              border: '1px solid rgba(168, 85, 247, 0.4)',
-                            }}
+                            className="ml-1.5 rounded-sm border border-accent-purple/40 bg-accent-purple/20 px-1.5 py-0.5 font-mono text-xxs font-bold text-accent-purple"
                             title={`ReplayGain: ${t.replaygain_track_gain >= 0 ? '+' : ''}${t.replaygain_track_gain.toFixed(1)} dB (Peak: ${t.replaygain_track_peak ? t.replaygain_track_peak.toFixed(3) : '1.0'})`}
                           >
                             RG {t.replaygain_track_gain >= 0 ? `+${t.replaygain_track_gain.toFixed(1)}` : t.replaygain_track_gain.toFixed(1)}
                           </span>
                         )}
                       </td>
-                      <td className="library-track-cell" style={{ padding: '0 8px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}>
+                      <td className="h-12 max-h-12 truncate px-2 py-0 align-middle font-mono text-xs text-fg-muted">
                         {Math.round(t.sample_rate / 1000)} kHz {t.bit_depth ? `/ ${t.bit_depth}-bit` : ''}
                       </td>
-                      <td className="library-track-cell" style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                      <td className="h-12 max-h-12 truncate px-2 py-0 text-right align-middle font-mono">
                         {formatTime(t.duration_ms)}
                       </td>
                       <td
-                        className="library-track-cell"
-                        style={{ padding: '0 6px', textAlign: 'center' }}
+                        className="h-12 max-h-12 truncate px-1.5 py-0 text-center align-middle"
                         onClick={(e) => {
                           e.stopPropagation();
                           setStatsModalTrack(t);
@@ -432,48 +328,32 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                         title={loc.player.trackStats}
                       >
                         <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            padding: '3px 8px',
-                            borderRadius: '12px',
-                            background: t.play_count ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                            color: t.play_count ? 'var(--accent-amber)' : 'var(--text-muted)',
-                            fontWeight: 700,
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: '0.74rem',
-                            cursor: 'pointer',
-                            border: t.play_count ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid transparent',
-                            transition: 'all 0.15s ease',
-                          }}
+                          className={cn(
+                            'inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2 py-1 font-mono text-xs font-bold transition-all duration-150',
+                            t.play_count ? 'bg-accent-amber/15' : 'bg-white/4',
+                            t.play_count ? 'text-accent-amber' : 'text-fg-muted',
+                            t.play_count ? 'border-accent-amber/35' : 'border-transparent',
+                          )}
                         >
-                          <Flame size={12} color={t.play_count ? 'var(--accent-amber)' : 'var(--text-muted)'} />
+                          <Flame className={cn(t.play_count ? 'text-accent-amber' : 'text-fg-muted')} size={12} />
                           {t.play_count || 0}
                         </span>
                       </td>
                       <td
-                        className="library-track-cell"
-                        style={{ padding: '0 4px', textAlign: 'center' }}
+                        className="h-12 max-h-12 truncate px-1 py-0 text-center align-middle"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
+                        <div className="inline-flex items-center gap-0.5">
                           {[1, 2, 3, 4, 5].map((star) => {
                             const active = (t.rating || 0) >= star;
                             return (
                               <button
                                 key={star}
                                 onClick={() => handleSetTrackRating(t.id, t.rating === star ? 0 : star)}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  padding: '1px',
-                                  cursor: 'pointer',
-                                  color: active ? '#f59e0b' : 'rgba(255, 255, 255, 0.15)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  transition: 'transform 0.1s ease',
-                                }}
+                                className={cn(
+                                  'flex items-center border-0 bg-transparent p-px transition-transform duration-100',
+                                  active ? 'text-accent-amber' : 'text-white/15',
+                                )}
                                 title={fmt(loc.library.ratingTooltip, String(star))}
                               >
                                 <Star size={12} fill={active ? '#f59e0b' : 'none'} />
@@ -482,46 +362,43 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                           })}
                         </div>
                       </td>
-                      <td className="library-track-cell" style={{ padding: '0 6px', textAlign: 'center' }}>
-                        <div className="library-track-actions">
+                      <td className="h-12 max-h-12 truncate px-1.5 py-0 text-center align-middle">
+                        <div className="grid grid-cols-[repeat(5,1.25rem)] content-center justify-center gap-0.5 *:flex *:items-center *:justify-center *:p-0.5 auto-rows-[1.25rem]">
                           <button
                             onClick={(e) => handleToggleFavorite(t.id, e)}
                             title={t.is_favorite ? loc.library.removeFromFavorites : loc.library.addToFavorites}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: t.is_favorite ? 'var(--accent-pink)' : 'var(--text-muted)',
-                              cursor: 'pointer',
-                              padding: '4px',
-                            }}
+                            className={cn(
+                              'border-0 bg-transparent',
+                              t.is_favorite ? 'text-accent-pink' : 'text-fg-muted',
+                            )}
                           >
-                            <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
+                            <Heart className={cn(t.is_favorite && 'fill-accent-pink')} size={15} />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}
                             title={loc.player.play}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-pink"
                           >
                             <Play size={15} />
                           </button>
                           <button
                             onClick={(e) => handleAddTrackToQueue(t, e)}
                             title={loc.library.addToQueue}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-cyan"
                           >
                             <Plus size={15} />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
                             title={loc.library.tagEditorTooltip}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan, #06b6d4)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-cyan"
                           >
                             <TagIcon size={15} />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleScanTrackReplayGain(t); }}
                             title={loc.settings.scanReplayGainTrack}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple, #c084fc)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-purple"
                           >
                             <Activity size={15} />
                           </button>
@@ -532,35 +409,35 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                               setIsCreateStemProjectOpen(true);
                             }}
                             title={loc.library.createStemProjectTooltip}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink, #f43f5e)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-pink"
                           >
                             <Sliders size={15} />
                           </button>
                           <button
                             onClick={(e) => handleAddTrackNextToQueue(t, e)}
                             title={loc.library.playNext}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-purple"
                           >
                             <ListPlus size={15} />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setTrackToAddToPlaylist(t); setShowPlaylistModal(true); }}
                             title={loc.library.addToPlaylist}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-amber)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-amber"
                           >
                             <FolderPlus size={15} />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setStatsModalTrack(t); }}
                             title={loc.player.trackStats}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-amber)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-amber"
                           >
                             <BarChart3 size={15} />
                           </button>
                           <button
                             onClick={(e) => handleOpenContainingFolder(t.path, e)}
                             title={loc.library.openContainingFolder}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
+                            className="border-0 bg-transparent text-accent-cyan"
                           >
                             <FolderOpen size={15} />
                           </button>
@@ -570,8 +447,9 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                   );
                 })}
                 {trackBottomSpacer > 0 && (
-                  <tr style={{ height: `${trackBottomSpacer}px`, pointerEvents: 'none' }}>
-                    <td colSpan={9} style={{ height: `${trackBottomSpacer}px`, padding: 0, border: 'none' }} />
+                  <tr className="pointer-events-none" style={{ height: `${trackBottomSpacer}px` }}>
+                    <td colSpan={9} className="border-0 p-0"
+                    style={{ height: `${trackBottomSpacer}px` }} />
                   </tr>
                 )}
               </>

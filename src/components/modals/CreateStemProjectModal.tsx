@@ -15,6 +15,8 @@ import { invoke } from '../../api/ipc';
 import type { ModelPackInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 interface CreateStemProjectModalProps {
   isOpen: boolean;
@@ -128,360 +130,200 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        background: 'rgba(5, 5, 10, 0.85)',
-        backdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-170 flex-col overflow-hidden rounded-3xl border border-pink-500/35"
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '680px',
-          background: 'linear-gradient(135deg, rgba(20, 15, 35, 0.96), rgba(10, 8, 20, 0.98))',
-          borderRadius: '24px',
-          border: '1px solid rgba(236, 72, 153, 0.35)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(236, 72, 153, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-          overflow: 'hidden',
-          animation: 'fadeInScale 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Nagłówek */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 15px rgba(236, 72, 153, 0.4)',
-              }}
-            >
-              <Layers size={22} color="#ffffff" />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc' }}>
-                {t.stems.title}
-              </h2>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
-                {effectiveTrackTitle} • {effectiveTrackArtist}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '50%',
-              display: 'flex',
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Zawartość z przewijaniem */}
-        <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {error && (
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '12px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                fontSize: '0.85rem',
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* Nazwa projektu */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
-              {t.stems.projectName}
-            </label>
-            <input
-              type="text"
-              value={projectTitle}
-              onChange={(e) => setProjectTitle(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                background: 'rgba(15, 23, 42, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: '10px',
-                color: '#f8fafc',
-                fontSize: '0.95rem',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Wykryty sprzęt */}
+      {/* Nagłówek */}
+      <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
+        <div className="flex items-center gap-3">
           <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-violet-500 shadow-lift shadow-pink-500/40"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Cpu size={18} color="#38bdf8" />
-              <span style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>{t.stems.computeAccelerator}</span>
-            </div>
-            <span
-              style={{
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                color: capabilities?.hardware_acceleration ? '#34d399' : '#a855f7',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <Zap size={14} />
-              {capabilities?.accelerator_device || t.stems.detectingHardware}
-            </span>
+            <Layers size={22} className="text-fg" />
           </div>
-
-          {/* Wybór pakietów modeli */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '10px' }}>
-              {t.stems.selectPacks}
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {modelPacks.map((pack) => {
-                const isSelected = selectedPackIds.includes(pack.id);
-                return (
-                  <div
-                    key={pack.id}
-                    onClick={() => togglePack(pack.id)}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      background: isSelected ? 'rgba(236, 72, 153, 0.12)' : 'rgba(15, 23, 42, 0.5)',
-                      border: isSelected ? '1px solid rgba(236, 72, 153, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-                      cursor: pack.id === 'pack_dsp_cascade' ? 'default' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc' }}>
-                          {pack.name}
-                        </span>
-                        {pack.id === 'pack_dsp_cascade' ? (
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              padding: '2px 6px',
-                              borderRadius: '6px',
-                              background: 'rgba(168, 85, 247, 0.2)',
-                              color: '#c084fc',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {t.stems.builtInStft}
-                          </span>
-                        ) : pack.is_installed ? (
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              padding: '2px 6px',
-                              borderRadius: '6px',
-                              background: 'rgba(52, 211, 153, 0.2)',
-                              color: '#34d399',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {t.stems.aiReady}
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              padding: '2px 6px',
-                              borderRadius: '6px',
-                              background: 'rgba(245, 158, 11, 0.15)',
-                              color: '#fbbf24',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {t.stems.downloadInManager}
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
-                        {(t.aiModels.packs as Record<string, string>)[pack.id] ?? pack.description}
-                      </p>
-                    </div>
-
-                    <div
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '6px',
-                        border: isSelected ? 'none' : '2px solid rgba(255, 255, 255, 0.3)',
-                        background: isSelected ? 'var(--accent-pink)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isSelected && <CheckCircle2 size={16} color="#ffffff" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Podgląd wynikowych stemów */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
-              {fmt(t.stems.outputTracks, String(calculatedStems.length))}
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {calculatedStems.map((stem) => (
-                <span
-                  key={stem}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    fontSize: '0.75rem',
-                    color: '#e2e8f0',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                >
-                  <Music size={12} color="var(--accent-pink)" />
-                  {stem}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Szacunki (Czas i Rozmiar) */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '12px',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              background: 'rgba(15, 23, 42, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-            }}
-          >
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
-              <Clock size={16} color="#f59e0b" />
-              <span>{fmt(t.stems.estimatedTime, String(estimatedTimeSec))}</span>
-            </div>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
-              <HardDrive size={16} color="#38bdf8" />
-              <span>{fmt(t.stems.diskSpace, String(Math.round(calculatedStems.length * 8.5)))}</span>
-            </div>
+            <h2 className="m-0 text-xl font-extrabold text-fg">
+              {t.stems.title}
+            </h2>
+            <p className="m-0 text-sm text-fg-secondary">
+              {effectiveTrackTitle} • {effectiveTrackArtist}
+            </p>
           </div>
         </div>
-
-        {/* Przyciski dolne */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
-          }}
+        <button
+          onClick={onClose}
+          className="flex rounded-full border-0 bg-transparent p-2 text-fg-secondary"
         >
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            style={{
-              padding: '10px 18px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#cbd5e1',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            {t.common.cancel}
-          </button>
+          <X size={20} />
+        </button>
+      </div>
 
-          <button
-            onClick={handleCreate}
-            disabled={isSubmitting || !projectTitle.trim()}
-            style={{
-              padding: '10px 22px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-              border: 'none',
-              color: '#ffffff',
-              fontWeight: 700,
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 15px rgba(236, 72, 153, 0.35)',
-            }}
-          >
-            {isSubmitting ? (
-              <>
-                <Sparkles size={16} className="animate-spin" />
-                {t.stems.creatingProject}
-              </>
-            ) : (
-              <>
-                <Play size={16} fill="#ffffff" />
-                {t.stems.createAndMix}
-              </>
+      {/* Zawartość z przewijaniem */}
+      <div className="flex flex-col gap-5 overflow-y-auto p-6">
+        {error && (
+          <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        {/* Nazwa projektu */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-300">
+            {t.stems.projectName}
+          </label>
+          <input
+            type="text"
+            value={projectTitle}
+            onChange={(e) => setProjectTitle(e.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-slate-900/70 px-3.5 py-2.5 text-md text-fg outline-none"
+          />
+        </div>
+
+        {/* Wykryty sprzęt */}
+        <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <Cpu size={18} className="text-sky-400" />
+            <span className="text-sm text-slate-300">{t.stems.computeAccelerator}</span>
+          </div>
+          <span
+            className={cn(
+              'flex items-center gap-1.5 text-sm font-bold',
+              (capabilities?.hardware_acceleration) ? 'text-emerald-400' : 'text-accent-purple',
             )}
-          </button>
+          >
+            <Zap size={14} />
+            {capabilities?.accelerator_device || t.stems.detectingHardware}
+          </span>
+        </div>
+
+        {/* Wybór pakietów modeli */}
+        <div>
+          <label className="mb-2.5 block text-sm font-semibold text-slate-300">
+            {t.stems.selectPacks}
+          </label>
+          <div className="flex flex-col gap-2.5">
+            {modelPacks.map((pack) => {
+              const isSelected = selectedPackIds.includes(pack.id);
+              return (
+                <div
+                  key={pack.id}
+                  onClick={() => togglePack(pack.id)}
+                  className={cn(
+                    'flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-200',
+                    isSelected ? 'bg-pink-500/10' : 'bg-slate-900/50',
+                    isSelected ? 'border-pink-500/45' : 'border-white/8',
+                    pack.id === 'pack_dsp_cascade' ? 'cursor-default' : 'cursor-pointer',
+                  )}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-fg">
+                        {pack.name}
+                      </span>
+                      {pack.id === 'pack_dsp_cascade' ? (
+                        <span
+                          className="rounded-md bg-accent-purple/20 px-1.5 py-0.5 text-xxs font-bold text-purple-400"
+                        >
+                          {t.stems.builtInStft}
+                        </span>
+                      ) : pack.is_installed ? (
+                        <span
+                          className="rounded-md bg-emerald-400/20 px-1.5 py-0.5 text-xxs font-bold text-emerald-400"
+                        >
+                          {t.stems.aiReady}
+                        </span>
+                      ) : (
+                        <span
+                          className="rounded-md bg-accent-amber/15 px-1.5 py-0.5 text-xxs font-semibold text-amber-400"
+                        >
+                          {t.stems.downloadInManager}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mx-0 mt-1 mb-0 text-xs text-fg-secondary">
+                      {(t.aiModels.packs as Record<string, string>)[pack.id] ?? pack.description}
+                    </p>
+                  </div>
+
+                  <div
+                    className={cn(
+                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-md',
+                      isSelected ? 'border-0' : 'border-2 border-white/30',
+                      isSelected ? 'bg-accent-pink' : 'bg-transparent',
+                    )}
+                  >
+                    {isSelected && <CheckCircle2 size={16} className="text-fg" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Podgląd wynikowych stemów */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-300">
+            {fmt(t.stems.outputTracks, String(calculatedStems.length))}
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {calculatedStems.map((stem) => (
+              <span
+                key={stem}
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/6 px-2.5 py-1 text-xs font-semibold text-slate-200"
+              >
+                <Music size={12} className="text-accent-pink" />
+                {stem}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Szacunki (Czas i Rozmiar) */}
+        <div className="flex gap-3 rounded-xl border border-white/5 bg-slate-900/40 px-4 py-3">
+          <div className="flex flex-1 items-center gap-2 text-ui text-fg-secondary">
+            <Clock size={16} className="text-accent-amber" />
+            <span>{fmt(t.stems.estimatedTime, String(estimatedTimeSec))}</span>
+          </div>
+          <div className="flex flex-1 items-center gap-2 text-ui text-fg-secondary">
+            <HardDrive size={16} className="text-sky-400" />
+            <span>{fmt(t.stems.diskSpace, String(Math.round(calculatedStems.length * 8.5)))}</span>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Przyciski dolne */}
+      <div className="flex justify-end gap-3 border-t border-white/8 px-6 py-4">
+        <button
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="rounded-xl border border-white/10 bg-white/5 px-4.5 py-2.5 font-semibold text-slate-300"
+        >
+          {t.common.cancel}
+        </button>
+
+        <button
+          onClick={handleCreate}
+          disabled={isSubmitting || !projectTitle.trim()}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-pink-500 to-violet-500 px-5.5 py-2.5 font-bold text-fg shadow-lift shadow-pink-500/35',
+            isSubmitting ? 'cursor-not-allowed' : 'cursor-pointer',
+          )}
+        >
+          {isSubmitting ? (
+            <>
+              <Sparkles size={16} className="animate-spin" />
+              {t.stems.creatingProject}
+            </>
+          ) : (
+            <>
+              <Play size={16} fill="#ffffff" />
+              {t.stems.createAndMix}
+            </>
+          )}
+        </button>
+      </div>
+    </ModalShell>
   );
 };

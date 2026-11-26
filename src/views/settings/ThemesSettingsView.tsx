@@ -17,6 +17,7 @@ import {
 import { type Language, type Translations } from '../../i18n';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
 import { type Theme } from '../../types/theme';
+import { cn } from '../../utils/cn';
 
 export interface ThemesSettingsViewProps {
   language: Language;
@@ -99,14 +100,14 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="flex flex-col gap-5">
       {/* Wybór języka interfejsu w ustawieniach */}
-      <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="glass-panel flex items-center justify-between p-5">
         <div>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Globe size={18} color="var(--accent-cyan)" /> {loc.settings.language}
+          <h3 className="m-0 flex items-center gap-2 text-base font-bold">
+            <Globe size={18} className="text-accent-cyan" /> {loc.settings.language}
           </h3>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+          <p className="mx-0 mt-1 mb-0 text-ui text-fg-muted">
             English • Polski • Deutsch • Suomi • Latina
           </p>
         </div>
@@ -114,28 +115,23 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       </div>
 
       {/* Opcja podświetlenia kursorowego przycisków (Hover Glow) */}
-      <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="glass-panel flex items-center justify-between p-5">
         <div>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={18} color="var(--accent-pink)" /> {loc.settings.buttonHoverGlowTitle}
+          <h3 className="m-0 flex items-center gap-2 text-base font-bold">
+            <Sparkles size={18} className="text-accent-pink" /> {loc.settings.buttonHoverGlowTitle}
           </h3>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+          <p className="mx-0 mt-1 mb-0 text-ui text-fg-muted">
             {loc.settings.buttonHoverGlowDesc}
           </p>
         </div>
         <button
           onClick={onToggleGlow}
-          style={{
-            padding: '8px 18px',
-            borderRadius: '10px',
-            fontSize: '0.82rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: buttonGlowEnabled ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: buttonGlowEnabled ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            color: buttonGlowEnabled ? 'var(--accent-pink)' : 'var(--text-muted)',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'rounded-xl border px-4.5 py-2 text-ui font-bold transition-all duration-150',
+            buttonGlowEnabled ? 'bg-pink-500/25' : 'bg-white/6',
+            buttonGlowEnabled ? 'border-accent-pink' : 'border-line',
+            buttonGlowEnabled ? 'text-accent-pink' : 'text-fg-muted',
+          )}
         >
           {buttonGlowEnabled
             ? loc.settings.buttonHoverGlowEnabled
@@ -144,36 +140,31 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       </div>
 
       {/* Skala interfejsu i szerokość robocza (UI Scale & Layout Width) */}
-      <div className="glass-panel" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+      <div className="glass-panel p-5">
+        <div className="mb-3.5 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Maximize2 size={18} color="var(--accent-cyan)" /> {loc.settings.uiScaleLayoutTitle}
+            <h3 className="m-0 flex items-center gap-2 text-base font-bold">
+              <Maximize2 size={18} className="text-accent-cyan" /> {loc.settings.uiScaleLayoutTitle}
             </h3>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+            <p className="mx-0 mt-1 mb-0 text-ui text-fg-muted">
               {loc.settings.uiScaleLayoutDesc}
             </p>
           </div>
           <button
             onClick={onResetScale}
             disabled={uiScale === 1.0}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              cursor: uiScale === 1.0 ? 'default' : 'pointer',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              color: uiScale === 1.0 ? 'var(--text-muted)' : 'var(--text-main)',
-              opacity: uiScale === 1.0 ? 0.5 : 1,
-            }}
+            className={cn(
+              'rounded-lg border border-line bg-white/5 px-3 py-1.5 text-ui font-semibold',
+              uiScale === 1.0 ? 'cursor-default' : 'cursor-pointer',
+              uiScale === 1.0 ? 'text-fg-muted' : 'text-fg',
+              uiScale === 1.0 ? 'opacity-50' : 'opacity-100',
+            )}
           >
             {loc.settings.uiScaleReset}
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(42.5),1fr))] gap-2.5">
           {[
             {
               scale: 1.0,
@@ -201,27 +192,19 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               <button
                 key={item.scale}
                 onClick={() => onSelectScale(item.scale)}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  textAlign: 'left',
-                  gap: '4px',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  border: isSelected ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                  background: isSelected ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.03)',
-                  color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: isSelected ? '0 0 12px rgba(6, 182, 212, 0.25)' : 'none',
-                }}
+                className={cn(
+                  'flex flex-col items-start gap-1 rounded-xl border px-3.5 py-3 text-left transition-all duration-150',
+                  isSelected ? 'border-accent-cyan' : 'border-line',
+                  isSelected ? 'bg-accent-cyan/20' : 'bg-white/3',
+                  isSelected ? 'text-accent-cyan' : 'text-fg',
+                  isSelected ? 'shadow-halo shadow-accent-cyan/25' : 'shadow-none',
+                )}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{item.label}</span>
-                  {isSelected && <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>✓</span>}
+                <div className="flex w-full items-center justify-between">
+                  <span className="text-sm font-bold">{item.label}</span>
+                  {isSelected && <span className="text-xs font-extrabold">✓</span>}
                 </div>
-                <span style={{ fontSize: '0.72rem', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                <span className={cn('text-xs', isSelected ? 'text-fg' : 'text-fg-muted')}>
                   {item.desc}
                 </span>
               </button>
@@ -230,126 +213,84 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </div>
       </div>
 
-      <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <Palette size={26} color="var(--accent-purple)" />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+      <div className="glass-panel p-6">
+        <div className="mb-2 flex items-center gap-3">
+          <Palette size={26} className="text-accent-purple" />
+          <h2 className="text-xl font-bold">
             {loc.settings.themes}
           </h2>
         </div>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+        <p className="text-sm text-fg-secondary">
           {loc.settings.themesSubtitle}
         </p>
       </div>
 
       {/* Siatka presetów Anime */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
         {themes.map((th) => {
           const isActive = currentTheme?.id === th.id;
           return (
             <div
               key={th.id}
-              className="glass-card"
-              style={{
-                padding: '20px',
-                borderRadius: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                border: isActive ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-                boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
-                background: isActive ? 'var(--bg-surface-hover)' : 'var(--bg-card)',
-              }}
+              className={cn(
+                'glass-card flex flex-col gap-3 rounded-2xl p-5',
+                isActive ? 'border-2 border-accent-purple' : 'border border-line',
+                isActive ? 'shadow-accent-glow' : 'shadow-none',
+                isActive ? 'bg-surface-hover' : 'bg-card',
+              )}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-fg">
                   {th.name}
                 </h3>
                 {isActive && (
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: '20px',
-                      background: 'var(--accent-purple)',
-                      color: '#fff',
-                    }}
-                  >
+                  <span className="rounded-3xl bg-accent-purple px-2 py-1 text-xs font-bold text-on-accent">
                     {loc.settings.active}
                   </span>
                 )}
               </div>
 
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <p className="text-ui text-fg-muted">
                 {th.attribution || 'Auralune Theme'}
               </p>
 
               {/* Próbnik kolorów tokenów */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+              <div className="mt-1 flex items-center gap-2">
                 <div
                   title={`${loc.settings.tokenBg}: ${th.tokens.bg_deep}`}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: th.tokens.bg_deep,
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="h-7 w-7 rounded-lg border border-line"
+                  style={{ background: th.tokens.bg_deep }}
                 />
                 <div
                   title={`${loc.settings.tokenCard}: ${th.tokens.bg_card}`}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: th.tokens.bg_card,
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="h-7 w-7 rounded-lg border border-line"
+                  style={{ background: th.tokens.bg_card }}
                 />
                 <div
                   title={`${loc.settings.tokenPink}: ${th.tokens.accent_pink}`}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: th.tokens.accent_pink,
-                  }}
+                  className="h-7 w-7 rounded-lg"
+                  style={{ background: th.tokens.accent_pink }}
                 />
                 <div
                   title={`${loc.settings.tokenPurple}: ${th.tokens.accent_purple}`}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: th.tokens.accent_purple,
-                  }}
+                  className="h-7 w-7 rounded-lg"
+                  style={{ background: th.tokens.accent_purple }}
                 />
                 <div
                   title={`${loc.settings.tokenCyan}: ${th.tokens.accent_cyan}`}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: th.tokens.accent_cyan,
-                  }}
+                  className="h-7 w-7 rounded-lg"
+                  style={{ background: th.tokens.accent_cyan }}
                 />
               </div>
 
               <button
                 onClick={() => onSelectTheme(th.id)}
                 disabled={isActive}
-                style={{
-                  marginTop: '8px',
-                  padding: '10px',
-                  borderRadius: '10px',
-                  background: isActive
-                    ? 'rgba(255,255,255,0.06)'
-                    : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  color: isActive ? 'var(--text-muted)' : '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                }}
+                className={cn(
+                  'mt-2 rounded-xl p-2.5 text-sm font-semibold',
+                  isActive ? 'bg-white/6' : 'bg-accent-gradient',
+                  isActive ? 'text-fg-muted' : 'text-fg',
+                )}
               >
                 {isActive ? loc.settings.active : loc.common.confirm}
               </button>
@@ -359,16 +300,16 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       </div>
 
       {/* Menedżer własnego tła anime */}
-      <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <ImageIcon size={22} color="var(--accent-cyan)" />
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+      <div className="glass-panel p-6">
+        <div className="mb-4 flex items-center gap-2.5">
+          <ImageIcon size={22} className="text-accent-cyan" />
+          <h3 className="text-lg font-bold">
             {loc.settings.appearance}
           </h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-6">
+          <div className="flex flex-col gap-4">
             {/* Strefa Drag & Drop dla tapety */}
             <div
               onDragOver={(e) => {
@@ -383,109 +324,57 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               }}
               onDrop={handleInternalDrop}
               onClick={onPickWallpaperFromDisk}
-              style={{
-                padding: '24px 20px',
-                borderRadius: '14px',
-                border: isDraggingWallpaper
-                  ? '2px dashed var(--accent-pink)'
-                  : '2px dashed rgba(255, 255, 255, 0.2)',
-                background: isDraggingWallpaper
-                  ? 'rgba(236, 72, 153, 0.15)'
-                  : 'rgba(0, 0, 0, 0.22)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-                transition: 'all 0.25s ease',
-                boxShadow: isDraggingWallpaper ? '0 0 20px rgba(236, 72, 153, 0.35)' : 'none',
-              }}
+              className={cn(
+                'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed px-5 py-6 transition-all duration-200',
+                isDraggingWallpaper ? 'border-accent-pink' : 'border-white/20',
+                isDraggingWallpaper ? 'bg-pink-500/15' : 'bg-black/20',
+                isDraggingWallpaper ? 'shadow-halo-lg shadow-pink-500/35' : 'shadow-none',
+              )}
             >
               <div
-                style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '50%',
-                  background: isDraggingWallpaper
-                    ? 'rgba(236, 72, 153, 0.25)'
-                    : 'rgba(255, 255, 255, 0.06)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isDraggingWallpaper ? 'var(--accent-pink)' : 'var(--accent-cyan)',
-                }}
+                className={cn(
+                  'flex h-11.5 w-11.5 items-center justify-center rounded-full',
+                  isDraggingWallpaper ? 'bg-pink-500/25' : 'bg-white/6',
+                  isDraggingWallpaper ? 'text-accent-pink' : 'text-accent-cyan',
+                )}
               >
                 <UploadCloud size={24} />
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff' }}>
+              <div className="text-center">
+                <div className="text-sm font-semibold text-fg">
                   {loc.settings.dragDropWallpaper}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                <div className="mt-1 text-xs text-fg-secondary">
                   PNG, JPG, WebP • {loc.settings.customBgDropText}
                 </div>
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label className="mb-1.5 block text-sm text-fg-secondary">
                 {loc.settings.customBgLabel}
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={customBgPath}
                   onChange={(e) => onCustomBgPathChange(e.target.value)}
                   placeholder={loc.settings.customBgPlaceholder}
-                  style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                  }}
+                  className="flex-1 rounded-xl border border-line bg-black/30 px-3.5 py-2.5 text-sm text-fg"
                 />
                 <button
                   type="button"
                   onClick={onPickWallpaperFromDisk}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(168, 85, 247, 0.25))',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-sky-400/40 bg-linear-135 from-sky-400/25 to-accent-purple/25 px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg"
                   title={loc.settings.chooseWallpaper}
                 >
-                  <FolderOpen size={16} color="var(--accent-cyan)" />
+                  <FolderOpen size={16} className="text-accent-cyan" />
                   {loc.settings.chooseFile}
                 </button>
                 <button
                   type="button"
                   onClick={onUploadBgImage}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    background: 'var(--accent-purple)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="flex items-center gap-1.5 rounded-xl bg-accent-purple px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-on-accent"
                 >
                   <Upload size={16} />
                   {loc.player.load}
@@ -494,35 +383,19 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
             </div>
 
             {themeBgImage && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(0,0,0,0.25)', padding: '12px', borderRadius: '12px' }}>
+              <div className="flex items-center gap-3.5 rounded-xl bg-black/25 p-3">
                 <div
-                  style={{
-                    width: '60px',
-                    height: '42px',
-                    borderRadius: '8px',
-                    backgroundImage: `url("${themeBgImage}")`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="h-10.5 w-15 rounded-lg border border-line bg-cover bg-center"
+                  style={{ backgroundImage: `url("${themeBgImage}")` }}
                 />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-fg">
                     {loc.settings.active}
                   </p>
                 </div>
                 <button
                   onClick={onRemoveBgImage}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(244, 63, 94, 0.2)',
-                    color: 'var(--accent-pink)',
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
+                  className="flex items-center gap-1 rounded-lg bg-accent-pink/20 px-3 py-2 text-ui text-accent-pink"
                 >
                   <Trash2 size={14} />
                   {loc.common.remove}
@@ -532,19 +405,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
 
             <button
               onClick={onSaveBackgroundSettings}
-              style={{
-                padding: '12px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: 'var(--shadow-glow)',
-              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-accent-gradient p-3 text-sm font-bold text-on-accent shadow-accent-glow"
             >
               <Save size={16} />
               {loc.common.save}
@@ -552,13 +413,13 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           </div>
 
           {/* Suwaki Overlay i Blur */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="flex flex-col gap-5">
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <div className="mb-2 flex justify-between">
+                <label className="text-sm text-fg-secondary">
                   {loc.settings.themeOpacity}:
                 </label>
-                <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>
+                <strong className="text-sm text-accent-cyan">
                   {Math.round(themeOverlay * 100)}%
                 </strong>
               </div>
@@ -572,16 +433,16 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
                   const val = parseFloat(e.target.value);
                   onThemeOverlayChange(val);
                 }}
-                style={{ width: '100%' }}
+                className="w-full"
               />
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <div className="mb-2 flex justify-between">
+                <label className="text-sm text-fg-secondary">
                   {loc.settings.themeBlur}:
                 </label>
-                <strong style={{ color: 'var(--accent-purple)', fontSize: '0.9rem' }}>
+                <strong className="text-sm text-accent-purple">
                   {themeBlur} px
                 </strong>
               </div>
@@ -595,9 +456,9 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
                   const val = parseInt(e.target.value, 10);
                   onThemeBlurChange(val);
                 }}
-                style={{ width: '100%' }}
+                className="w-full"
               />
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+              <p className="mt-1.5 text-xs text-fg-muted">
                 {loc.settings.blurHelp}
               </p>
             </div>
@@ -606,76 +467,49 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       </div>
 
       {/* Wybór stylu ikony aplikacji (Neon Lineout vs Classic Anime) */}
-      <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-          <Sparkles size={22} color="var(--accent-pink)" />
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+      <div className="glass-panel p-6">
+        <div className="mb-2 flex items-center gap-2.5">
+          <Sparkles size={22} className="text-accent-pink" />
+          <h3 className="text-lg font-bold">
             {loc.settings.appIconTitle}
           </h3>
         </div>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 16px 0' }}>
+        <p className="mx-0 mt-0 mb-4 text-sm text-fg-secondary">
           {loc.settings.appIconDesc}
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
           {/* Opcja 1: Neon Lineout */}
           <div
             onClick={() => onSelectIconStyle('lineout')}
-            className="glass-card"
-            style={{
-              padding: '16px',
-              borderRadius: '16px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              border: appIconStyle === 'lineout' ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-              boxShadow: appIconStyle === 'lineout' ? '0 0 18px rgba(236, 72, 153, 0.35)' : 'none',
-              background: appIconStyle === 'lineout' ? 'var(--bg-surface-hover)' : 'var(--bg-card)',
-              transition: 'all 0.25s ease',
-            }}
+            className={cn(
+              'glass-card flex cursor-pointer items-center gap-4 rounded-2xl p-4 transition-all duration-200',
+              appIconStyle === 'lineout' ? 'border-2 border-accent-pink' : 'border border-line',
+              appIconStyle === 'lineout' ? 'shadow-halo-lg shadow-pink-500/35' : 'shadow-none',
+              appIconStyle === 'lineout' ? 'bg-surface-hover' : 'bg-card',
+            )}
           >
             <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '14px',
-                background: 'rgba(0,0,0,0.45)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              }}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-black/45 shadow-lift shadow-black/30"
             >
               <img
                 src="/icon_lineout.png"
                 alt="Neon Lineout"
-                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
+                className="h-12 w-12 object-contain"
               />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="m-0 text-base font-bold text-fg">
                   {loc.settings.iconStyleLineout}
                 </h4>
                 {appIconStyle === 'lineout' && (
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      background: 'var(--accent-pink)',
-                      color: '#fff',
-                    }}
-                  >
+                  <span className="rounded-xl bg-accent-pink px-2 py-0.5 text-xs font-bold text-on-accent">
                     {loc.settings.active}
                   </span>
                 )}
               </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0', lineHeight: 1.35 }}>
+              <p className="mx-0 mt-1 mb-0 text-ui leading-snug text-fg-muted">
                 {loc.settings.iconStyleLineoutDesc}
               </p>
             </div>
@@ -684,61 +518,34 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           {/* Opcja 2: Classic Anime */}
           <div
             onClick={() => onSelectIconStyle('classic')}
-            className="glass-card"
-            style={{
-              padding: '16px',
-              borderRadius: '16px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              border: appIconStyle === 'classic' ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-              boxShadow: appIconStyle === 'classic' ? '0 0 18px rgba(168, 85, 247, 0.35)' : 'none',
-              background: appIconStyle === 'classic' ? 'var(--bg-surface-hover)' : 'var(--bg-card)',
-              transition: 'all 0.25s ease',
-            }}
+            className={cn(
+              'glass-card flex cursor-pointer items-center gap-4 rounded-2xl p-4 transition-all duration-200',
+              appIconStyle === 'classic' ? 'border-2 border-accent-purple' : 'border border-line',
+              appIconStyle === 'classic' ? 'shadow-halo-lg shadow-accent-purple/35' : 'shadow-none',
+              appIconStyle === 'classic' ? 'bg-surface-hover' : 'bg-card',
+            )}
           >
             <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '14px',
-                background: 'rgba(0,0,0,0.45)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              }}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-black/45 shadow-lift shadow-black/30"
             >
               <img
                 src="/icon_classic.png"
                 alt="Classic Anime"
-                style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '10px' }}
+                className="h-12 w-12 rounded-xl object-contain"
               />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="m-0 text-base font-bold text-fg">
                   {loc.settings.iconStyleClassic}
                 </h4>
                 {appIconStyle === 'classic' && (
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      background: 'var(--accent-purple)',
-                      color: '#fff',
-                    }}
-                  >
+                  <span className="rounded-xl bg-accent-purple px-2 py-0.5 text-xs font-bold text-on-accent">
                     {loc.settings.active}
                   </span>
                 )}
               </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0', lineHeight: 1.35 }}>
+              <p className="mx-0 mt-1 mb-0 text-ui leading-snug text-fg-muted">
                 {loc.settings.iconStyleClassicDesc}
               </p>
             </div>
@@ -747,31 +554,24 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       </div>
 
       {/* Bezpieczny Import i Eksport JSON */}
-      <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <Download size={22} color="var(--accent-pink)" />
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+      <div className="glass-panel p-6">
+        <div className="mb-4 flex items-center gap-2.5">
+          <Download size={22} className="text-accent-pink" />
+          <h3 className="text-lg font-bold">
             {loc.settings.themePortability}
           </h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-5">
           {/* Eksport */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-fg-secondary">
                 {loc.settings.exportTheme}:
               </label>
               <button
                 onClick={onExportTheme}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  background: 'var(--accent-purple)',
-                  color: '#fff',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                }}
+                className="rounded-lg bg-accent-purple px-3 py-1.5 text-xs font-semibold text-on-accent"
               >
                 {loc.settings.generateJson}
               </button>
@@ -781,42 +581,22 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               value={jsonExportContent}
               placeholder={loc.settings.generateJsonPlaceholder}
               rows={6}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '10px',
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--accent-cyan)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.75rem',
-                resize: 'none',
-              }}
+              className="w-full resize-none rounded-xl border border-line bg-black/30 p-2.5 font-mono text-xs text-accent-cyan"
             />
             {jsonExportContent && (
               <button
                 onClick={handleCopyJson}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.08)',
-                  color: '#fff',
-                  fontSize: '0.8rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-white/8 px-3 py-2 text-ui text-fg"
               >
-                {copiedJson ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                {copiedJson ? <Check size={14} className="text-accent-green" /> : <Copy size={14} />}
                 {copiedJson ? loc.settings.copiedJson : loc.settings.copyJson}
               </button>
             )}
           </div>
 
           {/* Import */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <div className="flex flex-col gap-2.5">
+            <label className="text-sm text-fg-secondary">
               {loc.settings.importTheme}:
             </label>
             <textarea
@@ -824,32 +604,11 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               onChange={(e) => onJsonImportContentChange(e.target.value)}
               placeholder={loc.settings.importPlaceholder}
               rows={6}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '10px',
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.75rem',
-                resize: 'none',
-              }}
+              className="w-full resize-none rounded-xl border border-line bg-black/30 p-2.5 font-mono text-xs text-fg"
             />
             <button
               onClick={onImportTheme}
-              style={{
-                padding: '10px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-accent-gradient p-2.5 text-sm font-semibold text-on-accent"
             >
               <Upload size={16} />
               {loc.settings.verifyImport}

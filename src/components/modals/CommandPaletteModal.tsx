@@ -21,6 +21,7 @@ import {
   Headphones,
 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { cn } from '../../utils/cn';
 
 export interface CommandItem {
   id: string;
@@ -157,7 +158,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         type: 'action',
         title: loc.commandPalette.actionShuffleAll,
         subtitle: loc.commandPalette.actionShuffleAllSubtitle,
-        icon: <Shuffle size={18} color="var(--accent-pink)" />,
+        icon: <Shuffle size={18} className="text-accent-pink" />,
         badge: '1.0',
         onExecute: () => {
           if (onShuffleAll) {
@@ -171,7 +172,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         type: 'action',
         title: loc.commandPalette.actionHealthCheck,
         subtitle: loc.commandPalette.actionHealthCheckSubtitle,
-        icon: <Activity size={18} color="#4ade80" />,
+        icon: <Activity size={18} className="text-green-400" />,
         badge: 'v1.0',
         onExecute: () => {
           if (onOpenHealthCheck) {
@@ -185,7 +186,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         type: 'action',
         title: `${loc.commandPalette.actionStopAfterCurrent} ${stopAfterCurrent ? `• ${loc.commandPalette.activeTag}` : ''}`,
         subtitle: loc.commandPalette.actionStopAfterCurrentSubtitle,
-        icon: <Square size={18} style={{ fill: stopAfterCurrent ? 'var(--accent-pink)' : 'none' }} />,
+        icon: <Square size={18} className={stopAfterCurrent ? 'fill-accent-pink' : undefined} />,
         badge: stopAfterCurrent ? 'ON' : 'OFF',
         onExecute: () => {
           if (onToggleStopAfterCurrent) {
@@ -567,48 +568,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        paddingTop: '12vh',
-        zIndex: 99999,
-      }}
+      className="fixed inset-0 z-120 flex items-start justify-center bg-black/75 pt-[12vh] backdrop-blur-sm motion-safe:animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        style={{
-          background: 'linear-gradient(145deg, rgba(24, 18, 38, 0.98), rgba(12, 10, 22, 0.98))',
-          border: '1px solid var(--accent-purple, #a855f7)',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '640px',
-          maxHeight: '65vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(168, 85, 247, 0.3)',
-          overflow: 'hidden',
-          animation: 'modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
+        className="flex max-h-[65vh] w-full max-w-160 flex-col overflow-hidden rounded-2xl border border-accent-purple bg-modal shadow-modal motion-safe:animate-modal-in"
       >
         {/* Search input header */}
-        <div
-          style={{
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
-          <Search size={22} style={{ color: 'var(--accent-purple, #a855f7)', flexShrink: 0 }} />
+        <div className="flex items-center gap-3 border-b border-white/8 bg-white/2 px-5 py-4">
+          <Search size={22} className="shrink-0 text-accent-purple" />
           <input
             ref={inputRef}
             type="text"
@@ -616,27 +586,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={loc.commandPalette.placeholder}
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: '#f8fafc',
-              fontSize: '1.05rem',
-              fontWeight: 500,
-            }}
+            className="w-full border-0 bg-transparent text-base font-medium text-fg outline-none"
           />
           <kbd
-            style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              color: '#94a3b8',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
+            className="rounded-md border border-white/10 bg-white/8 px-2 py-1 font-mono text-xs font-semibold text-fg-secondary"
           >
             ESC
           </kbd>
@@ -645,17 +598,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         {/* Results list */}
         <div
           ref={listRef}
-          style={{
-            padding: '8px',
-            overflowY: 'auto',
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '3px',
-          }}
+          className="flex flex-1 flex-col gap-1 overflow-y-auto p-2"
         >
           {filteredItems.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: '#64748b', fontSize: '0.9rem' }}>
+            <div className="px-0 py-9 text-center text-sm text-fg-muted">
               {loc.commandPalette.noResults}
             </div>
           ) : (
@@ -666,63 +612,37 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                   key={item.id}
                   onClick={item.onExecute}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    background: isSelected
-                      ? 'rgba(168, 85, 247, 0.22)'
-                      : 'transparent',
-                    border: isSelected
-                      ? '1px solid rgba(168, 85, 247, 0.45)'
-                      : '1px solid transparent',
-                    transition: 'all 0.12s ease',
-                  }}
+                  className={cn(
+                    'flex cursor-pointer items-center justify-between rounded-xl border px-3.5 py-2.5 transition-all duration-100',
+                    isSelected ? 'bg-accent-purple/20' : 'bg-transparent',
+                    isSelected ? 'border-accent-purple/45' : 'border-transparent',
+                  )}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                  <div className="flex min-w-0 items-center gap-3">
                     <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: isSelected
-                          ? 'var(--accent-purple, #a855f7)'
-                          : 'rgba(255, 255, 255, 0.05)',
-                        color: isSelected ? '#ffffff' : '#94a3b8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        transition: 'all 0.15s ease',
-                      }}
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150',
+                        isSelected ? 'bg-accent-purple' : 'bg-white/5',
+                        isSelected ? 'text-fg' : 'text-fg-secondary',
+                      )}
                     >
                       {item.icon}
                     </div>
-                    <div style={{ minWidth: 0 }}>
+                    <div className="min-w-0">
                       <div
-                        style={{
-                          fontSize: '0.92rem',
-                          fontWeight: 600,
-                          color: isSelected ? '#ffffff' : '#e2e8f0',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
+                        className={cn(
+                          'truncate text-md font-semibold',
+                          isSelected ? 'text-fg' : 'text-slate-200',
+                        )}
                       >
                         {item.title}
                       </div>
                       {item.subtitle && (
                         <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: isSelected ? '#e9d5ff' : '#94a3b8',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
+                          className={cn(
+                            'truncate text-xs',
+                            isSelected ? 'text-purple-200' : 'text-fg-secondary',
+                          )}
                         >
                           {item.subtitle}
                         </div>
@@ -732,16 +652,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
                   {item.badge && (
                     <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        color: '#cbd5e1',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        flexShrink: 0,
-                        marginLeft: '12px',
-                      }}
+                      className="ml-3 shrink-0 rounded-md bg-white/8 px-2 py-1 text-xs font-semibold text-slate-300"
                     >
                       {item.badge}
                     </span>
@@ -754,23 +665,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
         {/* Footer hints */}
         <div
-          style={{
-            padding: '10px 18px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-            background: 'rgba(0, 0, 0, 0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.74rem',
-            color: '#64748b',
-          }}
+          className="flex items-center justify-between border-t border-white/6 bg-black/25 px-4.5 py-2.5 text-xs text-fg-muted"
         >
-          <div style={{ display: 'flex', gap: '14px' }}>
+          <div className="flex gap-3.5">
             <span>
-              <kbd style={{ padding: '2px 5px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px' }}>↑↓</kbd> Nawigacja
+              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↑↓</kbd> Nawigacja
             </span>
             <span>
-              <kbd style={{ padding: '2px 5px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px' }}>↵</kbd> Wybierz
+              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↵</kbd> Wybierz
             </span>
           </div>
           <div>

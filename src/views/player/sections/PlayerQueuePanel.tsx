@@ -4,6 +4,7 @@ import type { PlaybackStatus } from '../../../types/player';
 import { type QueueItem, type QueueColumnConfig, getQueueGridTemplate } from '../../../types/queue';
 import type { PlayerViewProps } from '../PlayerView';
 import type { QueueTrackMeta } from '../queueTrackMeta';
+import { cn } from '../../../utils/cn';
 
 export type PlayerQueuePanelProps = Pick<PlayerViewProps, 'loc' | 'queue' | 'formatTotalDuration' | 'totalQueueDurationMs' | 'handleCycleLoopMode' | 'handleToggleShuffle' | 'handleToggleInfinityQueue' | 'infinityQueue' | 'handleToggleStopAfterCurrent' | 'queueSearchQuery' | 'setQueueSearchQuery' | 'setIsColumnConfigOpen' | 'isColumnConfigOpen' | 'queueColumns' | 'toggleQueueColumn' | 'resetQueueColumns' | 'handlePickFiles' | 'setIsSaveQueueModalOpen' | 'handleClearQueue' | 'setActiveTab' | 'queueListRef' | 'filteredQueueItems' | 'queueTopSpacer' | 'queueStartIndex' | 'queueEndIndex' | 'dragOverQueueIdx' | 'handleQueueDragStart' | 'handleQueueDragOver' | 'handleQueueDrop' | 'handlePlayQueueIndex' | 'draggedQueueIdx' | 'handleOpenCoverPicker' | 'handleUploadCustomCoverDirect' | 'handleOpenContainingFolder' | 'formatTime' | 'handleMoveQueueItem' | 'handleRemoveFromQueue' | 'queueBottomSpacer'> & {
   status: PlaybackStatus;
@@ -55,57 +56,22 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
   toggleQueueColumn,
   totalQueueDurationMs,
 }) => (
-    <div
-      className="glass-panel"
-      style={{
-        padding: '22px 26px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        position: 'relative',
-      }}
-    >
+    <div className="glass-panel relative flex flex-col gap-4 px-6.5 py-5.5">
       {/* Pasek nagłówkowy kolejki */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <div
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(168, 85, 247, 0.25))',
-              border: '1px solid rgba(236, 72, 153, 0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 16px rgba(236, 72, 153, 0.2)',
-            }}
+            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl border border-pink-500/40 bg-linear-135 from-pink-500/25 to-accent-purple/25 shadow-halo-lg shadow-pink-500/20"
           >
-            <ListMusic size={20} color="var(--accent-pink)" />
+            <ListMusic size={20} className="text-accent-pink" />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>
+            <div className="flex items-center gap-2">
+              <h3 className="m-0 text-lg font-bold text-fg">
                 {loc.queue.title}
               </h3>
               <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  background: 'rgba(236, 72, 153, 0.15)',
-                  color: 'var(--accent-pink)',
-                  border: '1px solid rgba(236, 72, 153, 0.3)',
-                }}
+                className="rounded-xl border border-pink-500/30 bg-pink-500/15 px-2 py-0.5 text-xs font-bold text-accent-pink"
               >
                 {queue.items.length}{' '}
                 {queue.items.length === 1
@@ -115,42 +81,27 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                     : loc.queue.itemMany}
               </span>
               {queue.items.length > 0 && (
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-muted)',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
+                <span className="font-mono text-xs text-fg-muted">
                   • {formatTotalDuration(totalQueueDurationMs)}
                 </span>
               )}
             </div>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-muted">
               {loc.queue.dragHint}
             </p>
           </div>
         </div>
 
         {/* Przyciski kontroli i dostosowywania */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+        <div className="relative flex items-center gap-2">
           {/* Tryb Pętli Badge Button */}
           <button
             onClick={handleCycleLoopMode}
             title={`${loc.shortcuts.loop}: ${queue.loop_mode === 'None' ? loc.queue.loopNone : queue.loop_mode === 'Track' ? loc.queue.loopTrack : loc.queue.loopQueue}`}
-            className="glass-card"
-            style={{
-              padding: '6px 11px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
-              border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              queue.loop_mode !== 'None' ? 'border-accent-pink text-accent-pink' : 'border-line text-fg-muted',
+            )}
           >
             {queue.loop_mode === 'Track' ? <Repeat1 size={14} /> : <Repeat size={14} />}
             <span>{queue.loop_mode === 'None' ? loc.queue.loopNone : queue.loop_mode === 'Track' ? loc.queue.loopTrack : loc.queue.loopQueue}</span>
@@ -160,19 +111,10 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           <button
             onClick={handleToggleShuffle}
             title={`${loc.shortcuts.shuffle}: ${queue.shuffle ? loc.queue.shuffleOn : loc.queue.shuffleOff}`}
-            className="glass-card"
-            style={{
-              padding: '6px 11px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              border: queue.shuffle ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              queue.shuffle ? 'border-accent-cyan text-accent-cyan' : 'border-line text-fg-muted',
+            )}
           >
             <Shuffle size={14} />
             <span>{queue.shuffle ? loc.queue.shuffleOn : loc.queue.shuffleOff}</span>
@@ -182,20 +124,10 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           <button
             onClick={handleToggleInfinityQueue}
             title={loc.queue.autoDjHint}
-            className="glass-card"
-            style={{
-              padding: '6px 11px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: infinityQueue ? 'var(--accent-pink)' : 'var(--text-muted)',
-              border: infinityQueue ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-              background: infinityQueue ? 'rgba(236, 72, 153, 0.2)' : 'transparent',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              infinityQueue ? 'border-accent-pink bg-pink-500/20 text-accent-pink' : 'border-line bg-transparent text-fg-muted',
+            )}
           >
             <InfinityIcon size={14} />
             <span>Auto-DJ {infinityQueue ? 'ON' : 'OFF'}</span>
@@ -205,21 +137,10 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           <button
             onClick={handleToggleStopAfterCurrent}
             title={loc.player.stopAfterCurrentTooltip}
-            className="glass-card"
-            style={{
-              padding: '6px 11px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: status.stop_after_current ? '#eab308' : 'var(--text-muted)',
-              border: status.stop_after_current ? '1px solid #eab308' : '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              background: status.stop_after_current ? 'rgba(234, 179, 8, 0.22)' : 'transparent',
-              boxShadow: status.stop_after_current ? '0 0 10px rgba(234, 179, 8, 0.35)' : 'none',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              status.stop_after_current ? 'border-yellow-500 bg-yellow-500/20 text-yellow-500 shadow-halo-sm shadow-yellow-500/35' : 'border-line bg-transparent text-fg-muted shadow-none',
+            )}
           >
             <Square size={13} style={{ fill: status.stop_after_current ? '#eab308' : 'none' }} />
             <span>Stop After Track {status.stop_after_current ? '(ON)' : ''}</span>
@@ -227,49 +148,22 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
 
           {/* Pole wyszukiwania w kolejce */}
           {queue.items.length > 0 && (
-            <div style={{ position: 'relative', width: '180px' }}>
+            <div className="relative w-45">
               <Search
                 size={13}
-                style={{
-                  position: 'absolute',
-                  left: '9px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
               />
               <input
                 type="text"
                 placeholder={loc.queue.search}
                 value={queueSearchQuery}
                 onChange={(e) => setQueueSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px 6px 28px',
-                  borderRadius: '8px',
-                  fontSize: '0.75rem',
-                  background: 'rgba(0, 0, 0, 0.45)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#fff',
-                  outline: 'none',
-                }}
+                className="w-full rounded-lg border border-line bg-black/45 pl-7 pr-2 py-1.5 text-xs text-fg outline-none"
               />
               {queueSearchQuery && (
                 <button
                   onClick={() => setQueueSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    right: '7px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    padding: 0,
-                  }}
+                  className="absolute right-2 top-1/2 flex -translate-y-1/2 border-0 bg-transparent p-0 text-fg-muted"
                 >
                   <X size={12} />
                 </button>
@@ -278,22 +172,13 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           )}
 
           {/* Przycisk Konfiguracji Kolumn */}
-          <div style={{ position: 'relative' }}>
+          <div className="relative">
             <button
               onClick={() => setIsColumnConfigOpen(!isColumnConfigOpen)}
-              className="glass-card"
-              style={{
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: isColumnConfigOpen ? 'var(--accent-purple)' : 'var(--text-secondary)',
-                border: isColumnConfigOpen ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
+              className={cn(
+                'glass-card flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold',
+                isColumnConfigOpen ? 'border-accent-purple text-accent-purple' : 'border-line text-fg-secondary',
+              )}
               title={loc.queue.customizeView}
             >
               <SlidersHorizontal size={14} />
@@ -303,39 +188,26 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             {/* Popover Konfiguracji Kolumn */}
             {isColumnConfigOpen && (
               <div
-                className="glass-panel"
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  marginTop: '8px',
-                  width: '320px',
-                  padding: '16px',
-                  zIndex: 70,
-                  boxShadow: '0 16px 36px rgba(0, 0, 0, 0.75)',
-                  border: '1px solid var(--border-accent)',
-                  borderRadius: '14px',
-                  background: 'var(--bg-surface)',
-                }}
+                className="glass-panel absolute top-full right-0 z-20 mt-2 w-80 rounded-2xl border border-line-accent bg-surface p-4 shadow-2xl shadow-black/75"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Settings size={15} color="var(--accent-purple)" />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{t.queue.customizeTitle}</span>
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Settings size={15} className="text-accent-purple" />
+                    <span className="text-sm font-bold text-fg">{t.queue.customizeTitle}</span>
                   </div>
                   <button
                     onClick={() => setIsColumnConfigOpen(false)}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                    className="flex border-0 bg-transparent text-fg-muted"
                   >
                     <X size={15} />
                   </button>
                 </div>
 
-                <p style={{ margin: '0 0 12px 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                <p className="mx-0 mt-0 mb-3 text-xs leading-snug text-fg-secondary">
                   {t.queue.customizeDesc}
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div className="flex flex-col gap-1.5">
                   {[
                     { key: 'showIndex', label: t.queue.colIndex },
                     { key: 'showCover', label: t.queue.colCover },
@@ -351,65 +223,35 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       <div
                         key={col.key}
                         onClick={() => toggleQueueColumn(col.key as keyof QueueColumnConfig)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '7px 10px',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          background: active ? 'rgba(168, 85, 247, 0.12)' : 'rgba(255,255,255,0.02)',
-                          border: active ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid transparent',
-                        }}
+                        className={cn(
+                          'flex cursor-pointer items-center justify-between rounded-lg border px-2.5 py-2',
+                          active ? 'border-accent-purple/30 bg-accent-purple/10' : 'border-transparent bg-white/2',
+                        )}
                       >
-                        <span style={{ fontSize: '0.78rem', color: active ? '#fff' : 'var(--text-muted)' }}>{col.label}</span>
+                        <span className={cn('text-ui', active ? 'text-fg' : 'text-fg-muted')}>{col.label}</span>
                         <div
-                          style={{
-                            width: '18px',
-                            height: '18px',
-                            borderRadius: '4px',
-                            border: active ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-                            background: active ? 'var(--accent-purple)' : 'transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
+                          className={cn(
+                            'flex h-4.5 w-4.5 items-center justify-center rounded-sm border',
+                            active ? 'border-accent-purple bg-accent-purple' : 'border-line bg-transparent',
+                          )}
                         >
-                          {active && <Check size={12} color="#fff" />}
+                          {active && <Check size={12} className="text-fg" />}
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="mt-3.5 flex items-center justify-between border-t border-line pt-2.5">
                   <button
                     onClick={resetQueueColumns}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
+                    className="flex items-center gap-1 border-0 bg-transparent text-xs text-fg-muted"
                   >
                     <RotateCcw size={12} /> {t.queue.resetDefaults}
                   </button>
                   <button
                     onClick={() => setIsColumnConfigOpen(false)}
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      background: 'var(--accent-purple)',
-                      color: '#fff',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
+                    className="rounded-md border-0 bg-accent-purple px-3 py-1 text-xs font-semibold text-on-accent"
                   >
                     {t.queue.done}
                   </button>
@@ -421,20 +263,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           {/* Przycisk Wybierz i dodaj utwory przez systemowy dialog (Dolphin / zenity) */}
           <button
             onClick={handlePickFiles}
-            className="glass-card"
-            style={{
-              padding: '6px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: 'var(--accent-cyan)',
-              border: '1px solid rgba(6, 182, 212, 0.4)',
-              background: 'rgba(6, 182, 212, 0.1)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className="glass-card flex items-center gap-1.5 rounded-lg border border-accent-cyan/40 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan"
             title={t.queue.addTracksTooltip}
           >
             <Plus size={14} />
@@ -445,20 +274,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           {queue.items.length > 0 && (
             <button
               onClick={() => setIsSaveQueueModalOpen(true)}
-              className="glass-card"
-              style={{
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--accent-purple)',
-                border: '1px solid rgba(168, 85, 247, 0.4)',
-                background: 'rgba(168, 85, 247, 0.12)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
+              className="glass-card flex items-center gap-1.5 rounded-lg border border-accent-purple/40 bg-accent-purple/10 px-3 py-1.5 text-xs font-semibold text-accent-purple"
               title={loc.queue.saveAsPlaylistTitle}
             >
               <BookmarkPlus size={14} />
@@ -470,19 +286,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           {queue.items.length > 0 && (
             <button
               onClick={handleClearQueue}
-              className="glass-card"
-              style={{
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: '#ff6b81',
-                border: '1px solid rgba(255, 107, 129, 0.3)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
+              className="glass-card flex items-center gap-1.5 rounded-lg border border-rose-400/30 px-3 py-1.5 text-xs font-semibold text-rose-400"
               title={t.queue.clearTooltip}
             >
               <Trash2 size={14} />
@@ -495,74 +299,30 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
       {/* Zawartość Kolejki: Tabela utworów lub Pusty stan */}
       {queue.items.length === 0 ? (
         <div
-          style={{
-            textAlign: 'center',
-            padding: '48px 24px',
-            color: 'var(--text-muted)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-            border: '2px dashed rgba(255, 255, 255, 0.08)',
-            borderRadius: '14px',
-            background: 'rgba(0, 0, 0, 0.15)',
-          }}
+          className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-white/8 bg-black/15 px-6 py-12 text-center text-fg-muted"
         >
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'rgba(236, 72, 153, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ListMusic size={28} color="var(--accent-pink)" style={{ opacity: 0.8 }} />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pink-500/10">
+            <ListMusic size={28} className="text-accent-pink opacity-80" />
           </div>
           <div>
-            <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: '#fff' }}>
+            <p className="m-0 text-md font-bold text-fg">
               {t.queue.empty}
             </p>
-            <p style={{ fontSize: '0.8rem', marginTop: '4px', color: 'var(--text-secondary)' }}>
+            <p className="mt-1 text-ui text-fg-secondary">
               {t.queue.emptyHint}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+          <div className="mt-1.5 flex gap-2.5">
             <button
               onClick={() => setActiveTab('library')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                color: '#fff',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-              }}
+              className="flex items-center gap-2 rounded-lg border-0 bg-accent-gradient px-4 py-2 text-ui font-bold text-on-accent"
             >
               <Music size={15} />
               <span>{t.queue.browseLibrary}</span>
             </button>
             <button
               onClick={handlePickFiles}
-              className="glass-card"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                color: 'var(--text-secondary)',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="glass-card flex items-center gap-2 rounded-lg px-4 py-2 text-ui font-semibold text-fg-secondary"
             >
               <FolderOpen size={15} />
               <span>{t.queue.pickFromDisk}</span>
@@ -570,58 +330,44 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           </div>
         </div>
       ) : (
-        <div ref={queueListRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div ref={queueListRef} className="flex flex-col gap-1.5">
           {/* Pasek nagłówków kolumn */}
           <div
+            className="sticky top-0 z-10 grid items-center gap-3 border-b border-line px-3.5 py-2 text-xs font-bold tracking-wider text-fg-muted uppercase backdrop-blur-md"
             style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
               background: 'rgba(20, 16, 32, 0.95)',
-              backdropFilter: 'blur(12px)',
-              display: 'grid',
               gridTemplateColumns: getQueueGridTemplate(queueColumns),
-              padding: '8px 14px',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              color: 'var(--text-muted)',
-              borderBottom: '1px solid var(--border-subtle)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              alignItems: 'center',
-              gap: '12px',
             }}
           >
-            {queueColumns.showIndex && <span style={{ width: '28px', textAlign: 'center' }}>{t.queue.headerIndex}</span>}
+            {queueColumns.showIndex && <span className="w-7 text-center">{t.queue.headerIndex}</span>}
             {queueColumns.showCover && (
               <span
-                style={{
-                  width: queueColumns.compactMode ? '34px' : '44px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className={cn(
+                  'flex items-center justify-center',
+                  queueColumns.compactMode ? 'w-8.5' : 'w-11',
+                )}
                 title={t.queue.headerCover}
               >
-                <ImageIcon size={14} style={{ opacity: 0.7 }} />
+                <ImageIcon size={14} className="opacity-70" />
               </span>
             )}
             <span>{t.queue.headerTitleArtist}</span>
             {queueColumns.showAlbum && <span>{t.queue.headerAlbum}</span>}
             {queueColumns.showFormatBadge && <span>{t.queue.headerQuality}</span>}
             {queueColumns.showPath && <span>{t.queue.headerPath}</span>}
-            {queueColumns.showDuration && <span style={{ textAlign: 'right' }}>{t.queue.headerTime}</span>}
-            <span style={{ textAlign: 'right', paddingRight: '6px' }}>{t.queue.headerActions}</span>
+            {queueColumns.showDuration && <span className="text-right">{t.queue.headerTime}</span>}
+            <span className="pr-1.5 text-right">{t.queue.headerActions}</span>
           </div>
 
           {/* Lista wierszy utworów */}
           {filteredQueueItems.length === 0 && queueSearchQuery ? (
-            <div style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <div className="p-9 text-center text-sm text-fg-muted">
               {t.queue.noMatch.replace('{q}', queueSearchQuery)}
             </div>
           ) : (
             <>
-              {queueTopSpacer > 0 && <div style={{ height: `${queueTopSpacer}px`, pointerEvents: 'none' }} />}
+              {queueTopSpacer > 0 && <div className="pointer-events-none"
+              style={{ height: `${queueTopSpacer}px` }} />}
               {filteredQueueItems.slice(queueStartIndex, queueEndIndex).map(({ it: item, originalIdx: idx }) => {
                 const isCurrent = idx === queue.current_index;
                 const isPlaying = isCurrent && status.state === 'Playing';
@@ -637,42 +383,26 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                     onDrop={(e) => handleQueueDrop(idx, e)}
                     onClick={() => handlePlayQueueIndex(idx, item)}
                     onDoubleClick={() => handlePlayQueueIndex(idx, item)}
-                    className="glass-card"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: getQueueGridTemplate(queueColumns),
-                      alignItems: 'center',
-                      padding: queueColumns.compactMode ? '6px 12px' : '10px 14px',
-                      gap: '12px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      background: isCurrent
-                        ? 'linear-gradient(90deg, rgba(236, 72, 153, 0.18), rgba(168, 85, 247, 0.1))'
-                        : 'rgba(255, 255, 255, 0.02)',
-                      border: isCurrent
-                        ? '1px solid var(--accent-pink)'
-                        : isDragOver
-                          ? '2px solid var(--accent-purple)'
-                          : '1px solid rgba(255, 255, 255, 0.05)',
-                      boxShadow: isCurrent ? '0 0 20px rgba(236, 72, 153, 0.25)' : 'none',
-                      transition: 'all 0.15s ease',
-                      opacity: draggedQueueIdx === idx ? 0.35 : 1,
-                    }}
+                    className={cn(
+                      'glass-card grid cursor-pointer items-center gap-3 rounded-xl transition-all duration-150',
+                      queueColumns.compactMode ? 'px-3 py-1.5' : 'px-3.5 py-2.5',
+                      isCurrent ? 'shadow-halo-lg shadow-pink-500/25' : 'shadow-none',
+                      draggedQueueIdx === idx ? 'opacity-35' : 'opacity-100',
+                      isCurrent ? 'bg-linear-to-r from-pink-500/20 to-accent-purple/10' : 'bg-white/2',
+                      isCurrent ? 'border border-accent-pink' : isDragOver ? 'border-2 border-accent-purple' : 'border border-white/5',
+                    )}
+                    style={{ gridTemplateColumns: getQueueGridTemplate(queueColumns) }}
                   >
                     {/* Numer pozycji / Wskaźnik odtwarzania */}
                     {queueColumns.showIndex && (
                       <div
-                        style={{
-                          width: '28px',
-                          textAlign: 'center',
-                          color: isCurrent ? 'var(--accent-pink)' : 'var(--text-muted)',
-                          fontSize: '0.8rem',
-                          fontWeight: isCurrent ? 700 : 400,
-                          fontFamily: 'var(--font-mono)',
-                        }}
+                        className={cn(
+                          'w-7 text-center font-mono text-ui',
+                          isCurrent ? 'font-bold text-accent-pink' : 'font-normal text-fg-muted',
+                        )}
                       >
                         {isPlaying ? (
-                          <Zap size={16} color="var(--accent-pink)" />
+                          <Zap size={16} className="text-accent-pink" />
                         ) : (
                           idx + 1
                         )}
@@ -690,54 +420,40 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                             handleUploadCustomCoverDirect(null);
                           }
                         }}
+                        className={cn(
+                          'flex shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10',
+                          queueColumns.compactMode ? 'h-8.5 w-8.5' : 'h-11 w-11',
+                        )}
                         style={{
-                          width: queueColumns.compactMode ? '34px' : '44px',
-                          height: queueColumns.compactMode ? '34px' : '44px',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
                           background: meta.cover
                             ? `url("${meta.cover}") center/cover no-repeat`
                             : 'linear-gradient(135deg, rgba(236,72,153,0.3), rgba(168,85,247,0.3))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          flexShrink: 0,
-                          cursor: 'pointer',
                         }}
                         title={loc.covers.matchCoverTitle}
                       >
                         {!meta.cover && (
-                          <Disc size={queueColumns.compactMode ? 16 : 20} color="rgba(255,255,255,0.4)" />
+                          <Disc size={queueColumns.compactMode ? 16 : 20} className="text-white/40" />
                         )}
                       </div>
                     )}
 
                     {/* Tytuł i Wykonawca */}
-                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                    <div className="min-w-0 overflow-hidden">
                       <p
-                        style={{
-                          margin: 0,
-                          fontSize: queueColumns.compactMode ? '0.82rem' : '0.88rem',
-                          fontWeight: isCurrent ? 700 : 600,
-                          color: isCurrent ? '#fff' : 'var(--text-primary)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
+                        className={cn(
+                          'm-0 truncate text-fg',
+                          queueColumns.compactMode ? 'text-ui' : 'text-sm',
+                          isCurrent ? 'font-bold' : 'font-semibold',
+                        )}
                       >
                         {item.title}
                       </p>
                       {queueColumns.showArtist && (
                         <p
-                          style={{
-                            margin: '2px 0 0 0',
-                            fontSize: '0.74rem',
-                            color: isCurrent ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
+                          className={cn(
+                            'mx-0 mt-0.5 mb-0 truncate text-xs',
+                            isCurrent ? 'text-accent-cyan' : 'text-fg-muted',
+                          )}
                         >
                           {item.artist || 'Nieznany wykonawca'}
                         </p>
@@ -746,15 +462,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
 
                     {/* Album */}
                     {queueColumns.showAlbum && (
-                      <span
-                        style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--text-secondary)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
+                      <span className="truncate text-ui text-fg-secondary">
                         {meta.album?.title || item.album || '—'}
                       </span>
                     )}
@@ -763,28 +471,10 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                     {queueColumns.showFormatBadge && (
                       <div>
                         <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 7px',
-                            borderRadius: '6px',
-                            fontSize: '0.67rem',
-                            fontWeight: 700,
-                            fontFamily: 'var(--font-mono)',
-                            background:
-                              meta.format.includes('FLAC') || meta.format.includes('WAV')
-                                ? 'rgba(6, 182, 212, 0.15)'
-                                : 'rgba(168, 85, 247, 0.15)',
-                            color:
-                              meta.format.includes('FLAC') || meta.format.includes('WAV')
-                                ? 'var(--accent-cyan)'
-                                : 'var(--accent-purple)',
-                            border:
-                              meta.format.includes('FLAC') || meta.format.includes('WAV')
-                                ? '1px solid rgba(6, 182, 212, 0.3)'
-                                : '1px solid rgba(168, 85, 247, 0.3)',
-                          }}
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-xxs font-bold',
+                            meta.format.includes('FLAC') || meta.format.includes('WAV') ? 'border-accent-cyan/30 bg-accent-cyan/15 text-accent-cyan' : 'border-accent-purple/30 bg-accent-purple/15 text-accent-purple',
+                          )}
                         >
                           {meta.format} {meta.bitDepth ? `${meta.bitDepth}b` : ''}
                         </span>
@@ -796,19 +486,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       <span
                         title={`${item.uri.replace(/^file:\/\//, '')} • ${loc.queue.openContainingFolder}`}
                         onClick={(e) => handleOpenContainingFolder(item.uri, e)}
-                        style={{
-                          fontSize: '0.72rem',
-                          fontFamily: 'var(--font-mono)',
-                          color: 'var(--text-muted)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          cursor: 'pointer',
-                          textDecoration: 'underline dotted rgba(255, 255, 255, 0.25)',
-                          transition: 'color 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-cyan)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        className="cursor-pointer truncate font-mono text-xs text-fg-muted underline transition-colors duration-150 hover:text-accent-cyan decoration-white/25 decoration-dotted"
                       >
                         {item.uri.replace(/^file:\/\//, '')}
                       </span>
@@ -817,20 +495,17 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                     {/* Czas trwania */}
                     {queueColumns.showDuration && (
                       <span
-                        style={{
-                          fontSize: '0.75rem',
-                          fontFamily: 'var(--font-mono)',
-                          color: isCurrent ? 'var(--accent-pink)' : 'var(--text-muted)',
-                          fontWeight: isCurrent ? 700 : 400,
-                          textAlign: 'right',
-                        }}
+                        className={cn(
+                          'text-right font-mono text-xs',
+                          isCurrent ? 'font-bold text-accent-pink' : 'font-normal text-fg-muted',
+                        )}
                       >
                         {formatTime(item.duration_ms)}
                       </span>
                     )}
 
                     {/* Akcje */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', minWidth: '136px' }}>
+                    <div className="flex min-w-34 items-center justify-end gap-1">
                       {!isCurrent && (
                         <button
                           onClick={(e) => {
@@ -838,15 +513,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                             handlePlayQueueIndex(idx, item);
                           }}
                           title={loc.queue.playThis}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                          }}
+                          className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted hover:text-fg"
                         >
                           <Play size={14} />
                         </button>
@@ -855,15 +522,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                         disabled={idx === 0}
                         onClick={(e) => handleMoveQueueItem(idx, idx - 1, e)}
                         title={loc.queue.moveUp}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: idx === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
-                          cursor: idx === 0 ? 'default' : 'pointer',
-                          padding: '4px',
-                          borderRadius: '6px',
-                          display: 'flex',
-                        }}
+                        className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted hover:text-fg disabled:text-white/10"
                       >
                         <ChevronUp size={15} />
                       </button>
@@ -871,51 +530,21 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                         disabled={idx === queue.items.length - 1}
                         onClick={(e) => handleMoveQueueItem(idx, idx + 1, e)}
                         title={loc.queue.moveDown}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: idx === queue.items.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
-                          cursor: idx === queue.items.length - 1 ? 'default' : 'pointer',
-                          padding: '4px',
-                          borderRadius: '6px',
-                          display: 'flex',
-                        }}
+                        className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted hover:text-fg disabled:text-white/10"
                       >
                         <ChevronDown size={15} />
                       </button>
                       <button
                         onClick={(e) => handleOpenContainingFolder(item.uri, e)}
                         title={loc.queue.openContainingFolder}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          transition: 'color 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-cyan)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted transition-colors duration-150 hover:text-accent-cyan"
                       >
                         <FolderOpen size={14} />
                       </button>
                       <button
                         onClick={(e) => handleRemoveFromQueue(item.id, e)}
                         title={loc.queue.remove}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'rgba(255, 107, 129, 0.7)',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          transition: 'color 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-pink)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255, 107, 129, 0.7)')}
+                        className="flex rounded-md border-0 bg-transparent p-1 text-rose-400/70 transition-colors duration-150 hover:text-accent-pink"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -923,7 +552,8 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                   </div>
                 );
               })}
-              {queueBottomSpacer > 0 && <div style={{ height: `${queueBottomSpacer}px`, pointerEvents: 'none' }} />}
+              {queueBottomSpacer > 0 && <div className="pointer-events-none"
+              style={{ height: `${queueBottomSpacer}px` }} />}
             </>
           )}
         </div>

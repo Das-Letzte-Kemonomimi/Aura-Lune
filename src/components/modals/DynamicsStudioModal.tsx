@@ -11,6 +11,8 @@ import {
   Check,
 } from 'lucide-react';
 import { getTranslations, type Language } from '../../i18n';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export type SaturatorMode = 'Off' | 'TubeWarmth' | 'TapeSaturation' | 'Overdrive';
 
@@ -262,576 +264,381 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        animation: 'fadeIn 0.2s ease-out',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      className="flex max-h-[92vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-pink-500/30 bg-ink/95 text-purple-100"
     >
+      {/* NAGŁÓWEK */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '920px',
-          maxHeight: '92vh',
-          backgroundColor: 'rgba(18, 16, 26, 0.94)',
-          border: '1px solid rgba(236, 72, 153, 0.3)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(236, 72, 153, 0.15)',
-          borderRadius: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          color: '#f3e8ff',
-        }}
+        className="flex items-center justify-between border-b border-white/8 bg-linear-to-r from-pink-500/10 to-accent-purple/8 px-6 py-4"
       >
-        {/* NAGŁÓWEK */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.12), rgba(168, 85, 247, 0.08))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '10px',
-                background: 'rgba(236, 72, 153, 0.2)',
-                border: '1px solid rgba(236, 72, 153, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#f472b6',
-              }}
-            >
-              <Activity size={20} />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#fdf4ff' }}>
-                {t.nav.dynamicsStudio}
-              </h2>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: '#cbd5e1' }}>
-                {loc.dynamicsStudio.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={handleReset}
-              title={loc.dynamicsStudio.resetToBypass}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#cbd5e1',
-                fontSize: '0.78rem',
-                cursor: 'pointer',
-              }}
-            >
-              <RotateCcw size={14} /> {loc.dynamicsStudio.bypass}
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                padding: '4px',
-                display: 'flex',
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* LISTA SZYBKICH PRESETÓW */}
-        <div
-          style={{
-            padding: '10px 24px',
-            background: 'rgba(0, 0, 0, 0.25)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            overflowX: 'auto',
-          }}
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#a855f7', whiteSpace: 'nowrap' }}>
-            <Sparkles size={14} style={{ display: 'inline', marginRight: 4 }} />
-            {loc.dynamicsStudio.presets}
-          </span>
-          {presets.map((p) => {
-            const isSelected = activePresetId === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => handleSelectPreset(p)}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '20px',
-                  fontSize: '0.74rem',
-                  fontWeight: isSelected ? 700 : 500,
-                  background: isSelected ? 'rgba(236, 72, 153, 0.3)' : 'rgba(255, 255, 255, 0.04)',
-                  border: isSelected ? '1px solid #ec4899' : '1px solid rgba(255, 255, 255, 0.1)',
-                  color: isSelected ? '#fdf4ff' : '#cbd5e1',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {p.name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ZAWARTOŚĆ GŁÓWNA - 3 PANELE */}
-        <div
-          style={{
-            padding: '20px 24px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-          }}
-        >
-          {/* RACK 1: KOMPRESOR DYNAMIKI */}
+        <div className="flex items-center gap-3">
           <div
-            style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: state.compressor.enabled
-                ? '1px solid rgba(236, 72, 153, 0.45)'
-                : '1px solid rgba(255, 255, 255, 0.07)',
-              borderRadius: '12px',
-              padding: '16px',
-              boxShadow: state.compressor.enabled ? '0 0 15px rgba(236, 72, 153, 0.12)' : 'none',
-              transition: 'all 0.2s ease',
-            }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-pink-500/50 bg-pink-500/20 text-pink-400"
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '14px',
-              }}
+            <Activity size={20} />
+          </div>
+          <div>
+            <h2 className="m-0 text-lg font-extrabold text-fuchsia-50">
+              {t.nav.dynamicsStudio}
+            </h2>
+            <p className="m-0 text-ui text-slate-300">
+              {loc.dynamicsStudio.subtitle}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleReset}
+            title={loc.dynamicsStudio.resetToBypass}
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-ui text-slate-300"
+          >
+            <RotateCcw size={14} /> {loc.dynamicsStudio.bypass}
+          </button>
+          <button
+            onClick={onClose}
+            className="flex border-0 bg-transparent p-1 text-fg-secondary"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* LISTA SZYBKICH PRESETÓW */}
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 bg-black/25 px-6 py-2.5">
+        <span className="text-xs font-bold whitespace-nowrap text-accent-purple">
+          <Sparkles size={14} className="mr-1 inline" />
+          {loc.dynamicsStudio.presets}
+        </span>
+        {presets.map((p) => {
+          const isSelected = activePresetId === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => handleSelectPreset(p)}
+              className={cn(
+                'rounded-3xl border px-3 py-1.5 text-xs whitespace-nowrap transition-all duration-150',
+                isSelected ? 'font-bold' : 'font-medium',
+                isSelected ? 'bg-pink-500/30' : 'bg-white/4',
+                isSelected ? 'border-pink-500' : 'border-white/10',
+                isSelected ? 'text-fuchsia-50' : 'text-slate-300',
+              )}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sliders size={18} color="#ec4899" />
-                <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fdf4ff' }}>
-                  {loc.dynamicsStudio.drcTitle}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                    background: state.compressor.enabled
-                      ? 'rgba(236, 72, 153, 0.2)'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: state.compressor.enabled ? '#f472b6' : '#64748b',
-                    fontWeight: 700,
-                  }}
-                >
-                  {state.compressor.enabled ? 'ACTIVE' : 'BYPASS'}
-                </span>
+              {p.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ZAWARTOŚĆ GŁÓWNA - 3 PANELE */}
+      <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5">
+        {/* RACK 1: KOMPRESOR DYNAMIKI */}
+        <div
+          className={cn(
+            'rounded-xl border bg-white/3 p-4 transition-all duration-200',
+            state.compressor.enabled ? 'border-pink-500/45' : 'border-white/7',
+            state.compressor.enabled ? 'shadow-halo-md shadow-pink-500/10' : 'shadow-none',
+          )}
+        >
+          <div className="mb-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sliders size={18} className="text-pink-500" />
+              <span className="text-md font-extrabold text-fuchsia-50">
+                {loc.dynamicsStudio.drcTitle}
+              </span>
+              <span
+                className={cn(
+                  'rounded-xl px-2 py-0.5 text-xxs font-bold',
+                  state.compressor.enabled ? 'bg-pink-500/20' : 'bg-white/5',
+                  state.compressor.enabled ? 'text-pink-400' : 'text-fg-muted',
+                )}
+              >
+                {state.compressor.enabled ? 'ACTIVE' : 'BYPASS'}
+              </span>
+            </div>
+
+            <button
+              onClick={() =>
+                applyState({
+                  ...state,
+                  compressor: { ...state.compressor, enabled: !state.compressor.enabled },
+                })
+              }
+              className={cn(
+                'flex items-center gap-1.5 rounded-3xl border-0 px-3.5 py-1.5 text-xs font-bold',
+                state.compressor.enabled ? 'bg-pink-500' : 'bg-white/8',
+                state.compressor.enabled ? 'text-fg' : 'text-fg-secondary',
+              )}
+            >
+              {state.compressor.enabled ? <Check size={13} /> : null}
+              {state.compressor.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
+            {/* SUWAKI KOMPRESORA */}
+            <div className="flex flex-col gap-3">
+              {/* Threshold */}
+              <div>
+                <div className="mb-1 flex justify-between text-ui">
+                  <span className="text-slate-300">{loc.dynamicsStudio.threshold}</span>
+                  <span className="font-bold text-pink-400">
+                    {state.compressor.threshold_db.toFixed(1)} dBFS
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-60}
+                  max={0}
+                  step={0.5}
+                  value={state.compressor.threshold_db}
+                  onChange={(e) =>
+                    applyState({
+                      ...state,
+                      compressor: { ...state.compressor, threshold_db: parseFloat(e.target.value) },
+                    })
+                  }
+                  className="w-full cursor-pointer accent-pink-500"
+                />
               </div>
 
-              <button
-                onClick={() =>
-                  applyState({
-                    ...state,
-                    compressor: { ...state.compressor, enabled: !state.compressor.enabled },
-                  })
-                }
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  background: state.compressor.enabled ? '#ec4899' : 'rgba(255, 255, 255, 0.08)',
-                  color: state.compressor.enabled ? '#ffffff' : '#94a3b8',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                }}
-              >
-                {state.compressor.enabled ? <Check size={13} /> : null}
-                {state.compressor.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', alignItems: 'center' }}>
-              {/* SUWAKI KOMPRESORA */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* Threshold */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.threshold}</span>
-                    <span style={{ fontWeight: 700, color: '#f472b6' }}>
-                      {state.compressor.threshold_db.toFixed(1)} dBFS
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={-60}
-                    max={0}
-                    step={0.5}
-                    value={state.compressor.threshold_db}
-                    onChange={(e) =>
-                      applyState({
-                        ...state,
-                        compressor: { ...state.compressor, threshold_db: parseFloat(e.target.value) },
-                      })
-                    }
-                    style={{ width: '100%', accentColor: '#ec4899', cursor: 'pointer' }}
-                  />
+              {/* Ratio & Presets */}
+              <div>
+                <div className="mb-1 flex justify-between text-ui">
+                  <span className="text-slate-300">{loc.dynamicsStudio.ratio}</span>
+                  <span className="font-bold text-pink-400">
+                    {state.compressor.ratio.toFixed(1)} : 1
+                  </span>
                 </div>
-
-                {/* Ratio & Presets */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.ratio}</span>
-                    <span style={{ fontWeight: 700, color: '#f472b6' }}>
-                      {state.compressor.ratio.toFixed(1)} : 1
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={20}
-                    step={0.1}
-                    value={state.compressor.ratio}
-                    onChange={(e) =>
-                      applyState({
-                        ...state,
-                        compressor: { ...state.compressor, ratio: parseFloat(e.target.value) },
-                      })
-                    }
-                    style={{ width: '100%', accentColor: '#ec4899', cursor: 'pointer' }}
-                  />
-                  <div style={{ display: 'flex', gap: '6px', marginTop: 6 }}>
-                    {[1.5, 2.0, 3.0, 4.0, 8.0, 20.0].map((r) => (
-                      <button
-                        key={r}
-                        onClick={() =>
-                          applyState({
-                            ...state,
-                            compressor: { ...state.compressor, ratio: r },
-                          })
-                        }
-                        style={{
-                          flex: 1,
-                          padding: '3px 0',
-                          borderRadius: '6px',
-                          fontSize: '0.7rem',
-                          background:
-                            Math.abs(state.compressor.ratio - r) < 0.1
-                              ? 'rgba(236, 72, 153, 0.25)'
-                              : 'rgba(255, 255, 255, 0.04)',
-                          border:
-                            Math.abs(state.compressor.ratio - r) < 0.1
-                              ? '1px solid #ec4899'
-                              : '1px solid rgba(255, 255, 255, 0.08)',
-                          color: Math.abs(state.compressor.ratio - r) < 0.1 ? '#fdf4ff' : '#94a3b8',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {r === 20 ? 'Limit' : `${r}:1`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Soft-Knee & Makeup Gain */}
-                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: 4 }}>
-                      {loc.dynamicsStudio.knee}
-                    </span>
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  step={0.1}
+                  value={state.compressor.ratio}
+                  onChange={(e) =>
+                    applyState({
+                      ...state,
+                      compressor: { ...state.compressor, ratio: parseFloat(e.target.value) },
+                    })
+                  }
+                  className="w-full cursor-pointer accent-pink-500"
+                />
+                <div className="mt-1.5 flex gap-1.5">
+                  {[1.5, 2.0, 3.0, 4.0, 8.0, 20.0].map((r) => (
                     <button
+                      key={r}
                       onClick={() =>
                         applyState({
                           ...state,
-                          compressor: { ...state.compressor, soft_knee: !state.compressor.soft_knee },
+                          compressor: { ...state.compressor, ratio: r },
                         })
                       }
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        borderRadius: '8px',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        background: state.compressor.soft_knee
-                          ? 'rgba(236, 72, 153, 0.2)'
-                          : 'rgba(255, 255, 255, 0.05)',
-                        border: state.compressor.soft_knee
-                          ? '1px solid #ec4899'
-                          : '1px solid rgba(255, 255, 255, 0.1)',
-                        color: state.compressor.soft_knee ? '#f472b6' : '#94a3b8',
-                        cursor: 'pointer',
-                      }}
+                      className={cn(
+                        'flex-1 rounded-md border px-0 py-1 text-xxs',
+                        Math.abs(state.compressor.ratio - r) < 0.1 ? 'bg-pink-500/25' : 'bg-white/4',
+                        Math.abs(state.compressor.ratio - r) < 0.1 ? 'border-pink-500' : 'border-white/8',
+                        Math.abs(state.compressor.ratio - r) < 0.1 ? 'text-fuchsia-50' : 'text-fg-secondary',
+                      )}
                     >
-                      {state.compressor.soft_knee ? 'Soft Knee' : 'Hard Knee'}
+                      {r === 20 ? 'Limit' : `${r}:1`}
                     </button>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                      <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.makeup}</span>
-                      <span style={{ fontWeight: 700, color: '#f472b6' }}>
-                        +{state.compressor.makeup_gain_db.toFixed(1)} dB
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={24}
-                      step={0.5}
-                      value={state.compressor.makeup_gain_db}
-                      onChange={(e) =>
-                        applyState({
-                          ...state,
-                          compressor: { ...state.compressor, makeup_gain_db: parseFloat(e.target.value) },
-                        })
-                      }
-                      style={{ width: '100%', accentColor: '#ec4899', cursor: 'pointer' }}
-                    />
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* WYKRES KRZYWEJ KOMPRESJI SVG */}
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  padding: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: 4, width: '100%', textAlign: 'left' }}>
-                  {loc.dynamicsStudio.inputOutputCurve}
-                </div>
-                <svg width="280" height="140" style={{ overflow: 'visible' }}>
-                  {/* Siatka tła */}
-                  <line x1="10" y1="130" x2="270" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                  <line x1="10" y1="10" x2="10" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                  {/* Linia prosta 1:1 bez kompresji (szara przerywana) */}
-                  <line x1="10" y1="130" x2="270" y2="40" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                  {/* Dynamiczna krzywa kompresora */}
-                  <polyline
-                    fill="none"
-                    stroke="#ec4899"
-                    strokeWidth="2.5"
-                    points={compressionCurvePoints}
-                  />
-                </svg>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.65rem', color: '#64748b', marginTop: 4 }}>
-                  <span>-60 dB</span>
-                  <span>-30 dB</span>
-                  <span>0 dBFS</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* RACK 2: SATURATOR ANALOGOWY & LAMPA */}
-          <div
-            style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: state.saturator.enabled && state.saturator.mode !== 'Off'
-                ? '1px solid rgba(245, 158, 11, 0.45)'
-                : '1px solid rgba(255, 255, 255, 0.07)',
-              borderRadius: '12px',
-              padding: '16px',
-              boxShadow: state.saturator.enabled && state.saturator.mode !== 'Off' ? '0 0 15px rgba(245, 158, 11, 0.12)' : 'none',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Flame size={18} color="#f59e0b" />
-                <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fdf4ff' }}>
-                  {loc.dynamicsStudio.saturatorTitle}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                    background: state.saturator.enabled && state.saturator.mode !== 'Off'
-                      ? 'rgba(245, 158, 11, 0.2)'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: state.saturator.enabled && state.saturator.mode !== 'Off' ? '#fbbf24' : '#64748b',
-                    fontWeight: 700,
-                  }}
-                >
-                  {state.saturator.enabled && state.saturator.mode !== 'Off' ? state.saturator.mode.toUpperCase() : 'BYPASS'}
-                </span>
-              </div>
-
-              <button
-                onClick={() =>
-                  applyState({
-                    ...state,
-                    saturator: {
-                      ...state.saturator,
-                      enabled: !state.saturator.enabled,
-                      mode: !state.saturator.enabled && state.saturator.mode === 'Off' ? 'TubeWarmth' : state.saturator.mode,
-                    },
-                  })
-                }
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  background: state.saturator.enabled ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)',
-                  color: state.saturator.enabled ? '#ffffff' : '#94a3b8',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                }}
-              >
-                {state.saturator.enabled ? <Check size={13} /> : null}
-                {state.saturator.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
-              </button>
-            </div>
-
-            {/* Wybór trybu saturacji */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              {[
-                { id: 'TubeWarmth' as SaturatorMode, label: loc.dynamicsStudio.modeTube, desc: loc.dynamicsStudio.modeTubeDesc },
-                { id: 'TapeSaturation' as SaturatorMode, label: loc.dynamicsStudio.modeTape, desc: loc.dynamicsStudio.modeTapeDesc },
-                { id: 'Overdrive' as SaturatorMode, label: loc.dynamicsStudio.modeOverdrive, desc: loc.dynamicsStudio.modeOverdriveDesc },
-              ].map((m) => {
-                const isCurrent = state.saturator.mode === m.id && state.saturator.enabled;
-                return (
+              {/* Soft-Knee & Makeup Gain */}
+              <div className="grid grid-cols-[--spacing(30)_1fr] items-center gap-4">
+                <div>
+                  <span className="mb-1 block text-ui text-slate-300">
+                    {loc.dynamicsStudio.knee}
+                  </span>
                   <button
-                    key={m.id}
                     onClick={() =>
                       applyState({
                         ...state,
-                        saturator: { ...state.saturator, mode: m.id, enabled: true },
+                        compressor: { ...state.compressor, soft_knee: !state.compressor.soft_knee },
                       })
                     }
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: isCurrent ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                      border: isCurrent ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.08)',
-                      color: isCurrent ? '#fef3c7' : '#cbd5e1',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease',
-                    }}
+                    className={cn(
+                      'w-full rounded-lg border px-2 py-1.5 text-xs font-bold',
+                      state.compressor.soft_knee ? 'bg-pink-500/20' : 'bg-white/5',
+                      state.compressor.soft_knee ? 'border-pink-500' : 'border-white/10',
+                      state.compressor.soft_knee ? 'text-pink-400' : 'text-fg-secondary',
+                    )}
                   >
-                    <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{m.label}</div>
-                    <div style={{ fontSize: '0.68rem', color: isCurrent ? '#fde68a' : '#64748b' }}>{m.desc}</div>
+                    {state.compressor.soft_knee ? 'Soft Knee' : 'Hard Knee'}
                   </button>
-                );
-              })}
-            </div>
+                </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', alignItems: 'center' }}>
-              {/* SUWAKI SATURATORA */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* Drive */}
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.drive}</span>
-                    <span style={{ fontWeight: 700, color: '#fbbf24' }}>
-                      {state.saturator.drive.toFixed(2)}x
+                  <div className="mb-1 flex justify-between text-ui">
+                    <span className="text-slate-300">{loc.dynamicsStudio.makeup}</span>
+                    <span className="font-bold text-pink-400">
+                      +{state.compressor.makeup_gain_db.toFixed(1)} dB
                     </span>
                   </div>
                   <input
                     type="range"
-                    min={1.0}
-                    max={5.0}
-                    step={0.05}
-                    value={state.saturator.drive}
+                    min={0}
+                    max={24}
+                    step={0.5}
+                    value={state.compressor.makeup_gain_db}
                     onChange={(e) =>
                       applyState({
                         ...state,
-                        saturator: { ...state.saturator, drive: parseFloat(e.target.value) },
+                        compressor: { ...state.compressor, makeup_gain_db: parseFloat(e.target.value) },
                       })
                     }
-                    style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer' }}
+                    className="w-full cursor-pointer accent-pink-500"
                   />
                 </div>
+              </div>
+            </div>
 
-                {/* Warmth (tylko dla TubeWarmth) */}
-                {state.saturator.mode === 'TubeWarmth' && (
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                      <span style={{ color: '#cbd5e1' }}>
-                        {loc.dynamicsStudio.evenHarmonics}
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#fbbf24' }}>
-                        {Math.round(state.saturator.warmth * 100)}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={state.saturator.warmth}
-                      onChange={(e) =>
-                        applyState({
-                          ...state,
-                          saturator: { ...state.saturator, warmth: parseFloat(e.target.value) },
-                        })
-                      }
-                      style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer' }}
-                    />
-                  </div>
+            {/* WYKRES KRZYWEJ KOMPRESJI SVG */}
+            <div className="flex flex-col items-center rounded-xl border border-white/8 bg-black/40 p-2">
+              <div className="mb-1 w-full text-left text-xxs text-fg-secondary">
+                {loc.dynamicsStudio.inputOutputCurve}
+              </div>
+              <svg width="280" height="140" className="overflow-visible">
+                {/* Siatka tła */}
+                <line x1="10" y1="130" x2="270" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                <line x1="10" y1="10" x2="10" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                {/* Linia prosta 1:1 bez kompresji (szara przerywana) */}
+                <line x1="10" y1="130" x2="270" y2="40" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                {/* Dynamiczna krzywa kompresora */}
+                <polyline
+                  fill="none"
+                  stroke="#ec4899"
+                  strokeWidth="2.5"
+                  points={compressionCurvePoints}
+                />
+              </svg>
+              <div className="mt-1 flex w-full justify-between text-xxs text-fg-muted">
+                <span>-60 dB</span>
+                <span>-30 dB</span>
+                <span>0 dBFS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RACK 2: SATURATOR ANALOGOWY & LAMPA */}
+        <div
+          className={cn(
+            'rounded-xl border bg-white/3 p-4 transition-all duration-200',
+            state.saturator.enabled && state.saturator.mode !== 'Off' ? 'border-accent-amber/45' : 'border-white/7',
+            state.saturator.enabled && state.saturator.mode !== 'Off' ? 'shadow-halo-md shadow-accent-amber/10' : 'shadow-none',
+          )}
+        >
+          <div className="mb-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame size={18} className="text-accent-amber" />
+              <span className="text-md font-extrabold text-fuchsia-50">
+                {loc.dynamicsStudio.saturatorTitle}
+              </span>
+              <span
+                className={cn(
+                  'rounded-xl px-2 py-0.5 text-xxs font-bold',
+                  state.saturator.enabled && state.saturator.mode !== 'Off' ? 'bg-accent-amber/20' : 'bg-white/5',
+                  state.saturator.enabled && state.saturator.mode !== 'Off' ? 'text-amber-400' : 'text-fg-muted',
                 )}
+              >
+                {state.saturator.enabled && state.saturator.mode !== 'Off' ? state.saturator.mode.toUpperCase() : 'BYPASS'}
+              </span>
+            </div>
 
-                {/* Dry/Wet Mix */}
+            <button
+              onClick={() =>
+                applyState({
+                  ...state,
+                  saturator: {
+                    ...state.saturator,
+                    enabled: !state.saturator.enabled,
+                    mode: !state.saturator.enabled && state.saturator.mode === 'Off' ? 'TubeWarmth' : state.saturator.mode,
+                  },
+                })
+              }
+              className={cn(
+                'flex items-center gap-1.5 rounded-3xl border-0 px-3.5 py-1.5 text-xs font-bold',
+                state.saturator.enabled ? 'bg-accent-amber' : 'bg-white/8',
+                state.saturator.enabled ? 'text-fg' : 'text-fg-secondary',
+              )}
+            >
+              {state.saturator.enabled ? <Check size={13} /> : null}
+              {state.saturator.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
+            </button>
+          </div>
+
+          {/* Wybór trybu saturacji */}
+          <div className="mb-4 flex gap-2">
+            {[
+              { id: 'TubeWarmth' as SaturatorMode, label: loc.dynamicsStudio.modeTube, desc: loc.dynamicsStudio.modeTubeDesc },
+              { id: 'TapeSaturation' as SaturatorMode, label: loc.dynamicsStudio.modeTape, desc: loc.dynamicsStudio.modeTapeDesc },
+              { id: 'Overdrive' as SaturatorMode, label: loc.dynamicsStudio.modeOverdrive, desc: loc.dynamicsStudio.modeOverdriveDesc },
+            ].map((m) => {
+              const isCurrent = state.saturator.mode === m.id && state.saturator.enabled;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() =>
+                    applyState({
+                      ...state,
+                      saturator: { ...state.saturator, mode: m.id, enabled: true },
+                    })
+                  }
+                  className={cn(
+                    'flex-1 rounded-lg border px-3 py-2 text-left transition-all duration-150',
+                    isCurrent ? 'bg-accent-amber/25' : 'bg-white/4',
+                    isCurrent ? 'border-accent-amber' : 'border-white/8',
+                  )}
+                  style={{ color: isCurrent ? '#fef3c7' : '#cbd5e1' }}
+                >
+                  <div className="text-ui font-bold">{m.label}</div>
+                  <div className={cn('text-xxs', isCurrent ? 'text-amber-200' : 'text-fg-muted')}>{m.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
+            {/* SUWAKI SATURATORA */}
+            <div className="flex flex-col gap-3">
+              {/* Drive */}
+              <div>
+                <div className="mb-1 flex justify-between text-ui">
+                  <span className="text-slate-300">{loc.dynamicsStudio.drive}</span>
+                  <span className="font-bold text-amber-400">
+                    {state.saturator.drive.toFixed(2)}x
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1.0}
+                  max={5.0}
+                  step={0.05}
+                  value={state.saturator.drive}
+                  onChange={(e) =>
+                    applyState({
+                      ...state,
+                      saturator: { ...state.saturator, drive: parseFloat(e.target.value) },
+                    })
+                  }
+                  className="w-full cursor-pointer accent-accent-amber"
+                />
+              </div>
+
+              {/* Warmth (tylko dla TubeWarmth) */}
+              {state.saturator.mode === 'TubeWarmth' && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-                    <span style={{ color: '#cbd5e1' }}>{loc.dynamicsStudio.dryWet}</span>
-                    <span style={{ fontWeight: 700, color: '#fbbf24' }}>
-                      {Math.round(state.saturator.mix * 100)}% Wet
+                  <div className="mb-1 flex justify-between text-ui">
+                    <span className="text-slate-300">
+                      {loc.dynamicsStudio.evenHarmonics}
+                    </span>
+                    <span className="font-bold text-amber-400">
+                      {Math.round(state.saturator.warmth * 100)}%
                     </span>
                   </div>
                   <input
@@ -839,163 +646,133 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                     min={0}
                     max={1}
                     step={0.01}
-                    value={state.saturator.mix}
+                    value={state.saturator.warmth}
                     onChange={(e) =>
                       applyState({
                         ...state,
-                        saturator: { ...state.saturator, mix: parseFloat(e.target.value) },
+                        saturator: { ...state.saturator, warmth: parseFloat(e.target.value) },
                       })
                     }
-                    style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer' }}
+                    className="w-full cursor-pointer accent-accent-amber"
                   />
                 </div>
-              </div>
+              )}
 
-              {/* WYKRES KRZYWEJ FALOWEJ WSUWAKÓW */}
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  padding: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: 4, width: '100%', textAlign: 'left' }}>
-                  {loc.dynamicsStudio.waveshaperCurve}
-                </div>
-                <svg width="280" height="140" style={{ overflow: 'visible' }}>
-                  {/* Osie x = 0 i y = 0 */}
-                  <line x1="10" y1="70" x2="270" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                  <line x1="140" y1="10" x2="140" y2="130" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                  {/* Linia neutralna liniowa (szara przerywana) */}
-                  <line x1="10" y1="130" x2="270" y2="10" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                  {/* Dynamiczna krzywa nasycenia */}
-                  <polyline
-                    fill="none"
-                    stroke="#f59e0b"
-                    strokeWidth="2.5"
-                    points={waveshaperCurvePoints}
-                  />
-                </svg>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.65rem', color: '#64748b', marginTop: 4 }}>
-                  <span>-1.0</span>
-                  <span>0.0</span>
-                  <span>+1.0</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* RACK 3: MASTER LIMITER SŁUCHAWKOWY */}
-          <div
-            style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: state.limiter.enabled
-                ? '1px solid rgba(59, 130, 246, 0.4)'
-                : '1px solid rgba(255, 255, 255, 0.07)',
-              borderRadius: '12px',
-              padding: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: state.limiter.enabled ? '0 0 15px rgba(59, 130, 246, 0.1)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  border: '1px solid rgba(59, 130, 246, 0.5)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#60a5fa',
-                }}
-              >
-                <Shield size={20} />
-              </div>
+              {/* Dry/Wet Mix */}
               <div>
-                <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fdf4ff' }}>
-                  {loc.dynamicsStudio.limiterTitle}
+                <div className="mb-1 flex justify-between text-ui">
+                  <span className="text-slate-300">{loc.dynamicsStudio.dryWet}</span>
+                  <span className="font-bold text-amber-400">
+                    {Math.round(state.saturator.mix * 100)}% Wet
+                  </span>
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  {loc.dynamicsStudio.limiterDesc}
-                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={state.saturator.mix}
+                  onChange={(e) =>
+                    applyState({
+                      ...state,
+                      saturator: { ...state.saturator, mix: parseFloat(e.target.value) },
+                    })
+                  }
+                  className="w-full cursor-pointer accent-accent-amber"
+                />
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#60a5fa' }}>
-                Ceiling: {state.limiter.ceiling_db.toFixed(1)} dBFS
-              </span>
-              <button
-                onClick={() => {
-                  const newLim = !state.limiter.enabled;
-                  applyState({
-                    ...state,
-                    limiter: { ...state.limiter, enabled: newLim },
-                  });
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  background: state.limiter.enabled ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)',
-                  color: state.limiter.enabled ? '#ffffff' : '#94a3b8',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                }}
-              >
-                {state.limiter.enabled ? <Check size={13} /> : null}
-                {state.limiter.enabled ? loc.dynamicsStudio.active : loc.dynamicsStudio.off}
-              </button>
+            {/* WYKRES KRZYWEJ FALOWEJ WSUWAKÓW */}
+            <div className="flex flex-col items-center rounded-xl border border-white/8 bg-black/40 p-2">
+              <div className="mb-1 w-full text-left text-xxs text-fg-secondary">
+                {loc.dynamicsStudio.waveshaperCurve}
+              </div>
+              <svg width="280" height="140" className="overflow-visible">
+                {/* Osie x = 0 i y = 0 */}
+                <line x1="10" y1="70" x2="270" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                <line x1="140" y1="10" x2="140" y2="130" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                {/* Linia neutralna liniowa (szara przerywana) */}
+                <line x1="10" y1="130" x2="270" y2="10" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                {/* Dynamiczna krzywa nasycenia */}
+                <polyline
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="2.5"
+                  points={waveshaperCurvePoints}
+                />
+              </svg>
+              <div className="mt-1 flex w-full justify-between text-xxs text-fg-muted">
+                <span>-1.0</span>
+                <span>0.0</span>
+                <span>+1.0</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* STOPKA */}
+        {/* RACK 3: MASTER LIMITER SŁUCHAWKOWY */}
         <div
-          style={{
-            padding: '12px 24px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(0, 0, 0, 0.2)',
-          }}
+          className={cn(
+            'flex items-center justify-between rounded-xl border bg-white/3 p-4',
+            state.limiter.enabled ? 'border-blue-500/40' : 'border-white/7',
+            state.limiter.enabled ? 'shadow-halo-md shadow-blue-500/10' : 'shadow-none',
+          )}
         >
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            {loc.dynamicsStudio.realTimeTip}
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-500/50 bg-blue-500/20 text-blue-400"
+            >
+              <Shield size={20} />
+            </div>
+            <div>
+              <div className="text-md font-extrabold text-fuchsia-50">
+                {loc.dynamicsStudio.limiterTitle}
+              </div>
+              <div className="text-xs text-fg-secondary">
+                {loc.dynamicsStudio.limiterDesc}
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '8px',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              background: 'linear-gradient(90deg, #ec4899, #a855f7)',
-              border: 'none',
-              color: '#ffffff',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(236, 72, 153, 0.3)',
-            }}
-          >
-            {loc.dynamicsStudio.done}
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-blue-400">
+              Ceiling: {state.limiter.ceiling_db.toFixed(1)} dBFS
+            </span>
+            <button
+              onClick={() => {
+                const newLim = !state.limiter.enabled;
+                applyState({
+                  ...state,
+                  limiter: { ...state.limiter, enabled: newLim },
+                });
+              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-3xl border-0 px-3.5 py-1.5 text-xs font-bold',
+                state.limiter.enabled ? 'bg-blue-500' : 'bg-white/8',
+                state.limiter.enabled ? 'text-fg' : 'text-fg-secondary',
+              )}
+            >
+              {state.limiter.enabled ? <Check size={13} /> : null}
+              {state.limiter.enabled ? loc.dynamicsStudio.active : loc.dynamicsStudio.off}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* STOPKA */}
+      <div className="flex items-center justify-between border-t border-white/8 bg-black/20 px-6 py-3">
+        <div className="text-xs text-fg-muted">
+          {loc.dynamicsStudio.realTimeTip}
+        </div>
+
+        <button
+          onClick={onClose}
+          className="rounded-lg border-0 bg-linear-to-r from-pink-500 to-accent-purple px-5 py-2 text-ui font-bold text-fg shadow-lift shadow-pink-500/30"
+        >
+          {loc.dynamicsStudio.done}
+        </button>
+      </div>
+    </ModalShell>
   );
 };

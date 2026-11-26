@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo } from '../../types/updates';
+import { cn } from '../../utils/cn';
 
 export interface AboutSettingsViewProps {
   appIconStyle: 'lineout' | 'classic';
@@ -42,69 +43,40 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px', margin: '0 auto' }}>
-      <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+    <div className="mx-auto my-0 flex max-w-187.5 flex-col gap-5">
+      <div className="glass-card flex items-center gap-5 p-6">
         <img
           src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
           alt="Auralune Logo"
-          style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '16px',
-            objectFit: 'contain',
-            background: 'rgba(0, 0, 0, 0.3)',
-            boxShadow: appIconStyle === 'classic' ? '0 0 24px rgba(168, 85, 247, 0.55)' : '0 0 24px rgba(236, 72, 153, 0.55)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            padding: appIconStyle === 'classic' ? '0' : '4px',
-          }}
+          className={cn(
+            'h-16 w-16 rounded-2xl border border-white/20 bg-black/30 object-contain shadow-halo-xl',
+            appIconStyle === 'classic' ? 'shadow-accent-purple/55' : 'shadow-pink-500/55',
+            appIconStyle === 'classic' ? 'p-0' : 'p-1',
+          )}
         />
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 className="m-0 flex items-center gap-2 text-2xl font-extrabold">
             <span>Auralune</span>
-            <span style={{ color: 'var(--accent-pink)', fontSize: '1.15rem' }}>狐 Kitsune</span>
-            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))', color: '#fff', fontWeight: 800 }}>v{appVersion}</span>
+            <span className="text-lg text-accent-pink">狐 Kitsune</span>
+            <span className="rounded-xl bg-accent-gradient px-2 py-0.5 text-xs font-extrabold text-on-accent">v{appVersion}</span>
           </h3>
-          <p style={{ margin: '4px 0 0 0', color: 'var(--accent-pink)', fontSize: '0.88rem', fontWeight: 700 }}>
+          <p className="mx-0 mt-1 mb-0 text-sm font-bold text-accent-pink">
             {loc.settings.version} {appVersion}{buildInfo ? ` (${buildInfo.channel} • ${buildInfo.commit_short})` : ''} • {loc.settings.author}: Das Letzte Kemonomimi
           </p>
-          <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+          <p className="mx-0 mt-1.5 mb-0 text-ui leading-normal text-fg-secondary">
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics & real-time pitch/tempo modulation.
           </p>
-          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <button
               onClick={onOpenHealthCheck}
-              style={{
-                fontSize: '0.75rem',
-                padding: '4px 12px',
-                borderRadius: '6px',
-                background: 'rgba(34, 197, 94, 0.2)',
-                border: '1px solid rgba(34, 197, 94, 0.4)',
-                color: '#4ade80',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                cursor: 'pointer',
-              }}
+              className="flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/20 px-3 py-1 text-xs font-bold text-green-400"
             >
               <Activity size={13} />
               {loc.healthCheck.title}
             </button>
             <button
               onClick={onOpenChangelog}
-              style={{
-                fontSize: '0.75rem',
-                padding: '4px 12px',
-                borderRadius: '6px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                color: '#fff',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                border: 'none',
-                cursor: 'pointer',
-              }}
+              className="flex items-center gap-1.5 rounded-md border-0 bg-accent-gradient px-3 py-1 text-xs font-bold text-on-accent"
             >
               <History size={13} />
               {loc.settings.changelog}
@@ -114,54 +86,30 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
       </div>
 
       {/* Sekcja Twórczyni: Bandcamp & Aplikacja Sorta dla AuDHD / ADHD */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-3.5">
         {/* Karta Bandcamp: Muzyka Autorki */}
         <div
-          className="glass-card"
-          style={{
-            padding: '18px 20px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(244, 63, 94, 0.08) 100%)',
-            border: '1px solid rgba(168, 85, 247, 0.35)',
-            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.12)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
+          className="glass-card flex flex-col justify-between rounded-2xl border border-accent-purple/35 bg-linear-135 from-accent-purple/10 to-accent-pink/8 px-5 py-4.5 shadow-xl shadow-accent-purple/10"
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Music size={18} color="var(--accent-purple)" />
-                <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#fff' }}>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Music size={18} className="text-accent-purple" />
+                <h4 className="m-0 text-base font-extrabold text-fg">
                   {loc.settings.aboutBandcampTitle}
                 </h4>
               </div>
-              <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.25)', color: 'var(--accent-purple)', fontWeight: 700 }}>
+              <span className="rounded-sm bg-accent-purple/25 px-2 py-0.5 text-xxs font-bold text-accent-purple">
                 Bandcamp
               </span>
             </div>
-            <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
+            <p className="mx-0 mt-0 mb-3.5 text-ui leading-relaxed text-white/85">
               {loc.settings.aboutBandcampDesc}
             </p>
           </div>
           <button
             onClick={() => handleOpenExternalUrl('https://dasletztekemonomimi.bandcamp.com/track/skrzyd-a-bia-e')}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-              color: '#fff',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)',
-            }}
+            className="flex items-center justify-center gap-1.5 rounded-lg border-0 bg-linear-135 from-accent-purple to-accent-pink px-3.5 py-2 text-ui font-bold text-on-accent shadow-lift shadow-accent-purple/30"
           >
             <ExternalLink size={14} />
             {loc.settings.aboutBandcampBtn}
@@ -170,51 +118,27 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
 
         {/* Karta Sorta: Aplikacja dla AuDHD / ADHD */}
         <div
-          className="glass-card"
-          style={{
-            padding: '18px 20px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(236, 72, 153, 0.08) 100%)',
-            border: '1px solid rgba(6, 182, 212, 0.35)',
-            boxShadow: '0 4px 20px rgba(6, 182, 212, 0.12)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
+          className="glass-card flex flex-col justify-between rounded-2xl border border-accent-cyan/35 bg-linear-135 from-accent-cyan/10 to-pink-500/8 px-5 py-4.5 shadow-xl shadow-accent-cyan/10"
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <HeartHandshake size={18} color="var(--accent-cyan)" />
-                <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#fff' }}>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HeartHandshake size={18} className="text-accent-cyan" />
+                <h4 className="m-0 text-base font-extrabold text-fg">
                   Sorta • AuDHD & ADHD Focus
                 </h4>
               </div>
-              <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.25)', color: 'var(--accent-cyan)', fontWeight: 700 }}>
+              <span className="rounded-sm bg-accent-cyan/25 px-2 py-0.5 text-xxs font-bold text-accent-cyan">
                 AuDHD
               </span>
             </div>
-            <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
+            <p className="mx-0 mt-0 mb-3.5 text-ui leading-relaxed text-white/85">
               {loc.settings.aboutSortaDesc}
             </p>
           </div>
           <button
             onClick={() => handleOpenExternalUrl('https://sortaofficial.lovable.app/')}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-pink))',
-              color: '#fff',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
-            }}
+            className="flex items-center justify-center gap-1.5 rounded-lg border-0 bg-linear-135 from-accent-cyan to-accent-pink px-3.5 py-2 text-ui font-bold text-on-accent shadow-lift shadow-accent-cyan/30"
           >
             <ExternalLink size={14} />
             {loc.settings.aboutSortaBtn}
@@ -222,62 +146,62 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-        <div className="glass-card" style={{ padding: '16px' }}>
-          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+      <div className="grid grid-cols-2 gap-3.5">
+        <div className="glass-card p-4">
+          <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
             {loc.settings.aboutAudioEngine}
           </span>
-          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: '#fff' }}>
+          <p className="mx-0 mt-1.5 mb-0 text-sm font-semibold text-fg">
             GStreamer + PipeWire Pro Audio
           </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <p className="mx-0 mt-1 mb-0 text-xs text-fg-secondary">
             {loc.settings.aboutAudioEngineDesc}
           </p>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px' }}>
-          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+        <div className="glass-card p-4">
+          <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
             {loc.settings.aboutDsp}
           </span>
-          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+          <p className="mx-0 mt-1.5 mb-0 text-sm font-semibold text-accent-cyan">
             SoundTouch & Rubber Band
           </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <p className="mx-0 mt-1 mb-0 text-xs text-fg-secondary">
             {loc.settings.aboutDspDesc}
           </p>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px' }}>
-          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+        <div className="glass-card p-4">
+          <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
             {loc.settings.aboutLibrary}
           </span>
-          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-purple)' }}>
+          <p className="mx-0 mt-1.5 mb-0 text-sm font-semibold text-accent-purple">
             SQLite (sqlx) + Cover Art Archive
           </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <p className="mx-0 mt-1 mb-0 text-xs text-fg-secondary">
             {loc.settings.aboutLibraryDesc}
           </p>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px' }}>
-          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
+        <div className="glass-card p-4">
+          <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
             {loc.settings.aboutLicense}
           </span>
-          <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-green)' }}>
+          <p className="mx-0 mt-1.5 mb-0 text-sm font-semibold text-accent-green">
             GPL-3.0-or-later
           </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <p className="mx-0 mt-1 mb-0 text-xs text-fg-secondary">
             {loc.settings.aboutLicenseDesc}
           </p>
         </div>
       </div>
 
       {/* Karta Skrótów Klawiszowych */}
-      <div className="glass-card" style={{ padding: '20px' }}>
-        <h4 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
-          <Keyboard size={18} color="var(--accent-pink)" /> {loc.shortcuts.title}
+      <div className="glass-card p-5">
+        <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-base font-bold text-fg">
+          <Keyboard size={18} className="text-accent-pink" /> {loc.shortcuts.title}
         </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px', fontSize: '0.8rem' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-2.5 text-ui">
           {[
             { key: 'Space', desc: loc.shortcuts.playPause },
             { key: '← / →', desc: loc.shortcuts.seekFwdBack },
@@ -292,29 +216,11 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
           ].map((item, idx) => (
             <div
               key={idx}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-              }}
+              className="flex items-center justify-between rounded-lg border border-white/5 bg-white/3 px-2.5 py-1.5"
             >
-              <span style={{ color: 'var(--text-secondary)' }}>{item.desc}</span>
+              <span className="text-fg-secondary">{item.desc}</span>
               <kbd
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '5px',
-                  background: 'rgba(168, 85, 247, 0.15)',
-                  border: '1px solid rgba(168, 85, 247, 0.35)',
-                  color: 'var(--accent-pink)',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                }}
+                className="rounded-md border border-accent-purple/35 bg-accent-purple/15 px-2 py-0.5 font-mono text-xs font-bold text-accent-pink shadow-sm shadow-black/30"
               >
                 {item.key}
               </kbd>
@@ -325,55 +231,29 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
 
       {/* Karta Zastrzeżenia / Brak Gwarancji */}
       <div
-        style={{
-          padding: '18px 22px',
-          borderRadius: '14px',
-          background: 'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(234,88,12,0.06) 100%)',
-          border: '1px solid rgba(245,158,11,0.30)',
-          boxShadow: '0 4px 20px rgba(245,158,11,0.08)',
-        }}
+        className="rounded-2xl border border-accent-amber/30 bg-linear-135 from-accent-amber/8 to-orange-600/6 px-5.5 py-4.5 shadow-xl shadow-accent-amber/8"
       >
-        <h4 style={{
-          margin: '0 0 10px 0',
-          fontSize: '0.95rem',
-          fontWeight: 800,
-          color: '#fbbf24',
-          letterSpacing: '0.01em',
-        }}>
+        <h4 className="mx-0 mt-0 mb-2.5 text-md font-extrabold tracking-normal text-amber-400">
           {loc.settings.disclaimerTitle}
         </h4>
-        <p style={{
-          margin: 0,
-          fontSize: '0.78rem',
-          color: 'rgba(251,191,36,0.85)',
-          lineHeight: 1.7,
-        }}>
+        <p className="m-0 text-ui leading-relaxed text-amber-400/85">
           {loc.settings.disclaimerBody}
         </p>
       </div>
 
       {/* Karta Ponownego uruchomienia kreatora powitalnego */}
-      <div className="glass-card" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="glass-card flex items-center justify-between p-5">
         <div>
-          <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem' }}>
+          <div className="text-sm font-semibold text-fg">
             {loc.settings.aboutOnboardingTitle}
           </div>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <div className="mt-0.5 text-xs text-fg-muted">
             {loc.settings.aboutOnboardingDesc}
           </div>
         </div>
         <button
           onClick={onOpenOnboarding}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-cyan)',
-            cursor: 'pointer',
-          }}
+          className="rounded-lg border border-line bg-white/6 px-4 py-2 text-ui font-semibold text-accent-cyan"
         >
           {loc.settings.aboutOnboardingBtn}
         </button>

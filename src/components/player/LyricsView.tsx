@@ -19,6 +19,7 @@ import {
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
+import { cn } from '../../utils/cn';
 
 export interface LyricLineDto {
   time_ms: number;
@@ -266,78 +267,35 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        width: '100%',
-        minWidth: 0,
-        minHeight: 0,
-        maxWidth: '100%',
-        boxSizing: 'border-box',
-        background: 'var(--bg-surface)',
-        borderRadius: '16px',
-        border: '1px solid var(--border-subtle)',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-card)',
-        position: 'relative',
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-      }}
+      className="relative flex h-full min-h-0 w-full min-w-0 max-w-full transform-gpu flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-panel will-change-transform"
     >
       {/* Nagłówek okna tekstów */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          rowGap: '8px',
-          padding: '14px 20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          background: 'rgba(0, 0, 0, 0.35)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 180px' }}>
+      <div className="flex flex-wrap items-center justify-between gap-y-2 border-b border-line bg-black/35 px-5 py-3.5">
+        <div className="flex min-w-0 grow basis-45 items-center gap-2.5">
           <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-            }}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-accent-purple to-accent-pink text-on-accent"
           >
             <Mic2 size={18} />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="min-w-0">
+            <div className="truncate text-md font-bold text-fg">
               {trackTitle || loc.lyricsView.title}
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="truncate text-ui text-fg-secondary">
               {trackArtist}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', minWidth: 0 }}>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {lyrics && (
             <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                padding: '3px 8px',
-                borderRadius: '6px',
-                background: lyrics.is_synced ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-                color: lyrics.is_synced ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                border: `1px solid ${lyrics.is_synced ? 'rgba(6, 182, 212, 0.3)' : 'var(--border-subtle)'}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
+              className={cn(
+                'border',
+                'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold',
+                lyrics.is_synced ? 'bg-accent-cyan/15 text-accent-cyan' : 'bg-white/8 text-fg-secondary',
+                lyrics.is_synced ? 'border-accent-cyan/30' : 'border-line',
+              )}
             >
               {lyrics.is_synced ? <Radio size={12} /> : <FileText size={12} />}
               {lyrics.source === 'local_lrc'
@@ -352,20 +310,12 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <button
             onClick={() => setIsSyncMode(!isSyncMode)}
             title={loc.lyricsView.syncModeTitle}
-            style={{
-              background: isSyncMode ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255,255,255,0.06)',
-              border: `1px solid ${isSyncMode ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-              color: isSyncMode ? 'var(--accent-pink)' : 'var(--text-secondary)',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              transition: 'all 0.2s',
-            }}
+            className={cn(
+              'border',
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200',
+              isSyncMode ? 'bg-accent-pink/25 text-accent-pink' : 'bg-white/6 text-fg-secondary',
+              isSyncMode ? 'border-accent-pink' : 'border-line',
+            )}
           >
             <Clock size={13} />
             {isSyncMode ? loc.lyricsView.syncToggleClose : loc.lyricsView.syncToggleOpen}
@@ -375,18 +325,12 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             <button
               onClick={handleToggleAutoScroll}
               title={autoScroll ? loc.lyricsView.autoScrollOn : loc.lyricsView.autoScrollOff}
-              style={{
-                background: autoScroll ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-                border: `1px solid ${autoScroll ? 'var(--border-accent)' : 'var(--border-subtle)'}`,
-                color: autoScroll ? 'var(--accent-purple)' : 'var(--text-muted)',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '0.75rem',
-              }}
+              className={cn(
+                'border',
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs',
+                autoScroll ? 'bg-accent-purple/20 text-accent-purple' : 'bg-transparent text-fg-muted',
+                autoScroll ? 'border-line-accent' : 'border-line',
+              )}
             >
               {autoScroll ? <Lock size={13} /> : <Unlock size={13} />}
               {loc.lyricsView.autoScroll}
@@ -409,20 +353,12 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 ? loc.lyricsView.romajiModeRomaji
                 : loc.lyricsView.romajiModeDual
             }`}
-            style={{
-              background: romajiMode !== 'original' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.06)',
-              border: `1px solid ${romajiMode !== 'original' ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
-              color: romajiMode !== 'original' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              transition: 'all 0.2s',
-            }}
+            className={cn(
+              'border',
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200',
+              romajiMode !== 'original' ? 'bg-accent-cyan/20 text-accent-cyan' : 'bg-white/6 text-fg-secondary',
+              romajiMode !== 'original' ? 'border-accent-cyan' : 'border-line',
+            )}
           >
             <Languages size={13} />
             {romajiMode === 'original' ? 'あ Kana' : romajiMode === 'romaji' ? 'A Romaji' : 'あ/A Dual'}
@@ -431,14 +367,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <button
             onClick={loadLyrics}
             title={loc.lyricsView.refreshTooltip}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-secondary)',
-              padding: '6px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className="rounded-lg border border-line bg-transparent p-1.5 text-fg-secondary"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -446,14 +375,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <button
             onClick={onClose}
             title={loc.lyricsView.closeTooltip}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-secondary)',
-              padding: '6px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className="rounded-lg border border-line bg-transparent p-1.5 text-fg-secondary"
           >
             <X size={15} />
           </button>
@@ -462,96 +384,47 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
       {/* PASEK NARZĘDZI SYNCHRONIZACJI (Offset & Auto-Sync & Save) */}
       <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 18px',
-          background: 'rgba(0, 0, 0, 0.2)',
-          borderBottom: '1px solid var(--border-subtle)',
-          fontSize: '0.75rem',
-          gap: '8px',
-        }}
+        className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-black/20 px-4.5 py-2 text-xs"
       >
         {/* Korekta przesunięcia (Offset) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{loc.lyricsView.compensation}:</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-fg-muted">{loc.lyricsView.compensation}:</span>
           <button
             onClick={() => setOffsetMs((prev) => prev - 500)}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '5px',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
           >
             -500ms
           </button>
           <button
             onClick={() => setOffsetMs((prev) => prev - 100)}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '5px',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
           >
             -100ms
           </button>
           <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '5px',
-              background: offsetMs !== 0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.04)',
-              color: offsetMs !== 0 ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-            }}
+            className={cn(
+              'rounded-md px-2 py-0.5 font-mono font-bold',
+              offsetMs !== 0 ? 'bg-accent-cyan/20 text-accent-cyan' : 'bg-white/4 text-fg-secondary',
+            )}
           >
             {offsetMs > 0 ? `+${offsetMs}ms` : `${offsetMs}ms`}
           </span>
           <button
             onClick={() => setOffsetMs((prev) => prev + 100)}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '5px',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
           >
             +100ms
           </button>
           <button
             onClick={() => setOffsetMs((prev) => prev + 500)}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '5px',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
           >
             +500ms
           </button>
           {offsetMs !== 0 && (
             <button
               onClick={() => setOffsetMs(0)}
-              style={{
-                padding: '3px 7px',
-                borderRadius: '5px',
-                background: 'rgba(244,63,94,0.15)',
-                color: 'var(--accent-pink)',
-                border: '1px solid rgba(244,63,94,0.3)',
-                cursor: 'pointer',
-              }}
+              className="rounded-md border border-accent-pink/30 bg-accent-pink/15 px-2 py-1 text-accent-pink"
             >
               {loc.lyricsView.resetOffset}
             </button>
@@ -559,22 +432,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         </div>
 
         {/* Akcje Auto-Sync i Zapis pliku */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={handleAutoDistribute}
             title={loc.lyricsView.autoDistribute}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              background: 'rgba(168, 85, 247, 0.15)',
-              border: '1px solid rgba(168, 85, 247, 0.35)',
-              color: 'var(--accent-purple)',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
+            className="flex items-center gap-1 rounded-md border border-accent-purple/35 bg-accent-purple/15 px-2.5 py-1 font-semibold text-accent-purple"
           >
             <Wand2 size={13} /> {loc.lyricsView.autoDistribute}
           </button>
@@ -583,18 +445,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             <button
               onClick={handleSaveLrc}
               title={loc.lyricsView.saveLrc}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: 'var(--accent-green)',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
+              className="flex items-center gap-1 rounded-md border border-accent-green/35 bg-accent-green/15 px-2.5 py-1 font-semibold text-accent-green"
             >
               <Save size={13} /> {loc.lyricsView.saveLrc}
             </button>
@@ -605,16 +456,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       {/* Komunikat o sukcesie zapisu */}
       {saveSuccessMsg && (
         <div
-          style={{
-            background: 'rgba(16, 185, 129, 0.2)',
-            borderBottom: '1px solid rgba(16, 185, 129, 0.35)',
-            color: 'var(--accent-green)',
-            padding: '6px 16px',
-            fontSize: '0.78rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
+          className="flex items-center gap-1.5 border-b border-accent-green/35 bg-accent-green/20 px-4 py-1.5 text-ui text-accent-green"
         >
           <Check size={14} /> {saveSuccessMsg}
         </div>
@@ -623,49 +465,20 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       {/* PANEL AKTYWNEJ MANUALNEJ SYNCHRONIZACJI */}
       {isSyncMode && lyrics && lyrics.lines && lyrics.lines.length > 0 && (
         <div
-          style={{
-            background: 'rgba(244, 63, 94, 0.12)',
-            borderBottom: '1px solid rgba(244, 63, 94, 0.25)',
-            padding: '10px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-          }}
+          className="flex items-center justify-between gap-3 border-b border-accent-pink/25 bg-accent-pink/10 px-4.5 py-2.5"
         >
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--accent-pink)', fontWeight: 700, textTransform: 'uppercase' }}>
+          <div className="flex-1 overflow-hidden">
+            <span className="text-xs font-bold text-accent-pink uppercase">
               {loc.lyricsView.syncTargetLabel.replace('{i}', String(syncTargetIndex + 1)).replace('{n}', String(lyrics.lines.length))}:
             </span>
-            <div
-              style={{
-                fontSize: '0.88rem',
-                fontWeight: 600,
-                color: '#fff',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+            <div className="truncate text-sm font-semibold text-fg">
               {lyrics.lines[syncTargetIndex]?.text || loc.lyricsView.endOfLyrics}
             </div>
           </div>
 
           <button
             onClick={() => handleSetLineTime(syncTargetIndex, currentPositionMs)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: 'var(--accent-pink)',
-              color: '#fff',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 0 12px rgba(244, 63, 94, 0.4)',
-            }}
+            className="flex items-center gap-1.5 rounded-lg bg-accent-pink px-3.5 py-1.5 text-ui font-bold text-on-accent shadow-halo shadow-accent-pink/40"
           >
             <Clock size={14} /> {loc.lyricsView.clickAtTime}: {formatTimeLrc(currentPositionMs)}
           </button>
@@ -675,73 +488,22 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       {/* Główny obszar wyświetlania tekstu */}
       <div
         ref={scrollContainerRef}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          minWidth: 0,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          overflowWrap: 'anywhere',
-          padding: '30px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          alignItems: 'center',
-          textAlign: 'center',
-          userSelect: 'none',
-        }}
+        className="flex min-h-0 min-w-0 flex-1 select-none flex-col items-center gap-4 overflow-y-auto overflow-x-hidden px-6 py-7.5 text-center wrap-anywhere"
       >
         {loading && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              gap: '14px',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                border: '3px solid var(--border-subtle)',
-                borderTopColor: 'var(--accent-purple)',
-                animation: 'spin 1s linear infinite',
-              }}
-            />
-            <span style={{ fontSize: '0.88rem' }}>{loc.lyricsView.searching}</span>
+          <div className="flex h-full flex-col items-center justify-center gap-3.5 text-fg-secondary">
+            <div className="size-10 animate-spin rounded-full border-3 border-line border-t-accent-purple" />
+            <span className="text-sm">{loc.lyricsView.searching}</span>
           </div>
         )}
 
         {!loading && error && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              gap: '12px',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <AlertCircle size={32} color="var(--accent-pink)" />
-            <span style={{ fontSize: '0.9rem' }}>{loc.lyricsView.errorPrefix}: {error}</span>
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-fg-muted">
+            <AlertCircle size={32} className="text-accent-pink" />
+            <span className="text-sm">{loc.lyricsView.errorPrefix}: {error}</span>
             <button
               onClick={loadLyrics}
-              style={{
-                marginTop: '10px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-subtle)',
-                cursor: 'pointer',
-              }}
+              className="mt-2.5 rounded-lg border border-line bg-white/8 px-4 py-2 text-fg"
             >
               {loc.lyricsView.retry}
             </button>
@@ -749,20 +511,10 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         )}
 
         {!loading && !error && !lyrics && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              gap: '12px',
-              color: 'var(--text-muted)',
-            }}
-          >
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-fg-muted">
             <Music size={32} opacity={0.5} />
-            <span style={{ fontSize: '0.9rem' }}>{loc.lyricsView.noLyricsFound}</span>
-            <div style={{ fontSize: '0.78rem', maxWidth: '320px', lineHeight: 1.5 }}>
+            <span className="text-sm">{loc.lyricsView.noLyricsFound}</span>
+            <div className="max-w-80 text-ui leading-normal">
               {loc.lyricsView.noLyricsHint.replace('{file}', trackTitle ? `${trackTitle}.lrc` : 'track.lrc')}
             </div>
           </div>
@@ -770,19 +522,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
         {/* Tekst zsynchronizowany */}
         {!loading && lyrics?.is_synced && lyrics.lines && lyrics.lines.length > 0 && (
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '820px',
-              minWidth: 0,
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              paddingTop: '15vh',
-              paddingBottom: '25vh',
-            }}
-          >
+          <div className="flex w-full max-w-205 min-w-0 flex-col gap-3.5 pt-[15vh] pb-[25vh]">
             {lyrics.lines.map((line, idx) => {
               const isActive = idx === activeIndex;
               const isPast = idx < activeIndex;
@@ -792,43 +532,16 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 <div
                   key={`${line.time_ms}-${idx}`}
                   ref={isActive ? activeLineRef : null}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    minWidth: 0,
-                    maxWidth: '100%',
-                    boxSizing: 'border-box',
-                    overflowWrap: 'anywhere',
-                    padding: '8px 16px',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontSize: isActive ? '1.45rem' : '1.05rem',
-                    fontWeight: isActive ? 700 : 500,
-                    lineHeight: 1.45,
-                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: isActive
-                      ? 'var(--text-primary)'
-                      : isPast
-                      ? 'var(--text-secondary)'
-                      : 'var(--text-muted)',
-                    opacity: isActive ? 1 : isPast ? 0.65 : 0.45,
-                    transform: isActive ? 'scale(1.04)' : 'scale(1)',
-                    background: isTarget
-                      ? 'rgba(244, 63, 94, 0.18)'
-                      : isActive
-                      ? 'rgba(168, 85, 247, 0.12)'
-                      : 'transparent',
-                    textShadow: isActive
-                      ? '0 0 20px var(--accent-purple), 0 0 40px var(--accent-cyan)'
-                      : 'none',
-                    borderLeft: isActive
-                      ? '4px solid var(--accent-cyan)'
-                      : isTarget
-                      ? '4px solid var(--accent-pink)'
-                      : '4px solid transparent',
-                  }}
+                  className={cn(
+                    'border-l-4',
+                    'flex min-w-0 max-w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl px-4 py-2 leading-normal wrap-anywhere transition-all duration-200',
+                    isActive ? 'text-2xl font-bold' : 'text-base font-medium',
+                    isActive ? 'text-fg' : isPast ? 'text-fg-secondary' : 'text-fg-muted',
+                    isActive ? 'opacity-100' : isPast ? 'opacity-65' : 'opacity-45',
+                    isTarget ? 'bg-accent-pink/20' : isActive ? 'bg-accent-purple/10' : 'bg-transparent',
+                    isActive ? 'border-accent-cyan' : isTarget ? 'border-accent-pink' : 'border-transparent',
+                    isActive && 'scale-104 text-shadow-glow',
+                  )}
                   onClick={() => {
                     if (isSyncMode) {
                       setSyncTargetIndex(idx);
@@ -839,17 +552,8 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 >
                   {/* Znacznik czasu w trybie synchronizacji */}
                   {isSyncMode && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          fontFamily: 'var(--font-mono)',
-                          color: 'var(--text-muted)',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          background: 'rgba(255,255,255,0.06)',
-                        }}
-                      >
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded-sm bg-white/6 px-1.5 py-0.5 font-mono text-xs text-fg-muted">
                         {formatTimeLrc(Math.max(0, line.time_ms + offsetMs))}
                       </span>
                       <button
@@ -858,16 +562,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                           handleSetLineTime(idx, currentPositionMs);
                         }}
                         title={loc.lyricsView.syncLineTooltip}
-                        style={{
-                          padding: '3px 7px',
-                          borderRadius: '6px',
-                          background: 'rgba(244, 63, 94, 0.25)',
-                          color: 'var(--accent-pink)',
-                          border: '1px solid rgba(244, 63, 94, 0.4)',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
+                        className="rounded-md border border-accent-pink/40 bg-accent-pink/25 px-2 py-1 text-xxs font-bold text-accent-pink"
                       >
                         ⏱ {loc.lyricsView.syncLineAction}
                       </button>
@@ -876,32 +571,18 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
                   {/* Treść wersu tekstu z opcjonalną transliteracją Romaji */}
                   {romajiMode === 'original' ? (
-                    <span style={{ flex: 1, minWidth: 0 }}>{line.text}</span>
+                    <span className="min-w-0 flex-1">{line.text}</span>
                   ) : romajiMode === 'romaji' ? (
-                    <span style={{ flex: 1, minWidth: 0 }}>{toRomaji(line.text)}</span>
+                    <span className="min-w-0 flex-1">{toRomaji(line.text)}</span>
                   ) : (
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '2px',
-                      }}
-                    >
+                    <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
                       <span>{line.text}</span>
                       {hasJapaneseCharacters(line.text) && (
                         <span
-                          style={{
-                            fontSize: '0.72em',
-                            fontStyle: 'italic',
-                            fontWeight: 500,
-                            letterSpacing: '0.02em',
-                            color: isActive ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                            opacity: isActive ? 0.95 : 0.65,
-                            transition: 'color 0.2s, opacity 0.2s',
-                          }}
+                          className={cn(
+                            'text-[0.72em] font-medium tracking-wide italic transition-[color,opacity] duration-200',
+                            isActive ? 'text-accent-cyan opacity-95' : 'text-fg-secondary opacity-65',
+                          )}
                         >
                           {toRomaji(line.text)}
                         </span>
@@ -916,61 +597,22 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
         {/* Tekst statyczny (plain) z opcją konwersji do zsynchronizowanego */}
         {!loading && !lyrics?.is_synced && lyrics?.plain_lyrics && (
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '680px',
-              minWidth: 0,
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-              padding: '20px 0',
-            }}
-          >
+          <div className="flex w-full max-w-170 min-w-0 flex-col gap-5 px-0 py-5">
             <div
-              style={{
-                background: 'rgba(168, 85, 247, 0.1)',
-                border: '1px solid rgba(168, 85, 247, 0.25)',
-                borderRadius: '10px',
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
+              className="flex items-center justify-between rounded-xl border border-accent-purple/25 bg-accent-purple/10 px-4 py-3"
             >
-              <div style={{ textAlign: 'left', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <div className="text-left text-ui text-fg-secondary">
                 {loc.lyricsView.staticNotice}
               </div>
               <button
                 onClick={handleAutoDistribute}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  background: 'var(--accent-purple)',
-                  color: '#fff',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="flex items-center gap-1.5 rounded-lg bg-accent-purple px-3 py-1.5 text-ui font-semibold text-on-accent"
               >
                 <Wand2 size={13} /> {loc.lyricsView.autoSyncAction}
               </button>
             </div>
 
-            <div
-              style={{
-                whiteSpace: 'pre-line',
-                overflowWrap: 'anywhere',
-                lineHeight: 1.8,
-                fontSize: '1rem',
-                color: 'var(--text-primary)',
-                opacity: 0.9,
-              }}
-            >
+            <div className="text-base leading-loose whitespace-pre-line wrap-anywhere text-fg opacity-90">
               {romajiMode === 'original'
                 ? lyrics.plain_lyrics
                 : romajiMode === 'romaji'

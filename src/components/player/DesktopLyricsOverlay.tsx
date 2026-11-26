@@ -20,6 +20,7 @@ import { getTranslations } from '../../i18n';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
 import type { LyricsDto } from './LyricsView';
 import { useLivePositionMs } from '../../state/livePlayback';
+import { cn } from '../../utils/cn';
 
 interface DesktopLyricsOverlayProps {
   isOpen: boolean;
@@ -289,24 +290,17 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   return (
     <div
       onMouseDown={handleMouseDown}
+      className={cn(
+        'fixed z-120 max-w-[92vw] select-none overflow-hidden rounded-3xl border border-accent-purple/40 text-fg shadow-modal transition-[width,box-shadow] duration-300',
+        isCollapsed ? 'w-95' : 'w-155',
+        isLocked ? 'cursor-default' : 'cursor-grab',
+      )}
       style={{
-        position: 'fixed',
         left: `${pos.x}px`,
         top: `${pos.y}px`,
-        width: isCollapsed ? '380px' : '620px',
-        maxWidth: '92vw',
-        zIndex: 99998,
-        borderRadius: '20px',
         background: `rgba(10, 8, 22, ${bgAlpha})`,
         backdropFilter: `blur(${blurPx}) saturate(180%)`,
         WebkitBackdropFilter: `blur(${blurPx}) saturate(180%)`,
-        border: '1px solid rgba(168, 85, 247, 0.4)',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.65), 0 0 25px rgba(168, 85, 247, 0.25)',
-        color: '#fff',
-        userSelect: 'none',
-        overflow: 'hidden',
-        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease',
-        cursor: isLocked ? 'default' : 'grab',
       }}
     >
       {/* Pasek postępu audio na samej górze obramowania */}
@@ -317,92 +311,47 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
           onSeek(Math.floor(pct * durationMs));
         }}
-        style={{
-          width: '100%',
-          height: '3px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          cursor: 'pointer',
-          position: 'relative',
-        }}
+        className="relative h-1 w-full cursor-pointer bg-white/10"
         title={loc.waveform.hint}
       >
         <div
-          style={{
-            width: `${progress}%`,
-            height: '100%',
-            background: 'linear-gradient(90deg, var(--accent-pink), var(--accent-cyan))',
-            boxShadow: '0 0 8px var(--accent-cyan)',
-            transition: 'width 0.1s linear',
-          }}
+          className="h-full bg-linear-to-r from-accent-pink to-accent-cyan shadow-halo-sm shadow-accent-cyan transition-[width] duration-100"
+          style={{ width: `${progress}%` }}
         />
       </div>
 
       {/* Belka nagłówkowa (Uchwyt przeciągania + Mini kontrolki) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 14px',
-          background: 'rgba(0, 0, 0, 0.25)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          fontSize: '0.75rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
-          {!isLocked && <GripHorizontal size={14} color="var(--text-muted)" style={{ opacity: 0.7, flexShrink: 0 }} />}
+      <div className="flex items-center justify-between border-b border-white/6 bg-black/25 px-3.5 py-2 text-xs">
+        <div className="flex min-w-0 flex-auto items-center gap-2 overflow-hidden">
+          {!isLocked && <GripHorizontal size={14} className="shrink-0 text-fg-muted opacity-70" />}
           {coverUrl ? (
             <img
               src={coverUrl}
               alt=""
-              style={{ width: '18px', height: '18px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }}
+              className="h-4.5 w-4.5 shrink-0 rounded-sm object-cover"
             />
           ) : (
-            <Music size={14} color="var(--accent-pink)" style={{ flexShrink: 0 }} />
+            <Music size={14} className="shrink-0 text-accent-pink" />
           )}
-          <span
-            style={{
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              flexShrink: 1,
-            }}
-          >
+          <span className="shrink truncate font-bold text-fg">
             {trackTitle || 'Auralune'}
           </span>
-          <span
-            style={{
-              color: 'var(--text-muted)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              flexShrink: 2,
-            }}
-          >
+          <span className="shrink-2 truncate text-fg-muted">
             • {trackArtist}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        <div className="flex shrink-0 items-center gap-1">
           {/* Romaji Switcher Button */}
           <button
             onClick={handleCycleRomaji}
             title={`${loc.lyricsView.romajiModeTooltip}: ${romajiMode}`}
-            style={{
-              background: romajiMode !== 'original' ? 'rgba(6, 182, 212, 0.2)' : 'transparent',
-              border: `1px solid ${romajiMode !== 'original' ? 'var(--accent-cyan)' : 'transparent'}`,
-              color: romajiMode !== 'original' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              borderRadius: '6px',
-              padding: '3px 6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              fontSize: '0.68rem',
-              fontWeight: 600,
-            }}
+            className={cn(
+              'border',
+              'flex items-center gap-1 rounded-md px-1.5 py-1 text-xxs font-semibold',
+              romajiMode !== 'original' ? 'bg-accent-cyan/20 text-accent-cyan' : 'bg-transparent text-fg-muted',
+              romajiMode !== 'original' ? 'border-accent-cyan' : 'border-transparent',
+            )}
           >
             <Languages size={11} />
             {romajiMode === 'original' ? 'Kana' : romajiMode === 'romaji' ? 'Romaji' : 'Dual'}
@@ -412,15 +361,10 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <button
             onClick={() => setShowSettings(!showSettings)}
             title={loc.desktopOverlay.title}
-            style={{
-              background: showSettings ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-              border: 'none',
-              color: showSettings ? 'var(--accent-purple)' : 'var(--text-muted)',
-              borderRadius: '6px',
-              padding: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-            }}
+            className={cn(
+              'flex rounded-md border-0 p-1',
+              showSettings ? 'bg-accent-purple/20 text-accent-purple' : 'bg-transparent text-fg-muted',
+            )}
           >
             <Sliders size={13} />
           </button>
@@ -429,15 +373,10 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <button
             onClick={handleToggleLock}
             title={isLocked ? loc.desktopOverlay.unlockPosition : loc.desktopOverlay.lockPosition}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: isLocked ? 'var(--accent-pink)' : 'var(--text-muted)',
-              borderRadius: '6px',
-              padding: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-            }}
+            className={cn(
+              'flex rounded-md border-0 bg-transparent p-1',
+              isLocked ? 'text-accent-pink' : 'text-fg-muted',
+            )}
           >
             {isLocked ? <Lock size={13} /> : <Unlock size={13} />}
           </button>
@@ -446,15 +385,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <button
             onClick={handleToggleCollapse}
             title={isCollapsed ? 'Expand' : 'Collapse'}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              borderRadius: '6px',
-              padding: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-            }}
+            className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted"
           >
             {isCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
           </button>
@@ -463,15 +394,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <button
             onClick={onClose}
             title={loc.desktopOverlay.closeTooltip}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              borderRadius: '6px',
-              padding: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-            }}
+            className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted"
           >
             <X size={13} />
           </button>
@@ -480,58 +403,33 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
       {/* Panel ustawień wyglądu (czcionka i przezroczystość) */}
       {showSettings && (
-        <div
-          style={{
-            padding: '8px 16px',
-            background: 'rgba(0,0,0,0.4)',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.72rem',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>{loc.desktopOverlay.fontSize}:</span>
+        <div className="flex items-center justify-between gap-3 border-b border-white/6 bg-black/40 px-4 py-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="text-fg-muted">{loc.desktopOverlay.fontSize}:</span>
             {(['sm', 'md', 'lg'] as FontSize[]).map((sz) => (
               <button
                 key={sz}
                 onClick={() => handleSelectFontSize(sz)}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: fontSize === sz ? 'var(--accent-purple)' : 'rgba(255,255,255,0.06)',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.68rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                }}
+                className={cn(
+                  'rounded-sm border-0 px-2 py-0.5 text-xxs font-semibold text-fg uppercase',
+                  fontSize === sz ? 'bg-accent-purple' : 'bg-white/6',
+                )}
               >
                 {sz}
               </button>
             ))}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>{loc.desktopOverlay.opacity}:</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-fg-muted">{loc.desktopOverlay.opacity}:</span>
             {(['low', 'med', 'high'] as OpacityLevel[]).map((op) => (
               <button
                 key={op}
                 onClick={() => handleSelectOpacity(op)}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: opacityLevel === op ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.06)',
-                  color: opacityLevel === op ? '#000' : '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.68rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                }}
+                className={cn(
+                  'rounded-sm border-0 px-2 py-0.5 text-xxs font-semibold uppercase',
+                  opacityLevel === op ? 'bg-accent-cyan text-black' : 'bg-white/6 text-fg',
+                )}
               >
                 {op}
               </button>
@@ -542,48 +440,34 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
       {/* Główny obszar wersu tekstu */}
       <div
-        style={{
-          padding: isCollapsed ? '10px 18px' : '16px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: '6px',
-        }}
+        className={cn(
+          'flex flex-col items-center gap-1.5 text-center',
+          isCollapsed ? 'px-4.5 py-2.5' : 'px-6 py-4',
+        )}
       >
         {loading && (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <div className="text-sm text-fg-muted">
             {loc.lyricsView.searching}
           </div>
         )}
 
         {!loading && !currentLine && (
-          <div
-            style={{
-              color: 'var(--text-muted)',
-              fontSize: '0.9rem',
-              fontWeight: 500,
-              fontStyle: 'italic',
-            }}
-          >
+          <div className="text-sm font-medium text-fg-muted italic">
             {lyrics?.plain_lyrics ? lyrics.plain_lyrics.split('\n')[0] : loc.desktopOverlay.noLyrics}
           </div>
         )}
 
         {!loading && currentLine && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', width: '100%' }}>
+          <div className="flex w-full flex-col items-center gap-1">
             {/* Główny wers z neonowym gradientem karaoke */}
             <div
+              className="leading-snug font-extrabold tracking-tight transition-all duration-200"
               style={{
                 fontSize: fontSizeMain,
-                fontWeight: 800,
-                lineHeight: 1.35,
                 background: 'linear-gradient(135deg, #ffffff 10%, #f472b6 60%, #38bdf8 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 textShadow: '0 0 16px rgba(244, 63, 94, 0.4), 0 0 30px rgba(6, 182, 212, 0.3)',
-                letterSpacing: '-0.01em',
-                transition: 'all 0.2s ease',
               }}
             >
               {romajiMode === 'romaji'
@@ -594,14 +478,8 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
             {/* Transliteracja Romaji w trybie dwuwiersza */}
             {romajiMode === 'dual' && hasJapaneseCharacters(currentLine.text) && (
               <div
-                style={{
-                  fontSize: fontSizeRomaji,
-                  fontStyle: 'italic',
-                  fontWeight: 600,
-                  color: 'var(--accent-cyan)',
-                  textShadow: '0 0 12px rgba(6, 182, 212, 0.5)',
-                  letterSpacing: '0.03em',
-                }}
+                className="font-semibold tracking-wide text-accent-cyan italic"
+                style={{ fontSize: fontSizeRomaji, textShadow: '0 0 12px rgba(6, 182, 212, 0.5)' }}
               >
                 {toRomaji(currentLine.text)}
               </div>
@@ -609,20 +487,8 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
             {/* Podgląd nadchodzącego wersu (Upcoming preview) w trybie rozwiniętym */}
             {!isCollapsed && nextLine && (
-              <div
-                style={{
-                  marginTop: '6px',
-                  fontSize: '0.82rem',
-                  fontWeight: 500,
-                  color: 'var(--text-muted)',
-                  opacity: 0.6,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '90%',
-                }}
-              >
-                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', marginRight: '6px', color: 'var(--accent-pink)' }}>
+              <div className="mt-1.5 max-w-9/10 truncate text-ui font-medium text-fg-muted opacity-60">
+                <span className="mr-1.5 text-xs text-accent-pink uppercase">
                   {loc.desktopOverlay.upcoming}
                 </span>
                 {romajiMode === 'romaji' ? toRomaji(nextLine.text) : nextLine.text}
@@ -634,29 +500,11 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
       {/* Dolny mikro-pasek sterowania (w trybie rozwiniętym) */}
       {!isCollapsed && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '16px',
-            padding: '6px 16px 10px 16px',
-          }}
-        >
+        <div className="flex items-center justify-center gap-4 px-4 pt-1.5 pb-2.5">
           <button
             onClick={onPrev}
             title={loc.player.previous}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'color 0.2s',
-            }}
+            className="flex items-center justify-center border-0 bg-transparent p-1 text-fg-muted transition-colors duration-200"
           >
             <SkipBack size={15} />
           </button>
@@ -664,37 +512,15 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <button
             onClick={onPlayPause}
             title={isPlaying ? loc.player.pause : loc.player.play}
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 12px rgba(244, 63, 94, 0.45)',
-            }}
+            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent shadow-halo shadow-accent-pink/45"
           >
-            {isPlaying ? <Pause size={13} /> : <Play size={13} style={{ marginLeft: '1px' }} />}
+            {isPlaying ? <Pause size={13} /> : <Play size={13} className="ml-px" />}
           </button>
 
           <button
             onClick={onNext}
             title={loc.player.next}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'color 0.2s',
-            }}
+            className="flex items-center justify-center border-0 bg-transparent p-1 text-fg-muted transition-colors duration-200"
           >
             <SkipForward size={15} />
           </button>

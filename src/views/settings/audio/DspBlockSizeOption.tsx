@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, RotateCcw } from 'lucide-react';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import { cn } from '../../../utils/cn';
 
 export type DspBlockSizeOptionProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'dspBlockSize' | 'onSetDspBlockSize'>;
 
@@ -9,49 +10,37 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
   loc,
   onSetDspBlockSize,
 }) => (
-    <div
-      className="glass-card"
-      style={{
-        padding: '18px 20px',
-        marginBottom: '14px',
-        borderRadius: '12px',
-        border: '1px solid var(--border-subtle)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+    <div className="glass-card mb-3.5 rounded-xl border border-line px-5 py-4.5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={17} color="var(--accent-pink)" />
+          <div className="mb-1 flex items-center gap-2 text-md font-bold text-fg">
+            <Activity size={17} className="text-accent-pink" />
             {loc.settings.dspBlockSizeTitle}
             {dspBlockSize === 2048 && (
-              <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
+              <span className="rounded-xl bg-accent-green/20 px-2 py-0.5 text-xxs font-semibold text-accent-green">
                 {loc.settings.dspBlockSizeDefault}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '520px', lineHeight: 1.4 }}>
+          <div className="max-w-130 text-ui leading-snug text-fg-secondary">
             {loc.settings.dspBlockSizeDesc}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.05rem', fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'text-base font-bold',
+            dspBlockSize === 2048 ? 'text-accent-green' : 'text-accent-cyan',
+          )}>
             {dspBlockSize} {loc.settings.dspBlockSizeFrames}
           </span>
           <button
             onClick={() => onSetDspBlockSize(2048)}
             disabled={dspBlockSize === 2048}
-            className="glass-card"
-            style={{
-              padding: '6px 10px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              opacity: dspBlockSize === 2048 ? 0.4 : 1,
-              cursor: dspBlockSize === 2048 ? 'default' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              color: 'var(--accent-green)',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-accent-green',
+              dspBlockSize === 2048 ? 'opacity-40' : 'opacity-100',
+              dspBlockSize === 2048 ? 'cursor-default' : 'cursor-pointer',
+            )}
             title={loc.settings.dspBlockSizeReset}
           >
             <RotateCcw size={12} /> {loc.settings.dspBlockSizeDefaultLabel}
@@ -60,7 +49,7 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
       </div>
 
       {/* Szybkie presety bloku DSP */}
-      <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         {[
           { label: loc.settings.dspBlockPreset512, value: 512 },
           { label: loc.settings.dspBlockPreset1024, value: 1024 },
@@ -73,23 +62,13 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
             <button
               key={preset.value}
               onClick={() => onSetDspBlockSize(preset.value)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.74rem',
-                fontWeight: isActive ? 700 : 500,
-                background: isActive
-                  ? (preset.isDefault ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.25)')
-                  : 'rgba(255, 255, 255, 0.04)',
-                border: isActive
-                  ? (preset.isDefault ? '1px solid var(--accent-green)' : '1px solid var(--accent-cyan)')
-                  : '1px solid var(--border-subtle)',
-                color: isActive
-                  ? (preset.isDefault ? 'var(--accent-green)' : 'var(--accent-cyan)')
-                  : 'var(--text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={cn(
+                'rounded-md border px-3 py-1.5 text-xs transition-all duration-150',
+                isActive ? 'font-bold' : 'font-medium',
+                isActive ? preset.isDefault ? 'bg-accent-green/25' : 'bg-sky-400/25' : 'bg-white/4',
+                isActive ? preset.isDefault ? 'border-accent-green' : 'border-accent-cyan' : 'border-line',
+                isActive ? preset.isDefault ? 'text-accent-green' : 'text-accent-cyan' : 'text-fg-secondary',
+              )}
             >
               {preset.label}
             </button>
@@ -97,8 +76,8 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
         })}
 
         {/* Pole ręcznego wpisania dowolnej wielkości */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-xs text-fg-muted">
             {loc.settings.dspBlockCustom}
           </span>
           <input
@@ -108,16 +87,7 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
             step={256}
             value={dspBlockSize}
             onChange={(e) => onSetDspBlockSize(Number(e.target.value))}
-            style={{
-              width: '80px',
-              padding: '5px 8px',
-              borderRadius: '6px',
-              fontSize: '0.78rem',
-              textAlign: 'center',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
-            }}
+            className="w-20 rounded-md border border-line bg-white/5 px-2 py-1.5 text-center text-ui text-fg"
           />
         </div>
       </div>

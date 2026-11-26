@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowUpDown, Clock, Disc, LayoutGrid, List, Play, Plus, Search, Sparkles } from 'lucide-react';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type LibraryAlbumGridProps = Pick<LibraryViewProps, 'sortedAlbums' | 'albums' | 'loc' | 'albumsWithCoverCount' | 'albumsWithoutCoverCount' | 'albumCoverFilter' | 'setAlbumCoverFilter' | 'albumSortField' | 'setAlbumSortField' | 'setAlbumSortOrder' | 'albumSortOrder' | 'albumViewMode' | 'albumGridSize' | 'setAlbumGridSize' | 'setAlbumViewMode' | 'librarySearch' | 'setLibrarySearch' | 'tracks' | 'handleOpenAlbumDetail' | 'handlePlayAlbum' | 'handleAddAlbumToQueue' | 'handleOpenCoverPicker' | 'handleOpenMbModal'> & {
   formatAlbumDuration: (ms: number) => string;
@@ -37,39 +38,18 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
       <div>
         {/* Pasek narzędziowy widoku albumów: Filtry, Sortowanie, Rozmiar kafelków, Przełącznik Kafelki/Lista */}
         <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-            flexWrap: 'wrap',
-            gap: '12px',
-            padding: '10px 14px',
-            background: 'rgba(255, 255, 255, 0.025)',
-            borderRadius: '12px',
-            border: '1px solid var(--border-subtle)',
-          }}
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white/3 px-3.5 py-2.5"
         >
           {/* Lewa strona: Licznik albumów + szybki filtr okładek */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700 }}>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-ui font-bold text-fg">
               {sortedAlbums.length !== albums.length
                 ? fmt(loc.library.resultsAlbums, String(sortedAlbums.length), String(albums.length))
                 : fmt(loc.library.totalAlbums, String(albums.length))}
             </span>
 
             {/* Filtr okładek */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                padding: '3px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
+            <div className="flex items-center gap-1 rounded-lg border border-line bg-white/4 p-1">
               {[
                 { id: 'all', label: fmt(loc.library.albumFilterAll, String(albums.length)) },
                 { id: 'with-cover', label: fmt(loc.library.albumFilterWithCover, String(albumsWithCoverCount)) },
@@ -80,17 +60,13 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   <button
                     key={f.id}
                     onClick={() => setAlbumCoverFilter(f.id as any)}
-                    style={{
-                      padding: '3px 9px',
-                      borderRadius: '6px',
-                      fontSize: '0.70rem',
-                      fontWeight: isActive ? 700 : 500,
-                      background: isActive ? 'rgba(236, 72, 153, 0.22)' : 'transparent',
-                      border: isActive ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                      color: isActive ? 'var(--accent-pink)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
+                    className={cn(
+                      'rounded-md border px-2.5 py-1 text-xxs transition-all duration-150',
+                      isActive ? 'font-bold' : 'font-medium',
+                      isActive ? 'bg-pink-500/20' : 'bg-transparent',
+                      isActive ? 'border-accent-pink' : 'border-transparent',
+                      isActive ? 'text-accent-pink' : 'text-fg-secondary',
+                    )}
                   >
                     {f.label}
                   </button>
@@ -100,70 +76,36 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
           </div>
 
           {/* Prawa strona: Sortowanie + Rozmiar kafelków + Wybór Kafelki / Lista */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-2">
             {/* Sortowanie */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ArrowUpDown size={13} color="var(--text-muted)" />
+            <div className="flex items-center gap-1.5">
+              <ArrowUpDown size={13} className="text-fg-muted" />
               <select
                 value={albumSortField}
                 onChange={(e) => setAlbumSortField(e.target.value as any)}
-                style={{
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  padding: '5px 28px 5px 10px',
-                  borderRadius: '6px',
-                  background: 'rgba(20, 24, 44, 0.95)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#ffffff',
-                  fontSize: '0.74rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 8px center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                }}
+                className="cursor-pointer rounded-md border border-line pl-2.5 pr-7 py-1.5 text-xs font-semibold text-fg shadow-md shadow-black/30"
               >
-                <option value="title" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortTitle}</option>
-                <option value="artist" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortArtist}</option>
-                <option value="year" style={{ background: '#121424', color: '#fff' }}>{loc.library.albumSortYear}</option>
-                <option value="tracks" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortTrackCount}</option>
-                <option value="duration" style={{ background: '#121424', color: '#fff' }}>{loc.library.sortTotalDuration}</option>
+                <option value="title">{loc.library.albumSortTitle}</option>
+                <option value="artist">{loc.library.albumSortArtist}</option>
+                <option value="year">{loc.library.albumSortYear}</option>
+                <option value="tracks">{loc.library.sortTrackCount}</option>
+                <option value="duration">{loc.library.sortTotalDuration}</option>
               </select>
               <button
                 onClick={() => setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '6px',
-                  padding: '4px 8px',
-                  color: 'var(--accent-cyan)',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                className="rounded-md border border-line bg-white/6 px-2 py-1 text-xs font-bold text-accent-cyan"
                 title={albumSortOrder === 'asc' ? loc.library.sortAscTooltip : loc.library.sortDescTooltip}
               >
                 {albumSortOrder === 'asc' ? '▲' : '▼'}
               </button>
             </div>
 
-            <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
+            <div className="mx-1 my-0 h-4.5 w-px bg-white/10" />
 
             {/* Rozmiar kafelków (widoczny w trybie kafelków) */}
             {albumViewMode === 'grid' && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  padding: '2px 4px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginRight: '2px', paddingLeft: '4px' }}>
+              <div className="flex items-center gap-1 rounded-lg border border-line bg-white/4 px-1 py-0.5">
+                <span className="mr-0.5 pl-1 text-xxs text-fg-muted">
                   {loc.library.albumGridSize}
                 </span>
                 {[
@@ -179,16 +121,13 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                         setAlbumGridSize(s.id as any);
                         localStorage.setItem('auralune_album_grid_size', s.id);
                       }}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '5px',
-                        fontSize: '0.70rem',
-                        fontWeight: isCur ? 700 : 500,
-                        background: isCur ? 'rgba(56, 189, 248, 0.22)' : 'transparent',
-                        border: isCur ? '1px solid var(--accent-cyan)' : '1px solid transparent',
-                        color: isCur ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xxs',
+                        isCur ? 'font-bold' : 'font-medium',
+                        isCur ? 'bg-sky-400/20' : 'bg-transparent',
+                        isCur ? 'border-accent-cyan' : 'border-transparent',
+                        isCur ? 'text-accent-cyan' : 'text-fg-secondary',
+                      )}
                       title={s.title}
                     >
                       {s.label}
@@ -199,35 +138,19 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
             )}
 
             {/* Przełącznik widoku: Kafelki vs Lista */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                padding: '2px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
+            <div className="flex items-center gap-1 rounded-lg border border-line bg-white/5 p-0.5">
               <button
                 onClick={() => {
                   setAlbumViewMode('grid');
                   localStorage.setItem('auralune_album_view_mode', 'grid');
                 }}
-                style={{
-                  padding: '5px 9px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '0.72rem',
-                  fontWeight: albumViewMode === 'grid' ? 700 : 500,
-                  background: albumViewMode === 'grid' ? 'rgba(236, 72, 153, 0.25)' : 'transparent',
-                  border: albumViewMode === 'grid' ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                  color: albumViewMode === 'grid' ? 'var(--accent-pink)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                }}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs',
+                  albumViewMode === 'grid' ? 'font-bold' : 'font-medium',
+                  albumViewMode === 'grid' ? 'bg-pink-500/25' : 'bg-transparent',
+                  albumViewMode === 'grid' ? 'border-accent-pink' : 'border-transparent',
+                  albumViewMode === 'grid' ? 'text-accent-pink' : 'text-fg-secondary',
+                )}
                 title={loc.library.viewGridView}
               >
                 <LayoutGrid size={13} />
@@ -239,19 +162,13 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   setAlbumViewMode('list');
                   localStorage.setItem('auralune_album_view_mode', 'list');
                 }}
-                style={{
-                  padding: '5px 9px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '0.72rem',
-                  fontWeight: albumViewMode === 'list' ? 700 : 500,
-                  background: albumViewMode === 'list' ? 'rgba(236, 72, 153, 0.25)' : 'transparent',
-                  border: albumViewMode === 'list' ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                  color: albumViewMode === 'list' ? 'var(--accent-pink)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                }}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs',
+                  albumViewMode === 'list' ? 'font-bold' : 'font-medium',
+                  albumViewMode === 'list' ? 'bg-pink-500/25' : 'bg-transparent',
+                  albumViewMode === 'list' ? 'border-accent-pink' : 'border-transparent',
+                  albumViewMode === 'list' ? 'text-accent-pink' : 'text-fg-secondary',
+                )}
                 title={loc.library.viewListView}
               >
                 <List size={13} />
@@ -263,26 +180,18 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
 
         {/* Zawartość: Pusta lista lub Kafelki lub Lista */}
         {sortedAlbums.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+          <div className="p-12 text-center text-fg-muted">
             {albums.length === 0 ? (
               <span>{loc.library.emptyAlbums}</span>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              <div className="flex flex-col items-center gap-2.5">
                 <span>{fmt(loc.library.emptySearchAlbums, librarySearch)}</span>
                 <button
                   onClick={() => {
                     setLibrarySearch('');
                     setAlbumCoverFilter('all');
                   }}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--accent-cyan)',
-                    fontSize: '0.78rem',
-                    cursor: 'pointer',
-                  }}
+                  className="rounded-md border border-line bg-white/8 px-3 py-1.5 text-ui text-accent-cyan"
                 >
                   {loc.library.clearSearch}
                 </button>
@@ -291,7 +200,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
           </div>
         ) : albumViewMode === 'list' ? (
           /* WIDOK LISTY ALBUMÓW */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="flex flex-col gap-2">
             {sortedAlbums.map((album) => {
               const albumTracks = tracks.filter((t) => t.album_id === album.id);
               const totalDurMs = albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
@@ -300,159 +209,82 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
               return (
                 <div
                   key={album.id}
-                  className="glass-card"
+                  className="glass-card flex cursor-pointer items-center gap-4 rounded-xl border border-white/5 px-4 py-2.5 transition-all duration-200"
                   onClick={() => handleOpenAlbumDetail(album)}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    cursor: 'pointer',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    transition: 'all 0.18s ease',
-                  }}
                 >
                   {/* Miniaturka okładki */}
                   <div
+                    className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-lg border border-line"
                     style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '8px',
                       background: album.cover_path
                         ? `url("${album.cover_path}") center/cover no-repeat`
                         : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid var(--border-subtle)',
-                      flexShrink: 0,
-                      position: 'relative',
                     }}
                     title={loc.covers.matchCoverTitle}
                   >
-                    {!album.cover_path && <Disc size={24} color="rgba(255,255,255,0.25)" />}
+                    {!album.cover_path && <Disc size={24} className="text-white/25" />}
                   </div>
 
                   {/* Informacje o albumie */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-md font-bold text-fg">
                         {album.title}
                       </span>
                       {album.year && (
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        <span className="text-xs font-semibold text-fg-muted">
                           ({album.year})
                         </span>
                       )}
                       {album.release_mbid && (
-                        <span
-                          style={{
-                            fontSize: '0.64rem',
-                            fontFamily: 'var(--font-mono)',
-                            color: 'var(--accent-cyan)',
-                            background: 'rgba(6,182,212,0.12)',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                          }}
-                        >
+                        <span className="rounded-sm bg-accent-cyan/10 px-1.5 py-px font-mono text-2xs text-accent-cyan">
                           MBID
                         </span>
                       )}
                     </div>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '3px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <p className="mx-0 mt-1 mb-0 truncate text-ui text-fg-secondary">
                       {album.album_artist}
                     </p>
                   </div>
 
                   {/* Liczba utworów i czas */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--accent-cyan)',
-                        background: 'rgba(6,182,212,0.12)',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 600,
-                      }}
-                    >
+                  <div className="flex shrink-0 items-center gap-2.5">
+                    <span className="rounded-md bg-accent-cyan/10 px-2 py-1 text-xs font-semibold text-accent-cyan">
                       {albumTracks.length} {loc.library.tracks}
                     </span>
                     {durText && (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="flex items-center gap-1 text-xs text-fg-muted">
                         <Clock size={11} /> {durText}
                       </span>
                     )}
                   </div>
 
                   {/* Przyciski akcji */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                  <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handlePlayAlbum(albumTracks)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: 'var(--accent-pink)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        cursor: 'pointer',
-                      }}
+                      className="flex items-center gap-1.5 rounded-md bg-white/8 px-3 py-1.5 text-xs font-semibold text-accent-pink"
                       title={loc.player.play}
                     >
                       <Play size={12} /> {loc.player.play}
                     </button>
                     <button
                       onClick={() => handleAddAlbumToQueue(albumTracks)}
-                      style={{
-                        padding: '6px 9px',
-                        borderRadius: '6px',
-                        background: 'rgba(255,255,255,0.05)',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                      }}
+                      className="rounded-md bg-white/5 px-2.5 py-1.5 text-xs text-accent-cyan"
                       title={loc.library.addToQueue}
                     >
                       <Plus size={13} />
                     </button>
                     <button
                       onClick={() => handleOpenCoverPicker(album)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        color: '#fff',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
+                      className="flex items-center gap-1 rounded-md border-0 bg-accent-gradient px-2.5 py-1.5 text-xs font-semibold text-on-accent"
                       title={loc.covers.matchCoverTitle}
                     >
                       <Sparkles size={11} /> {loc.covers.matchCover}
                     </button>
                     <button
                       onClick={() => handleOpenMbModal(album)}
-                      style={{
-                        padding: '6px 9px',
-                        borderRadius: '6px',
-                        background: 'rgba(255,255,255,0.06)',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        cursor: 'pointer',
-                      }}
+                      className="flex items-center gap-1 rounded-md bg-white/6 px-2.5 py-1.5 text-xs font-semibold text-fg-secondary"
                       title={loc.covers.matchCoverTitle}
                     >
                       <Search size={11} /> MBID
@@ -465,16 +297,11 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
         ) : (
           /* WIDOK KAFELKÓW (Zabezpieczony przed rozciąganiem - auto-fill z limitem max-width) */
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                albumGridSize === 'compact'
-                  ? 'repeat(auto-fill, minmax(155px, 190px))'
-                  : albumGridSize === 'large'
-                    ? 'repeat(auto-fill, minmax(240px, 290px))'
-                    : 'repeat(auto-fill, minmax(190px, 235px))',
-              gap: albumGridSize === 'compact' ? '12px' : albumGridSize === 'large' ? '18px' : '14px',
-            }}
+            className={cn(
+              'grid',
+              albumGridSize === 'compact' ? 'grid-cols-[repeat(auto-fill,minmax(--spacing(39),--spacing(47.5)))]' : albumGridSize === 'large' ? 'grid-cols-[repeat(auto-fill,minmax(--spacing(60),--spacing(72.5)))]' : 'grid-cols-[repeat(auto-fill,minmax(--spacing(47.5),--spacing(59)))]',
+              albumGridSize === 'compact' ? 'gap-3' : albumGridSize === 'large' ? 'gap-4.5' : 'gap-3.5',
+            )}
           >
             {sortedAlbums.map((album) => {
               const albumTracks = tracks.filter((t) => t.album_id === album.id);
@@ -484,60 +311,31 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
               return (
                 <div
                   key={album.id}
-                  className="glass-card"
+                  className={cn(
+                    'glass-card flex cursor-pointer flex-col rounded-2xl border border-white/6 transition-[transform,border-color] duration-200',
+                    albumGridSize === 'compact' ? 'p-2.5' : 'p-3.5',
+                    albumGridSize === 'compact' ? 'gap-2' : 'gap-2.5',
+                    albumGridSize === 'compact' ? 'max-w-50' : albumGridSize === 'large' ? 'max-w-75' : 'max-w-61.5',
+                  )}
                   onClick={() => handleOpenAlbumDetail(album)}
-                  style={{
-                    padding: albumGridSize === 'compact' ? '10px' : '14px',
-                    borderRadius: '14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: albumGridSize === 'compact' ? '8px' : '10px',
-                    cursor: 'pointer',
-                    transition: 'transform 0.18s ease, border-color 0.18s ease',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    maxWidth: albumGridSize === 'compact' ? '200px' : albumGridSize === 'large' ? '300px' : '245px',
-                  }}
                 >
                   {/* Podgląd okładki (z przyciskiem dopasowania w rogu) */}
                   <div
+                    className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-line"
                     style={{
-                      width: '100%',
-                      aspectRatio: '1/1',
-                      borderRadius: '10px',
                       background: album.cover_path
                         ? `url("${album.cover_path}") center/cover no-repeat`
                         : 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(6,182,212,0.15))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid var(--border-subtle)',
-                      position: 'relative',
-                      overflow: 'hidden',
                     }}
                     title={loc.library.albumViewTracksTooltip}
                   >
-                    {!album.cover_path && <Disc size={albumGridSize === 'compact' ? 36 : 46} color="rgba(255,255,255,0.25)" />}
+                    {!album.cover_path && <Disc size={albumGridSize === 'compact' ? 36 : 46} className="text-white/25" />}
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenCoverPicker(album);
                       }}
-                      style={{
-                        position: 'absolute',
-                        bottom: '5px',
-                        right: '5px',
-                        background: 'rgba(0,0,0,0.7)',
-                        backdropFilter: 'blur(4px)',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.64rem',
-                        color: 'var(--accent-pink)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                      }}
+                      className="absolute bottom-1.5 right-1.5 flex cursor-pointer items-center gap-1 rounded-sm bg-black/70 px-1.5 py-0.5 text-2xs font-semibold text-accent-pink backdrop-blur-xs"
                       title={loc.covers.matchCoverTitle}
                     >
                       <Sparkles size={10} /> {loc.covers.matchCover}
@@ -545,64 +343,32 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   </div>
 
                   {/* Tytuł i wykonawca */}
-                  <div style={{ flex: 1 }}>
+                  <div className="flex-1">
                     <h4
-                      style={{
-                        fontSize: albumGridSize === 'compact' ? '0.84rem' : '0.90rem',
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                        margin: 0,
-                        lineHeight: 1.3,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
+                      className={cn(
+                        'm-0 leading-tight font-bold text-fg line-clamp-2',
+                        albumGridSize === 'compact' ? 'text-ui' : 'text-sm',
+                      )}
                       title={album.title}
                     >
                       {album.title}
                     </h4>
-                    <p
-                      style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-secondary)',
-                        margin: '3px 0 0 0',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                    <p className="mx-0 mt-1 mb-0 truncate text-xs text-fg-secondary">
                       {album.album_artist} {album.year ? `(${album.year})` : ''}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px', flexWrap: 'wrap' }}>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <span
-                        style={{
-                          fontSize: '0.66rem',
-                          color: 'var(--accent-cyan)',
-                          background: 'rgba(6,182,212,0.12)',
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          fontWeight: 600,
-                        }}
+                        className="rounded-sm bg-accent-cyan/10 px-1.5 py-px text-xxs font-semibold text-accent-cyan"
                       >
                         {albumTracks.length} {loc.library.tracks}
                       </span>
                       {durText && (
-                        <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
+                        <span className="text-xxs text-fg-muted">
                           {durText}
                         </span>
                       )}
                       {album.release_mbid && (
-                        <span
-                          style={{
-                            fontSize: '0.62rem',
-                            fontFamily: 'var(--font-mono)',
-                            color: 'var(--text-muted)',
-                            background: 'rgba(255,255,255,0.06)',
-                            padding: '1px 4px',
-                            borderRadius: '4px',
-                          }}
-                        >
+                        <span className="rounded-sm bg-white/6 px-1 py-px font-mono text-2xs text-fg-muted">
                           MBID
                         </span>
                       )}
@@ -610,58 +376,33 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   </div>
 
                   {/* Przyciski akcji na kafelku */}
-                  <div style={{ display: 'flex', gap: '6px', marginTop: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                  <div className="mt-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handlePlayAlbum(albumTracks)}
-                      style={{
-                        padding: albumGridSize === 'compact' ? '6px 8px' : '7px 9px',
-                        borderRadius: '6px',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: 'var(--accent-pink)',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        cursor: 'pointer',
-                      }}
+                      className={cn(
+                        'flex items-center gap-1 rounded-md bg-white/8 text-xs font-semibold text-accent-pink',
+                        albumGridSize === 'compact' ? 'px-2 py-1.5' : 'px-2.5 py-2',
+                      )}
                       title={loc.player.play}
                     >
                       <Play size={11} /> {loc.player.play}
                     </button>
                     <button
                       onClick={() => handleAddAlbumToQueue(albumTracks)}
-                      style={{
-                        padding: albumGridSize === 'compact' ? '6px 7px' : '7px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255,255,255,0.05)',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.72rem',
-                        cursor: 'pointer',
-                      }}
+                      className={cn(
+                        'rounded-md bg-white/5 text-xs text-accent-cyan',
+                        albumGridSize === 'compact' ? 'px-2 py-1.5' : 'p-2',
+                      )}
                       title={loc.library.addToQueue}
                     >
                       <Plus size={12} />
                     </button>
                     <button
                       onClick={() => handleOpenCoverPicker(album)}
-                      style={{
-                        flex: 1,
-                        padding: albumGridSize === 'compact' ? '6px 6px' : '7px 8px',
-                        borderRadius: '6px',
-                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        color: '#fff',
-                        fontSize: '0.70rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '3px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                      }}
+                      className={cn(
+                        'flex flex-1 items-center justify-center gap-1 overflow-hidden rounded-md border-0 bg-accent-gradient text-xxs font-bold whitespace-nowrap text-on-accent',
+                        albumGridSize === 'compact' ? 'p-1.5' : 'p-2',
+                      )}
                       title={loc.covers.matchCoverTitle}
                     >
                       <Sparkles size={11} />
@@ -669,19 +410,10 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                     </button>
                     <button
                       onClick={() => handleOpenMbModal(album)}
-                      style={{
-                        padding: albumGridSize === 'compact' ? '6px 7px' : '7px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255,255,255,0.07)',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.70rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '2px',
-                        cursor: 'pointer',
-                      }}
+                      className={cn(
+                        'flex items-center justify-center gap-0.5 rounded-md bg-white/7 text-xxs font-semibold text-fg-secondary',
+                        albumGridSize === 'compact' ? 'px-2 py-1.5' : 'p-2',
+                      )}
                       title={loc.covers.matchCoverTitle}
                     >
                       <Search size={11} />

@@ -2,6 +2,7 @@ import React from 'react';
 import { RotateCcw, Sliders } from 'lucide-react';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
+import { cn } from '../../../utils/cn';
 
 export type PlayerDspMiniBarProps = Pick<PlayerViewProps, 'handleEngineChange' | 'lastActiveDspEngineRef' | 'loc' | 'handleRestoreOriginalTrack' | 'handlePitchChange' | 'handleTempoChange' | 'setActiveTab'> & {
   status: PlaybackStatus;
@@ -19,38 +20,20 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
   status,
 }) => (
     <div
-      className="glass-card"
-      style={{
-        padding: '10px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderRadius: '12px',
-        background: 'rgba(0,0,0,0.28)',
-        border: '1px solid var(--border-subtle)',
-      }}
+      className="glass-card flex items-center justify-between rounded-xl border border-line bg-black/30 px-4.5 py-2.5"
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div className="flex items-center gap-4">
+        <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
           DSP:
         </span>
 
         {/* Szybki przełącznik Bypass / DSP */}
         <button
           onClick={() => handleEngineChange(status.engine === 'Bypass' ? (lastActiveDspEngineRef.current || 'RubberBand') : 'Bypass')}
-          style={{
-            padding: '3px 8px',
-            borderRadius: '6px',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            background: status.engine === 'Bypass' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-            color: status.engine === 'Bypass' ? 'var(--accent-green)' : 'var(--accent-pink)',
-            border: status.engine === 'Bypass' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(244, 63, 94, 0.4)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-          }}
+          className={cn(
+            'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-bold',
+            status.engine === 'Bypass' ? 'border-accent-green/40 bg-accent-green/20 text-accent-green' : 'border-accent-pink/40 bg-accent-pink/20 text-accent-pink',
+          )}
           title={status.engine === 'Bypass' ? loc.dsp.enableDspTooltip : loc.dsp.disableDspTooltip}
         >
           {status.engine === 'Bypass' ? '● BYPASS' : `● ${status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}`}
@@ -59,37 +42,14 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
         {/* Wskaźnik i przycisk powrotu ze stemów (jeśli stemy są aktywne) */}
         {status.is_stems_active && (
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '3px 8px',
-              borderRadius: '8px',
-              background: 'rgba(236, 72, 153, 0.2)',
-              border: '1px solid rgba(236, 72, 153, 0.45)',
-              fontSize: '0.75rem',
-              color: '#f43f5e',
-              fontWeight: 700,
-            }}
+            className="flex items-center gap-1.5 rounded-lg border border-pink-500/45 bg-pink-500/20 px-2 py-1 text-xs font-bold text-accent-pink"
           >
             <Sliders size={12} />
             <span>{loc.player.stemMix}</span>
             <button
               onClick={handleRestoreOriginalTrack}
               title={loc.player.returnToOriginalTooltip}
-              style={{
-                background: 'rgba(255, 255, 255, 0.18)',
-                border: '1px solid rgba(255, 255, 255, 0.28)',
-                borderRadius: '6px',
-                color: '#fff',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                padding: '2px 6px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
+              className="flex items-center gap-1 rounded-md border border-white/30 bg-white/20 px-1.5 py-0.5 text-xxs font-bold text-fg"
             >
               <RotateCcw size={11} />
               {loc.player.restoreOriginal}
@@ -98,16 +58,16 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
         )}
 
         {/* Pitch Chip */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>Pitch:</span>
-          <span style={{ color: 'var(--accent-pink)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+        <div className="flex items-center gap-1.5 text-ui">
+          <span className="text-fg-secondary">Pitch:</span>
+          <span className="font-mono font-bold text-accent-pink">
             {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st
           </span>
           {status.pitch_semitones !== 0 && (
             <button
               onClick={() => handlePitchChange(0)}
               title={loc.dsp.resetPitchTooltip}
-              style={{ background: 'none', color: 'var(--text-muted)', padding: '2px', cursor: 'pointer', display: 'flex' }}
+              className="flex bg-transparent p-0.5 text-fg-muted"
             >
               <RotateCcw size={12} />
             </button>
@@ -115,16 +75,16 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
         </div>
 
         {/* Tempo Chip */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>Tempo:</span>
-          <span style={{ color: 'var(--accent-cyan)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+        <div className="flex items-center gap-1.5 text-ui">
+          <span className="text-fg-secondary">Tempo:</span>
+          <span className="font-mono font-bold text-accent-cyan">
             {status.tempo_ratio.toFixed(2)}x
           </span>
           {status.tempo_ratio !== 1 && (
             <button
               onClick={() => handleTempoChange(1.0)}
               title={loc.dsp.resetTempoTooltip}
-              style={{ background: 'none', color: 'var(--text-muted)', padding: '2px', cursor: 'pointer', display: 'flex' }}
+              className="flex bg-transparent p-0.5 text-fg-muted"
             >
               <RotateCcw size={12} />
             </button>
@@ -135,19 +95,7 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
       {/* Szybkie przejście do pełnego korektora DSP */}
       <button
         onClick={() => setActiveTab('dsp')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          background: 'rgba(168, 85, 247, 0.15)',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          color: 'var(--accent-purple)',
-          fontSize: '0.78rem',
-          fontWeight: 600,
-          padding: '5px 12px',
-          borderRadius: '8px',
-          cursor: 'pointer',
-        }}
+        className="flex items-center gap-1.5 rounded-lg border border-accent-purple/35 bg-accent-purple/15 px-3 py-1.5 text-ui font-semibold text-accent-purple"
       >
         <Sliders size={13} />
         <span>{loc.nav.dsp} &rarr;</span>

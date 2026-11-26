@@ -4,6 +4,8 @@ import { type Language, getTranslations } from '../../i18n';
 
 import { parseTimeToMs, formatTimeMs } from '../../utils/timeFormat';
 import { useLivePositionMs } from '../../state/livePlayback';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 export { parseTimeToMs, formatTimeMs };
 
 export interface LoopEditorModalProps {
@@ -95,482 +97,277 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(5, 7, 15, 0.78)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        animation: 'fadeIn 0.2s ease-out',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-w-130 flex-col gap-4.5 rounded-2xl border border-accent-cyan/35 p-6 text-fg"
     >
-      <div
-        className="glass-card"
-        style={{
-          width: '100%',
-          maxWidth: '520px',
-          background: 'rgba(16, 20, 36, 0.94)',
-          border: '1px solid rgba(6, 182, 212, 0.35)',
-          borderRadius: '16px',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65), 0 0 30px rgba(6, 182, 212, 0.15)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
-          color: 'var(--text-main)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Nagłówek modalu */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'rgba(6, 182, 212, 0.15)',
-                border: '1px solid rgba(6, 182, 212, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-cyan)',
-              }}
-            >
-              <Clock size={20} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                {loc.player.editLoopTitle}
-              </h3>
-              <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {loc.player.editLoopDesc}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="glass-card"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-            }}
+      {/* Nagłówek modalu */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-accent-cyan/40 bg-accent-cyan/15 text-accent-cyan"
           >
-            <X size={18} />
-          </button>
+            <Clock size={20} />
+          </div>
+          <div>
+            <h3 className="m-0 text-lg font-extrabold tracking-tight">
+              {loc.player.editLoopTitle}
+            </h3>
+            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
+              {loc.player.editLoopDesc}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="glass-card rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Informacja o bieżącej pozycji utworu */}
+      <div className="flex items-center justify-between rounded-xl border border-line bg-white/3 px-3 py-2 text-ui">
+        <span className="text-fg-muted">{loc.player.useCurrentPos}:</span>
+        <span className="font-mono font-bold text-accent-cyan">
+          {formatTimeMs(currentPositionMs)} ({currentPositionMs} ms)
+        </span>
+      </div>
+
+      {/* Sekcja Punktu A */}
+      <div className="flex flex-col gap-2.5 rounded-xl border border-accent-cyan/25 bg-accent-cyan/5 p-3.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-extrabold text-accent-cyan">
+            {loc.player.loopPointA}
+          </span>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleSetCurrent('A')}
+              className="rounded-md border border-accent-cyan/40 bg-accent-cyan/20 px-2 py-1 text-xs font-semibold text-accent-cyan"
+            >
+              {loc.player.useCurrentPos || 'Ustaw teraz'}
+            </button>
+            {parsedA !== null && (
+              <button
+                type="button"
+                onClick={() => onSeek(parsedA)}
+                className="flex items-center gap-1 rounded-md border border-line bg-white/6 px-2 py-1 text-xs text-fg"
+                title={loc.player.jumpToA || 'Skocz do A'}
+              >
+                <Play size={10} fill="currentColor" /> {loc.player.jumpToA || 'Skocz'}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Informacja o bieżącej pozycji utworu */}
-        <div
-          style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '10px',
-            padding: '8px 12px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: '0.8rem',
-          }}
-        >
-          <span style={{ color: 'var(--text-muted)' }}>{loc.player.useCurrentPos}:</span>
-          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-            {formatTimeMs(currentPositionMs)} ({currentPositionMs} ms)
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={inputA}
+            onChange={(e) => setInputA(e.target.value)}
+            placeholder="np. 860ms, 860 lub 0:00.860"
+            className={cn(
+              'flex-1 rounded-lg border bg-black/35 px-3 py-2 font-mono text-sm text-fg outline-none',
+              !isAValid ? 'border-accent-pink' : 'border-accent-cyan/40',
+            )}
+          />
+          <div className="min-w-25 text-right font-mono text-ui">
+            {parsedA !== null ? (
+              <span className="font-bold text-accent-cyan">{formatTimeMs(parsedA)}</span>
+            ) : (
+              <span className="text-fg-muted">--:--.---</span>
+            )}
+          </div>
+        </div>
+
+        {/* Przyciski mikro-korekty (Nudge A) */}
+        <div className="flex flex-wrap gap-1">
+          <span className="mr-1 self-center text-xxs text-fg-muted">
+            Korekta:
+          </span>
+          {[-1000, -100, -10, 10, 100, 1000].map((delta) => (
+            <button
+              key={`nudge-A-${delta}`}
+              type="button"
+              onClick={() => handleNudge('A', delta)}
+              className={cn(
+                'rounded-sm border border-line bg-white/5 px-1.5 py-0.5 font-mono text-xxs',
+                delta > 0 ? 'text-accent-cyan' : 'text-fg-muted',
+              )}
+            >
+              {delta > 0 ? `+${delta >= 1000 ? `${delta / 1000}s` : `${delta}ms`}` : `${delta <= -1000 ? `${delta / 1000}s` : `${delta}ms`}`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sekcja Punktu B */}
+      <div className="flex flex-col gap-2.5 rounded-xl border border-accent-pink/25 bg-accent-pink/5 p-3.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-extrabold text-accent-pink">
+            {loc.player.loopPointB}
+          </span>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleSetCurrent('B')}
+              className="rounded-md border border-accent-pink/40 bg-accent-pink/20 px-2 py-1 text-xs font-semibold text-accent-pink"
+            >
+              {loc.player.useCurrentPos || 'Ustaw teraz'}
+            </button>
+            {parsedB !== null && (
+              <button
+                type="button"
+                onClick={() => onSeek(parsedB)}
+                className="flex items-center gap-1 rounded-md border border-line bg-white/6 px-2 py-1 text-xs text-fg"
+                title={loc.player.jumpToA ? loc.player.jumpToA.replace('A', 'B') : 'Jump to B'}
+              >
+                <Play size={10} fill="currentColor" /> Skocz
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={inputB}
+            onChange={(e) => setInputB(e.target.value)}
+            placeholder="np. 5000ms, 5200 lub 0:05.200"
+            className={cn(
+              'flex-1 rounded-lg border bg-black/35 px-3 py-2 font-mono text-sm text-fg outline-none',
+              !isBValid ? 'border-accent-pink' : 'border-accent-pink/40',
+            )}
+          />
+          <div className="min-w-25 text-right font-mono text-ui">
+            {parsedB !== null ? (
+              <span className="font-bold text-accent-pink">{formatTimeMs(parsedB)}</span>
+            ) : (
+              <span className="text-fg-muted">--:--.---</span>
+            )}
+          </div>
+        </div>
+
+        {/* Przyciski mikro-korekty (Nudge B) */}
+        <div className="flex flex-wrap gap-1">
+          <span className="mr-1 self-center text-xxs text-fg-muted">
+            Korekta:
+          </span>
+          {[-1000, -100, -10, 10, 100, 1000].map((delta) => (
+            <button
+              key={`nudge-B-${delta}`}
+              type="button"
+              onClick={() => handleNudge('B', delta)}
+              className={cn(
+                'rounded-sm border border-line bg-white/5 px-1.5 py-0.5 font-mono text-xxs',
+                delta > 0 ? 'text-accent-pink' : 'text-fg-muted',
+              )}
+            >
+              {delta > 0 ? `+${delta >= 1000 ? `${delta / 1000}s` : `${delta}ms`}` : `${delta <= -1000 ? `${delta / 1000}s` : `${delta}ms`}`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Podsumowanie pętli / Walidacja */}
+      <div className="flex flex-col gap-1.5 rounded-xl border border-line bg-black/25 px-3.5 py-2.5 text-ui">
+        <div className="flex items-center justify-between">
+          <span className="text-fg-muted">{loc.player.loopDuration}:</span>
+          <span className={cn('font-mono font-extrabold', loopDuration ? 'text-accent-amber' : 'text-fg-muted')}>
+            {loopDuration !== null ? `${loopDuration} ms (${(loopDuration / 1000).toFixed(3)} s)` : '--'}
           </span>
         </div>
 
-        {/* Sekcja Punktu A */}
-        <div
-          style={{
-            background: 'rgba(6, 182, 212, 0.05)',
-            border: '1px solid rgba(6, 182, 212, 0.25)',
-            borderRadius: '12px',
-            padding: '14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
+        {!isOrderValid && (
+          <div className="flex items-center gap-1.5 text-ui text-accent-pink">
+            <AlertCircle size={14} />
+            <span>{loc.player.loopBMustBeGreaterThanA}</span>
+          </div>
+        )}
+
+        {(!isAValid || !isBValid) && (
+          <div className="flex items-center gap-1.5 text-ui text-accent-pink">
+            <AlertCircle size={14} />
+            <span>{loc.player.invalidTimeFormat}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Przyciski dolne modalu */}
+      <div className="mt-1 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={handleClear}
+          className="glass-card flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-400/8 px-3.5 py-2 text-ui text-rose-400"
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-cyan)' }}>
-              {loc.player.loopPointA}
-            </span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => handleSetCurrent('A')}
-                style={{
-                  fontSize: '0.72rem',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  background: 'rgba(6, 182, 212, 0.2)',
-                  color: 'var(--accent-cyan)',
-                  border: '1px solid rgba(6, 182, 212, 0.4)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                {loc.player.useCurrentPos || 'Ustaw teraz'}
-              </button>
-              {parsedA !== null && (
-                <button
-                  type="button"
-                  onClick={() => onSeek(parsedA)}
-                  style={{
-                    fontSize: '0.72rem',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    color: 'var(--text-main)',
-                    border: '1px solid var(--border-subtle)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                  title={loc.player.jumpToA || 'Skocz do A'}
-                >
-                  <Play size={10} fill="currentColor" /> {loc.player.jumpToA || 'Skocz'}
-                </button>
-              )}
-            </div>
-          </div>
+          <RotateCcw size={14} /> {loc.player.clearLoop}
+        </button>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="text"
-              value={inputA}
-              onChange={(e) => setInputA(e.target.value)}
-              placeholder="np. 860ms, 860 lub 0:00.860"
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '8px',
-                background: 'rgba(0, 0, 0, 0.35)',
-                border: !isAValid ? '1px solid #f43f5e' : '1px solid rgba(6, 182, 212, 0.4)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                outline: 'none',
-              }}
-            />
-            <div style={{ minWidth: '100px', textAlign: 'right', fontSize: '0.8rem', fontFamily: 'monospace' }}>
-              {parsedA !== null ? (
-                <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{formatTimeMs(parsedA)}</span>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>--:--.---</span>
-              )}
-            </div>
-          </div>
-
-          {/* Przyciski mikro-korekty (Nudge A) */}
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', alignSelf: 'center', marginRight: '4px' }}>
-              Korekta:
-            </span>
-            {[-1000, -100, -10, 10, 100, 1000].map((delta) => (
-              <button
-                key={`nudge-A-${delta}`}
-                type="button"
-                onClick={() => handleNudge('A', delta)}
-                style={{
-                  fontSize: '0.68rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border-subtle)',
-                  color: delta > 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {delta > 0 ? `+${delta >= 1000 ? `${delta / 1000}s` : `${delta}ms`}` : `${delta <= -1000 ? `${delta / 1000}s` : `${delta}ms`}`}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sekcja Punktu B */}
-        <div
-          style={{
-            background: 'rgba(244, 63, 94, 0.05)',
-            border: '1px solid rgba(244, 63, 94, 0.25)',
-            borderRadius: '12px',
-            padding: '14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-pink)' }}>
-              {loc.player.loopPointB}
-            </span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => handleSetCurrent('B')}
-                style={{
-                  fontSize: '0.72rem',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  background: 'rgba(244, 63, 94, 0.2)',
-                  color: 'var(--accent-pink)',
-                  border: '1px solid rgba(244, 63, 94, 0.4)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                {loc.player.useCurrentPos || 'Ustaw teraz'}
-              </button>
-              {parsedB !== null && (
-                <button
-                  type="button"
-                  onClick={() => onSeek(parsedB)}
-                  style={{
-                    fontSize: '0.72rem',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    color: 'var(--text-main)',
-                    border: '1px solid var(--border-subtle)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                  title={loc.player.jumpToA ? loc.player.jumpToA.replace('A', 'B') : 'Jump to B'}
-                >
-                  <Play size={10} fill="currentColor" /> Skocz
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="text"
-              value={inputB}
-              onChange={(e) => setInputB(e.target.value)}
-              placeholder="np. 5000ms, 5200 lub 0:05.200"
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '8px',
-                background: 'rgba(0, 0, 0, 0.35)',
-                border: !isBValid ? '1px solid #f43f5e' : '1px solid rgba(244, 63, 94, 0.4)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                outline: 'none',
-              }}
-            />
-            <div style={{ minWidth: '100px', textAlign: 'right', fontSize: '0.8rem', fontFamily: 'monospace' }}>
-              {parsedB !== null ? (
-                <span style={{ color: 'var(--accent-pink)', fontWeight: 700 }}>{formatTimeMs(parsedB)}</span>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>--:--.---</span>
-              )}
-            </div>
-          </div>
-
-          {/* Przyciski mikro-korekty (Nudge B) */}
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', alignSelf: 'center', marginRight: '4px' }}>
-              Korekta:
-            </span>
-            {[-1000, -100, -10, 10, 100, 1000].map((delta) => (
-              <button
-                key={`nudge-B-${delta}`}
-                type="button"
-                onClick={() => handleNudge('B', delta)}
-                style={{
-                  fontSize: '0.68rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border-subtle)',
-                  color: delta > 0 ? 'var(--accent-pink)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {delta > 0 ? `+${delta >= 1000 ? `${delta / 1000}s` : `${delta}ms`}` : `${delta <= -1000 ? `${delta / 1000}s` : `${delta}ms`}`}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Podsumowanie pętli / Walidacja */}
-        <div
-          style={{
-            background: 'rgba(0, 0, 0, 0.25)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '10px',
-            padding: '10px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            fontSize: '0.82rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: 'var(--text-muted)' }}>{loc.player.loopDuration}:</span>
-            <span style={{ fontWeight: 800, fontFamily: 'monospace', color: loopDuration ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
-              {loopDuration !== null ? `${loopDuration} ms (${(loopDuration / 1000).toFixed(3)} s)` : '--'}
-            </span>
-          </div>
-
-          {!isOrderValid && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f43f5e', fontSize: '0.78rem' }}>
-              <AlertCircle size={14} />
-              <span>{loc.player.loopBMustBeGreaterThanA}</span>
-            </div>
-          )}
-
-          {(!isAValid || !isBValid) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f43f5e', fontSize: '0.78rem' }}>
-              <AlertCircle size={14} />
-              <span>{loc.player.invalidTimeFormat}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Przyciski dolne modalu */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+        {onExportLoop && (
           <button
             type="button"
-            onClick={handleClear}
-            className="glass-card"
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '0.82rem',
-              color: '#ff6b81',
-              border: '1px solid rgba(255, 107, 129, 0.3)',
-              background: 'rgba(255, 107, 129, 0.08)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
+            onClick={() => {
+              if (isAValid && isBValid && isOrderValid) {
+                onExportLoop(parsedA, parsedB);
+                onClose();
+              }
             }}
+            disabled={!isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null)}
+            className={cn(
+              'glass-card flex items-center gap-1.5 rounded-lg border border-accent-cyan/40 bg-accent-cyan/10 px-3.5 py-2 text-ui font-semibold text-accent-cyan',
+              !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'cursor-not-allowed' : 'cursor-pointer',
+              !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'opacity-50' : 'opacity-100',
+            )}
+            title={loc.loopEditor.exportLoopTitle}
           >
-            <RotateCcw size={14} /> {loc.player.clearLoop}
+            <Scissors size={14} /> {loc.loopEditor.exportLoop}
           </button>
+        )}
 
-          {onExportLoop && (
-            <button
-              type="button"
-              onClick={() => {
-                if (isAValid && isBValid && isOrderValid) {
-                  onExportLoop(parsedA, parsedB);
-                  onClose();
-                }
-              }}
-              disabled={!isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null)}
-              className="glass-card"
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: 'var(--accent-cyan)',
-                border: '1px solid rgba(6, 182, 212, 0.4)',
-                background: 'rgba(6, 182, 212, 0.12)',
-                cursor: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                opacity: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 0.5 : 1,
-              }}
-              title={loc.loopEditor.exportLoopTitle}
-            >
-              <Scissors size={14} /> {loc.loopEditor.exportLoop}
-            </button>
-          )}
+        {onSaveAsTrackBookmarks && (
+          <button
+            type="button"
+            onClick={() => {
+              if (isAValid && isBValid && isOrderValid) {
+                onSaveAsTrackBookmarks(parsedA, parsedB);
+              }
+            }}
+            disabled={!isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null)}
+            className={cn(
+              'glass-card flex items-center gap-1.5 rounded-lg border border-pink-500/40 bg-pink-500/10 px-3.5 py-2 text-ui font-semibold text-accent-pink',
+              !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'cursor-not-allowed' : 'cursor-pointer',
+              !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'opacity-50' : 'opacity-100',
+            )}
+            title={loc.loopEditor.saveBookmarksTitle}
+          >
+            <Bookmark size={14} /> {loc.loopEditor.saveBookmarks}
+          </button>
+        )}
 
-          {onSaveAsTrackBookmarks && (
-            <button
-              type="button"
-              onClick={() => {
-                if (isAValid && isBValid && isOrderValid) {
-                  onSaveAsTrackBookmarks(parsedA, parsedB);
-                }
-              }}
-              disabled={!isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null)}
-              className="glass-card"
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: 'var(--accent-pink)',
-                border: '1px solid rgba(236, 72, 153, 0.4)',
-                background: 'rgba(236, 72, 153, 0.12)',
-                cursor: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                opacity: !isAValid || !isBValid || !isOrderValid || (parsedA === null && parsedB === null) ? 0.5 : 1,
-              }}
-              title={loc.loopEditor.saveBookmarksTitle}
-            >
-              <Bookmark size={14} /> {loc.loopEditor.saveBookmarks}
-            </button>
-          )}
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="glass-card"
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                color: 'var(--text-muted)',
-                border: '1px solid var(--border-subtle)',
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
-            >
-              {loc.common.cancel}
-            </button>
-            <button
-              type="button"
-              onClick={handleApply}
-              disabled={!isAValid || !isBValid || !isOrderValid}
-              style={{
-                padding: '8px 18px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                color: '#fff',
-                background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-pink))',
-                border: 'none',
-                cursor: !isAValid || !isBValid || !isOrderValid ? 'not-allowed' : 'pointer',
-                opacity: !isAValid || !isBValid || !isOrderValid ? 0.5 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 4px 15px rgba(6, 182, 212, 0.35)',
-              }}
-            >
-              <Check size={14} /> {loc.player.applyAndClose}
-            </button>
-          </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="glass-card rounded-lg border border-line bg-transparent px-3.5 py-2 text-ui text-fg-muted"
+          >
+            {loc.common.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={!isAValid || !isBValid || !isOrderValid}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border-0 bg-linear-135 from-accent-cyan to-accent-pink px-4.5 py-2 text-ui font-bold text-on-accent shadow-lift shadow-accent-cyan/35',
+              !isAValid || !isBValid || !isOrderValid ? 'cursor-not-allowed' : 'cursor-pointer',
+              !isAValid || !isBValid || !isOrderValid ? 'opacity-50' : 'opacity-100',
+            )}
+          >
+            <Check size={14} /> {loc.player.applyAndClose}
+          </button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

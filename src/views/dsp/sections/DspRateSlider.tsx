@@ -2,6 +2,7 @@ import React from 'react';
 import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type DspRateSliderProps = Pick<DspStudioViewProps, 'loc' | 'handleRateChange' | 'dspCombination'> & {
   status: PlaybackStatus;
@@ -17,75 +18,43 @@ export const DspRateSlider: React.FC<DspRateSliderProps> = ({
   setEditingRate,
   status,
 }) => (
-    <div style={{ marginBottom: '28px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+    <div className="mb-7">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <label className="text-sm font-semibold">
             {loc.dsp.speed}:
           </label>
           <button
             onClick={() => handleRateChange(Math.max(0.1, Math.round(((status.rate_ratio ?? 1) - 0.1) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="-0.1x"
           >
             -0.1x
           </button>
           <button
             onClick={() => handleRateChange(Math.max(0.1, Math.round(((status.rate_ratio ?? 1) - 0.01) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="-0.01x"
           >
             -0.01x
           </button>
           <button
             onClick={() => handleRateChange(Math.min(3.0, Math.round(((status.rate_ratio ?? 1) + 0.01) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="+0.01x"
           >
             +0.01x
           </button>
           <button
             onClick={() => handleRateChange(Math.min(3.0, Math.round(((status.rate_ratio ?? 1) + 0.1) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="+0.1x"
           >
             +0.1x
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
             <input
               type="text"
               value={
@@ -146,44 +115,31 @@ export const DspRateSlider: React.FC<DspRateSliderProps> = ({
               }}
               placeholder="1.00"
               title={loc.dsp.enterValueSpeed}
-              style={{
-                width: '60px',
-                padding: '2px 6px',
-                fontSize: '0.82rem',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                textAlign: 'center',
-                color: 'var(--accent-amber)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                borderRadius: '6px',
-                outline: 'none',
-                cursor: 'text',
-              }}
+              className="w-15 cursor-text rounded-md border border-accent-amber/40 bg-white/8 px-1.5 py-0.5 text-center font-mono text-ui font-bold text-accent-amber outline-none"
             />
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)', fontWeight: 600, fontSize: '0.85rem' }}>
+            <span className="font-mono text-sm font-semibold text-accent-amber">
               x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
             </span>
           </div>
           {/* Wskaźnik wynikowej tonacji i tempa pod wskaźnikiem */}
-          <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-semibold text-accent-amber">
             {dspCombination.totalKey ? (
               <span>
-                🎯 {loc.dsp.keyLabel}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                🎯 {loc.dsp.keyLabel}: <strong className="text-fg">{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
                 {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
               </span>
             ) : (
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="text-fg-muted">
                 🎯 {loc.dsp.keyLabel}: {(dspCombination.totalPitchSemitones > 0 ? '+' : '') + dspCombination.totalPitchSemitones.toFixed(2)} st
               </span>
             )}
             <span>•</span>
             {dspCombination.totalBpm ? (
               <span>
-                ⚡ Tempo: <strong style={{ color: '#fff' }}>{dspCombination.totalBpm.toFixed(1)} BPM</strong>
+                ⚡ Tempo: <strong className="text-fg">{dspCombination.totalBpm.toFixed(1)} BPM</strong>
               </span>
             ) : (
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="text-fg-muted">
                 ⚡ Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
               </span>
             )}
@@ -197,24 +153,19 @@ export const DspRateSlider: React.FC<DspRateSliderProps> = ({
         step={0.01}
         value={status.rate_ratio ?? 1}
         onChange={(e) => handleRateChange(Number(e.target.value))}
-        style={{ width: '100%', marginBottom: '12px' }}
+        className="mb-3 w-full"
       />
-      <div style={{ display: 'flex', gap: '6px' }}>
+      <div className="flex gap-1.5">
         {[0.8, 0.9, 1.0, 1.1, 1.25].map((r) => (
           <button
             key={r}
             onClick={() => handleRateChange(r)}
-            style={{
-              flex: 1,
-              padding: '7px 0',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              borderRadius: '8px',
-              background: r === 1.0 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: r === 1.0 ? '1px solid var(--accent-amber)' : '1px solid var(--border-subtle)',
-              color: r === 1.0 ? 'var(--accent-amber)' : '#fff',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'flex-1 rounded-lg border px-0 py-2 text-xs font-semibold',
+              r === 1.0 ? 'bg-accent-amber/20' : 'bg-white/5',
+              r === 1.0 ? 'border-accent-amber' : 'border-line',
+              r === 1.0 ? 'text-accent-amber' : 'text-fg',
+            )}
           >
             {r === 1.0 ? '1.0x' : `${r}x`}
           </button>

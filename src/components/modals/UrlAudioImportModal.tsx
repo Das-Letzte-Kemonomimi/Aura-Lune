@@ -8,6 +8,7 @@ import { type Language, getTranslations } from '../../i18n';
 import { UrlImportResultView } from './url-import/UrlImportResultView';
 import { UrlImportForm } from './url-import/UrlImportForm';
 import { formatDuration } from '../../utils/timeFormat';
+import { cn } from '../../utils/cn';
 
 export interface ImportedItem {
   file_path: string;
@@ -227,81 +228,37 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.78)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1150,
-        animation: 'fadeIn 0.2s ease',
-      }}
+      className="fixed inset-0 z-70 flex items-center justify-center bg-black/80 backdrop-blur-sm motion-safe:animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="glass-card"
-        style={{
-          width: result && result.items && result.items.length > 1 ? '680px' : '580px',
-          maxWidth: '94vw',
-          maxHeight: '92vh',
-          overflowY: 'auto',
-          backgroundColor: 'var(--color-bg-surface, rgba(20, 20, 30, 0.94))',
-          borderRadius: '16px',
-          border: '1px solid var(--color-border-accent, rgba(160, 100, 255, 0.3))',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(160, 100, 255, 0.2)',
-          padding: '24px',
-          color: 'var(--color-text-main, #f0f0f5)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
-          transition: 'width 0.25s ease',
-        }}
+        className={cn(
+          'shadow-modal',
+          'glass-card flex max-h-[92vh] max-w-[94vw] flex-col gap-5 overflow-y-auto rounded-2xl border border-line-accent bg-surface p-6 text-fg transition-[width] duration-200',
+          result && result.items && result.items.length > 1 ? 'w-170' : 'w-145',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(236, 72, 153, 0.35))',
-                border: '1px solid rgba(168, 85, 247, 0.45)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#d8b4fe',
-                boxShadow: '0 0 15px rgba(168, 85, 247, 0.2)',
-              }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent-purple/45 bg-linear-135 from-accent-purple/35 to-pink-500/35 text-purple-300 shadow-halo-md shadow-accent-purple/20"
             >
               <Download size={22} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.3px' }}>
+              <h2 className="m-0 text-xl font-semibold tracking-wide">
                 {loc.urlImport.title}
               </h2>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary, #a0a0b5)' }}>
+              <p className="m-0 text-ui text-fg-secondary">
                 {loc.urlImport.subtitle}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--color-text-secondary, #8e8ea0)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-            }}
+            className="flex items-center justify-center rounded-lg border-0 bg-transparent p-1.5 text-fg-secondary transition-all duration-150"
             title={loc.urlImport.closeEsc}
           >
             <X size={20} />

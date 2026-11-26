@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { Download, FolderOpen, AlertCircle, Loader2, Clipboard, Sparkles, ListMusic, SlidersHorizontal } from 'lucide-react';
 import type { UrlAudioImportModalProps } from '../UrlAudioImportModal';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type UrlImportFormProps = Pick<UrlAudioImportModalProps, 'onClose'> & {
   handleImport: (e: FormEvent<Element>) => Promise<void>;
@@ -51,21 +52,13 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
   targetDir,
   url,
 }) => (
-    <form onSubmit={handleImport} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <form onSubmit={handleImport} className="flex flex-col gap-4.5">
       {/* Input URL */}
       <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            marginBottom: '6px',
-            color: 'var(--color-text-main, #f0f0f5)',
-          }}
-        >
+        <label className="mb-1.5 block text-sm font-medium text-fg">
           {loc.urlImport.urlLabel}
         </label>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="flex gap-2">
           <input
             type="text"
             value={url}
@@ -73,65 +66,30 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
             placeholder="np. https://soundcloud.com/... lub YouTube, Bandcamp, Mixcloud"
             disabled={isLoading}
             autoFocus
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0, 0, 0, 0.35)',
-              border: '1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.15))',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              color: '#fff',
-              fontSize: '0.9rem',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-            }}
+            className="flex-1 rounded-lg border border-line bg-black/35 px-3.5 py-2.5 text-sm text-fg outline-none transition-[border-color] duration-200"
           />
           <button
             type="button"
             onClick={handlePasteClipboard}
             disabled={isLoading}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              padding: '0 12px',
-              color: '#e2e8f0',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.82rem',
-              whiteSpace: 'nowrap',
-            }}
+            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/8 px-3 py-0 text-ui whitespace-nowrap text-slate-200"
             title={loc.urlImport.pasteTooltip}
           >
             <Clipboard size={15} />
             {loc.urlImport.paste}
           </button>
         </div>
-        <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+        <span className="mt-1 block text-xs text-fg-secondary">
           {loc.urlImport.urlHint}
         </span>
       </div>
 
       {/* Wybór formatu audio */}
       <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            marginBottom: '8px',
-          }}
-        >
+        <label className="mb-2 block text-sm font-medium">
           {loc.urlImport.targetFormat}
         </label>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '8px',
-          }}
-        >
+        <div className="grid grid-cols-4 gap-2">
           {[
             { id: 'flac', name: 'FLAC', desc: loc.urlImport.formatFlacDesc },
             { id: 'mp3', name: 'MP3', desc: loc.urlImport.formatMp3Desc },
@@ -143,29 +101,16 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
               type="button"
               onClick={() => handleFormatChange(fmt.id)}
               disabled={isLoading}
-              style={{
-                background:
-                  format === fmt.id
-                    ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.3))'
-                    : 'rgba(0, 0, 0, 0.25)',
-                border:
-                  format === fmt.id
-                    ? '1px solid #c084fc'
-                    : '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                padding: '8px 6px',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '2px',
-                transition: 'all 0.15s',
-              }}
+              className={cn(
+                'flex flex-col items-center gap-0.5 rounded-lg border px-1.5 py-2 transition-all duration-150',
+                format === fmt.id ? 'bg-linear-135 from-accent-purple/40 to-pink-500/30' : 'bg-black/25',
+                format === fmt.id ? 'border-purple-400' : 'border-white/10',
+              )}
             >
-              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+              <span className="text-sm font-semibold text-fg">
                 {fmt.name}
               </span>
-              <span style={{ fontSize: '0.68rem', color: '#cbd5e1' }}>
+              <span className="text-xxs text-slate-300">
                 {fmt.desc}
               </span>
             </button>
@@ -175,21 +120,14 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
 
       {/* Wybór bitratu / jakości audio */}
       {format !== 'flac' ? (
-        <div
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '10px',
-            padding: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <SlidersHorizontal size={15} style={{ color: '#c084fc' }} />
-            <span style={{ fontSize: '0.84rem', fontWeight: 500, color: '#f0f0f5' }}>
+        <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+          <div className="mb-2 flex items-center gap-2">
+            <SlidersHorizontal size={15} className="text-purple-400" />
+            <span className="text-ui font-medium text-fg">
               {loc.urlImport.encodingQuality}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap gap-1.5">
             {format === 'mp3' && (
               <>
                 {[
@@ -203,21 +141,15 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
                     type="button"
                     onClick={() => setBitrate(b.id)}
                     disabled={isLoading}
-                    style={{
-                      background: bitrate === b.id ? 'rgba(168, 85, 247, 0.35)' : 'rgba(255, 255, 255, 0.05)',
-                      border: bitrate === b.id ? '1px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      padding: '6px 10px',
-                      color: bitrate === b.id ? '#fff' : '#cbd5e1',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      gap: '4px',
-                      alignItems: 'center',
-                    }}
+                    className={cn(
+                      'flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-ui',
+                      bitrate === b.id ? 'bg-accent-purple/35' : 'bg-white/5',
+                      bitrate === b.id ? 'border-purple-400' : 'border-white/10',
+                      bitrate === b.id ? 'text-fg' : 'text-slate-300',
+                    )}
                   >
-                    <span style={{ fontWeight: 600 }}>{b.label}</span>
-                    <span style={{ opacity: 0.6, fontSize: '0.7rem' }}>• {b.desc}</span>
+                    <span className="font-semibold">{b.label}</span>
+                    <span className="text-xxs opacity-60">• {b.desc}</span>
                   </button>
                 ))}
               </>
@@ -234,21 +166,15 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
                     type="button"
                     onClick={() => setBitrate(b.id)}
                     disabled={isLoading}
-                    style={{
-                      background: bitrate === b.id ? 'rgba(168, 85, 247, 0.35)' : 'rgba(255, 255, 255, 0.05)',
-                      border: bitrate === b.id ? '1px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      padding: '6px 10px',
-                      color: bitrate === b.id ? '#fff' : '#cbd5e1',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      gap: '4px',
-                      alignItems: 'center',
-                    }}
+                    className={cn(
+                      'flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-ui',
+                      bitrate === b.id ? 'bg-accent-purple/35' : 'bg-white/5',
+                      bitrate === b.id ? 'border-purple-400' : 'border-white/10',
+                      bitrate === b.id ? 'text-fg' : 'text-slate-300',
+                    )}
                   >
-                    <span style={{ fontWeight: 600 }}>{b.label}</span>
-                    <span style={{ opacity: 0.6, fontSize: '0.7rem' }}>• {b.desc}</span>
+                    <span className="font-semibold">{b.label}</span>
+                    <span className="text-xxs opacity-60">• {b.desc}</span>
                   </button>
                 ))}
               </>
@@ -265,21 +191,15 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
                     type="button"
                     onClick={() => setBitrate(b.id)}
                     disabled={isLoading}
-                    style={{
-                      background: bitrate === b.id ? 'rgba(168, 85, 247, 0.35)' : 'rgba(255, 255, 255, 0.05)',
-                      border: bitrate === b.id ? '1px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      padding: '6px 10px',
-                      color: bitrate === b.id ? '#fff' : '#cbd5e1',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      gap: '4px',
-                      alignItems: 'center',
-                    }}
+                    className={cn(
+                      'flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-ui',
+                      bitrate === b.id ? 'bg-accent-purple/35' : 'bg-white/5',
+                      bitrate === b.id ? 'border-purple-400' : 'border-white/10',
+                      bitrate === b.id ? 'text-fg' : 'text-slate-300',
+                    )}
                   >
-                    <span style={{ fontWeight: 600 }}>{b.label}</span>
-                    <span style={{ opacity: 0.6, fontSize: '0.7rem' }}>• {b.desc}</span>
+                    <span className="font-semibold">{b.label}</span>
+                    <span className="text-xxs opacity-60">• {b.desc}</span>
                   </button>
                 ))}
               </>
@@ -288,19 +208,9 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </div>
       ) : (
         <div
-          style={{
-            backgroundColor: 'rgba(56, 189, 248, 0.08)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            borderRadius: '10px',
-            padding: '10px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.78rem',
-            color: '#bae6fd',
-          }}
+          className="flex items-center gap-2 rounded-xl border border-sky-400/25 bg-sky-400/8 px-3 py-2.5 text-ui text-sky-200"
         >
-          <Sparkles size={16} style={{ flexShrink: 0, color: '#38bdf8' }} />
+          <Sparkles size={16} className="shrink-0 text-sky-400" />
           <span>
             {loc.urlImport.flacLosslessNotice}
           </span>
@@ -309,61 +219,33 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
 
       {/* Opcja pobierania całej playlisty / albumu / kanału SoundCloud */}
       <div
-        style={{
-          backgroundColor: downloadPlaylist ? 'rgba(168, 85, 247, 0.14)' : 'rgba(0, 0, 0, 0.22)',
-          border: downloadPlaylist ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '12px',
-          padding: '14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          transition: 'all 0.2s ease',
-        }}
+        className={cn(
+          'flex flex-col gap-3 rounded-xl border p-3.5 transition-all duration-200',
+          downloadPlaylist ? 'bg-accent-purple/15' : 'bg-black/20',
+          downloadPlaylist ? 'border-accent-purple/45' : 'border-white/8',
+        )}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              cursor: 'pointer',
-              userSelect: 'none',
-            }}
-          >
+        <div className="flex items-center justify-between">
+          <label className="flex cursor-pointer select-none items-center gap-2.5">
             <input
               type="checkbox"
               checked={downloadPlaylist}
               onChange={(e) => setDownloadPlaylist(e.target.checked)}
               disabled={isLoading}
-              style={{
-                width: '18px',
-                height: '18px',
-                accentColor: '#a855f7',
-                cursor: 'pointer',
-              }}
+              className="h-4.5 w-4.5 cursor-pointer accent-accent-purple"
             />
             <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+              <div className="text-sm font-semibold text-fg">
                 {loc.urlImport.downloadPlaylistLabel}
               </div>
-              <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '1px' }}>
+              <div className="mt-px text-xs text-slate-300">
                 {loc.urlImport.downloadPlaylistDesc}
               </div>
             </div>
           </label>
           {downloadPlaylist && (
             <span
-              style={{
-                background: 'rgba(168, 85, 247, 0.3)',
-                color: '#d8b4fe',
-                padding: '3px 8px',
-                borderRadius: '6px',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
+              className="flex items-center gap-1 rounded-md bg-accent-purple/30 px-2 py-1 text-xs font-semibold text-purple-300"
             >
               <ListMusic size={13} />
               {loc.urlImport.batchMode}
@@ -373,42 +255,17 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
 
         {/* Dodatkowe opcje przy włączonej playliście */}
         {downloadPlaylist && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-              paddingTop: '8px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            }}
-          >
+          <div className="grid grid-cols-2 gap-3 border-t border-white/8 pt-2">
             {/* Limit pobieranych utworów */}
             <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.76rem',
-                  fontWeight: 500,
-                  color: '#cbd5e1',
-                  marginBottom: '4px',
-                }}
-              >
+              <label className="mb-1 block text-xs font-medium text-slate-300">
                 {loc.urlImport.trackLimit}
               </label>
               <select
                 value={maxItems}
                 onChange={(e) => setMaxItems(Number(e.target.value))}
                 disabled={isLoading}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '6px',
-                  padding: '6px 8px',
-                  color: '#f8fafc',
-                  fontSize: '0.82rem',
-                  outline: 'none',
-                }}
+                className="w-full rounded-md border border-white/15 bg-black/35 px-2 py-1.5 text-ui text-fg outline-none"
               >
                 <option value={0}>{loc.urlImport.limitUnlimited}</option>
                 <option value={5}>{loc.urlImport.limit5}</option>
@@ -421,31 +278,14 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
 
             {/* Struktura folderów */}
             <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.76rem',
-                  fontWeight: 500,
-                  color: '#cbd5e1',
-                  marginBottom: '4px',
-                }}
-              >
+              <label className="mb-1 block text-xs font-medium text-slate-300">
                 {loc.urlImport.folderHierarchy}
               </label>
               <select
                 value={folderStructure}
                 onChange={(e) => setFolderStructure(e.target.value)}
                 disabled={isLoading}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '6px',
-                  padding: '6px 8px',
-                  color: '#f8fafc',
-                  fontSize: '0.82rem',
-                  outline: 'none',
-                }}
+                className="w-full rounded-md border border-white/15 bg-black/35 px-2 py-1.5 text-ui text-fg outline-none"
               >
                 <option value="playlist">
                   {loc.urlImport.hierarchyAlbum}
@@ -464,50 +304,22 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
 
       {/* Folder docelowy */}
       <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            marginBottom: '6px',
-          }}
-        >
+        <label className="mb-1.5 block text-sm font-medium">
           {loc.urlImport.destFolder}
         </label>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="flex items-center gap-2">
           <input
             type="text"
             value={targetDir}
             onChange={(e) => setTargetDir(e.target.value)}
             disabled={isLoading}
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0, 0, 0, 0.25)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '8px',
-              padding: '8px 12px',
-              color: '#cbd5e1',
-              fontSize: '0.82rem',
-              fontFamily: 'monospace',
-            }}
+            className="flex-1 rounded-lg border border-white/10 bg-black/25 px-3 py-2 font-mono text-ui text-slate-300"
           />
           <button
             type="button"
             onClick={handlePickDirectory}
             disabled={isLoading}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              padding: '8px 12px',
-              color: '#e2e8f0',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.82rem',
-              whiteSpace: 'nowrap',
-            }}
+            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-ui whitespace-nowrap text-slate-200"
           >
             <FolderOpen size={15} />
             {loc.urlImport.browse}
@@ -517,19 +329,9 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
 
       {/* Informacje o silniku yt-dlp */}
       <div
-        style={{
-          backgroundColor: 'rgba(168, 85, 247, 0.08)',
-          border: '1px solid rgba(168, 85, 247, 0.2)',
-          borderRadius: '8px',
-          padding: '10px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.78rem',
-          color: '#e9d5ff',
-        }}
+        className="flex items-center gap-2 rounded-lg border border-accent-purple/20 bg-accent-purple/8 px-3 py-2.5 text-ui text-purple-200"
       >
-        <Sparkles size={16} style={{ flexShrink: 0, color: '#c084fc' }} />
+        <Sparkles size={16} className="shrink-0 text-purple-400" />
         <span>
           {loc.urlImport.sqliteIndexingHint}
         </span>
@@ -538,59 +340,31 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
       {/* Błąd */}
       {errorMessage && (
         <div
-          style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
-            borderRadius: '8px',
-            padding: '12px',
-            display: 'flex',
-            gap: '10px',
-            color: '#fca5a5',
-            fontSize: '0.82rem',
-            whiteSpace: 'pre-line',
-          }}
+          className="flex gap-2.5 rounded-lg border border-accent-red/40 bg-accent-red/15 p-3 text-ui whitespace-pre-line text-red-300"
         >
-          <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div>{errorMessage}</div>
         </div>
       )}
 
       {/* Przycisk akcji */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+      <div className="mt-1.5 flex justify-end gap-2.5">
         <button
           type="button"
           onClick={onClose}
           disabled={isLoading}
-          style={{
-            background: 'transparent',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: '8px',
-            padding: '10px 16px',
-            color: '#cbd5e1',
-            cursor: 'pointer',
-            fontSize: '0.88rem',
-          }}
+          className="rounded-lg border border-white/15 bg-transparent px-4 py-2.5 text-sm text-slate-300"
         >
           {loc.common.cancel}
         </button>
         <button
           type="submit"
           disabled={isLoading || !url.trim()}
-          style={{
-            background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '10px 20px',
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: '0.88rem',
-            cursor: isLoading || !url.trim() ? 'not-allowed' : 'pointer',
-            opacity: isLoading || !url.trim() ? 0.6 : 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
-          }}
+          className={cn(
+            'flex items-center gap-2 rounded-lg border-0 bg-linear-135 from-accent-purple to-pink-500 px-5 py-2.5 text-sm font-semibold text-fg shadow-lift shadow-accent-purple/40',
+            isLoading || !url.trim() ? 'cursor-not-allowed' : 'cursor-pointer',
+            isLoading || !url.trim() ? 'opacity-60' : 'opacity-100',
+          )}
         >
           {isLoading ? (
             <>

@@ -1,5 +1,6 @@
 import type { AppTab } from '../../types/navigation';
 import React from 'react';
+import { cn } from '../../utils/cn';
 import {
   PlayerView,
   type PlayerViewProps,
@@ -63,12 +64,7 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
   return (
     <main
       ref={mainContentRef}
-      style={{
-        flex: 1,
-        minHeight: 0,
-        overflowY: 'auto',
-        paddingBottom: activeTab !== 'player' || isPlayerScrolledDown ? '88px' : '0',
-      }}
+      className={cn('min-h-0 flex-1 overflow-y-auto', (activeTab !== 'player' || isPlayerScrolledDown) && 'pb-22')}
     >
       {/* Tab 1: Player View */}
       {activeTab === 'player' && <PlayerView {...playerProps} />}
@@ -84,7 +80,7 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
 
       {/* Tab 5: Stem Separation Projects View */}
       {activeTab === 'stem-projects' && (
-        <div style={{ padding: '24px 16px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
+        <div className="mx-auto px-4 py-6" style={{ maxWidth: layoutMaxWidth }}>
           <StemProjectsLibraryView
             onOpenProject={stemProjectsProps.onOpenProject}
             onOpenCreateProject={stemProjectsProps.onOpenCreateProject}
@@ -97,7 +93,7 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
 
       {/* Tab 7: Recap & Stats Dashboard */}
       {activeTab === 'stats' && statsProps && (
-        <div style={{ padding: '24px 16px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
+        <div className="mx-auto px-4 py-6" style={{ maxWidth: layoutMaxWidth }}>
           <StatsDashboardView {...statsProps} />
         </div>
       )}

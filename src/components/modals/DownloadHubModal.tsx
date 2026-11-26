@@ -14,6 +14,9 @@ import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
+import { Callout } from '../ui';
 
 export interface DownloadJobDto {
   id: string;
@@ -172,539 +175,276 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-205 flex-col overflow-hidden rounded-3xl border border-line text-fg shadow-modal"
     >
-      <div
-        style={{
-          background: 'linear-gradient(145deg, rgba(22, 24, 38, 0.95), rgba(14, 15, 25, 0.98))',
-          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
-          borderRadius: '20px',
-          width: '100%',
-          maxWidth: '820px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 77, 148, 0.15)',
-          overflow: 'hidden',
-          color: '#fff',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* NAGŁÓWEK */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 77, 148, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, var(--accent-pink, #ff4d94), #9d4edd)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 15px rgba(255, 77, 148, 0.35)',
-              }}
-            >
-              <Download size={22} color="#fff" />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-                {loc.downloadHub.title}
-              </h2>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
-                {loc.downloadHub.subtitle}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: 'none',
-              borderRadius: '10px',
-              width: '36px',
-              height: '36px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#fff',
-            }}
+      {/* NAGŁÓWEK */}
+      <div className="flex items-center justify-between border-b border-white/8 bg-accent-pink/4 px-6 py-5">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex size-10.5 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-accent-pink/35"
           >
-            <X size={18} />
-          </button>
+            <Download size={22} className="text-fg" />
+          </div>
+          <div>
+            <h2 className="m-0 text-xl font-bold tracking-tight">
+              {loc.downloadHub.title}
+            </h2>
+            <p className="m-0 mt-0.5 text-ui text-fg-muted">
+              {loc.downloadHub.subtitle}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border-0 bg-white/6 text-fg"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* TREŚĆ MODALA */}
+      <div className="flex flex-col gap-5.5 overflow-y-auto p-6">
+        {/* BANER BEZPIECZEŃSTWA AGENTS.md */}
+        <div
+          className="flex items-center gap-3 rounded-xl border border-sky-400/25 bg-sky-400/8 px-4 py-3 text-ui text-sky-200"
+        >
+          <ShieldCheck size={20} className="shrink-0 text-sky-400" />
+          <span>
+            {loc.downloadHub.securityBanner}
+          </span>
         </div>
 
-        {/* TREŚĆ MODALA */}
-        <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          {/* BANER BEZPIECZEŃSTWA AGENTS.md */}
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              background: 'rgba(56, 189, 248, 0.08)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontSize: '0.8rem',
-              color: '#bae6fd',
-            }}
+        {errorMessage && (
+          <Callout
+            tone="red" className="flex items-center gap-2 text-sm text-red-300"
           >
-            <ShieldCheck size={20} color="#38bdf8" style={{ flexShrink: 0 }} />
-            <span>
-              {loc.downloadHub.securityBanner}
-            </span>
+            <AlertCircle size={16} />
+            {errorMessage}
+          </Callout>
+        )}
+
+        {successMessage && (
+          <div
+            className="flex items-center gap-2 rounded-xl border border-green-500/35 bg-green-500/15 px-4 py-3 text-sm text-green-300"
+          >
+            <CheckCircle2 size={16} />
+            {successMessage}
+          </div>
+        )}
+
+        {/* FORMULARZ NOWEGO POBIERANIA */}
+        <form onSubmit={handleStartDownload} className="flex flex-col gap-3.5">
+          <div>
+            <label className="mb-1.5 block text-ui font-semibold text-slate-300">
+              {loc.downloadHub.directUrl}
+            </label>
+            <input
+              type="url"
+              required
+              placeholder="https://archive.org/download/.../track.flac"
+              value={remoteUrl}
+              onChange={(e) => setRemoteUrl(e.target.value)}
+              className="w-full rounded-xl border border-white/15 bg-black/35 px-3.5 py-2.5 text-sm text-fg outline-none"
+            />
           </div>
 
-          {errorMessage && (
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                color: '#fca5a5',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AlertCircle size={16} />
-              {errorMessage}
-            </div>
-          )}
-
-          {successMessage && (
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                background: 'rgba(34, 197, 94, 0.15)',
-                border: '1px solid rgba(34, 197, 94, 0.35)',
-                color: '#86efac',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <CheckCircle2 size={16} />
-              {successMessage}
-            </div>
-          )}
-
-          {/* FORMULARZ NOWEGO POBIERANIA */}
-          <form onSubmit={handleStartDownload} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="grid grid-cols-[1.2fr_0.8fr] gap-3">
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                {loc.downloadHub.directUrl}
+              <label className="mb-1.5 block text-ui font-semibold text-slate-300">
+                {loc.downloadHub.destinationFolder}
               </label>
-              <input
-                type="url"
-                required
-                placeholder="https://archive.org/download/.../track.flac"
-                value={remoteUrl}
-                onChange={(e) => setRemoteUrl(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  color: '#fff',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                  {loc.downloadHub.destinationFolder}
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    required
-                    readOnly
-                    placeholder={loc.downloadHub.selectFolderPlaceholder}
-                    value={destinationFolder}
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      background: 'rgba(0, 0, 0, 0.25)',
-                      color: '#cbd5e1',
-                      fontSize: '0.8rem',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePickFolder}
-                    style={{
-                      padding: '0 14px',
-                      borderRadius: '10px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Folder size={16} /> {loc.downloadHub.browse}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                  {loc.downloadHub.filename}
-                </label>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   required
-                  placeholder={loc.downloadHub.filenamePlaceholder}
-                  value={filename}
-                  onChange={(e) => setFilename(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    background: 'rgba(0, 0, 0, 0.35)',
-                    color: '#fff',
-                    fontSize: '0.8rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
+                  readOnly
+                  placeholder={loc.downloadHub.selectFolderPlaceholder}
+                  value={destinationFolder}
+                  className="flex-1 rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-ui text-slate-300 outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={handlePickFolder}
+                  className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3.5 py-0 text-ui font-semibold text-fg"
+                >
+                  <Folder size={16} /> {loc.downloadHub.browse}
+                </button>
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#cbd5e1' }}>
-                {loc.downloadHub.expectedSha256}{' '}
-                <span style={{ color: 'var(--text-muted, #94a3b8)', fontWeight: 400 }}>
-                  {loc.downloadHub.integrityOptional}
-                </span>
+              <label className="mb-1.5 block text-ui font-semibold text-slate-300">
+                {loc.downloadHub.filename}
               </label>
               <input
                 type="text"
-                placeholder={loc.downloadHub.shaPlaceholder}
-                value={expectedSha}
-                onChange={(e) => setExpectedSha(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  color: '#fff',
-                  fontFamily: 'monospace',
-                  fontSize: '0.75rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
+                required
+                placeholder={loc.downloadHub.filenamePlaceholder}
+                value={filename}
+                onChange={(e) => setFilename(e.target.value)}
+                className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 text-ui text-fg outline-none"
               />
             </div>
+          </div>
 
+          <div>
+            <label className="mb-1.5 block text-ui font-semibold text-slate-300">
+              {loc.downloadHub.expectedSha256}{' '}
+              <span className="font-normal text-fg-muted">
+                {loc.downloadHub.integrityOptional}
+              </span>
+            </label>
+            <input
+              type="text"
+              placeholder={loc.downloadHub.shaPlaceholder}
+              value={expectedSha}
+              onChange={(e) => setExpectedSha(e.target.value)}
+              className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 font-mono text-xs text-fg outline-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={cn(
+              'mt-1.5 flex items-center justify-center gap-2 rounded-xl border-0 bg-accent-gradient px-5 py-3 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/30 transition-opacity duration-200',
+              isSubmitting && 'cursor-not-allowed opacity-70',
+            )}
+          >
+            <Download size={18} />
+            {isSubmitting ? loc.downloadHub.starting : loc.downloadHub.startDownload}
+          </button>
+        </form>
+
+        {/* LISTA ZADAŃ W KOLEJCE */}
+        <div className="mt-2.5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="m-0 flex items-center gap-2 text-md font-bold text-slate-200">
+              <FileAudio size={18} className="text-accent-pink" /> {loc.downloadHub.queueTitle} ({jobs.length})
+            </h3>
             <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{
-                marginTop: '6px',
-                padding: '12px 20px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, var(--accent-pink, #ff4d94), #9d4edd)',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 15px rgba(255, 77, 148, 0.3)',
-                transition: 'opacity 0.2s',
-                opacity: isSubmitting ? 0.7 : 1,
-              }}
+              onClick={fetchJobs}
+              className="flex items-center gap-1 border-0 bg-transparent text-xs text-fg-muted"
             >
-              <Download size={18} />
-              {isSubmitting ? loc.downloadHub.starting : loc.downloadHub.startDownload}
+              <RefreshCw size={12} /> {loc.downloadHub.refreshList}
             </button>
-          </form>
+          </div>
 
-          {/* LISTA ZADAŃ W KOLEJCE */}
-          <div style={{ marginTop: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileAudio size={18} color="var(--accent-pink, #ff4d94)" /> {loc.downloadHub.queueTitle} ({jobs.length})
-              </h3>
-              <button
-                onClick={fetchJobs}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted, #94a3b8)',
-                  cursor: 'pointer',
-                  fontSize: '0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <RefreshCw size={12} /> {loc.downloadHub.refreshList}
-              </button>
+          {jobs.length === 0 ? (
+            <div
+              className="rounded-xl border border-dashed border-white/10 bg-black/20 p-7 text-center text-sm text-fg-muted"
+            >
+              {loc.downloadHub.emptyQueue}
             </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {jobs.map((job) => {
+                const percent =
+                  job.total_bytes && job.total_bytes > 0
+                    ? Math.min(100, Math.round((job.downloaded_bytes / job.total_bytes) * 100))
+                    : null;
 
-            {jobs.length === 0 ? (
-              <div
-                style={{
-                  padding: '28px',
-                  textAlign: 'center',
-                  background: 'rgba(0, 0, 0, 0.2)',
-                  borderRadius: '12px',
-                  border: '1px dashed rgba(255, 255, 255, 0.1)',
-                  color: 'var(--text-muted, #94a3b8)',
-                  fontSize: '0.85rem',
-                }}
-              >
-                {loc.downloadHub.emptyQueue}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {jobs.map((job) => {
-                  const percent =
-                    job.total_bytes && job.total_bytes > 0
-                      ? Math.min(100, Math.round((job.downloaded_bytes / job.total_bytes) * 100))
-                      : null;
-
-                  return (
-                    <div
-                      key={job.id}
-                      style={{
-                        padding: '14px 16px',
-                        borderRadius: '12px',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              textTransform: 'uppercase',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              background:
-                                job.state === 'Completed'
-                                  ? 'rgba(34, 197, 94, 0.2)'
-                                  : job.state === 'Downloading'
-                                  ? 'rgba(56, 189, 248, 0.2)'
-                                  : job.state === 'Failed'
-                                  ? 'rgba(239, 68, 68, 0.2)'
-                                  : 'rgba(255, 255, 255, 0.1)',
-                              color:
-                                job.state === 'Completed'
-                                  ? '#4ade80'
-                                  : job.state === 'Downloading'
-                                  ? '#38bdf8'
-                                  : job.state === 'Failed'
-                                  ? '#f87171'
-                                  : '#cbd5e1',
-                            }}
-                          >
-                            {job.state === 'Downloading' ? loc.downloadHub.downloading : job.state}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '0.85rem',
-                              fontWeight: 600,
-                              color: '#fff',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              maxWidth: '450px',
-                            }}
-                            title={job.destination_path}
-                          >
-                            {job.destination_path.split('/').pop()}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {job.state === 'Downloading' && (
-                            <button
-                              onClick={() => handleCancelJob(job.id)}
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                background: 'rgba(239, 68, 68, 0.2)',
-                                border: '1px solid rgba(239, 68, 68, 0.4)',
-                                color: '#f87171',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {loc.common.cancel}
-                            </button>
+                return (
+                  <div
+                    key={job.id}
+                    className="flex flex-col gap-2 rounded-xl border border-white/8 bg-white/4 px-4 py-3.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <span
+                          className={cn(
+                            'rounded-md px-2 py-0.5 text-xxs font-bold uppercase',
+                            job.state === 'Completed' ? 'bg-green-500/20' : job.state === 'Downloading' ? 'bg-sky-400/20' : job.state === 'Failed' ? 'bg-accent-red/20' : 'bg-white/10',
+                            job.state === 'Completed' ? 'text-green-400' : job.state === 'Downloading' ? 'text-sky-400' : job.state === 'Failed' ? 'text-red-400' : 'text-slate-300',
                           )}
-                          {job.state === 'Completed' && (
-                            <button
-                              onClick={() => {
-                                onRefreshLibrary();
-                                if (onPlayPath) onPlayPath(job.destination_path);
-                              }}
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                background: 'rgba(34, 197, 94, 0.2)',
-                                border: '1px solid rgba(34, 197, 94, 0.4)',
-                                color: '#4ade80',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
-                            >
-                              <Play size={12} /> {loc.downloadHub.playInAuralune}
-                            </button>
-                          )}
-                        </div>
+                        >
+                          {job.state === 'Downloading' ? loc.downloadHub.downloading : job.state}
+                        </span>
+                        <span
+                          className="max-w-112.5 truncate text-sm font-semibold text-fg"
+                          title={job.destination_path}
+                        >
+                          {job.destination_path.split('/').pop()}
+                        </span>
                       </div>
 
-                      {/* PASEK POSTĘPU */}
-                      {job.state === 'Downloading' && (
-                        <div>
-                          <div
-                            style={{
-                              width: '100%',
-                              height: '6px',
-                              background: 'rgba(0,0,0,0.4)',
-                              borderRadius: '3px',
-                              overflow: 'hidden',
-                              marginTop: '4px',
-                            }}
+                      <div className="flex items-center gap-2">
+                        {job.state === 'Downloading' && (
+                          <button
+                            onClick={() => handleCancelJob(job.id)}
+                            className="rounded-md border border-accent-red/40 bg-accent-red/20 px-2.5 py-1 text-xs font-semibold text-red-400"
                           >
-                            <div
-                              style={{
-                                width: percent !== null ? `${percent}%` : '60%',
-                                height: '100%',
-                                background: 'linear-gradient(90deg, var(--accent-pink, #ff4d94), #38bdf8)',
-                                borderRadius: '3px',
-                                transition: 'width 0.3s ease',
-                              }}
-                            />
-                          </div>
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              fontSize: '0.75rem',
-                              color: 'var(--text-muted, #94a3b8)',
-                              marginTop: '4px',
+                            {loc.common.cancel}
+                          </button>
+                        )}
+                        {job.state === 'Completed' && (
+                          <button
+                            onClick={() => {
+                              onRefreshLibrary();
+                              if (onPlayPath) onPlayPath(job.destination_path);
                             }}
+                            className="flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/20 px-2.5 py-1 text-xs font-semibold text-green-400"
                           >
-                            <span>
-                              {formatBytes(job.downloaded_bytes)}
-                              {job.total_bytes ? ` / ${formatBytes(job.total_bytes)}` : ''}
-                            </span>
-                            <span>{percent !== null ? `${percent}%` : loc.downloadHub.streaming}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {job.error && (
-                        <div style={{ fontSize: '0.75rem', color: '#f87171' }}>
-                          {loc.downloadHub.error} {job.error}
-                        </div>
-                      )}
-
-                      {job.state === 'Completed' && job.actual_sha256 && (
-                        <div style={{ fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace' }}>
-                          SHA-256: {job.actual_sha256.substring(0, 16)}...
-                          {job.expected_sha256 && loc.downloadHub.verified}
-                        </div>
-                      )}
+                            <Play size={12} /> {loc.downloadHub.playInAuralune}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* STOPKA */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(0, 0, 0, 0.25)',
-          }}
-        >
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)' }}>
-            {loc.downloadHub.compliance}
-          </span>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 18px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-            }}
-          >
-            {loc.common.close}
-          </button>
+                    {/* PASEK POSTĘPU */}
+                    {job.state === 'Downloading' && (
+                      <div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-sm bg-black/40">
+                          <div
+                            className="h-full rounded-sm bg-linear-to-r from-accent-pink to-sky-400 transition-[width] duration-300"
+                            style={{ width: percent !== null ? `${percent}%` : '60%' }}
+                          />
+                        </div>
+                        <div className="mt-1 flex justify-between text-xs text-fg-muted">
+                          <span>
+                            {formatBytes(job.downloaded_bytes)}
+                            {job.total_bytes ? ` / ${formatBytes(job.total_bytes)}` : ''}
+                          </span>
+                          <span>{percent !== null ? `${percent}%` : loc.downloadHub.streaming}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {job.error && (
+                      <div className="text-xs text-red-400">
+                        {loc.downloadHub.error} {job.error}
+                      </div>
+                    )}
+
+                    {job.state === 'Completed' && job.actual_sha256 && (
+                      <div className="font-mono text-xxs text-fg-muted">
+                        SHA-256: {job.actual_sha256.substring(0, 16)}...
+                        {job.expected_sha256 && loc.downloadHub.verified}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+
+      {/* STOPKA */}
+      <div className="flex items-center justify-between border-t border-white/8 bg-black/25 px-6 py-4">
+        <span className="text-xs text-fg-muted">
+          {loc.downloadHub.compliance}
+        </span>
+        <button
+          onClick={onClose}
+          className="rounded-xl border border-white/15 bg-white/8 px-4.5 py-2 text-sm font-semibold text-fg"
+        >
+          {loc.common.close}
+        </button>
+      </div>
+    </ModalShell>
   );
 };

@@ -679,7 +679,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
   useEffect(() => resetTooltip, [resetTooltip, index]);
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
+    <div ref={wrapRef} className="relative h-full min-h-0 w-full">
       <canvas
         ref={canvasRef}
         role="img"
@@ -691,25 +691,11 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
           dragRef.current = null;
         }}
         onPointerLeave={onPointerLeave}
-        style={{ width: '100%', height: '100%', display: 'block', cursor: 'crosshair', touchAction: 'none' }}
+        className="block h-full w-full cursor-crosshair touch-none"
       />
       <div
         ref={tooltipRef}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          display: 'none',
-          pointerEvents: 'none',
-          padding: '4px 8px',
-          borderRadius: '6px',
-          background: 'rgba(15, 23, 42, 0.95)',
-          border: '1px solid rgba(148, 163, 184, 0.35)',
-          color: '#e2e8f0',
-          fontSize: '0.72rem',
-          whiteSpace: 'nowrap',
-          zIndex: 5,
-        }}
+        className="pointer-events-none absolute left-0 top-0 z-5 hidden rounded-md border border-fg-secondary/35 bg-slate-900/95 px-2 py-1 text-xs whitespace-nowrap text-slate-200"
       />
     </div>
   );

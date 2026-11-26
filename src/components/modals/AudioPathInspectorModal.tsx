@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { cn } from '../../utils/cn';
 
 export interface AudioPathTrackInfo {
   format?: string | null;
@@ -61,87 +62,44 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px',
-      }}
+      className="fixed inset-0 z-90 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        style={{
-          background: 'linear-gradient(145deg, rgba(22, 18, 38, 0.98), rgba(12, 10, 22, 0.98))',
-          border: isBitPerfect
-            ? '1px solid rgba(16, 185, 129, 0.45)'
-            : '1px solid rgba(168, 85, 247, 0.45)',
-          borderRadius: '18px',
-          width: '100%',
-          maxWidth: '680px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: isBitPerfect
-            ? '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(16, 185, 129, 0.25)'
-            : '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(168, 85, 247, 0.25)',
-          overflow: 'hidden',
-          animation: 'modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
+        className={cn(
+          'bg-modal shadow-modal',
+          'flex max-h-[90vh] w-full max-w-170 flex-col overflow-hidden rounded-2xl border motion-safe:animate-modal-in',
+          isBitPerfect ? 'border-accent-green/45' : 'border-accent-purple/45',
+          isBitPerfect && '',
+        )}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
+          <div className="flex items-center gap-3">
             <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: isBitPerfect
-                  ? 'rgba(16, 185, 129, 0.15)'
-                  : 'rgba(168, 85, 247, 0.18)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: isBitPerfect ? '#10b981' : 'var(--accent-purple, #a855f7)',
-                border: isBitPerfect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(168, 85, 247, 0.3)',
-              }}
+              className={cn(
+                'flex h-9.5 w-9.5 items-center justify-center rounded-xl border',
+                isBitPerfect ? 'bg-accent-green/15' : 'bg-accent-purple/20',
+                isBitPerfect ? 'text-accent-green' : 'text-accent-purple',
+                isBitPerfect ? 'border-accent-green/30' : 'border-accent-purple/30',
+              )}
             >
               <Radio size={20} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
+              <div className="flex items-center gap-2">
+                <h2 className="m-0 text-lg font-bold text-fg">
                   {loc.audioPath.title}
                 </h2>
                 <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                    background: isBitPerfect ? 'rgba(16, 185, 129, 0.2)' : 'rgba(168, 85, 247, 0.2)',
-                    color: isBitPerfect ? '#34d399' : '#d8b4fe',
-                    border: isBitPerfect ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(168, 85, 247, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
+                  className={cn(
+                    'flex items-center gap-1 rounded-xl border px-2 py-0.5 text-xxs font-bold',
+                    isBitPerfect ? 'bg-accent-green/20' : 'bg-accent-purple/20',
+                    isBitPerfect ? 'text-emerald-400' : 'text-purple-300',
+                    isBitPerfect ? 'border-accent-green/40' : 'border-accent-purple/40',
+                  )}
                 >
                   {isBitPerfect ? (
                     <>
@@ -156,13 +114,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                   )}
                 </span>
               </div>
-              <p
-                style={{
-                  margin: '2px 0 0 0',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary, #94a3b8)',
-                }}
-              >
+              <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
                 {loc.audioPath.subtitle}
               </p>
             </div>
@@ -170,143 +122,114 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
 
           <button
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary, #94a3b8)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-            }}
+            className="rounded-lg border-0 bg-transparent p-1.5 text-fg-secondary"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '22px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-5.5">
           {/* Signal Chain Flow Visualization */}
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              background: 'rgba(0, 0, 0, 0.35)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              fontSize: '0.74rem',
-              color: '#cbd5e1',
-            }}
+            className="flex items-center justify-between rounded-xl border border-white/6 bg-black/35 px-4 py-3 text-xs text-slate-300"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Layers size={14} color="#06b6d4" />
+            <div className="flex items-center gap-1.5">
+              <Layers size={14} className="text-accent-cyan" />
               <strong>{loc.audioPath.source}</strong>
             </div>
-            <ArrowRight size={13} color="#64748b" />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Cpu size={14} color="#a855f7" />
+            <ArrowRight size={13} className="text-fg-muted" />
+            <div className="flex items-center gap-1.5">
+              <Cpu size={14} className="text-accent-purple" />
               <strong>GStreamer</strong>
             </div>
-            <ArrowRight size={13} color="#64748b" />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ArrowRight size={13} className="text-fg-muted" />
+            <div className="flex items-center gap-1.5">
               <Sliders size={14} color={isBitPerfect ? '#10b981' : '#ec4899'} />
               <strong>{isBypass ? loc.audioPath.directBypass : status.engine}</strong>
             </div>
-            <ArrowRight size={13} color="#64748b" />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Speaker size={14} color="#10b981" />
+            <ArrowRight size={13} className="text-fg-muted" />
+            <div className="flex items-center gap-1.5">
+              <Speaker size={14} className="text-accent-green" />
               <strong>PipeWire Sink</strong>
             </div>
           </div>
 
           {/* 1. Źródło dźwięku (Input Source) */}
-          <div
-            style={{
-              padding: '14px 16px',
-              background: 'rgba(0, 0, 0, 0.25)',
-              borderRadius: '12px',
-              border: '1px solid rgba(6, 182, 212, 0.25)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#06b6d4', fontWeight: 700, fontSize: '0.82rem' }}>
+          <div className="rounded-xl border border-accent-cyan/25 bg-black/25 px-4 py-3.5">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-ui font-bold text-accent-cyan">
                 <Layers size={16} />
                 <span>{loc.audioPath.inputSource}</span>
               </div>
-              <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+              <span className="text-xs text-fg-secondary">
                 {status.current_track?.title || loc.audioPath.noTrack}
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
+            <div className="grid grid-cols-4 gap-2.5 text-ui">
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.format}</span>
-                <strong style={{ color: '#f8fafc' }}>{format}</strong>
+                <span className="block text-fg-muted">{loc.audioPath.format}</span>
+                <strong className="text-fg">{format}</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.sampleRate}</span>
-                <strong style={{ color: '#f8fafc' }}>{(sampleRate / 1000).toFixed(1)} kHz</strong>
+                <span className="block text-fg-muted">{loc.audioPath.sampleRate}</span>
+                <strong className="text-fg">{(sampleRate / 1000).toFixed(1)} kHz</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.bitDepth}</span>
-                <strong style={{ color: '#f8fafc' }}>{bitDepth}-bit {bitDepth >= 24 ? 'Hi-Res' : 'CD'}</strong>
+                <span className="block text-fg-muted">{loc.audioPath.bitDepth}</span>
+                <strong className="text-fg">{bitDepth}-bit {bitDepth >= 24 ? 'Hi-Res' : 'CD'}</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.channels}</span>
-                <strong style={{ color: '#f8fafc' }}>{channels === 2 ? loc.audioPath.stereo : `${channels} ch`}</strong>
+                <span className="block text-fg-muted">{loc.audioPath.channels}</span>
+                <strong className="text-fg">{channels === 2 ? loc.audioPath.stereo : `${channels} ch`}</strong>
               </div>
             </div>
           </div>
 
           {/* 2. Przetwarzanie DSP & Efekty */}
           <div
-            style={{
-              padding: '14px 16px',
-              background: 'rgba(0, 0, 0, 0.25)',
-              borderRadius: '12px',
-              border: isBitPerfect
-                ? '1px solid rgba(16, 185, 129, 0.25)'
-                : '1px solid rgba(168, 85, 247, 0.25)',
-            }}
+            className={cn(
+              'rounded-xl border bg-black/25 px-4 py-3.5',
+              isBitPerfect ? 'border-accent-green/25' : 'border-accent-purple/25',
+            )}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isBitPerfect ? '#10b981' : '#a855f7', fontWeight: 700, fontSize: '0.82rem' }}>
+            <div className="mb-2 flex items-center justify-between">
+              <div className={cn(
+                'flex items-center gap-2 text-ui font-bold',
+                isBitPerfect ? 'text-accent-green' : 'text-accent-purple',
+              )}>
                 <Cpu size={16} />
                 <span>{loc.audioPath.dspProcessing}</span>
               </div>
               <span
-                style={{
-                  fontSize: '0.72rem',
-                  color: isBitPerfect ? '#34d399' : '#d8b4fe',
-                  fontWeight: 600,
-                }}
+                className={cn('text-xs font-semibold', isBitPerfect ? 'text-emerald-400' : 'text-purple-300')}
               >
                 {isBypass ? loc.audioPath.directBypassZeroCpu : `${status.engine} Engine`}
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
+            <div className="grid grid-cols-4 gap-2.5 text-ui">
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.tempo}</span>
-                <strong style={{ color: isDefaultTempo ? '#f8fafc' : '#ec4899' }}>
+                <span className="block text-fg-muted">{loc.audioPath.tempo}</span>
+                <strong className={cn(isDefaultTempo ? 'text-fg' : 'text-pink-500')}>
                   {(status.tempo_ratio ?? 1.0).toFixed(2)}x
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.pitch}</span>
-                <strong style={{ color: isDefaultPitch ? '#f8fafc' : '#ec4899' }}>
+                <span className="block text-fg-muted">{loc.audioPath.pitch}</span>
+                <strong className={cn(isDefaultPitch ? 'text-fg' : 'text-pink-500')}>
                   {(status.pitch_semitones ?? 0.0) >= 0 ? '+' : ''}
                   {(status.pitch_semitones ?? 0.0).toFixed(1)} st
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.equalizer}</span>
-                <strong style={{ color: status.equalizer_enabled ? '#ec4899' : '#94a3b8' }}>
+                <span className="block text-fg-muted">{loc.audioPath.equalizer}</span>
+                <strong className={cn(status.equalizer_enabled ? 'text-pink-500' : 'text-fg-secondary')}>
                   {status.equalizer_enabled ? loc.audioPath.activeBands : loc.audioPath.offFlat}
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.dspLatency}</span>
-                <strong style={{ color: isBitPerfect ? '#34d399' : '#f8fafc' }}>
+                <span className="block text-fg-muted">{loc.audioPath.dspLatency}</span>
+                <strong className={cn(isBitPerfect ? 'text-emerald-400' : 'text-fg')}>
                   {isBitPerfect ? '0.0 ms (Direct)' : '~12 ms (Vocoder)'}
                 </strong>
               </div>
@@ -314,63 +237,50 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
           </div>
 
           {/* 3. Wyjście PipeWire (Audio Sink) */}
-          <div
-            style={{
-              padding: '14px 16px',
-              background: 'rgba(0, 0, 0, 0.25)',
-              borderRadius: '12px',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 700, fontSize: '0.82rem' }}>
+          <div className="rounded-xl border border-accent-green/25 bg-black/25 px-4 py-3.5">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-ui font-bold text-accent-green">
                 <Speaker size={16} />
                 <span>{loc.audioPath.pipewireSink}</span>
               </div>
-              <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>
+              <span className="text-xs font-semibold text-emerald-400">
                 PipeWire Pro Audio Low-Latency
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
+            <div className="grid grid-cols-4 gap-2.5 text-ui">
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.outputFormat}</span>
-                <strong style={{ color: '#f8fafc' }}>F32LE (Float32)</strong>
+                <span className="block text-fg-muted">{loc.audioPath.outputFormat}</span>
+                <strong className="text-fg">F32LE (Float32)</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.sinkClockRate}</span>
-                <strong style={{ color: '#f8fafc' }}>
+                <span className="block text-fg-muted">{loc.audioPath.sinkClockRate}</span>
+                <strong className="text-fg">
                   {sampleRate >= 88200 ? `${(sampleRate / 1000).toFixed(1)} kHz (Direct)` : '48.0 kHz Native'}
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.playerBuffer}</span>
-                <strong style={{ color: '#f8fafc' }}>40 ms deadline</strong>
+                <span className="block text-fg-muted">{loc.audioPath.playerBuffer}</span>
+                <strong className="text-fg">40 ms deadline</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block' }}>{loc.audioPath.xruns}</span>
-                <strong style={{ color: '#34d399' }}>0 (Jitter-Free)</strong>
+                <span className="block text-fg-muted">{loc.audioPath.xruns}</span>
+                <strong className="text-emerald-400">0 (Jitter-Free)</strong>
               </div>
             </div>
           </div>
 
           {/* Informacja podsumowująca */}
           <div
-            style={{
-              padding: '12px 14px',
-              borderRadius: '10px',
-              background: isBitPerfect ? 'rgba(16, 185, 129, 0.1)' : 'rgba(168, 85, 247, 0.1)',
-              border: isBitPerfect ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(168, 85, 247, 0.25)',
-              fontSize: '0.8rem',
-              color: '#cbd5e1',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
+            className={cn(
+              'flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-ui text-slate-300',
+              isBitPerfect ? 'bg-accent-green/10' : 'bg-accent-purple/10',
+              isBitPerfect ? 'border-accent-green/25' : 'border-accent-purple/25',
+            )}
           >
             {isBitPerfect ? (
-              <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
+              <CheckCircle2 size={18} className="shrink-0 text-accent-green" />
             ) : (
-              <AlertCircle size={18} color="#c084fc" style={{ flexShrink: 0 }} />
+              <AlertCircle size={18} className="shrink-0 text-purple-400" />
             )}
             <span>
               {isBitPerfect ? loc.audioPath.bitPerfectSummary : loc.audioPath.processedSummary}
@@ -379,35 +289,13 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
         </div>
 
         {/* Footer z przyciskiem resetu Bit-Perfect */}
-        <div
-          style={{
-            padding: '14px 24px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
+        <div className="flex items-center justify-between border-t border-white/8 bg-white/2 px-6 py-3.5">
           {onResetBitPerfect && !isBitPerfect ? (
             <button
               onClick={() => {
                 onResetBitPerfect();
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '8px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: '#34d399',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className="flex items-center gap-1.5 rounded-lg border border-accent-green/35 bg-accent-green/15 px-3.5 py-2 text-ui font-bold text-emerald-400 transition-all duration-150"
             >
               <RotateCcw size={14} />
               <span>{loc.audioPath.resetBtn}</span>
@@ -418,17 +306,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
 
           <button
             onClick={onClose}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--accent-purple, #a855f7), var(--accent-pink, #ec4899))',
-              border: 'none',
-              color: '#fff',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(168, 85, 247, 0.35)',
-            }}
+            className="rounded-lg border-0 bg-linear-135 from-accent-purple to-accent-pink px-5 py-2 text-sm font-semibold text-on-accent shadow-lift shadow-accent-purple/35"
           >
             {loc.common.close}
           </button>

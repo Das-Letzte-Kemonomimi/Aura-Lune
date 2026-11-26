@@ -13,6 +13,8 @@ import type { AiModelInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface ModelManagerModalProps {
   isOpen: boolean;
@@ -116,18 +118,9 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   };
 
   const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+    <div className="flex w-full flex-col gap-4">
       {error && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: '12px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#fca5a5',
-            fontSize: '0.82rem',
-          }}
-        >
+        <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-3 text-ui text-red-300">
           {error}
         </div>
       )}
@@ -135,46 +128,27 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
       {/* Akceleracja sprzętowa Banner */}
       {capabilities && (
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 18px',
-            borderRadius: '16px',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3.5"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="flex items-center gap-3">
             <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: capabilities.hardware_acceleration
-                  ? 'rgba(16, 185, 129, 0.2)'
-                  : 'rgba(245, 158, 11, 0.2)',
-                border: capabilities.hardware_acceleration
-                  ? '1px solid rgba(16, 185, 129, 0.4)'
-                  : '1px solid rgba(245, 158, 11, 0.4)',
-                color: capabilities.hardware_acceleration ? '#34d399' : '#fbbf24',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-xl border',
+                capabilities.hardware_acceleration ? 'bg-accent-green/20' : 'bg-accent-amber/20',
+                capabilities.hardware_acceleration ? 'border-accent-green/40' : 'border-accent-amber/40',
+                capabilities.hardware_acceleration ? 'text-emerald-400' : 'text-amber-400',
+              )}
             >
               <Zap size={18} />
             </div>
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="flex items-center gap-2 text-sm font-bold text-fg">
                 <span>{t.aiModels.device}</span>
-                <span style={{ color: '#ec4899', fontFamily: 'var(--font-mono)' }}>
+                <span className="font-mono text-pink-500">
                   {capabilities.accelerator_device}
                 </span>
               </div>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+              <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
                 {capabilities.hardware_acceleration
                   ? t.aiModels.gpuDetected
                   : t.aiModels.cpuDetected}
@@ -185,23 +159,14 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
       )}
 
       {/* Lista modeli */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h3
-          style={{
-            margin: '4px 0 0 0',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            color: '#94a3b8',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}
-        >
+      <div className="flex flex-col gap-3">
+        <h3 className="mx-0 mt-1 mb-0 text-xs font-bold tracking-wider text-fg-secondary uppercase">
           {t.aiModels.availableModels}
         </h3>
 
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-            <Sparkles size={24} color="#c084fc" style={{ animation: 'spin 1.5s linear infinite' }} />
+          <div className="flex justify-center p-8">
+            <Sparkles size={24} className="animate-spin text-purple-400" />
           </div>
         ) : (
           models.map((model) => {
@@ -210,125 +175,61 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
             return (
               <div
                 key={model.id}
-                style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '16px',
-                  flexWrap: 'wrap',
-                }}
+                className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/3 p-4"
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '520px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div className="flex max-w-130 flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-extrabold text-fg">
                       {model.name}
                     </span>
                     <span
-                      style={{
-                        fontSize: '0.7rem',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        background: 'rgba(168, 85, 247, 0.15)',
-                        border: '1px solid rgba(168, 85, 247, 0.3)',
-                        color: '#c084fc',
-                        fontWeight: 700,
-                      }}
+                      className="rounded-xl border border-accent-purple/30 bg-accent-purple/15 px-2 py-0.5 text-xxs font-bold text-purple-400"
                     >
                       {model.task_type}
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                  <p className="m-0 text-ui leading-snug text-fg-secondary">
                     {(t.aiModels.catalog as Record<string, string>)[model.id] ?? model.description}
                   </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.72rem', color: '#64748b' }}>
+                  <div className="flex items-center gap-3 text-xs text-fg-muted">
                     <span>{fmt(t.aiModels.sizeLabel, (model.file_size / (1024 * 1024)).toFixed(0))}</span>
                     <span>{t.aiModels.formatLabel}</span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="flex items-center gap-2.5">
                   {model.is_installed ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="flex items-center gap-2.5">
                       <span
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 12px',
-                          borderRadius: '10px',
-                          background: 'rgba(168, 185, 129, 0.15)',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
-                          color: '#34d399',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                        }}
+                        className="flex items-center gap-1.5 rounded-xl border border-accent-green/35 bg-accent-green/15 px-3 py-1.5 text-ui font-bold text-emerald-400"
                       >
                         <CheckCircle2 size={14} />
                         {t.aiModels.installed}
                       </span>
                       <button
                         onClick={() => handleDelete(model.id)}
-                        style={{
-                          padding: '7px 10px',
-                          borderRadius: '8px',
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          color: '#f87171',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
+                        className="flex items-center gap-1 rounded-lg border border-accent-red/30 bg-accent-red/15 px-2.5 py-2 text-red-400"
                         title={t.aiModels.deleteWeightsTooltip}
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   ) : isDown ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '140px' }}>
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '6px',
-                          borderRadius: '3px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          overflow: 'hidden',
-                        }}
-                      >
+                    <div className="flex w-35 flex-col gap-1">
+                      <div className="h-1.5 w-full overflow-hidden rounded-sm bg-white/10">
                         <div
-                          style={{
-                            height: '100%',
-                            width: `${Math.round(progress * 100)}%`,
-                            background: 'linear-gradient(90deg, #ec4899, #8b5cf6)',
-                            transition: 'width 0.2s ease',
-                          }}
+                          className="h-full bg-linear-to-r from-pink-500 to-violet-500 transition-[width] duration-200"
+                          style={{ width: `${Math.round(progress * 100)}%` }}
                         />
                       </div>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+                      <span className="text-center font-mono text-xxs text-fg-secondary">
                         {fmt(t.aiModels.downloading, String(Math.round(progress * 100)))}
                       </span>
                     </div>
                   ) : (
                     <button
                       onClick={() => handleDownload(model.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '8px 16px',
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                        border: 'none',
-                        color: '#ffffff',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 14px rgba(236, 72, 153, 0.3)',
-                      }}
+                      className="flex items-center gap-1.5 rounded-xl border-0 bg-linear-135 from-pink-500 to-violet-500 px-4 py-2 text-ui font-bold text-fg shadow-lift shadow-pink-500/30"
                     >
                       <Download size={14} />
                       <span>{fmt(t.aiModels.downloadBtn, (model.file_size / (1024 * 1024)).toFixed(0))}</span>
@@ -345,112 +246,47 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
 
   if (embedded) {
     return (
-      <div style={{ width: '100%', height: '100%', overflowY: 'auto', padding: '4px' }}>
+      <div className="h-full w-full overflow-y-auto p-1">
         {content}
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        background: 'rgba(5, 5, 12, 0.85)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-w-180 flex-col overflow-hidden rounded-3xl border border-accent-purple/35 p-6 text-fg"
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '720px',
-          background: 'linear-gradient(145deg, rgba(18, 20, 36, 0.98), rgba(10, 12, 24, 0.99))',
-          borderRadius: '24px',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9), 0 0 35px rgba(168, 85, 247, 0.2)',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '24px',
-          overflow: 'hidden',
-          color: '#f8fafc',
-          animation: 'fadeInScale 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            paddingBottom: '16px',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                background: 'rgba(168, 85, 247, 0.2)',
-                border: '1px solid rgba(168, 85, 247, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#c084fc',
-              }}
-            >
-              <Cpu size={20} />
-            </div>
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: '1.15rem',
-                  fontWeight: 800,
-                  background: 'linear-gradient(90deg, #c084fc, #ec4899)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                {t.aiModels.title}
-              </h2>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
-                {t.aiModels.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#94a3b8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl border border-accent-purple/35 bg-accent-purple/20 text-purple-400"
           >
-            <X size={18} />
-          </button>
+            <Cpu size={20} />
+          </div>
+          <div>
+            <h2
+              className="m-0 bg-linear-to-r bg-clip-text from-purple-400 to-pink-500 text-lg font-extrabold text-transparent"
+            >
+              {t.aiModels.title}
+            </h2>
+            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
+              {t.aiModels.subtitle}
+            </p>
+          </div>
         </div>
 
-        {content}
+        <button
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary"
+        >
+          <X size={18} />
+        </button>
       </div>
-    </div>
+
+      {content}
+    </ModalShell>
   );
 };

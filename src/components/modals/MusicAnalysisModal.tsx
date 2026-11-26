@@ -14,6 +14,7 @@ import { StemMixerModal } from './StemMixerModal';
 import { ModelManagerModal } from './ModelManagerModal';
 import { StemProjectsLibraryView } from '../../views/stems/StemProjectsLibraryView';
 import { type Language, getTranslations } from '../../i18n';
+import { ModalShell } from '../ui';
 
 export interface MusicAnalysisModalProps {
   isOpen: boolean;
@@ -133,240 +134,138 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        background: 'rgba(5, 5, 12, 0.86)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex h-[88vh] max-h-230 max-w-300 flex-col overflow-hidden rounded-3xl border border-accent-purple/35 text-fg"
     >
+      {/* Górny pasek narzędziowy studia analizy */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '1200px',
-          height: '88vh',
-          maxHeight: '920px',
-          background: 'linear-gradient(145deg, rgba(18, 20, 36, 0.98), rgba(10, 12, 24, 0.99))',
-          borderRadius: '24px',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9), 0 0 35px rgba(168, 85, 247, 0.2)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          color: '#f8fafc',
-          animation: 'fadeInScale 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-white/8 bg-black/35 px-6 py-4"
       >
-        {/* Górny pasek narzędziowy studia analizy */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(0, 0, 0, 0.35)',
-            flexShrink: 0,
-            gap: '16px',
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Tytuł studia i odtwarzany utwór */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(168, 85, 247, 0.25))',
-                border: '1px solid rgba(244, 63, 94, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#f43f5e',
-                boxShadow: '0 0 15px rgba(244, 63, 94, 0.2)',
-                flexShrink: 0,
-              }}
-            >
-              <BarChart2 size={20} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: '1.15rem',
-                  fontWeight: 800,
-                  background: 'linear-gradient(90deg, #f43f5e, #c084fc, #38bdf8)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {t.analysis.title}
-              </h2>
-              <p
-                style={{
-                  margin: '2px 0 0 0',
-                  fontSize: '0.75rem',
-                  color: '#94a3b8',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '380px',
-                }}
-              >
-                {displayTitle} • {displayArtist}
-              </p>
-            </div>
-          </div>
-
-          {/* Przełącznik zakładek */}
+        {/* Tytuł studia i odtwarzany utwór */}
+        <div className="flex min-w-0 items-center gap-3">
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px',
-              borderRadius: '14px',
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              overflowX: 'auto',
-            }}
+            className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl border border-accent-pink/35 bg-linear-135 from-accent-pink/25 to-accent-purple/25 text-accent-pink shadow-halo-md shadow-accent-pink/20"
           >
-            {tabItems.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 13px',
-                    borderRadius: '10px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                    border: isActive ? `1px solid ${tab.activeBorder}` : '1px solid transparent',
-                    background: isActive ? tab.activeBg : 'transparent',
-                    color: isActive ? tab.color : '#94a3b8',
-                    boxShadow: isActive ? `0 0 14px ${tab.activeBg}` : 'none',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', color: isActive ? tab.color : '#64748b' }}>
-                    {tab.icon}
-                  </span>
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+            <BarChart2 size={20} />
           </div>
-
-          {/* Przycisk zamknięcia [✕] */}
-          <button
-            onClick={onClose}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#94a3b8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              flexShrink: 0,
-            }}
-            title={t.common.close}
-          >
-            <X size={18} />
-          </button>
+          <div className="min-w-0">
+            <h2
+              className="m-0 bg-linear-to-r bg-clip-text from-accent-pink via-purple-400 to-sky-400 text-lg font-extrabold tracking-tight text-transparent"
+            >
+              {t.analysis.title}
+            </h2>
+            <p className="mx-0 mt-0.5 mb-0 max-w-95 truncate text-xs text-fg-secondary">
+              {displayTitle} • {displayArtist}
+            </p>
+          </div>
         </div>
 
-        {/* Główna zawartość wybranej zakładki */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px' }}>
-          {activeTab === 'chords' && (
-            <ChordTimelineView
-              trackId={trackId}
-              trackPath={trackPath}
-              trackTitle={displayTitle}
-              trackArtist={displayArtist}
-              currentTimeMs={currentTimeMs}
-              durationMs={durationMs}
-              pitchSemitones={pitchSemitones}
-              onSeek={onSeek}
-              onSetLoop={onSetLoop}
-              currentLang={currentLang}
-            />
-          )}
-
-          {activeTab === 'pianoroll' && (
-            <PianoRollView
-              trackId={trackId}
-              trackPath={trackPath}
-              trackTitle={displayTitle}
-              currentTimeMs={currentTimeMs}
-              durationMs={durationMs}
-              isPlaying={isPlaying}
-              speed={playbackSpeed}
-              onSeek={onSeek}
-              onNotify={onNotify}
-              currentLang={currentLang}
-            />
-          )}
-
-          {activeTab === 'stems' && (
-            <StemMixerModal
-              isOpen={true}
-              onClose={onClose}
-              trackId={trackId}
-              trackPath={trackPath}
-              trackTitle={displayTitle}
-              embedded={true}
-              currentLang={currentLang}
-            />
-          )}
-
-          {activeTab === 'projects' && (
-            <div style={{ height: '100%', overflowY: 'auto' }}>
-              <StemProjectsLibraryView
-                currentLang={currentLang}
-                onOpenProject={(pid) => {
-                  onClose();
-                  onOpenStemProject?.(pid);
+        {/* Przełącznik zakładek */}
+        <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-white/8 bg-black/40 p-1">
+          {tabItems.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-ui font-bold whitespace-nowrap transition-all duration-200"
+                style={{
+                  border: isActive ? `1px solid ${tab.activeBorder}` : '1px solid transparent',
+                  background: isActive ? tab.activeBg : 'transparent',
+                  color: isActive ? tab.color : '#94a3b8',
+                  boxShadow: isActive ? `0 0 14px ${tab.activeBg}` : 'none',
                 }}
-                onOpenCreateProject={() => {
-                  onClose();
-                  onOpenCreateProject?.();
-                }}
-              />
-            </div>
-          )}
-
-          {activeTab === 'models' && (
-            <ModelManagerModal
-              isOpen={true}
-              onClose={onClose}
-              embedded={true}
-              currentLang={currentLang}
-            />
-          )}
+              >
+                <span className="flex items-center" style={{ color: isActive ? tab.color : '#64748b' }}>
+                  {tab.icon}
+                </span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Przycisk zamknięcia [✕] */}
+        <button
+          onClick={onClose}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary transition-all duration-200"
+          title={t.common.close}
+        >
+          <X size={18} />
+        </button>
       </div>
-    </div>
+
+      {/* Główna zawartość wybranej zakładki */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        {activeTab === 'chords' && (
+          <ChordTimelineView
+            trackId={trackId}
+            trackPath={trackPath}
+            trackTitle={displayTitle}
+            trackArtist={displayArtist}
+            currentTimeMs={currentTimeMs}
+            durationMs={durationMs}
+            pitchSemitones={pitchSemitones}
+            onSeek={onSeek}
+            onSetLoop={onSetLoop}
+            currentLang={currentLang}
+          />
+        )}
+
+        {activeTab === 'pianoroll' && (
+          <PianoRollView
+            trackId={trackId}
+            trackPath={trackPath}
+            trackTitle={displayTitle}
+            currentTimeMs={currentTimeMs}
+            durationMs={durationMs}
+            isPlaying={isPlaying}
+            speed={playbackSpeed}
+            onSeek={onSeek}
+            onNotify={onNotify}
+            currentLang={currentLang}
+          />
+        )}
+
+        {activeTab === 'stems' && (
+          <StemMixerModal
+            isOpen={true}
+            onClose={onClose}
+            trackId={trackId}
+            trackPath={trackPath}
+            trackTitle={displayTitle}
+            embedded={true}
+            currentLang={currentLang}
+          />
+        )}
+
+        {activeTab === 'projects' && (
+          <div className="h-full overflow-y-auto">
+            <StemProjectsLibraryView
+              currentLang={currentLang}
+              onOpenProject={(pid) => {
+                onClose();
+                onOpenStemProject?.(pid);
+              }}
+              onOpenCreateProject={() => {
+                onClose();
+                onOpenCreateProject?.();
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'models' && (
+          <ModelManagerModal
+            isOpen={true}
+            onClose={onClose}
+            embedded={true}
+            currentLang={currentLang}
+          />
+        )}
+      </div>
+    </ModalShell>
   );
 };

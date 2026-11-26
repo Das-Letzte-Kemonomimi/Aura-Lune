@@ -1,0 +1,107 @@
+import type React from 'react';
+import { useEffect } from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '../../utils/cn';
+
+/*
+ * Stacking scale (bare z-index numbers, see the tailwind-v4 skill):
+ *   30 header · 40 dock · 50 drawer · 60 modal · 70 nested · 80 system · 90 studio ·
+ *   100 tool · 110 tool dialog · 120 top (palette, recap) · 130 OSD · 140 fatal
+ */
+const backdropVariants = cva(
+  'fixed inset-0 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in',
+  {
+    variants: {
+      layer: {
+        /** Ordinary modal. */
+        modal: 'z-60',
+        /** Opened on top of another modal (settings → sleep timer, playlist picker…). */
+        nested: 'z-70',
+        /** Onboarding and system checks. */
+        system: 'z-80',
+        /** Large studio workspaces (tag editor, stem studio, mixers). */
+        studio: 'z-90',
+        /** Tools opened over a studio (parametric EQ, AutoEQ, harmonic suggester). */
+        tool: 'z-100',
+        /** Dialog opened from a tool. */
+        toolDialog: 'z-110',
+        /** Always on top: command palette, recap, key/BPM. */
+        top: 'z-120',
+      },
+    },
+    defaultVariants: { layer: 'modal' },
+  },
+);
+
+const panelVariants = cva(
+  'bg-modal relative flex max-h-[90vh] w-full flex-col rounded-2xl border border-line-accent text-fg shadow-modal motion-safe:animate-modal-in',
+  {
+    variants: {
+      size: {
+        sm: 'max-w-md',
+        md: 'max-w-140',
+        lg: 'max-w-170',
+        xl: 'max-w-205',
+        '2xl': 'max-w-240',
+      },
+    },
+    defaultVariants: { size: 'md' },
+  },
+);
+
+export interface ModalShellProps extends VariantProps<typeof backdropVariants>, VariantProps<typeof panelVariants> {
+  onClose: () => void;
+  /** Id of the element that names the dialog (usually its title heading). */
+  labelledBy?: string;
+  /** Extra classes for the panel, e.g. a different surface or padding. */
+  className?: string;
+  /** Runtime-only panel styles (computed sizes, per-item colours). */
+  style?: React.CSSProperties;
+  /** Close when the backdrop itself is clicked. */
+  closeOnBackdrop?: boolean;
+  children: React.ReactNode;
+}
+
+/**
+ * Backdrop + dialog panel shared by every modal. Escape and a click on the backdrop call
+ * `onClose`; clicks inside the panel never reach the backdrop.
+ */
+export function ModalShell({
+  onClose,
+  labelledBy,
+  className,
+  style,
+  layer,
+  size,
+  closeOnBackdrop = true,
+  children,
+}: ModalShellProps) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className={backdropVariants({ layer })}
+      onClick={(e) => {
+        if (closeOnBackdrop && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        className={cn(panelVariants({ size }), className)}
+        style={style}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}

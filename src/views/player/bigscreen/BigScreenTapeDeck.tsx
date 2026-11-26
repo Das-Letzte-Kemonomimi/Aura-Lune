@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
 import type { BigScreenViewProps } from '../BigScreenView';
+import { cn } from '../../../utils/cn';
 
 export type BigScreenTapeDeckProps = Pick<BigScreenViewProps, 'isPlaying' | 'title' | 'artist' | 'tempoRatio'> & {
   showLyrics: boolean;
@@ -18,274 +19,135 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
   title,
 }) => (
     <div
+      className="relative flex select-none flex-col justify-between overflow-hidden rounded-2xl border-2 border-white/15 p-3.5"
       style={{
         width: showLyrics ? 'min(360px, 100%)' : 'min(440px, 100%)',
         height: showLyrics ? 'min(230px, 30vh)' : 'min(280px, 34vh)',
-        borderRadius: '16px',
         background: 'linear-gradient(145deg, #181926 0%, #0d0e17 100%)',
-        border: '2px solid rgba(255, 255, 255, 0.15)',
         boxShadow: isPlaying
           ? '0 0 35px rgba(244, 63, 94, 0.35), 0 20px 45px rgba(0, 0, 0, 0.85)'
           : '0 20px 45px rgba(0, 0, 0, 0.85)',
-        position: 'relative',
-        padding: '14px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        overflow: 'hidden',
-        userSelect: 'none',
-        boxSizing: 'border-box',
       }}
     >
       {/* 4 śrubki narożne */}
       {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
         <div
           key={corner}
-          style={{
-            position: 'absolute',
-            top: corner.includes('top') ? '6px' : 'auto',
-            bottom: corner.includes('bottom') ? '6px' : 'auto',
-            left: corner.includes('left') ? '6px' : 'auto',
-            right: corner.includes('right') ? '6px' : 'auto',
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: '#94a3b8',
-            border: '1px solid #475569',
-            boxShadow: 'inset 0 0 2px #000',
-          }}
+          className={cn(
+            'absolute h-2 w-2 rounded-full border border-slate-600 bg-fg-secondary',
+            corner.includes('top') ? 'top-1.5' : 'top-auto',
+            corner.includes('bottom') ? 'bottom-1.5' : 'bottom-auto',
+            corner.includes('left') ? 'left-1.5' : 'left-auto',
+            corner.includes('right') ? 'right-1.5' : 'right-auto',
+          )}
+          style={{ boxShadow: 'inset 0 0 2px #000' }}
         />
       ))}
 
       {/* Naklejka etykiety kasety (Vintage Paper Label) */}
       <div
-        style={{
-          background: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)',
-          color: '#1e1b4b',
-          borderRadius: '8px',
-          padding: '8px 14px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-          border: '1px solid #e9d5ff',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-        }}
+        className="flex flex-col gap-0.5 rounded-lg border border-purple-200 bg-linear-135 from-fuchsia-50 to-fuchsia-100 px-3.5 py-2 text-indigo-950 shadow-md shadow-black/30"
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--accent-pink)', letterSpacing: '0.08em' }}>
+        <div className="flex items-center justify-between">
+          <span className="text-xxs font-extrabold tracking-label text-accent-pink">
             {t.bigScreenModes.sideA}
           </span>
-          <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#6b21a8' }}>
+          <span className="text-2xs font-bold text-purple-800">
             {t.bigScreenModes.stereo}
           </span>
         </div>
-        <div
-          style={{
-            fontSize: '0.88rem',
-            fontWeight: 800,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            color: '#111827',
-            fontFamily: 'monospace, sans-serif',
-          }}
-        >
+        <div className="truncate font-mono text-sm font-extrabold text-gray-900">
           {title || 'Auralune Track'}
         </div>
-        <div
-          style={{
-            fontSize: '0.72rem',
-            fontWeight: 600,
-            color: '#4b5563',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
+        <div className="truncate text-xs font-semibold text-gray-600">
           {artist || 'Unknown Artist'}
         </div>
       </div>
 
       {/* Środkowe przezroczyste okienko taśmy ze szpulami */}
       <div
-        style={{
-          flex: 1,
-          margin: '10px 0',
-          background: 'rgba(0, 0, 0, 0.65)',
-          borderRadius: '10px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-around',
-          overflow: 'hidden',
-          boxShadow: 'inset 0 0 15px rgba(0,0,0,0.9)',
-        }}
+        className="relative mx-0 my-2.5 flex flex-1 items-center justify-around overflow-hidden rounded-xl border border-white/10 bg-black/65"
+        style={{ boxShadow: 'inset 0 0 15px rgba(0,0,0,0.9)' }}
       >
         {/* Podziałka magnetofonowa: 100 • 50 • 0 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '4px',
-            fontSize: '0.6rem',
-            color: 'rgba(255, 255, 255, 0.4)',
-            letterSpacing: '8px',
-            fontFamily: 'monospace',
-            pointerEvents: 'none',
-          }}
-        >
+        <div className="pointer-events-none absolute top-1 font-mono text-2xs tracking-widest text-white/40">
           100 • 50 • 0
         </div>
 
         {/* Lewa szpula (Feed reel) - taśma maleje od 100% do 0% */}
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <div className="relative flex items-center justify-center">
           <div
+            className="absolute rounded-full shadow-halo-sm shadow-black/80 transition-[width,height] duration-200"
             style={{
               width: `${Math.max(32, 70 - (progress / 100) * 36)}px`,
               height: `${Math.max(32, 70 - (progress / 100) * 36)}px`,
-              borderRadius: '50%',
               background: 'radial-gradient(circle, #271a15 30%, #451a03 70%, #1e130c 100%)',
-              boxShadow: '0 0 8px rgba(0,0,0,0.8)',
-              position: 'absolute',
-              transition: 'width 0.2s, height 0.2s',
             }}
           />
           <div
+            className={cn(
+              'z-2 flex size-8 items-center justify-center rounded-full border-2 border-slate-300 bg-fg',
+              isPlaying && 'motion-safe:animate-spin',
+            )}
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: '#f8fafc',
-              border: '2px solid #cbd5e1',
               boxShadow: 'inset 0 0 6px #64748b',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 2,
-              animation: isPlaying
-                ? `spin ${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s linear infinite`
-                : 'none',
+              animationDuration: `${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s`,
             }}
           >
             {[0, 60, 120].map((deg) => (
               <div
                 key={deg}
-                style={{
-                  position: 'absolute',
-                  width: '4px',
-                  height: '24px',
-                  background: '#475569',
-                  borderRadius: '1px',
-                  transform: `rotate(${deg}deg)`,
-                }}
+                className="absolute h-6 w-1 rounded-xs bg-slate-600"
+                style={{ transform: `rotate(${deg}deg)` }}
               />
             ))}
-            <div
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#0f172a',
-                zIndex: 3,
-              }}
-            />
+            <div className="z-3 h-3 w-3 rounded-full bg-slate-900" />
           </div>
         </div>
 
         {/* Przechodzący pasek taśmy magnetycznej */}
         <div
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            width: '65%',
-            height: '6px',
-            background: 'linear-gradient(90deg, #451a03, #78350f, #451a03)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.7)',
-          }}
+          className="absolute bottom-3 h-1.5 shadow-sm shadow-black/70"
+          style={{ width: '65%', background: 'linear-gradient(90deg, #451a03, #78350f, #451a03)' }}
         />
 
         {/* Prawa szpula (Take-up reel) - taśma rośnie od 0% do 100% */}
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <div className="relative flex items-center justify-center">
           <div
+            className="absolute rounded-full shadow-halo-sm shadow-black/80 transition-[width,height] duration-200"
             style={{
               width: `${Math.max(32, 34 + (progress / 100) * 36)}px`,
               height: `${Math.max(32, 34 + (progress / 100) * 36)}px`,
-              borderRadius: '50%',
               background: 'radial-gradient(circle, #271a15 30%, #451a03 70%, #1e130c 100%)',
-              boxShadow: '0 0 8px rgba(0,0,0,0.8)',
-              position: 'absolute',
-              transition: 'width 0.2s, height 0.2s',
             }}
           />
           <div
+            className={cn(
+              'z-2 flex size-8 items-center justify-center rounded-full border-2 border-slate-300 bg-fg',
+              isPlaying && 'motion-safe:animate-spin',
+            )}
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: '#f8fafc',
-              border: '2px solid #cbd5e1',
               boxShadow: 'inset 0 0 6px #64748b',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 2,
-              animation: isPlaying
-                ? `spin ${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s linear infinite`
-                : 'none',
+              animationDuration: `${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s`,
             }}
           >
             {[0, 60, 120].map((deg) => (
               <div
                 key={deg}
-                style={{
-                  position: 'absolute',
-                  width: '4px',
-                  height: '24px',
-                  background: '#475569',
-                  borderRadius: '1px',
-                  transform: `rotate(${deg}deg)`,
-                }}
+                className="absolute h-6 w-1 rounded-xs bg-slate-600"
+                style={{ transform: `rotate(${deg}deg)` }}
               />
             ))}
-            <div
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#0f172a',
-                zIndex: 3,
-              }}
-            />
+            <div className="z-3 h-3 w-3 rounded-full bg-slate-900" />
           </div>
         </div>
       </div>
 
       {/* Dolny profil kasety z rolkami prowadzącymi */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 30px',
-        }}
-      >
-        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#64748b', border: '1px solid #94a3b8' }} />
-        <div style={{ width: '28px', height: '10px', background: '#334155', borderRadius: '2px', border: '1px solid #475569' }} />
-        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#64748b', border: '1px solid #94a3b8' }} />
+      <div className="flex items-center justify-between px-7.5 py-0">
+        <div className="h-3 w-3 rounded-full border border-fg-secondary bg-fg-muted" />
+        <div className="h-2.5 w-7 rounded-xs border border-slate-600 bg-slate-700" />
+        <div className="h-3 w-3 rounded-full border border-fg-secondary bg-fg-muted" />
       </div>
     </div>
 );

@@ -14,6 +14,7 @@ import {
 import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
 
 
 export interface PlaylistsViewProps {
@@ -64,69 +65,39 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
   onOpenPlaylist,
 }) => {
   return (
-    <div className="glass-panel" style={{ padding: '28px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+    <div className="glass-panel mx-auto my-0 p-7" style={{ maxWidth: layoutMaxWidth }}>
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-            <ListMusic size={20} color="var(--accent-pink)" /> {loc.playlists.title} ({playlists.length})
+          <h2 className="m-0 flex items-center gap-2 text-xl">
+            <ListMusic size={20} className="text-accent-pink" /> {loc.playlists.title} ({playlists.length})
           </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+          <p className="mx-0 mt-1 mb-0 text-ui text-fg-muted">
             {loc.playlists.subtitle}
           </p>
         </div>
 
         {/* Nowa playlista input */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="flex gap-2">
           <input
             type="text"
             placeholder={loc.playlists.namePlaceholder}
             value={newPlaylistName}
             onChange={(e) => onNewPlaylistNameChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onCreatePlaylist()}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              background: 'rgba(0,0,0,0.3)',
-              color: '#fff',
-              fontSize: '0.85rem',
-            }}
+            className="rounded-lg border border-line bg-black/30 px-3 py-2 text-sm text-fg"
           />
           <button
             onClick={onCreatePlaylist}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              border: 'none',
-            }}
+            className="flex items-center gap-1.5 rounded-lg border-0 bg-accent-gradient px-3.5 py-2 text-sm font-semibold text-on-accent"
           >
             <Plus size={16} /> {loc.playlists.create}
           </button>
           <button
             onClick={onImportPlaylistM3u8}
-            className="glass-card"
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-            }}
+            className="glass-card flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-fg"
             title={loc.playlists.importM3u8}
           >
-            <Upload size={16} color="var(--accent-cyan)" /> {loc.playlists.importM3u8}
+            <Upload size={16} className="text-accent-cyan" /> {loc.playlists.importM3u8}
           </button>
         </div>
       </div>
@@ -134,41 +105,24 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
       {/* Siatka playlist lub szczegóły wybranej playlisty */}
       {selectedPlaylist ? (
         <div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '18px',
-              paddingBottom: '12px',
-              borderBottom: '1px solid var(--border-subtle)',
-            }}
-          >
+          <div className="mb-4.5 flex items-center justify-between border-b border-line pb-3">
             <div>
               <button
                 onClick={() => {
                   onSelectPlaylist(null);
                   onSetPlaylistTracks([]);
                 }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--accent-cyan)',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  padding: 0,
-                  marginBottom: '6px',
-                }}
+                className="mb-1.5 border-0 bg-transparent p-0 text-ui text-accent-cyan"
               >
                 {loc.playlists.backToList}
               </button>
-              <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>{selectedPlaylist.name}</h3>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <h3 className="m-0 text-xl font-bold">{selectedPlaylist.name}</h3>
+              <span className="text-ui text-fg-muted">
                 {playlistTracks.length} {loc.library.tracks} •{' '}
                 {new Date(selectedPlaylist.created_at * 1000).toLocaleDateString()}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="flex gap-2.5">
               <button
                 onClick={() => {
                   if (playlistTracks.length > 0) {
@@ -176,20 +130,11 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
                   }
                 }}
                 disabled={playlistTracks.length === 0}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: playlistTracks.length === 0 ? 'default' : 'pointer',
-                  opacity: playlistTracks.length === 0 ? 0.5 : 1,
-                  border: 'none',
-                }}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg border-0 bg-accent-gradient px-4 py-2 text-sm font-semibold text-on-accent',
+                  playlistTracks.length === 0 ? 'cursor-default' : 'cursor-pointer',
+                  playlistTracks.length === 0 ? 'opacity-50' : 'opacity-100',
+                )}
               >
                 <Play size={16} /> {loc.player.play}
               </button>
@@ -204,48 +149,25 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
                   }
                 }}
                 disabled={playlistTracks.length === 0}
-                className="glass-card"
-                style={{
-                  padding: '8px 14px',
-                  color: 'var(--accent-cyan)',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: playlistTracks.length === 0 ? 'default' : 'pointer',
-                  opacity: playlistTracks.length === 0 ? 0.5 : 1,
-                }}
+                className={cn(
+                  'glass-card flex items-center gap-1.5 px-3.5 py-2 text-sm text-accent-cyan',
+                  playlistTracks.length === 0 ? 'cursor-default' : 'cursor-pointer',
+                  playlistTracks.length === 0 ? 'opacity-50' : 'opacity-100',
+                )}
                 title={loc.library.addToQueue}
               >
                 <Plus size={16} /> {loc.library.addToQueue}
               </button>
               <button
                 onClick={() => onExportPlaylistM3u8(selectedPlaylist)}
-                className="glass-card"
-                style={{
-                  padding: '8px 14px',
-                  color: 'var(--accent-pink)',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                }}
+                className="glass-card flex items-center gap-1.5 px-3.5 py-2 text-sm text-accent-pink"
                 title={loc.playlists.exportM3u8}
               >
                 <Download size={16} /> {loc.playlists.exportM3u8}
               </button>
               <button
                 onClick={() => onDeletePlaylist(selectedPlaylist.id, selectedPlaylist.name)}
-                className="glass-card"
-                style={{
-                  padding: '8px 14px',
-                  color: '#ff6b81',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="glass-card flex items-center gap-1.5 px-3.5 py-2 text-sm text-rose-400"
               >
                 <Trash2 size={16} /> {loc.playlists.delete}
               </button>
@@ -254,84 +176,68 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
 
           {/* Tabela utworów w wybranej playliście */}
           {playlistTracks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+            <div className="p-10 text-center text-fg-muted">
               {loc.playlists.emptyHint}
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table
-                style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  textAlign: 'left',
-                  fontSize: '0.85rem',
-                }}
-              >
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '10px 12px' }}>#</th>
-                    <th style={{ padding: '10px 12px' }}>{loc.player.track}</th>
-                    <th style={{ padding: '10px 12px' }}>{loc.player.artist}</th>
-                    <th style={{ padding: '10px 12px' }}>{loc.library.format}</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>{loc.queue.duration}</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>{loc.common.edit}</th>
+                  <tr className="border-b border-line text-fg-muted">
+                    <th className="px-3 py-2.5">#</th>
+                    <th className="px-3 py-2.5">{loc.player.track}</th>
+                    <th className="px-3 py-2.5">{loc.player.artist}</th>
+                    <th className="px-3 py-2.5">{loc.library.format}</th>
+                    <th className="px-3 py-2.5 text-right">{loc.queue.duration}</th>
+                    <th className="px-3 py-2.5 text-center">{loc.common.edit}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {playlistTracks.map((item, idx) => (
                     <tr
                       key={`${item.id}-${idx}`}
-                      className="glass-card"
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+                      className="glass-card border-b border-white/3"
                     >
-                      <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      <td className="p-3 font-mono text-fg-muted">
                         {idx + 1}
                       </td>
-                      <td style={{ padding: '12px', fontWeight: 600 }}>{item.title}</td>
-                      <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{item.artist}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          style={{
-                            background: 'rgba(255,255,255,0.08)',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            fontFamily: 'var(--font-mono)',
-                          }}
-                        >
+                      <td className="p-3 font-semibold">{item.title}</td>
+                      <td className="p-3 text-fg-secondary">{item.artist}</td>
+                      <td className="p-3">
+                        <span className="rounded-sm bg-white/8 px-1.5 py-0.5 font-mono text-xxs">
                           {item.format}
                         </span>
                       </td>
-                      <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                      <td className="p-3 text-right font-mono">
                         {formatTime(item.duration_ms)}
                       </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                      <td className="p-3 text-center">
+                        <div className="flex justify-center gap-2">
                           <button
                             onClick={() => onPlayLibraryTrack(item, playlistTracks)}
                             title={loc.player.play}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}
+                            className="border-0 bg-transparent text-accent-pink"
                           >
                             <Play size={16} />
                           </button>
                           <button
                             onClick={(e) => onAddTrackToQueue(item, e)}
                             title={loc.playlists.addToQueue}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer' }}
+                            className="border-0 bg-transparent text-accent-cyan"
                           >
                             <Plus size={16} />
                           </button>
                           <button
                             onClick={(e) => onOpenContainingFolder(item.path, e)}
                             title={loc.library.openContainingFolder}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer' }}
+                            className="border-0 bg-transparent text-accent-cyan"
                           >
                             <FolderOpen size={15} />
                           </button>
                           <button
                             onClick={(e) => onRemoveTrackFromPlaylist(selectedPlaylist.id, item.id, e)}
                             title={loc.playlists.delete}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                            className="border-0 bg-transparent text-fg-muted"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -345,68 +251,42 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
           )}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(65),1fr))] gap-4">
           {playlists.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
-              <ListMusic size={44} style={{ opacity: 0.3, marginBottom: '14px' }} />
-              <p style={{ margin: 0, fontSize: '0.95rem' }}>{loc.playlists.empty}</p>
-              <p style={{ fontSize: '0.8rem', marginTop: '6px', opacity: 0.7 }}>{loc.playlists.emptyHint}</p>
+            <div className="col-span-full p-12.5 text-center text-fg-muted">
+              <ListMusic size={44} className="mb-3.5 opacity-30" />
+              <p className="m-0 text-md">{loc.playlists.empty}</p>
+              <p className="mt-1.5 text-ui opacity-70">{loc.playlists.emptyHint}</p>
             </div>
           ) : (
             playlists.map((pl) => (
               <div
                 key={pl.id}
-                className="glass-card"
-                style={{
-                  padding: '20px',
-                  borderRadius: '14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '14px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
+                className="glass-card flex cursor-pointer flex-col justify-between gap-3.5 rounded-2xl p-5 transition-all duration-200"
                 onClick={() => onOpenPlaylist(pl)}
               >
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>{pl.name}</h4>
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        background: 'rgba(168, 85, 247, 0.2)',
-                        color: 'var(--accent-purple)',
-                      }}
-                    >
+                  <div className="mb-2 flex items-start justify-between">
+                    <h4 className="m-0 text-lg font-bold text-fg">{pl.name}</h4>
+                    <span className="rounded-xl bg-accent-purple/20 px-2 py-1 text-xs text-accent-purple">
                       {pl.track_count} {loc.library.tracks}
                     </span>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <span className="text-xs text-fg-muted">
                     {new Date(pl.created_at * 1000).toLocaleDateString()}
                   </span>
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingTop: '10px',
-                    borderTop: '1px solid rgba(255,255,255,0.05)',
-                  }}
-                >
-                  <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>{loc.playlists.playAll} →</span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
+                  <span className="text-ui text-accent-cyan">{loc.playlists.playAll} →</span>
+                  <div className="flex gap-1.5">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onExportPlaylistM3u8(pl);
                       }}
                       title={loc.playlists.exportM3u8}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
+                      className="border-0 bg-transparent p-1 text-accent-pink"
                     >
                       <Download size={15} />
                     </button>
@@ -416,7 +296,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
                         onDeletePlaylist(pl.id, pl.name);
                       }}
                       title={loc.playlists.delete}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                      className="border-0 bg-transparent p-1 text-fg-muted"
                     >
                       <Trash2 size={15} />
                     </button>

@@ -4,6 +4,8 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs } from '../../../state/livePlayback';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
+import { cssVars } from '../../../utils/cssVars';
 
 export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'volumeProgressPercent' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
@@ -48,90 +50,41 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   volumeProgressPercent,
   volumeUnit,
 }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="flex items-center justify-between">
       {/* Narzędzia lewe: Zakładka, Pętla A-B, Sleep Timer, Skróty */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div className="flex items-center gap-1.5">
         {/* 1. Przycisk Zakładki (Bookmark) */}
         {currentBookmark === null ? (
           <button
             onClick={handleSaveBookmark}
             title={loc.player.bookmarkDesc}
-            className="glass-card"
-            style={{
-              height: '32px',
-              padding: '0 11px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              color: activeTrackId ? '#fbbf24' : 'var(--text-muted)',
-              background: activeTrackId ? 'rgba(251, 191, 36, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-              border: activeTrackId ? '1px solid rgba(251, 191, 36, 0.35)' : '1px solid var(--border-subtle)',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'glass-card flex h-8 items-center gap-1.5 rounded-lg border px-3 py-0 text-xs font-bold',
+              activeTrackId ? 'border-amber-400/35 bg-amber-400/8 text-amber-400' : 'border-line bg-white/4 text-fg-muted',
+            )}
           >
-            <Bookmark size={13} fill={activeTrackId ? '#fbbf24' : 'none'} color="#fbbf24" />
+            <Bookmark size={13} fill={activeTrackId ? '#fbbf24' : 'none'} className="text-amber-400" />
             <span>{loc.player.bookmark}</span>
           </button>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+          <div className="flex items-center gap-px">
             <button
               onClick={handleSaveBookmark}
-              className="glass-card"
-              style={{
-                padding: '6px 9px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                color: '#fbbf24',
-                background: 'rgba(251, 191, 36, 0.15)',
-                border: '1px solid rgba(251, 191, 36, 0.45)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                borderRadius: '8px 0 0 8px',
-                cursor: 'pointer',
-                height: '32px',
-              }}
+              className="glass-card flex h-8 items-center gap-1 rounded-none rounded-l-lg border border-amber-400/45 bg-amber-400/15 px-2.5 py-1.5 text-xs font-bold text-amber-400"
             >
-              <Bookmark size={13} fill="#fbbf24" color="#fbbf24" /> {loc.player.bookmark}
+              <Bookmark size={13} fill="#fbbf24" className="text-amber-400" /> {loc.player.bookmark}
             </button>
             <button
               onClick={() => handleJumpToBookmark(currentBookmark)}
-              className="glass-card"
+              className="glass-card h-8 border-t border-b border-l-0 border-r border-amber-400/45 border-amber-400/30 bg-amber-400/10 p-1.5 font-mono text-xs font-bold text-amber-400"
               title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
-              style={{
-                padding: '6px 6px',
-                fontSize: '0.72rem',
-                fontFamily: 'monospace',
-                fontWeight: 700,
-                color: '#fbbf24',
-                background: 'rgba(251, 191, 36, 0.12)',
-                borderTop: '1px solid rgba(251, 191, 36, 0.45)',
-                borderBottom: '1px solid rgba(251, 191, 36, 0.45)',
-                borderLeft: 'none',
-                borderRight: '1px solid rgba(251, 191, 36, 0.3)',
-                cursor: 'pointer',
-                height: '32px',
-              }}
             >
               {formatTime(currentBookmark)}
             </button>
             <button
               onClick={handleDeleteBookmark}
-              className="glass-card"
+              className="glass-card h-8 rounded-none rounded-r-lg border border-l-0 border-amber-400/45 bg-amber-400/10 p-1.5 text-rose-400"
               title={loc.player.bookmarkDelete}
-              style={{
-                padding: '6px 6px',
-                color: '#ff6b81',
-                background: 'rgba(251, 191, 36, 0.12)',
-                border: '1px solid rgba(251, 191, 36, 0.45)',
-                borderLeft: 'none',
-                borderRadius: '0 8px 8px 0',
-                cursor: 'pointer',
-                height: '32px',
-              }}
             >
               <X size={12} />
             </button>
@@ -147,24 +100,10 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             }
             setIsBookmarksModalOpen(true);
           }}
-          className="glass-card"
-          style={{
-            height: '32px',
-            padding: '0 10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            color: 'var(--accent-cyan)',
-            background: 'rgba(6, 182, 212, 0.12)',
-            border: '1px solid rgba(6, 182, 212, 0.4)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            borderRadius: '8px',
-            cursor: 'pointer',
-          }}
+          className="glass-card flex h-8 items-center gap-1 rounded-lg border border-accent-cyan/40 bg-accent-cyan/10 px-2.5 py-0 text-xs font-bold text-accent-cyan"
           title={fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length))}
         >
-          <Bookmark size={13} color="var(--accent-cyan)" />
+          <Bookmark size={13} className="text-accent-cyan" />
           <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}</span>
         </button>
 
@@ -175,23 +114,10 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             setLoopPointA(pos);
             showMessage(fmt(loc.player.pointAUpdatedMsg, formatTimeMs(pos)));
           }}
-          className="glass-card"
-          style={{
-            minWidth: '32px',
-            height: '32px',
-            padding: '0 8px',
-            fontSize: '0.78rem',
-            fontWeight: 800,
-            borderRadius: '8px',
-            color: loopPointA !== null ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-            background: loopPointA !== null ? 'rgba(6, 182, 212, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-            border: loopPointA !== null ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 py-0 text-ui font-extrabold transition-all duration-150',
+            loopPointA !== null ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-line bg-white/5 text-fg-secondary',
+          )}
           title={loopPointA !== null
             ? fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))
             : loc.player.setPointAAtCurrent}
@@ -206,23 +132,10 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             setLoopPointB(pos);
             showMessage(fmt(loc.player.pointBUpdatedMsg, formatTimeMs(pos)));
           }}
-          className="glass-card"
-          style={{
-            minWidth: '32px',
-            height: '32px',
-            padding: '0 8px',
-            fontSize: '0.78rem',
-            fontWeight: 800,
-            borderRadius: '8px',
-            color: loopPointB !== null ? 'var(--accent-pink)' : 'var(--text-secondary)',
-            background: loopPointB !== null ? 'rgba(244, 63, 94, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-            border: loopPointB !== null ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 py-0 text-ui font-extrabold transition-all duration-150',
+            loopPointB !== null ? 'border-accent-pink bg-accent-pink/20 text-accent-pink' : 'border-line bg-white/5 text-fg-secondary',
+          )}
           title={loopPointB !== null
             ? fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))
             : loc.player.setPointBAtCurrent}
@@ -231,23 +144,14 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         </button>
 
         {/* 5. Przycisk Edytora Pętli A-B (Sliders) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => setIsLoopEditorOpen(true)}
-            className="glass-card"
-            style={{
-              minWidth: '32px',
-              height: '32px',
-              padding: '0 8px',
-              borderRadius: (loopPointA !== null || loopPointB !== null) ? '8px 0 0 8px' : '8px',
-              color: (loopPointA !== null && loopPointB !== null) ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-              background: (loopPointA !== null && loopPointB !== null) ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.05)',
-              border: (loopPointA !== null && loopPointB !== null) ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className={cn(
+              'glass-card flex h-8 min-w-8 items-center justify-center border px-2 py-0',
+              (loopPointA !== null && loopPointB !== null) ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-line bg-white/5 text-fg-secondary',
+            )}
+            style={{ borderRadius: (loopPointA !== null || loopPointB !== null) ? '8px 0' : '8px' }}
             title={loc.player.editLoopTooltip}
           >
             <Sliders size={13} />
@@ -259,21 +163,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
                 setLoopPointB(null);
                 showMessage(loc.player.clearedLoopMsg);
               }}
-              className="glass-card"
-              style={{
-                minWidth: '22px',
-                height: '32px',
-                padding: '0 4px',
-                borderRadius: '0 8px 8px 0',
-                color: '#ff6b81',
-                background: 'rgba(255, 107, 129, 0.15)',
-                border: '1px solid rgba(255, 107, 129, 0.35)',
-                borderLeft: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className="glass-card flex h-8 min-w-5.5 items-center justify-center rounded-none rounded-r-lg border border-l-0 border-rose-400/35 bg-rose-400/15 px-1 py-0 text-rose-400"
               title={loc.shortcuts.loopClear}
             >
               <X size={12} />
@@ -284,36 +174,15 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         {/* 6. Przycisk Wyłącznika czasowego (Sleep Timer) */}
         <button
           onClick={() => setIsSleepTimerOpen(true)}
-          className="glass-card"
-          style={{
-            minWidth: '32px',
-            height: '32px',
-            padding: '0 8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-            fontSize: '0.75rem',
-            borderRadius: '8px',
-            color:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? 'var(--accent-purple)'
-                : 'var(--text-secondary)',
-            border:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? '1px solid var(--accent-purple)'
-                : '1px solid var(--border-subtle)',
-            background:
-              sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track'
-                ? 'rgba(168, 85, 247, 0.18)'
-                : 'rgba(255, 255, 255, 0.05)',
-            cursor: 'pointer',
-          }}
+          className={cn(
+            'glass-card flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg border px-2 py-0 text-xs',
+            sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track' ? 'border-accent-purple bg-accent-purple/20 text-accent-purple' : 'border-line bg-white/5 text-fg-secondary',
+          )}
           title={loc.player.sleepTimer}
         >
           <Moon size={13} />
           {(sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track') && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.68rem', marginLeft: '2px' }}>
+            <span className="ml-0.5 font-mono text-xxs font-bold">
               {sleepTimerRemainingSec !== null
                 ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
                 : loc.player.timerEnd}
@@ -324,21 +193,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         {/* 7. Przycisk Skrótów klawiszowych */}
         <button
           onClick={() => setIsShortcutsModalOpen(true)}
-          className="glass-card"
-          style={{
-            minWidth: '32px',
-            height: '32px',
-            padding: '0 8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.75rem',
-            borderRadius: '8px',
-            color: 'var(--text-secondary)',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
-            cursor: 'pointer',
-          }}
+          className="glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border border-line bg-white/5 px-2 py-0 text-xs text-fg-secondary"
           title={loc.shortcuts.title}
         >
           <Keyboard size={13} />
@@ -347,21 +202,10 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         {/* 8. Przycisk Tekstów piosenki (Lyrics) */}
         <button
           onClick={() => setShowLyrics(!showLyrics)}
-          className="glass-card"
-          style={{
-            height: '32px',
-            padding: '0 10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            borderRadius: '8px',
-            color: showLyrics ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-            border: showLyrics ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-            background: showLyrics ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.05)',
-            cursor: 'pointer',
-          }}
+          className={cn(
+            'glass-card flex h-8 items-center gap-1.5 rounded-lg border px-2.5 py-0 text-xs font-semibold',
+            showLyrics ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-line bg-white/5 text-fg-secondary',
+          )}
           title={loc.shortcuts.lyrics}
         >
           <Mic2 size={13} />
@@ -372,19 +216,10 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         <button
           onClick={handleToggleShuffle}
           title={loc.shortcuts.shuffle}
-          className="glass-card"
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: queue.shuffle ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255,255,255,0.06)',
-            border: queue.shuffle ? '1px solid var(--accent-cyan)' : 'none',
-            color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className={cn(
+            'glass-card flex h-9 w-9 items-center justify-center rounded-full',
+            queue.shuffle ? 'border border-accent-cyan bg-accent-cyan/25 text-accent-cyan' : 'border-0 bg-white/6 text-fg-muted',
+          )}
         >
           <Shuffle size={16} />
         </button>
@@ -393,18 +228,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         <button
           onClick={handlePrevious}
           title={loc.player.previous}
-          style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            border: 'none',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className="flex h-9.5 w-9.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
         >
           <SkipBack size={18} />
         </button>
@@ -413,18 +237,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         <button
           onClick={handleStop}
           title={loc.player.stop}
-          style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            border: 'none',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className="flex h-9.5 w-9.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
         >
           <Square size={16} />
         </button>
@@ -432,39 +245,16 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         {/* Play / Pause Button */}
         <button
           onClick={handlePlayPause}
-          style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            border: 'none',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--shadow-glow)',
-            cursor: 'pointer',
-          }}
+          className="flex h-14 w-14 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent shadow-accent-glow"
         >
-          {status.state === 'Playing' ? <Pause size={24} /> : <Play size={24} style={{ marginLeft: '3px' }} />}
+          {status.state === 'Playing' ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
         </button>
 
         {/* Next Button */}
         <button
           onClick={handleNext}
           title={loc.player.next}
-          style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            border: 'none',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className="flex h-9.5 w-9.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
         >
           <SkipForward size={18} />
         </button>
@@ -473,35 +263,26 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         <button
           onClick={handleCycleLoopMode}
           title={queue.loop_mode === 'Track' ? loc.player.loopTrack : queue.loop_mode === 'Queue' ? loc.player.loopQueue : loc.player.loopOff}
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
-            border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : 'none',
-            color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            position: 'relative',
-          }}
+          className={cn(
+            'relative flex h-9 w-9 items-center justify-center rounded-full',
+            queue.loop_mode !== 'None' ? 'border border-accent-pink bg-accent-pink/25 text-accent-pink' : 'border-0 bg-white/6 text-fg-muted',
+          )}
         >
           {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
           {queue.loop_mode === 'Queue' && (
-            <span style={{ position: 'absolute', bottom: '3px', right: '3px', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent-pink)' }} />
+            <span className="absolute bottom-1 right-1 h-1 w-1 rounded-full bg-accent-pink" />
           )}
         </button>
       </div>
 
       {/* Volume Slider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="flex items-center gap-2">
         <button
           onClick={handleToggleMute}
-          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+          className="flex items-center border-0 bg-transparent p-0 text-fg-muted"
           title={status.volume === 0 ? loc.player.unmute : loc.player.mute}
         >
-          {status.volume === 0 ? <VolumeX size={16} color="var(--text-muted)" /> : <Volume2 size={16} color="var(--text-secondary)" />}
+          {status.volume === 0 ? <VolumeX size={16} className="text-fg-muted" /> : <Volume2 size={16} className="text-fg-secondary" />}
         </button>
         <input
           type="range"
@@ -517,31 +298,18 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
               e.currentTarget.blur();
             }
           }}
-          style={{
-            width: '120px',
-            cursor: 'pointer',
-            background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-          }}
+          className="w-30 range-fill"
+          style={cssVars({ '--fill': `${volumeProgressPercent}%` })}
           title={`${loc.player.volume}: ${formatVolumeValue(status.volume)} (${Math.round(status.volume * 100)}%)`}
         />
         <button
           type="button"
           onClick={handleToggleVolumeUnit}
           title={loc.player.volumeToggleUnitTooltip}
-          style={{
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '6px',
-            padding: '2px 6px',
-            fontSize: '0.74rem',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            color: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'var(--accent-pink)',
-            cursor: 'pointer',
-            minWidth: '52px',
-            textAlign: 'center',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'min-w-13 rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-center font-mono text-xs font-bold transition-all duration-150',
+            volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink',
+          )}
         >
           {formatVolumeValue(status.volume)}
         </button>

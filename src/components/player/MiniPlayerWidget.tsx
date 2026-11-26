@@ -12,6 +12,8 @@ import {
 import { type Language, getTranslations } from '../../i18n';
 import { formatTime } from '../../utils/timeFormat';
 import { useLivePositionMs } from '../../state/livePlayback';
+import { cn } from '../../utils/cn';
+import { cssVars } from '../../utils/cssVars';
 
 interface MiniPlayerWidgetProps {
   title: string;
@@ -62,81 +64,37 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
 
   return (
     <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '12px 14px',
-        background: 'var(--bg-deep)',
-        color: 'var(--text-primary)',
-        userSelect: 'none',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        border: '1px solid var(--border-accent)',
-        borderRadius: '12px',
-      }}
+      className="flex h-screen w-screen select-none flex-col justify-between overflow-hidden rounded-xl border border-line-accent bg-deep px-3.5 py-3 text-fg"
     >
       {/* Górna belka: Okładka, Tytuł, DSP i Przycisk Przywrócenia */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="flex items-center gap-2.5">
         {/* Okładka */}
         <div
-          style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '8px',
-            overflow: 'hidden',
-            flexShrink: 0,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: isPlaying ? '0 0 12px var(--shadow-glow)' : 'none',
-            transition: 'box-shadow 0.3s ease',
-          }}
+          className={cn(
+            'flex size-10.5 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-card transition-shadow duration-300',
+            isPlaying && 'shadow-accent-glow',
+          )}
         >
           {coverUrl ? (
             <img
               src={coverUrl}
               alt="Cover"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              className="h-full w-full object-cover"
             />
           ) : (
             <Disc
               size={22}
-              style={{
-                color: 'var(--accent-purple)',
-                animation: isPlaying ? 'spin 4s linear infinite' : 'none',
-              }}
+              className={cn('text-accent-purple', isPlaying && 'animate-spin')}
             />
           )}
         </div>
 
         {/* Tytuł i wykonawca */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              color: 'var(--text-primary)',
-            }}
-          >
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-bold text-fg">
             {title || 'Auralune'}
           </div>
-          <div
-            style={{
-              fontSize: '0.72rem',
-              color: 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+          <div className="truncate text-xs text-fg-secondary">
             {artist || t.player.noTrack}
           </div>
         </div>
@@ -144,19 +102,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
         {/* Ewentualny badge aktywnego DSP */}
         {isDspActive && (
           <span
-            style={{
-              fontSize: '0.65rem',
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background: 'rgba(244, 63, 94, 0.2)',
-              color: 'var(--accent-pink)',
-              border: '1px solid rgba(244, 63, 94, 0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '2px',
-              flexShrink: 0,
-            }}
+            className="flex shrink-0 items-center gap-0.5 rounded-sm border border-accent-pink/40 bg-accent-pink/20 px-1.5 py-0.5 text-xxs font-bold text-accent-pink"
           >
             <Zap size={10} />
             {tempoRatio.toFixed(2)}x
@@ -167,25 +113,14 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
         <button
           onClick={onRestore}
           title={`${t.nav.miniPlayer} (${t.common.close})`}
-          style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '6px',
-            color: 'var(--text-secondary)',
-            padding: '5px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
+          className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white/8 p-1.5 text-fg-secondary"
         >
           <Maximize2 size={13} />
         </button>
       </div>
 
       {/* Pasek postępu */}
-      <div style={{ margin: '4px 0' }}>
+      <div className="mx-0 my-1">
         <div
           onClick={(e) => {
             if (!durationMs || durationMs <= 0) return;
@@ -194,59 +129,26 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
             const pct = Math.max(0, Math.min(1, clickX / rect.width));
             onSeek(Math.floor(pct * durationMs));
           }}
-          style={{
-            height: '4px',
-            borderRadius: '2px',
-            background: 'rgba(255, 255, 255, 0.1)',
-            cursor: 'pointer',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
+          className="relative h-1 cursor-pointer overflow-hidden rounded-xs bg-white/10"
         >
           <div
-            style={{
-              width: `${progress}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg, var(--accent-purple), var(--accent-pink))',
-              borderRadius: '2px',
-              boxShadow: '0 0 8px var(--accent-pink)',
-            }}
+            className="h-full rounded-xs bg-linear-to-r from-accent-purple to-accent-pink shadow-halo-sm shadow-accent-pink"
+            style={{ width: `${progress}%` }}
           />
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '0.65rem',
-            color: 'var(--text-muted)',
-            marginTop: '3px',
-          }}
-        >
+        <div className="mt-1 flex justify-between text-xxs text-fg-muted">
           <span>{formatTime(positionMs)}</span>
           <span>{durationMs ? formatTime(durationMs) : '--:--'}</span>
         </div>
       </div>
 
       {/* Przyciski sterowania */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)}
             title={volume === 0 ? t.player.unmute : t.player.mute}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-            }}
+            className="flex border-0 bg-transparent p-1 text-fg-muted"
           >
             {volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
           </button>
@@ -264,27 +166,18 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
                 e.currentTarget.blur();
               }
             }}
-            style={{
-              width: '50px',
-              height: '3px',
-              cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) ${Math.min(100, Math.max(0, volume * 100))}%, rgba(255, 255, 255, 0.12) 100%)`,
-            }}
+            className="h-1 w-12.5 range-fill"
+            style={cssVars({ '--fill': `${Math.min(100, Math.max(0, volume * 100))}%` })}
           />
           <button
             type="button"
             onClick={onToggleVolumeUnit}
             title={volumeUnit === 'db' ? 'dB (Toggle %)' : '% (Toggle dB)'}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '0 2px',
-              fontSize: '0.66rem',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              color: volumeUnit === 'db' ? 'var(--accent-cyan)' : 'var(--accent-pink)',
-              cursor: onToggleVolumeUnit ? 'pointer' : 'default',
-            }}
+            className={cn(
+              'border-0 bg-transparent px-0.5 py-0 font-mono text-xxs font-bold',
+              volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink',
+              onToggleVolumeUnit ? 'cursor-pointer' : 'cursor-default',
+            )}
           >
             {volumeUnit === 'db'
               ? (volume <= 0.0001 ? '-∞' : `${(20 * Math.log10(volume)).toFixed(0)}dB`)
@@ -292,18 +185,11 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="flex items-center gap-1.5">
           <button
             onClick={onPrev}
             title={t.player.previous}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-            }}
+            className="flex border-0 bg-transparent p-1 text-fg-secondary"
           >
             <SkipBack size={15} />
           </button>
@@ -311,34 +197,15 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           <button
             onClick={onPlayPause}
             title={isPlaying ? t.player.pause : t.player.play}
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-pink))',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 10px rgba(168, 85, 247, 0.4)',
-            }}
+            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-linear-135 from-accent-purple to-accent-pink text-on-accent shadow-halo-sm shadow-accent-purple/40"
           >
-            {isPlaying ? <Pause size={14} /> : <Play size={14} style={{ marginLeft: '1px' }} />}
+            {isPlaying ? <Pause size={14} /> : <Play size={14} className="ml-px" />}
           </button>
 
           <button
             onClick={onNext}
             title={t.player.next}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-            }}
+            className="flex border-0 bg-transparent p-1 text-fg-secondary"
           >
             <SkipForward size={15} />
           </button>

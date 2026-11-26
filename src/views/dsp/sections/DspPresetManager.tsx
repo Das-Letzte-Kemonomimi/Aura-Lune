@@ -1,6 +1,7 @@
 import React from 'react';
 import { Save, Sparkles } from 'lucide-react';
 import type { DspStudioViewProps } from '../DspStudioView';
+import { cn } from '../../../utils/cn';
 
 export type DspPresetManagerProps = Pick<DspStudioViewProps, 'loc' | 'presets' | 'newPresetName' | 'setNewPresetName' | 'handleSavePreset' | 'handleApplySignatureProfile' | 'handleLoadPreset'>;
 
@@ -13,184 +14,85 @@ export const DspPresetManager: React.FC<DspPresetManagerProps> = ({
   presets,
   setNewPresetName,
 }) => (
-    <div
-      style={{
-        background: 'rgba(0,0,0,0.25)',
-        padding: '16px',
-        borderRadius: '14px',
-        border: '1px solid var(--border-subtle)',
-        marginBottom: '28px',
-      }}
-    >
-      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+    <div className="mb-7 rounded-2xl border border-line bg-black/25 p-4">
+      <label className="mb-2 block text-sm font-semibold text-fg-secondary">
         {loc.dsp.eqPresets}:
       </label>
-      <div style={{ display: 'flex', gap: '10px', marginBottom: presets.length > 0 ? '12px' : '0' }}>
+      <div className={cn('flex gap-2.5', presets.length > 0 ? 'mb-3' : 'mb-0')}>
         <input
           type="text"
           placeholder={loc.dsp.presetNamePlaceholder}
           value={newPresetName}
           onChange={(e) => setNewPresetName(e.target.value)}
-          style={{
-            flex: 1,
-            padding: '8px 12px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-subtle)',
-            background: 'rgba(0,0,0,0.3)',
-            color: '#fff',
-            fontSize: '0.85rem',
-          }}
+          className="flex-1 rounded-lg border border-line bg-black/30 px-3 py-2 text-sm text-fg"
         />
         <button
           onClick={handleSavePreset}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            color: '#fff',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-          }}
+          className="flex items-center gap-1.5 rounded-lg bg-accent-gradient px-4 py-2 text-ui font-semibold text-on-accent"
         >
           <Save size={14} /> {loc.dsp.savePreset}
         </button>
       </div>
 
       {/* Profile Sygnaturowe 1.0 */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-pink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div className="mb-4">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-accent-pink">
           <Sparkles size={14} /> Profile Sygnaturowe Auralune 1.0 (Mastering Profiles)
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-2">
           <button
             onClick={() => handleApplySignatureProfile('vocal_air')}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.15))',
-              border: '1px solid rgba(244, 63, 94, 0.4)',
-              color: '#fff',
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px',
-            }}
+            className="glass-card flex flex-col gap-0.5 rounded-xl border border-accent-pink/40 bg-linear-135 from-accent-pink/20 to-accent-purple/15 px-3 py-2 text-left text-fg"
           >
-            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🌸 Anime Vocal Air</span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.vocalPreserveDesc}</span>
+            <span className="text-ui font-bold text-fg">🌸 Anime Vocal Air</span>
+            <span className="text-xxs text-fg-muted">{loc.dsp.vocalPreserveDesc}</span>
           </button>
 
           <button
             onClick={() => handleApplySignatureProfile('lofi_tape')}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgba(235, 116, 34, 0.2), rgba(168, 85, 247, 0.15))',
-              border: '1px solid rgba(235, 116, 34, 0.4)',
-              color: '#fff',
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px',
-            }}
+            className="glass-card flex flex-col gap-0.5 rounded-xl border border-orange-500/40 bg-linear-135 from-orange-500/20 to-accent-purple/15 px-3 py-2 text-left text-fg"
           >
-            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>☕ Midnight Lo-Fi Tape</span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.tapeWarmthDesc}</span>
+            <span className="text-ui font-bold text-fg">☕ Midnight Lo-Fi Tape</span>
+            <span className="text-xxs text-fg-muted">{loc.dsp.tapeWarmthDesc}</span>
           </button>
 
           <button
             onClick={() => handleApplySignatureProfile('bit_perfect')}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(6, 182, 212, 0.15))',
-              border: '1px solid rgba(34, 197, 94, 0.4)',
-              color: '#fff',
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px',
-            }}
+            className="glass-card flex flex-col gap-0.5 rounded-xl border border-green-500/40 bg-linear-135 from-green-500/20 to-accent-cyan/15 px-3 py-2 text-left text-fg"
           >
-            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🎧 Bit-Perfect Direct</span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.bitPerfectDesc}</span>
+            <span className="text-ui font-bold text-fg">🎧 Bit-Perfect Direct</span>
+            <span className="text-xxs text-fg-muted">{loc.dsp.bitPerfectDesc}</span>
           </button>
 
           <button
             onClick={() => handleApplySignatureProfile('nightcore')}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
-              border: '1px solid rgba(168, 85, 247, 0.4)',
-              color: '#fff',
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px',
-            }}
+            className="glass-card flex flex-col gap-0.5 rounded-xl border border-accent-purple/40 bg-linear-135 from-accent-purple/20 to-pink-500/20 px-3 py-2 text-left text-fg"
           >
-            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>⚡ Nightcore Club Anthem</span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.nightcoreProfileDesc}</span>
+            <span className="text-ui font-bold text-fg">⚡ Nightcore Club Anthem</span>
+            <span className="text-xxs text-fg-muted">{loc.dsp.nightcoreProfileDesc}</span>
           </button>
 
           <button
             onClick={() => handleApplySignatureProfile('slowed')}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(168, 85, 247, 0.15))',
-              border: '1px solid rgba(6, 182, 212, 0.4)',
-              color: '#fff',
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px',
-            }}
+            className="glass-card flex flex-col gap-0.5 rounded-xl border border-accent-cyan/40 bg-linear-135 from-accent-cyan/20 to-accent-purple/15 px-3 py-2 text-left text-fg"
           >
-            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>🌌 Ambient Slowed & Space</span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{loc.dsp.slowedProfileDesc}</span>
+            <span className="text-ui font-bold text-fg">🌌 Ambient Slowed & Space</span>
+            <span className="text-xxs text-fg-muted">{loc.dsp.slowedProfileDesc}</span>
           </button>
         </div>
       </div>
 
       {presets.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="flex flex-wrap gap-2">
           {presets.map((p) => (
             <button
               key={p.id}
               onClick={() => handleLoadPreset(p)}
-              style={{
-                padding: '6px 12px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                color: '#fff',
-                background: 'rgba(25, 28, 48, 0.7)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-card/70 px-3 py-1.5 text-xs font-semibold text-fg"
             >
-              <Sparkles size={12} color="var(--accent-pink)" />
+              <Sparkles size={12} className="text-accent-pink" />
               <span>{p.name}</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+              <span className="text-xxs text-fg-muted">
                 ({p.pitch_semitones > 0 ? `+${p.pitch_semitones}` : p.pitch_semitones}st, {p.tempo_ratio}x)
               </span>
             </button>

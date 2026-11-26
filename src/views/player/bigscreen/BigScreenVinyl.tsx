@@ -1,6 +1,7 @@
 import React from 'react';
 import { Disc } from 'lucide-react';
 import type { BigScreenViewProps } from '../BigScreenView';
+import { cn } from '../../../utils/cn';
 
 export type BigScreenVinylProps = Pick<BigScreenViewProps, 'isPlaying' | 'tempoRatio' | 'coverUrl'> & {
   showLyrics: boolean;
@@ -15,21 +16,19 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
   tempoRatio,
 }) => (
     <div
+      className="relative flex items-center justify-center"
       style={{
-        position: 'relative',
         width: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
         height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
       }}
     >
       {/* Czarna płyta winylowa z mikro-rowkami */}
       <div
+        className={cn(
+          'relative flex size-full items-center justify-center overflow-hidden rounded-full border-3 border-white/10',
+          isPlaying && 'motion-safe:animate-spin',
+        )}
         style={{
-          width: '100%',
-          height: '100%',
-          borderRadius: '50%',
           background: `repeating-radial-gradient(
             circle at center,
             #111116 0px,
@@ -37,26 +36,16 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
             #08080a 3px,
             #08080a 4px
           )`,
-          border: '3px solid rgba(255, 255, 255, 0.12)',
           boxShadow: isPlaying
             ? '0 0 40px rgba(168, 85, 247, 0.45), 0 20px 50px rgba(0, 0, 0, 0.85)'
             : '0 20px 50px rgba(0, 0, 0, 0.85)',
-          position: 'relative',
-          overflow: 'hidden',
-          animation: isPlaying
-            ? `spin ${Math.max(1, 3.6 / (tempoRatio || 1.0))}s linear infinite`
-            : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          animationDuration: `${Math.max(1, 3.6 / (tempoRatio || 1.0))}s`,
         }}
       >
         {/* Stożkowe odbłyski światła na winylu (Vinyl sheen reflections) */}
         <div
+          className="pointer-events-none absolute inset-0 rounded-full"
           style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: '50%',
             background: `conic-gradient(
               from 45deg,
               transparent 0deg,
@@ -67,72 +56,43 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
               transparent 250deg,
               transparent 360deg
             )`,
-            pointerEvents: 'none',
           }}
         />
 
         {/* Wewnętrzny rowek wybiegowy (Run-out groove) */}
         <div
-          style={{
-            position: 'absolute',
-            width: '52%',
-            height: '52%',
-            borderRadius: '50%',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)',
-            pointerEvents: 'none',
-          }}
+          className="pointer-events-none absolute rounded-full border border-white/8"
+          style={{ width: '52%', height: '52%', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)' }}
         />
 
         {/* Centralna naklejka albumu z otworem wrzeciona */}
         <div
+          className="relative flex items-center justify-center overflow-hidden rounded-full border-2 border-white/25 shadow-halo-md shadow-black/60"
           style={{
             width: '38%',
             height: '38%',
-            borderRadius: '50%',
-            position: 'relative',
-            overflow: 'hidden',
-            border: '2px solid rgba(255, 255, 255, 0.25)',
             background: coverUrl
               ? `url("${coverUrl}") center/cover no-repeat`
               : 'radial-gradient(circle, #3b0764 0%, #1e1b4b 70%, #030712 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(0,0,0,0.6)',
           }}
         >
-          {!coverUrl && <Disc size={36} color="var(--accent-pink)" />}
+          {!coverUrl && <Disc size={36} className="text-accent-pink" />}
           {/* Otwór na wrzeciono gramofonu */}
           <div
-            style={{
-              position: 'absolute',
-              width: '14px',
-              height: '14px',
-              borderRadius: '50%',
-              background: '#000',
-              border: '2px solid rgba(255, 255, 255, 0.6)',
-              boxShadow: 'inset 0 0 4px #000',
-            }}
+            className="absolute h-3.5 w-3.5 rounded-full border-2 border-white/60 bg-black"
+            style={{ boxShadow: 'inset 0 0 4px #000' }}
           />
         </div>
       </div>
 
       {/* Ramię gramofonowe (Tonearm) płynnie sunące po rowkach wraz z postępem utworu */}
       <div
+        className="pointer-events-none absolute -top-4 -right-4 z-10 h-60 w-32.5 transition-transform duration-500"
         style={{
-          position: 'absolute',
-          top: '-15px',
-          right: '-15px',
-          width: '130px',
-          height: '240px',
-          pointerEvents: 'none',
           transformOrigin: '95px 25px',
           transform: isPlaying
             ? `rotate(${16 + (progress / 100) * 22}deg)`
             : 'rotate(0deg)',
-          transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-          zIndex: 10,
           filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.75))',
         }}
       >
@@ -141,7 +101,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
           width="130"
           height="240"
           viewBox="0 0 130 240"
-          style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          className="h-full w-full overflow-visible"
         >
           <defs>
             <linearGradient id="metalArmTube" x1="0" y1="0" x2="1" y2="0">

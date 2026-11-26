@@ -156,6 +156,11 @@
 - **Okna dialogowe nie wymuszają już języka polskiego** niezależnie od ustawień.
 - **Pełna lokalizacja interfejsu w 5 językach** (en, pl, de, fi, la) — usunięto twardo zakodowane napisy m.in. z inspektora toru audio, centrum pobierania, magnetofonu i gramofonu, kolejki, biblioteki, radia, generatora dźwięków tła, miksera stemów i DSP Studio; test pilnuje zgodności kluczy.
 - **Brak wycieków nasłuchów zdarzeń** przy szybkim zamykaniu okien (`useTauriEvent`).
+- **Animacje, które nigdy nie działały, wreszcie działają**: wejście okien dialogowych i komunikatu głośności (OSD), obracające się wskaźniki ładowania (m.in. eksport w tle, okładki, analiza BPM) oraz „korektor” przy grającej stacji radiowej — odwoływały się do nieistniejących animacji lub klas.
+- **Okno skrótów klawiaturowych nie chowa się już pod dolnym paskiem odtwarzacza**; wszystkie nakładki mają jedną skalę warstw (z-index), więc okna otwierane z innych okien zawsze są na wierzchu.
+- **Wszystkie okna dialogowe zamykają się klawiszem Esc** i są poprawnie oznaczone dla czytników ekranu (`role="dialog"`); kliknięcie tła zamyka okno tylko poza jego zawartością.
+- **Poświata wybranej kolekcji w bibliotece** i podświetlenie okładki w mini-odtwarzaczu działają (wcześniej nieprawidłowa wartość CSS była ignorowana); plakietka „zainstalowano” w menedżerze modeli AI ma właściwy, szmaragdowy kolor.
+- **Niezdefiniowane zmienne kolorów** (`--text-main`, `--accent-emerald`, `--color-*`, `--bg-glass`) zastąpione tokenami motywu.
 
 #### Bezpieczeństwo
 - **Ścisła polityka CSP okna aplikacji** (wcześniej wyłączona) — bez skryptów inline i `eval`.
@@ -227,6 +232,7 @@
 - **Typowana warstwa IPC** (`src/api/`): `invoke` przyjmuje tylko zarejestrowane komendy (lista generowana z backendu, `npm run gen:commands`), błędy mają kod (`IpcError`), ustawienia mają zamkniętą listę kluczy.
 - **Ścisły TypeScript** (`strict`), usunięto ~390 z ~434 użyć `any`, każdy typ kontraktu z backendem ma jedną definicję; reguła `exhaustive-deps` jest błędem lintera. Poprawiono zależności hooków i czystość renderowania zgłaszane przez reguły React 19.
 - **Wspólne narzędzia**: kolejka komunikatów `useToasts`, trwałe ustawienia `usePersistedState`, wspólne formatowanie rozmiarów i czasu, wspólny mock IPC w testach.
+- **Interfejs przepisany na Tailwind CSS v4**: ok. 3600 obiektów `style={{…}}` zastąpiono klasami opartymi na tokenach motywu (`src/styles/theme.css`); styl wbudowany pozostał tylko dla wartości liczonych w locie (postęp, obrót płyty, kolory stemów). Spójna skala typografii (13 rozmiarów w `rem` zamiast ~50 przypadkowych wartości), odstępów i zaokrągleń; odcienie akcentów (np. `bg-accent-pink/15`) podążają teraz za wybranym motywem. Wspólna powłoka okien `ModalShell`, efekty najechania przez warianty `hover:` zamiast modyfikowania stylów w JavaScripcie, przełącznik w kolorze motywu. Wymaga WebKitGTK ≥ 2.40.
 
 #### Środowisko
 - **Node.js 22 LTS** oraz stabilny Rust (edycja 2021) z `rustfmt` i `clippy`.

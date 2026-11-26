@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 're
 import { BarChart2, Waves, Activity, Sliders } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
 import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
+import { cn } from '../../utils/cn';
 
 export type WaveformStyle = 'bars' | 'smooth' | 'scrolling' | 'mirror';
 
@@ -873,27 +874,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     >
       {/* Pasek narzędzi fali NAD paskiem postępu */}
       {showStyleSelector && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '6px',
-            width: '100%',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              background: 'rgba(15, 18, 30, 0.88)',
-              backdropFilter: 'blur(10px)',
-              padding: '2px 4px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
+        <div className="flex w-full items-center justify-end gap-1.5">
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-ink/90 px-1 py-0.5 backdrop-blur-sm">
             {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
               const isSelected = activeStyle === st;
               return (
@@ -905,23 +887,13 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
                     handleStyleSelect(st);
                   }}
                   title={styleLabels[st].name}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    border: isSelected ? '1px solid var(--accent-pink)' : '1px solid transparent',
-                    background: isSelected ? 'rgba(244, 63, 94, 0.22)' : 'transparent',
-                    color: isSelected ? 'var(--accent-pink)' : 'var(--text-muted)',
-                    fontSize: '0.7rem',
-                    fontWeight: isSelected ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={cn(
+                    'flex items-center gap-1 rounded-md border px-2 py-1 text-xxs transition-all duration-150',
+                    isSelected ? 'border-accent-pink bg-accent-pink/20 font-bold text-accent-pink' : 'border-transparent bg-transparent font-medium text-fg-muted',
+                  )}
                 >
                   {styleLabels[st].icon}
-                  <span style={{ display: isSelected ? 'inline' : 'none', fontSize: '0.68rem' }}>
+                  <span className={cn('text-xxs', isSelected ? 'inline' : 'hidden')}>
                     {styleLabels[st].name}
                   </span>
                 </button>
@@ -934,26 +906,19 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       {/* Kontener płótna fali (obsługa przeciągania myszą i dotykiem) */}
       <div
         ref={containerRef}
-        className="waveform-container"
+        className={cn(
+          'relative isolate w-full select-none overflow-hidden rounded-xl border waveform-container',
+          isDragging ? 'border-accent-pink transition-none' : 'border-line transition-[border-color,box-shadow] duration-200',
+          isDragging ? 'cursor-grabbing' : isScrolling ? 'cursor-grab' : onSeek || onSeekCommit ? 'cursor-pointer' : 'cursor-default',
+        )}
         style={{
-          position: 'relative',
-          width: '100%',
           height: `${height}px`,
-          cursor: isDragging ? 'grabbing' : isScrolling ? 'grab' : onSeek || onSeekCommit ? 'pointer' : 'default',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          // Bez backdrop-filter: kontener jest przemalowywany co tick, a rozmycie tła pod ciągle
-          // zmieniającym się płótnem powodowało artefakty kompozytora (WebKitGTK) i spadki klatek.
           background: 'rgba(10, 12, 22, 0.72)',
-          border: isDragging ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
           boxShadow: isDragging
             ? '0 0 16px rgba(244, 63, 94, 0.35), inset 0 2px 8px rgba(0,0,0,0.4)'
             : 'inset 0 2px 8px rgba(0,0,0,0.4)',
-          userSelect: 'none',
           touchAction: 'none',
-          isolation: 'isolate',
           contain: 'paint layout',
-          transition: isDragging ? 'none' : 'border-color 0.2s ease, box-shadow 0.2s ease',
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -964,33 +929,20 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       >
         <canvas
           ref={canvasRef}
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'block',
-            willChange: 'transform',
-          }}
+          className="block h-full w-full will-change-transform"
         />
 
         {/* Pływający wskaźnik czasu przy najechaniu myszą lub przeciąganiu */}
         {(isDragging || hoverX !== null) && hoverX !== null && hoverTimeStr && !(isScrolling && isDragging) && (
           <div
+            className={cn(
+              'pointer-events-none absolute bottom-1.5 z-10 rounded-sm border px-1.5 py-0.5 font-mono text-xxs font-bold text-fg shadow-lift',
+              isDragging ? 'border-accent-pink shadow-accent-pink/55' : 'border-accent-cyan shadow-black/60',
+            )}
             style={{
-              position: 'absolute',
-              bottom: '6px',
               left: `${Math.max(30, Math.min(dimensions.width - 30, hoverX))}px`,
               transform: 'translateX(-50%) translateZ(0)',
               background: 'rgba(15, 20, 32, 0.95)',
-              border: isDragging ? '1px solid var(--accent-pink)' : '1px solid var(--accent-cyan)',
-              color: '#fff',
-              fontSize: '0.68rem',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              pointerEvents: 'none',
-              boxShadow: isDragging ? '0 4px 14px rgba(244, 63, 94, 0.55)' : '0 4px 12px rgba(0,0,0,0.6)',
-              zIndex: 10,
             }}
           >
             {hoverTimeStr}

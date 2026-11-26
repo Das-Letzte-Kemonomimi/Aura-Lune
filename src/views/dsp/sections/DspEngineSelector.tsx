@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
+import { cn } from '../../../utils/cn';
 
 export type DspEngineSelectorProps = Pick<DspStudioViewProps, 'loc' | 'handleEngineChange'> & {
   status: PlaybackStatus;
@@ -11,39 +12,27 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
   loc,
   status,
 }) => (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '10px', fontWeight: 600 }}>
+    <div className="mb-6">
+      <label className="mb-2.5 block text-sm font-semibold text-fg-secondary">
         {loc.dsp.engine}:
       </label>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-3.5">
         {/* Karta Bypass (Bez DSP / Czysty dźwięk) */}
         <div
           onClick={() => handleEngineChange('Bypass')}
-          className="glass-card"
-          style={{
-            padding: '16px',
-            cursor: 'pointer',
-            borderRadius: '14px',
-            border: status.engine === 'Bypass' ? '2px solid var(--accent-green)' : '1px solid var(--border-subtle)',
-            background: status.engine === 'Bypass' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0,0,0,0.2)',
-          }}
+          className={cn(
+            'glass-card cursor-pointer rounded-2xl p-4',
+            status.engine === 'Bypass' ? 'border-2 border-accent-green' : 'border border-line',
+            status.engine === 'Bypass' ? 'bg-accent-green/15' : 'bg-black/20',
+          )}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{loc.dsp.bypass}</span>
-            <span
-              style={{
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: 'rgba(16, 185, 129, 0.2)',
-                color: 'var(--accent-green)',
-              }}
-            >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-base font-bold text-fg">{loc.dsp.bypass}</span>
+            <span className="rounded-md bg-accent-green/20 px-2 py-0.5 text-xxs font-bold text-accent-green">
               DIRECT
             </span>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          <p className="text-xs leading-snug text-fg-secondary">
             {loc.dsp.bypassDesc}
           </p>
         </div>
@@ -51,31 +40,19 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
         {/* Karta Rubber Band */}
         <div
           onClick={() => handleEngineChange('RubberBand')}
-          className="glass-card"
-          style={{
-            padding: '16px',
-            cursor: 'pointer',
-            borderRadius: '14px',
-            border: status.engine === 'RubberBand' ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            background: status.engine === 'RubberBand' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(0,0,0,0.2)',
-          }}
+          className={cn(
+            'glass-card cursor-pointer rounded-2xl p-4',
+            status.engine === 'RubberBand' ? 'border-2 border-accent-pink' : 'border border-line',
+            status.engine === 'RubberBand' ? 'bg-pink-500/15' : 'bg-black/20',
+          )}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{loc.dsp.rubberband}</span>
-            <span
-              style={{
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: 'rgba(244, 63, 94, 0.2)',
-                color: 'var(--accent-pink)',
-              }}
-            >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-base font-bold text-fg">{loc.dsp.rubberband}</span>
+            <span className="rounded-md bg-accent-pink/20 px-2 py-0.5 text-xxs font-bold text-accent-pink">
               HI-FI (MSC)
             </span>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          <p className="text-xs leading-snug text-fg-secondary">
             {loc.dsp.rubberbandDesc}
           </p>
         </div>
@@ -83,31 +60,19 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
         {/* Karta SoundTouch */}
         <div
           onClick={() => handleEngineChange('SoundTouch')}
-          className="glass-card"
-          style={{
-            padding: '16px',
-            cursor: 'pointer',
-            borderRadius: '14px',
-            border: status.engine === 'SoundTouch' ? '2px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-            background: status.engine === 'SoundTouch' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(0,0,0,0.2)',
-          }}
+          className={cn(
+            'glass-card cursor-pointer rounded-2xl p-4',
+            status.engine === 'SoundTouch' ? 'border-2 border-accent-purple' : 'border border-line',
+            status.engine === 'SoundTouch' ? 'bg-accent-purple/15' : 'bg-black/20',
+          )}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{loc.dsp.soundtouch}</span>
-            <span
-              style={{
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: 'rgba(56, 189, 248, 0.2)',
-                color: 'var(--accent-cyan)',
-              }}
-            >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-base font-bold text-fg">{loc.dsp.soundtouch}</span>
+            <span className="rounded-md bg-sky-400/20 px-2 py-0.5 text-xxs font-bold text-accent-cyan">
               LOW CPU
             </span>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          <p className="text-xs leading-snug text-fg-secondary">
             {loc.dsp.soundtouchDesc}
           </p>
         </div>

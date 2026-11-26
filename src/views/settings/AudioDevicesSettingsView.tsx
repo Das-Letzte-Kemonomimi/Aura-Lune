@@ -20,6 +20,7 @@ import { ReplayGainOption } from './audio/ReplayGainOption';
 import { DspBlockSizeOption } from './audio/DspBlockSizeOption';
 import { OutputBufferOption } from './audio/OutputBufferOption';
 import { VolumeAndOsdCard } from './audio/VolumeAndOsdCard';
+import { cn } from '../../utils/cn';
 
 export interface AudioDevicesSettingsViewProps {
   language: Language;
@@ -108,35 +109,22 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
     onSetSilenceTrimming,
   } = props;
   return (
-    <div className="glass-panel" style={{ padding: '28px', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Radio size={20} color="var(--accent-green)" /> {loc.settings.audioDevices}
+    <div className="glass-panel mx-auto my-0 max-w-200 p-7">
+      <div className="mb-5 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl">
+          <Radio size={20} className="text-accent-green" /> {loc.settings.audioDevices}
         </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={onOpenHealthCheck}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: 'rgba(34, 197, 94, 0.2)',
-              border: '1px solid rgba(34, 197, 94, 0.4)',
-              color: '#4ade80',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/20 px-3.5 py-2 text-ui font-bold text-green-400"
           >
             <Activity size={14} />
             Test Toru Audio (Health Check)
           </button>
           <button
             onClick={onRefreshDevices}
-            className="glass-card"
-            style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '0.8rem' }}
+            className="glass-card flex items-center gap-1.5 px-3.5 py-2 text-ui text-fg"
           >
             <RefreshCw size={14} /> {loc.library.refresh}
           </button>
@@ -145,38 +133,27 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Opcja płynnego wyciszenia paska postępu (Seek Fade) */}
       <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: seekFadeEnabled ? '1px solid rgba(236, 72, 153, 0.4)' : '1px solid var(--border-subtle)',
-        }}
+        className={cn(
+          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
+          seekFadeEnabled ? 'border-pink-500/40' : 'border-line',
+        )}
       >
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
+          <div className="mb-1 text-md font-bold text-fg">
             {loc.player.seekFadeTitle}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+          <div className="text-ui text-fg-secondary">
             {loc.player.seekFadeDesc}
           </div>
         </div>
         <button
           onClick={onToggleSeekFade}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: seekFadeEnabled ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: seekFadeEnabled ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            color: seekFadeEnabled ? 'var(--accent-pink)' : 'var(--text-muted)',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
+            seekFadeEnabled ? 'bg-pink-500/25' : 'bg-white/6',
+            seekFadeEnabled ? 'border-accent-pink' : 'border-line',
+            seekFadeEnabled ? 'text-accent-pink' : 'text-fg-muted',
+          )}
         >
           {seekFadeEnabled ? loc.player.seekFadeOn : loc.player.seekFadeOff}
         </button>
@@ -187,39 +164,28 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Opcja zapamiętywania sesji odtwarzania przy ponownym uruchomieniu */}
       <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: restoreSessionOnStartup ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid var(--border-subtle)',
-        }}
+        className={cn(
+          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
+          restoreSessionOnStartup ? 'border-accent-purple/45' : 'border-line',
+        )}
       >
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <History size={16} color="var(--accent-purple)" />
+          <div className="mb-1 flex items-center gap-2 text-md font-bold text-fg">
+            <History size={16} className="text-accent-purple" />
             {loc.settings.restoreSessionTitle}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+          <div className="text-ui text-fg-secondary">
             {loc.settings.restoreSessionDesc}
           </div>
         </div>
         <button
           onClick={onToggleRestoreSessionOnStartup}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: restoreSessionOnStartup ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: restoreSessionOnStartup ? '1px solid var(--accent-purple)' : '1px solid var(--border-subtle)',
-            color: restoreSessionOnStartup ? 'var(--accent-purple)' : 'var(--text-muted)',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
+            restoreSessionOnStartup ? 'bg-accent-purple/25' : 'bg-white/6',
+            restoreSessionOnStartup ? 'border-accent-purple' : 'border-line',
+            restoreSessionOnStartup ? 'text-accent-purple' : 'text-fg-muted',
+          )}
         >
           {restoreSessionOnStartup ? loc.settings.restoreSessionOn : loc.settings.restoreSessionOff}
         </button>
@@ -227,67 +193,46 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Opcja zapamiętywania ustawień DSP przy uruchomieniu aplikacji */}
       <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: dspAutoStartup ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle)',
-        }}
+        className={cn(
+          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
+          dspAutoStartup ? 'border-accent-green/40' : 'border-line',
+        )}
       >
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
+          <div className="mb-1 text-md font-bold text-fg">
             {loc.dsp.dspAutostart}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+          <div className="text-ui text-fg-secondary">
             {loc.dsp.bypassActiveNotice}
           </div>
         </div>
         <button
           onClick={onToggleDspAutoStartup}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: dspAutoStartup ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: dspAutoStartup ? '1px solid var(--accent-green)' : '1px solid var(--border-subtle)',
-            color: dspAutoStartup ? 'var(--accent-green)' : 'var(--text-muted)',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
+            dspAutoStartup ? 'bg-accent-green/25' : 'bg-white/6',
+            dspAutoStartup ? 'border-accent-green' : 'border-line',
+            dspAutoStartup ? 'text-accent-green' : 'text-fg-muted',
+          )}
         >
           {dspAutoStartup ? loc.dsp.dspAutostartOn : loc.dsp.dspAutostartOff}
         </button>
       </div>
 
       {/* Opcja wyboru domyślnego silnika DSP przy uruchomieniu */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          borderRadius: '12px',
-        }}
-      >
+      <div className="glass-card mb-3.5 flex items-center justify-between rounded-xl px-5 py-4">
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
+          <div className="mb-1 text-md font-bold text-fg">
             {loc.settings.dspStartupTitle}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+          <div className="text-ui text-fg-secondary">
             {loc.settings.dspStartupDesc}
           </div>
         </div>
         <select
           value={dspDefaultEngine}
           onChange={(e) => onSetDefaultDspEngine(e.target.value as DspEngineType)}
-          style={{ padding: '8px 30px 8px 12px' }}
+          className="pl-3 pr-7.5 py-2"
         >
           <option value="Bypass">
             {loc.settings.dspEngineDirectBypass}
@@ -307,38 +252,27 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Opcja powiadomień OSD Linuksa (libnotify / D-Bus) */}
       <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: desktopNotificationsEnabled ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-subtle)',
-        }}
+        className={cn(
+          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
+          desktopNotificationsEnabled ? 'border-blue-500/40' : 'border-line',
+        )}
       >
         <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '4px' }}>
+          <div className="mb-1 text-md font-bold text-fg">
             {loc.settings.desktopNotificationsTitle}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+          <div className="text-ui text-fg-secondary">
             {loc.settings.desktopNotificationsDesc}
           </div>
         </div>
         <button
           onClick={onToggleDesktopNotifications}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: desktopNotificationsEnabled ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-            border: desktopNotificationsEnabled ? '1px solid #3b82f6' : '1px solid var(--border-subtle)',
-            color: desktopNotificationsEnabled ? '#60a5fa' : 'var(--text-muted)',
-            transition: 'all 0.15s ease',
-          }}
+          className={cn(
+            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
+            desktopNotificationsEnabled ? 'bg-blue-500/25' : 'bg-white/6',
+            desktopNotificationsEnabled ? 'border-blue-500' : 'border-line',
+            desktopNotificationsEnabled ? 'text-blue-400' : 'text-fg-muted',
+          )}
         >
           {desktopNotificationsEnabled
             ? loc.settings.desktopNotificationsEnabled
@@ -347,33 +281,15 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
       </div>
 
       {/* Opcja zachowania odtwarzania albumów i playlist (Autoplay & Kolejka) */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '18px 20px',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: '1px solid var(--border-subtle)',
-          background: 'rgba(255, 255, 255, 0.03)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ListMusic size={18} color="var(--accent-pink, #ec4899)" />
-            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
+      <div className="glass-card mb-3.5 rounded-xl border border-line bg-white/3 px-5 py-4.5">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ListMusic size={18} className="text-accent-pink" />
+            <span className="text-md font-bold text-fg">
               {loc.settings.albumPlaybackTitle}
             </span>
           </div>
-          <span
-            style={{
-              background: 'rgba(236, 72, 153, 0.2)',
-              color: 'var(--accent-pink)',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              padding: '3px 8px',
-              borderRadius: '6px',
-            }}
-          >
+          <span className="rounded-md bg-pink-500/20 px-2 py-1 text-xs font-bold text-accent-pink">
             {albumPlaybackMode === 'replace'
               ? loc.settings.albumModeReplace
               : albumPlaybackMode === 'append'
@@ -382,11 +298,11 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           </span>
         </div>
 
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+        <div className="mb-3.5 text-ui text-fg-secondary">
           {loc.settings.albumPlaybackDesc}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(50),1fr))] gap-2">
           {[
             { id: 'replace', label: loc.settings.albumPlaybackReplace },
             { id: 'append', label: loc.settings.albumPlaybackAppend },
@@ -397,18 +313,12 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
               <button
                 key={item.id}
                 onClick={() => onSetAlbumPlaybackMode(item.id as AlbumPlaybackBehavior)}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  background: isActive ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                  border: isActive ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                  color: isActive ? '#fff' : 'var(--text-muted)',
-                  transition: 'all 0.15s ease',
-                }}
+                className={cn(
+                  'rounded-lg border px-3.5 py-2.5 text-left text-ui font-semibold transition-all duration-150',
+                  isActive ? 'bg-pink-500/25' : 'bg-white/5',
+                  isActive ? 'border-accent-pink' : 'border-line',
+                  isActive ? 'text-fg' : 'text-fg-muted',
+                )}
               >
                 {isActive ? '✓ ' : ''}{item.label}
               </button>
@@ -425,46 +335,49 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Opcja automatycznego pomijania ciszy (Silence Trimming) */}
       <div
-        className="glass-card"
-        style={{
-          padding: '18px 20px',
-          marginBottom: '14px',
-          borderRadius: '12px',
-          border: silenceTrimmingEnabled ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-subtle)',
-          background: silenceTrimmingEnabled ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-          transition: 'all 0.2s ease',
-        }}
+        className={cn(
+          'glass-card mb-3.5 rounded-xl border px-5 py-4.5 transition-all duration-200',
+          silenceTrimmingEnabled ? 'border-accent-green/45' : 'border-line',
+          silenceTrimmingEnabled ? 'bg-accent-green/5' : 'bg-white/3',
+        )}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <VolumeX size={18} color="var(--accent-emerald, #10b981)" />
-            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
+        <div className="mb-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <VolumeX size={18} className="text-accent-green" />
+            <span className="text-md font-bold text-fg">
               {loc.settings.silenceTrimmingTitle}
             </span>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+          <label className="flex cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
               checked={silenceTrimmingEnabled}
               onChange={(e) => onSetSilenceTrimming(e.target.checked, silenceTrimmingThreshold)}
-              style={{ accentColor: 'var(--accent-emerald, #10b981)', width: '18px', height: '18px', cursor: 'pointer' }}
+              className="h-4.5 w-4.5 cursor-pointer accent-accent-green"
             />
-            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: silenceTrimmingEnabled ? 'var(--accent-emerald, #10b981)' : 'var(--text-muted)' }}>
+            <span className={cn(
+              'text-ui font-semibold',
+              silenceTrimmingEnabled ? 'text-accent-green' : 'text-fg-muted',
+            )}>
               {silenceTrimmingEnabled ? loc.settings.desktopNotificationsEnabled : loc.settings.desktopNotificationsDisabled}
             </span>
           </label>
         </div>
 
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+        <div className="mb-3.5 text-ui text-fg-secondary">
           {loc.settings.silenceTrimmingDesc}
         </div>
 
-        <div style={{ opacity: silenceTrimmingEnabled ? 1 : 0.45, pointerEvents: silenceTrimmingEnabled ? 'auto' : 'none', transition: 'opacity 0.2s ease' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+        <div className={cn(
+          'transition-opacity duration-200',
+          silenceTrimmingEnabled ? 'opacity-100' : 'opacity-45',
+          silenceTrimmingEnabled ? 'pointer-events-auto' : 'pointer-events-none',
+        )}>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-ui text-fg-secondary">
               {loc.settings.silenceTrimmingThreshold}
             </span>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+            <span className="font-mono text-ui font-bold text-fg">
               {silenceTrimmingThreshold.toFixed(1)} dBFS
             </span>
           </div>
@@ -475,9 +388,9 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
             step="2.5"
             value={silenceTrimmingThreshold}
             onChange={(e) => onSetSilenceTrimming(silenceTrimmingEnabled, parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--accent-emerald, #10b981)' }}
+            className="w-full accent-accent-green"
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+          <div className="mt-1 flex justify-between text-xxs text-fg-muted">
             <span>-80 dB ({loc.settings.silenceTrimmingPure})</span>
             <span>-50 dB ({loc.settings.silenceTrimmingRecommended})</span>
             <span>-25 dB ({loc.settings.silenceTrimmingAggressive})</span>

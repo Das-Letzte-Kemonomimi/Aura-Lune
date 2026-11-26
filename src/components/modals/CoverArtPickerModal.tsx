@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '../../api/ipc';
 import { X, Search, Image as ImageIcon, Check, Loader2, Sparkles, Upload, FolderOpen } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface CoverCandidate {
   source: string;
@@ -176,495 +178,245 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(5, 7, 15, 0.88)',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] w-190 max-w-[96vw] flex-col overflow-hidden rounded-3xl border border-line-accent shadow-2xl shadow-black/75 motion-safe:animate-fade-in"
     >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-line bg-white/2 px-6 py-4.5">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-gradient text-on-accent shadow-halo shadow-accent-pink/40"
+          >
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <h3 className="m-0 text-lg font-extrabold text-fg">
+              {t.covers.title}
+            </h3>
+            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
+              {t.covers.subtitle}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-fg-secondary transition-all duration-200"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Wgrywanie własnej okładki z dysku / Drag & Drop */}
       <div
-        className="glass-card"
-        style={{
-          width: '760px',
-          maxWidth: '96vw',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'rgba(16, 20, 34, 0.95)',
-          borderRadius: '20px',
-          border: '1px solid var(--border-accent)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.75)',
-          overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out',
+        className={cn(
+          'flex items-center justify-between gap-4 border-b border-line px-6 py-4 transition-all duration-200',
+          isDraggingOver ? 'bg-pink-500/20 outline-2 outline-accent-pink outline-dashed' : 'bg-linear-135 from-white/4 to-black/20',
+        )}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDraggingOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDraggingOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDraggingOver(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file && file.type.startsWith('image/')) {
+            processImageFile(file);
+          }
         }}
       >
-        {/* Header */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                boxShadow: '0 0 12px rgba(244, 63, 94, 0.4)',
-              }}
-            >
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>
-                {t.covers.title}
-              </h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {t.covers.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="hidden"
+          onChange={handleCustomFileInputChange}
+        />
+        <div className="flex items-center gap-3.5">
+          <div
+            className="flex h-10.5 w-10.5 shrink-0 items-center justify-center rounded-xl border border-accent-cyan/35 bg-accent-cyan/15 text-accent-cyan shadow-halo-md shadow-accent-cyan/25"
           >
-            <X size={18} />
+            <Upload size={20} />
+          </div>
+          <div>
+            <h4 className="m-0 text-md font-bold text-fg">
+              {t.covers.uploadCustomCover}
+            </h4>
+            <p className="mx-0 mt-1 mb-0 text-ui text-fg-muted">
+              {t.covers.dragDropCoverHint}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 gap-2.5">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingCustom}
+            className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-4 py-2.5 text-ui font-semibold text-fg transition-all duration-200"
+          >
+            <FolderOpen size={15} />
+            {t.settings.chooseFile}
+          </button>
+          <button
+            onClick={handlePickLocalCover}
+            disabled={isUploadingCustom}
+            className={cn(
+              'flex items-center gap-2 rounded-lg border-0 bg-accent-gradient px-4.5 py-2.5 text-ui font-bold text-on-accent shadow-halo-lg shadow-accent-pink/35 transition-all duration-200',
+              isUploadingCustom ? 'cursor-default' : 'cursor-pointer',
+            )}
+          >
+            {isUploadingCustom ? (
+              <>
+                <Loader2 size={15} className="animate-spin" /> {t.covers.downloading}
+              </>
+            ) : (
+              <>
+                <Upload size={15} /> {t.covers.uploadFromDisk}
+              </>
+            )}
           </button>
         </div>
+      </div>
 
-        {/* Wgrywanie własnej okładki z dysku / Drag & Drop */}
-        <div
-          style={{
-            padding: '16px 24px',
-            background: isDraggingOver
-              ? 'rgba(236, 72, 153, 0.18)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.2))',
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            transition: 'all 0.25s ease',
-            outline: isDraggingOver ? '2px dashed var(--accent-pink)' : 'none',
+      {/* Search bar */}
+      <div className="flex gap-3 border-b border-line bg-black/25 px-6 py-4">
+        <input
+          type="text"
+          value={albumQuery}
+          onChange={(e) => setAlbumQuery(e.target.value)}
+          placeholder={t.covers.searchAlbumPlaceholder}
+          className="flex-1 rounded-xl border border-line bg-white/5 px-3.5 py-2.5 text-sm text-fg"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') performSearch(albumQuery, artistQuery);
           }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDraggingOver(true);
+        />
+        <input
+          type="text"
+          value={artistQuery}
+          onChange={(e) => setArtistQuery(e.target.value)}
+          placeholder={t.covers.searchArtistPlaceholder}
+          className="flex-1 rounded-xl border border-line bg-white/5 px-3.5 py-2.5 text-sm text-fg"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') performSearch(albumQuery, artistQuery);
           }}
-          onDragLeave={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDraggingOver(false);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDraggingOver(false);
-            const file = e.dataTransfer.files?.[0];
-            if (file && file.type.startsWith('image/')) {
-              processImageFile(file);
-            }
-          }}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            style={{ display: 'none' }}
-            onChange={handleCustomFileInputChange}
-          />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                background: 'rgba(6, 182, 212, 0.15)',
-                border: '1px solid rgba(6, 182, 212, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-cyan)',
-                flexShrink: 0,
-                boxShadow: '0 0 14px rgba(6, 182, 212, 0.25)',
-              }}
-            >
-              <Upload size={20} />
-            </div>
-            <div>
-              <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700, color: '#fff' }}>
-                {t.covers.uploadCustomCover}
-              </h4>
-              <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {t.covers.dragDropCoverHint}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploadingCustom}
-              style={{
-                padding: '9px 15px',
-                borderRadius: '9px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s',
-              }}
-            >
-              <FolderOpen size={15} />
-              {t.settings.chooseFile}
-            </button>
-            <button
-              onClick={handlePickLocalCover}
-              disabled={isUploadingCustom}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '9px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                border: 'none',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: isUploadingCustom ? 'default' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-                boxShadow: '0 0 16px rgba(244, 63, 94, 0.35)',
-                transition: 'all 0.2s',
-              }}
-            >
-              {isUploadingCustom ? (
-                <>
-                  <Loader2 size={15} className="spin" /> {t.covers.downloading}
-                </>
-              ) : (
-                <>
-                  <Upload size={15} /> {t.covers.uploadFromDisk}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Search bar */}
-        <div
-          style={{
-            padding: '16px 24px',
-            display: 'flex',
-            gap: '12px',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'rgba(0, 0, 0, 0.25)',
-          }}
-        >
-          <input
-            type="text"
-            value={albumQuery}
-            onChange={(e) => setAlbumQuery(e.target.value)}
-            placeholder={t.covers.searchAlbumPlaceholder}
-            style={{
-              flex: 1,
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid var(--border-subtle)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: '#fff',
-              fontSize: '0.9rem',
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') performSearch(albumQuery, artistQuery);
-            }}
-          />
-          <input
-            type="text"
-            value={artistQuery}
-            onChange={(e) => setArtistQuery(e.target.value)}
-            placeholder={t.covers.searchArtistPlaceholder}
-            style={{
-              flex: 1,
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid var(--border-subtle)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: '#fff',
-              fontSize: '0.9rem',
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') performSearch(albumQuery, artistQuery);
-            }}
-          />
-          <button
-            onClick={() => performSearch(albumQuery, artistQuery)}
-            disabled={isSearching}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-              border: 'none',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: isSearching ? 'default' : 'pointer',
-              opacity: isSearching ? 0.7 : 1,
-            }}
-          >
-            {isSearching ? <Loader2 size={16} className="spin" /> : <Search size={16} />}
-            {t.covers.searchBtn}
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div
-          style={{
-            flex: 1,
-            padding: '24px',
-            overflowY: 'auto',
-            minHeight: '320px',
-          }}
-        >
-          {isSearching && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '240px',
-                gap: '12px',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <Loader2 size={36} color="var(--accent-pink)" className="spin" />
-              <span>{t.covers.searching}</span>
-            </div>
+        />
+        <button
+          onClick={() => performSearch(albumQuery, artistQuery)}
+          disabled={isSearching}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-accent-cyan to-accent-purple px-5 py-2.5 text-sm font-bold text-on-accent',
+            isSearching ? 'cursor-default' : 'cursor-pointer',
+            isSearching ? 'opacity-70' : 'opacity-100',
           )}
+        >
+          {isSearching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          {t.covers.searchBtn}
+        </button>
+      </div>
 
-          {!isSearching && errorMsg && candidates.length === 0 && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '240px',
-                gap: '10px',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <ImageIcon size={44} opacity={0.4} />
-              <p style={{ margin: 0, fontSize: '0.95rem' }}>{errorMsg}</p>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {t.covers.hintNoCovers}
-              </p>
-            </div>
-          )}
+      {/* Content Body */}
+      <div className="min-h-80 flex-1 overflow-y-auto p-6">
+        {isSearching && (
+          <div className="flex h-60 flex-col items-center justify-center gap-3 text-fg-secondary">
+            <Loader2 size={36} className="animate-spin text-accent-pink" />
+            <span>{t.covers.searching}</span>
+          </div>
+        )}
 
-          {!isSearching && candidates.length > 0 && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '18px',
-              }}
-            >
-              {candidates.map((cand, idx) => {
-                const isSelected = isApplying === cand.full_url;
-                return (
-                  <div
-                    key={idx}
-                    className="glass-card"
-                    style={{
-                      borderRadius: '14px',
-                      overflow: 'hidden',
-                      border: isSelected ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      transition: 'all 0.2s ease',
-                      position: 'relative',
-                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-                    }}
-                  >
-                    {/* Artwork Preview */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: '100%',
-                        paddingBottom: '100%',
-                        background: '#090d16',
-                        overflow: 'hidden',
-                      }}
+        {!isSearching && errorMsg && candidates.length === 0 && (
+          <div className="flex h-60 flex-col items-center justify-center gap-2.5 text-fg-muted">
+            <ImageIcon size={44} opacity={0.4} />
+            <p className="m-0 text-md">{errorMsg}</p>
+            <p className="m-0 text-ui text-fg-secondary">
+              {t.covers.hintNoCovers}
+            </p>
+          </div>
+        )}
+
+        {!isSearching && candidates.length > 0 && (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(50),1fr))] gap-4.5">
+            {candidates.map((cand, idx) => {
+              const isSelected = isApplying === cand.full_url;
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    'glass-card relative flex flex-col overflow-hidden rounded-2xl bg-black/35 shadow-xl shadow-black/40 transition-all duration-200',
+                    isSelected ? 'border-2 border-accent-pink' : 'border border-line',
+                  )}
+                >
+                  {/* Artwork Preview */}
+                  <div className="relative aspect-square w-full overflow-hidden bg-deep">
+                    <img
+                      src={cand.thumbnail_url}
+                      alt={cand.title}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    {/* Resolution badge */}
+                    <span
+                      className="absolute top-2 right-2 rounded-md border border-accent-cyan/40 bg-black/75 px-2 py-0.5 text-xxs font-extrabold text-accent-cyan backdrop-blur-xs"
                     >
-                      <img
-                        src={cand.thumbnail_url}
-                        alt={cand.title}
-                        loading="lazy"
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                      {/* Resolution badge */}
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '8px',
-                          right: '8px',
-                          fontSize: '0.65rem',
-                          fontWeight: 800,
-                          padding: '2px 7px',
-                          borderRadius: '6px',
-                          background: 'rgba(0, 0, 0, 0.75)',
-                          backdropFilter: 'blur(4px)',
-                          color: 'var(--accent-cyan)',
-                          border: '1px solid rgba(6, 182, 212, 0.4)',
-                        }}
+                      {cand.width ? `${cand.width}×${cand.height}` : 'HD'}
+                    </span>
+                  </div>
+
+                  {/* Metadata & Select */}
+                  <div className="flex flex-1 flex-col justify-between gap-2.5 p-3">
+                    <div>
+                      <h4
+                        className="m-0 truncate text-sm font-bold text-fg"
+                        title={cand.title}
                       >
-                        {cand.width ? `${cand.width}×${cand.height}` : 'HD'}
+                        {cand.title}
+                      </h4>
+                      <p
+                        className="mx-0 mt-1 mb-0 truncate text-xs text-fg-secondary"
+                        title={cand.artist}
+                      >
+                        {cand.artist}
+                      </p>
+                      <span className="mt-1.5 inline-block text-xxs font-semibold text-accent-pink">
+                        {cand.source}
                       </span>
                     </div>
 
-                    {/* Metadata & Select */}
-                    <div
-                      style={{
-                        padding: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        flex: 1,
-                        justifyContent: 'space-between',
-                        gap: '10px',
-                      }}
+                    <button
+                      onClick={() => handleApply(cand)}
+                      disabled={isApplying !== null}
+                      className={cn(
+                        'flex w-full items-center justify-center gap-1.5 rounded-lg border-0 px-3 py-2 text-ui font-bold text-fg transition-all duration-200',
+                        isSelected ? 'bg-accent-pink' : 'bg-accent-gradient',
+                        isApplying !== null ? 'cursor-default' : 'cursor-pointer',
+                      )}
                     >
-                      <div>
-                        <h4
-                          style={{
-                            margin: 0,
-                            fontSize: '0.85rem',
-                            fontWeight: 700,
-                            color: '#fff',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={cand.title}
-                        >
-                          {cand.title}
-                        </h4>
-                        <p
-                          style={{
-                            margin: '3px 0 0 0',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={cand.artist}
-                        >
-                          {cand.artist}
-                        </p>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            marginTop: '6px',
-                            fontSize: '0.65rem',
-                            fontWeight: 600,
-                            color: 'var(--accent-pink)',
-                          }}
-                        >
-                          {cand.source}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => handleApply(cand)}
-                        disabled={isApplying !== null}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          background: isSelected
-                            ? 'var(--accent-pink)'
-                            : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                          border: 'none',
-                          color: '#fff',
-                          fontWeight: 700,
-                          fontSize: '0.78rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          cursor: isApplying !== null ? 'default' : 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        {isSelected ? (
-                          <>
-                            <Loader2 size={14} className="spin" /> {t.covers.downloading}
-                          </>
-                        ) : (
-                          <>
-                            <Check size={14} /> {t.covers.applyCover}
-                          </>
-                        )}
-                      </button>
-                    </div>
+                      {isSelected ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" /> {t.covers.downloading}
+                        </>
+                      ) : (
+                        <>
+                          <Check size={14} /> {t.covers.applyCover}
+                        </>
+                      )}
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+    </ModalShell>
   );
 };
