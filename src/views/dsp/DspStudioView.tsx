@@ -3,7 +3,7 @@ import { Activity, Power, RotateCcw, Save, Sliders } from '../../components/ui/i
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
 import { type EqualizerPreset } from '../../types/equalizer';
 import type { DspPresetRecord, PlaybackStatus } from '../../types/player';
-import { type Language, type Translations, getTranslations } from '../../i18n';
+import { type Language, getTranslations } from '../../i18n';
 import { useLiveStatus } from '../../state/livePlayback';
 import { DspGraphicEqRack } from './sections/DspGraphicEqRack';
 import { DspMasteringRack } from './sections/DspMasteringRack';
@@ -93,8 +93,7 @@ export interface DspStudioViewProps {
   handleSavePreset: () => void | Promise<void>;
   handleApplySignatureProfile: (profileId: string) => void | Promise<void>;
   handleToggleEqAutoStartup: () => void | Promise<void>;
-  handleApplyEqPreset: (presetName: string) => void | Promise<void>;
-  getEqPresetDisplayName: (name: string, locOrIsPl?: Translations | boolean) => string;
+  handleApplyEqPreset: (presetId: string) => void | Promise<void>;
   handleResetEq: () => void | Promise<void>;
   handleEqToggle: () => void | Promise<void>;
   handleEqBandChange: (bandIndex: number, gainDb: number) => void | Promise<void>;

@@ -249,7 +249,7 @@ impl DynamicsPreset {
             Self {
                 id: "vintage-tube".into(),
                 name: "Vintage Tube Amplifier".into(),
-                description: "Ciepłe nasycenie triodowe parzystych harmonicznych z łagodną kompresją 2:1.".into(),
+                description: "Warm triode saturation of even harmonics with gentle 2:1 compression.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -274,7 +274,7 @@ impl DynamicsPreset {
             Self {
                 id: "analog-tape".into(),
                 name: "Warm Analog Tape Deck".into(),
-                description: "Gęsty analogowy bas, złagodzone soprany i zwarta dynamika taśmy magnetofonowej.".into(),
+                description: "Dense analog bass, softened treble and the tight dynamics of magnetic tape.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -299,7 +299,7 @@ impl DynamicsPreset {
             Self {
                 id: "vocal-broadcast".into(),
                 name: "Anime Broadcast & Radio".into(),
-                description: "Wyrazisty wokal, zwarta kompresja radiowa i optymalna czytelność mowy/piosenek.".into(),
+                description: "Articulate vocals, tight broadcast-style compression and optimal speech and singing intelligibility.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -324,7 +324,7 @@ impl DynamicsPreset {
             Self {
                 id: "lofi-crunch".into(),
                 name: "Lo-Fi Crunchy Vinyl".into(),
-                description: "Mocniejsze nasycenie harmoniczne, estetyka winylowa i lo-fi hip-hop.".into(),
+                description: "Heavier harmonic saturation for a vinyl and lo-fi hip-hop aesthetic.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -349,7 +349,7 @@ impl DynamicsPreset {
             Self {
                 id: "ear-safe".into(),
                 name: "Headphone Hearing Protection".into(),
-                description: "Subtelne wyrównanie dynamiki i aktywny limiter chroniący uszy przed nagłymi skokami głośności.".into(),
+                description: "Subtle dynamics levelling and an active limiter that shields your ears from sudden loudness spikes.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -373,8 +373,8 @@ impl DynamicsPreset {
             },
             Self {
                 id: "bypass".into(),
-                name: "Direct Bypass (Czysty tor)".into(),
-                description: "Wszystkie moduły dynamiki i nasycenia wyłączone (bit-perfect).".into(),
+                name: "Direct Bypass".into(),
+                description: "All dynamics and saturation modules off (bit-perfect).".into(),
                 state: DynamicsState::default(),
             },
         ]

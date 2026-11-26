@@ -290,11 +290,64 @@
     "noBaseBpm": " (kein Basis-BPM)",
     "spatialReverbTitle": "Räumlicher Hall (Freeverb DSP)",
     "spatialReverbDesc": "Studio-Simulation von Raum- und Hallakustik",
-    "presetFlat": "Flach (Flat)",
-    "presetBassBoost": "Bass-Verstärkung",
-    "presetElectronic": "Elektronisch / Dance",
-    "presetAcoustic": "Klassisch / Akustisch",
-    "presetCustom": "Benutzerdefiniert",
+    "eqPreset": {
+      "flat": "Flach (Flat)",
+      "anime-ost": "Anime-OST / Klare Stimme",
+      "bass-boost": "Bass-Verstärkung",
+      "electronic": "Elektronisch / Dance",
+      "rock": "Rock",
+      "pop": "Pop",
+      "acoustic": "Klassisch / Akustisch",
+      "custom": "Benutzerdefiniert"
+    },
+    "peqPreset": {
+      "flat": {
+        "name": "Flach (Flat)",
+        "description": "Neutraler, unveränderter Frequenzgang."
+      },
+      "harman": {
+        "name": "Harman-Zielkurve",
+        "description": "Druckvoller Bass und klare Höhen nach der Harman-Zielkurve."
+      },
+      "vocal-clarity": {
+        "name": "Klare Stimme",
+        "description": "Hebt den Sprach- und Gesangsbereich (1 kHz - 3,5 kHz) an und mindert dröhnenden Bass."
+      },
+      "sub-bass-punch": {
+        "name": "Sub-Bass-Punch",
+        "description": "Hebt die tiefsten Lagen (30-80 Hz) an, ohne die Mitten zu verdecken."
+      },
+      "de-esser": {
+        "name": "De-Esser",
+        "description": "Schneidet scharfe Zischlaute (s/sch/ch) im Bereich von 6-8 kHz präzise ab."
+      }
+    },
+    "dynamicsPreset": {
+      "vintage-tube": {
+        "name": "Vintage-Röhrenverstärker",
+        "description": "Warme Trioden-Sättigung gerader Harmonischer mit sanfter 2:1-Kompression."
+      },
+      "analog-tape": {
+        "name": "Warme analoge Bandmaschine",
+        "description": "Dichter analoger Bass, weichere Höhen und die straffe Dynamik von Magnetband."
+      },
+      "vocal-broadcast": {
+        "name": "Anime-Broadcast & Radio",
+        "description": "Deutliche Stimme, straffe Radiokompression und optimale Sprach- und Gesangsverständlichkeit."
+      },
+      "lofi-crunch": {
+        "name": "Lo-Fi-Knister-Vinyl",
+        "description": "Stärkere harmonische Sättigung, Vinyl-Ästhetik und Lo-Fi-Hip-Hop."
+      },
+      "ear-safe": {
+        "name": "Kopfhörer-Gehörschutz",
+        "description": "Dezenter Dynamikausgleich und aktiver Limiter, der die Ohren vor plötzlichen Lautstärkesprüngen schützt."
+      },
+      "bypass": {
+        "name": "Direct Bypass",
+        "description": "Alle Dynamik- und Sättigungsmodule aus (bit-perfekt)."
+      }
+    },
     "spectrumCycleTooltip": "Klicken, um Visualisierer-Stil umzuschalten (FFT-Balken • Retro Hi-Fi VFD • Anime Core • Vektor-Oszilloskop • Neonwelle • Rundes Halo • Stereo-Spiegel)",
     "dampingLabel": "Dämpfung",
     "stereoWidthLabel": "Stereobreite",

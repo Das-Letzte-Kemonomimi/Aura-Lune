@@ -1,9 +1,10 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useDspManager, getEqPresetDisplayName } from './useDspManager';
+import { useDspManager } from './useDspManager';
 import type { PlaybackStatus } from '../types/playback';
 import { getTranslations } from '../i18n';
 import { invokeMock as mockInvoke } from '../test/ipcMock';
+import { fmt } from '../utils/fmt';
 
 
 describe('useDspManager', () => {
@@ -73,11 +74,62 @@ describe('useDspManager', () => {
     );
   }
 
-  it('translates EQ preset display names properly', () => {
-    expect(getEqPresetDisplayName('Flat', loc)).toBe(loc.dsp.presetFlat);
-    expect(getEqPresetDisplayName('Bass Boost', loc)).toBe(loc.dsp.presetBassBoost);
-    expect(getEqPresetDisplayName('Custom', loc)).toBe(loc.dsp.presetCustom);
-    expect(getEqPresetDisplayName('Unknown')).toBe('Unknown');
+  describe('graphic EQ presets are selected by id', () => {
+    const bass = { id: 'bass-boost', name: 'Bass Boost', bands: [6, 5, 4, 2, 0.5, 0, 0, 0, 0, 0] };
+
+    async function setupWithPresets() {
+      mockInvoke.mockImplementation(async (cmd: string) => (cmd === 'get_equalizer_presets' ? [bass] : null));
+      const hook = setupHook();
+      await waitFor(() => expect(hook.result.current.eqPresets).toHaveLength(1));
+      return hook;
+    }
+
+    it('starts on the flat preset id', () => {
+      const { result } = setupHook();
+      expect(result.current.selectedEqPreset).toBe('flat');
+    });
+
+    it('applies a preset by id and announces its localised name', async () => {
+      const { result } = await setupWithPresets();
+      await act(async () => {
+        await result.current.handleApplyEqPreset('bass-boost');
+      });
+      expect(result.current.selectedEqPreset).toBe('bass-boost');
+      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_params', { enabled: true, bands: bass.bands });
+      expect(showMessage).toHaveBeenCalledWith(fmt(loc.notifications.eqAppliedPreset, loc.dsp.eqPreset['bass-boost']));
+    });
+
+    it('ignores an id that is not in the list', async () => {
+      const { result } = await setupWithPresets();
+      await act(async () => {
+        await result.current.handleApplyEqPreset('Bass Boost');
+      });
+      expect(result.current.selectedEqPreset).toBe('flat');
+      expect(mockInvoke).not.toHaveBeenCalledWith('set_equalizer_params', expect.anything());
+    });
+
+    it('can apply flat before the preset list has loaded', async () => {
+      const { result } = setupHook();
+      await act(async () => {
+        await result.current.handleApplyEqPreset('flat');
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_params', { enabled: true, bands: new Array(10).fill(0) });
+    });
+
+    it('marks the selection as custom after a band is dragged, and flat after a reset', async () => {
+      const { result } = await setupWithPresets();
+      await act(async () => {
+        await result.current.handleApplyEqPreset('bass-boost');
+      });
+      await act(async () => {
+        await result.current.handleEqBandChange(3, 2.5);
+      });
+      expect(result.current.selectedEqPreset).toBe('custom');
+      await act(async () => {
+        await result.current.handleResetEq();
+      });
+      expect(result.current.selectedEqPreset).toBe('flat');
+    });
   });
 
   it('initializes default DSP state properly', () => {

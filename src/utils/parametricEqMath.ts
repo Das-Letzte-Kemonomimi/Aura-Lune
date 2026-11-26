@@ -33,6 +33,9 @@ export interface ParametricEqStateDto {
 }
 
 export interface ParametricEqPresetDto {
+  /** Stable kebab-case key: select and localise by this, never by `name`. */
+  id: string;
+  /** English fallback text from the backend. */
   name: string;
   description: string;
   state: ParametricEqStateDto;

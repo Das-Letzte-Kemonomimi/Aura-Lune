@@ -54,19 +54,24 @@ impl EqualizerState {
 }
 
 /// A ready-made equaliser sound profile.
+///
+/// `id` is the stable kebab-case key the frontend selects and localises by;
+/// `name` is the English display text it falls back to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EqualizerPreset {
+    pub id: String,
     pub name: String,
     pub bands: [f64; 10],
 }
 
 impl EqualizerPreset {
-    pub fn new(name: impl Into<String>, bands: [f64; 10]) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, bands: [f64; 10]) -> Self {
         let mut clamped = [0.0; 10];
         for (i, val) in bands.iter().enumerate() {
             clamped[i] = EqualizerState::clamp_gain(*val);
         }
         Self {
+            id: id.into(),
             name: name.into(),
             bands: clamped,
         }
@@ -75,23 +80,35 @@ impl EqualizerPreset {
     /// The built-in sound presets.
     pub fn default_presets() -> Vec<Self> {
         vec![
-            Self::new("Płaski (Flat)", [0.0; 10]),
+            Self::new("flat", "Flat", [0.0; 10]),
             Self::new(
+                "anime-ost",
                 "Anime OST / Clear Voice",
                 [-1.0, 0.0, 1.0, 2.5, 3.5, 4.0, 3.0, 2.0, 1.5, 2.0],
             ),
             Self::new(
-                "Mocny Bass (Bass Boost)",
+                "bass-boost",
+                "Bass Boost",
                 [6.0, 5.0, 4.0, 2.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0],
             ),
             Self::new(
-                "Elektroniczna / Dance",
+                "electronic",
+                "Electronic / Dance",
                 [5.0, 4.0, 2.0, 0.0, -1.0, 1.5, 3.0, 4.0, 4.5, 4.0],
             ),
-            Self::new("Rock", [4.5, 3.5, 2.0, 0.5, -0.5, 1.0, 2.5, 3.5, 4.0, 3.5]),
-            Self::new("Pop", [1.5, 3.0, 4.0, 3.5, 2.0, 0.0, -1.0, 1.0, 2.5, 3.0]),
             Self::new(
-                "Klasyczna / Akustyczna",
+                "rock",
+                "Rock",
+                [4.5, 3.5, 2.0, 0.5, -0.5, 1.0, 2.5, 3.5, 4.0, 3.5],
+            ),
+            Self::new(
+                "pop",
+                "Pop",
+                [1.5, 3.0, 4.0, 3.5, 2.0, 0.0, -1.0, 1.0, 2.5, 3.0],
+            ),
+            Self::new(
+                "acoustic",
+                "Classical / Acoustic",
                 [3.5, 2.5, 1.5, 0.5, 0.0, 0.0, 1.0, 2.0, 2.5, 3.0],
             ),
         ]

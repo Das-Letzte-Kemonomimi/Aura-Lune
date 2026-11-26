@@ -290,11 +290,64 @@
     "noBaseBpm": " (no base BPM)",
     "spatialReverbTitle": "Spatial Reverb (Freeverb DSP)",
     "spatialReverbDesc": "Studio acoustic hall and room simulation",
-    "presetFlat": "Flat",
-    "presetBassBoost": "Bass Boost",
-    "presetElectronic": "Electronic / Dance",
-    "presetAcoustic": "Classical / Acoustic",
-    "presetCustom": "Custom",
+    "eqPreset": {
+      "flat": "Flat",
+      "anime-ost": "Anime OST / Clear Voice",
+      "bass-boost": "Bass Boost",
+      "electronic": "Electronic / Dance",
+      "rock": "Rock",
+      "pop": "Pop",
+      "acoustic": "Classical / Acoustic",
+      "custom": "Custom"
+    },
+    "peqPreset": {
+      "flat": {
+        "name": "Flat",
+        "description": "Neutral, unaltered frequency response."
+      },
+      "harman": {
+        "name": "Harman Target",
+        "description": "Punchy bass and a clear top end modelled on the Harman target curve."
+      },
+      "vocal-clarity": {
+        "name": "Vocal Clarity",
+        "description": "Boosts the speech and vocal range (1 kHz - 3.5 kHz) and trims muddy bass."
+      },
+      "sub-bass-punch": {
+        "name": "Sub-Bass Punch",
+        "description": "Lifts the lowest registers (30-80 Hz) without clouding the midrange."
+      },
+      "de-esser": {
+        "name": "De-Esser",
+        "description": "Precisely cuts harsh sibilance (s/sh/ch sounds) around 6-8 kHz."
+      }
+    },
+    "dynamicsPreset": {
+      "vintage-tube": {
+        "name": "Vintage Tube Amplifier",
+        "description": "Warm triode saturation of even harmonics with gentle 2:1 compression."
+      },
+      "analog-tape": {
+        "name": "Warm Analog Tape Deck",
+        "description": "Dense analog bass, softened treble and the tight dynamics of magnetic tape."
+      },
+      "vocal-broadcast": {
+        "name": "Anime Broadcast & Radio",
+        "description": "Articulate vocals, tight broadcast-style compression and optimal speech and singing intelligibility."
+      },
+      "lofi-crunch": {
+        "name": "Lo-Fi Crunchy Vinyl",
+        "description": "Heavier harmonic saturation for a vinyl and lo-fi hip-hop aesthetic."
+      },
+      "ear-safe": {
+        "name": "Headphone Hearing Protection",
+        "description": "Subtle dynamics levelling and an active limiter that shields your ears from sudden loudness spikes."
+      },
+      "bypass": {
+        "name": "Direct Bypass",
+        "description": "All dynamics and saturation modules off (bit-perfect)."
+      }
+    },
     "spectrumCycleTooltip": "Click to cycle visualizer mode (FFT Bars • Retro Hi-Fi VFD • Anime Core • Vector Oscilloscope • Neon Wave • Circular Halo • Stereo Mirror)",
     "dampingLabel": "Damping",
     "stereoWidthLabel": "Stereo Width",

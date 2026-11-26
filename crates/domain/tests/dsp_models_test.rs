@@ -3,7 +3,9 @@ use domain::dynamics::{
     CompressorConfig, DynamicsPreset, SaturatorConfig, SaturatorMode, StereoWidenerConfig,
 };
 use domain::equalizer::{EqualizerPreset, EqualizerState};
-use domain::parametric_eq::{ParametricBand, ParametricEqState, ParametricFilterType};
+use domain::parametric_eq::{
+    ParametricBand, ParametricEqPreset, ParametricEqState, ParametricFilterType,
+};
 use domain::replaygain::{ReplayGainConfig, ReplayGainMode};
 use domain::silence::SilenceTrimmingConfig;
 
@@ -116,8 +118,33 @@ fn test_equalizer_set_band_and_reset() {
 fn test_default_presets() {
     let presets = EqualizerPreset::default_presets();
     assert!(presets.len() >= 6);
-    assert_eq!(presets[0].name, "Płaski (Flat)");
+    assert_eq!(presets[0].id, "flat");
+    assert_eq!(presets[0].name, "Flat");
     assert_eq!(presets[0].bands, [0.0; 10]);
+}
+
+/// Asserts that every id is non-empty kebab-case and unique within its list.
+fn assert_stable_ids(kind: &str, ids: Vec<&str>) {
+    let mut seen = std::collections::HashSet::new();
+    for id in ids {
+        assert!(!id.is_empty(), "{kind}: empty preset id");
+        assert!(
+            id.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            "{kind}: id {id:?} is not kebab-case"
+        );
+        assert!(seen.insert(id.to_string()), "{kind}: duplicate id {id:?}");
+    }
+}
+
+#[test]
+fn test_builtin_preset_ids_are_stable_and_unique() {
+    let eq = EqualizerPreset::default_presets();
+    assert_stable_ids("eq", eq.iter().map(|p| p.id.as_str()).collect());
+    let peq = ParametricEqPreset::default_presets();
+    assert_stable_ids("peq", peq.iter().map(|p| p.id.as_str()).collect());
+    let dynamics = DynamicsPreset::default_presets();
+    assert_stable_ids("dynamics", dynamics.iter().map(|p| p.id.as_str()).collect());
 }
 
 #[test]

@@ -290,11 +290,64 @@
     "noBaseBpm": " (sine BPM fundamentali)",
     "spatialReverbTitle": "Reverberatio Spatialis (Freeverb DSP)",
     "spatialReverbDesc": "Simulatio acustica aularum et spatiorum",
-    "presetFlat": "Planus (Flat)",
-    "presetBassBoost": "Amplificatio Gravium",
-    "presetElectronic": "Electronica / Saltatio",
-    "presetAcoustic": "Classica / Acustica",
-    "presetCustom": "Proprium",
+    "eqPreset": {
+      "flat": "Planus (Flat)",
+      "anime-ost": "Anime OST / Vox Clara",
+      "bass-boost": "Amplificatio Gravium",
+      "electronic": "Electronica / Saltatio",
+      "rock": "Rock",
+      "pop": "Pop",
+      "acoustic": "Classica / Acustica",
+      "custom": "Proprium"
+    },
+    "peqPreset": {
+      "flat": {
+        "name": "Planus (Flat)",
+        "description": "Responsio frequentiae neutra et immutata."
+      },
+      "harman": {
+        "name": "Linea Harmani",
+        "description": "Gravia valida et acuta clara secundum lineam Harmani."
+      },
+      "vocal-clarity": {
+        "name": "Vox Clara",
+        "description": "Ambitum vocis et cantus (1 kHz - 3,5 kHz) auget et gravia tumultuosa minuit."
+      },
+      "sub-bass-punch": {
+        "name": "Impulsus Subgravium",
+        "description": "Registra infima (30-80 Hz) extollit sine mediis obscurandis."
+      },
+      "de-esser": {
+        "name": "Sibilorum Reductio (De-Esser)",
+        "description": "Sibilos acutos (s/sh/ch) circa 6-8 kHz accurate resecat."
+      }
+    },
+    "dynamicsPreset": {
+      "vintage-tube": {
+        "name": "Amplificator Valvularum Vetus",
+        "description": "Saturatio triodi calida harmonicorum parium cum compressione leni 2:1."
+      },
+      "analog-tape": {
+        "name": "Taenia Analoga Calida",
+        "description": "Gravia analoga densa, acuta mollita et dynamica taeniae magneticae constricta."
+      },
+      "vocal-broadcast": {
+        "name": "Anime Radiophonia",
+        "description": "Vox expressa, compressio radiophonica constricta et intellegibilitas optima loquelae et cantus."
+      },
+      "lofi-crunch": {
+        "name": "Vinylum Lo-Fi Crepitans",
+        "description": "Saturatio harmonica fortior, aesthetica vinyli et lo-fi hip-hop."
+      },
+      "ear-safe": {
+        "name": "Tutela Auditus Auricularium",
+        "description": "Aequatio dynamicae subtilis et limitator activus aures a saltibus subitis clamoris tuens."
+      },
+      "bypass": {
+        "name": "Direct Bypass",
+        "description": "Omnia moduli dynamicae et saturationis exstincta (bit-perfect)."
+      }
+    },
     "spectrumCycleTooltip": "Preme ad stilum visualizatoris mutandum (FFT Columnae • Retro Hi-Fi VFD • Anime Core • Oscilloscopium • Unda Neon • Circulus • Stereo Speculum)",
     "dampingLabel": "Extenuatio",
     "stereoWidthLabel": "Latitudo Stereophonica",

@@ -326,8 +326,12 @@ impl ParametricEqState {
 }
 
 /// A ready-made parametric equaliser preset.
+///
+/// `id` is the stable kebab-case key the frontend selects and localises by;
+/// `name` and `description` are the English texts it falls back to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ParametricEqPreset {
+    pub id: String,
     pub name: String,
     pub description: String,
     pub state: ParametricEqState,
@@ -337,13 +341,16 @@ impl ParametricEqPreset {
     pub fn default_presets() -> Vec<Self> {
         vec![
             Self {
-                name: "Płaski (Flat)".into(),
-                description: "Neutralna, niezmieniona odpowiedź częstotliwościowa.".into(),
+                id: "flat".into(),
+                name: "Flat".into(),
+                description: "Neutral, unaltered frequency response.".into(),
                 state: ParametricEqState::with_default_bands(),
             },
             Self {
-                name: "Krzywa Harmana (Harman Baseline)".into(),
-                description: "Przyjemny basowy punch i czytelna góra pasma wzorowane na docelowej krzywej Harmana.".into(),
+                id: "harman".into(),
+                name: "Harman Target".into(),
+                description: "Punchy bass and a clear top end modelled on the Harman target curve."
+                    .into(),
                 state: ParametricEqState {
                     enabled: true,
                     preamp_db: -5.5,
@@ -352,28 +359,51 @@ impl ParametricEqPreset {
                         ParametricBand::new("p2", ParametricFilterType::Peak, 200.0, -1.5, 1.4),
                         ParametricBand::new("p3", ParametricFilterType::Peak, 1200.0, -2.0, 1.8),
                         ParametricBand::new("p4", ParametricFilterType::Peak, 3000.0, 3.5, 2.0),
-                        ParametricBand::new("p5", ParametricFilterType::HighShelf, 8000.0, -1.0, 0.71),
+                        ParametricBand::new(
+                            "p5",
+                            ParametricFilterType::HighShelf,
+                            8000.0,
+                            -1.0,
+                            0.71,
+                        ),
                     ],
                 },
             },
             Self {
-                name: "Czysty Wokal (Vocal Clarity)".into(),
-                description: "Wzmocnienie pasma mowy i wokali (1 kHz - 3.5 kHz) z redukcją dudniącego basu.".into(),
+                id: "vocal-clarity".into(),
+                name: "Vocal Clarity".into(),
+                description:
+                    "Boosts the speech and vocal range (1 kHz - 3.5 kHz) and trims muddy bass."
+                        .into(),
                 state: ParametricEqState {
                     enabled: true,
                     preamp_db: -3.0,
                     bands: vec![
-                        ParametricBand::new("p1", ParametricFilterType::LowShelf, 120.0, -2.5, 0.71),
+                        ParametricBand::new(
+                            "p1",
+                            ParametricFilterType::LowShelf,
+                            120.0,
+                            -2.5,
+                            0.71,
+                        ),
                         ParametricBand::new("p2", ParametricFilterType::Peak, 400.0, -1.0, 1.2),
                         ParametricBand::new("p3", ParametricFilterType::Peak, 2400.0, 3.0, 1.8),
                         ParametricBand::new("p4", ParametricFilterType::Peak, 4500.0, 2.0, 2.0),
-                        ParametricBand::new("p5", ParametricFilterType::HighShelf, 10000.0, 1.5, 0.71),
+                        ParametricBand::new(
+                            "p5",
+                            ParametricFilterType::HighShelf,
+                            10000.0,
+                            1.5,
+                            0.71,
+                        ),
                     ],
                 },
             },
             Self {
-                name: "Sub-Bass Punch (Czysty Bas)".into(),
-                description: "Podbicie najniższych rejestrów (30-80 Hz) bez zamulania średnicy.".into(),
+                id: "sub-bass-punch".into(),
+                name: "Sub-Bass Punch".into(),
+                description: "Lifts the lowest registers (30-80 Hz) without clouding the midrange."
+                    .into(),
                 state: ParametricEqState {
                     enabled: true,
                     preamp_db: -6.0,
@@ -382,13 +412,21 @@ impl ParametricEqPreset {
                         ParametricBand::new("p2", ParametricFilterType::LowShelf, 90.0, 2.5, 0.71),
                         ParametricBand::new("p3", ParametricFilterType::Peak, 250.0, -2.0, 1.5),
                         ParametricBand::new("p4", ParametricFilterType::Peak, 1000.0, 0.0, 1.0),
-                        ParametricBand::new("p5", ParametricFilterType::HighShelf, 12000.0, 1.0, 0.71),
+                        ParametricBand::new(
+                            "p5",
+                            ParametricFilterType::HighShelf,
+                            12000.0,
+                            1.0,
+                            0.71,
+                        ),
                     ],
                 },
             },
             Self {
-                name: "Redukcja Sybilantów (De-Esser)".into(),
-                description: "Precyzyjne wycięcie ostrych syków głosek s/sz/cz w okolicach 6-8 kHz.".into(),
+                id: "de-esser".into(),
+                name: "De-Esser".into(),
+                description: "Precisely cuts harsh sibilance (s/sh/ch sounds) around 6-8 kHz."
+                    .into(),
                 state: ParametricEqState {
                     enabled: true,
                     preamp_db: 0.0,

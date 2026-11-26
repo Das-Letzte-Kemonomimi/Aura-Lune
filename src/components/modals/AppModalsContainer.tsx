@@ -638,12 +638,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
               bands,
               preampDb: preampDb || 0,
             });
+            // No locale key matches this id, so the menu shows the name as given.
+            const autoEqId = `autoeq:${profileName}`;
             const autoEqLabel = `🎧 ${profileName} (AutoEQ)`;
             setEqPresets((prev) => {
-              if (prev.some((p) => p.name === autoEqLabel)) return prev;
-              return [...prev, { name: autoEqLabel, bands }];
+              if (prev.some((p) => p.id === autoEqId)) return prev;
+              return [...prev, { id: autoEqId, name: autoEqLabel, bands }];
             });
-            setSelectedEqPreset(autoEqLabel);
+            setSelectedEqPreset(autoEqId);
             setStatus((prev: PlaybackStatus) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
             showMessage(
               preampDb !== 0

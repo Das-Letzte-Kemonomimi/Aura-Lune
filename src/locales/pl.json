@@ -290,11 +290,64 @@
     "noBaseBpm": " (brak BPM bazowego)",
     "spatialReverbTitle": "Przestrzenny Pogłos (Reverb Freeverb)",
     "spatialReverbDesc": "Wierne symulowanie akustyki pomieszczeń i hal",
-    "presetFlat": "Płaski (Flat)",
-    "presetBassBoost": "Mocny Bass (Bass Boost)",
-    "presetElectronic": "Elektroniczna / Dance",
-    "presetAcoustic": "Klasyczna / Akustyczna",
-    "presetCustom": "Własny (Custom)",
+    "eqPreset": {
+      "flat": "Płaski (Flat)",
+      "anime-ost": "Anime OST / Czysty wokal",
+      "bass-boost": "Mocny Bass (Bass Boost)",
+      "electronic": "Elektroniczna / Dance",
+      "rock": "Rock",
+      "pop": "Pop",
+      "acoustic": "Klasyczna / Akustyczna",
+      "custom": "Własny (Custom)"
+    },
+    "peqPreset": {
+      "flat": {
+        "name": "Płaski (Flat)",
+        "description": "Neutralna, niezmieniona odpowiedź częstotliwościowa."
+      },
+      "harman": {
+        "name": "Krzywa Harmana (Harman Target)",
+        "description": "Przyjemny basowy punch i czytelna góra pasma wzorowane na docelowej krzywej Harmana."
+      },
+      "vocal-clarity": {
+        "name": "Czysty Wokal (Vocal Clarity)",
+        "description": "Wzmocnienie pasma mowy i wokali (1 kHz - 3.5 kHz) z redukcją dudniącego basu."
+      },
+      "sub-bass-punch": {
+        "name": "Sub-Bass Punch (Czysty Bas)",
+        "description": "Podbicie najniższych rejestrów (30-80 Hz) bez zamulania średnicy."
+      },
+      "de-esser": {
+        "name": "Redukcja Sybilantów (De-Esser)",
+        "description": "Precyzyjne wycięcie ostrych syków głosek s/sz/cz w okolicach 6-8 kHz."
+      }
+    },
+    "dynamicsPreset": {
+      "vintage-tube": {
+        "name": "Lampowy wzmacniacz Vintage",
+        "description": "Ciepłe nasycenie triodowe parzystych harmonicznych z łagodną kompresją 2:1."
+      },
+      "analog-tape": {
+        "name": "Ciepły magnetofon analogowy",
+        "description": "Gęsty analogowy bas, złagodzone soprany i zwarta dynamika taśmy magnetofonowej."
+      },
+      "vocal-broadcast": {
+        "name": "Anime Broadcast i radio",
+        "description": "Wyrazisty wokal, zwarta kompresja radiowa i optymalna czytelność mowy/piosenek."
+      },
+      "lofi-crunch": {
+        "name": "Chrupiący winyl Lo-Fi",
+        "description": "Mocniejsze nasycenie harmoniczne, estetyka winylowa i lo-fi hip-hop."
+      },
+      "ear-safe": {
+        "name": "Ochrona słuchu w słuchawkach",
+        "description": "Subtelne wyrównanie dynamiki i aktywny limiter chroniący uszy przed nagłymi skokami głośności."
+      },
+      "bypass": {
+        "name": "Direct Bypass (Czysty tor)",
+        "description": "Wszystkie moduły dynamiki i nasycenia wyłączone (bit-perfect)."
+      }
+    },
     "spectrumCycleTooltip": "Kliknij, aby przełączyć styl wizualizera (Słupki FFT • Retro Hi-Fi VFD • Anime Core • Oscyloskop Wektorowy • Fala Neonowa • Halo Okrągłe • Lustro Stereo)",
     "dampingLabel": "Tłumienie",
     "stereoWidthLabel": "Szerokość stereo",
