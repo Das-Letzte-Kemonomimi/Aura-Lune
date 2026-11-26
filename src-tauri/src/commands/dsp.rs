@@ -316,6 +316,13 @@ pub fn set_limiter_enabled(enabled: bool, state: State<'_, AppState>) -> Result<
     Ok(())
 }
 
+/// Clears the clip indicator latch (DSP Studio clip LED).
+#[tauri::command]
+pub fn reset_clip_indicator(state: State<'_, AppState>) -> Result<(), CommandError> {
+    state.engine.reset_clip_indicator();
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_crossfade_duration(
     duration_ms: u64,

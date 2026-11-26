@@ -103,6 +103,8 @@ export interface DspStudioViewProps {
   autoPreampValue: number;
   handlePreampChange: (db: number) => void | Promise<void>;
   handleTogglePreampAuto: () => void | Promise<void>;
+  /** Clears the clip LED latch. */
+  handleResetClipIndicator: () => void | Promise<void>;
   setIsParametricEqOpen: (open: boolean) => void;
   setIsAutoEqOpen: (open: boolean) => void;
   setIsDynamicsStudioOpen: (open: boolean) => void;

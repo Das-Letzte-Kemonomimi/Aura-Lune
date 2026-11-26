@@ -369,7 +369,9 @@
     "preampAuto": "Auto",
     "preampAutoReadout": "Auto: {0}",
     "preampAutoTooltip": "Laskee EQ:ta suurimman kaistakorostuksen verran, jotta korostetut kaistat eivät säröydy",
-    "preampResetTooltip": "Kaksoisnapsauta palauttaaksesi 0 dB:iin. Rulla tai nuolinäppäimet: 0,5 dB, Shift: 0,1 dB"
+    "preampResetTooltip": "Kaksoisnapsauta palauttaaksesi 0 dB:iin. Rulla tai nuolinäppäimet: 0,5 dB, Shift: 0,1 dB",
+    "clipIndicatorClipped": "Leikkautumista havaittu: signaali ylitti 0 dBFS. Nollaa napsauttamalla",
+    "clipIndicatorClear": "Ei leikkautumista edellisen nollauksen jälkeen"
   },
   "library": {
     "title": "Musiikkikirjasto",
@@ -633,6 +635,7 @@
     "silenceTrimmingEnabled": "Hiljaisuuden ohitus käytössä",
     "silenceTrimmingThreshold": "Hiljaisuuden tunnistuskynnys",
     "replaygainLimiterActive": "Huippurajoitin käytössä",
+    "replaygainLimiterOff": "Huippurajoitin pois käytöstä",
     "replaygainTargetAdjustment": "Tavoitekorjaus",
     "scanReplayGainLibrary": "Skannaa kirjaston äänenvoimakkuus (EBU R128)",
     "scanReplayGainTrack": "Laske ReplayGain",

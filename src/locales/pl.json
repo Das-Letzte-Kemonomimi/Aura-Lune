@@ -369,7 +369,9 @@
     "preampAuto": "Auto",
     "preampAutoReadout": "Auto: {0}",
     "preampAutoTooltip": "Obniża EQ o największe podbicie pasma, aby podbite pasma nie przesterowały",
-    "preampResetTooltip": "Kliknij dwukrotnie, aby wrócić do 0 dB. Kółko lub strzałki: 0,5 dB, Shift: 0,1 dB"
+    "preampResetTooltip": "Kliknij dwukrotnie, aby wrócić do 0 dB. Kółko lub strzałki: 0,5 dB, Shift: 0,1 dB",
+    "clipIndicatorClipped": "Wykryto przesterowanie: sygnał przekroczył 0 dBFS. Kliknij, aby wyzerować",
+    "clipIndicatorClear": "Brak przesterowania od ostatniego wyzerowania"
   },
   "library": {
     "title": "Biblioteka Muzyczna",
@@ -633,6 +635,7 @@
     "silenceTrimmingEnabled": "Pomijanie ciszy aktywne",
     "silenceTrimmingThreshold": "Próg detekcji ciszy",
     "replaygainLimiterActive": "Limiter szczytowy aktywny",
+    "replaygainLimiterOff": "Limiter szczytowy wyłączony",
     "replaygainTargetAdjustment": "Korekta docelowa",
     "scanReplayGainLibrary": "Skanuj głośność biblioteki (EBU R128)",
     "scanReplayGainTrack": "Oblicz ReplayGain (EBU R128)",

@@ -366,6 +366,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     autoPreampValue: p.autoPreampValue,
     handlePreampChange: p.handlePreampChange,
     handleTogglePreampAuto: p.handleTogglePreampAuto,
+    handleResetClipIndicator: p.handleResetClipIndicator,
     setIsParametricEqOpen: p.setIsParametricEqOpen,
     setIsAutoEqOpen: p.setIsAutoEqOpen,
     setIsDynamicsStudioOpen: p.setIsDynamicsStudioOpen,

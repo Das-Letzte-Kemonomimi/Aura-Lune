@@ -303,4 +303,14 @@ describe('useDspManager', () => {
       expect(mockInvoke).toHaveBeenCalledWith('set_app_setting', { key: 'preamp_auto', value: 'false' });
     });
   });
+
+  it('resets the clip indicator and clears the local flag', async () => {
+    mockStatus = { ...mockStatus, clip_detected: true };
+    const { result } = setupHook();
+    await act(async () => {
+      await result.current.handleResetClipIndicator();
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('reset_clip_indicator');
+    expect(mockStatus.clip_detected).toBe(false);
+  });
 });

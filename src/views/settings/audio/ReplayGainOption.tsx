@@ -128,9 +128,13 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
             <span>{loc.settings.replaygainTargetAdjustment}:</span>
             <strong className="font-mono text-fg">{formatSignedDb(replaygainStatus[0])}</strong>
           </div>
-          <div className="flex items-center gap-1 font-semibold text-accent-green">
-            <ShieldCheck size={14} /> {loc.settings.replaygainLimiterActive}
-          </div>
+          {replaygainStatus[2] ? (
+            <div className="flex items-center gap-1 font-semibold text-accent-green">
+              <ShieldCheck size={14} /> {loc.settings.replaygainLimiterActive}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-fg-muted">{loc.settings.replaygainLimiterOff}</div>
+          )}
         </Card>
       )}
 

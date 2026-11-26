@@ -255,6 +255,7 @@ describe('useMainRouterProps', () => {
       autoPreampValue: 0,
       handlePreampChange: vi.fn(),
       handleTogglePreampAuto: vi.fn(),
+      handleResetClipIndicator: vi.fn(),
       setIsParametricEqOpen: vi.fn(),
       setIsAutoEqOpen: vi.fn(),
       setIsDynamicsStudioOpen: vi.fn(),

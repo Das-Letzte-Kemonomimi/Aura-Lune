@@ -245,6 +245,7 @@ impl AudioEngine {
             .property("enabled", false)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("rglimiter"))?;
+        let clip_latched = super::probes::install_clip_probes(&stereo_widener, &rglimiter);
 
         let audioconvert_sink = gst::ElementFactory::make("audioconvert")
             .name("audioconvert_sink")
@@ -429,6 +430,8 @@ impl AudioEngine {
             original_track_uri: None,
             active_stem_project_id: None,
         }));
+        // Sync rglimiter with the default limiter and ReplayGain settings.
+        inner.lock_safe().apply_limiter_state();
 
         let queue = Arc::new(Mutex::new(PlaybackQueue::new()));
         let stop_after_current = Arc::new(AtomicBool::new(false));
@@ -442,6 +445,7 @@ impl AudioEngine {
             is_fading_in,
             volume_element,
             atomic_volume,
+            clip_latched,
         })
     }
 }

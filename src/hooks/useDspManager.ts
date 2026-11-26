@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { invoke } from '../api/ipc';
+import { errorMessage, invoke } from '../api/ipc';
 import { getSetting, setSetting } from '../api/settings';
 import type { PlaybackStatus, DspPresetRecord } from '../types/playback';
 import type { EqualizerPreset } from '../types/equalizer';
@@ -566,6 +566,16 @@ export function useDspManager({
     }, 250);
   }, []);
 
+  // The clip LED latches in the engine; clicking it clears the latch.
+  const handleResetClipIndicator = useCallback(async () => {
+    try {
+      await invoke('reset_clip_indicator');
+      setStatus((prev) => (prev.clip_detected ? { ...prev, clip_detected: false } : prev));
+    } catch (e: unknown) {
+      console.warn('Failed to reset the clip indicator:', errorMessage(e));
+    }
+  }, [setStatus]);
+
   const handleTogglePreampAuto = useCallback(async () => {
     const next = !preampAuto;
     setPreampAuto(next);
@@ -675,6 +685,7 @@ export function useDspManager({
     autoPreampValue,
     handlePreampChange,
     handleTogglePreampAuto,
+    handleResetClipIndicator,
     handleUpdateReverb,
     lastActiveDspEngineRef,
   };

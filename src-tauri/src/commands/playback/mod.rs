@@ -38,6 +38,8 @@ pub struct PlaybackStatusDto {
     pub compressor_enabled: bool,
     pub saturator_enabled: bool,
     pub limiter_enabled: bool,
+    /// A sample above 0 dBFS was seen since the last `reset_clip_indicator`.
+    pub clip_detected: bool,
     pub spectrum: Vec<f32>,
     pub replaygain_config: ReplayGainConfig,
     pub replaygain_status: (f64, f64, bool),

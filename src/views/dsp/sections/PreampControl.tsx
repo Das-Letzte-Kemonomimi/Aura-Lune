@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Badge, Button, Card, Chip, RangeSlider } from '../../../components/ui';
+import { Badge, Button, Card, Chip, IconButton, RangeSlider, StatusDot } from '../../../components/ui';
 import { Sparkles } from '../../../components/ui/icons';
 import type { Translations } from '../../../i18n';
+import { cn } from '../../../utils/cn';
 import { fmt } from '../../../utils/fmt';
 import {
   PREAMP_MAX_DB,
@@ -24,6 +25,10 @@ export interface PreampControlProps {
   equalizerEnabled: boolean;
   onPreampChange: (db: number) => void;
   onToggleAuto: () => void;
+  /** A sample above 0 dBFS reached the output stage since the last reset (engine latch). */
+  clipDetected: boolean;
+  /** Clears the clip latch. */
+  onResetClip: () => void;
 }
 
 /**
@@ -32,9 +37,11 @@ export interface PreampControlProps {
  */
 export const PreampControl: React.FC<PreampControlProps> = ({
   autoPreampValue,
+  clipDetected,
   equalizerEnabled,
   loc,
   onPreampChange,
+  onResetClip,
   onToggleAuto,
   preampAuto,
   preampDb,
@@ -88,6 +95,17 @@ export const PreampControl: React.FC<PreampControlProps> = ({
           <Button size="sm" onClick={() => onPreampChange(0)} title={loc.dsp.preampResetTooltip}>
             0 dB
           </Button>
+          <IconButton
+            size="sm"
+            label={clipDetected ? loc.dsp.clipIndicatorClipped : loc.dsp.clipIndicatorClear}
+            onClick={onResetClip}
+            data-testid="clip-indicator"
+          >
+            <StatusDot
+              tone={clipDetected ? 'red' : 'neutral'}
+              className={cn('size-2.5', clipDetected ? 'shadow-[0_0_6px_var(--color-accent-red)]' : 'opacity-40')}
+            />
+          </IconButton>
           <Badge mono tone={preampDb > 0 ? 'pink' : preampDb < 0 ? 'cyan' : 'neutral'} className="min-w-16 justify-center">
             {formatSignedDb(preampDb)}
           </Badge>

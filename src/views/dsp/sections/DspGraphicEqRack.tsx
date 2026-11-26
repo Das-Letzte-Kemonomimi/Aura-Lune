@@ -38,6 +38,7 @@ export type DspGraphicEqRackProps = Pick<
   | 'autoPreampValue'
   | 'handlePreampChange'
   | 'handleTogglePreampAuto'
+  | 'handleResetClipIndicator'
 > & {
   status: PlaybackStatus;
 };
@@ -52,6 +53,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
   handleEqBandChange,
   handleEqToggle,
   handlePreampChange,
+  handleResetClipIndicator,
   handleResetEq,
   handleToggleEqAutoStartup,
   handleTogglePreampAuto,
@@ -178,6 +180,8 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
         equalizerEnabled={Boolean(status.equalizer_enabled)}
         onPreampChange={handlePreampChange}
         onToggleAuto={handleTogglePreampAuto}
+        clipDetected={Boolean(status.clip_detected)}
+        onResetClip={handleResetClipIndicator}
       />
 
       {/* 10 bands in two columns */}

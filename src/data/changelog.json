@@ -76,6 +76,13 @@
         "de": "Ein neuer Vorverstärker-Regler im DSP Studio hebt oder senkt die Gesamtlautstärke um bis zu 15 dB, auch bei ausgeschaltetem Equalizer. Der Auto-Schalter senkt den Equalizer gerade so weit, dass angehobene Bänder nie verzerren.",
         "fi": "DSP Studion uusi Esivahvistin-liukusäädin nostaa tai laskee kokonaisäänenvoimakkuutta jopa 15 dB, myös taajuuskorjaimen ollessa pois päältä. Auto-kytkin laskee taajuuskorjainta juuri sen verran, etteivät korostetut kaistat koskaan säröydy.",
         "la": "Novus regulator Praeamplificatoris in DSP Studio volumen totum usque ad 15 dB auget vel minuit, etiam aequatore exstincto. Commutator Auto aequatorem tantum minuit ut bandae elevatae numquam distorqueantur."
+      },
+      {
+        "en": "A small clip light next to the preamp in DSP Studio glows red when your sound gets too loud and starts to distort. Click it to clear it.",
+        "pl": "Mała lampka przesterowania obok przedwzmacniacza w DSP Studio świeci na czerwono, gdy dźwięk robi się zbyt głośny i zaczyna się zniekształcać. Kliknij ją, aby ją zgasić.",
+        "de": "Eine kleine Übersteuerungsanzeige neben dem Vorverstärker im DSP Studio leuchtet rot, wenn der Klang zu laut wird und verzerrt. Ein Klick setzt sie zurück.",
+        "fi": "DSP Studion esivahvistimen vieressä oleva pieni merkkivalo palaa punaisena, kun ääni on liian kova ja alkaa säröytyä. Napsauta sitä nollataksesi sen.",
+        "la": "Parva lux iuxta praeamplificatorem in DSP Studio rubet cum sonus nimis fortis fit et distorquetur. Preme eam ut exstinguas."
       }
     ],
     "changed": [
@@ -213,6 +220,13 @@
         "de": "ReplayGain hat jetzt zwei getrennte Vorverstärker, einen für Dateien mit Lautheits-Tags und einen für Dateien ohne. Das Anheben von Dateien ohne Tags funktioniert endlich, und eine gespeicherte Einstellung von 0 dB springt nicht mehr auf -6 dB zurück.",
         "fi": "ReplayGainissa on nyt kaksi erillistä esivahvistinta: toinen äänenvoimakkuustunnisteellisille tiedostoille ja toinen tiedostoille ilman niitä. Tunnisteettomien tiedostojen korostus toimii vihdoin, eikä tallennettu 0 dB:n asetus enää palaudu arvoon -6 dB.",
         "la": "ReplayGain nunc duos praeamplificatores separatos habet, unum fasciculis cum notis sonoritatis, alterum sine eis. Fasciculi sine notis tandem augeri possunt, et 0 dB servatum non iam ad -6 dB redit."
+      },
+      {
+        "en": "Turning ReplayGain off no longer switches off the peak limiter you turned on yourself, and the ReplayGain settings now show whether the limiter is really on.",
+        "pl": "Wyłączenie ReplayGain nie wyłącza już limitera szczytowego, który włączono samodzielnie, a ustawienia ReplayGain pokazują teraz, czy limiter naprawdę działa.",
+        "de": "Das Ausschalten von ReplayGain schaltet den selbst aktivierten Spitzenbegrenzer nicht mehr ab, und die ReplayGain-Einstellungen zeigen jetzt, ob der Begrenzer wirklich läuft.",
+        "fi": "ReplayGainin poistaminen käytöstä ei enää sammuta itse käyttöön otettua huippurajoitinta, ja ReplayGain-asetukset näyttävät nyt, onko rajoitin todella päällä.",
+        "la": "ReplayGain exstinctum moderatorem culminum a te accensum iam non exstinguit, et optiones ReplayGain nunc monstrant num moderator vere operetur."
       }
     ]
   },

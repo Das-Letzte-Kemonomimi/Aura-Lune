@@ -128,6 +128,22 @@ impl PipelineInner {
         let linear = 10.0f64.powf(total_db / 20.0);
         self.peq_preamp.set_property("volume", linear);
     }
+
+    /// Whether the limiter should run, from the user switch and the ReplayGain settings.
+    fn effective_limiter_enabled(&self) -> bool {
+        domain::replaygain::effective_limiter_enabled(
+            self.dynamics_state.limiter.enabled,
+            self.replaygain_config.mode,
+            self.replaygain_config.prevent_clipping,
+        )
+    }
+
+    /// The only writer of `rglimiter.enabled`: every limiter or ReplayGain change goes through here,
+    /// so the order of those changes no longer decides the result.
+    fn apply_limiter_state(&self) {
+        self.rglimiter
+            .set_property("enabled", self.effective_limiter_enabled());
+    }
 }
 
 /// Thread-safe audio pipeline controller.
@@ -140,6 +156,8 @@ pub struct AudioEngine {
     is_fading_in: Arc<AtomicBool>,
     volume_element: gst::Element,
     atomic_volume: Arc<AtomicU64>,
+    /// Latched by the clip probes (`probes::install_clip_probes`) when a sample exceeds 0 dBFS.
+    clip_latched: Arc<AtomicBool>,
 }
 
 /// Releases the GStreamer resources safely when the pipeline controller is dropped.

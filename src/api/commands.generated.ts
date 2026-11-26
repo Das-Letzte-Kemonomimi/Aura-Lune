@@ -122,6 +122,7 @@ export const COMMAND_NAMES = [
   'remove_track_from_playlist',
   'rename_stem_project',
   'reorder_queue',
+  'reset_clip_indicator',
   'reset_dsp',
   'reset_track_plays',
   'restart_after_update',

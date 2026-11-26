@@ -49,6 +49,18 @@ impl Default for ReplayGainConfig {
     }
 }
 
+/// Whether the true-peak limiter (`rglimiter`) must run.
+///
+/// The user's own limiter switch (Dynamics Studio) always wins; ReplayGain's "prevent clipping"
+/// can only add the limiter while normalisation is on, never turn a user-enabled limiter off.
+pub fn effective_limiter_enabled(
+    user_limiter_enabled: bool,
+    rg_mode: ReplayGainMode,
+    rg_prevent_clipping: bool,
+) -> bool {
+    user_limiter_enabled || (rg_mode != ReplayGainMode::Off && rg_prevent_clipping)
+}
+
 /// Range of the preamp for files with ReplayGain tags.
 pub const TAGGED_PREAMP_MIN_DB: f64 = -12.0;
 pub const TAGGED_PREAMP_MAX_DB: f64 = 12.0;

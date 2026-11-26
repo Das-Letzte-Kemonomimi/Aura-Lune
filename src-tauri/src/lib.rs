@@ -249,6 +249,7 @@ pub fn run() {
             list_download_jobs,
             set_stereo_widener,
             set_limiter_enabled,
+            reset_clip_indicator,
             set_crossfade_duration,
             get_default_music_dir,
             get_discord_rpc_status,

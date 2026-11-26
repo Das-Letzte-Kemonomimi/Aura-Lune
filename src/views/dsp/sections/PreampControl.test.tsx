@@ -16,6 +16,8 @@ function renderControl(overrides: Partial<PreampControlProps> = {}) {
     equalizerEnabled: true,
     onPreampChange: vi.fn(),
     onToggleAuto: vi.fn(),
+    clipDetected: false,
+    onResetClip: vi.fn(),
     ...overrides,
   };
   render(<PreampControl {...props} />);
@@ -71,5 +73,19 @@ describe('PreampControl', () => {
     expect(chip.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(chip);
     expect(props.onToggleAuto).toHaveBeenCalled();
+  });
+
+  it('shows a clear clip LED until the engine latches a clip', () => {
+    renderControl();
+    expect(screen.getByRole('button', { name: loc.dsp.clipIndicatorClear })).toBeTruthy();
+    cleanup();
+    renderControl({ clipDetected: true });
+    expect(screen.getByRole('button', { name: loc.dsp.clipIndicatorClipped })).toBeTruthy();
+  });
+
+  it('resets the clip latch when the LED is clicked', () => {
+    const props = renderControl({ clipDetected: true });
+    fireEvent.click(screen.getByRole('button', { name: loc.dsp.clipIndicatorClipped }));
+    expect(props.onResetClip).toHaveBeenCalledTimes(1);
   });
 });

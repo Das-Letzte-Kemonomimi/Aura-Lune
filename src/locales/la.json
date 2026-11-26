@@ -369,7 +369,9 @@
     "preampAuto": "Auto",
     "preampAutoReadout": "Auto: {0}",
     "preampAutoTooltip": "Aequatorem maxima bandae elevatione minuit, ne bandae elevatae distorqueantur",
-    "preampResetTooltip": "Bis preme ut ad 0 dB redeas. Rota vel sagittae: 0.5 dB, Shift: 0.1 dB"
+    "preampResetTooltip": "Bis preme ut ad 0 dB redeas. Rota vel sagittae: 0.5 dB, Shift: 0.1 dB",
+    "clipIndicatorClipped": "Tonsura deprehensa: signum 0 dBFS excessit. Preme ut renoves",
+    "clipIndicatorClear": "Nulla tonsura post ultimam renovationem"
   },
   "library": {
     "title": "Bibliotheca Musicae",
@@ -633,6 +635,7 @@
     "silenceTrimmingEnabled": "Praeteritio silentii activa",
     "silenceTrimmingThreshold": "Limes deprehensionis silentii",
     "replaygainLimiterActive": "Moderator culminum activus",
+    "replaygainLimiterOff": "Moderator culminum inactivus",
     "replaygainTargetAdjustment": "Accommodatio intentata",
     "scanReplayGainLibrary": "Metiri sonum bibliothecae (EBU R128)",
     "scanReplayGainTrack": "Computare ReplayGain",

@@ -369,7 +369,9 @@
     "preampAuto": "Auto",
     "preampAutoReadout": "Auto: {0}",
     "preampAutoTooltip": "Senkt den EQ um die größte Bandanhebung, damit angehobene Bänder nicht übersteuern",
-    "preampResetTooltip": "Doppelklick setzt auf 0 dB zurück. Mausrad oder Pfeiltasten: 0,5 dB, Umschalt: 0,1 dB"
+    "preampResetTooltip": "Doppelklick setzt auf 0 dB zurück. Mausrad oder Pfeiltasten: 0,5 dB, Umschalt: 0,1 dB",
+    "clipIndicatorClipped": "Übersteuerung erkannt: Das Signal lag über 0 dBFS. Klicken zum Zurücksetzen",
+    "clipIndicatorClear": "Keine Übersteuerung seit dem letzten Zurücksetzen"
   },
   "library": {
     "title": "Musikbibliothek",
@@ -633,6 +635,7 @@
     "silenceTrimmingEnabled": "Stillekürzung aktiv",
     "silenceTrimmingThreshold": "Stille-Erkennungsschwelle",
     "replaygainLimiterActive": "Spitzenbegrenzer aktiv",
+    "replaygainLimiterOff": "Spitzenbegrenzer aus",
     "replaygainTargetAdjustment": "Zielanpassung",
     "scanReplayGainLibrary": "Bibliothekslautstärke scannen (EBU R128)",
     "scanReplayGainTrack": "ReplayGain berechnen",

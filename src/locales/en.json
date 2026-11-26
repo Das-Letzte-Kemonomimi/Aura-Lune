@@ -369,7 +369,9 @@
     "preampAuto": "Auto",
     "preampAutoReadout": "Auto: {0}",
     "preampAutoTooltip": "Lowers the EQ by its largest band boost so boosted bands cannot clip",
-    "preampResetTooltip": "Double-click to reset to 0 dB. Wheel or arrow keys: 0.5 dB, Shift: 0.1 dB"
+    "preampResetTooltip": "Double-click to reset to 0 dB. Wheel or arrow keys: 0.5 dB, Shift: 0.1 dB",
+    "clipIndicatorClipped": "Clipping detected: the signal went above 0 dBFS. Click to reset",
+    "clipIndicatorClear": "No clipping since the last reset"
   },
   "library": {
     "title": "Music Library",
@@ -633,6 +635,7 @@
     "silenceTrimmingEnabled": "Silence trimming active",
     "silenceTrimmingThreshold": "Silence detection threshold",
     "replaygainLimiterActive": "Peak Limiter Active",
+    "replaygainLimiterOff": "Peak Limiter Off",
     "replaygainTargetAdjustment": "Target Adjustment",
     "scanReplayGainLibrary": "Scan Library Loudness (EBU R128)",
     "scanReplayGainTrack": "Calculate ReplayGain",
