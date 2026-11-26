@@ -18,19 +18,26 @@ This document provides complete instructions for setting up the development envi
 4. [Development Workflow](#4-development-workflow)
    - [Running Frontend in Browser Dev Mode](#running-frontend-in-browser-dev-mode)
    - [Running Full Desktop App in Dev Mode (Tauri)](#running-full-desktop-app-in-dev-mode-tauri)
-5. [Code Quality & Linting](#5-code-quality--linting)
+5. [Development Pipeline](#5-development-pipeline)
+6. [Agent Skills (Claude Code and Antigravity)](#6-agent-skills-claude-code-and-antigravity)
+   - [How the shared set works](#how-the-shared-set-works)
+   - [Everyday commands](#everyday-commands)
+   - [Adding, removing and updating skills](#adding-removing-and-updating-skills)
+   - [Skill troubleshooting](#skill-troubleshooting)
+7. [Code Quality & Linting](#7-code-quality--linting)
    - [Rust Code Formatting & Clippy](#rust-code-formatting--clippy)
    - [Frontend Linting (oxlint & TypeScript)](#frontend-linting-oxlint--typescript)
-6. [Testing Protocols](#6-testing-protocols)
-   - [Unified 4-Stage Test Runner](#unified-4-stage-test-runner)
+8. [Testing Protocols](#8-testing-protocols)
+   - [Unified CI-Parity Test Runner](#unified-ci-parity-test-runner)
    - [Frontend Unit Tests (Vitest)](#frontend-unit-tests-vitest)
    - [Rust Workspace Unit & Integration Tests](#rust-workspace-unit--integration-tests)
    - [Desktop Smoke Test](#desktop-smoke-test)
-7. [Building for Release](#7-building-for-release)
+9. [Building for Release](#9-building-for-release)
    - [Standard Release Build (AppImage & .deb)](#standard-release-build-appimage--deb)
    - [Optimized Standalone Binary](#optimized-standalone-binary)
    - [Release Artifact Outputs](#release-artifact-outputs)
-8. [Troubleshooting & FAQs](#8-troubleshooting--faqs)
+10. [Troubleshooting & FAQs](#10-troubleshooting--faqs)
+11. [Continuous Integration (CI/CD)](#11-continuous-integration-cicd)
 
 ---
 
@@ -144,7 +151,7 @@ sudo zypper install -y \
 ## 2. Toolchain Setup
 
 ### Node.js & npm
-Aura-Lune targets **Node.js 22 (Active LTS)** and **npm >= 10**. A `.nvmrc` file is provided in the repository root.
+Aura-Lune targets **Node.js 22 (Active LTS)** and **npm >= 10**. A `.nvmrc` file is provided in the repository root. Use a recent 22.x release (**22.20 or newer**): the `npx skills` CLI that manages the [agent skills](#6-agent-skills-claude-code-and-antigravity) requires it. npm only: never pnpm, yarn or bun.
 
 Check your installation:
 ```bash
@@ -160,7 +167,7 @@ nvm install 22
 ```
 
 ### Rust Toolchain
-Aura-Lune uses modern **Rust stable (1.80+ / 1.99+)**. A [`rust-toolchain.toml`](file:///home/kamu/Projects/Aura-Lune/rust-toolchain.toml) file is pinned at the repository root with `rustfmt` and `clippy` components enabled.
+Aura-Lune uses modern **Rust stable (1.80+ / 1.99+)**. A [`rust-toolchain.toml`](rust-toolchain.toml) file is pinned at the repository root with `rustfmt` and `clippy` components enabled.
 
 Check your installation:
 ```bash
@@ -183,8 +190,8 @@ rustup component add rustfmt clippy
 Clone the repository and install Node workspace dependencies:
 
 ```bash
-git clone https://github.com/Auralune/Auralune.git
-cd Auralune
+git clone https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git
+cd Aura-Lune
 
 # Install frontend dependencies (single package.json at the repo root)
 npm install
@@ -193,6 +200,11 @@ npm install
 Verify that the Rust workspace compiles:
 ```bash
 cargo check --workspace
+```
+
+Verify that the AI agent skills are in place for both Claude Code and Antigravity (they are committed, so this normally passes straight after cloning; see [Agent Skills](#6-agent-skills-claude-code-and-antigravity)):
+```bash
+npm run skills:check
 ```
 
 ---
@@ -225,7 +237,116 @@ During development:
 
 ---
 
-## 5. Code Quality & Linting
+## 5. Development Pipeline
+
+This is the path every change takes, from a clean checkout to a published release. The rules behind it live in [`AGENTS.md`](AGENTS.md); this section is the how-to.
+
+```
+ branch ──▶ change ──▶ quality gates ──▶ changelog ──▶ commit ──▶ CI ──▶ release
+ (dev)      + tests    (after the last    (if user-     (Conven-   (push/    (manual
+                       edit)               facing)       tional)    PR)       workflows)
+```
+
+| # | Stage | What to do |
+|---|---|---|
+| 1 | **Prepare** | `git status`, then work on `dev` (large changes: a topic branch merged into `dev`). Read the nearest `AGENTS.md` for the area you touch. Run `npm run skills:check`. |
+| 2 | **Change** | Follow the patterns in the area's `AGENTS.md` and `docs/developer/`. Write tests with the change: Rust tests in the crate's `tests/` dir (or a `_test.rs` companion), frontend tests next to the source as `*.test.ts(x)`. Everything is in English. After adding or removing a Tauri command run `npm run gen:commands`. |
+| 3 | **Quality gates** | Run them **after your last edit**; CI fails on a single unformatted line. See the table below, or run everything with `./tests/run_all_tests.sh --fix`. |
+| 4 | **Changelog** | Record every user-facing change in `CHANGELOG_PENDING.md` (written in Polish, under `Dodano`, `Poprawiono` or `Zmieniono`). Developer tooling and docs do not need an entry. |
+| 5 | **Commit** | [Conventional Commits](https://www.conventionalcommits.org/) with a scope: `feat(updates): …`, `fix(player): …`, `refactor(storage): …`, `docs(agents): …`. Imperative, lowercase summary, bullets in the body. Never skip hooks (`--no-verify`) and never force-push `main`. |
+| 6 | **CI** | Pushes and pull requests to `main`, `dev` or `develop` run the two jobs described in [section 11](#11-continuous-integration-cicd). A push to `dev` also publishes the rolling dev AppImage. |
+| 7 | **Release** | Never tag or publish by hand. See below. |
+
+Quality gates by language:
+
+| You changed | Run |
+|---|---|
+| Rust (`.rs`, including tests) | `cargo fmt --all`, then `cargo fmt --all --check`, then `cargo clippy --workspace --all-targets --all-features -- -D warnings`, then `cargo test --workspace -- --test-threads=1` |
+| Frontend (`src/`, `scripts/`, frontend config) | `npm run lint`, `npm run typecheck`, `npm test` (there is no JS/TS auto-formatter: match the surrounding style) |
+| Shell scripts (`.sh`) | `bash -n <file>` |
+| Skills (`skills/`, `skills-lock.json`) | `npm run skills:check` |
+| Everything | `./tests/run_all_tests.sh --fix` (formats Rust first, then runs the CI-parity suite) |
+
+**Releasing** runs only through the manual GitHub Actions workflows; merging never publishes:
+
+1. On `dev`, write the release content (`CHANGELOG.md` block, the five-language `src/data/changelog.json`, README badges, reset `CHANGELOG_PENDING.md`) and check it with `packaging/check-release-content.sh X.Y.Z`. The project `release` skill automates this step.
+2. Actions → **Prepare release** (on `dev`): validates, bumps the version, opens a `release/vX.Y.Z` → `main` pull request.
+3. Review and merge that pull request with a **merge commit**.
+4. Actions → **Publish release** (on `main`): CI plus the AppImage build, a draft with every asset and `SHA256SUMS`, then publish.
+5. Afterwards: update the AUR package, merge `origin/main` back into `dev` and bump to the next `-dev` version.
+
+The version bump follows the commit types: `fix`, `docs`, `chore`, `style`, `refactor` → patch; `feat` → minor; `feat!` or any breaking change → major. Full guide: [`docs/RELEASING.md`](docs/RELEASING.md).
+
+---
+
+## 6. Agent Skills (Claude Code and Antigravity)
+
+Skills are folders with a `SKILL.md` that teach an AI coding agent a task (real-time audio safety, Tauri IPC rules, how to cut a release, …). Aura-Lune ships one curated set that **Claude Code and Antigravity load identically**. The list, with a one-line "use when" for each skill, is in the [Skills & Agents table in `AGENTS.md`](AGENTS.md#skills--agents).
+
+### How the shared set works
+
+Both agents already agree on a file format ([`SKILL.md`](https://agentskills.io)); they differ only in which directory they scan. The repository fills both:
+
+| Agent | Reads project skills from | How they get there |
+|---|---|---|
+| Antigravity (App and CLI) | `.agents/skills/` | Committed. Third-party skills are real folders, authored skills are symlinks. |
+| Claude Code | `.claude/skills/` | Committed symlinks into `.agents/skills/`. |
+
+```
+skills/<area>/<name>/SKILL.md    authored project skills: the only place to edit them
+skills-lock.json                 pins every third-party skill (source, commit, content hash)
+.agents/skills/<name>            third-party: real folder · authored: symlink into skills/
+.claude/skills/<name>            symlink to ../../.agents/skills/<name>
+```
+
+Because the directories are committed, **a fresh clone already has every skill**; there is nothing to install. `npx skills` is still the tool behind everything: it created the third-party folders and links, it verifies them against the hashes in `skills-lock.json`, and it pulls newer versions. The `npm run skills:*` scripts ([`scripts/skills.mjs`](scripts/skills.mjs)) wrap it and add the authored-skill links, so both agents always end up with the same set. Other agents that read `.agents/skills/` (Codex, Cursor, Gemini CLI, GitHub Copilot, …) get the set too.
+
+Two kinds of skills are deliberately **not** shared: ones that depend on one tool's API. Antigravity ships its own built-in `run-workflow` (a `run_workflow` tool that runs Python scripts), and Claude Code has its own subagent tools. The portable replacement is `dispatching-parallel-agents`.
+
+### Everyday commands
+
+| Command | Needs network | What it does |
+|---|---|---|
+| `npm run skills:check` | no | Verifies every expected skill resolves for **both** agents and that authored skills have matching names. Exit code 1 plus the list of missing entries otherwise. |
+| `npm run skills:install` | yes | **Repair.** Restores third-party skills from `skills-lock.json` (hash-verified), recreates the Claude links and the authored-skill links, then runs the check. Run it when the check fails or after switching branches that changed skills. |
+| `npm run skills:update` | yes | Moves every locked skill to the newest upstream commit, rewrites `skills-lock.json`, relinks and checks. Review the diff before committing. |
+
+Raw `npx` equivalents (the scripts pin `skills@1.9.0`; any recent version works by hand): `npx skills list` (shows `modified`, `untracked` and `missing` skills), `npx skills check` (available updates and local changes), `npx skills experimental_install -a claude-code antigravity` (restore), `npx skills update -p -y` (update).
+
+### Adding, removing and updating skills
+
+**Add a third-party skill.** Only add one that is relevant to this stack and well rated; prefer one good skill over several overlapping ones.
+
+```bash
+npx skills find tauri                    # search, compare install counts on https://skills.sh
+npx skills add <owner/repo> --skill <name> -a claude-code -a antigravity -y
+npm run skills:check
+```
+
+Then add a row to the table in [`AGENTS.md`](AGENTS.md#skills--agents) and commit `skills-lock.json`, `.agents/skills/<name>` and `.claude/skills/<name>` together. Do not hand-edit a third-party skill; change it upstream or pin another source.
+
+**Remove one:** `npx skills remove <name>`, delete its row from `AGENTS.md`, commit.
+
+**Add an authored skill.** Create `skills/<area>/<name>/SKILL.md` with frontmatter whose `name` equals the folder name and a `description` that says what it does and when to use it, then run `npm run skills:install` (it creates both links) and add the `AGENTS.md` row. Keep it harness-neutral: no instructions that only one tool can follow (`run_workflow`, a specific `Agent` or `AskUserQuestion` call, …). Use the `skills/` tree, not `.agents/skills/`, so the source of truth stays in one place.
+
+**Update.** `npm run skills:update`, review the diff of the vendored files (third-party instructions are code you are choosing to trust), run `npm run skills:check`, commit.
+
+**Personal skills** that should not be shared go in your home directory (`~/.claude/skills/` for Claude Code, `~/.gemini/config/skills/` for Antigravity) and are never committed.
+
+### Skill troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `skills:check` lists missing entries | `npm run skills:install`. |
+| `The skills CLI needs Node >= 22.20` | `nvm install 22` (the latest 22.x satisfies it), then `nvm use`. |
+| `npx skills list` shows a skill as `modified` | Someone edited a vendored file. Restore it with `npx skills experimental_install --force -a claude-code antigravity`, or run `npm run skills:update` if upstream changed. |
+| A new skill does not show up in Antigravity or Claude | Start a new conversation. In the Antigravity CLI run `/skills reload`. |
+| Links are broken after cloning on a filesystem without symlinks | Enable symlinks (Windows: Developer Mode and `git config core.symlinks true`), re-clone, then `npm run skills:install`. |
+| `.claude/settings.json` or `.claude/worktrees/` shows up in `git status` | It should not: only `.claude/skills/` is tracked. Check that `.gitignore` still has `.claude/*` followed by `!.claude/skills/`. |
+
+---
+
+## 7. Code Quality & Linting
 
 ### Rust Code Formatting & Clippy
 Always maintain strict formatting and clippy compliance:
@@ -237,8 +358,8 @@ cargo fmt --all
 # Check formatting without modifying files
 cargo fmt --all -- --check
 
-# Run Clippy linter across all workspace crates
-cargo clippy --workspace --all-targets -- -D warnings
+# Run Clippy linter across all workspace crates (zero warnings, same flags as CI)
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 ```
 
 ### Frontend Linting (oxlint & TypeScript)
@@ -248,26 +369,34 @@ Aura-Lune uses `oxlint` for high-speed JS/TS linting and TypeScript compiler (`t
 # Run oxlint on frontend code
 npm run lint
 
-# Run strict TypeScript compilation check
-npm run build
+# Run strict TypeScript compilation check (no emit)
+npm run typecheck
 ```
+
+There is no separate JS/TS auto-formatter: match the surrounding style and fix every lint finding.
 
 ---
 
-## 6. Testing Protocols
+## 8. Testing Protocols
 
-### Unified 4-Stage Test Runner
-The repository provides a single, zero-Python bash script that executes the complete test suite across both frontend and backend:
+### Unified CI-Parity Test Runner
+The repository provides a single, zero-Python bash script that mirrors the CI jobs across both frontend and backend:
 
 ```bash
-./tests/run_all_tests.sh
+./tests/run_all_tests.sh           # full CI-parity suite
+./tests/run_all_tests.sh --fix     # run `cargo fmt --all` first, then the suite
+./tests/run_all_tests.sh --fast    # format, lint, typecheck and clippy only (skips the audio tests)
+./tests/run_all_tests.sh --bundle  # also build the AppImage (mirrors the dev-release job)
 ```
 
-This script executes four sequential validation stages:
-1. **Frontend Unit & i18n Tests**: Runs all 39 Vitest suites (147+ unit tests).
-2. **Frontend Type Check & Build**: Executes `tsc -b && vite build`.
-3. **Rust Workspace Tests**: Runs all unit and integration tests across 11 workspace crates (`--test-threads=1`).
-4. **Desktop Smoke Test**: Executes `tests/desktop_smoke_test.rs` to verify that the audio engine boots, storage migrations run, and desktop commands respond.
+The script executes seven sequential stages:
+1. **Rust formatting**: `cargo fmt --all --check`.
+2. **Frontend lint and tests**: `oxlint` and the Vitest suites (unit tests plus the i18n parity checks).
+3. **Frontend type check and build**: `tsc -b && vite build`.
+4. **Clippy**: `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+5. **Rust workspace tests**: all unit and integration tests, single-threaded (`--test-threads=1`).
+6. **Desktop smoke test**: `tests/desktop_smoke_test.rs` verifies that the audio engine boots, storage migrations run, and desktop commands respond.
+7. **Shell syntax**: `bash -n` on every script.
 
 ### Frontend Unit Tests (Vitest)
 To run frontend tests independently:
@@ -305,7 +434,7 @@ cargo test -p auralune-desktop --test desktop_smoke_test -- --nocapture
 
 ---
 
-## 7. Building for Release
+## 9. Building for Release
 
 ### Standard Release Build (AppImage & .deb)
 To produce production-ready Linux distribution packages (AppImage and Debian package):
@@ -314,7 +443,7 @@ To produce production-ready Linux distribution packages (AppImage and Debian pac
 npm run tauri build
 ```
 
-Tauri bundles the application using settings defined in [`src-tauri/tauri.conf.json`](file:///home/kamu/Projects/Aura-Lune/src-tauri/tauri.conf.json):
+Tauri bundles the application using settings defined in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json):
 - Executes `beforeBuildCommand` (`npm run build`) to generate the optimized web bundle.
 - Compiles the Rust backend with `--release` optimizations.
 - Packages desktop entries, system icons, and dependencies into `.AppImage` and `.deb`.
@@ -384,7 +513,7 @@ The installer automatically determines the target channel based on the following
 
 ---
 
-## 8. Troubleshooting & FAQs
+## 10. Troubleshooting & FAQs
 
 ### Missing GStreamer Plugins at Runtime
 **Symptom**: Audio files fail to play or decode with errors like `no element "playbin"`, `flacparse missing`, or `pulsesink missing`.  
@@ -412,7 +541,7 @@ The updater (Settings → Updates, `src-tauri/src/updater/`) decides everything 
 
 ---
 
-## 9. Continuous Integration (CI/CD)
+## 11. Continuous Integration (CI/CD)
 
 The GitHub Actions workflow is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and runs on all pushes, pull requests to `main`, `dev`, `develop`, and manual triggers (`workflow_dispatch`).
 

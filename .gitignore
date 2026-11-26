@@ -32,9 +32,10 @@ packaging/archlinux/pkg/
 packaging/archlinux/*.pkg.tar.*
 *.AppImage
 
-# Local agent state
+# Local agent state. The skill directories (.agents/skills, .claude/skills) are committed so
+# Claude Code and Antigravity see the same skills; see DEVELOPMENT.md, "Agent skills".
 .plans
-.agents
-.claude
+.claude/*
+!.claude/skills/
 .gemini
 CLAUDE.local.md

@@ -18,4 +18,4 @@ Reference documentation for Aura-Lune contributors and AI agents. The rules agen
 - [`../adr/`](../adr/): architecture decision records
 - [`../architecture.md`](../architecture.md): original architecture vision (Polish), including the read-only policy for user files
 - [`../FEATURE_MATRIX.md`](../FEATURE_MATRIX.md): feature matrix
-- [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md): system prerequisites, toolchain setup, troubleshooting
+- [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md): system prerequisites, toolchain setup, the development pipeline, [agent skills for Claude Code and Antigravity](../../DEVELOPMENT.md#6-agent-skills-claude-code-and-antigravity), troubleshooting
