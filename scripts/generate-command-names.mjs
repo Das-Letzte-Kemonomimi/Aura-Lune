@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Generuje `src/api/commands.generated.ts` — unię nazw wszystkich komend Tauri
-// zarejestrowanych w `src-tauri/src/lib.rs` (`tauri::generate_handler![...]`).
+// Generates `src/api/commands.generated.ts`: a union of the names of every Tauri command
+// registered in `src-tauri/src/lib.rs` (`tauri::generate_handler![...]`).
 //
-// Uruchom po dodaniu/usunięciu komendy:  npm run gen:commands
-// Test `src-tauri/tests/ipc_contract_test.rs` pilnuje, by plik był zsynchronizowany.
+// Run after adding or removing a command:  npm run gen:commands
+// `src-tauri/tests/ipc_contract_test.rs` checks that the file stays in sync.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

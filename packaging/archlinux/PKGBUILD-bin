@@ -45,19 +45,19 @@ prepare() {
 package() {
     cd "$srcdir/squashfs-root"
 
-    # Cały obraz AppImage (razem z dołączonymi bibliotekami: RubberBand, SoundTouch, GStreamer, GTK…)
-    # trafia do /opt/auralune. Dzięki temu aplikacja nie zależy od wersji bibliotek systemowych
-    # (AppImage z CI jest budowany na Ubuntu), a pacman odinstalowuje wszystko przez `pacman -R`.
+    # The whole AppImage (with its bundled libraries: RubberBand, SoundTouch, GStreamer, GTK…)
+    # goes to /opt/auralune. The app then does not depend on the system library versions
+    # (the CI AppImage is built on Ubuntu), and `pacman -R` uninstalls everything.
     install -dm755 "$pkgdir/opt/auralune"
     cp -a --no-preserve=ownership . "$pkgdir/opt/auralune/"
     chmod -R u+w,go+rX "$pkgdir/opt/auralune"
 
-    # AppRun wylicza katalog z $0, więc symlink nie zadziała — potrzebny jest skrypt startowy.
+    # AppRun derives its directory from $0, so a symlink won't work: a launcher script is needed.
     install -dm755 "$pkgdir/usr/bin"
     printf '#!/bin/sh\nexec /opt/auralune/AppRun "$@"\n' > "$pkgdir/usr/bin/auralune"
     chmod 755 "$pkgdir/usr/bin/auralune"
 
-    # Własny plik .desktop (ten z AppImage ma Exec=auralune-desktop, którego nie ma w PATH).
+    # Our own .desktop file (the one in the AppImage has Exec=auralune-desktop, which is not in PATH).
     install -dm755 "$pkgdir/usr/share/applications"
     cat > "$pkgdir/usr/share/applications/auralune.desktop" <<'DESKTOP'
 [Desktop Entry]
@@ -77,7 +77,7 @@ StartupWMClass=auralune-desktop
 Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
 DESKTOP
 
-    # Ikony hicolor pod nazwą `auralune` (zgodną z Icon= powyżej) oraz pixmaps.
+    # hicolor icons under the name `auralune` (matching Icon= above), plus pixmaps.
     local size
     for size in 32x32 64x64 128x128 256x256 512x512; do
         if [ -f "usr/share/icons/hicolor/$size/apps/auralune-desktop.png" ]; then
