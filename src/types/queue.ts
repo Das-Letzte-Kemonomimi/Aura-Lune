@@ -42,7 +42,7 @@ export const DEFAULT_QUEUE_COLUMNS: QueueColumnConfig = {
 export function getQueueGridTemplate(cfg: QueueColumnConfig): string {
   const parts: string[] = [];
   if (cfg.showIndex) parts.push('28px');
-  if (cfg.showCover) parts.push(cfg.compactMode ? '34px' : '44px');
+  if (cfg.showCover) parts.push(cfg.compactMode ? '38px' : '56px');
   parts.push('minmax(180px, 2fr)');
   if (cfg.showAlbum) parts.push('minmax(120px, 1.2fr)');
   if (cfg.showFormatBadge) parts.push('110px');

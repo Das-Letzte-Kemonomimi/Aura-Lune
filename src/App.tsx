@@ -1157,6 +1157,8 @@ export default function App() {
           onClose={() => setIsQueueOpen(false)}
           queue={queue}
           status={status}
+          tracks={tracks}
+          albums={albums}
           infinityQueue={infinityQueue}
           onToggleInfinityQueue={handleToggleInfinityQueue}
           onClearQueue={handleClearQueue}
