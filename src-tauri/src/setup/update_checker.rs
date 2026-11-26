@@ -1,6 +1,6 @@
-//! Sprawdzanie aktualizacji w tle: pierwsze ~30 s po starcie (żeby nie spowalniać uruchamiania),
-//! potem co 6 h. Wyłączane ustawieniem `update_check_enabled = false`. Wynik jest tylko sygnałem
-//! (`auralune://update-available`) — nic nie jest pobierane bez decyzji użytkownika.
+//! Background update check: first ~30 s after start-up (so it does not slow the launch),
+//! then every 6 h. Turned off with the `update_check_enabled = false` setting. The result is only a signal
+//! (`auralune://update-available`): nothing is downloaded without the user's decision.
 
 use crate::commands::updates::perform_check;
 use crate::updater::{self, InstallKind, SETTING_ENABLED, UPDATE_AVAILABLE_EVENT};
@@ -9,15 +9,15 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tracing::{debug, info, warn};
 
-/// Uruchamia pętlę w runtime tokio aplikacji. Wywoływane raz, po `app.manage(AppState)`.
+/// Starts the loop in the app's tokio runtime. Called once, after `app.manage(AppState)`.
 pub fn spawn_update_checker(app: AppHandle) {
     let Some(state) = app.try_state::<AppState>().map(|s| s.inner().clone()) else {
-        warn!("Sprawdzanie aktualizacji: brak AppState — pętla nie wystartowała");
+        warn!("Update check: no AppState, the loop did not start");
         return;
     };
-    // Build debug (serwer deweloperski) nie odpytuje GitHuba samoczynnie.
+    // A debug build (dev server) does not query GitHub on its own.
     if updater::current_build_info().install_kind == InstallKind::DevServer {
-        debug!("Sprawdzanie aktualizacji w tle pominięte (build deweloperski)");
+        debug!("Background update check skipped (developer build)");
         return;
     }
     let rt = state.rt.clone();
@@ -35,11 +35,11 @@ pub fn spawn_update_checker(app: AppHandle) {
             if enabled {
                 match perform_check(&state.db, false).await {
                     Ok(update) if update.available => {
-                        info!("Dostępna aktualizacja: {:?}", update.latest_version);
+                        info!("Update available: {:?}", update.latest_version);
                         let _ = app.emit(UPDATE_AVAILABLE_EVENT, &update);
                     }
-                    Ok(_) => debug!("Aplikacja jest aktualna"),
-                    Err(e) => warn!("Sprawdzanie aktualizacji nie powiodło się: {}", e),
+                    Ok(_) => debug!("The app is up to date"),
+                    Err(e) => warn!("Update check failed: {}", e),
                 }
             }
             tokio::time::sleep(Duration::from_secs(updater::CHECK_INTERVAL_SECS)).await;

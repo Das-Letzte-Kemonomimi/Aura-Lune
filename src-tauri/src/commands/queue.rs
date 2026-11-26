@@ -4,11 +4,11 @@ use domain::queue::{LoopMode, PlaybackQueue, QueueItem};
 use tauri::State;
 use tracing::{info, warn};
 
-/// Unikalny identyfikator pozycji kolejki spoza biblioteki (`<prefix>-<ms>-<licznik>`).
+/// Unique ID for a queue item from outside the library (`<prefix>-<ms>-<counter>`).
 ///
-/// Sam znacznik czasu nie wystarcza: pliki dodawane w pętli (drag & drop, argumenty CLI)
-/// dostawały ten sam identyfikator, co psuło synchronizację MPRIS, przycinanie ciszy
-/// i usuwanie z kolejki po ID.
+/// A timestamp alone is not enough: files added in a loop (drag & drop, CLI arguments)
+/// got the same ID, which broke MPRIS sync, silence trimming
+/// and removing from the queue by ID.
 pub fn new_queue_item_id(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -20,20 +20,20 @@ pub fn new_queue_item_id(prefix: &str) -> String {
     format!("{prefix}-{ms}-{n}")
 }
 
-/// Zleca zapis stanu kolejki. Zapisy są łączone (debounce) i wykonywane przez jeden wątek
-/// zapisujący, więc nie mogą się wyprzedzić i nadpisać nowszego stanu starszym.
+/// Schedules a queue state write. Writes are merged (debounced) and done by a single writer
+/// thread, so they cannot overtake each other and overwrite a newer state with an older one.
 pub fn persist_queue_state(state: &AppState) {
     state.queue_saver.request_save();
 }
 
-/// Pojedynczy, opóźniony zapis kolejki odtwarzania do bazy.
+/// A single delayed write of the playback queue to the database.
 #[derive(Clone)]
 pub struct QueueSaver {
     tx: std::sync::Arc<tokio::sync::watch::Sender<u64>>,
 }
 
 impl QueueSaver {
-    /// Czas łączenia serii zmian (np. przeciąganie wielu elementów) w jeden zapis.
+    /// How long a series of changes (e.g. dragging many items) is merged into one write.
     pub const DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(300);
 
     pub fn spawn(
@@ -48,7 +48,7 @@ impl QueueSaver {
                 rx.borrow_and_update();
                 let queue = engine.queue();
                 if let Err(e) = db.save_queue_state(&queue).await {
-                    warn!("Nie udało się zapisać stanu kolejki: {}", e);
+                    warn!("Failed to save the queue state: {}", e);
                 }
             }
         });
@@ -75,7 +75,7 @@ pub async fn set_queue(
 ) -> Result<Option<QueueItem>, CommandError> {
     let state = state.inner().clone();
     tokio::task::spawn_blocking(move || -> Result<Option<QueueItem>, CommandError> {
-        info!("Tauri command: set_queue ({} utworów)", items.len());
+        info!("Tauri command: set_queue ({} tracks)", items.len());
         let active = state.engine.set_queue(items, start_index)?;
         after_track_switch(&state, active.as_ref());
         Ok(active)
@@ -91,20 +91,20 @@ pub fn add_to_queue(item: QueueItem, state: State<'_, AppState>) -> Result<(), C
     Ok(())
 }
 
-/// Dodaje wiele ścieżek URI do kolejki za jednym razem — bez sekwencyjnych round-tripów
-/// do SQLite. Operacja persist jest wywoływana raz po dodaniu wszystkich elementów.
+/// Adds many URI paths to the queue at once, without sequential round-trips
+/// to SQLite. Persisting runs once after all items are added.
 #[tauri::command]
 pub async fn add_uris_to_queue(
     uris: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    info!("Tauri command: add_uris_to_queue({} ścieżek)", uris.len());
+    info!("Tauri command: add_uris_to_queue({} paths)", uris.len());
     if uris.is_empty() {
         return Ok(0);
     }
 
-    // Rozwiń rekurencyjnie foldery i zbierz wyłącznie pliki audio (przejście katalogów
-    // jest blokujące, więc odbywa się poza wątkami Tokio).
+    // Expand folders recursively and collect only audio files (walking directories
+    // blocks, so it runs off the Tokio threads).
     let resolved_files = tokio::task::spawn_blocking(move || {
         let mut resolved_files = Vec::new();
         for uri in uris {
@@ -130,7 +130,7 @@ pub async fn add_uris_to_queue(
         resolved_files
     })
     .await
-    .map_err(|e| CommandError::internal(format!("Przerwane przeglądanie folderów: {e}")))?;
+    .map_err(|e| CommandError::internal(format!("Folder walk interrupted: {e}")))?;
 
     if resolved_files.is_empty() {
         return Ok(0);
@@ -140,7 +140,7 @@ pub async fn add_uris_to_queue(
     let mut added = 0usize;
 
     for uri in &resolved_files {
-        // Sprawdź bazę danych w poszukiwaniu metadanych (asynchronicznie)
+        // Look up metadata in the database (asynchronously)
         let track_opt = db.get_track_by_path(uri).await.ok().flatten();
 
         let item = if let Some(t) = track_opt {
@@ -166,7 +166,7 @@ pub async fn add_uris_to_queue(
         added += 1;
     }
 
-    // Zapis stanu kolejki tylko raz po dodaniu wszystkich elementów
+    // Save the queue state only once, after all items are added
     persist_queue_state(&state);
     Ok(added)
 }
@@ -229,7 +229,7 @@ pub async fn play_queue_index(
                 index
             } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
                 warn!(
-                    "play_queue_index: korekta indeksu z {} na {} dla utworu {}",
+                    "play_queue_index: correcting index from {} to {} for track {}",
                     index, found, target_id
                 );
                 found
@@ -257,7 +257,7 @@ pub async fn play_next(state: State<'_, AppState>) -> Result<Option<QueueItem>, 
     .await?
 }
 
-/// Następny utwór + synchronizacja MPRIS i zapis kolejki (komenda, zasobnik systemowy).
+/// Next track + MPRIS sync and queue save (command, system tray).
 pub fn play_next_internal(state: &AppState) -> Result<Option<QueueItem>, CommandError> {
     let next_item = state.engine.play_next()?;
     after_track_switch(state, next_item.as_ref());
@@ -274,15 +274,15 @@ pub async fn play_previous(state: State<'_, AppState>) -> Result<Option<QueueIte
     .await?
 }
 
-/// Poprzedni utwór + synchronizacja MPRIS i zapis kolejki (komenda, zasobnik systemowy).
+/// Previous track + MPRIS sync and queue save (command, system tray).
 pub fn play_previous_internal(state: &AppState) -> Result<Option<QueueItem>, CommandError> {
     let prev_item = state.engine.play_previous()?;
     after_track_switch(state, prev_item.as_ref());
     Ok(prev_item)
 }
 
-/// Wspólna obsługa po przełączeniu utworu: czyści tag strumienia (poza radiem),
-/// synchronizuje MPRIS i zapisuje kolejkę.
+/// Shared handling after a track switch: clears the stream tag (except for radio),
+/// syncs MPRIS and saves the queue.
 fn after_track_switch(state: &AppState, item: Option<&QueueItem>) {
     if let Some(item) = item {
         if !item.id.starts_with("radio-") {
@@ -313,7 +313,7 @@ pub fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, CommandError> 
     Ok(new_val)
 }
 
-/// Ustawia tryb losowy na konkretną wartość (idempotentnie, w przeciwieństwie do `toggle_shuffle`).
+/// Sets shuffle to a specific value (idempotent, unlike `toggle_shuffle`).
 #[tauri::command]
 pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, CommandError> {
     info!("Tauri command: set_shuffle({})", enabled);
@@ -336,9 +336,9 @@ pub fn toggle_stop_after_current(state: State<'_, AppState>) -> Result<bool, Com
     Ok(new_val)
 }
 
-/// Ustawia utwór z biblioteki jako aktywny (załadowany, ale nieodtwarzany) — np. gdy po pierwszym
-/// skanowaniu domyślny utwór demonstracyjny zastępowany jest pierwszym utworem użytkownika.
-/// Nie przerywa trwającego odtwarzania.
+/// Sets a library track as active (loaded but not playing), e.g. when after the first
+/// scan the default demo track is replaced by the user's first track.
+/// Does not interrupt current playback.
 #[tauri::command]
 pub async fn set_active_track(
     track_id: i64,
@@ -348,9 +348,10 @@ pub async fn set_active_track(
     if state.engine.state() == domain::PlaybackState::Playing {
         return Ok(());
     }
-    let track = state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
-        CommandError::not_found(format!("Nie znaleziono utworu o ID {}", track_id))
-    })?;
+    let track =
+        state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Track with ID {} not found", track_id))
+        })?;
     let item = state.db.queue_item_for_track(&track).await;
     state.engine.set_active_item(item);
     state.engine.load_uri(&track.path)?;

@@ -1,5 +1,5 @@
-//! Logika aktualizacji: wybór assetu, sumy kontrolne, porównanie wydań i throttling, a także
-//! sprawdzanie wydań na lokalnym serwerze HTTP (bez dostępu do GitHuba).
+//! Update logic: asset choice, checksums, release comparison and throttling, plus
+//! release checks against a local HTTP server (without access to GitHub).
 
 use auralune_desktop::updater::check::{
     check_release, commits_match, digest_sha256, evaluate_dev, evaluate_stable, is_bazzite_like,
@@ -109,7 +109,7 @@ fn sha256sums_are_parsed_in_text_and_binary_mode() {
         Some(SHA_B)
     );
     assert_eq!(parse_sha256sums(&text, "missing.AppImage"), None);
-    // Podobna nazwa (sufiks/prefiks) nie może zostać dopasowana, a krótka suma jest odrzucana.
+    // A similar name (suffix/prefix) must not match, and a short checksum is rejected.
     assert_eq!(parse_sha256sums(&text, "amd64.AppImage"), None);
     assert_eq!(
         parse_sha256sums("abc123  file.AppImage\n", "file.AppImage"),
@@ -142,14 +142,14 @@ fn stable_update_uses_semver_not_string_order() {
     let same = evaluate_stable(&release("v1.1.10", "main", vec![]), &c).unwrap();
     assert!(!same.available);
 
-    // Wydanie 1.1.6 jest nowsze niż wersja deweloperska 1.1.6-dev tego samego numeru.
+    // Release 1.1.6 is newer than the developer version 1.1.6-dev of the same number.
     let dev_build = ctx("stable", "1.1.6-dev", "x", InstallKind::System);
     let release_116 = release("v1.1.6", "main", vec![asset("a.AppImage")]);
     let info = evaluate_stable(&release_116, &dev_build).unwrap();
     assert!(info.available);
     assert!(
         !info.can_install,
-        "pakiety systemowe aktualizuje menedżer pakietów"
+        "system packages are updated by the package manager"
     );
 
     assert!(evaluate_stable(&release("not-a-version", "main", vec![]), &c).is_err());
@@ -167,7 +167,7 @@ fn dev_update_compares_commits_and_never_looks_at_versions() {
     let current = ctx("dev", "1.1.6-dev", NEW_COMMIT, InstallKind::AppImageManaged);
     assert!(!evaluate_dev(&rel, NEW_COMMIT, &current).available);
 
-    // Uruchomienie deweloperskie kanału dev może zainstalować aktualizację z przycisku.
+    // A developer run of the dev channel can install the update from the button.
     let dev_server = ctx("dev", "1.1.6-dev", OLD_COMMIT, InstallKind::DevServer);
     assert!(evaluate_dev(&rel, NEW_COMMIT, &dev_server).can_install);
     let system = ctx("dev", "1.1.6-dev", OLD_COMMIT, InstallKind::System);
@@ -184,7 +184,7 @@ fn commit_ids_match_by_prefix() {
     assert!(!commits_match(NEW_COMMIT, OLD_COMMIT));
     assert!(
         !commits_match("222", "222"),
-        "zbyt krótki skrót nie identyfikuje commita"
+        "too short a prefix does not identify a commit"
     );
 }
 
@@ -201,11 +201,11 @@ fn background_checks_are_throttled_to_six_hours() {
     assert!(should_check(now, Some(now - CHECK_INTERVAL_SECS), false));
     assert!(
         should_check(now, Some(now - 60), true),
-        "force omija throttling"
+        "force bypasses throttling"
     );
     assert!(
         should_check(now, Some(now + 500), false),
-        "zegar cofnięty → sprawdź ponownie"
+        "clock set back → check again"
     );
 }
 
@@ -242,7 +242,7 @@ fn staging_file_sits_next_to_the_target() {
     );
 }
 
-/// Serwer HTTP odpowiadający na ścieżki z mapy: `ścieżka → (status, dodatkowe nagłówki, treść)`.
+/// HTTP server answering the paths from the map: `path → (status, extra headers, body)`.
 fn serve(routes: HashMap<&'static str, (u16, &'static str, String)>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -306,7 +306,7 @@ async fn stable_channel_reads_releases_latest_only() {
         "/releases/latest",
         (200, "", release_json("v1.3.0", "main")),
     );
-    // Wydanie dev istnieje, ale kanał stable nie może go odpytywać.
+    // The dev release exists, but the stable channel must not query it.
     routes.insert(
         "/releases/tags/dev-build",
         (200, "", release_json("dev-build", NEW_COMMIT)),
@@ -443,11 +443,11 @@ fn restart_prefers_the_launcher_and_falls_back_to_the_appimage() {
         restart_target(Some(&home), true, Some(appimage)),
         Some(bin.join("auralune-dev"))
     );
-    // Launcher kanału stable nie zastępuje launchera dev i odwrotnie.
+    // The stable launcher does not replace the dev launcher and vice versa.
     assert_eq!(
         restart_target(Some(&home), false, None),
         None,
-        "bez launchera stable i bez APPIMAGE nie ma czym uruchomić"
+        "without a stable launcher and without APPIMAGE there is nothing to start"
     );
     let _ = std::fs::remove_dir_all(&home);
 }

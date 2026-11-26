@@ -43,7 +43,7 @@ A command that no frontend `invoke()` uses is dead: remove the wrapper, but keep
 
 - Every command returns `Result<T, CommandError>` (`commands/error.rs`), serialized as `{ "code": "…", "message": "…" }` with codes `storage | engine | io | not_found | validation | network | internal`.
 - `From` impls exist for every crate error (`StorageError`, `AudioEngineError`, `AnalysisError`, `TagError`, `DomainError`, `MetadataError`, `DownloadError`, `LibraryError`, `DspError`, `io::Error`, …), so use `?` directly.
-- Add context with `.map_err(|e| CommandError::from(e).context("Błąd …"))`. **Never `.map_err(|e| e.to_string())`**: it flattens the code to `internal`. The frontend `IpcErrorCode` union in `src/api/ipc.ts` must match the codes (`tests/command_error_test.rs`).
+- Add context with `.map_err(|e| CommandError::from(e).context("Failed to …"))`. **Never `.map_err(|e| e.to_string())`**: it flattens the code to `internal`. The frontend `IpcErrorCode` union in `src/api/ipc.ts` must match the codes (`tests/command_error_test.rs`).
 
 ### Blocking contract
 

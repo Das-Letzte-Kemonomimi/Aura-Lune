@@ -1,8 +1,8 @@
-//! Backend desktopowy Auralune (Tauri 2).
+//! Auralune desktop backend (Tauri 2).
 //!
-//! ZGODNIE Z ZASADĄ ARCHITEKTONICZNĄ:
-//! Wątek audio i surowe próbki PCM są całkowicie odizolowane od WebView i bazy danych.
-//! Komendy Tauri służą wyłącznie do sterowania odtwarzaczem, odpytywania stanu i indeksowania.
+//! ARCHITECTURAL RULE:
+//! The audio thread and raw PCM samples are fully isolated from the WebView and the database.
+//! Tauri commands only control the player, query state and index the library.
 
 use audio_engine::AudioEngine;
 use downloads::DownloadManager;
@@ -54,11 +54,11 @@ pub struct AppState {
     pub last_reported_pos_ms: Arc<std::sync::atomic::AtomicU64>,
     pub control_ipc: Option<Arc<desktop_integration::ControlIpcServer>>,
     pub last_waybar_write: Arc<Mutex<std::time::Instant>>,
-    /// Ostatni status odtwarzania wyliczony przez ticker (`setup::playback_ticker`).
+    /// The last playback status computed by the ticker (`setup::playback_ticker`).
     pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
-    /// Pamięć podręczna ustawienia `close_to_tray` (odczyt w obsłudze zamknięcia okna bez blokowania).
+    /// Cache of the `close_to_tray` setting (read when handling window close, without blocking).
     pub close_to_tray: Arc<std::sync::atomic::AtomicBool>,
-    /// Jedyny zapisujący stan kolejki (zob. `persist_queue_state`).
+    /// The only writer of the queue state (see `persist_queue_state`).
     pub queue_saver: commands::queue::QueueSaver,
 }
 
@@ -72,13 +72,13 @@ pub fn run() {
         )
         .init();
 
-    let rt = Arc::new(tokio::runtime::Runtime::new().expect("Błąd tworzenia runtime tokio"));
+    let rt = Arc::new(tokio::runtime::Runtime::new().expect("Failed to create the tokio runtime"));
 
     let engine = match AudioEngine::new() {
         Ok(e) => Arc::new(e),
         Err(err) => {
             setup::fatal::report_fatal_startup_error(&format!(
-                "Nie udało się zainicjalizować silnika audio (GStreamer): {err}"
+                "Failed to initialise the audio engine (GStreamer): {err}"
             ));
             std::process::exit(1);
         }
@@ -87,7 +87,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             info!(
-                "Wykryto próbę uruchomienia kolejnej instancji Auralune. Args: {:?}, Cwd: {}",
+                "Another Auralune instance was started. Args: {:?}, Cwd: {}",
                 argv, cwd
             );
 
@@ -306,7 +306,7 @@ pub fn run() {
             restart_after_update,
         ])
         .build(tauri::generate_context!())
-        .expect("Błąd podczas uruchamiania aplikacji Tauri")
+        .expect("Error while running the Tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 setup::shutdown::on_exit(app);

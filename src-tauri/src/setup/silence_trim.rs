@@ -1,14 +1,14 @@
-//! Pomijanie ciszy na początku i końcu utworów (Silence Trimming).
+//! Skipping silence at the start and end of tracks (Silence Trimming).
 //!
-//! Wywoływane z pętli statusu odtwarzania ([`super::playback_ticker`]):
-//! - przy zmianie utworu w tle wykrywa granice ciszy (`audio_engine::detect_silence_bounds`)
-//!   i zapisuje je w bazie (`track_silence_bounds`), aby kolejne odtworzenia nie dekodowały pliku,
-//! - na początku odtwarzania przewija za ciszę początkową,
-//! - po osiągnięciu ciszy końcowej przewija tuż przed koniec pliku — dalszą obsługę
-//!   (powtarzanie, „stop po bieżącym”, crossfade, następny utwór) wykonuje zwykła ścieżka EOS silnika.
+//! Called from the playback status loop ([`super::playback_ticker`]):
+//! - on a track change, detects the silence bounds in the background (`audio_engine::detect_silence_bounds`)
+//!   and stores them in the database (`track_silence_bounds`), so later plays do not decode the file,
+//! - at the start of playback, seeks past the leading silence,
+//! - on reaching the trailing silence, seeks to just before the end of the file; the rest
+//!   (repeat, "stop after current", crossfade, next track) is handled by the engine's normal EOS path.
 //!
-//! Dlaczego nie element GStreamera `cutter`: obsługuje wyłącznie S8/S16 (zniszczyłby ścieżkę
-//! F32 / bit-perfect), a odrzucanie buforów przy zsynchronizowanym wyjściu nie skraca odtwarzania.
+//! Why not the GStreamer `cutter` element: it only handles S8/S16 (it would break the
+//! F32 / bit-perfect path), and dropping buffers on a synchronised output does not shorten playback.
 
 use crate::commands::playback::{seek_internal, PlaybackStatusDto};
 use crate::AppState;
@@ -18,10 +18,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
 
-/// Ile przed końcem pliku przewinąć przy pomijaniu ciszy końcowej (wyzwala zwykły EOS).
+/// How far before the end of the file to seek when skipping trailing silence (triggers the normal EOS).
 const FINISH_SEEK_BEFORE_END_MS: u64 = 40;
 
-/// Wynik wykrywania dostarczany z zadania w tle.
+/// Detection result delivered from the background task.
 type DetectionSlot = Arc<Mutex<Option<Option<SilenceBounds>>>>;
 
 #[derive(Debug, Default)]
@@ -29,7 +29,7 @@ pub struct SilenceTrimmer {
     track_key: Option<String>,
     bounds: Option<SilenceBounds>,
     detection: Option<DetectionSlot>,
-    /// Anuluje dekodowanie poprzedniego utworu po zmianie utworu lub progu.
+    /// Cancels decoding of the previous track after a track or threshold change.
     cancel: Option<Arc<AtomicBool>>,
     leading_done: bool,
     finished: bool,
@@ -42,7 +42,7 @@ impl SilenceTrimmer {
             return;
         };
 
-        // Klucz obejmuje próg: zmiana progu w trakcie utworu uruchamia wykrywanie od nowa.
+        // The key includes the threshold: changing it mid-track restarts detection.
         let key = format!("{}@{}", item.id, config.threshold_db);
         if self.track_key.as_deref() != Some(key.as_str()) {
             self.reset_for(key);
@@ -67,30 +67,30 @@ impl SilenceTrimmer {
         match trim_action(status.position_ms, duration_ms, &bounds, self.leading_done) {
             Some(TrimAction::SeekTo(target)) => {
                 info!(
-                    "Pomijanie ciszy początkowej: {} ms → {} ms",
+                    "Skipping leading silence: {} ms → {} ms",
                     status.position_ms, target
                 );
                 self.leading_done = true;
                 if let Err(e) = seek_internal(state, target, Some(true)) {
-                    warn!("Nie udało się pominąć ciszy początkowej: {}", e);
+                    warn!("Failed to skip the leading silence: {}", e);
                 }
             }
             Some(TrimAction::FinishTrack) if !self.finished => {
                 info!(
-                    "Pomijanie ciszy końcowej od {} ms (utwór: {} ms)",
+                    "Skipping trailing silence from {} ms (track: {} ms)",
                     status.position_ms, duration_ms
                 );
                 self.finished = true;
                 let target = duration_ms.saturating_sub(FINISH_SEEK_BEFORE_END_MS);
                 if let Err(e) = seek_internal(state, target, Some(false)) {
-                    warn!("Nie udało się pominąć ciszy końcowej: {}", e);
+                    warn!("Failed to skip the trailing silence: {}", e);
                 }
             }
             _ => {}
         }
 
-        // Po pierwszych sekundach utworu ciszy początkowej już nie poprawiamy
-        // (np. gdy użytkownik celowo przewinie na sam początek).
+        // After the first seconds of a track the leading silence is no longer corrected
+        // (e.g. when the user deliberately seeks back to the very start).
         if status.position_ms > bounds.start_ms {
             self.leading_done = true;
         }
@@ -113,8 +113,8 @@ impl SilenceTrimmer {
         let ready = slot.lock().ok().and_then(|mut s| s.take());
         if let Some(result) = ready {
             self.bounds = result;
-            // Utwór bez wykrywalnego dźwięku (lub błąd analizy): nic nie pomijamy i nie
-            // ponawiamy wykrywania do zmiany utworu.
+            // A track with no detectable sound (or an analysis error): skip nothing and do not
+            // retry detection until the track changes.
             if self.bounds.is_none() {
                 self.bounds = Some(SilenceBounds {
                     start_ms: 0,
@@ -154,7 +154,7 @@ impl SilenceTrimmer {
 
             if let (Some(id), Some(mtime)) = (track_id, modified) {
                 if let Ok(Some(cached)) = db.get_silence_bounds(id, threshold_db, mtime).await {
-                    debug!("Granice ciszy z pamięci podręcznej dla utworu {}", id);
+                    debug!("Silence bounds from the cache for track {}", id);
                     if let Ok(mut s) = slot.lock() {
                         *s = Some(Some(cached));
                     }
@@ -174,24 +174,24 @@ impl SilenceTrimmer {
             })
             .await;
             if cancel.load(Ordering::Relaxed) {
-                debug!("Wykrywanie ciszy anulowane (zmiana utworu): {}", uri);
+                debug!("Silence detection cancelled (track changed): {}", uri);
                 return;
             }
             let bounds = match detected {
                 Ok(Ok(b)) => b,
                 Ok(Err(e)) => {
-                    warn!("Wykrywanie ciszy nie powiodło się dla {}: {}", uri, e);
+                    warn!("Silence detection failed for {}: {}", uri, e);
                     None
                 }
                 Err(e) => {
-                    warn!("Zadanie wykrywania ciszy przerwane: {}", e);
+                    warn!("Silence detection task interrupted: {}", e);
                     None
                 }
             };
 
             if let (Some(id), Some(mtime), Some(b)) = (track_id, modified, bounds.as_ref()) {
                 if let Err(e) = db.save_silence_bounds(id, threshold_db, mtime, b).await {
-                    warn!("Nie udało się zapisać granic ciszy: {}", e);
+                    warn!("Failed to save the silence bounds: {}", e);
                 }
             }
             if let Ok(mut s) = slot.lock() {

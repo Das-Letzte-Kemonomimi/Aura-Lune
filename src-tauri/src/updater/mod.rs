@@ -1,10 +1,10 @@
-//! Aktualizacje aplikacji: tożsamość budowy, rodzaj instalacji, sprawdzanie wydań na GitHubie
-//! ([`check`]) i bezpieczna instalacja AppImage ([`install`]).
+//! App updates: build identity, installation kind, release checks on GitHub
+//! ([`check`]) and safe AppImage installation ([`install`]).
 //!
-//! Kanały nigdy się nie mieszają: kanał **stable** porównuje wersję semver z `releases/latest`,
-//! kanał **dev** porównuje wbudowany commit z commitem ruchomego wydania `dev-build`.
-//! Czysta logika (klasyfikacja instalacji, decyzja o throttlingu, wybór assetu) jest w tym
-//! module i w [`check`], żeby można ją było testować bez sieci i bez Tauri.
+//! The channels never mix: the **stable** channel compares the semver version with `releases/latest`,
+//! the **dev** channel compares the embedded commit with the commit of the moving `dev-build` release.
+//! The pure logic (installation classification, throttling decision, asset choice) is in this
+//! module and in [`check`], so it can be tested without the network and without Tauri.
 
 pub mod check;
 pub mod install;
@@ -12,53 +12,53 @@ pub mod install;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-/// Repozytorium z wydaniami.
+/// Repository with the releases.
 pub const RELEASES_REPO: &str = "Das-Letzte-Kemonomimi/Aura-Lune";
-/// Podstawa API GitHuba dla repozytorium z wydaniami.
+/// GitHub API base for the releases repository.
 pub const GITHUB_API_BASE: &str = "https://api.github.com/repos/Das-Letzte-Kemonomimi/Aura-Lune";
-/// Tag ruchomego wydania kanału dev.
+/// Tag of the dev channel's moving release.
 pub const DEV_RELEASE_TAG: &str = "dev-build";
-/// Nazwa assetu z sumami SHA-256 (`sha256sum *.AppImage`).
+/// Name of the asset with the SHA-256 checksums (`sha256sum *.AppImage`).
 pub const CHECKSUMS_ASSET: &str = "SHA256SUMS";
 
-/// Zdarzenie: dostępna aktualizacja (`UpdateInfo`).
+/// Event: update available (`UpdateInfo`).
 pub const UPDATE_AVAILABLE_EVENT: &str = "auralune://update-available";
-/// Zdarzenie: postęp pobierania (`{ downloaded, total }`).
+/// Event: download progress (`{ downloaded, total }`).
 pub const UPDATE_PROGRESS_EVENT: &str = "auralune://update-progress";
 
-/// Nazwa pliku AppImage kanału dev, jak w `install.sh`.
+/// File name of the dev channel AppImage, as in `install.sh`.
 pub const DEV_APPIMAGE_NAME: &str = "auralune-dev.AppImage";
 
-/// Klucze ustawień (tabela `app_settings`).
+/// Settings keys (the `app_settings` table).
 pub const SETTING_ENABLED: &str = "update_check_enabled";
 pub const SETTING_LAST_CHECKED: &str = "update_last_checked";
 pub const SETTING_LAST_RESULT: &str = "update_last_result";
 
-/// Minimalny odstęp między sprawdzeniami bez wymuszenia i okres pętli w tle.
+/// Minimum interval between non-forced checks, and the background loop period.
 pub const CHECK_INTERVAL_SECS: u64 = 6 * 60 * 60;
-/// Opóźnienie pierwszego sprawdzenia po starcie, aby nie spowalniać uruchamiania.
+/// Delay of the first check after start-up, so it does not slow the launch.
 pub const STARTUP_DELAY_SECS: u64 = 30;
 
-/// Wersja i commit tej budowy (`build.rs`).
+/// Version and commit of this build (`build.rs`).
 pub const BUILD_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_COMMIT: &str = env!("AURALUNE_BUILD_COMMIT");
 pub const BUILD_CHANNEL: &str = env!("AURALUNE_BUILD_CHANNEL");
 
-/// Skąd uruchomiono aplikację — decyduje, czy wolno ją aktualizować samodzielnie.
+/// Where the app was started from: decides whether it may update itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallKind {
-    /// AppImage z `install.sh` (`~/.local/share/auralune{,-dev}/`), zapisywalny.
+    /// AppImage from `install.sh` (`~/.local/share/auralune{,-dev}/`), writable.
     AppImageManaged,
-    /// AppImage uruchomiony z innego miejsca albo bez prawa zapisu.
+    /// AppImage started from another location or without write permission.
     AppImageOther,
-    /// Pakiet systemowy (AUR, deb) — aktualizuje go menedżer pakietów.
+    /// System package (AUR, deb): updated by the package manager.
     System,
-    /// Serwer deweloperski / build debug.
+    /// Dev server / debug build.
     DevServer,
 }
 
-/// Dane o uruchomionej budowie zwracane przez `get_build_info`.
+/// Data about the running build, returned by `get_build_info`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BuildInfo {
     pub version: String,
@@ -68,13 +68,13 @@ pub struct BuildInfo {
     pub install_kind: InstallKind,
 }
 
-/// Skrócony commit (7 znaków) do wyświetlania.
+/// Short commit (7 characters) for display.
 pub fn short_commit(commit: &str) -> String {
     commit.chars().take(7).collect()
 }
 
-/// Klasyfikuje instalację. `appimage` to `$APPIMAGE`, `home` to `$HOME`, `writable` mówi, czy
-/// plik AppImage można podmienić, a `debug` czy to build debug (serwer deweloperski).
+/// Classifies the installation. `appimage` is `$APPIMAGE`, `home` is `$HOME`, `writable` says whether
+/// the AppImage file can be replaced, and `debug` whether this is a debug build (dev server).
 pub fn classify_install(
     appimage: Option<&str>,
     home: Option<&Path>,
@@ -102,14 +102,14 @@ pub fn classify_install(
     }
 }
 
-/// Czy aplikacja może zainstalować aktualizację sama: AppImage z `install.sh` oraz uruchomienie
-/// deweloperskie kanału dev (aktualizacja trafia wtedy do instalacji dev z `install.sh`).
+/// Whether the app can install an update itself: an AppImage from `install.sh`, and a developer
+/// run of the dev channel (the update then goes to the dev installation from `install.sh`).
 pub fn can_self_install(kind: InstallKind, channel: &str) -> bool {
     kind == InstallKind::AppImageManaged || (kind == InstallKind::DevServer && channel == "dev")
 }
 
-/// Plik AppImage, który podmienia instalator: własny `$APPIMAGE` albo — dla uruchomienia
-/// deweloperskiego — `~/.local/share/auralune-dev/auralune-dev.AppImage`.
+/// The AppImage file the installer replaces: its own `$APPIMAGE` or, for a developer
+/// run, `~/.local/share/auralune-dev/auralune-dev.AppImage`.
 pub fn install_target(
     kind: InstallKind,
     channel: &str,
@@ -125,7 +125,7 @@ pub fn install_target(
     }
 }
 
-/// Czy do pliku AppImage można zapisać (potrzebne prawo zapisu do katalogu i do samego pliku).
+/// Whether the AppImage file is writable (needs write permission on the directory and the file itself).
 pub fn appimage_is_writable(appimage: &Path) -> bool {
     let file_ok = std::fs::metadata(appimage)
         .map(|m| !m.permissions().readonly())
@@ -138,7 +138,7 @@ pub fn appimage_is_writable(appimage: &Path) -> bool {
     file_ok && dir_ok
 }
 
-/// Efektywny kanał: dev, jeśli wskazuje na to instalacja (launcher/ścieżka) albo sama budowa.
+/// Effective channel: dev if the installation (launcher/path) or the build itself says so.
 pub fn effective_channel(is_dev_install: bool, build_channel: &str) -> &'static str {
     if is_dev_install || build_channel == "dev" {
         "dev"
@@ -147,7 +147,7 @@ pub fn effective_channel(is_dev_install: bool, build_channel: &str) -> &'static 
     }
 }
 
-/// Informacje o bieżącej budowie na podstawie środowiska procesu.
+/// Information about the current build, from the process environment.
 pub fn current_build_info() -> BuildInfo {
     let appimage = std::env::var("APPIMAGE").ok();
     let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
@@ -172,8 +172,8 @@ pub fn current_build_info() -> BuildInfo {
     }
 }
 
-/// Czy sprawdzenie ma się odbyć: wymuszone albo minęło co najmniej [`CHECK_INTERVAL_SECS`].
-/// Zegar cofnięty przed ostatnie sprawdzenie (`now < last`) traktujemy jak przeterminowane.
+/// Whether a check should run: forced, or at least [`CHECK_INTERVAL_SECS`] have passed.
+/// A clock set back before the last check (`now < last`) is treated as expired.
 pub fn should_check(now: u64, last_checked: Option<u64>, force: bool) -> bool {
     if force {
         return true;
@@ -185,45 +185,45 @@ pub fn should_check(now: u64, last_checked: Option<u64>, force: bool) -> bool {
     }
 }
 
-/// Czy ID wydania (wersja albo commit) pasuje do pominiętego przez użytkownika.
+/// Whether a release ID (version or commit) matches the one the user skipped.
 pub fn is_skipped(skipped: Option<&str>, latest_version: Option<&str>) -> bool {
     matches!((skipped, latest_version), (Some(s), Some(l)) if !s.is_empty() && s == l)
 }
 
-/// Asset do pobrania wraz z sumą kontrolną (jeśli znana już ze sprawdzenia).
+/// Asset to download, with its checksum (when already known from the check).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateAsset {
     pub name: String,
     pub url: String,
     pub size: u64,
-    /// SHA-256 z pola `digest` API GitHuba (`sha256:…`), gdy jest dostępne.
+    /// SHA-256 from the GitHub API `digest` field (`sha256:…`), when available.
     pub sha256: Option<String>,
-    /// URL assetu `SHA256SUMS` — zapasowe źródło sumy, gdy `digest` brakuje.
+    /// URL of the `SHA256SUMS` asset: the fallback checksum source when `digest` is missing.
     pub checksums_url: Option<String>,
 }
 
-/// Wynik sprawdzenia aktualizacji (zdarzenie `auralune://update-available` i cache w ustawieniach).
+/// Update check result (the `auralune://update-available` event and the cache in the settings).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateInfo {
     pub available: bool,
     pub channel: String,
     pub current_version: String,
     pub current_commit: String,
-    /// Wersja (stable) albo `dev-<krótki commit>` (dev); służy też jako klucz „pomiń”.
+    /// Version (stable) or `dev-<short commit>` (dev); also used as the "skip" key.
     pub latest_version: Option<String>,
     pub latest_commit: Option<String>,
     pub release_url: Option<String>,
     pub release_notes: Option<String>,
     pub asset: Option<UpdateAsset>,
     pub install_kind: InstallKind,
-    /// Czy aplikacja może zainstalować aktualizację sama (`can_self_install` + jest asset).
+    /// Whether the app can install the update itself (`can_self_install` + an asset exists).
     pub can_install: bool,
-    /// Unix (s) czasu sprawdzenia.
+    /// Unix time (s) of the check.
     pub checked_at: u64,
 }
 
 impl UpdateInfo {
-    /// Czy zapisany wynik dotyczy właśnie tej budowy (po aktualizacji cache jest nieaktualny).
+    /// Whether the saved result is for this very build (after an update the cache is stale).
     pub fn matches_build(&self, version: &str, commit: &str) -> bool {
         self.current_version == version && self.current_commit == commit
     }

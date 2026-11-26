@@ -1,20 +1,20 @@
-//! Porządkowanie przy zamykaniu aplikacji (`RunEvent::Exit`).
+//! Clean-up when the app quits (`RunEvent::Exit`).
 
 use crate::setup::app_init::VOLUME_SETTING_KEY;
 use crate::AppState;
 use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
-/// Zatrzymuje odtwarzanie, synchronicznie zapisuje końcowy stan kolejki (zapis z opóźnieniem
-/// mógłby nie zdążyć), usuwa plik statusu Waybar i zatrzymuje serwer sterowania IPC.
+/// Stops playback, saves the final queue state synchronously (a delayed write
+/// might not make it in time), removes the Waybar status file and stops the IPC control server.
 pub fn on_exit(app: &AppHandle) {
     let Some(state) = app.try_state::<AppState>() else {
         return;
     };
-    info!("Zamykanie Auralune — zapis stanu i zwalnianie zasobów");
+    info!("Quitting Auralune: saving state and releasing resources");
     let queue = state.engine.queue();
     if let Err(e) = state.rt.block_on(state.db.save_queue_state(&queue)) {
-        warn!("Nie udało się zapisać kolejki przy zamykaniu: {}", e);
+        warn!("Failed to save the queue on quit: {}", e);
     }
     let volume = state.engine.volume().clamp(0.0, 1.0);
     if let Err(e) = state.rt.block_on(
@@ -22,7 +22,7 @@ pub fn on_exit(app: &AppHandle) {
             .db
             .set_app_setting(VOLUME_SETTING_KEY, &volume.to_string()),
     ) {
-        warn!("Nie udało się zapisać głośności przy zamykaniu: {}", e);
+        warn!("Failed to save the volume on quit: {}", e);
     }
     crate::setup::playback_ticker::stop_playback_ticker();
     let _ = state.engine.stop();

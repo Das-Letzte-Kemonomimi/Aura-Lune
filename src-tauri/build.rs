@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::Command;
 
-/// Commit, z którego zbudowano aplikację: `GITHUB_SHA` (CI) → `git rev-parse HEAD` → `unknown`.
+/// Commit the app was built from: `GITHUB_SHA` (CI) → `git rev-parse HEAD` → `unknown`.
 fn build_commit() -> String {
     for var in ["AURALUNE_BUILD_COMMIT", "GITHUB_SHA"] {
         if let Ok(value) = std::env::var(var) {
@@ -22,7 +22,7 @@ fn build_commit() -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
-/// Kanał budowania: `AURALUNE_BUILD_CHANNEL` (CI) albo `dev`, gdy wersja ma przyrostek `-dev`.
+/// Build channel: `AURALUNE_BUILD_CHANNEL` (CI), or `dev` when the version has a `-dev` suffix.
 fn build_channel() -> String {
     match std::env::var("AURALUNE_BUILD_CHANNEL").ok().as_deref() {
         Some("dev") => "dev".to_string(),
@@ -38,7 +38,7 @@ fn build_channel() -> String {
     }
 }
 
-/// Przebudowa po zmianie commita (HEAD oraz plik gałęzi, na którą wskazuje).
+/// Rebuild when the commit changes (HEAD and the branch file it points to).
 fn watch_git_head() {
     let head = Path::new("../.git/HEAD");
     if !head.is_file() {

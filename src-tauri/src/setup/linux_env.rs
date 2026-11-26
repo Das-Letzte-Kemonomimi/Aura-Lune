@@ -1,13 +1,13 @@
-//! Inicjalizacja specyficznych zmiennych środowiskowych i procesów dla systemu Linux/AppImage.
+//! Linux/AppImage-specific environment variables and processes.
 
-/// Inicjalizuje zmienne środowiskowe Linuksa (GStreamer, WebKit2GTK, glib).
+/// Initialises the Linux environment variables (GStreamer, WebKit2GTK, glib).
 pub fn init_linux_environment() {
     #[cfg(target_os = "linux")]
     {
         glib::set_prgname(Some("auralune"));
         glib::set_application_name("Auralune");
 
-        // Rozwiązanie problemu brakujących wtyczek GStreamer i procesów pomocniczych WebKit2GTK w AppImage
+        // Fixes missing GStreamer plugins and WebKit2GTK helper processes in the AppImage
         let host_gst_dirs = [
             "/usr/lib/gstreamer-1.0",
             "/usr/lib64/gstreamer-1.0",
@@ -66,8 +66,8 @@ pub fn init_linux_environment() {
             }
         }
 
-        // WebKit2GTK procesy pomocnicze (WebKitNetworkProcess, WebKitWebProcess)
-        // W AppImage linuxdeploy ustawia GTK_EXE_PREFIX na zasoby wewnątrz AppDir, przez co WebKit nie znajduje procesów potomnych
+        // WebKit2GTK helper processes (WebKitNetworkProcess, WebKitWebProcess)
+        // In an AppImage, linuxdeploy sets GTK_EXE_PREFIX to resources inside the AppDir, so WebKit cannot find its child processes
         if std::env::var("WEBKIT_EXEC_PATH").is_err() {
             let webkit_paths = [
                 "/usr/lib/webkit2gtk-4.1",

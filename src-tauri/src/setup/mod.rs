@@ -1,4 +1,4 @@
-//! Moduł inicjalizacji i cyklu życia aplikacji (Linux environment, app state, tray, lifecycle).
+//! App initialisation and lifecycle (Linux environment, app state, tray, lifecycle).
 
 pub mod app_init;
 pub mod fatal;

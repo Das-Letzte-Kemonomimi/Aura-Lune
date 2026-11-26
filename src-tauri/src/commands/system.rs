@@ -1,4 +1,4 @@
-//! System, konfiguracja, transkodowanie, import z sieci oraz diagnostyka zdrowia audio.
+//! System, configuration, transcoding, network import and audio health diagnostics.
 
 use super::error::CommandError;
 use crate::AppState;
@@ -11,7 +11,7 @@ use std::time::Duration;
 use tauri::{Emitter, State};
 use tracing::{error, info};
 
-/// Najdłuższy czas pobierania przez yt-dlp (duże playlisty); zawieszony proces jest zabijany.
+/// Maximum yt-dlp download time (large playlists); a hung process is killed.
 const YTDLP_TIMEOUT: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,9 +163,9 @@ pub async fn show_desktop_notification(
         if let Some(ic) = icon {
             cmd.arg("-i").arg(ic);
         }
-        // `--` kończy opcje: tytuł zaczynający się od `-` nie zostanie odczytany jako flaga.
+        // `--` ends the options: a title starting with `-` is not read as a flag.
         cmd.arg("--").arg(&title).arg(&body);
-        // Proces potomny jest zbierany w tle, aby nie zostawiać procesów zombie.
+        // The child process is reaped in the background so no zombie processes are left.
         if let Ok(mut child) = cmd.spawn() {
             std::thread::spawn(move || {
                 let _ = child.wait();
@@ -180,7 +180,7 @@ pub async fn show_desktop_notification(
 pub async fn get_audio_system_health(
     state: State<'_, AppState>,
 ) -> Result<AudioSystemHealthDto, CommandError> {
-    // 1. Sprawdź serwer PipeWire
+    // 1. Check the PipeWire server
     let pw_status = tokio::process::Command::new("pw-cli")
         .arg("info")
         .arg("0")
@@ -252,10 +252,10 @@ pub async fn get_audio_system_health(
     let rubberband_available = true;
     let soundtouch_available = true;
 
-    // 3. Baza danych SQLite
+    // 3. SQLite database
     let tracks_count = state.db.count_tracks().await.unwrap_or(0);
     let albums_count = state.db.count_albums().await.unwrap_or(0);
-    let db_status = "Spójna (WAL mode, PRAGMA foreign_keys = ON)".to_string();
+    let db_status = "Consistent (WAL mode, PRAGMA foreign_keys = ON)".to_string();
 
     // 4. IPC & System
     let waybar_path = desktop_integration::waybar_status_path();
@@ -325,11 +325,11 @@ pub async fn import_audio_from_url(
         .transpose()?;
     let clean_url = url.trim().to_string();
     if clean_url.is_empty() {
-        return Err(CommandError::validation("Adres URL nie może być pusty."));
+        return Err(CommandError::validation("The URL must not be empty."));
     }
     if !clean_url.starts_with("http://") && !clean_url.starts_with("https://") {
         return Err(CommandError::validation(
-            "Nieprawidłowy protokół URL (wymagany http:// lub https://).",
+            "Invalid URL protocol (http:// or https:// required).",
         ));
     }
 
@@ -338,7 +338,7 @@ pub async fn import_audio_from_url(
         clean_url, format, bitrate, download_playlist, max_items
     );
 
-    // 1. Sprawdź obecność yt-dlp w systemie
+    // 1. Check that yt-dlp is installed
     let which_res = tokio::process::Command::new("which")
         .arg("yt-dlp")
         .output()
@@ -349,10 +349,10 @@ pub async fn import_audio_from_url(
     };
 
     if !has_ytdlp {
-        return Err(CommandError::not_found("Narzędzie 'yt-dlp' nie zostało znalezione w Twoim systemie.\n\nAby korzystać z importera audio URL, zainstaluj 'yt-dlp' oraz 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg"));
+        return Err(CommandError::not_found("The 'yt-dlp' tool was not found on your system.\n\nTo use the URL audio importer, install 'yt-dlp' and 'ffmpeg':\n• Arch Linux / EndeavourOS / CachyOS: sudo pacman -S yt-dlp ffmpeg\n• Debian / Ubuntu: sudo apt install yt-dlp ffmpeg\n• Fedora: sudo dnf install yt-dlp ffmpeg"));
     }
 
-    // 2. Określ folder docelowy
+    // 2. Determine the target folder
     let dest_dir = if let Some(ref dir) = target_dir {
         let trimmed = dir.trim();
         if trimmed.is_empty() {
@@ -373,9 +373,9 @@ pub async fn import_audio_from_url(
 
     tokio::fs::create_dir_all(&dest_dir)
         .await
-        .map_err(|e| CommandError::from(e).context("Nie udało się utworzyć katalogu docelowego"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to create the target directory"))?;
 
-    // 3. Wybór formatu
+    // 3. Format choice
     let audio_fmt = match format.as_deref().unwrap_or("flac").to_lowercase().as_str() {
         "mp3" => "mp3",
         "opus" => "opus",
@@ -385,7 +385,7 @@ pub async fn import_audio_from_url(
         _ => "flac",
     };
 
-    // 4. Jakość / bitrate (czyszczenie i mapowanie na preferowaną wartość ffmpeg yt-dlp)
+    // 4. Quality / bitrate (cleaned up and mapped to the preferred yt-dlp ffmpeg value)
     let clean_bitrate = match bitrate
         .as_deref()
         .unwrap_or("0")
@@ -402,20 +402,20 @@ pub async fn import_audio_from_url(
         _ => "0",
     };
 
-    // 5. Struktura folderów i szablon wyjściowy
+    // 5. Folder structure and output template
     let structure_mode = folder_structure.as_deref().unwrap_or("flat");
     let template_rel = match structure_mode {
         "artist_album" => "%(artist,uploader,channel|Unknown Artist)s/%(album,playlist_title|Singles)s/%(playlist_index&{:02d} - |)s%(title)s.%(ext)s",
         "playlist" => "%(playlist_title,album,uploader,channel|Downloads)s/%(playlist_index&{:02d} - |)s%(title)s.%(ext)s",
         _ => "%(title)s.%(ext)s",
     };
-    // `%` w nazwie folderu yt-dlp odczytałby jako pole szablonu — escapujemy go jako `%%`.
+    // yt-dlp would read `%` in a folder name as a template field, so it is escaped as `%%`.
     let escaped_dir = dest_dir.to_string_lossy().replace('%', "%%");
     let output_template = format!("{}/{}", escaped_dir, template_rel);
 
     let is_playlist = download_playlist.unwrap_or(false);
     info!(
-        "Uruchamiam yt-dlp: fmt={}, bitrate={}, playlist={}, max={:?}, template={}",
+        "Starting yt-dlp: fmt={}, bitrate={}, playlist={}, max={:?}, template={}",
         audio_fmt, clean_bitrate, is_playlist, max_items, output_template
     );
 
@@ -452,16 +452,16 @@ pub async fn import_audio_from_url(
         .await
         .map_err(|_| {
             CommandError::validation(format!(
-                "Przekroczono limit czasu pobierania yt-dlp ({} min)",
+                "yt-dlp download time limit exceeded ({} min)",
                 YTDLP_TIMEOUT.as_secs() / 60
             ))
         })?
-        .map_err(|e| CommandError::from(e).context("Błąd uruchomienia procesu yt-dlp"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to start the yt-dlp process"))?;
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let stderr_str = String::from_utf8_lossy(&output.stderr);
 
-    // Szukamy ścieżek plików w liniach wyjścia (kolejność pobrania)
+    // Look for file paths in the output lines (download order)
     let mut resolved_files: Vec<PathBuf> = Vec::new();
     for line in stdout_str.lines() {
         let trimmed = line.trim();
@@ -473,10 +473,10 @@ pub async fn import_audio_from_url(
         }
     }
 
-    // Kod 101 w yt-dlp oznacza celowe zatrzymanie po osiągnięciu --max-downloads (MaxDownloadsReached)
+    // Exit code 101 in yt-dlp means a deliberate stop after reaching --max-downloads (MaxDownloadsReached)
     let is_successful_exit = output.status.success() || output.status.code() == Some(101);
 
-    // Fallback: jeśli ze stdoutu nie udało się odczytać ścieżek, przeszukaj katalog rekurencyjnie
+    // Fallback: if no paths could be read from stdout, search the directory recursively
     if resolved_files.is_empty() {
         let mut dirs_to_visit = vec![dest_dir.clone()];
         let since = start_time
@@ -488,7 +488,7 @@ pub async fn import_audio_from_url(
             if let Ok(mut read_dir) = tokio::fs::read_dir(&current_dir).await {
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path();
-                    // `file_type()` nie podąża za dowiązaniami — pętla dowiązań nie zawiesi szukania.
+                    // `file_type()` does not follow links, so a link loop cannot hang the search.
                     let Ok(file_type) = entry.file_type().await else {
                         continue;
                     };
@@ -527,29 +527,29 @@ pub async fn import_audio_from_url(
         } else {
             stdout_str.trim()
         };
-        error!("Błąd wykonania yt-dlp: {}", err_detail);
-        return Err(format!("Pobieranie lub konwersja nie powiodła się: {}", err_detail).into());
+        error!("yt-dlp failed: {}", err_detail);
+        return Err(format!("Download or conversion failed: {}", err_detail).into());
     }
 
     if resolved_files.is_empty() {
         return Err(CommandError::not_found(
-            "Pobieranie zakończone, lecz nie odnaleziono pobranych plików w folderze docelowym.",
+            "Download finished, but no downloaded files were found in the target folder.",
         ));
     }
 
     info!(
-        "Pobrano {} plików audio z URL. Rozpoczynam indeksowanie w bibliotece...",
+        "Downloaded {} audio files from the URL. Starting library indexing...",
         resolved_files.len()
     );
 
-    // 6. Natychmiastowe zindeksowanie pobranych plików w bazie Auralune
+    // 6. Index the downloaded files in the Auralune database right away
     state
         .scanner
         .scan_paths(&resolved_files, &state.db)
         .await
-        .map_err(|e| CommandError::from(e).context("Błąd indeksowania utworów w bibliotece"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to index the tracks in the library"))?;
 
-    // 7. Zbuduj listę rekordów dla zwróconych plików
+    // 7. Build the record list for the returned files
     let mut items = Vec::new();
     for path in &resolved_files {
         let final_path_str = path.to_string_lossy().to_string();
@@ -566,13 +566,13 @@ pub async fn import_audio_from_url(
             .unwrap_or_else(|| {
                 path.file_stem()
                     .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "Pobrany utwór".to_string())
+                    .unwrap_or_else(|| "Downloaded track".to_string())
             });
 
         let artist = track_record
             .as_ref()
             .map(|t| t.artist.clone())
-            .unwrap_or_else(|| "Nieznany wykonawca".to_string());
+            .unwrap_or_else(|| "Unknown Artist".to_string());
 
         let album = if let Some(ref tr) = track_record {
             if let Some(album_id) = tr.album_id {
@@ -616,11 +616,11 @@ pub async fn import_audio_from_url(
         title: first
             .as_ref()
             .map(|i| i.title.clone())
-            .unwrap_or_else(|| "Pobrano utwory".to_string()),
+            .unwrap_or_else(|| "Downloaded tracks".to_string()),
         artist: first
             .as_ref()
             .map(|i| i.artist.clone())
-            .unwrap_or_else(|| "Różni wykonawcy".to_string()),
+            .unwrap_or_else(|| "Various Artists".to_string()),
         album: first.as_ref().and_then(|i| i.album.clone()),
         duration_ms: first.as_ref().and_then(|i| i.duration_ms),
         format: audio_fmt.to_uppercase(),

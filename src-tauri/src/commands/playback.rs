@@ -53,7 +53,7 @@ pub struct SampleTrackDto {
 }
 
 pub fn resolve_or_extract_sample_track(data_dir: &Path) -> Option<SampleTrackDto> {
-    // 1. Sprawdź znane lokalizacje pliku na dysku (w trybie dev, test fixtures lub w katalogu danych)
+    // 1. Check the known file locations on disk (dev mode, test fixtures or the data directory)
     let candidates = [
         data_dir.join("sample").join("Skrzydła Białe.flac"),
         PathBuf::from("tests/fixtures/Skrzydła Białe.flac"),
@@ -78,7 +78,7 @@ pub fn resolve_or_extract_sample_track(data_dir: &Path) -> Option<SampleTrackDto
         }
     }
 
-    // 2. Jeśli plik nie istnieje (np. na czystym systemie/AppImage), wyodrębnij osadzony utwór do data_dir/sample/
+    // 2. If the file does not exist (e.g. on a clean system/AppImage), extract the embedded track to data_dir/sample/
     static EMBEDDED_SAMPLE: &[u8] = include_bytes!("../../../tests/fixtures/Skrzydła Białe.flac");
     let target_path = data_dir.join("sample").join("Skrzydła Białe.flac");
     if let Some(parent) = target_path.parent() {
@@ -200,9 +200,9 @@ pub async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
         let fallback_stem = Path::new(path)
             .file_stem()
             .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Nieznany utwór".to_string());
+            .unwrap_or_else(|| "Unknown Track".to_string());
 
-        // Odczyt tagów (lofty) to blokujące I/O — poza wątkami Tokio.
+        // Reading tags (lofty) is blocking I/O, so off the Tokio threads.
         let owned_path = path.to_string();
         let tags =
             tokio::task::spawn_blocking(move || audio_engine::read_track_metadata(&owned_path))
@@ -227,9 +227,9 @@ pub async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
                 fallback_stem
                     .split_once(" - ")
                     .map(|(a, _)| a.trim().to_string())
-                    .unwrap_or_else(|| "Plik lokalny".to_string())
+                    .unwrap_or_else(|| "Local File".to_string())
             } else {
-                "Plik lokalny".to_string()
+                "Local File".to_string()
             };
 
             (t, a, m.album, 0)
@@ -237,7 +237,7 @@ pub async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
             let (a, t) = fallback_stem.split_once(" - ").unwrap();
             (t.trim().to_string(), a.trim().to_string(), None, 0)
         } else {
-            (fallback_stem, "Plik lokalny".to_string(), None, 0)
+            (fallback_stem, "Local File".to_string(), None, 0)
         };
 
         QueueItem {
@@ -261,10 +261,7 @@ pub async fn enqueue_and_play_files(
         return;
     }
 
-    info!(
-        "Przetwarzanie i odtwarzanie plików zewnętrznych: {:?}",
-        files
-    );
+    info!("Processing and playing external files: {:?}", files);
 
     let playback_mode = state
         .db
@@ -400,7 +397,7 @@ pub fn normalize_art_url(art_url: Option<&str>) -> Option<String> {
     if url.starts_with("http://") || url.starts_with("https://") || url.starts_with("data:image/") {
         return Some(url.to_string());
     }
-    // Lokalna okładka trafia do powłoki pulpitu (MPRIS) — tylko istniejące pliki obrazów.
+    // The local cover goes to the desktop shell (MPRIS): existing image files only.
     let path = super::paths::ensure_readable(
         &audio_engine::uri::local_path(url),
         super::paths::IMAGE_EXTENSIONS,
@@ -428,11 +425,13 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
         || album == "Auralune Player"
         || album == "Auralune Library"
         || album == "Live Stream"
-        || album == "Radio internetowe";
+        || album == "Internet Radio"
+        || album == "Radio internetowe"; // Polish name in queues saved by older versions
 
     let mut effective_artist = artist.trim().to_string();
     let mut effective_title = title.trim().to_string();
-    if (effective_artist == "Plik lokalny" || effective_artist.is_empty())
+    if (matches!(effective_artist.as_str(), "Local File" | "Plik lokalny")
+        || effective_artist.is_empty())
         && effective_title.contains(" - ")
     {
         if let Some((a, t)) = effective_title.split_once(" - ") {
@@ -517,7 +516,7 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
     }
 }
 
-/// Czy bieżące źródło to strumień na żywo (radio internetowe).
+/// Whether the current source is a live stream (internet radio).
 fn is_live_stream(state: &AppState, current_track: Option<&QueueItem>) -> bool {
     if let Some(item) = current_track {
         item.id.starts_with("radio-")
@@ -530,10 +529,10 @@ fn is_live_stream(state: &AppState, current_track: Option<&QueueItem>) -> bool {
     }
 }
 
-/// Jeden takt tickera odtwarzania — **jedyne** miejsce, które opróżnia magistralę silnika
-/// (`poll_events`: EOS → następny utwór, zapętlenie, tagi, widmo), wykrywa cofnięcia pozycji
-/// i zapisuje status Waybara. Wołane wyłącznie przez `setup::playback_ticker`; komendy
-/// czytają [`snapshot_status`] albo zbuforowany `AppState.last_status`.
+/// One playback ticker tick: the **only** place that drains the engine bus
+/// (`poll_events`: EOS → next track, loop, tags, spectrum), detects position jumps back
+/// and writes the Waybar status. Called only by `setup::playback_ticker`; commands
+/// read [`snapshot_status`] or the buffered `AppState.last_status`.
 pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatusDto {
     let current_track = state.engine.queue().current_item().cloned();
     let is_live_stream = is_live_stream(state, current_track.as_ref());
@@ -547,7 +546,7 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
                 }
             }
             PlayerEvent::TrackLooped => {
-                info!("get_status: odebrano zdarzenie PlayerEvent::TrackLooped (utwór zapętlony / Repeat)");
+                info!("get_status: received PlayerEvent::TrackLooped (track looped / Repeat)");
                 if let Some(discord) = &state.discord_rpc {
                     discord.track_looped();
                 }
@@ -560,12 +559,12 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
             }
             PlayerEvent::Tag(tag) => {
                 if is_live_stream {
-                    info!("Odebrano tag ze strumienia na żywo: {}", tag);
+                    info!("Received a tag from the live stream: {}", tag);
                     if let Ok(mut t) = state.latest_live_stream_tag.lock() {
                         *t = Some(tag.clone());
                     }
 
-                    // Parsuj "Wykonawca - Tytuł", jeśli strumień nadaje w tym formacie
+                    // Parse "Artist - Title" if the stream broadcasts in that format
                     let (parsed_artist, parsed_title) = if let Some((a, t)) = tag.split_once(" - ")
                     {
                         (a.trim().to_string(), t.trim().to_string())
@@ -573,14 +572,14 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
                         let station = current_track
                             .as_ref()
                             .map(|i| i.title.clone())
-                            .unwrap_or_else(|| "Radio internetowe".to_string());
+                            .unwrap_or_else(|| "Internet Radio".to_string());
                         (station, tag.trim().to_string())
                     };
 
                     let station_album = current_track
                         .as_ref()
                         .map(|i| i.title.clone())
-                        .unwrap_or_else(|| "Radio internetowe".to_string());
+                        .unwrap_or_else(|| "Internet Radio".to_string());
 
                     if let Some(mpris) = &state.mpris {
                         let m = mpris.clone();
@@ -644,7 +643,7 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
                 }
             }
             PlayerEvent::Error(message) => {
-                error!("Błąd odtwarzania: {}", message);
+                error!("Playback error: {}", message);
                 errors.push(message);
             }
             _ => {}
@@ -665,7 +664,7 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
         let is_major_rewind = prev_pos > pos_ms + 4000;
         if is_loop_restart || is_major_rewind {
             info!(
-                "Wykryto cofnięcie/zapętlenie pozycji z {} ms do {} ms — synchronizuję Discord RPC i MPRIS",
+                "Detected a position jump back/loop from {} ms to {} ms, syncing Discord RPC and MPRIS",
                 prev_pos, pos_ms
             );
             if let Some(discord) = &state.discord_rpc {
@@ -768,8 +767,8 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
     snapshot_status(state)
 }
 
-/// Bieżący status odtwarzania bez efektów ubocznych na magistrali silnika (nie wywołuje
-/// `poll_events`, nie zapisuje Waybara) — bezpieczny do wołania z komend.
+/// Current playback status without side effects on the engine bus (does not call
+/// `poll_events` or write Waybar), safe to call from commands.
 pub fn snapshot_status(state: &AppState) -> PlaybackStatusDto {
     let q = state.engine.queue();
     let current_track = q.current_item().cloned();
@@ -910,8 +909,8 @@ pub fn set_volume(
     Ok(())
 }
 
-/// Zwraca ostatni status wyliczony przez ticker odtwarzania (tania kopia migawki).
-/// Przed pierwszym taktem tickera zwracana jest migawka bez opróżniania magistrali.
+/// Returns the last status computed by the playback ticker (a cheap snapshot copy).
+/// Before the first ticker tick, a snapshot is returned without draining the bus.
 #[tauri::command]
 pub fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
     if let Some(cached) = state.last_status.read().ok().and_then(|s| s.clone()) {
@@ -953,11 +952,13 @@ pub fn update_mpris_metadata(
             || album == "Auralune Player"
             || album == "Auralune Library"
             || album == "Live Stream"
-            || album == "Radio internetowe";
+            || album == "Internet Radio"
+            || album == "Radio internetowe"; // Polish name in queues saved by older versions
 
         let mut effective_artist = artist.trim().to_string();
         let mut effective_title = title.trim().to_string();
-        if (effective_artist == "Plik lokalny" || effective_artist.is_empty())
+        if (matches!(effective_artist.as_str(), "Local File" | "Plik lokalny")
+            || effective_artist.is_empty())
             && effective_title.contains(" - ")
         {
             if let Some((a, t)) = effective_title.split_once(" - ") {
@@ -1118,8 +1119,8 @@ pub fn get_sample_track(app: tauri::AppHandle) -> Result<Option<SampleTrackDto>,
     Ok(resolve_or_extract_sample_track(&data_dir))
 }
 
-/// Wyszukuje okładkę online w tle (najpierw po albumie, gdy `search_album`, potem po tytule),
-/// zapisuje adres w pamięci podręcznej okładek Discord i aktualizuje Rich Presence.
+/// Searches for a cover online in the background (by album first when `search_album`, then by title),
+/// stores the URL in the Discord cover cache and updates Rich Presence.
 fn spawn_discord_cover_search(
     state: &AppState,
     discord: &std::sync::Arc<desktop_integration::DiscordRpcController>,

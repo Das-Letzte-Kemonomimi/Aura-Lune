@@ -1,4 +1,4 @@
-//! Komendy pobierania i edycji metadanych, okładek płyt, tekstów utworów (LRC) oraz fingerprintingu audio.
+//! Commands for fetching and editing metadata, album covers, lyrics (LRC) and audio fingerprinting.
 
 use super::error::CommandError;
 use crate::commands::library::resolve_cover_to_data_uri;
@@ -39,7 +39,9 @@ pub async fn identify_track_fingerprint_internal(
     let client = AcoustidClient::new(client_key);
     let path_buf = PathBuf::from(path);
     if !path_buf.exists() {
-        return Err(CommandError::not_found("Plik audio nie istnieje na dysku"));
+        return Err(CommandError::not_found(
+            "The audio file does not exist on disk",
+        ));
     }
 
     let (duration, fingerprint) = AcoustidClient::generate_fingerprint(&path_buf).await?;
@@ -136,7 +138,7 @@ pub async fn apply_cover_url_internal(
         let art = artist.as_deref().unwrap_or("Unknown");
         state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err(CommandError::validation("Nieprawidłowe ID albumu"));
+        return Err(CommandError::validation("Invalid album ID"));
     };
 
     let path = state
@@ -174,7 +176,7 @@ pub async fn apply_custom_cover_file_internal(
     );
     let path = Path::new(file_path);
     if !path.exists() {
-        return Err(CommandError::not_found("Wskazany plik nie istnieje"));
+        return Err(CommandError::not_found("The given file does not exist"));
     }
 
     let ext = path
@@ -189,17 +191,17 @@ pub async fn apply_custom_cover_file_internal(
         "gif" => "image/gif",
         _ => {
             return Err(CommandError::validation(
-                "Obsługiwane są wyłącznie pliki graficzne PNG, JPG, WebP lub GIF",
+                "Only PNG, JPG, WebP or GIF image files are supported",
             ))
         }
     };
 
     let bytes = tokio::fs::read(path)
         .await
-        .map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to read the file"))?;
     if bytes.len() > 25 * 1024 * 1024 {
         return Err(CommandError::validation(
-            "Plik graficzny jest zbyt duży (maks. 25 MB)",
+            "The image file is too large (max. 25 MB)",
         ));
     }
 
@@ -209,7 +211,7 @@ pub async fn apply_custom_cover_file_internal(
         let art = artist.as_deref().unwrap_or("Unknown");
         state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err(CommandError::validation("Nieprawidłowe ID albumu"));
+        return Err(CommandError::validation("Invalid album ID"));
     };
 
     let saved_path = state
@@ -389,15 +391,15 @@ pub async fn save_lyrics_lrc(
     lrc_content: String,
 ) -> Result<String, CommandError> {
     tokio::task::spawn_blocking(move || {
-        // Plik .lrc trafia wyłącznie obok istniejącego pliku audio.
+        // The .lrc file goes only next to an existing audio file.
         let track = super::paths::ensure_readable(
             &audio_engine::uri::local_path(&track_path),
             super::paths::AUDIO_EXTENSIONS,
         )?;
         let lrc_path = super::paths::ensure_writable(&track.with_extension("lrc"))?;
         std::fs::write(&lrc_path, lrc_content)
-            .map_err(|e| CommandError::from(e).context("Błąd zapisu pliku LRC"))?;
-        info!("Zapisano zsynchronizowany plik LRC: {}", lrc_path.display());
+            .map_err(|e| CommandError::from(e).context("Failed to write the LRC file"))?;
+        info!("Saved the synced LRC file: {}", lrc_path.display());
         Ok(lrc_path.to_string_lossy().into_owned())
     })
     .await?
@@ -424,20 +426,20 @@ pub async fn update_track_metadata(
     meta: audio_engine::TrackMetadataFullDto,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    // Tagi zapisujemy tylko do pliku, który biblioteka zna pod tym `track_id` —
-    // interfejs nie może wskazać dowolnego innego pliku.
+    // Tags are written only to the file the library knows under this `track_id`:
+    // the UI cannot point at any other file.
     let track =
         state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
-            CommandError::not_found(format!("Nie znaleziono utworu o ID {track_id}"))
+            CommandError::not_found(format!("Track with ID {track_id} not found"))
         })?;
     let library_path = audio_engine::uri::local_path(&track.path);
     if library_path != audio_engine::uri::local_path(&path) {
         return Err(CommandError::validation(
-            "Ścieżka pliku nie odpowiada utworowi w bibliotece",
+            "The file path does not match the track in the library",
         ));
     }
 
-    // 1. Zapis do pliku fizycznego audio przez lofty
+    // 1. Write to the physical audio file through lofty
     let meta_for_file = meta.clone();
     tokio::task::spawn_blocking(move || {
         let resolved =
@@ -447,7 +449,7 @@ pub async fn update_track_metadata(
     })
     .await??;
 
-    // 2. Aktualizacja w bazie SQLite
+    // 2. Update in the SQLite database
     state
         .db
         .update_track_metadata(
@@ -540,7 +542,7 @@ pub async fn auto_fetch_album_cover(
                 return Ok(Some(cover_file_data_uri(&path).await?));
             }
             Err(e) => {
-                tracing::warn!("Nie udało się pobrać okładki dla MBID {}: {}", best.mbid, e);
+                tracing::warn!("Failed to fetch the cover for MBID {}: {}", best.mbid, e);
             }
         }
     }
@@ -610,11 +612,11 @@ pub async fn apply_custom_cover_data(
 
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(raw_b64)
-        .map_err(|e| CommandError::validation(format!("Błąd dekodowania Base64: {}", e)))?;
+        .map_err(|e| CommandError::validation(format!("Base64 decode error: {}", e)))?;
 
     if bytes.len() > 25 * 1024 * 1024 {
         return Err(CommandError::validation(
-            "Plik graficzny jest zbyt duży (maks. 25 MB)",
+            "The image file is too large (max. 25 MB)",
         ));
     }
 
@@ -638,7 +640,7 @@ pub async fn apply_custom_cover_data(
         let art = artist.as_deref().unwrap_or("Unknown");
         state.db.upsert_album(title, art, None, None).await?
     } else {
-        return Err(CommandError::validation("Nieprawidłowe ID albumu"));
+        return Err(CommandError::validation("Invalid album ID"));
     };
 
     let saved_path = state
@@ -652,7 +654,7 @@ pub async fn apply_custom_cover_data(
         .update_album_cover(actual_album_id, &path_str, None)
         .await?;
 
-    // Linkowanie utworu z albumem
+    // Link the track to the album
     if let Some(tid) = track_id {
         let _ = state.db.link_track_to_album(tid, actual_album_id).await;
     }
@@ -780,7 +782,7 @@ pub async fn get_lyrics(
     Ok(lyrics)
 }
 
-/// Odczytuje zapisaną w cache okładkę i zwraca ją jako `data:` URI (typ MIME z rozszerzenia).
+/// Reads a cached cover and returns it as a `data:` URI (MIME type from the extension).
 async fn cover_file_data_uri(path: &std::path::Path) -> Result<String, CommandError> {
     let bytes = tokio::fs::read(path).await?;
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");

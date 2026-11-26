@@ -75,12 +75,12 @@ pub async fn preview_rename_tracks(
     Ok(items)
 }
 
-/// Wykonuje zmianę nazw plików.
+/// Renames files.
 ///
-/// Każda ścieżka docelowa jest ponownie walidowana (musi leżeć w katalogu pliku źródłowego,
-/// bez `..` i ścieżek absolutnych). Istniejące pliki są nadpisywane wyłącznie przy
-/// `allow_overwrite = true` (użytkownik potwierdził nadpisanie w podglądzie).
-/// Zwraca liczbę plików, którym zmieniono nazwę.
+/// Every target path is validated again (it must be in the source file's directory,
+/// without `..` or absolute paths). Existing files are overwritten only with
+/// `allow_overwrite = true` (the user confirmed overwriting in the preview).
+/// Returns the number of renamed files.
 #[tauri::command]
 pub async fn execute_rename_tracks(
     items: Vec<(i64, String)>,
@@ -99,15 +99,15 @@ pub async fn execute_rename_tracks(
         let new_p = match validate_rename_target(&track.path, &target_path) {
             Ok(p) => p,
             Err(e) => {
-                warn!(
-                    "Odrzucono zmianę nazwy {} -> {}: {}",
-                    track.path, target_path, e
-                );
+                warn!("Rejected rename {} -> {}: {}", track.path, target_path, e);
                 continue;
             }
         };
         if new_p.exists() && !allow_overwrite {
-            warn!("Pominięto {}: plik docelowy już istnieje", new_p.display());
+            warn!(
+                "Skipped {}: the target file already exists",
+                new_p.display()
+            );
             continue;
         }
 
@@ -124,14 +124,11 @@ pub async fn execute_rename_tracks(
             Ok(new_p) => {
                 let new_path_str = new_p.to_string_lossy().to_string();
                 if let Err(e) = state.db.update_track_path(track_id, &new_path_str).await {
-                    warn!(
-                        "Nie udało się zaktualizować ścieżki utworu {}: {}",
-                        track_id, e
-                    );
+                    warn!("Failed to update the track path {}: {}", track_id, e);
                 }
                 renamed_count += 1;
             }
-            Err(e) => warn!("Błąd zmiany nazwy {}: {}", track.path, e),
+            Err(e) => warn!("Rename error {}: {}", track.path, e),
         }
     }
     Ok(renamed_count)
