@@ -66,7 +66,8 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
   return (
     <main
       ref={mainContentRef}
-      className={cn('min-h-0 flex-1 overflow-y-auto', (activeTab !== 'player' || isPlayerScrolledDown) && 'pb-22')}
+      // `pb-26` reserves clearance for the `h-23` BottomPlaybackDock when visible.
+      className={cn('min-h-0 flex-1 overflow-y-auto', (activeTab !== 'player' || isPlayerScrolledDown) && 'pb-26')}
     >
       {/* Tab 1: Player View */}
       {activeTab === 'player' && <PlayerView {...playerProps} />}

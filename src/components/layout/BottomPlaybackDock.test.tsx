@@ -145,4 +145,63 @@ describe('BottomPlaybackDock component', () => {
     fireEvent.click(muteBtn);
     expect(onToggleMute).toHaveBeenCalledTimes(1);
   });
+
+  it('wires transport toggles, folder action, DSP popover menu, and view controls', () => {
+    const onToggleShuffle = vi.fn();
+    const onCycleLoopMode = vi.fn();
+    const onToggleStopAfterCurrent = vi.fn();
+    const onOpenContainingFolder = vi.fn();
+    const onCycleDspEngine = vi.fn();
+    const onSelectDspEngine = vi.fn();
+    const onScrollToTopOrSwitchTab = vi.fn();
+    const onToggleMiniPlayer = vi.fn();
+
+    render(
+      <BottomPlaybackDock
+        {...defaultProps}
+        status={{
+          ...defaultProps.status,
+          engine: 'RubberBand',
+          pitch_semitones: 2,
+          tempo_ratio: 1.15,
+        }}
+        onToggleShuffle={onToggleShuffle}
+        onCycleLoopMode={onCycleLoopMode}
+        onToggleStopAfterCurrent={onToggleStopAfterCurrent}
+        onOpenContainingFolder={onOpenContainingFolder}
+        onCycleDspEngine={onCycleDspEngine}
+        onSelectDspEngine={onSelectDspEngine}
+        onScrollToTopOrSwitchTab={onScrollToTopOrSwitchTab}
+        onToggleMiniPlayer={onToggleMiniPlayer}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: loc.player.shuffleOff }));
+    expect(onToggleShuffle).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: loc.player.loopOff }));
+    expect(onCycleLoopMode).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.stopAfterCurrentOff }));
+    expect(onToggleStopAfterCurrent).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: loc.queue.openContainingFolder }));
+    expect(onOpenContainingFolder).toHaveBeenCalledWith('/music/song.flac', expect.anything());
+
+    expect(screen.getByText('+2 st')).toBeDefined();
+    expect(screen.getByText('1.15x')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /rubber band/i }));
+    expect(onCycleDspEngine).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.selectDspEngineList }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /soundtouch/i }));
+    expect(onSelectDspEngine).toHaveBeenCalledWith('SoundTouch');
+
+    fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.openFullPlayer }));
+    expect(onScrollToTopOrSwitchTab).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.maximizeTooltip }));
+    expect(onToggleMiniPlayer).toHaveBeenCalledTimes(1);
+  });
 });

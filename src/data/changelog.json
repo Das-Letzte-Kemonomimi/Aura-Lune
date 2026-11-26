@@ -106,6 +106,13 @@
         "de": "Hörzeit-Statistiken (Recap) zählen auch bei minimiertem Fenster genau und rechnen Ruhezustände nicht mit.",
         "fi": "Kuunteluajan tilastot (Recap) pysyvät tarkkoina myös ikkunan ollessa pienennettynä eivätkä laske lepotilaa mukaan.",
         "la": "Statisticae audiendi accuratae manent etiam fenestra celata sine tempore somni."
+      },
+      {
+        "en": "Taller bottom playback bar with larger, easier-to-click transport buttons, cover art, and utility icons.",
+        "pl": "Wyższy dolny pasek odtwarzacza z większymi, wygodniejszymi do kliknięcia przyciskami sterowania, okładką i ikonami.",
+        "de": "Höhere untere Wiedergabeleiste mit größeren, leichter bedienbaren Steuerungstasten, Cover-Vorschau und Symbolen.",
+        "fi": "Korkeampi alapalkki, jossa on suuremmat ja helpommin napsautettavat toistopainikkeet, kansikuva ja kuvakkeet.",
+        "la": "Vectis inferior altior cum clavibus moderationis maioribus, imagine operculi et iconibus clarioribus."
       }
     ],
     "fixed": [

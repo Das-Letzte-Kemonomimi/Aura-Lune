@@ -10,14 +10,14 @@ interface VolumeOsdProps {
   unit?: 'percent' | 'db';
 }
 
-/** Screen position of the OSD (`left-1/2 -translate-x-1/2` centres horizontally). */
+/** Screen position of the OSD (`left-1/2 -translate-x-1/2` centres horizontally). `bottom-34` clears the `h-23` dock. */
 const OSD_POSITIONS: Record<string, string> = {
   center: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
   'top-right': 'top-8 right-8',
   'top-left': 'top-8 left-8',
-  'bottom-center': 'bottom-30 left-1/2 -translate-x-1/2',
-  'bottom-right': 'bottom-30 right-8',
-  'bottom-left': 'bottom-30 left-8',
+  'bottom-center': 'bottom-34 left-1/2 -translate-x-1/2',
+  'bottom-right': 'bottom-34 right-8',
+  'bottom-left': 'bottom-34 left-8',
 };
 
 export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = 'percent' }) => {

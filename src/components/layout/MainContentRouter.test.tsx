@@ -88,4 +88,15 @@ describe('MainContentRouter component', () => {
     render(<MainContentRouter {...dummyProps} activeTab="stats" />);
     expect(screen.getByTestId('stats-view')).toBeTruthy();
   });
+
+  it('applies bottom dock clearance padding when dock is visible', () => {
+    const { rerender } = render(<MainContentRouter {...dummyProps} activeTab="player" isPlayerScrolledDown={false} />);
+    expect(screen.getByRole('main').className).not.toContain('pb-26');
+
+    rerender(<MainContentRouter {...dummyProps} activeTab="player" isPlayerScrolledDown />);
+    expect(screen.getByRole('main').className).toContain('pb-26');
+
+    rerender(<MainContentRouter {...dummyProps} activeTab="library" isPlayerScrolledDown={false} />);
+    expect(screen.getByRole('main').className).toContain('pb-26');
+  });
 });
