@@ -102,7 +102,7 @@ packaging/bump-version.sh X.Y.Z
 - **Formatting**: `rustfmt` defaults for Rust. TypeScript has no auto-formatter: match the surrounding style.
 - **Errors**: crates return their own `thiserror` enums, and Tauri commands return `Result<T, CommandError>`. Never `Result<_, String>` in new code. In TypeScript use `catch (e: unknown)` with `errorMessage(e)`.
 - **Tests outside production sources**: no inline `#[cfg(test)] mod tests` blocks. Use the crate's `tests/` dir, or a companion `_test.rs` referenced with `#[cfg(test)] #[path = "…"]`.
-- **Language**: code, identifiers and docs in English. User-facing error contexts, code comments and changelog entries in this codebase are in Polish. Keep each file's existing language.
+- **Language**: everything is in English: code, identifiers, code comments, docs, error contexts and commit messages. When you edit a file that still has Polish comments, translate the ones you touch. The single exception is `CHANGELOG_PENDING.md`, which is written in Polish (see Commits & Pull Requests).
 - **Toolchain**: Node.js 22 LTS (`.nvmrc`), npm ≥ 10; Rust stable from `rust-toolchain.toml` (edition 2021) with `rustfmt` and `clippy`.
 
 ## Testing
@@ -126,7 +126,7 @@ packaging/bump-version.sh X.Y.Z
 
 - **Conventional Commits** with a scope, as in the history: `feat(updates): …`, `fix(player): …`, `refactor(storage): …`, `ci(release): …`, `docs(agents): …`. Imperative, lowercase summary; bullets in the body for details.
 - **Branches**: integrate on `dev`. Large changes go on a topic branch merged into `dev`. `main` only receives release PRs (`release/vX.Y.Z` → `main`, merge commit).
-- **Changelog**: record every user-facing change in `CHANGELOG_PENDING.md` under the Polish headings `Dodano`, `Poprawiono`, `Zmieniono`.
+- **Changelog**: record every user-facing change in `CHANGELOG_PENDING.md`, in Polish, under the headings `Dodano`, `Poprawiono`, `Zmieniono`. It is the only Polish file agents write.
 - **Never** force-push `main`, push tags by hand, skip hooks (`--no-verify`) or add a second release path.
 
 ## Releases: DO NOT tag or publish manually
