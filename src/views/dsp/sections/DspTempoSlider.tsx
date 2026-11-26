@@ -2,6 +2,7 @@ import React from 'react';
 import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type DspTempoSliderProps = Pick<DspStudioViewProps, 'loc' | 'handleTempoChange' | 'dspCombination' | 'activeTrackKeyBpm'> & {
   status: PlaybackStatus;
@@ -18,73 +19,41 @@ export const DspTempoSlider: React.FC<DspTempoSliderProps> = ({
   setEditingTempo,
   status,
 }) => (
-    <div style={{ marginBottom: '28px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>{loc.dsp.tempo}:</label>
+    <div className="mb-7">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <label className="text-sm font-semibold">{loc.dsp.tempo}:</label>
           <button
             onClick={() => handleTempoChange(Math.max(0.1, Math.round(((status.tempo_ratio ?? 1) - 0.1) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="-0.1x"
           >
             -0.1x
           </button>
           <button
             onClick={() => handleTempoChange(Math.max(0.1, Math.round(((status.tempo_ratio ?? 1) - 0.01) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="-0.01x"
           >
             -0.01x
           </button>
           <button
             onClick={() => handleTempoChange(Math.min(3.0, Math.round(((status.tempo_ratio ?? 1) + 0.01) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="+0.01x"
           >
             +0.01x
           </button>
           <button
             onClick={() => handleTempoChange(Math.min(3.0, Math.round(((status.tempo_ratio ?? 1) + 0.1) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="+0.1x"
           >
             +0.1x
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
             <input
               type="text"
               value={
@@ -149,39 +118,26 @@ export const DspTempoSlider: React.FC<DspTempoSliderProps> = ({
               }}
               placeholder="1.00"
               title={loc.dsp.enterValueTempo}
-              style={{
-                width: '60px',
-                padding: '2px 6px',
-                fontSize: '0.82rem',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                textAlign: 'center',
-                color: 'var(--accent-cyan)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(6, 182, 212, 0.4)',
-                borderRadius: '6px',
-                outline: 'none',
-                cursor: 'text',
-              }}
+              className="w-15 cursor-text rounded-md border border-accent-cyan/40 bg-white/8 px-1.5 py-0.5 text-center font-mono text-ui font-bold text-accent-cyan outline-none"
             />
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '0.85rem' }}>
+            <span className="font-mono text-sm font-semibold text-accent-cyan">
               x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
             </span>
           </div>
           {/* Wskaźnik wynikowego tempa (BPM) pod wskaźnikiem */}
-          <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="flex flex-wrap items-center justify-end gap-1 text-xs font-semibold text-accent-cyan">
             {dspCombination.totalBpm ? (
               <span>
-                ⚡ Tempo: <strong style={{ color: '#fff' }}>{dspCombination.totalBpm.toFixed(1)} BPM</strong>
+                ⚡ Tempo: <strong className="text-fg">{dspCombination.totalBpm.toFixed(1)} BPM</strong>
                 {activeTrackKeyBpm?.bpm ? ` (${loc.dsp.fromBpm} ${activeTrackKeyBpm.bpm.toFixed(1)})` : ''}
                 {dspCombination.hasRate && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', marginLeft: '4px' }}>
+                  <span className="ml-1 text-xxs text-accent-amber">
                     (Σ {dspCombination.totalSpeedRatio.toFixed(2)}x)
                   </span>
                 )}
               </span>
             ) : (
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="text-fg-muted">
                 ⚡ Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
                 {dspCombination.hasRate && ` (${(status.tempo_ratio ?? 1).toFixed(2)}x × rate ${(status.rate_ratio ?? 1).toFixed(2)}x)`}
                 {loc.dsp.noBaseBpm}
@@ -197,24 +153,19 @@ export const DspTempoSlider: React.FC<DspTempoSliderProps> = ({
         step={0.01}
         value={status.tempo_ratio ?? 1}
         onChange={(e) => handleTempoChange(Number(e.target.value))}
-        style={{ width: '100%', marginBottom: '12px' }}
+        className="mb-3 w-full"
       />
-      <div style={{ display: 'flex', gap: '6px' }}>
+      <div className="flex gap-1.5">
         {[0.75, 1.0, 1.25, 1.5, 1.75].map((tr) => (
           <button
             key={tr}
             onClick={() => handleTempoChange(tr)}
-            style={{
-              flex: 1,
-              padding: '7px 0',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              borderRadius: '8px',
-              background: tr === 1.0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: tr === 1.0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-              color: tr === 1.0 ? 'var(--accent-cyan)' : '#fff',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'flex-1 rounded-lg border px-0 py-2 text-xs font-semibold',
+              tr === 1.0 ? 'bg-accent-cyan/20' : 'bg-white/5',
+              tr === 1.0 ? 'border-accent-cyan' : 'border-line',
+              tr === 1.0 ? 'text-accent-cyan' : 'text-fg',
+            )}
           >
             {tr === 1.0 ? '1.0x' : `${tr}x`}
           </button>

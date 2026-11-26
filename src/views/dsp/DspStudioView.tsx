@@ -19,6 +19,7 @@ import { DspRateSlider } from './sections/DspRateSlider';
 import { DspTempoSlider } from './sections/DspTempoSlider';
 import { DspPitchSlider } from './sections/DspPitchSlider';
 import { DspEngineSelector } from './sections/DspEngineSelector';
+import { cn } from '../../utils/cn';
 
 export interface DspCombinationInfo {
   pitchSt: number;
@@ -145,35 +146,30 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
   }, [isEqPresetMenuOpen]);
 
   return (
-            <div className="glass-panel" style={{ padding: '28px', maxWidth: uiScale >= 1.28 ? '1200px' : uiScale >= 1.18 ? '1080px' : uiScale >= 1.08 ? '960px' : '880px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
+            <div className={cn(
+              'glass-panel mx-auto my-0 p-7',
+              uiScale >= 1.28 ? 'max-w-300' : uiScale >= 1.18 ? 'max-w-270' : uiScale >= 1.08 ? 'max-w-240' : 'max-w-220',
+            )}>
+              <div className="mb-5.5 flex items-center justify-between">
                 <div>
-                  <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Sliders size={20} color="var(--accent-purple)" /> {loc.dsp.title}
+                  <h2 className="flex items-center gap-2 text-xl">
+                    <Sliders size={20} className="text-accent-purple" /> {loc.dsp.title}
                   </h2>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  <p className="mt-1 text-ui text-fg-secondary">
                     {loc.dsp.subtitle}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="flex flex-wrap items-center gap-2">
                   {/* Przełącznik zapamiętywania parametrów DSP przy starcie programu */}
                   <button
                     onClick={handleToggleDspAutoStartup}
                     title={loc.dsp.dspAutostart}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      background: dspAutoStartup ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                      border: `1px solid ${dspAutoStartup ? 'var(--accent-green)' : 'var(--border-subtle)'}`,
-                      color: dspAutoStartup ? 'var(--accent-green)' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.15s ease',
-                    }}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-lg border px-3 py-2 text-ui font-semibold transition-all duration-150',
+                      dspAutoStartup ? 'bg-accent-green/20' : 'bg-white/5',
+                      dspAutoStartup ? 'border-accent-green' : 'border-line',
+                      dspAutoStartup ? 'text-accent-green' : 'text-fg-muted',
+                    )}
                   >
                     {dspAutoStartup ? `✓ ${loc.dsp.dspAutostartOn}` : `○ ${loc.dsp.dspAutostartOff}`}
                   </button>
@@ -182,55 +178,23 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                   <button
                     onClick={handleSaveDspStartupDefault}
                     title={loc.dsp.dspSaveStartupBtn}
-                    className="glass-card"
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      color: 'var(--accent-amber)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
+                    className="glass-card flex items-center gap-1.5 rounded-lg px-3 py-2 text-ui font-semibold text-accent-amber"
                   >
                     <Save size={13} /> {loc.dsp.dspSaveStartupBtn}
                   </button>
 
                   {/* Wskaźnik domyślnego silnika startowego */}
                   <span
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
+                    className="flex items-center gap-1.5 rounded-lg border border-line bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-fg-secondary"
                     title={loc.dsp.defaultEngineStartup}
                   >
-                    Start: <strong style={{ color: dspDefaultEngine === 'Bypass' ? 'var(--accent-green)' : 'var(--accent-pink)' }}>{dspDefaultEngine}</strong>
+                    Start: <strong className={cn(dspDefaultEngine === 'Bypass' ? 'text-accent-green' : 'text-accent-pink')}>{dspDefaultEngine}</strong>
                   </span>
 
                   {/* Reset do wartości domyślnych */}
                   <button
                     onClick={handleResetDsp}
-                    className="glass-card"
-                    style={{
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      color: 'var(--accent-cyan)',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className="glass-card flex items-center gap-1.5 px-3 py-2 text-ui font-semibold text-accent-cyan"
                   >
                     <RotateCcw size={13} /> {loc.dsp.reset}
                   </button>
@@ -242,31 +206,22 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
 
               {/* Pasek telemetrii silnika */}
               <div
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '24px',
-                  fontSize: '0.8rem',
-                  flexWrap: 'wrap',
-                  gap: '10px',
-                }}
+                className="mb-6 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-line bg-black/25 px-4 py-3 text-ui"
               >
-                <span>{loc.dsp.engine}: <strong style={{ color: 'var(--accent-pink)' }}>{status.capabilities?.name || 'SoundTouch'}</strong></span>
+                <span>{loc.dsp.engine}: <strong className="text-accent-pink">{status.capabilities?.name || 'SoundTouch'}</strong></span>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-fg-secondary">
                     {loc.dsp.blockBufferLabel}
                   </span>
-                  <span style={{ fontWeight: 700, color: dspBlockSize === 2048 ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
+                  <span className={cn(
+                    'font-bold',
+                    dspBlockSize === 2048 ? 'text-accent-green' : 'text-accent-cyan',
+                  )}>
                     {dspBlockSize} {loc.settings.dspBlockSizeFrames}
                   </span>
                   {dspBlockSize === 2048 && (
-                    <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', fontWeight: 600 }}>
+                    <span className="rounded-lg bg-accent-green/20 px-1.5 py-px text-xxs font-semibold text-accent-green">
                       {loc.settings.dspBlockSizeDefault}
                     </span>
                   )}
@@ -278,16 +233,13 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                     <button
                       key={b.val}
                       onClick={() => handleSetDspBlockSize(b.val)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.72rem',
-                        fontWeight: dspBlockSize === b.val ? 700 : 500,
-                        background: dspBlockSize === b.val ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                        border: dspBlockSize === b.val ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                        color: dspBlockSize === b.val ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xs',
+                        dspBlockSize === b.val ? 'font-bold' : 'font-medium',
+                        dspBlockSize === b.val ? 'bg-sky-400/25' : 'bg-white/5',
+                        dspBlockSize === b.val ? 'border-accent-cyan' : 'border-line',
+                        dspBlockSize === b.val ? 'text-accent-cyan' : 'text-fg-secondary',
+                      )}
                     >
                       {b.label}
                     </button>
@@ -298,21 +250,9 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
               {/* Informacja o aktywnym trybie Direct Bypass */}
               {status.engine === 'Bypass' && (
                 <div
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.12)',
-                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    marginBottom: '22px',
-                    fontSize: '0.8rem',
-                    color: '#a7f3d0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    lineHeight: 1.4,
-                  }}
+                  className="mb-5.5 flex items-center gap-2.5 rounded-xl border border-accent-green/35 bg-accent-green/10 px-4 py-3 text-ui leading-snug text-emerald-200"
                 >
-                  <Info size={18} color="var(--accent-green)" style={{ flexShrink: 0 }} />
+                  <Info size={18} className="shrink-0 text-accent-green" />
                   <span>{loc.dsp.bypassActiveNotice}</span>
                 </div>
               )}
@@ -339,12 +279,12 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
               <DspGraphicEqRack {...props} setIsEqPresetMenuOpen={setIsEqPresetMenuOpen} isEqPresetMenuOpen={isEqPresetMenuOpen} status={status} />
 
               {/* SEKCJA 4: NEONOWY ANALIZATOR WIDMA FFT (SPECTRUM VISUALIZER) */}
-              <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Activity size={18} color="var(--accent-cyan)" /> {loc.dsp.spectrumTitle}
+              <div className="mt-7 border-t border-line pt-6">
+                <div className="mb-3.5 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-lg">
+                    <Activity size={18} className="text-accent-cyan" /> {loc.dsp.spectrumTitle}
                   </h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span className="font-mono text-xs text-fg-muted">
                     16 FFT Bands | GStreamer FFT Analyzer (60 FPS)
                   </span>
                 </div>
@@ -352,7 +292,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                 <SpectrumVisualizer
                   spectrum={status.spectrum}
                   isPlaying={status.state === 'Playing'}
-                  style={{ height: '110px', width: '100%' }}
+                  className="h-27.5 w-full"
                 />
               </div>
             </div>

@@ -58,6 +58,8 @@ export interface ModalShellProps extends VariantProps<typeof backdropVariants>, 
   labelledBy?: string;
   /** Extra classes for the panel, e.g. a different surface or padding. */
   className?: string;
+  /** Runtime-only panel styles (computed sizes, per-item colours). */
+  style?: React.CSSProperties;
   /** Close when the backdrop itself is clicked. */
   closeOnBackdrop?: boolean;
   children: React.ReactNode;
@@ -71,6 +73,7 @@ export function ModalShell({
   onClose,
   labelledBy,
   className,
+  style,
   layer,
   size,
   closeOnBackdrop = true,
@@ -93,7 +96,13 @@ export function ModalShell({
         if (closeOnBackdrop && e.target === e.currentTarget) onClose();
       }}
     >
-      <div role="dialog" aria-modal="true" aria-labelledby={labelledBy} className={cn(panelVariants({ size }), className)}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        className={cn(panelVariants({ size }), className)}
+        style={style}
+      >
         {children}
       </div>
     </div>

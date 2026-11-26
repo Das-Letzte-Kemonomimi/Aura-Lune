@@ -4,6 +4,7 @@ import { EQUALIZER_BANDS } from '../../../types/equalizer';
 import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type DspGraphicEqRackProps = Pick<DspStudioViewProps, 'loc' | 'getEqPresetDisplayName' | 'selectedEqPreset' | 'eqPresets' | 'handleApplyEqPreset' | 'handleResetEq' | 'setIsAutoEqOpen' | 'setIsParametricEqOpen' | 'setIsDynamicsStudioOpen' | 'handleEqToggle' | 'handleToggleEqAutoStartup' | 'eqAutoStartup' | 'handleEqBandChange'> & {
   setIsEqPresetMenuOpen: Dispatch<SetStateAction<boolean>>;
@@ -29,77 +30,49 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
   setIsParametricEqOpen,
   status,
 }) => (
-    <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-subtle)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div className="mt-7 border-t border-line pt-6">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sliders size={18} color="var(--accent-pink)" /> {loc.dsp.equalizer}
+          <h3 className="flex items-center gap-2 text-lg">
+            <Sliders size={18} className="text-accent-pink" /> {loc.dsp.equalizer}
           </h3>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+          <p className="mt-0.5 text-xs text-fg-secondary">
             {loc.dsp.eqDesc}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="flex items-center gap-2.5">
           {/* Wybór presetu EQ - nowoczesne anime glassmorphism dropdown */}
-          <div style={{ position: 'relative' }}>
+          <div className="relative">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsEqPresetMenuOpen((prev) => !prev);
               }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                background: 'rgba(20, 24, 44, 0.95)',
-                color: '#ffffff',
-                border: isEqPresetMenuOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                transition: 'all 0.18s ease',
-              }}
+              className={cn(
+                'flex items-center gap-2 rounded-lg border bg-field/95 px-3.5 py-1.5 text-ui font-semibold text-fg shadow-md shadow-black/30 transition-all duration-200',
+                isEqPresetMenuOpen ? 'border-accent-pink' : 'border-line',
+              )}
               title={loc.dsp.eqPresets}
             >
-              <Sliders size={13} color="var(--accent-pink)" />
+              <Sliders size={13} className="text-accent-pink" />
               <span>{getEqPresetDisplayName(selectedEqPreset, loc)}</span>
               <ChevronDown
                 size={12}
-                style={{
-                  color: 'var(--text-muted)',
-                  transform: isEqPresetMenuOpen ? 'rotate(180deg)' : 'none',
-                  transition: 'transform 0.18s ease',
-                }}
+                className={cn(
+                  'text-fg-muted transition-transform duration-200',
+                  isEqPresetMenuOpen && 'rotate-180',
+                )}
               />
             </button>
 
             {isEqPresetMenuOpen && (
               <div
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 6px)',
-                  left: 0,
-                  minWidth: '220px',
-                  background: 'rgba(18, 22, 38, 0.98)',
-                  backdropFilter: 'blur(16px)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border-accent)',
-                  boxShadow: '0 12px 32px rgba(0,0,0,0.7)',
-                  padding: '6px',
-                  zIndex: 1000,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  animation: 'fadeIn 0.15s ease-out',
-                }}
+                className="absolute top-full left-0 z-20 mt-1.5 flex min-w-55 flex-col gap-0.5 rounded-xl border border-line-accent bg-ink/95 p-1.5 shadow-2xl shadow-black/70 backdrop-blur-lg motion-safe:animate-fade-in"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 600 }}>
+                <div className="px-2 py-1 text-xxs font-semibold text-fg-muted">
                   {loc.dsp.eqPresets}
                 </div>
 
@@ -111,21 +84,10 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
                       getEqPresetDisplayName(p.name, true) === getEqPresetDisplayName(selectedEqPreset, true)
                   ) && (
                     <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '7px 10px',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 77, 148, 0.12)',
-                        color: 'var(--accent-pink)',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        marginBottom: '4px',
-                      }}
+                      className="mb-1 flex items-center justify-between rounded-lg bg-accent-pink/10 px-2.5 py-2 text-ui font-bold text-accent-pink"
                     >
                       <span>{getEqPresetDisplayName(selectedEqPreset, loc)}</span>
-                      <Check size={13} color="var(--accent-pink)" />
+                      <Check size={13} className="text-accent-pink" />
                     </div>
                   )}
 
@@ -139,31 +101,15 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
                       key={preset.name}
                       type="button"
                       onClick={() => handleApplyEqPreset(preset.name)}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '7px 10px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: isSelected ? 'rgba(255, 77, 148, 0.15)' : 'transparent',
-                        color: isSelected ? 'var(--accent-pink)' : '#fff',
-                        fontSize: '0.8rem',
-                        fontWeight: isSelected ? 700 : 500,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'background 0.12s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) e.currentTarget.style.background = 'transparent';
-                      }}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-lg border-0 px-2.5 py-2 text-left text-ui transition-[background] duration-100',
+                        isSelected ? 'bg-accent-pink/15' : 'bg-transparent hover:bg-white/6',
+                        isSelected ? 'text-accent-pink' : 'text-fg',
+                        isSelected ? 'font-bold' : 'font-medium',
+                      )}
                     >
                       <span>{displayName}</span>
-                      {isSelected && <Check size={13} color="var(--accent-pink)" />}
+                      {isSelected && <Check size={13} className="text-accent-pink" />}
                     </button>
                   );
                 })}
@@ -174,16 +120,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           {/* Przycisk Reset EQ */}
           <button
             onClick={handleResetEq}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-            }}
+            className="rounded-lg border border-line bg-white/6 px-3 py-1.5 text-xs font-semibold text-fg-secondary"
           >
             {loc.dsp.reset} (0 dB)
           </button>
@@ -192,19 +129,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <button
             onClick={() => setIsAutoEqOpen(true)}
             title={loc.dsp.autoEqHarmanTooltip}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              background: 'rgba(59, 130, 246, 0.2)',
-              border: '1px solid rgba(59, 130, 246, 0.45)',
-              color: '#60a5fa',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-            }}
+            className="flex items-center gap-1.5 rounded-lg border border-blue-500/45 bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-400"
           >
             <Headphones size={13} /> AutoEQ
           </button>
@@ -213,33 +138,17 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <button
             onClick={() => setIsParametricEqOpen(true)}
             title={loc.parametricEq.subtitle}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              background: status.parametric_eq_enabled ? 'rgba(168, 85, 247, 0.32)' : 'rgba(168, 85, 247, 0.16)',
-              border: status.parametric_eq_enabled ? '1px solid rgba(168, 85, 247, 0.7)' : '1px solid rgba(168, 85, 247, 0.35)',
-              color: status.parametric_eq_enabled ? '#f3e8ff' : '#c084fc',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: status.parametric_eq_enabled ? '0 0 10px rgba(168, 85, 247, 0.3)' : 'none',
-            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold',
+              status.parametric_eq_enabled ? 'bg-accent-purple/30' : 'bg-accent-purple/15',
+              status.parametric_eq_enabled ? 'border-accent-purple/70' : 'border-accent-purple/35',
+              status.parametric_eq_enabled ? 'shadow-halo-sm shadow-accent-purple/30' : 'shadow-none',
+              status.parametric_eq_enabled ? 'text-purple-100' : 'text-purple-400',
+            )}
           >
             <Sliders size={13} /> PEQ Studio
             {status.parametric_eq_enabled && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: '#c084fc',
-                  boxShadow: '0 0 6px #e879f9',
-                }}
-              />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400 shadow-halo-sm shadow-fuchsia-400" />
             )}
           </button>
 
@@ -247,59 +156,29 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <button
             onClick={() => setIsDynamicsStudioOpen(true)}
             title={loc.dsp.dynamicsStudioTooltip}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              background:
-                status.compressor_enabled || status.saturator_enabled
-                  ? 'rgba(236, 72, 153, 0.3)'
-                  : 'rgba(236, 72, 153, 0.14)',
-              border:
-                status.compressor_enabled || status.saturator_enabled
-                  ? '1px solid rgba(236, 72, 153, 0.7)'
-                  : '1px solid rgba(236, 72, 153, 0.35)',
-              color:
-                status.compressor_enabled || status.saturator_enabled ? '#fdf4ff' : '#f472b6',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow:
-                status.compressor_enabled || status.saturator_enabled
-                  ? '0 0 10px rgba(236, 72, 153, 0.3)'
-                  : 'none',
-            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold',
+              status.compressor_enabled || status.saturator_enabled ? 'bg-pink-500/30' : 'bg-pink-500/15',
+              status.compressor_enabled || status.saturator_enabled ? 'border-pink-500/70' : 'border-pink-500/35',
+              status.compressor_enabled || status.saturator_enabled ? 'shadow-halo-sm shadow-pink-500/30' : 'shadow-none',
+              status.compressor_enabled || status.saturator_enabled ? 'text-fuchsia-50' : 'text-pink-400',
+            )}
           >
             <Activity size={13} /> Dynamics Studio
             {(status.compressor_enabled || status.saturator_enabled) && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: '#ec4899',
-                  boxShadow: '0 0 6px #f472b6',
-                }}
-              />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-pink-500 shadow-halo-sm shadow-pink-400" />
             )}
           </button>
 
           {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
           <button
             onClick={handleEqToggle}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              background: status.equalizer_enabled ? 'rgba(255, 77, 148, 0.25)' : 'rgba(255,255,255,0.06)',
-              border: status.equalizer_enabled ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-              color: status.equalizer_enabled ? 'var(--accent-pink)' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
+              status.equalizer_enabled ? 'bg-accent-pink/25' : 'bg-white/6',
+              status.equalizer_enabled ? 'border-accent-pink' : 'border-line',
+              status.equalizer_enabled ? 'text-accent-pink' : 'text-fg-muted',
+            )}
           >
             {status.equalizer_enabled ? `● ${loc.dsp.eqEnabled}` : `○ ${loc.dsp.eqBypass}`}
           </button>
@@ -308,16 +187,12 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <button
             onClick={handleToggleEqAutoStartup}
             title={loc.dsp.eqAutostart}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              background: eqAutoStartup ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${eqAutoStartup ? 'var(--accent-green)' : 'var(--border-subtle)'}`,
-              color: eqAutoStartup ? 'var(--accent-green)' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              eqAutoStartup ? 'bg-accent-green/20' : 'bg-white/5',
+              eqAutoStartup ? 'border-accent-green' : 'border-line',
+              eqAutoStartup ? 'text-accent-green' : 'text-fg-muted',
+            )}
           >
             {eqAutoStartup ? `✓ ${loc.dsp.eqAutostartOn}` : `○ ${loc.dsp.eqAutostartOff}`}
           </button>
@@ -325,51 +200,29 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
       </div>
 
       {/* 10 pasm w ergonomicznym układzie 2-kolumnowym */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '12px',
-          background: 'rgba(0,0,0,0.25)',
-          padding: '16px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
+      <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-black/25 p-4">
         {EQUALIZER_BANDS.map((band, idx) => {
           const gain = (status.equalizer_bands && status.equalizer_bands[idx]) ?? 0;
           return (
             <div
               key={band.freq}
-              style={{
-                padding: '10px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                background: 'rgba(25, 28, 48, 0.6)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-              }}
+              className="flex flex-col gap-1.5 rounded-lg border border-line bg-card/60 px-3.5 py-2.5"
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="flex items-center justify-between">
                 <div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginRight: '6px' }}>
+                  <span className="mr-1.5 text-sm font-bold text-fg">
                     {band.freq}
                   </span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  <span className="text-xxs text-fg-muted">
                     ({band.label})
                   </span>
                 </div>
                 <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    background: gain > 0 ? 'rgba(255, 77, 148, 0.2)' : gain < 0 ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.06)',
-                    color: gain > 0 ? 'var(--accent-pink)' : gain < 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  }}
+                  className={cn(
+                    'rounded-sm px-1.5 py-px font-mono text-xs font-bold',
+                    gain > 0 ? 'bg-accent-pink/20' : gain < 0 ? 'bg-sky-400/20' : 'bg-white/6',
+                    gain > 0 ? 'text-accent-pink' : gain < 0 ? 'text-accent-cyan' : 'text-fg-muted',
+                  )}
                 >
                   {gain > 0 ? `+${gain.toFixed(1)} dB` : `${gain.toFixed(1)} dB`}
                 </span>
@@ -382,10 +235,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
                 step={0.5}
                 value={gain}
                 onChange={(e) => handleEqBandChange(idx, Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  cursor: 'pointer',
-                }}
+                className="w-full cursor-pointer"
               />
             </div>
           );

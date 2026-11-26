@@ -2,6 +2,7 @@ import React from 'react';
 import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type DspPitchSliderProps = Pick<DspStudioViewProps, 'loc' | 'handlePitchChange' | 'dspCombination'> & {
   status: PlaybackStatus;
@@ -17,73 +18,41 @@ export const DspPitchSlider: React.FC<DspPitchSliderProps> = ({
   setEditingPitch,
   status,
 }) => (
-    <div style={{ marginBottom: '28px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>{loc.dsp.pitch}:</label>
+    <div className="mb-7">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <label className="text-sm font-semibold">{loc.dsp.pitch}:</label>
           <button
             onClick={() => handlePitchChange(Math.max(-24, Math.round(((status.pitch_semitones ?? 0) - 0.1) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="-0.1 semitone"
           >
             -0.1
           </button>
           <button
             onClick={() => handlePitchChange(Math.max(-24, Math.round(((status.pitch_semitones ?? 0) - 0.01) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="-0.01 semitone"
           >
             -0.01
           </button>
           <button
             onClick={() => handlePitchChange(Math.min(24, Math.round(((status.pitch_semitones ?? 0) + 0.01) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="+0.01 semitone"
           >
             +0.01
           </button>
           <button
             onClick={() => handlePitchChange(Math.min(24, Math.round(((status.pitch_semitones ?? 0) + 0.1) * 100) / 100))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              padding: '2px 6px',
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-xxs text-fg-muted"
             title="+0.1 semitone"
           >
             +0.1
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
             <input
               type="text"
               value={
@@ -154,39 +123,26 @@ export const DspPitchSlider: React.FC<DspPitchSliderProps> = ({
               }}
               placeholder="0.00"
               title={loc.dsp.enterValuePitch}
-              style={{
-                width: '60px',
-                padding: '2px 6px',
-                fontSize: '0.82rem',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                textAlign: 'center',
-                color: 'var(--accent-pink)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(244, 63, 94, 0.4)',
-                borderRadius: '6px',
-                outline: 'none',
-                cursor: 'text',
-              }}
+              className="w-15 cursor-text rounded-md border border-accent-pink/40 bg-white/8 px-1.5 py-0.5 text-center font-mono text-ui font-bold text-accent-pink outline-none"
             />
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-pink)', fontWeight: 600, fontSize: '0.85rem' }}>
+            <span className="font-mono text-sm font-semibold text-accent-pink">
               {loc.dsp.semitones} ({Math.round((status.pitch_semitones ?? 0) * 100)} {loc.dsp.cents}) | {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
             </span>
           </div>
           {/* Wskaźnik wynikowej tonacji (Key) pod wskaźnikiem */}
-          <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="flex flex-wrap items-center justify-end gap-1 text-xs font-semibold text-accent-pink">
             {dspCombination.totalKey ? (
               <span>
-                🎯 {loc.dsp.keyLabel}: <strong style={{ color: '#fff' }}>{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                🎯 {loc.dsp.keyLabel}: <strong className="text-fg">{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
                 {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
                 {dspCombination.hasRate && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', marginLeft: '4px' }}>
+                  <span className="ml-1 text-xxs text-accent-amber">
                     (Σ {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st)
                   </span>
                 )}
               </span>
             ) : (
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="text-fg-muted">
                 🎯 {loc.dsp.keyLabel}: {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st
                 {dspCombination.hasRate && ` (${(status.pitch_semitones ?? 0).toFixed(2)} st + rate ${(dspCombination.rateSemitones > 0 ? '+' : '') + dspCombination.rateSemitones.toFixed(2)} st)`}
                 {loc.dsp.noBaseKey}
@@ -202,24 +158,19 @@ export const DspPitchSlider: React.FC<DspPitchSliderProps> = ({
         step={0.01}
         value={status.pitch_semitones ?? 0}
         onChange={(e) => handlePitchChange(Number(e.target.value))}
-        style={{ width: '100%', marginBottom: '12px' }}
+        className="mb-3 w-full"
       />
-      <div style={{ display: 'flex', gap: '6px' }}>
+      <div className="flex gap-1.5">
         {[-12, -7, -2, 0, 2, 7, 12].map((st) => (
           <button
             key={st}
             onClick={() => handlePitchChange(st)}
-            style={{
-              flex: 1,
-              padding: '7px 0',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              borderRadius: '8px',
-              background: st === 0 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: st === 0 ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-              color: st === 0 ? 'var(--accent-cyan)' : '#fff',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'flex-1 rounded-lg border px-0 py-2 text-xs font-semibold',
+              st === 0 ? 'bg-accent-cyan/20' : 'bg-white/5',
+              st === 0 ? 'border-accent-cyan' : 'border-line',
+              st === 0 ? 'text-accent-cyan' : 'text-fg',
+            )}
           >
             {st === 0 ? `0 ${loc.dsp.semitones}` : st > 0 ? `+${st}` : st}
           </button>

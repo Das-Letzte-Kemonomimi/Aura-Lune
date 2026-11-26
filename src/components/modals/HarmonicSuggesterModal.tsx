@@ -20,6 +20,9 @@ import {
   parseCamelotKey,
   calculateBeatMatchedCrossfadeMs,
 } from '../../utils/harmonicMixing';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
+import { cssVars } from '../../utils/cssVars';
 
 export interface HarmonicTrack {
   id: number;
@@ -225,671 +228,365 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10500,
-        background: 'rgba(0, 0, 0, 0.72)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="tool"
+      className="flex max-h-[90vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-line bg-card text-fg"
     >
+      {/* NAGŁÓWEK */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '920px',
-          maxHeight: '90vh',
-          background: 'var(--bg-card, rgba(22, 22, 34, 0.95))',
-          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
-          borderRadius: '16px',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 77, 148, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          color: 'var(--text-main, #f0f0f5)',
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className="flex items-center justify-between border-b border-line bg-linear-to-r from-accent-pink/10 to-violet-500/8 px-6 py-4.5"
       >
-        {/* NAGŁÓWEK */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(255, 77, 148, 0.12), rgba(139, 92, 246, 0.08))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(236, 72, 153, 0.35)',
-              }}
-            >
-              <Disc3 size={22} color="#fff" />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                Harmonic Queue Assistant & DJ Crossfade
-              </h2>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)' }}>
-                {loc.harmonicSuggester.subtitle}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted, #9ca3af)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.15s',
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* KARTA BIEŻĄCEGO UTWORU I DJ CROSSFADE */}
-        <div
-          style={{
-            padding: '16px 24px',
-            background: 'rgba(0, 0, 0, 0.25)',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
-          }}
-        >
-          {/* LEWA KOLUMNA: Aktualnie odtwarzany utwór */}
+        <div className="flex items-center gap-3">
           <div
-            style={{
-              padding: '14px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-            }}
+            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-violet-500 shadow-lift shadow-pink-500/35"
           >
-            <div
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--accent-pink, #ec4899)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <Music2 size={14} /> {loc.harmonicSuggester.currentTrack}
-            </div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {effectiveCurrentTrack?.title || loc.harmonicSuggester.noActiveTrack}
-            </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', marginBottom: '8px' }}>
-              {effectiveCurrentTrack?.artist || loc.harmonicSuggester.selectFromLibrary}
-            </div>
-
-            {!currentTrack && libraryTracks.length > 0 && (
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '0.72rem', color: '#9ca3af', display: 'block', marginBottom: '3px' }}>
-                  {loc.harmonicSuggester.selectBaseTrack}
-                </label>
-                <select
-                  value={effectiveCurrentTrack?.id || ''}
-                  onChange={(e) => {
-                    const id = Number(e.target.value);
-                    setSelectedTrackId(id);
-                    setAnalyzedCurrentKey(null);
-                    setAnalyzedCurrentBpm(null);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(0,0,0,0.35)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    color: '#fff',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {libraryTracks.map((t) => (
-                    <option key={t.id} value={t.id} style={{ background: '#1c1c28', color: '#fff' }}>
-                      {t.title} — {t.artist} {t.bpm ? `(${t.bpm.toFixed(0)} BPM)` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {currentCamelot ? (
-                <span
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    background: 'rgba(236, 72, 153, 0.2)',
-                    border: '1px solid rgba(236, 72, 153, 0.5)',
-                    color: '#f472b6',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  {currentCamelot.raw} ({currentCamelot.keyName})
-                </span>
-              ) : (
-                <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{loc.harmonicSuggester.keyUnknown}</span>
-              )}
-
-              {effectiveBpm ? (
-                <span
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    background: 'rgba(59, 130, 246, 0.2)',
-                    border: '1px solid rgba(59, 130, 246, 0.5)',
-                    color: '#60a5fa',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  {effectiveBpm.toFixed(1)} BPM
-                </span>
-              ) : (
-                <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{loc.harmonicSuggester.bpmUnknown}</span>
-              )}
-
-              {(!currentCamelot || !effectiveBpm) && effectiveCurrentTrack && (
-                <button
-                  onClick={handleAnalyzeCurrent}
-                  disabled={isAnalyzingCurrent}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    padding: '4px 8px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  {isAnalyzingCurrent ? <Loader2 size={12} className="spin" /> : <Zap size={12} />}
-                  {loc.harmonicSuggester.detectNow}
-                </button>
-              )}
-            </div>
+            <Disc3 size={22} className="text-fg" />
           </div>
-
-          {/* PRAWA KOLUMNA: DJ Beat-Matched Crossfade */}
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#8b5cf6',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  marginBottom: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Sliders size={14} /> DJ Beat-Matched Crossfade
-              </div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', marginBottom: '8px' }}>
-                {loc.harmonicSuggester.beatMatchedTransition}{' '}
-                <strong style={{ color: '#fff' }}>
-                  {crossfadeDurationMs === 0
-                    ? loc.harmonicSuggester.disabled
-                    : `${crossfadeDurationMs} ms (${(crossfadeDurationMs / 1000).toFixed(2)}s)`}
-                </strong>
-                {effectiveBpm ? (
-                  <span style={{ fontSize: '0.74rem', color: '#a78bfa', marginLeft: '6px' }}>
-                    @{effectiveBpm.toFixed(0)} BPM
-                  </span>
-                ) : (
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                    {loc.harmonicSuggester.defaultBpm}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                onClick={() => handleSetBeatMatch(4)}
-                style={{
-                  flex: 1,
-                  padding: '6px 4px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  background: activeBeatMode === 4 ? '#8b5cf6' : 'rgba(255, 255, 255, 0.06)',
-                  color: '#fff',
-                  border: '1px solid ' + (activeBeatMode === 4 ? '#a78bfa' : 'rgba(255, 255, 255, 0.1)'),
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <div>{loc.harmonicSuggester.bar1}</div>
-                <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>
-                  {(ms4 / 1000).toFixed(2)}s
-                </div>
-              </button>
-              <button
-                onClick={() => handleSetBeatMatch(8)}
-                style={{
-                  flex: 1,
-                  padding: '6px 4px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  background: activeBeatMode === 8 ? '#8b5cf6' : 'rgba(255, 255, 255, 0.06)',
-                  color: '#fff',
-                  border: '1px solid ' + (activeBeatMode === 8 ? '#a78bfa' : 'rgba(255, 255, 255, 0.1)'),
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <div>{loc.harmonicSuggester.bar2}</div>
-                <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>
-                  {(ms8 / 1000).toFixed(2)}s
-                </div>
-              </button>
-              <button
-                onClick={() => handleSetBeatMatch(16)}
-                style={{
-                  flex: 1,
-                  padding: '6px 4px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  background: activeBeatMode === 16 ? '#8b5cf6' : 'rgba(255, 255, 255, 0.06)',
-                  color: '#fff',
-                  border: '1px solid ' + (activeBeatMode === 16 ? '#a78bfa' : 'rgba(255, 255, 255, 0.1)'),
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <div>{loc.harmonicSuggester.bar4}</div>
-                <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>
-                  {(ms16 / 1000).toFixed(2)}s
-                </div>
-              </button>
-              <button
-                onClick={() => onSetCrossfadeDuration(0)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  background: crossfadeDurationMs === 0 ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                  color: crossfadeDurationMs === 0 ? '#ef4444' : '#9ca3af',
-                  border: '1px solid ' + (crossfadeDurationMs === 0 ? '#ef4444' : 'rgba(255, 255, 255, 0.1)'),
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-                title={loc.harmonicSuggester.disableCrossfade}
-              >
-                <div>{loc.harmonicSuggester.crossfadeOff}</div>
-                <div style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>0s</div>
-              </button>
-            </div>
+          <div>
+            <h2 className="m-0 text-xl font-bold tracking-tight">
+              Harmonic Queue Assistant & DJ Crossfade
+            </h2>
+            <p className="m-0 text-ui text-fg-muted">
+              {loc.harmonicSuggester.subtitle}
+            </p>
           </div>
         </div>
-
-        {/* PASEK WYSZUKIWANIA I FILTRÓW */}
-        <div
-          style={{
-            padding: '12px 24px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-2 text-fg-muted transition-[background] duration-150"
         >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* KARTA BIEŻĄCEGO UTWORU I DJ CROSSFADE */}
+      <div className="grid grid-cols-2 gap-4 border-b border-line bg-black/25 px-6 py-4">
+        {/* LEWA KOLUMNA: Aktualnie odtwarzany utwór */}
+        <div className="rounded-xl border border-white/6 bg-white/4 p-3.5">
           <div
-            style={{
-              flex: 1,
-              minWidth: '220px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-            }}
+            className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-accent-pink uppercase"
           >
-            <Search size={16} color="var(--text-muted, #9ca3af)" />
-            <input
-              type="text"
-              placeholder={loc.harmonicSuggester.filterTracksPlaceholder}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'inherit',
-                fontSize: '0.85rem',
-              }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+            <Music2 size={14} /> {loc.harmonicSuggester.currentTrack}
+          </div>
+          <div className="truncate text-base font-bold">
+            {effectiveCurrentTrack?.title || loc.harmonicSuggester.noActiveTrack}
+          </div>
+          <div className="mb-2 text-ui text-fg-muted">
+            {effectiveCurrentTrack?.artist || loc.harmonicSuggester.selectFromLibrary}
+          </div>
+
+          {!currentTrack && libraryTracks.length > 0 && (
+            <div className="mb-2.5">
+              <label className="mb-1 block text-xs text-gray-400">
+                {loc.harmonicSuggester.selectBaseTrack}
+              </label>
+              <select
+                value={effectiveCurrentTrack?.id || ''}
+                onChange={(e) => {
+                  const id = Number(e.target.value);
+                  setSelectedTrackId(id);
+                  setAnalyzedCurrentKey(null);
+                  setAnalyzedCurrentBpm(null);
+                }}
+                className="w-full cursor-pointer rounded-md border border-white/15 bg-black/35 px-2 py-1 text-xs text-fg"
               >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={() => setFilterOnlyInKey(!filterOnlyInKey)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: filterOnlyInKey ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              color: filterOnlyInKey ? '#34d399' : '#9ca3af',
-              border: '1px solid ' + (filterOnlyInKey ? '#10b981' : 'rgba(255, 255, 255, 0.1)'),
-              cursor: 'pointer',
-            }}
-          >
-            {filterOnlyInKey && <Check size={14} />} {loc.harmonicSuggester.compatibleCamelotOnly}
-          </button>
-
-          <button
-            onClick={() => setFilterOnlyBpm(!filterOnlyBpm)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: filterOnlyBpm ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              color: filterOnlyBpm ? '#60a5fa' : '#9ca3af',
-              border: '1px solid ' + (filterOnlyBpm ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)'),
-              cursor: 'pointer',
-            }}
-          >
-            {filterOnlyBpm && <Check size={14} />} {loc.harmonicSuggester.compatibleBpmOnly}
-          </button>
-
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)', marginLeft: 'auto' }}>
-            {loc.harmonicSuggester.foundCount} <strong>{rankedTracks.length}</strong> {loc.harmonicSuggester.tracksUnit}
-          </div>
-        </div>
-
-        {/* LISTA KANDYDATÓW */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '12px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          {rankedTracks.length === 0 ? (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                color: 'var(--text-muted, #9ca3af)',
-              }}
-            >
-              <Disc3 size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-              <div>{loc.harmonicSuggester.noFilterMatches}</div>
-              <div style={{ fontSize: '0.8rem', marginTop: '6px' }}>
-                {loc.harmonicSuggester.noFilterMatchesDesc}
-              </div>
+                {libraryTracks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title} — {t.artist} {t.bpm ? `(${t.bpm.toFixed(0)} BPM)` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
-          ) : (
-            rankedTracks.slice(0, 50).map(({ track, match }) => {
-              const candCamelot = parseCamelotKey(track.initial_key);
-              return (
-                <div
-                  key={track.id}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '16px',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
-                    e.currentTarget.style.borderColor = match.badgeColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-                  }}
-                >
-                  {/* WSKAŹNIK DOPASOWANIA I PROCENT */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '110px' }}>
-                    <div
-                      style={{
-                        width: '46px',
-                        height: '46px',
-                        borderRadius: '10px',
-                        background: `${match.badgeColor}22`,
-                        border: `2px solid ${match.badgeColor}`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: match.badgeColor,
-                        fontWeight: 800,
-                        fontSize: '0.95rem',
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {match.score}%
-                      <span style={{ fontSize: '0.6rem', fontWeight: 600 }}>{loc.harmonicSuggester.matchWord}</span>
-                    </div>
-
-                    <div>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: `${match.badgeColor}20`,
-                          color: match.badgeColor,
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {harmonicBadgeLabel(match, loc.harmonicSuggester)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* INFORMACJE O UTWORZE */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: '0.92rem',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {track.title}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.8rem',
-                        color: 'var(--text-muted, #9ca3af)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {track.artist} {track.album ? `• ${track.album}` : ''}
-                    </div>
-
-                    {/* DANE CAMELOT & BPM */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          background: 'rgba(255, 255, 255, 0.06)',
-                          color: candCamelot ? '#f472b6' : '#9ca3af',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {candCamelot ? `${candCamelot.raw} (${candCamelot.keyName})` : loc.harmonicSuggester.keyShortUnknown}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          background: 'rgba(255, 255, 255, 0.06)',
-                          color: track.bpm ? '#60a5fa' : '#9ca3af',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {track.bpm ? `${track.bpm.toFixed(1)} BPM` : loc.harmonicSuggester.bpmShortUnknown}
-                      </span>
-                      {match.bpmDiffPercent > 0 && (
-                        <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                          (Δ {match.bpmDiffPercent}%)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* PRZYCISKI AKCJI */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {track.bpm && effectiveBpm && Math.abs(track.bpm - effectiveBpm) > 0.5 && (
-                      <button
-                        onClick={() => onSyncTempo(track.bpm!)}
-                        title={fmt(loc.harmonicSuggester.syncTempoTooltip, track.bpm.toFixed(1))}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          background: 'rgba(59, 130, 246, 0.15)',
-                          border: '1px solid rgba(59, 130, 246, 0.3)',
-                          color: '#60a5fa',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <Zap size={12} /> Sync BPM
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => onEnqueueTrack(track, true)}
-                      title={loc.harmonicSuggester.enqueueNext}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        color: '#e5e7eb',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <ListPlus size={14} /> {loc.harmonicSuggester.nextBtn}
-                    </button>
-
-                    <button
-                      onClick={() => onPlayTrack(track)}
-                      title={loc.harmonicSuggester.playNowCrossfade}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                        border: 'none',
-                        color: '#fff',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 2px 8px rgba(236, 72, 153, 0.3)',
-                      }}
-                    >
-                      <Play size={13} fill="#fff" /> Mix Now
-                    </button>
-                  </div>
-                </div>
-              );
-            })
           )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {currentCamelot ? (
+              <span
+                className="rounded-md border border-pink-500/50 bg-pink-500/20 px-2.5 py-1 text-ui font-bold text-pink-400"
+              >
+                {currentCamelot.raw} ({currentCamelot.keyName})
+              </span>
+            ) : (
+              <span className="text-ui text-gray-400">{loc.harmonicSuggester.keyUnknown}</span>
+            )}
+
+            {effectiveBpm ? (
+              <span
+                className="rounded-md border border-blue-500/50 bg-blue-500/20 px-2.5 py-1 text-ui font-bold text-blue-400"
+              >
+                {effectiveBpm.toFixed(1)} BPM
+              </span>
+            ) : (
+              <span className="text-ui text-gray-400">{loc.harmonicSuggester.bpmUnknown}</span>
+            )}
+
+            {(!currentCamelot || !effectiveBpm) && effectiveCurrentTrack && (
+              <button
+                onClick={handleAnalyzeCurrent}
+                disabled={isAnalyzingCurrent}
+                className="flex items-center gap-1 rounded-md border border-white/15 bg-white/8 px-2 py-1 text-xs text-fg"
+              >
+                {isAnalyzingCurrent ? <Loader2 size={12} className="spin" /> : <Zap size={12} />}
+                {loc.harmonicSuggester.detectNow}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* PRAWA KOLUMNA: DJ Beat-Matched Crossfade */}
+        <div className="flex flex-col justify-between rounded-xl border border-white/6 bg-white/4 p-3.5">
+          <div>
+            <div
+              className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-violet-500 uppercase"
+            >
+              <Sliders size={14} /> DJ Beat-Matched Crossfade
+            </div>
+            <div className="mb-2 text-ui text-fg-muted">
+              {loc.harmonicSuggester.beatMatchedTransition}{' '}
+              <strong className="text-fg">
+                {crossfadeDurationMs === 0
+                  ? loc.harmonicSuggester.disabled
+                  : `${crossfadeDurationMs} ms (${(crossfadeDurationMs / 1000).toFixed(2)}s)`}
+              </strong>
+              {effectiveBpm ? (
+                <span className="ml-1.5 text-xs text-violet-400">
+                  @{effectiveBpm.toFixed(0)} BPM
+                </span>
+              ) : (
+                <span className="ml-1.5 text-xs text-fg-muted">
+                  {loc.harmonicSuggester.defaultBpm}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleSetBeatMatch(4)}
+              className={cn(
+                'flex-1 rounded-md px-1 py-1.5 text-center text-xs font-semibold text-fg transition-all duration-150',
+                activeBeatMode === 4 ? 'bg-violet-500' : 'bg-white/6',
+              )}
+              style={{
+                border: '1px solid ' + (activeBeatMode === 4 ? '#a78bfa' : 'rgba(255, 255, 255, 0.1)'),
+              }}
+            >
+              <div>{loc.harmonicSuggester.bar1}</div>
+              <div className="mt-0.5 text-xxs opacity-85">
+                {(ms4 / 1000).toFixed(2)}s
+              </div>
+            </button>
+            <button
+              onClick={() => handleSetBeatMatch(8)}
+              className={cn(
+                'flex-1 rounded-md px-1 py-1.5 text-center text-xs font-semibold text-fg transition-all duration-150',
+                activeBeatMode === 8 ? 'bg-violet-500' : 'bg-white/6',
+              )}
+              style={{
+                border: '1px solid ' + (activeBeatMode === 8 ? '#a78bfa' : 'rgba(255, 255, 255, 0.1)'),
+              }}
+            >
+              <div>{loc.harmonicSuggester.bar2}</div>
+              <div className="mt-0.5 text-xxs opacity-85">
+                {(ms8 / 1000).toFixed(2)}s
+              </div>
+            </button>
+            <button
+              onClick={() => handleSetBeatMatch(16)}
+              className={cn(
+                'flex-1 rounded-md px-1 py-1.5 text-center text-xs font-semibold text-fg transition-all duration-150',
+                activeBeatMode === 16 ? 'bg-violet-500' : 'bg-white/6',
+              )}
+              style={{
+                border: '1px solid ' + (activeBeatMode === 16 ? '#a78bfa' : 'rgba(255, 255, 255, 0.1)'),
+              }}
+            >
+              <div>{loc.harmonicSuggester.bar4}</div>
+              <div className="mt-0.5 text-xxs opacity-85">
+                {(ms16 / 1000).toFixed(2)}s
+              </div>
+            </button>
+            <button
+              onClick={() => onSetCrossfadeDuration(0)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-center text-xs font-semibold transition-all duration-150',
+                crossfadeDurationMs === 0 ? 'bg-accent-red/25' : 'bg-white/6',
+                crossfadeDurationMs === 0 ? 'text-accent-red' : 'text-gray-400',
+              )}
+              style={{
+                border: '1px solid ' + (crossfadeDurationMs === 0 ? '#ef4444' : 'rgba(255, 255, 255, 0.1)'),
+              }}
+              title={loc.harmonicSuggester.disableCrossfade}
+            >
+              <div>{loc.harmonicSuggester.crossfadeOff}</div>
+              <div className="mt-0.5 text-xxs opacity-85">0s</div>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* PASEK WYSZUKIWANIA I FILTRÓW */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
+        <div className="flex min-w-55 flex-1 items-center gap-2 rounded-lg border border-line bg-white/5 px-3 py-1.5">
+          <Search size={16} className="text-fg-muted" />
+          <input
+            type="text"
+            placeholder={loc.harmonicSuggester.filterTracksPlaceholder}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 border-0 bg-transparent text-sm text-inherit outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="border-0 bg-transparent text-gray-400"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => setFilterOnlyInKey(!filterOnlyInKey)}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-ui font-semibold',
+            filterOnlyInKey ? 'bg-accent-green/20' : 'bg-white/5',
+            filterOnlyInKey ? 'text-emerald-400' : 'text-gray-400',
+          )}
+          style={{ border: '1px solid ' + (filterOnlyInKey ? '#10b981' : 'rgba(255, 255, 255, 0.1)') }}
+        >
+          {filterOnlyInKey && <Check size={14} />} {loc.harmonicSuggester.compatibleCamelotOnly}
+        </button>
+
+        <button
+          onClick={() => setFilterOnlyBpm(!filterOnlyBpm)}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-ui font-semibold',
+            filterOnlyBpm ? 'bg-blue-500/20' : 'bg-white/5',
+            filterOnlyBpm ? 'text-blue-400' : 'text-gray-400',
+          )}
+          style={{ border: '1px solid ' + (filterOnlyBpm ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)') }}
+        >
+          {filterOnlyBpm && <Check size={14} />} {loc.harmonicSuggester.compatibleBpmOnly}
+        </button>
+
+        <div className="ml-auto text-ui text-fg-muted">
+          {loc.harmonicSuggester.foundCount} <strong>{rankedTracks.length}</strong> {loc.harmonicSuggester.tracksUnit}
+        </div>
+      </div>
+
+      {/* LISTA KANDYDATÓW */}
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-3">
+        {rankedTracks.length === 0 ? (
+          <div className="px-5 py-10 text-center text-fg-muted">
+            <Disc3 size={40} className="mb-3 opacity-30" />
+            <div>{loc.harmonicSuggester.noFilterMatches}</div>
+            <div className="mt-1.5 text-ui">
+              {loc.harmonicSuggester.noFilterMatchesDesc}
+            </div>
+          </div>
+        ) : (
+          rankedTracks.slice(0, 50).map(({ track, match }) => {
+            const candCamelot = parseCamelotKey(track.initial_key);
+            return (
+              <div
+                key={track.id}
+                className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/3 px-4 py-3 transition-all duration-150 hover:border-(--badge) hover:bg-white/7"
+                style={cssVars({ '--badge': match.badgeColor })}
+              >
+                {/* WSKAŹNIK DOPASOWANIA I PROCENT */}
+                <div className="flex min-w-27.5 items-center gap-3.5">
+                  <div
+                    className="flex h-11.5 w-11.5 flex-col items-center justify-center rounded-xl text-md leading-tight font-extrabold"
+                    style={{
+                      background: `${match.badgeColor}22`,
+                      border: `2px solid ${match.badgeColor}`,
+                      color: match.badgeColor,
+                    }}
+                  >
+                    {match.score}%
+                    <span className="text-2xs font-semibold">{loc.harmonicSuggester.matchWord}</span>
+                  </div>
+
+                  <div>
+                    <span
+                      className="inline-block rounded-sm px-2 py-0.5 text-xs font-bold"
+                      style={{ background: `${match.badgeColor}20`, color: match.badgeColor }}
+                    >
+                      {harmonicBadgeLabel(match, loc.harmonicSuggester)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* INFORMACJE O UTWORZE */}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-md font-semibold">
+                    {track.title}
+                  </div>
+                  <div className="truncate text-ui text-fg-muted">
+                    {track.artist} {track.album ? `• ${track.album}` : ''}
+                  </div>
+
+                  {/* DANE CAMELOT & BPM */}
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'rounded-sm bg-white/6 px-1.5 py-px text-xs font-semibold',
+                        candCamelot ? 'text-pink-400' : 'text-gray-400',
+                      )}
+                    >
+                      {candCamelot ? `${candCamelot.raw} (${candCamelot.keyName})` : loc.harmonicSuggester.keyShortUnknown}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-sm bg-white/6 px-1.5 py-px text-xs font-semibold',
+                        track.bpm ? 'text-blue-400' : 'text-gray-400',
+                      )}
+                    >
+                      {track.bpm ? `${track.bpm.toFixed(1)} BPM` : loc.harmonicSuggester.bpmShortUnknown}
+                    </span>
+                    {match.bpmDiffPercent > 0 && (
+                      <span className="text-xxs text-gray-400">
+                        (Δ {match.bpmDiffPercent}%)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* PRZYCISKI AKCJI */}
+                <div className="flex items-center gap-2">
+                  {track.bpm && effectiveBpm && Math.abs(track.bpm - effectiveBpm) > 0.5 && (
+                    <button
+                      onClick={() => onSyncTempo(track.bpm!)}
+                      title={fmt(loc.harmonicSuggester.syncTempoTooltip, track.bpm.toFixed(1))}
+                      className="flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/15 px-2.5 py-1.5 text-xs text-blue-400"
+                    >
+                      <Zap size={12} /> Sync BPM
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => onEnqueueTrack(track, true)}
+                    title={loc.harmonicSuggester.enqueueNext}
+                    className="flex items-center gap-1 rounded-md border border-white/10 bg-white/6 px-2.5 py-1.5 text-xs text-gray-200"
+                  >
+                    <ListPlus size={14} /> {loc.harmonicSuggester.nextBtn}
+                  </button>
+
+                  <button
+                    onClick={() => onPlayTrack(track)}
+                    title={loc.harmonicSuggester.playNowCrossfade}
+                    className="flex items-center gap-1.5 rounded-md border-0 bg-linear-135 from-pink-500 to-violet-500 px-3.5 py-1.5 text-ui font-bold text-fg shadow-md shadow-pink-500/30"
+                  >
+                    <Play size={13} fill="#fff" /> Mix Now
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </ModalShell>
   );
 };

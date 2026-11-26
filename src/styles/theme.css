@@ -71,6 +71,12 @@
   --color-on-accent: #fff;
   /* Deep violet ink behind docks, drawers and menus. */
   --color-ink: #0f0c1c;
+  /* Form field surface (selects, dropdown triggers, option lists). */
+  --color-field: #161a2e;
+  /* Third-party brand colours (scrobbling / community services). */
+  --color-discord: #5865f2;
+  --color-lastfm: #d51007;
+  --color-listenbrainz: #eb7422;
 
   /*
    * Glow scale. Tint with a shadow colour, which replaces the black:

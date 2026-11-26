@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 import type { DspStudioViewProps } from '../DspStudioView';
+import { cn } from '../../../utils/cn';
 
 export type DspReverbPanelProps = Pick<DspStudioViewProps, 'reverbEnabled' | 'loc' | 'handleUpdateReverb' | 'reverbRoomSize' | 'reverbDamping' | 'reverbWidth' | 'reverbLevel' | 'handleTempoChange' | 'handlePitchChange' | 'showMessage'>;
 
@@ -17,24 +18,20 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
   showMessage,
 }) => (
     <div
-      style={{
-        background: 'rgba(0, 0, 0, 0.28)',
-        padding: '20px',
-        borderRadius: '16px',
-        border: `1px solid ${reverbEnabled ? 'rgba(168, 85, 247, 0.4)' : 'var(--border-subtle)'}`,
-        marginBottom: '28px',
-        boxShadow: reverbEnabled ? '0 4px 20px rgba(168, 85, 247, 0.15)' : 'none',
-        transition: 'all 0.25s ease',
-      }}
+      className={cn(
+        'mb-7 rounded-2xl border bg-black/30 p-5 transition-all duration-200',
+        reverbEnabled ? 'border-accent-purple/40' : 'border-line',
+        reverbEnabled ? 'shadow-xl shadow-accent-purple/15' : 'shadow-none',
+      )}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
           <Sparkles size={20} color={reverbEnabled ? 'var(--accent-purple)' : 'var(--text-muted)'} />
           <div>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
+            <h4 className="m-0 text-md font-bold">
               {loc.dsp.spatialReverbTitle}
             </h4>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            <span className="text-xs text-fg-muted">
               {loc.dsp.spatialReverbDesc}
             </span>
           </div>
@@ -42,28 +39,24 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
 
         <button
           onClick={() => handleUpdateReverb(!reverbEnabled)}
-          style={{
-            padding: '6px 14px',
-            borderRadius: '8px',
-            fontSize: '0.76rem',
-            fontWeight: 700,
-            background: reverbEnabled ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.06)',
-            border: `1px solid ${reverbEnabled ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
-            color: reverbEnabled ? 'var(--accent-purple)' : 'var(--text-muted)',
-            cursor: 'pointer',
-          }}
+          className={cn(
+            'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
+            reverbEnabled ? 'bg-accent-purple/30' : 'bg-white/6',
+            reverbEnabled ? 'border-accent-purple' : 'border-line',
+            reverbEnabled ? 'text-accent-purple' : 'text-fg-muted',
+          )}
         >
           {reverbEnabled ? '● REVERB ON' : '○ REVERB BYPASS'}
         </button>
       </div>
 
       {/* Suwaki parametrów Reverb */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', opacity: reverbEnabled ? 1 : 0.45 }}>
+      <div className={cn('grid grid-cols-2 gap-4', reverbEnabled ? 'opacity-100' : 'opacity-45')}>
         {/* Rozmiar pomieszczenia (Room Size) */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Room Size (Rozmiar):</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbRoomSize * 100)}%</span>
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-fg-secondary">Room Size (Rozmiar):</span>
+            <span className="font-mono font-bold">{Math.round(reverbRoomSize * 100)}%</span>
           </div>
           <input
             type="range"
@@ -73,15 +66,15 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
             disabled={!reverbEnabled}
             value={reverbRoomSize}
             onChange={(e) => handleUpdateReverb(true, Number(e.target.value))}
-            style={{ width: '100%' }}
+            className="w-full"
           />
         </div>
 
         {/* Tłumienie (Damping) */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>{loc.dsp.dampingLabel}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbDamping * 100)}%</span>
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-fg-secondary">{loc.dsp.dampingLabel}</span>
+            <span className="font-mono font-bold">{Math.round(reverbDamping * 100)}%</span>
           </div>
           <input
             type="range"
@@ -91,15 +84,15 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
             disabled={!reverbEnabled}
             value={reverbDamping}
             onChange={(e) => handleUpdateReverb(true, undefined, Number(e.target.value))}
-            style={{ width: '100%' }}
+            className="w-full"
           />
         </div>
 
         {/* Szerokość stereo (Width) */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>{loc.dsp.stereoWidthLabel}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbWidth * 100)}%</span>
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-fg-secondary">{loc.dsp.stereoWidthLabel}</span>
+            <span className="font-mono font-bold">{Math.round(reverbWidth * 100)}%</span>
           </div>
           <input
             type="range"
@@ -109,15 +102,15 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
             disabled={!reverbEnabled}
             value={reverbWidth}
             onChange={(e) => handleUpdateReverb(true, undefined, undefined, Number(e.target.value))}
-            style={{ width: '100%' }}
+            className="w-full"
           />
         </div>
 
         {/* Poziom pogłosu (Wet Level) */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Wet Level (Nasycenie):</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{Math.round(reverbLevel * 100)}%</span>
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-fg-secondary">Wet Level (Nasycenie):</span>
+            <span className="font-mono font-bold">{Math.round(reverbLevel * 100)}%</span>
           </div>
           <input
             type="range"
@@ -127,55 +120,31 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
             disabled={!reverbEnabled}
             value={reverbLevel}
             onChange={(e) => handleUpdateReverb(true, undefined, undefined, undefined, Number(e.target.value))}
-            style={{ width: '100%' }}
+            className="w-full"
           />
         </div>
       </div>
 
       {/* Szybkie presety pogłosu */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
-        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <span className="flex items-center text-xs text-fg-muted">
           Presety:
         </span>
         <button
           onClick={() => handleUpdateReverb(true, 0.40, 0.50, 0.70, 0.25)}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '8px',
-            fontSize: '0.72rem',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
+          className="rounded-lg border border-line bg-white/5 px-2.5 py-1 text-xs text-fg"
         >
           Small Room
         </button>
         <button
           onClick={() => handleUpdateReverb(true, 0.70, 0.30, 0.90, 0.35)}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '8px',
-            fontSize: '0.72rem',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
+          className="rounded-lg border border-line bg-white/5 px-2.5 py-1 text-xs text-fg"
         >
           Ambient Hall
         </button>
         <button
           onClick={() => handleUpdateReverb(true, 0.85, 0.15, 1.0, 0.45)}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '8px',
-            fontSize: '0.72rem',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
+          className="rounded-lg border border-line bg-white/5 px-2.5 py-1 text-xs text-fg"
         >
           Cathedral
         </button>
@@ -187,16 +156,7 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
             handleUpdateReverb(true, 0.75, 0.35, 1.0, 0.40);
             showMessage('Aktywowano profil: Slowed + Reverb 🌌');
           }}
-          style={{
-            padding: '4px 12px',
-            borderRadius: '8px',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(168, 85, 247, 0.3))',
-            border: '1px solid var(--accent-pink)',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
+          className="rounded-lg border border-accent-pink bg-linear-135 from-accent-pink/30 to-accent-purple/30 px-3 py-1 text-xs font-bold text-fg"
         >
           🌌 Slowed + Reverb
         </button>

@@ -4,6 +4,7 @@ import type { PointerEvent } from 'react';
 import { AlertTriangle, Check } from 'lucide-react';
 import { freqToNormX, gainToNormY, PEQ_BAND_COLORS, type ParametricEqStateDto } from '../../../utils/parametricEqMath';
 import type { RefObject } from 'react';
+import { cn } from '../../../utils/cn';
 
 /** Linie siatki wykresu: częstotliwości (Hz) i wzmocnienia (dB). */
 const FREQ_GRID_LINES = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -34,46 +35,24 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
   svgPathD,
   svgRef,
 }) => (
-    <div
-      style={{
-        position: 'relative',
-        height: '240px',
-        background: 'linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(15, 20, 35, 0.98))',
-        borderBottom: '1px solid var(--border-subtle)',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="relative h-60 overflow-hidden border-b border-line bg-modal">
       {/* Wskaźnik stanu aktywności (Bypass vs Aktywny) */}
       <div
-        style={{
-          position: 'absolute',
-          top: '10px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: state.enabled ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.18)',
-          border: `1px solid ${state.enabled ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.5)'}`,
-          borderRadius: '20px',
-          padding: '3px 12px',
-          fontSize: '0.72rem',
-          fontWeight: 700,
-          color: state.enabled ? '#6ee7b7' : '#fca5a5',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          zIndex: 10,
-          pointerEvents: 'none',
-          backdropFilter: 'blur(6px)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
-        }}
+        className={cn(
+          'pointer-events-none absolute top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-3xl border px-3 py-1 text-xs font-bold shadow-lift shadow-black/35 backdrop-blur-xs',
+          state.enabled ? 'bg-accent-green/15' : 'bg-accent-red/20',
+          state.enabled ? 'border-accent-green/45' : 'border-accent-red/50',
+          state.enabled ? 'text-emerald-300' : 'text-red-300',
+        )}
       >
         {state.enabled ? (
           <>
-            <Check size={12} color="#34d399" />
+            <Check size={12} className="text-emerald-400" />
             {loc.parametricEq.peqActiveMsg}
           </>
         ) : (
           <>
-            <AlertTriangle size={12} color="#f87171" />
+            <AlertTriangle size={12} className="text-red-400" />
             {loc.parametricEq.peqBypassMsg}
           </>
         )}
@@ -83,12 +62,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
         ref={svgRef}
         viewBox="0 0 1000 360"
         preserveAspectRatio="none"
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'block',
-          cursor: draggingBandId ? 'grabbing' : 'default',
-        }}
+        className={cn('block h-full w-full', draggingBandId ? 'cursor-grabbing' : 'cursor-default')}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
@@ -183,7 +157,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
           return (
             <g
               key={band.id}
-              style={{ cursor: 'pointer' }}
+              className="cursor-pointer"
               onPointerDown={(e) => handlePointerDown(band.id, e)}
             >
               {/* Zasięg dobroci Q jako otoczka */}
@@ -207,10 +181,8 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
                 fill="#101420"
                 stroke={band.enabled ? color : 'rgba(255, 255, 255, 0.3)'}
                 strokeWidth={isSelected ? 3 : 2}
-                style={{
-                  transition: 'r 0.15s ease',
-                  filter: `drop-shadow(0 0 4px ${color})`,
-                }}
+                className="transition-[r] duration-150"
+                style={{ filter: `drop-shadow(0 0 4px ${color})` }}
               />
               {/* Etykieta numeru pasma */}
               <text
