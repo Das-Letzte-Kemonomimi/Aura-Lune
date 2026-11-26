@@ -225,7 +225,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                           key={t.id}
                           onClick={() => handlePlayLibraryTrack(t, albumTracks)}
                           className={cn(
-                            'glass-card h-12 cursor-pointer border-b border-white/3 transition-[background] duration-150',
+                            'glass-card h-12 cursor-pointer border-b border-white/3 transition-colors duration-150',
                             isCurrent ? 'bg-accent-purple/20' : 'bg-transparent',
                           )}
                         >
@@ -234,7 +234,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                               status.state === 'Playing' ? (
                                 <Zap size={14} className="text-accent-pink" />
                               ) : (
-                                <Play size={13} className="text-accent-pink" fill="var(--accent-pink)" />
+                                <Play size={13} className="text-accent-pink fill-accent-pink" />
                               )
                             ) : (
                               t.track_no ? (t.disc_no && t.disc_no > 1 ? `${t.disc_no}.${t.track_no}` : t.track_no) : idx + 1
@@ -245,7 +245,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                             isCurrent ? 'text-accent-pink' : 'text-fg',
                           )}>
                             <div className="flex items-center gap-1.5 truncate">
-                              {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" className="shrink-0 text-accent-pink" />}
+                              {t.is_favorite && <Heart size={13} className="shrink-0 text-accent-pink fill-accent-pink" />}
                               <span className="truncate" title={t.title}>{t.title}</span>
                             </div>
                           </td>
@@ -278,7 +278,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                                   t.is_favorite ? 'text-accent-pink' : 'text-fg-muted',
                                 )}
                               >
-                                <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
+                                <Heart className={cn(t.is_favorite && 'fill-accent-pink')} size={15} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t, albumTracks); }}

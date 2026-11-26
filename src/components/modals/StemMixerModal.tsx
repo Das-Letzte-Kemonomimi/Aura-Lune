@@ -335,7 +335,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
         </div>
       ) : (
         /* Siatka 4 stemów */
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3.5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-3.5">
           {stemList.map((stem) => {
             const isSolo = mixerState.solo_stem === stem.id;
             return (

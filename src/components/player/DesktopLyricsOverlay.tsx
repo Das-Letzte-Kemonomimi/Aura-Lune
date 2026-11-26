@@ -336,10 +336,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <span className="shrink truncate font-bold text-fg">
             {trackTitle || 'Auralune'}
           </span>
-          <span
-            className="truncate text-fg-muted"
-            style={{ flexShrink: 2 }}
-          >
+          <span className="shrink-2 truncate text-fg-muted">
             • {trackArtist}
           </span>
         </div>

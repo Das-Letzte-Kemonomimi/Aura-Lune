@@ -172,7 +172,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       </div>
 
       {/* 4 Kluczowe Karty Metryk (KPI) */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-3.5">
         {/* Łączny czas */}
         <div
           className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-purple/30 bg-card px-5 py-4.5"
@@ -243,7 +243,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       </div>
 
       {/* Środkowa Sekcja: Top Utwory & Top Wykonawcy */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] gap-4.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(90),1fr))] gap-4.5">
         {/* Kolumna 1: Top 5 Utworów */}
         <div className="glass-panel rounded-2xl px-5.5 py-5">
           <div className="mb-3.5 flex items-center justify-between">
@@ -347,7 +347,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       </div>
 
       {/* Dolna Sekcja: Rozkład Formatów & Ostatnio Odtwarzane */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] gap-4.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(90),1fr))] gap-4.5">
         {/* Rozkład Kodeków / Formatów */}
         <div className="glass-panel rounded-2xl px-5.5 py-5">
           <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-md font-bold text-fg">

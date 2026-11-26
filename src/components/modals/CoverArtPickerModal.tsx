@@ -213,9 +213,8 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
       <div
         className={cn(
           'flex items-center justify-between gap-4 border-b border-line px-6 py-4 transition-all duration-200',
-          isDraggingOver ? 'bg-pink-500/20' : 'bg-linear-135 from-white/4 to-black/20',
+          isDraggingOver ? 'bg-pink-500/20 outline-2 outline-accent-pink outline-dashed' : 'bg-linear-135 from-white/4 to-black/20',
         )}
-        style={{ outline: isDraggingOver ? '2px dashed var(--accent-pink)' : 'none' }}
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -278,7 +277,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
           >
             {isUploadingCustom ? (
               <>
-                <Loader2 size={15} className="spin" /> {t.covers.downloading}
+                <Loader2 size={15} className="animate-spin" /> {t.covers.downloading}
               </>
             ) : (
               <>
@@ -320,7 +319,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
             isSearching ? 'opacity-70' : 'opacity-100',
           )}
         >
-          {isSearching ? <Loader2 size={16} className="spin" /> : <Search size={16} />}
+          {isSearching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
           {t.covers.searchBtn}
         </button>
       </div>
@@ -329,7 +328,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
       <div className="min-h-80 flex-1 overflow-y-auto p-6">
         {isSearching && (
           <div className="flex h-60 flex-col items-center justify-center gap-3 text-fg-secondary">
-            <Loader2 size={36} className="text-accent-pink spin" />
+            <Loader2 size={36} className="animate-spin text-accent-pink" />
             <span>{t.covers.searching}</span>
           </div>
         )}
@@ -345,7 +344,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         )}
 
         {!isSearching && candidates.length > 0 && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4.5">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(50),1fr))] gap-4.5">
             {candidates.map((cand, idx) => {
               const isSelected = isApplying === cand.full_url;
               return (
@@ -403,7 +402,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
                     >
                       {isSelected ? (
                         <>
-                          <Loader2 size={14} className="spin" /> {t.covers.downloading}
+                          <Loader2 size={14} className="animate-spin" /> {t.covers.downloading}
                         </>
                       ) : (
                         <>

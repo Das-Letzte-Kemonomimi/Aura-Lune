@@ -225,7 +225,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
 
           <div className="overflow-hidden rounded-xl border border-line bg-black/30">
             <div
-              className="grid grid-cols-[1fr_24px_1fr_90px] gap-3 border-b border-line bg-white/4 px-3.5 py-2 text-xs font-bold text-fg-muted"
+              className="grid grid-cols-[1fr_--spacing(6)_1fr_--spacing(22.5)] gap-3 border-b border-line bg-white/4 px-3.5 py-2 text-xs font-bold text-fg-muted"
             >
               <span>{loc.fileRenamer.currentName}</span>
               <span></span>
@@ -243,7 +243,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
                   <div
                     key={item.track_id}
                     className={cn(
-                      'grid grid-cols-[1fr_24px_1fr_90px] items-center gap-3 border-b border-white/3 px-3.5 py-2 text-xs',
+                      'grid grid-cols-[1fr_--spacing(6)_1fr_--spacing(22.5)] items-center gap-3 border-b border-white/3 px-3.5 py-2 text-xs',
                       item.will_overwrite ? 'bg-accent-red/8' : 'bg-transparent',
                     )}
                   >

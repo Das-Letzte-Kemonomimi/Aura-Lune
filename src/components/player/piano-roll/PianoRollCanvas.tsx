@@ -691,8 +691,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
           dragRef.current = null;
         }}
         onPointerLeave={onPointerLeave}
-        className="block h-full w-full cursor-crosshair"
-        style={{ touchAction: 'none' }}
+        className="block h-full w-full cursor-crosshair touch-none"
       />
       <div
         ref={tooltipRef}

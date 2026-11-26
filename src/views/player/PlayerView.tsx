@@ -180,7 +180,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                 <div
                   className={cn(
                     'grid items-center gap-6.5 transition-[grid-template-columns] duration-200',
-                    nowPlayingVisualMode === 'cover' ? 'grid-cols-[240px_1fr]' : 'grid-cols-[275px_1fr]',
+                    nowPlayingVisualMode === 'cover' ? 'grid-cols-[--spacing(60)_1fr]' : 'grid-cols-[--spacing(69)_1fr]',
                   )}
                 >
                   {/* Kolumna lewa: Okładka / Winyl / Tape / VU-Meter */}
@@ -214,10 +214,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                             <div
                               className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-ui font-semibold text-accent-pink"
                             >
-                              <span
-                                className="h-1.5 w-1.5 rounded-full"
-                                style={{ background: '#ff4757', boxShadow: '0 0 8px #ff4757' }}
-                              />
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-halo-sm shadow-red-500" />
                               <span>LIVE: {cleanLiveTitle}</span>
                             </div>
                           )}
@@ -260,7 +257,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                                 currentPlayingTrack.is_favorite ? 'border-accent-pink bg-accent-pink/20 text-accent-pink' : 'border-line bg-white/6 text-fg-muted',
                               )}
                             >
-                              <Heart size={16} fill={currentPlayingTrack.is_favorite ? 'var(--accent-pink)' : 'none'} />
+                              <Heart className={cn(currentPlayingTrack.is_favorite && 'fill-accent-pink')} size={16} />
                               {currentPlayingTrack.is_favorite ? loc.player.favoriteRemove : loc.player.favoriteAdd}
                             </button>
                           )}

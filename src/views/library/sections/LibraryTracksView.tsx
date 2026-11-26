@@ -9,6 +9,23 @@ export type LibraryTracksViewProps = Pick<LibraryViewProps, 'loc' | 'smartPlayli
   t: LibraryViewProps['loc'];
 };
 
+type SmartTone = 'purple' | 'pink' | 'amber' | 'cyan';
+
+/** Selected smart-collection chip: accent border and a soft glow in the chip's colour. */
+const SMART_TONES: Record<SmartTone, string> = {
+  purple: 'aria-pressed:border-accent-purple aria-pressed:shadow-accent-purple/25',
+  pink: 'aria-pressed:border-accent-pink aria-pressed:shadow-accent-pink/25',
+  amber: 'aria-pressed:border-accent-amber aria-pressed:shadow-accent-amber/25',
+  cyan: 'aria-pressed:border-accent-cyan aria-pressed:shadow-accent-cyan/25',
+};
+
+const SMART_ICON_TONES: Record<SmartTone, string> = {
+  purple: 'group-aria-pressed:text-accent-purple',
+  pink: 'group-aria-pressed:text-accent-pink',
+  amber: 'group-aria-pressed:text-accent-amber',
+  cyan: 'group-aria-pressed:text-accent-cyan',
+};
+
 export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
   activeTrackId,
   currentPlayingTrack,
@@ -54,14 +71,14 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
       <div className="mb-3.5 flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold text-fg-muted">{loc.library.collection}</span>
         {[
-          { id: 'all', label: loc.library.smartAll, icon: Music, color: 'var(--accent-purple)' },
-          { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, color: 'var(--accent-pink)' },
-          { id: 'top_rated', label: loc.library.quickVibeTopRated, icon: Star, color: 'var(--accent-amber)' },
-          { id: 'history', label: loc.library.smartHistory, icon: Clock, color: 'var(--accent-cyan)' },
-          { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, color: 'var(--accent-amber)' },
-          { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, color: 'var(--accent-purple)' },
-          { id: 'high_bpm', label: loc.library.quickVibeFastBpm, icon: Zap, color: 'var(--accent-pink)' },
-          { id: 'forgotten', label: loc.library.quickVibeForgotten, icon: Moon, color: 'var(--accent-cyan)' },
+          { id: 'all', label: loc.library.smartAll, icon: Music, tone: 'purple' },
+          { id: 'favorites', label: loc.library.smartFavorites, icon: Heart, tone: 'pink' },
+          { id: 'top_rated', label: loc.library.quickVibeTopRated, icon: Star, tone: 'amber' },
+          { id: 'history', label: loc.library.smartHistory, icon: Clock, tone: 'cyan' },
+          { id: 'top_played', label: loc.library.smartTopPlayed, icon: Flame, tone: 'amber' },
+          { id: 'hires', label: loc.library.smartHiRes, icon: Sparkles, tone: 'purple' },
+          { id: 'high_bpm', label: loc.library.quickVibeFastBpm, icon: Zap, tone: 'pink' },
+          { id: 'forgotten', label: loc.library.quickVibeForgotten, icon: Moon, tone: 'cyan' },
         ].map((item) => {
           const isSelected = smartPlaylistFilter === item.id;
           const Icon = item.icon;
@@ -69,17 +86,13 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
             <button
               key={item.id}
               onClick={() => setSmartPlaylistFilter(item.id as any)}
+              aria-pressed={isSelected}
               className={cn(
-                'flex items-center gap-1.5 rounded-3xl px-3 py-1.5 text-xs font-semibold transition-all duration-150',
-                isSelected ? 'bg-white/10' : 'bg-white/4',
-                isSelected ? 'text-fg' : 'text-fg-secondary',
+                'group flex items-center gap-1.5 rounded-3xl border border-line bg-white/4 px-3 py-1.5 text-xs font-semibold text-fg-secondary transition-all duration-150 aria-pressed:bg-white/10 aria-pressed:text-fg aria-pressed:shadow-halo-sm',
+                SMART_TONES[item.tone as SmartTone],
               )}
-              style={{
-                border: isSelected ? `1px solid ${item.color}` : '1px solid var(--border-subtle)',
-                boxShadow: isSelected ? `0 0 10px ${item.color}40` : 'none',
-              }}
             >
-              <Icon size={13} color={isSelected ? item.color : 'var(--text-muted)'} fill={item.id === 'favorites' && isSelected ? item.color : 'none'} />
+              <Icon size={13} className={cn('text-fg-muted', SMART_ICON_TONES[item.tone as SmartTone])} fill={item.id === 'favorites' && isSelected ? 'currentColor' : 'none'} />
               {item.label}
             </button>
           );
@@ -261,7 +274,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                           status.state === 'Playing' ? (
                             <Zap size={14} className="text-accent-pink" />
                           ) : (
-                            <Play size={13} className="text-accent-pink" fill="var(--accent-pink)" />
+                            <Play size={13} className="text-accent-pink fill-accent-pink" />
                           )
                         ) : (
                           idx + 1
@@ -272,7 +285,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                         isCurrent ? 'text-accent-pink' : 'text-fg',
                       )}>
                         <div className="flex items-center gap-1.5 truncate">
-                          {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" className="shrink-0 text-accent-pink" />}
+                          {t.is_favorite && <Heart size={13} className="shrink-0 text-accent-pink fill-accent-pink" />}
                           <span className="truncate" title={t.title}>{t.title}</span>
                         </div>
                       </td>
@@ -322,7 +335,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                             t.play_count ? 'border-accent-amber/35' : 'border-transparent',
                           )}
                         >
-                          <Flame size={12} color={t.play_count ? 'var(--accent-amber)' : 'var(--text-muted)'} />
+                          <Flame className={cn(t.play_count ? 'text-accent-amber' : 'text-fg-muted')} size={12} />
                           {t.play_count || 0}
                         </span>
                       </td>
@@ -359,7 +372,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                               t.is_favorite ? 'text-accent-pink' : 'text-fg-muted',
                             )}
                           >
-                            <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
+                            <Heart className={cn(t.is_favorite && 'fill-accent-pink')} size={15} />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t); }}

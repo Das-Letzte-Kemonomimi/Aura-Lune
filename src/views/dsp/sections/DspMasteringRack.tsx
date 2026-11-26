@@ -23,7 +23,7 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
   stereoWidenerAmount,
 }) => (
     <div
-      className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5 rounded-2xl border border-line bg-black/30 p-5"
+      className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-5 rounded-2xl border border-line bg-black/30 p-5"
     >
       {/* KARTA 1: BASS BOOST (SUB-BAS EXCITER) */}
       <div className="flex flex-col gap-3 rounded-xl border border-accent-pink/20 bg-accent-pink/5 p-4">

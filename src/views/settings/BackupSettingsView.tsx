@@ -163,7 +163,6 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                   'absolute bottom-1 h-4.5 w-4.5 rounded-full bg-white',
                   closeToTray ? 'left-6' : 'left-1',
                 )}
-                style={{ content: '""' }}
               />
             </span>
           </label>
@@ -227,7 +226,6 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                   'absolute bottom-1 h-4.5 w-4.5 rounded-full bg-white',
                   discordRpcEnabled ? 'left-6' : 'left-1',
                 )}
-                style={{ content: '""' }}
               />
             </span>
           </label>
@@ -377,7 +375,6 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                   'absolute bottom-1 h-4.5 w-4.5 rounded-full bg-white',
                   listenbrainzEnabled ? 'left-6' : 'left-1',
                 )}
-                style={{ content: '""' }}
               />
             </span>
           </label>
@@ -479,7 +476,6 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                   'absolute bottom-1 h-4.5 w-4.5 rounded-full bg-white',
                   lastfmEnabled ? 'left-6' : 'left-1',
                 )}
-                style={{ content: '""' }}
               />
             </span>
           </label>

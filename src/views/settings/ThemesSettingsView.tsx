@@ -164,7 +164,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2.5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(42.5),1fr))] gap-2.5">
           {[
             {
               scale: 1.0,
@@ -226,7 +226,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       </div>
 
       {/* Siatka presetów Anime */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
         {themes.map((th) => {
           const isActive = currentTheme?.id === th.id;
           return (
@@ -308,7 +308,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           </h3>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-6">
           <div className="flex flex-col gap-4">
             {/* Strefa Drag & Drop dla tapety */}
             <div
@@ -478,7 +478,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           {loc.settings.appIconDesc}
         </p>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
           {/* Opcja 1: Neon Lineout */}
           <div
             onClick={() => onSelectIconStyle('lineout')}
@@ -562,7 +562,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
           </h3>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-5">
           {/* Eksport */}
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">

@@ -267,12 +267,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
   return (
     <div
-      className="relative flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-panel will-change-transform"
-      style={{ transform: 'translateZ(0)' }}
+      className="relative flex h-full min-h-0 w-full min-w-0 max-w-full transform-gpu flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-panel will-change-transform"
     >
       {/* Nagłówek okna tekstów */}
       <div className="flex flex-wrap items-center justify-between gap-y-2 border-b border-line bg-black/35 px-5 py-3.5">
-        <div className="flex min-w-0 items-center gap-2.5" style={{ flex: '1 1 180px' }}>
+        <div className="flex min-w-0 grow basis-45 items-center gap-2.5">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-accent-purple to-accent-pink text-on-accent"
           >
@@ -493,10 +492,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       >
         {loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3.5 text-fg-secondary">
-            <div
-              className="h-10 w-10 animate-spin rounded-full border-3 border-line"
-              style={{ borderTopColor: 'var(--accent-purple)' }}
-            />
+            <div className="size-10 animate-spin rounded-full border-3 border-line border-t-accent-purple" />
             <span className="text-sm">{loc.lyricsView.searching}</span>
           </div>
         )}
@@ -526,10 +522,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
         {/* Tekst zsynchronizowany */}
         {!loading && lyrics?.is_synced && lyrics.lines && lyrics.lines.length > 0 && (
-          <div
-            className="flex w-full max-w-205 min-w-0 flex-col gap-3.5"
-            style={{ paddingTop: '15vh', paddingBottom: '25vh' }}
-          >
+          <div className="flex w-full max-w-205 min-w-0 flex-col gap-3.5 pt-[15vh] pb-[25vh]">
             {lyrics.lines.map((line, idx) => {
               const isActive = idx === activeIndex;
               const isPast = idx < activeIndex;
@@ -547,13 +540,8 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                     isActive ? 'opacity-100' : isPast ? 'opacity-65' : 'opacity-45',
                     isTarget ? 'bg-accent-pink/20' : isActive ? 'bg-accent-purple/10' : 'bg-transparent',
                     isActive ? 'border-accent-cyan' : isTarget ? 'border-accent-pink' : 'border-transparent',
+                    isActive && 'scale-104 text-shadow-glow',
                   )}
-                  style={{
-                    transform: isActive ? 'scale(1.04)' : 'scale(1)',
-                    textShadow: isActive
-                      ? '0 0 20px var(--accent-purple), 0 0 40px var(--accent-cyan)'
-                      : 'none',
-                  }}
                   onClick={() => {
                     if (isSyncMode) {
                       setSyncTargetIndex(idx);

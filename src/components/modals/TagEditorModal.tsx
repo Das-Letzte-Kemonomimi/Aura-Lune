@@ -330,7 +330,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                     applyCandidate(m);
                   }}
                   className={cn(
-                    'flex items-center justify-between rounded-lg border px-3 py-2 text-left text-ui text-fg transition-[background] duration-150',
+                    'flex items-center justify-between rounded-lg border px-3 py-2 text-left text-ui text-fg transition-colors duration-150',
                     selectedMatchIndex === idx ? 'bg-accent-purple/30' : 'bg-black/35',
                     selectedMatchIndex === idx ? 'border-accent-purple' : 'border-white/8',
                   )}

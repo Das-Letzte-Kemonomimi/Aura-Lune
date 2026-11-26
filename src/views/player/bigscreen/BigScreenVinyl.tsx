@@ -1,6 +1,7 @@
 import React from 'react';
 import { Disc } from 'lucide-react';
 import type { BigScreenViewProps } from '../BigScreenView';
+import { cn } from '../../../utils/cn';
 
 export type BigScreenVinylProps = Pick<BigScreenViewProps, 'isPlaying' | 'tempoRatio' | 'coverUrl'> & {
   showLyrics: boolean;
@@ -23,7 +24,10 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
     >
       {/* Czarna płyta winylowa z mikro-rowkami */}
       <div
-        className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border-3 border-white/10"
+        className={cn(
+          'relative flex size-full items-center justify-center overflow-hidden rounded-full border-3 border-white/10',
+          isPlaying && 'motion-safe:animate-spin',
+        )}
         style={{
           background: `repeating-radial-gradient(
             circle at center,
@@ -35,9 +39,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
           boxShadow: isPlaying
             ? '0 0 40px rgba(168, 85, 247, 0.45), 0 20px 50px rgba(0, 0, 0, 0.85)'
             : '0 20px 50px rgba(0, 0, 0, 0.85)',
-          animation: isPlaying
-            ? `spin ${Math.max(1, 3.6 / (tempoRatio || 1.0))}s linear infinite`
-            : 'none',
+          animationDuration: `${Math.max(1, 3.6 / (tempoRatio || 1.0))}s`,
         }}
       >
         {/* Stożkowe odbłyski światła na winylu (Vinyl sheen reflections) */}

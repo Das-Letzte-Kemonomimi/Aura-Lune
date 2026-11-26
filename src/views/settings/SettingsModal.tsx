@@ -88,7 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
               className={cn(
-                'relative flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-2 text-ui font-semibold text-fg transition-[background] duration-150',
+                'relative flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-2 text-ui font-semibold text-fg transition-colors duration-150',
                 isActive ? 'bg-accent-purple' : 'bg-transparent',
               )}
             >

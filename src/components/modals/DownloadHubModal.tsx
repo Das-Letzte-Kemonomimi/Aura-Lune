@@ -16,6 +16,7 @@ import { formatBytes } from '../../utils/fileSizeFormat';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
 import { ModalShell } from '../ui';
+import { Callout } from '../ui';
 
 export interface DownloadJobDto {
   id: string;
@@ -183,7 +184,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       <div className="flex items-center justify-between border-b border-white/8 bg-accent-pink/4 px-6 py-5">
         <div className="flex items-center gap-3">
           <div
-            className="bg-accent-gradient flex size-10.5 items-center justify-center rounded-xl shadow-lift shadow-accent-pink/35"
+            className="flex size-10.5 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-accent-pink/35"
           >
             <Download size={22} className="text-fg" />
           </div>
@@ -217,12 +218,12 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         </div>
 
         {errorMessage && (
-          <div
-            className="flex items-center gap-2 rounded-xl border border-accent-red/35 bg-accent-red/15 px-4 py-3 text-sm text-red-300"
+          <Callout
+            tone="red" className="flex items-center gap-2 text-sm text-red-300"
           >
             <AlertCircle size={16} />
             {errorMessage}
-          </div>
+          </Callout>
         )}
 
         {successMessage && (
@@ -309,7 +310,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
             type="submit"
             disabled={isSubmitting}
             className={cn(
-              'bg-accent-gradient mt-1.5 flex items-center justify-center gap-2 rounded-xl border-0 px-5 py-3 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/30 transition-opacity duration-200',
+              'mt-1.5 flex items-center justify-center gap-2 rounded-xl border-0 bg-accent-gradient px-5 py-3 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/30 transition-opacity duration-200',
               isSubmitting && 'cursor-not-allowed opacity-70',
             )}
           >

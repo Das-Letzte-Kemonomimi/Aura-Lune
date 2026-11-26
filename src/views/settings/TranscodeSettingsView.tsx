@@ -182,7 +182,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
               title={loc.settings.chooseSource}
             >
               {isPickingSource ? (
-                <Loader2 size={16} className="text-accent-cyan spin" />
+                <Loader2 size={16} className="animate-spin text-accent-cyan" />
               ) : (
                 <FolderOpen size={16} className="text-accent-cyan" />
               )}
@@ -214,7 +214,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
               title={loc.settings.chooseDestination}
             >
               {isPickingDestination ? (
-                <Loader2 size={16} className="text-accent-pink spin" />
+                <Loader2 size={16} className="animate-spin text-accent-pink" />
               ) : (
                 <Save size={16} className="text-accent-pink" />
               )}
@@ -289,7 +289,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Loader2 size={18} className="text-accent-pink spin" />
+                <Loader2 size={18} className="animate-spin text-accent-pink" />
                 <span className="text-md font-bold text-fg">
                   {loc.settings.transcodeRendering}
                 </span>
@@ -347,7 +347,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
             isTranscoding ? 'opacity-75' : 'opacity-100',
           )}
         >
-          {isTranscoding && <Loader2 size={18} className="spin" />}
+          {isTranscoding && <Loader2 size={18} className="animate-spin" />}
           {isTranscoding
             ? fmt(loc.settings.transcodeRenderingProgress, String(transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0))
             : loc.settings.exportOpus}

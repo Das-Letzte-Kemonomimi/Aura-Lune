@@ -155,4 +155,4 @@ Project skills live in `skills/<area>/<name>/SKILL.md` (linked into `.claude/ski
 
 - `release`: release content and the Prepare/Publish workflows
 - `run-workflow`: write and run multi-agent workflow scripts
-- `audio-dsp-safety`, `tauri2-architecture`, `react-monolith-refactor`, `i18n-sync`: area checklists
+- `audio-dsp-safety`, `tauri2-architecture`, `react-monolith-refactor`, `i18n-sync`, `tailwind-v4`: area checklists

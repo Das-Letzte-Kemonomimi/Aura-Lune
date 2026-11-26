@@ -102,7 +102,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
                       type="button"
                       onClick={() => handleApplyEqPreset(preset.name)}
                       className={cn(
-                        'flex w-full items-center justify-between rounded-lg border-0 px-2.5 py-2 text-left text-ui transition-[background] duration-100',
+                        'flex w-full items-center justify-between rounded-lg border-0 px-2.5 py-2 text-left text-ui transition-colors duration-100',
                         isSelected ? 'bg-accent-pink/15' : 'bg-transparent hover:bg-white/6',
                         isSelected ? 'text-accent-pink' : 'text-fg',
                         isSelected ? 'font-bold' : 'font-medium',

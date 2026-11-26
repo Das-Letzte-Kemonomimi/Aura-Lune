@@ -875,10 +875,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       {/* Pasek narzędzi fali NAD paskiem postępu */}
       {showStyleSelector && (
         <div className="flex w-full items-center justify-end gap-1.5">
-          <div
-            className="flex items-center gap-1 rounded-lg border border-line px-1 py-0.5 backdrop-blur-sm"
-            style={{ background: 'rgba(15, 18, 30, 0.88)' }}
-          >
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-ink/90 px-1 py-0.5 backdrop-blur-sm">
             {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
               const isSelected = activeStyle === st;
               return (

@@ -291,7 +291,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         <div className="flex items-center gap-2 text-ui">
           {isDetecting ? (
             <>
-              <Loader2 size={16} className="text-accent-cyan spin" />
+              <Loader2 size={16} className="animate-spin text-accent-cyan" />
               <span className="font-semibold text-accent-cyan">
                 {loc.keyBpm.analyzing}
               </span>
@@ -547,7 +547,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         <button
           onClick={handleTap}
           className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-accent-pink/40 px-4 py-2 text-ui font-bold transition-[background] duration-100',
+            'flex items-center gap-1.5 rounded-lg border border-accent-pink/40 px-4 py-2 text-ui font-bold transition-colors duration-100',
             tapActive ? 'bg-accent-pink' : 'bg-accent-pink/15',
             tapActive ? 'text-fg' : 'text-accent-pink',
           )}

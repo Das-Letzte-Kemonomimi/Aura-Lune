@@ -327,7 +327,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
       {/* Opcja synchronizacji z cząsteczkami anime */}
       <div
         onClick={handleAutoSyncToggle}
-        className="flex cursor-pointer items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3.5 py-3 transition-[background] duration-200"
+        className="flex cursor-pointer items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3.5 py-3 transition-colors duration-200"
       >
         <div className="flex items-center gap-2.5">
           <Sparkles size={16} className="text-pink-400" />
@@ -342,7 +342,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         </div>
         <div
           className={cn(
-            'relative h-5 w-9.5 rounded-3xl transition-[background] duration-200',
+            'relative h-5 w-9.5 rounded-3xl transition-colors duration-200',
             autoSync ? 'bg-purple-400' : 'bg-white/15',
           )}
         >

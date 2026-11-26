@@ -251,7 +251,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(65),1fr))] gap-4">
           {playlists.length === 0 ? (
             <div className="col-span-full p-12.5 text-center text-fg-muted">
               <ListMusic size={44} className="mb-3.5 opacity-30" />

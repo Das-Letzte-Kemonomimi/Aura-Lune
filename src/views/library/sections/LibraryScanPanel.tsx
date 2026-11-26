@@ -52,7 +52,7 @@ export const LibraryScanPanel: React.FC<LibraryScanPanelProps> = ({
             isScanning ? 'cursor-default' : 'cursor-pointer',
           )}
         >
-          <RefreshCw size={15} className={isScanning ? 'spin' : ''} /> {isScanning ? loc.library.scanning : loc.library.runScan}
+          <RefreshCw size={15} className={isScanning ? 'animate-spin' : ''} /> {isScanning ? loc.library.scanning : loc.library.runScan}
         </button>
       </div>
       {scanResult && (

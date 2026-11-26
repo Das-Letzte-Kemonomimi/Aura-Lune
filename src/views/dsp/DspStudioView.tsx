@@ -20,6 +20,7 @@ import { DspTempoSlider } from './sections/DspTempoSlider';
 import { DspPitchSlider } from './sections/DspPitchSlider';
 import { DspEngineSelector } from './sections/DspEngineSelector';
 import { cn } from '../../utils/cn';
+import { Callout } from '../../components/ui';
 
 export interface DspCombinationInfo {
   pitchSt: number;
@@ -249,12 +250,12 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
 
               {/* Informacja o aktywnym trybie Direct Bypass */}
               {status.engine === 'Bypass' && (
-                <div
-                  className="mb-5.5 flex items-center gap-2.5 rounded-xl border border-accent-green/35 bg-accent-green/10 px-4 py-3 text-ui leading-snug text-emerald-200"
+                <Callout
+                  tone="green" className="mb-5.5 flex items-center gap-2.5 text-ui leading-snug text-emerald-200"
                 >
                   <Info size={18} className="shrink-0 text-accent-green" />
                   <span>{loc.dsp.bypassActiveNotice}</span>
-                </div>
+                </Callout>
               )}
 
               {/* Suwak Pitch Shift z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}

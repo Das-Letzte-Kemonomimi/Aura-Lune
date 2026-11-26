@@ -182,7 +182,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
           <span className="text-ui font-semibold text-fg">
             {loc.trackBookmarks.addNewBookmark}
           </span>
-          <div className="grid grid-cols-[1fr_140px] gap-2">
+          <div className="grid grid-cols-[1fr_--spacing(35)] gap-2">
             <input
               type="text"
               placeholder={loc.trackBookmarks.namePlaceholder}

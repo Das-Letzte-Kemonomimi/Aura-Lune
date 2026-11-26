@@ -182,14 +182,15 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 
           {/* Centralna etykieta płyty (Spindle Label) z okładką albumu */}
           <div
-            className="relative flex items-center justify-center overflow-hidden rounded-full shadow-halo-sm shadow-black/80"
+            className={cn(
+              'relative flex items-center justify-center overflow-hidden rounded-full shadow-halo-sm shadow-black/80',
+              !coverUrl && 'bg-accent-gradient',
+            )}
             style={{
               width: `${Math.round((size - 56) * 0.44)}px`,
               height: `${Math.round((size - 56) * 0.44)}px`,
               border: '3px solid #1a1727',
-              background: coverUrl
-                ? `url("${coverUrl}") center/cover no-repeat`
-                : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
+              background: coverUrl ? `url("${coverUrl}") center/cover no-repeat` : undefined,
             }}
           >
             {!coverUrl && <Disc size={28} className="text-fg" />}
@@ -305,7 +306,7 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         <div className="flex min-w-0 items-center gap-1 text-fg-muted">
           <span
             className={cn(
-              'h-1.5 w-1.5 shrink-0 rounded-full transition-[background] duration-300',
+              'h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-300',
               isPlaying ? rpm === 45 ? 'bg-pink-500' : 'bg-green-500' : 'bg-accent-red',
               isPlaying ? rpm === 45 ? 'shadow-halo-sm shadow-pink-500' : 'shadow-halo-sm shadow-green-500' : 'shadow-none',
             )}

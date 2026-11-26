@@ -44,7 +44,7 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
           {filteredArtists.map((artist) => (
             <div
               key={artist.name}

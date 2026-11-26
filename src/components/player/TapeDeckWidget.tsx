@@ -294,13 +294,13 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             strokeWidth="0.8"
           />
           <line x1="86" y1="42" x2="154" y2="42" stroke={currentTheme.badgeBorder} strokeWidth="0.5" strokeOpacity="0.5" />
-          <text x="120" y="38" textAnchor="middle" fill={currentTheme.badgeText} fontSize="5.2" fontWeight="bold" fontFamily="var(--font-mono, monospace)">
+          <text x="120" y="38" textAnchor="middle" fill={currentTheme.badgeText} fontSize="5.2" fontWeight="bold" className="font-mono">
             {displayArtist.length > 14 ? `${displayArtist.slice(0, 12)}...` : displayArtist}
           </text>
-          <text x="120" y="48" textAnchor="middle" fill="#f8fafc" fontSize="5.8" fontWeight="bold" fontFamily="var(--font-mono, monospace)">
+          <text x="120" y="48" textAnchor="middle" fontSize="5.8" fontWeight="bold" className="font-mono fill-fg">
             {displayTitle.length > 13 ? `${displayTitle.slice(0, 11)}...` : displayTitle}
           </text>
-          <text x="120" y="54" textAnchor="middle" fill={currentTheme.accentColor} fontSize="4.2" fontWeight="bold" fontFamily="var(--font-mono, monospace)">
+          <text x="120" y="54" textAnchor="middle" fill={currentTheme.accentColor} fontSize="4.2" fontWeight="bold" className="font-mono">
             {currentTheme.biasLabel}
           </text>
 

@@ -249,7 +249,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
             )}
             title={t.player.recomputeChordsTooltip}
           >
-            <RotateCcw size={16} style={loading ? { animation: 'spin 1.5s linear infinite' } : undefined} />
+            <RotateCcw size={16} className={cn(loading && 'animate-spin')} />
           </button>
 
           <button

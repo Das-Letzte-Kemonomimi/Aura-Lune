@@ -16,7 +16,7 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
       <label className="mb-2.5 block text-sm font-semibold text-fg-secondary">
         {loc.dsp.engine}:
       </label>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-3.5">
         {/* Karta Bypass (Bez DSP / Czysty dźwięk) */}
         <div
           onClick={() => handleEngineChange('Bypass')}

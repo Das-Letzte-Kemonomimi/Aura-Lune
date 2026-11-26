@@ -244,7 +244,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-4">
           {FEATURED_RADIO_STATIONS.map((station) => {
             const isThisPlaying = currentStation?.url === station.url && isPlaying;
             return (
@@ -264,7 +264,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
                 <div>
                   <div className="mb-1.5 flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <Headphones size={18} color={isThisPlaying ? 'var(--accent-pink)' : 'var(--accent-purple)'} />
+                      <Headphones className={cn(isThisPlaying ? 'text-accent-pink' : 'text-accent-purple')} size={18} />
                       <h4 className="m-0 text-base font-bold text-fg">
                         {station.name}
                       </h4>
@@ -354,7 +354,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-4">
             {customStations.map((station) => {
               const isThisPlaying = currentStation?.url === station.url && isPlaying;
               return (

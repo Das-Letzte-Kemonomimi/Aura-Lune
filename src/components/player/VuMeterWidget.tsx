@@ -12,6 +12,7 @@ import {
   type VuChannelState,
   type VuTheme,
 } from './vuMeterMath';
+import { cssVars } from '../../utils/cssVars';
 
 interface VuMeterWidgetProps {
   spectrum?: number[];
@@ -125,12 +126,9 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
               key={th.id}
               onClick={() => handleSelectTheme(th.id as VuTheme)}
               title={th.id === 'amber' ? 'Amber 70s' : th.id === 'sakura' ? 'Sakura Glow' : 'Cyber Neon'}
-              className="rounded-md px-1.5 py-0.5 text-2xs font-bold transition-all duration-150"
-              style={{
-                background: theme === th.id ? `${th.color}33` : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${theme === th.id ? th.color : 'rgba(255, 255, 255, 0.1)'}`,
-                color: theme === th.id ? th.color : 'var(--text-muted)',
-              }}
+              aria-pressed={theme === th.id}
+              className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-2xs font-bold text-fg-muted transition-all duration-150 aria-pressed:border-(--vu) aria-pressed:bg-(--vu)/20 aria-pressed:text-(--vu)"
+              style={cssVars({ '--vu': th.color })}
             >
               {th.label}
             </button>

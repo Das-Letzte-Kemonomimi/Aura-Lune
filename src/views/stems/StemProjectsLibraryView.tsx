@@ -13,6 +13,7 @@ import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { fmt } from '../../utils/fmt';
+import { Callout } from '../../components/ui';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
@@ -120,9 +121,9 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-3 text-sm text-red-400">
+        <Callout tone="red" className="mb-4 text-sm text-red-400">
           {error}
-        </div>
+        </Callout>
       )}
 
       {loading && projects.length === 0 ? (
@@ -145,7 +146,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(80),1fr))] gap-4">
           {projects.map((project) => (
             <div
               key={project.id}

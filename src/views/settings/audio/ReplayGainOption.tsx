@@ -52,7 +52,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
       </div>
 
       {/* Tryby normalizacji: Off / Track / Album / Auto */}
-      <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2">
+      <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(27.5),1fr))] gap-2">
         {(['Off', 'Track', 'Album', 'Auto'] as const).map((m) => {
           const isActive = replaygainMode === m;
           const label =
@@ -179,7 +179,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
               isReplaygainScanning ? 'opacity-60' : 'opacity-100',
             )}
           >
-            {isReplaygainScanning ? <Loader2 size={14} className="spin" /> : <Activity size={14} />}
+            {isReplaygainScanning ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
             {isReplaygainScanning ? loc.settings.scanReplayGainScanning : loc.settings.scanReplayGainLibrary}
           </button>
         </div>

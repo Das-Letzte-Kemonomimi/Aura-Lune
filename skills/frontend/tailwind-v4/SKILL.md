@@ -15,10 +15,10 @@ Distilled from wshobson `tailwind-design-system`, the ofershap/asyrafhussin `tai
 | `src/index.css` | Entry: imports Tailwind and the partials below. No rules of its own. |
 | `src/styles/theme.css` | `:root` runtime theme defaults, `@theme inline` colour/shadow bridge, `@theme` scales, keyframes |
 | `src/styles/base.css` | `@layer base`: element defaults (body, range, select, buttons, scrollbars) |
-| `src/styles/utilities.css` | `@utility` patterns: `glass-panel`, `glass-card`, `label-caps`, `bg-accent-gradient`, `range-fill`, `bg-modal`, … |
-| `src/styles/legacy.css` | Transitional rules for not-yet-migrated components. Never add to it. |
+| `src/styles/utilities.css` | `@layer components` (`glass-panel`, `glass-card`, `label-caps`, `anime-*`: any utility overrides them) and `@utility` helpers (`bg-accent-gradient`, `range-fill`, `bg-modal`, `scrollbar-none`) |
 | `src/utils/cn.ts` | `cn()` = `clsx` + project-aware `tailwind-merge` |
-| `src/components/ui/` | `Button`, `ModalShell`/`ModalHeader`, `Callout`, `Badge`, `SettingRow`, `Input`/`FieldLabel` |
+| `src/components/ui/` | `ModalShell` (every dialog), `Callout` (tinted info box), `tones.ts` |
+| `src/utils/cssVars.ts` | `cssVars()` types runtime `--*` values for `style` |
 
 There is no `tailwind.config.*`, and never `@tailwind` directives: v4 is configured in CSS.
 
@@ -29,10 +29,11 @@ The theme engine (`useThemeManager`) rewrites `--bg-*`, `--accent-*`, `--text-*`
 - Surfaces: `bg-deep` `bg-surface` `bg-surface-hover` `bg-card`
 - Borders: `border-line` (subtle) `border-line-accent`
 - Text: `text-fg` `text-fg-secondary` `text-fg-muted`
-- Accents: `{bg,text,border,…}-accent-{pink,purple,cyan,green,amber}`; fixed `accent-red`, `on-accent` (white on fills)
+- Accents: `{bg,text,border,fill,…}-accent-{pink,purple,cyan,green,amber}`; fixed `accent-red`, `on-accent` (white on fills)
+- Fixed surfaces/brands: `field` (form controls), `ink`, `discord`, `lastfm`, `listenbrainz`
 - Surfaces (fixed): `bg-ink` (deep violet behind dock, drawers, menus), `bg-modal` (dialog gradient), `bg-accent-gradient`
 - Shadows: `shadow-panel` `shadow-accent-glow` `shadow-modal` `shadow-drawer` `shadow-dock`, plus a tintable glow scale `shadow-halo-sm|halo|halo-md|halo-lg|halo-xl|halo-2xl` (0.625–2.25rem blur) and `shadow-lift`. Tint by pairing with a shadow colour: `shadow-halo shadow-accent-cyan/40`. Never write `0 0 12px rgba(…)`.
-- Text shadow: `text-shadow-deep`
+- Text shadow: `text-shadow-soft`, `text-shadow-deep`, `text-shadow-glow` (active lyric)
 - Fonts: `font-sans` (Outfit, the default) `font-mono` (JetBrains Mono)
 
 Tints use slash opacity: `bg-accent-pink/15`, `border-accent-cyan/35`. This compiles to `color-mix()` on the live theme colour, so **never** write `rgba(244,63,94,0.15)`: that freezes the default theme. Opacity steps are multiples of 5.
@@ -69,7 +70,8 @@ Colours outside the theme come from Tailwind's default palette (`text-slate-300`
   | 130 | volume OSD | |
   | 140 | fatal error screen | |
 
-- **Breakpoints**: header collapse points `max-nav:` (84.375rem), `max-brand:` (105rem), `max-actions:` (113.75rem).
+- **Breakpoints**: header collapse points `max-nav:` (84.375rem) and `max-actions:` (113.75rem).
+- **Grid tracks** in arbitrary templates use `--spacing(n)`, never px: `grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))]`.
 - `px` only where nothing else makes sense: 1–2px borders/hairlines, shadow and blur offsets inside tokens, canvas maths in TS.
 
 ## Class composition
@@ -97,14 +99,19 @@ Colours outside the theme come from Tailwind's default palette (`text-slate-300`
 
 ## Primitives
 
-- `Button` (`variant`: primary | secondary | ghost | danger | chip; `size`: sm | md | icon). Defaults to `type="button"`: pass `type="submit"` for a form's submit button. `chip` reads `aria-pressed`.
-- `ModalShell` (backdrop, dialog semantics, Escape and backdrop close, `size` sm…2xl, `layer` modal | nested | palette) + `ModalHeader` (icon tile with `tone`, title, subtitle, actions, close; `bar` for the divider-bar layout). Pass the same id to `ModalHeader titleId` and `ModalShell labelledBy`.
-- `Callout tone`, `Badge tone`, `SettingRow title description`, `Input` / `inputClass` / `FieldLabel`, and the existing `common/ToggleSwitch`.
-- Extract a new primitive only for a pattern repeated at least five times; otherwise use plain classes, or an `@utility` when it is used at least three times.
+- `ModalShell`: every dialog. Backdrop, `role="dialog"`/`aria-modal`, Escape and backdrop-only close, `size` (sm…2xl), `layer` (see the z-index table), panel `className` overrides the default surface, `style` for runtime-only values. Give the title an id and pass it as `labelledBy`.
+- `Callout tone`: tinted info/status box.
+- `common/ToggleSwitch`: the only switch; style comes from the checkbox (`peer-checked:`).
+- Extract a new primitive only once a pattern repeats at least five times *with the same look*; otherwise use plain classes, or an `@layer components` class when it is used at least three times. Primary buttons are still per-screen class strings (their sizes differ on purpose); normalising them is a design change, not a refactor.
 
 ## Preflight notes
 
-Tailwind's preflight is active. `base.css` restores UA heading sizes, list markers and inline media so unmigrated markup keeps its look; give migrated headings, lists and images explicit classes anyway. Default border colour is `currentColor`, so always pair `border` with `border-line*` or another colour.
+Tailwind's preflight is active. `base.css` keeps the app's original defaults on top of it: `line-height: normal`, browser heading sizes/weights, list markers and inline (not block) media. Give new headings, lists and images explicit classes anyway.
+
+## Exceptions that stay inline
+
+- Hand-drawn artwork: the turntable, tape deck and big-screen radial/conic gradients and their inset shadows.
+- Values computed at runtime (see above). Default border colour is `currentColor`, so always pair `border` with `border-line*` or another colour.
 
 ## Checklist for a migrated file
 

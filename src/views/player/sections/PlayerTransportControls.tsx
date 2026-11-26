@@ -70,8 +70,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           <div className="flex items-center gap-px">
             <button
               onClick={handleSaveBookmark}
-              className="glass-card flex h-8 items-center gap-1 border border-amber-400/45 bg-amber-400/15 px-2.5 py-1.5 text-xs font-bold text-amber-400"
-              style={{ borderRadius: '8px 0 0 8px' }}
+              className="glass-card flex h-8 items-center gap-1 rounded-none rounded-l-lg border border-amber-400/45 bg-amber-400/15 px-2.5 py-1.5 text-xs font-bold text-amber-400"
             >
               <Bookmark size={13} fill="#fbbf24" className="text-amber-400" /> {loc.player.bookmark}
             </button>
@@ -84,9 +83,8 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             </button>
             <button
               onClick={handleDeleteBookmark}
-              className="glass-card h-8 border border-l-0 border-amber-400/45 bg-amber-400/10 p-1.5 text-rose-400"
+              className="glass-card h-8 rounded-none rounded-r-lg border border-l-0 border-amber-400/45 bg-amber-400/10 p-1.5 text-rose-400"
               title={loc.player.bookmarkDelete}
-              style={{ borderRadius: '0 8px 8px 0' }}
             >
               <X size={12} />
             </button>
@@ -165,8 +163,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
                 setLoopPointB(null);
                 showMessage(loc.player.clearedLoopMsg);
               }}
-              className="glass-card flex h-8 min-w-5.5 items-center justify-center border border-l-0 border-rose-400/35 bg-rose-400/15 px-1 py-0 text-rose-400"
-              style={{ borderRadius: '0 8px 8px 0' }}
+              className="glass-card flex h-8 min-w-5.5 items-center justify-center rounded-none rounded-r-lg border border-l-0 border-rose-400/35 bg-rose-400/15 px-1 py-0 text-rose-400"
               title={loc.shortcuts.loopClear}
             >
               <X size={12} />

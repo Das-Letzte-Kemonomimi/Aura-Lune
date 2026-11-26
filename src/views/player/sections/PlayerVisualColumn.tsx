@@ -141,15 +141,14 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
         />
       ) : (
         <div
-          className="relative flex h-55 w-55 items-center justify-center overflow-hidden rounded-3xl transition-shadow duration-300 will-change-transform"
+          className={cn(
+            'relative flex size-55 transform-gpu items-center justify-center overflow-hidden rounded-3xl transition-shadow duration-300 will-change-transform',
+            status.state === 'Playing' ? 'shadow-halo-xl shadow-accent-pink/45' : 'shadow-panel',
+          )}
           style={{
             background: currentCover
               ? `url("${currentCover}") center/cover no-repeat`
               : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
-            boxShadow: status.state === 'Playing'
-              ? '0 0 28px rgba(244, 63, 94, 0.45), 0 0 50px rgba(168, 85, 247, 0.3)'
-              : 'var(--shadow-card)',
-            transform: 'translateZ(0)',
           }}
         >
           {!currentCover && (

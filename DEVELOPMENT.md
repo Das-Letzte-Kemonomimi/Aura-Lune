@@ -39,7 +39,7 @@ This document provides complete instructions for setting up the development envi
 Aura-Lune relies on modern Linux audio and GUI frameworks:
 - **Audio**: GStreamer 1.0 (with `base`, `good`, `bad`, `ugly`, and `libav` plugins), PipeWire / ALSA.
 - **DSP**: `librubberband` (high-fidelity formant-preserving stretch) and `libsoundtouch` (low-latency time/pitch).
-- **GUI**: WebKit2GTK 4.1 (`libsoup-3.0`), GTK 3, and D-Bus (for MPRIS).
+- **GUI**: WebKit2GTK 4.1 (`libsoup-3.0`) **2.40 or newer** (the Tailwind CSS v4 stylesheet needs cascade layers, `@property` and `color-mix()`), GTK 3, and D-Bus (for MPRIS).
 - **Database**: SQLite 3 (bundled/managed via `sqlx`).
 
 Install the required system development headers for your distribution:

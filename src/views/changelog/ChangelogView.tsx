@@ -159,7 +159,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
               aria-label={`${loc.changelog.perPage} ${size}`}
               onClick={() => handlePageSizeChange(size)}
               className={cn(
-                'rounded-md border-0 px-2 py-1 text-xs font-bold text-fg transition-[background] duration-150',
+                'rounded-md border-0 px-2 py-1 text-xs font-bold text-fg transition-colors duration-150',
                 pageSize === size ? 'bg-accent-purple' : 'bg-white/8',
               )}
             >

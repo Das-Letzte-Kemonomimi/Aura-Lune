@@ -4,6 +4,7 @@ import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
 import { ModalShell } from '../ui';
+import { cssVars } from '../../utils/cssVars';
 
 interface SleepTimerModalProps {
   isOpen: boolean;
@@ -215,7 +216,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
       >
         <div className="mb-2.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Sliders size={14} color={!isEndOfTrack ? 'var(--accent-pink)' : 'var(--text-muted)'} />
+            <Sliders className={cn(!isEndOfTrack ? 'text-accent-pink' : 'text-fg-muted')} size={14} />
             <span className={cn(
               'text-xs font-bold tracking-wider',
               !isEndOfTrack ? 'text-accent-pink' : 'text-fg-muted',
@@ -270,12 +271,8 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
             max={180}
             value={Math.min(180, selectedMinutes)}
             onChange={handleSliderChange}
-            className="w-full cursor-pointer"
-            style={{
-              background: isEndOfTrack
-                ? 'rgba(255, 255, 255, 0.1)'
-                : `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${sliderPercent}%, rgba(255, 255, 255, 0.12) ${sliderPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-            }}
+            className={cn('w-full', !isEndOfTrack && 'range-fill')}
+            style={isEndOfTrack ? undefined : cssVars({ '--fill': `${sliderPercent}%` })}
           />
           <div className="mt-1 flex justify-between font-mono text-2xs text-fg-muted">
             <span>1 min</span>

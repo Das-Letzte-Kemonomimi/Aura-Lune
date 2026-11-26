@@ -26,7 +26,7 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Sparkles size={20} color={reverbEnabled ? 'var(--accent-purple)' : 'var(--text-muted)'} />
+          <Sparkles className={cn(reverbEnabled ? 'text-accent-purple' : 'text-fg-muted')} size={20} />
           <div>
             <h4 className="m-0 text-md font-bold">
               {loc.dsp.spatialReverbTitle}

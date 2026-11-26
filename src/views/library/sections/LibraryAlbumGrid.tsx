@@ -299,7 +299,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
           <div
             className={cn(
               'grid',
-              albumGridSize === 'compact' ? 'grid-cols-[repeat(auto-fill,minmax(155px,190px))]' : albumGridSize === 'large' ? 'grid-cols-[repeat(auto-fill,minmax(240px,290px))]' : 'grid-cols-[repeat(auto-fill,minmax(190px,235px))]',
+              albumGridSize === 'compact' ? 'grid-cols-[repeat(auto-fill,minmax(--spacing(39),--spacing(47.5)))]' : albumGridSize === 'large' ? 'grid-cols-[repeat(auto-fill,minmax(--spacing(60),--spacing(72.5)))]' : 'grid-cols-[repeat(auto-fill,minmax(--spacing(47.5),--spacing(59)))]',
               albumGridSize === 'compact' ? 'gap-3' : albumGridSize === 'large' ? 'gap-4.5' : 'gap-3.5',
             )}
           >

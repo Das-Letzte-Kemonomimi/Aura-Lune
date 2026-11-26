@@ -162,7 +162,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
       </div>
 
       {/* 3 Panele kolumnowe */}
-      <div className="grid h-52.5 grid-cols-[minmax(140px,180px)_1fr_1fr] gap-2.5">
+      <div className="grid h-52.5 grid-cols-[minmax(--spacing(35),--spacing(45))_1fr_1fr] gap-2.5">
         {/* Kolumna 1: Format */}
         <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
           <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">

@@ -86,7 +86,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
       </div>
 
       {/* Sekcja Twórczyni: Bandcamp & Aplikacja Sorta dla AuDHD / ADHD */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-3.5">
         {/* Karta Bandcamp: Muzyka Autorki */}
         <div
           className="glass-card flex flex-col justify-between rounded-2xl border border-accent-purple/35 bg-linear-135 from-accent-purple/10 to-accent-pink/8 px-5 py-4.5 shadow-xl shadow-accent-purple/10"
@@ -201,7 +201,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-base font-bold text-fg">
           <Keyboard size={18} className="text-accent-pink" /> {loc.shortcuts.title}
         </h4>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-2.5 text-ui">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-2.5 text-ui">
           {[
             { key: 'Space', desc: loc.shortcuts.playPause },
             { key: '← / →', desc: loc.shortcuts.seekFwdBack },

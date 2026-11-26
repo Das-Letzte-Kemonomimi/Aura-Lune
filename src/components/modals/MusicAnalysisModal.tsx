@@ -152,7 +152,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
           </div>
           <div className="min-w-0">
             <h2
-              className="m-0 bg-linear-to-r from-accent-pink via-purple-400 to-sky-400 bg-clip-text text-lg font-extrabold tracking-tight text-transparent"
+              className="m-0 bg-linear-to-r bg-clip-text from-accent-pink via-purple-400 to-sky-400 text-lg font-extrabold tracking-tight text-transparent"
             >
               {t.analysis.title}
             </h2>

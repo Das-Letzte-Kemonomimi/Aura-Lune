@@ -1,10 +1,7 @@
 import type React from 'react';
-import { useEffect, useId } from 'react';
-import { X } from 'lucide-react';
+import { useEffect } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils/cn';
-import { Button } from './Button';
-import { iconTileTones, type Tone } from './tones';
 
 /*
  * Stacking scale (bare z-index numbers, see the tailwind-v4 skill):
@@ -54,7 +51,7 @@ const panelVariants = cva(
 
 export interface ModalShellProps extends VariantProps<typeof backdropVariants>, VariantProps<typeof panelVariants> {
   onClose: () => void;
-  /** Id of the element that names the dialog (usually the `ModalHeader` title). */
+  /** Id of the element that names the dialog (usually its title heading). */
   labelledBy?: string;
   /** Extra classes for the panel, e.g. a different surface or padding. */
   className?: string;
@@ -105,70 +102,6 @@ export function ModalShell({
       >
         {children}
       </div>
-    </div>
-  );
-}
-
-export interface ModalHeaderProps {
-  title: React.ReactNode;
-  subtitle?: React.ReactNode;
-  icon?: React.ReactNode;
-  tone?: Tone;
-  /** Id for the title, passed to `ModalShell`'s `labelledBy`. */
-  titleId?: string;
-  onClose?: () => void;
-  closeLabel?: string;
-  /** Extra content between the title and the close button (badges, actions). */
-  actions?: React.ReactNode;
-  /** Full-width header bar with a divider, for modals with scrolling bodies. */
-  bar?: boolean;
-  className?: string;
-}
-
-export function ModalHeader({
-  title,
-  subtitle,
-  icon,
-  tone = 'purple',
-  titleId,
-  onClose,
-  closeLabel = 'Close',
-  actions,
-  bar = false,
-  className,
-}: ModalHeaderProps) {
-  const fallbackId = useId();
-  return (
-    <div
-      className={cn(
-        'flex items-center justify-between gap-3',
-        bar ? 'shrink-0 border-b border-line bg-white/2 px-6 py-4.5' : 'mb-4.5',
-        className,
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-2.5">
-        {icon && (
-          <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl border', iconTileTones[tone])}>
-            {icon}
-          </div>
-        )}
-        <div className="min-w-0">
-          <h3 id={titleId ?? fallbackId} className="text-lg font-bold">
-            {title}
-          </h3>
-          {subtitle && <p className="mt-0.5 text-ui text-fg-muted">{subtitle}</p>}
-        </div>
-      </div>
-      {(actions || onClose) && (
-        <div className="flex shrink-0 items-center gap-2">
-          {actions}
-          {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label={closeLabel} title={closeLabel}>
-              <X size={18} />
-            </Button>
-          )}
-        </div>
-      )}
     </div>
   );
 }

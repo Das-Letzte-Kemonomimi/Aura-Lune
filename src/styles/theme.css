@@ -55,6 +55,8 @@
   --shadow-accent-glow: var(--shadow-glow);
   --shadow-panel: var(--shadow-card);
 
+  /* Glow behind the active synced lyric line. */
+  --text-shadow-glow: 0 0 1.25rem var(--accent-purple), 0 0 2.5rem var(--accent-cyan);
   --shadow-modal:
     0 20px 50px rgb(0 0 0 / 0.6),
     0 0 30px color-mix(in srgb, var(--accent-purple) 25%, transparent);
@@ -122,9 +124,8 @@
 
   --tracking-label: 0.08em;
 
-  /* Header collapse points (1350px / 1680px / 1820px). Use as `max-nav:hidden`. */
+  /* Header collapse points (1350px / 1820px). Use as `max-nav:hidden`. */
   --breakpoint-nav: 84.375rem;
-  --breakpoint-brand: 105rem;
   --breakpoint-actions: 113.75rem;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);

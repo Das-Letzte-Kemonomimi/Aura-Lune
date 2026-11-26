@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { ModalHeader, ModalShell } from './Modal';
+import { ModalShell } from './Modal';
 
 function renderModal(onClose = vi.fn(), closeOnBackdrop?: boolean) {
   render(
     <ModalShell onClose={onClose} labelledBy="t" closeOnBackdrop={closeOnBackdrop}>
-      <ModalHeader titleId="t" title="Sleep Timer" onClose={onClose} closeLabel="Close dialog" />
+      <h3 id="t">Sleep Timer</h3>
+      <button type="button" onClick={onClose}>
+        Close dialog
+      </button>
       <button type="button">Inside</button>
     </ModalShell>,
   );
@@ -41,7 +44,7 @@ describe('ModalShell', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('closes from the header close button', () => {
+  it('lets content close it through its own button', () => {
     const onClose = renderModal();
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     expect(onClose).toHaveBeenCalledTimes(1);

@@ -46,7 +46,7 @@ export const CrossfeedOption: React.FC<CrossfeedOptionProps> = ({
 
       {/* Wybór presetu: Default / ChuMoy / JanMeier / Custom */}
       <div className={cn(
-        'mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2',
+        'mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(--spacing(32.5),1fr))] gap-2',
         crossfeedEnabled ? 'opacity-100' : 'opacity-45',
         crossfeedEnabled ? 'pointer-events-auto' : 'pointer-events-none',
       )}>

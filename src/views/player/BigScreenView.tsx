@@ -164,10 +164,9 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       {/* Środek: Okładka i teksty piosenek w układzie panoramicznym */}
       <div
         className={cn(
-          'grid min-h-0 items-center',
-          showLyrics ? 'grid-cols-[minmax(0,420px)_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
+          'my-[clamp(0.5rem,2vh,1.25rem)] grid min-h-0 items-center gap-[clamp(1.25rem,3vw,3.125rem)] flex-[1_0_auto]',
+          showLyrics ? 'grid-cols-[minmax(0,--spacing(105))_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
         )}
-        style={{ gap: 'clamp(20px, 3vw, 50px)', flex: '1 0 auto', margin: 'clamp(8px, 2vh, 20px) 0' }}
       >
         {/* Kolumna lewa: Wielka wirująca płyta winylowa / Okładka */}
         <div className="flex flex-col items-center gap-5 text-center">
@@ -269,10 +268,9 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
           <div>
             <h1
               className={cn(
-                'mx-0 mt-0 mb-2 font-extrabold tracking-tight',
+                'mx-0 mt-0 mb-2 font-extrabold tracking-tight [text-shadow:0_0_1.25rem_rgb(255_255_255/0.2)]',
                 showLyrics ? 'text-3xl' : 'text-4xl',
               )}
-              style={{ textShadow: '0 0 20px rgba(255,255,255,0.2)' }}
             >
               {title || 'Auralune Player'}
             </h1>
@@ -296,7 +294,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         {showLyrics && (
           // The lyrics are absolutely positioned inside this cell so their content
           // height never stretches the grid row (the cell sizes from the cover column).
-          <div className="relative min-w-0 self-stretch" style={{ minHeight: 'min(380px, 50vh)' }}>
+          <div className="relative min-h-[min(23.75rem,50vh)] min-w-0 self-stretch">
             <div className="absolute inset-0 min-w-0 overflow-hidden">
             <LyricsView
               trackTitle={title}

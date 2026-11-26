@@ -254,7 +254,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         </div>
         <button
           onClick={onClose}
-          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-2 text-fg-muted transition-[background] duration-150"
+          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-2 text-fg-muted transition-colors duration-150"
         >
           <X size={20} />
         </button>
@@ -327,7 +327,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 disabled={isAnalyzingCurrent}
                 className="flex items-center gap-1 rounded-md border border-white/15 bg-white/8 px-2 py-1 text-xs text-fg"
               >
-                {isAnalyzingCurrent ? <Loader2 size={12} className="spin" /> : <Zap size={12} />}
+                {isAnalyzingCurrent ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
                 {loc.harmonicSuggester.detectNow}
               </button>
             )}

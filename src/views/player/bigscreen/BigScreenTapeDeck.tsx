@@ -46,14 +46,13 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
 
       {/* Naklejka etykiety kasety (Vintage Paper Label) */}
       <div
-        className="flex flex-col gap-0.5 rounded-lg border border-purple-200 px-3.5 py-2 shadow-md shadow-black/30"
-        style={{ background: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)', color: '#1e1b4b' }}
+        className="flex flex-col gap-0.5 rounded-lg border border-purple-200 bg-linear-135 from-fuchsia-50 to-fuchsia-100 px-3.5 py-2 text-indigo-950 shadow-md shadow-black/30"
       >
         <div className="flex items-center justify-between">
           <span className="text-xxs font-extrabold tracking-label text-accent-pink">
             {t.bigScreenModes.sideA}
           </span>
-          <span className="text-2xs font-bold" style={{ color: '#6b21a8' }}>
+          <span className="text-2xs font-bold text-purple-800">
             {t.bigScreenModes.stereo}
           </span>
         </div>
@@ -86,12 +85,13 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
             }}
           />
           <div
-            className="z-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-fg"
+            className={cn(
+              'z-2 flex size-8 items-center justify-center rounded-full border-2 border-slate-300 bg-fg',
+              isPlaying && 'motion-safe:animate-spin',
+            )}
             style={{
               boxShadow: 'inset 0 0 6px #64748b',
-              animation: isPlaying
-                ? `spin ${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s linear infinite`
-                : 'none',
+              animationDuration: `${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s`,
             }}
           >
             {[0, 60, 120].map((deg) => (
@@ -122,12 +122,13 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
             }}
           />
           <div
-            className="z-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-fg"
+            className={cn(
+              'z-2 flex size-8 items-center justify-center rounded-full border-2 border-slate-300 bg-fg',
+              isPlaying && 'motion-safe:animate-spin',
+            )}
             style={{
               boxShadow: 'inset 0 0 6px #64748b',
-              animation: isPlaying
-                ? `spin ${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s linear infinite`
-                : 'none',
+              animationDuration: `${Math.max(0.8, 2.5 / (tempoRatio || 1.0))}s`,
             }}
           >
             {[0, 60, 120].map((deg) => (

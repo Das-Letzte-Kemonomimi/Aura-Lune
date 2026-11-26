@@ -39,7 +39,7 @@ export const DspPresetManager: React.FC<DspPresetManagerProps> = ({
         <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-accent-pink">
           <Sparkles size={14} /> Profile Sygnaturowe Auralune 1.0 (Mastering Profiles)
         </div>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-2">
           <button
             onClick={() => handleApplySignatureProfile('vocal_air')}
             className="glass-card flex flex-col gap-0.5 rounded-xl border border-accent-pink/40 bg-linear-135 from-accent-pink/20 to-accent-purple/15 px-3 py-2 text-left text-fg"

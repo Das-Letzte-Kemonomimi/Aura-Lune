@@ -70,8 +70,10 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
       <div className="flex items-center gap-2.5">
         {/* Okładka */}
         <div
-          className="flex h-10.5 w-10.5 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-card transition-shadow duration-300"
-          style={{ boxShadow: isPlaying ? '0 12px var(--shadow-glow)' : 'none' }}
+          className={cn(
+            'flex size-10.5 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-card transition-shadow duration-300',
+            isPlaying && 'shadow-accent-glow',
+          )}
         >
           {coverUrl ? (
             <img

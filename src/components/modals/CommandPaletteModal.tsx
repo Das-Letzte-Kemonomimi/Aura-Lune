@@ -186,7 +186,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         type: 'action',
         title: `${loc.commandPalette.actionStopAfterCurrent} ${stopAfterCurrent ? `• ${loc.commandPalette.activeTag}` : ''}`,
         subtitle: loc.commandPalette.actionStopAfterCurrentSubtitle,
-        icon: <Square size={18} style={{ fill: stopAfterCurrent ? 'var(--accent-pink)' : 'none' }} />,
+        icon: <Square size={18} className={stopAfterCurrent ? 'fill-accent-pink' : undefined} />,
         badge: stopAfterCurrent ? 'ON' : 'OFF',
         onExecute: () => {
           if (onToggleStopAfterCurrent) {

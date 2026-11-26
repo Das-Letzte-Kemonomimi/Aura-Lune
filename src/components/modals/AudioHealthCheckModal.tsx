@@ -143,7 +143,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
         <button
           onClick={onClose}
           aria-label={t.common.close}
-          className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-fg-muted transition-[background] duration-150"
+          className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-fg-muted transition-colors duration-150"
         >
           <X size={16} />
         </button>
@@ -153,7 +153,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1">
         {loading && (
           <div className="flex flex-col items-center justify-center p-10">
-            <RefreshCw size={28} className="text-accent-pink spin" />
+            <RefreshCw size={28} className="animate-spin text-accent-pink" />
             <p className="mt-3 text-sm text-fg-muted">{t.healthCheck.auditing}</p>
           </div>
         )}
@@ -184,7 +184,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2.5">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(32.5),1fr))] gap-2.5">
                 <div className="rounded-lg bg-black/25 px-2.5 py-2">
                   <div className="text-xxs text-fg-muted">{t.healthCheck.pipewireServer}</div>
                   <div className="mt-0.5 text-ui font-semibold text-fg">
@@ -329,7 +329,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
             loading ? 'cursor-default' : 'cursor-pointer',
           )}
         >
-          <RefreshCw size={13} className={loading ? 'spin' : ''} />
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           {t.healthCheck.recheckBtn}
         </button>
 

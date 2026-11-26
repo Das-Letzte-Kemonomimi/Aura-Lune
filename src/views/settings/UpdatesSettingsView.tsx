@@ -7,6 +7,7 @@ import { fmt } from '../../utils/fmt';
 import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { MarkdownText } from '../../components/common/MarkdownText';
 import { ChangelogView } from '../changelog/ChangelogView';
+import { cn } from '../../utils/cn';
 
 export interface UpdatesSettingsViewProps {
   language: Language;
@@ -27,33 +28,10 @@ export interface UpdatesSettingsViewProps {
   onToggleAutoCheck: (enabled: boolean) => void;
 }
 
-const CARD: React.CSSProperties = { padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' };
-const LABEL: React.CSSProperties = {
-  fontSize: '0.72rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: 'var(--text-muted)',
-  fontWeight: 700,
-};
-const BUTTON: React.CSSProperties = {
-  padding: '8px 16px',
-  borderRadius: '8px',
-  fontSize: '0.8rem',
-  fontWeight: 700,
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  cursor: 'pointer',
-  border: '1px solid var(--border-subtle)',
-  background: 'rgba(255, 255, 255, 0.06)',
-  color: 'var(--accent-cyan)',
-};
-const PRIMARY_BUTTON: React.CSSProperties = {
-  ...BUTTON,
-  border: 'none',
-  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-  color: '#fff',
-};
+const CARD = 'glass-card flex flex-col gap-3 p-5';
+const BUTTON =
+  'inline-flex items-center gap-1.5 rounded-lg border border-line bg-white/6 px-4 py-2 text-ui font-bold text-accent-cyan';
+const PRIMARY_BUTTON = cn(BUTTON, 'bg-accent-gradient border-0 text-on-accent');
 
 function kindLabel(loc: Translations, kind: InstallKind): string {
   switch (kind) {
@@ -125,29 +103,29 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
 
   return (
     <div className="mx-auto my-0 flex max-w-187.5 flex-col gap-4">
-      <div className="glass-card" style={CARD}>
+      <div className={CARD}>
         <h3 className="m-0 text-lg font-extrabold">{t.title}</h3>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-3">
           <div>
-            <div style={LABEL}>{t.currentVersion}</div>
+            <div className="label-caps">{t.currentVersion}</div>
             <div className="font-bold">v{buildInfo?.version ?? '…'}</div>
           </div>
           <div>
-            <div style={LABEL}>{t.channel}</div>
+            <div className="label-caps">{t.channel}</div>
             <div className="font-bold">{channelLabel}</div>
           </div>
           <div>
-            <div style={LABEL}>{t.commit}</div>
+            <div className="label-caps">{t.commit}</div>
             <div className="font-mono font-bold">{buildInfo?.commit_short ?? '…'}</div>
           </div>
           <div>
-            <div style={LABEL}>{t.installKind}</div>
+            <div className="label-caps">{t.installKind}</div>
             <div className="text-ui font-semibold">{kindLabel(loc, installKind)}</div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" style={BUTTON} onClick={onCheckNow} disabled={checking || installing}>
-            <RefreshCw size={14} style={checking ? { animation: 'spin 1s linear infinite' } : undefined} />
+          <button type="button" className={BUTTON} onClick={onCheckNow} disabled={checking || installing}>
+            <RefreshCw size={14} className={cn(checking && 'animate-spin')} />
             {checking ? t.checking : t.checkNow}
           </button>
           <span className="text-ui text-fg-muted">
@@ -164,13 +142,13 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
       </div>
 
       {info && !available && !installed && (
-        <div className="glass-card" style={{ ...CARD, color: 'var(--accent-green)', fontWeight: 600 }}>
+        <div className={cn(CARD, 'font-semibold text-accent-green')}>
           {t.upToDate}
         </div>
       )}
 
       {(available || installed) && (
-        <div className="glass-card" style={{ ...CARD, border: '1px solid var(--border-accent)' }}>
+        <div className={cn(CARD, 'border-line-accent')}>
           <div className="flex flex-wrap items-center gap-2.5">
             <span
               className="inline-flex items-center gap-1.5 rounded-full border border-green-500/45 bg-green-500/20 px-2.5 py-1 text-xs font-extrabold tracking-wider text-green-400 uppercase"
@@ -187,7 +165,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
                 type="button"
                 aria-expanded={notesExpanded}
                 onClick={() => setNotesExpanded((open) => !open)}
-                style={{ ...BUTTON, marginLeft: 'auto', padding: '4px 10px', fontSize: '0.75rem' }}
+                className={cn(BUTTON, 'ml-auto px-2.5 py-1 text-xs')}
               >
                 {t.releaseNotes}
                 {notesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -222,23 +200,23 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
           )}
           <div className="flex flex-wrap gap-2.5">
             {installed ? (
-              <button type="button" style={PRIMARY_BUTTON} onClick={onRestart}>
+              <button type="button" className={PRIMARY_BUTTON} onClick={onRestart}>
                 <RotateCw size={14} /> {t.restartNow}
               </button>
             ) : (
               info?.can_install && (
-                <button type="button" style={PRIMARY_BUTTON} onClick={onInstall} disabled={installing}>
+                <button type="button" className={PRIMARY_BUTTON} onClick={onInstall} disabled={installing}>
                   <Download size={14} /> {installing ? t.installing : t.install}
                 </button>
               )
             )}
             {info?.release_url && (
-              <button type="button" style={BUTTON} onClick={() => info.release_url && openLink(info.release_url)}>
+              <button type="button" className={BUTTON} onClick={() => info.release_url && openLink(info.release_url)}>
                 <ExternalLink size={14} /> {t.openRelease}
               </button>
             )}
             {!installed && !isSkipped && (
-              <button type="button" style={BUTTON} onClick={onSkip} disabled={installing}>
+              <button type="button" className={BUTTON} onClick={onSkip} disabled={installing}>
                 {t.skip}
               </button>
             )}
@@ -252,8 +230,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
       {(error || linkError) && (
         <div
           role="alert"
-          className="glass-card"
-          style={{ ...CARD, color: '#f87171', border: '1px solid rgba(248,113,113,0.4)', fontSize: '0.82rem' }}
+          className={cn(CARD, 'border-red-400/40 text-ui text-red-400')}
         >
           {t.errorPrefix}: {error ?? linkError}
         </div>

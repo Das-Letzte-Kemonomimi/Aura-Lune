@@ -51,7 +51,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
           className="h-4 w-4 accent-accent-cyan"
         />
         <span className="flex flex-wrap items-center gap-1.5">
-          <Scissors size={15} color={transcodeApplyRange ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
+          <Scissors className={cn(transcodeApplyRange ? 'text-accent-cyan' : 'text-fg-muted')} size={15} />
           {loc.settings.transcodeApplyRange}
           {(loopPointA !== null || loopPointB !== null) && (
             <span
@@ -121,7 +121,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-2.5">
             {/* Punkt A */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">

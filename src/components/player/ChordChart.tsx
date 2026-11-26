@@ -76,8 +76,7 @@ export const ChordChart: React.FC<ChordChartProps> = ({
       ref={containerRef}
       onWheel={markManualScroll}
       onTouchMove={markManualScroll}
-      className="relative grid max-h-115 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5 overflow-y-auto pr-1"
-      style={{ alignContent: 'start' }}
+      className="relative grid max-h-115 grid-cols-[repeat(auto-fill,minmax(--spacing(50),1fr))] content-start gap-2.5 overflow-y-auto pr-1"
     >
       {bars.map((bar, barIdx) => {
         const isActiveBar = barIdx === activeBarIdx;

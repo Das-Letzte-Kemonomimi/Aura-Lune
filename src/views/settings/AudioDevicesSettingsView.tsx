@@ -302,7 +302,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
           {loc.settings.albumPlaybackDesc}
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(50),1fr))] gap-2">
           {[
             { id: 'replace', label: loc.settings.albumPlaybackReplace },
             { id: 'append', label: loc.settings.albumPlaybackAppend },

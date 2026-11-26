@@ -108,7 +108,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               className="mb-4.5 rounded-2xl border border-accent-purple/25 bg-accent-purple/8 p-4 text-sm leading-normal text-slate-200"
             >
               <div className="mb-2 flex items-center gap-2 font-bold text-accent-purple">
-                <Heart size={16} fill="var(--accent-purple)" />
+                <Heart className="fill-accent-purple" size={16} />
                 {loc.onboarding.whyAuralune}
               </div>
               <p className="m-0 italic">
@@ -169,7 +169,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
               <div
                 className={cn(
-                  'relative h-6.5 w-11.5 shrink-0 rounded-xl transition-[background] duration-200',
+                  'relative h-6.5 w-11.5 shrink-0 rounded-xl transition-colors duration-200',
                   recapOptIn ? 'bg-accent-cyan' : 'bg-white/20',
                 )}
               >

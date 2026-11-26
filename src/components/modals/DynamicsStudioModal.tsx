@@ -376,7 +376,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-[1fr_280px] items-center gap-5">
+          <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
             {/* SUWAKI KOMPRESORA */}
             <div className="flex flex-col gap-3">
               {/* Threshold */}
@@ -449,7 +449,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               </div>
 
               {/* Soft-Knee & Makeup Gain */}
-              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+              <div className="grid grid-cols-[--spacing(30)_1fr] items-center gap-4">
                 <div>
                   <span className="mb-1 block text-ui text-slate-300">
                     {loc.dynamicsStudio.knee}
@@ -603,7 +603,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
             })}
           </div>
 
-          <div className="grid grid-cols-[1fr_280px] items-center gap-5">
+          <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
             {/* SUWAKI SATURATORA */}
             <div className="flex flex-col gap-3">
               {/* Drive */}
