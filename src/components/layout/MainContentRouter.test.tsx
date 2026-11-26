@@ -91,12 +91,12 @@ describe('MainContentRouter component', () => {
 
   it('applies bottom dock clearance padding when dock is visible', () => {
     const { rerender } = render(<MainContentRouter {...dummyProps} activeTab="player" isPlayerScrolledDown={false} />);
-    expect(screen.getByRole('main').className).not.toContain('pb-26');
+    expect(screen.getByRole('main').className).not.toContain('pb-28.5');
 
     rerender(<MainContentRouter {...dummyProps} activeTab="player" isPlayerScrolledDown />);
-    expect(screen.getByRole('main').className).toContain('pb-26');
+    expect(screen.getByRole('main').className).toContain('pb-28.5');
 
     rerender(<MainContentRouter {...dummyProps} activeTab="library" isPlayerScrolledDown={false} />);
-    expect(screen.getByRole('main').className).toContain('pb-26');
+    expect(screen.getByRole('main').className).toContain('pb-28.5');
   });
 });
