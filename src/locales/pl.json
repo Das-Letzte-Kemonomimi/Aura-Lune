@@ -488,6 +488,8 @@
     "albumTileSmall": "Kompaktowe kafelki",
     "albumTileMedium": "Średnie kafelki",
     "albumTileLarge": "Duże kafelki",
+    "albumFormatMixed": "Różne",
+    "albumProgressTooltip": "Odsłuchano {0} z {1} utworów · odtworzeń: {2}",
     "viewGridView": "Widok kafelków",
     "viewGrid": "Kafelki",
     "viewListView": "Widok listy",

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Clock, Disc, LayoutGrid, List, Play, Plus, Search, Sparkles } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import type { AlbumRecord } from '../../../types/library';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
-import { Badge, Button, Card, EmptyState, IconButton, SegmentedControl } from '../../../components/ui';
+import { Badge, Button, Card, EmptyState, IconButton, ProgressBar, SegmentedControl } from '../../../components/ui';
 import { SortControls } from './SortControls';
+import { buildAlbumStats, MIXED_FORMAT, type AlbumStats } from './albumModel';
+import { NowPlayingMark } from './trackRowParts';
 
-export type LibraryAlbumGridProps = Pick<LibraryViewProps, 'sortedAlbums' | 'albums' | 'loc' | 'albumsWithCoverCount' | 'albumsWithoutCoverCount' | 'albumCoverFilter' | 'setAlbumCoverFilter' | 'albumSortField' | 'setAlbumSortField' | 'setAlbumSortOrder' | 'albumSortOrder' | 'albumViewMode' | 'albumGridSize' | 'setAlbumGridSize' | 'setAlbumViewMode' | 'librarySearch' | 'setLibrarySearch' | 'tracks' | 'handleOpenAlbumDetail' | 'handlePlayAlbum' | 'handleAddAlbumToQueue' | 'handleOpenCoverPicker' | 'handleOpenMbModal'> & {
+export type LibraryAlbumGridProps = Pick<LibraryViewProps, 'sortedAlbums' | 'albums' | 'loc' | 'albumsWithCoverCount' | 'albumsWithoutCoverCount' | 'albumCoverFilter' | 'setAlbumCoverFilter' | 'albumSortField' | 'setAlbumSortField' | 'setAlbumSortOrder' | 'albumSortOrder' | 'albumViewMode' | 'albumGridSize' | 'setAlbumGridSize' | 'setAlbumViewMode' | 'librarySearch' | 'setLibrarySearch' | 'tracks' | 'handleOpenAlbumDetail' | 'handlePlayAlbum' | 'handleAddAlbumToQueue' | 'handleOpenCoverPicker' | 'handleOpenMbModal' | 'currentPlayingTrack' | 'status'> & {
   formatAlbumDuration: (ms: number) => string;
 };
 
@@ -18,7 +20,27 @@ const GRID_LAYOUT = {
   large: 'grid-cols-[repeat(auto-fill,minmax(--spacing(60),--spacing(72.5)))] gap-4.5',
 } as const;
 
+const EMPTY_STATS: AlbumStats = { trackCount: 0, durationMs: 0, format: '', hiRes: false, playCount: 0, heardCount: 0 };
+
 const TILE_MAX_WIDTH = { compact: 'max-w-50', medium: 'max-w-61.5', large: 'max-w-75' } as const;
+
+/** Border and tint of the card of the album that is playing or paused (same look as the queue drawer). */
+const PLAYING_CARD = 'aria-[current=true]:border-accent-pink aria-[current=true]:bg-accent-pink/15 aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25';
+
+/** Format of an album as a corner badge: cyan for hi-res, grey otherwise, "Mixed" for several formats. */
+function AlbumFormatBadge({ stats, mixedLabel, className }: { stats: AlbumStats; mixedLabel: string; className?: string }) {
+  return (
+    <Badge tone={stats.hiRes ? 'cyan' : 'neutral'} size="xs" mono className={className}>
+      {stats.format === MIXED_FORMAT ? mixedLabel : stats.format}
+    </Badge>
+  );
+}
+
+/** Thin bar of the share of tracks heard at least once; nothing for an album that was never played. */
+function AlbumProgress({ stats, label, className }: { stats: AlbumStats; label: string; className?: string }) {
+  if (stats.heardCount === 0) return null;
+  return <ProgressBar size="sm" tone="pink" value={(stats.heardCount / stats.trackCount) * 100} label={label} className={className} />;
+}
 
 /** Album cover as a background, or a disc glyph on a tinted gradient when there is none. */
 function AlbumCover({
@@ -59,6 +81,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
   albums,
   albumsWithCoverCount,
   albumsWithoutCoverCount,
+  currentPlayingTrack,
   formatAlbumDuration,
   handleAddAlbumToQueue,
   handleOpenAlbumDetail,
@@ -74,13 +97,23 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
   setAlbumViewMode,
   setLibrarySearch,
   sortedAlbums,
+  status,
   tracks,
 }) => {
   const compact = albumGridSize === 'compact';
-  const albumStats = (album: AlbumRecord) => {
-    const albumTracks = tracks.filter((t) => t.album_id === album.id);
-    const durText = formatAlbumDuration(albumTracks.reduce((acc, t) => acc + (t.duration_ms || 0), 0));
-    return { albumTracks, durText };
+  const statsByAlbum = useMemo(() => buildAlbumStats(tracks), [tracks]);
+  const playingAlbumId = currentPlayingTrack?.album_id ?? null;
+  const isPlaying = status.state === 'Playing';
+  const tracksOf = (album: AlbumRecord) => tracks.filter((t) => t.album_id === album.id);
+  const albumInfo = (album: AlbumRecord) => {
+    const stats = statsByAlbum.get(album.id) ?? EMPTY_STATS;
+    const progressLabel = fmt(loc.library.albumProgressTooltip, String(stats.heardCount), String(stats.trackCount), String(stats.playCount));
+    return {
+      stats,
+      durText: formatAlbumDuration(stats.durationMs),
+      progressLabel,
+      current: playingAlbumId === album.id,
+    };
   };
 
   return (
@@ -180,29 +213,33 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
       ) : albumViewMode === 'list' ? (
         <div className="flex flex-col gap-2">
           {sortedAlbums.map((album) => {
-            const { albumTracks, durText } = albumStats(album);
+            const { stats, durText, progressLabel, current } = albumInfo(album);
             return (
               <Card
                 key={album.id}
-                interactive
+                interactive={!current}
                 padding="none"
-                className="flex cursor-pointer items-center gap-4 px-4 py-2.5"
+                aria-current={current ? 'true' : undefined}
+                className={cn('flex cursor-pointer items-center gap-4 px-4 py-2.5', PLAYING_CARD)}
                 onClick={() => handleOpenAlbumDetail(album)}
               >
                 <AlbumCover album={album} iconSize={24} className="size-13 shrink-0 rounded-lg" title={loc.covers.matchCoverTitle} />
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
+                    {current && <NowPlayingMark playing={isPlaying} />}
                     <span className="truncate text-md font-bold text-fg">{album.title}</span>
                     {album.year && <span className="text-xs font-semibold text-fg-muted">({album.year})</span>}
+                    {stats.trackCount > 0 && <AlbumFormatBadge stats={stats} mixedLabel={loc.library.albumFormatMixed} />}
                     {album.release_mbid && <Badge tone="cyan" size="xs" mono>MBID</Badge>}
                   </div>
                   <p className="mt-1 truncate text-ui text-fg-secondary">{album.album_artist}</p>
+                  <AlbumProgress stats={stats} label={progressLabel} className="mt-1.5 max-w-60" />
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2.5">
+                <div className="flex shrink-0 items-center gap-2.5" title={progressLabel}>
                   <Badge tone="cyan">
-                    {albumTracks.length} {loc.library.tracks}
+                    {stats.trackCount} {loc.library.tracks}
                   </Badge>
                   {durText && (
                     <span className="flex items-center gap-1 text-xs text-fg-muted">
@@ -213,10 +250,10 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
 
                 {/* Actions; clicks here do not open the album */}
                 <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  <Button size="sm" onClick={() => handlePlayAlbum(albumTracks)}>
+                  <Button size="sm" onClick={() => handlePlayAlbum(tracksOf(album))}>
                     <Play size={12} className="text-accent-pink" /> {loc.player.play}
                   </Button>
-                  <IconButton variant="secondary" size="sm" label={loc.library.addToQueue} onClick={() => handleAddAlbumToQueue(albumTracks)} className="text-accent-cyan">
+                  <IconButton variant="secondary" size="sm" label={loc.library.addToQueue} onClick={() => handleAddAlbumToQueue(tracksOf(album))} className="text-accent-cyan">
                     <Plus size={13} />
                   </IconButton>
                   <Button variant="primary" size="sm" onClick={() => handleOpenCoverPicker(album)} title={loc.covers.matchCoverTitle}>
@@ -233,13 +270,15 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
       ) : (
         <div className={cn('grid', GRID_LAYOUT[albumGridSize])}>
           {sortedAlbums.map((album) => {
-            const { albumTracks, durText } = albumStats(album);
+            const { stats, durText, progressLabel, current } = albumInfo(album);
             return (
               <Card
                 key={album.id}
-                interactive
+                interactive={!current}
                 padding="none"
-                className={cn('flex cursor-pointer flex-col rounded-2xl', compact ? 'gap-2 p-2.5' : 'gap-2.5 p-3.5', TILE_MAX_WIDTH[albumGridSize])}
+                aria-current={current ? 'true' : undefined}
+                title={progressLabel}
+                className={cn('flex cursor-pointer flex-col rounded-2xl', compact ? 'gap-2 p-2.5' : 'gap-2.5 p-3.5', TILE_MAX_WIDTH[albumGridSize], PLAYING_CARD)}
                 onClick={() => handleOpenAlbumDetail(album)}
               >
                 <AlbumCover
@@ -248,6 +287,9 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   className="aspect-square w-full overflow-hidden rounded-xl"
                   title={loc.library.albumViewTracksTooltip}
                 >
+                  {stats.trackCount > 0 && (
+                    <AlbumFormatBadge stats={stats} mixedLabel={loc.library.albumFormatMixed} className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-xs" />
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -263,26 +305,27 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
 
                 <div className="flex-1">
                   <h4 className={cn('line-clamp-2 leading-tight font-bold text-fg', compact ? 'text-ui' : 'text-sm')} title={album.title}>
-                    {album.title}
+                    {current && <NowPlayingMark playing={isPlaying} />} {album.title}
                   </h4>
                   <p className="mt-1 truncate text-xs text-fg-secondary">
                     {album.album_artist} {album.year ? `(${album.year})` : ''}
                   </p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <Badge tone="cyan">
-                      {albumTracks.length} {loc.library.tracks}
+                      {stats.trackCount} {loc.library.tracks}
                     </Badge>
                     {durText && <span className="text-xxs text-fg-muted">{durText}</span>}
                     {album.release_mbid && <Badge size="xs" mono>MBID</Badge>}
                   </div>
+                  <AlbumProgress stats={stats} label={progressLabel} className="mt-2" />
                 </div>
 
                 {/* Actions; clicks here do not open the album */}
                 <div className="mt-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  <Button size="sm" onClick={() => handlePlayAlbum(albumTracks)} className={compact ? 'px-2' : undefined}>
+                  <Button size="sm" onClick={() => handlePlayAlbum(tracksOf(album))} className={compact ? 'px-2' : undefined}>
                     <Play size={11} className="text-accent-pink" /> {loc.player.play}
                   </Button>
-                  <IconButton variant="secondary" size="sm" label={loc.library.addToQueue} onClick={() => handleAddAlbumToQueue(albumTracks)} className="text-accent-cyan">
+                  <IconButton variant="secondary" size="sm" label={loc.library.addToQueue} onClick={() => handleAddAlbumToQueue(tracksOf(album))} className="text-accent-cyan">
                     <Plus size={12} />
                   </IconButton>
                   <Button

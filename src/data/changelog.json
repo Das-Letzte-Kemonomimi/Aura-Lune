@@ -90,6 +90,13 @@
         "de": "Animierter Startbildschirm mit Live-Fortschrittsanzeige hinzugefügt, während Design, Audiogeräte, Warteschlange und Musikbibliothek geladen werden.",
         "fi": "Lisätty animoitu käynnistysnäkymä reaaliaikaisella edistymispalkilla, kun teema, äänilaitteet, toistojono ja musiikkikirjasto latautuvat.",
         "la": "Addita est species initii animata cum indicio progressus, dum species visualis, instrumenta soni, ordo et bibliotheca musica onerantur."
+      },
+      {
+        "en": "Album tiles now show the file format, how much of the album you've heard, and highlight the album that's playing.",
+        "pl": "Kafelki albumów pokazują teraz format plików, ile z albumu już odsłuchano, i wyróżniają aktualnie grany album.",
+        "de": "Albumkacheln zeigen jetzt das Dateiformat, wie viel vom Album du schon gehört hast, und heben das laufende Album hervor.",
+        "fi": "Albumiruudut näyttävät nyt tiedostomuodon, kuinka paljon albumista olet kuunnellut, ja korostavat soivan albumin.",
+        "la": "Tessellae albumorum nunc formam fasciculi ostendunt, quantum de albo audieris, et album quod sonat illustrant."
       }
     ],
     "changed": [

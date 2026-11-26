@@ -488,6 +488,8 @@
     "albumTileSmall": "Small tiles",
     "albumTileMedium": "Medium tiles",
     "albumTileLarge": "Large tiles",
+    "albumFormatMixed": "Mixed",
+    "albumProgressTooltip": "Heard {0} of {1} tracks · {2} plays",
     "viewGridView": "Grid View",
     "viewGrid": "Grid",
     "viewListView": "List View",

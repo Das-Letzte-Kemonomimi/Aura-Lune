@@ -488,6 +488,8 @@
     "albumTileSmall": "Kompakte Kacheln",
     "albumTileMedium": "Mittlere Kacheln",
     "albumTileLarge": "Große Kacheln",
+    "albumFormatMixed": "Gemischt",
+    "albumProgressTooltip": "{0} von {1} Titeln gehört · {2} Wiedergaben",
     "viewGridView": "Kachelansicht",
     "viewGrid": "Kacheln",
     "viewListView": "Listenansicht",

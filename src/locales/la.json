@@ -488,6 +488,8 @@
     "albumTileSmall": "Tessellae parvae",
     "albumTileMedium": "Tessellae mediae",
     "albumTileLarge": "Tessellae magnae",
+    "albumFormatMixed": "Mixta",
+    "albumProgressTooltip": "Audita {0} ex {1} carminibus · {2} auditiones",
     "viewGridView": "Conspectus tessellarum",
     "viewGrid": "Tessellae",
     "viewListView": "Conspectus indicis",

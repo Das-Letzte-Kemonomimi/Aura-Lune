@@ -488,6 +488,8 @@
     "albumTileSmall": "Pienet ruudut",
     "albumTileMedium": "Keskikokoiset ruudut",
     "albumTileLarge": "Suuret ruudut",
+    "albumFormatMixed": "Sekalaisia",
+    "albumProgressTooltip": "Kuunneltu {0}/{1} kappaletta · {2} toistoa",
     "viewGridView": "Ruudukkonäkymä",
     "viewGrid": "Ruudukko",
     "viewListView": "Luettelonäkymä",
