@@ -1759,6 +1759,7 @@
     "panLabel": "Libratio {0}",
     "volumeResetTooltip": "Bis preme ad 0 dB redintegrationem",
     "faderLabel": "Volumen {0}",
+    "seekLabel": "Locus operis",
     "masterVolume": "Amplitudo Magistra:",
     "trackAnalysis": "Analysis Semitarum:",
     "vocalPianoRoll": "Rotulus Clavilis Vocis Secretae",

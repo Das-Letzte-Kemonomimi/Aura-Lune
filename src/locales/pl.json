@@ -1759,6 +1759,7 @@
     "panLabel": "Panorama: {0}",
     "volumeResetTooltip": "Podwójne kliknięcie resetuje do 75% (0 dB unity gain)",
     "faderLabel": "Głośność: {0}",
+    "seekLabel": "Pozycja projektu",
     "masterVolume": "Głośność Master:",
     "trackAnalysis": "Analiza na ścieżkach:",
     "vocalPianoRoll": "Piano-Roll wyodrębnionego wokalu",

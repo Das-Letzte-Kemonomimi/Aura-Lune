@@ -67,6 +67,7 @@
 - **Pakiet AUR `auralune-bin`** instaluje cały obraz AppImage w `/opt/auralune` (z dołączonymi bibliotekami RubberBand/SoundTouch/GStreamer) z własnym wpisem `.desktop` i ikonami; wcześniej kopiował samą binarkę, a skrót uruchamiał nieistniejące polecenie `auralune-desktop`.
 
 ### 🛠️ Poprawiono (Fixed)
+- **Studio stemów**: suwak pozycji ma etykietę dla czytników ekranu („Pozycja projektu”) oraz odczytuje bieżący czas względem całości (np. „1:05 / 3:20”) zamiast surowych milisekund.
 - **Profile DSP (Nightcore, Slowed, …)**: zastosowanie profilu to jedno wywołanie IPC (`apply_dsp_profile`) zamiast sześciu, a przełączenie z Bypass na silnik DSP nie wykonuje już seeku (przebazowanie osi czasu), więc profil włącza się bez przerwy w dźwięku.
 - **Ikona kanału dev**: `install.sh` instaluje nową ikonę (lineout) zamiast starej, launcher eksportuje `AURALUNE_CHANNEL`, a aplikacja zapisuje ikonę pod `auralune-dev` i nie nadpisuje wpisu `.desktop` wersji stable.
 - **Pełnoekranowy odtwarzacz**: zawartość skaluje się do okna i można ją przewijać zamiast wychodzić poza ekran.

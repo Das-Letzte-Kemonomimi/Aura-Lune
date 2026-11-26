@@ -1759,6 +1759,7 @@
     "panLabel": "Panorama {0}",
     "volumeResetTooltip": "Doppelklick setzt auf 0 dB Einheitsverstärkung zurück",
     "faderLabel": "Lautstärke {0}",
+    "seekLabel": "Projektposition",
     "masterVolume": "Master-Lautstärke:",
     "trackAnalysis": "Spuranalyse:",
     "vocalPianoRoll": "Extrahierte Gesangs-Pianorolle",
