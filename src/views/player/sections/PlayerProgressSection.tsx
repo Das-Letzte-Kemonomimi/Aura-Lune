@@ -36,9 +36,9 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
   trackWaveformPeaks,
 }) => (
     <div>
-      <div className="mb-1.5 flex items-center justify-between font-mono text-ui text-fg-secondary">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-fg">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 font-mono text-ui text-fg-secondary">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-lg border border-line bg-black/30 px-2.5 py-0.5 font-bold text-fg tabular-nums">
             {formatTime(status.position_ms)}
           </span>
           {/* DSP speed and transposition indicator when tempo, rate or pitch is changed */}
@@ -89,14 +89,24 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               </Button>
             </div>
           )}
-
+        </div>
+        <div className="flex items-center gap-2">
           {/* Fade Seek toggle for the progress bar */}
-          <Chip size="xs" pressed={seekFadeEnabled} onClick={handleToggleSeekFade} title={loc.player.seekFadeDesc}>
+          <Chip
+            size="xs"
+            tone="amber"
+            pressed={seekFadeEnabled}
+            onClick={handleToggleSeekFade}
+            title={loc.player.seekFadeDesc}
+            className="rounded-full px-2.5 py-1"
+          >
             <Zap size={11} />
             {loc.player.seekFadeShort}
           </Chip>
+          <span className="rounded-lg border border-line bg-black/30 px-2.5 py-0.5 tabular-nums">
+            {status.duration_ms ? formatTime(status.duration_ms) : '--:--'}
+          </span>
         </div>
-        <span>{status.duration_ms ? formatTime(status.duration_ms) : '--:--'}</span>
       </div>
 
       {/* Track waveform: an interactive wave synced with DSP */}

@@ -13,6 +13,11 @@ export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmar
 };
 
 
+/** Rounded cluster that groups related tool buttons (bookmarks, loop, extras). */
+function ToolGroup({ children }: { children: React.ReactNode }) {
+  return <div className="flex items-center gap-1 rounded-xl border border-line bg-black/25 p-1">{children}</div>;
+}
+
 /** Round transport button (previous, stop, next). */
 const transportClass = 'size-9.5 rounded-full border-transparent bg-white/8 text-fg';
 /** Round toggle (shuffle, repeat). */
@@ -60,156 +65,9 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   const playing = status.state === 'Playing';
   return (
-    <div className="flex items-center justify-between">
-      {/* Left tools: bookmark, A-B loop, sleep timer, shortcuts, then the transport */}
-      <div className="flex items-center gap-1.5">
-        {currentBookmark === null ? (
-          <Button
-            variant={activeTrackId ? 'tinted' : 'secondary'}
-            tone="amber"
-            size="sm"
-            onClick={handleSaveBookmark}
-            title={loc.player.bookmarkDesc}
-            className="h-8"
-          >
-            <Bookmark size={13} fill={activeTrackId ? 'currentColor' : 'none'} className="text-accent-amber" />
-            {loc.player.bookmark}
-          </Button>
-        ) : (
-          <div className="flex items-center">
-            <Button variant="tinted" tone="amber" size="sm" onClick={handleSaveBookmark} className="h-8 rounded-r-none">
-              <Bookmark size={13} fill="currentColor" /> {loc.player.bookmark}
-            </Button>
-            <Button
-              variant="tinted"
-              tone="amber"
-              size="sm"
-              onClick={() => handleJumpToBookmark(currentBookmark)}
-              title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
-              className="h-8 rounded-none border-l-0 font-mono"
-            >
-              {formatTime(currentBookmark)}
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleDeleteBookmark}
-              aria-label={loc.player.bookmarkDelete}
-              title={loc.player.bookmarkDelete}
-              className="h-8 rounded-l-none border-l-0 px-1.5"
-            >
-              <X size={12} />
-            </Button>
-          </div>
-        )}
-
-        {/* Cue points (multi-point bookmarks) */}
-        <Button
-          variant="tinted"
-          tone="cyan"
-          size="sm"
-          onClick={() => {
-            if (!activeTrackId && !status.current_track?.track_id) {
-              showMessage(loc.player.loadTrackToManageBookmarks, true);
-              return;
-            }
-            setIsBookmarksModalOpen(true);
-          }}
-          title={fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length))}
-          className="h-8"
-        >
-          <Bookmark size={13} />
-          {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}
-        </Button>
-
-        <Chip
-          tone="cyan"
-          pressed={loopPointA !== null}
-          onClick={() => {
-            const pos = currentPositionMs(status.position_ms);
-            setLoopPointA(pos);
-            showMessage(fmt(loc.player.pointAUpdatedMsg, formatTimeMs(pos)));
-          }}
-          title={loopPointA !== null
-            ? fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))
-            : loc.player.setPointAAtCurrent}
-          className="h-8 min-w-8 font-bold"
-        >
-          A
-        </Chip>
-        <Chip
-          tone="pink"
-          pressed={loopPointB !== null}
-          onClick={() => {
-            const pos = currentPositionMs(status.position_ms);
-            setLoopPointB(pos);
-            showMessage(fmt(loc.player.pointBUpdatedMsg, formatTimeMs(pos)));
-          }}
-          title={loopPointB !== null
-            ? fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))
-            : loc.player.setPointBAtCurrent}
-          className="h-8 min-w-8 font-bold"
-        >
-          B
-        </Chip>
-
-        {/* A-B loop editor, with a clear button once a point is set */}
-        <div className="flex items-center">
-          <Chip
-            tone="cyan"
-            pressed={loopPointA !== null && loopPointB !== null}
-            onClick={() => setIsLoopEditorOpen(true)}
-            aria-label={loc.player.editLoopTooltip}
-            title={loc.player.editLoopTooltip}
-            className={cn('h-8 min-w-8 px-2', hasLoopPoint && 'rounded-r-none')}
-          >
-            <Sliders size={13} />
-          </Chip>
-          {hasLoopPoint && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => {
-                setLoopPointA(null);
-                setLoopPointB(null);
-                showMessage(loc.player.clearedLoopMsg);
-              }}
-              aria-label={loc.shortcuts.loopClear}
-              title={loc.shortcuts.loopClear}
-              className="h-8 rounded-l-none border-l-0 px-1.5"
-            >
-              <X size={12} />
-            </Button>
-          )}
-        </div>
-
-        <Chip
-          tone="purple"
-          pressed={sleepActive}
-          onClick={() => setIsSleepTimerOpen(true)}
-          aria-label={loc.player.sleepTimer}
-          title={loc.player.sleepTimer}
-          className="h-8 min-w-8 px-2"
-        >
-          <Moon size={13} />
-          {sleepActive && (
-            <span className="font-mono text-xxs font-bold">
-              {sleepTimerRemainingSec !== null
-                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
-                : loc.player.timerEnd}
-            </span>
-          )}
-        </Chip>
-
-        <IconButton variant="secondary" label={loc.shortcuts.title} onClick={() => setIsShortcutsModalOpen(true)} className="size-8">
-          <Keyboard size={13} />
-        </IconButton>
-
-        <Chip tone="cyan" pressed={showLyrics} onClick={() => setShowLyrics(!showLyrics)} title={loc.shortcuts.lyrics} className="h-8">
-          <Mic2 size={13} />
-          {loc.player.lyrics}
-        </Chip>
-
+    <div className="grid grid-cols-1 items-center gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      {/* Media transport: the centre of the row */}
+      <div className="order-1 flex items-center justify-center gap-2 lg:order-2 lg:justify-self-center">
         <Chip
           tone="cyan"
           pressed={queue.shuffle}
@@ -254,8 +112,167 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         </Chip>
       </div>
 
+      {/* Tools: grouped by purpose, wrapping as clusters instead of single buttons */}
+      <div className="order-2 flex flex-wrap items-center gap-2 lg:order-1 lg:justify-self-start">
+        <ToolGroup>
+        {currentBookmark === null ? (
+          <Button
+            variant={activeTrackId ? 'tinted' : 'secondary'}
+            tone="amber"
+            size="sm"
+            onClick={handleSaveBookmark}
+            title={loc.player.bookmarkDesc}
+            className="h-7"
+          >
+            <Bookmark size={13} fill={activeTrackId ? 'currentColor' : 'none'} className="text-accent-amber" />
+            {loc.player.bookmark}
+          </Button>
+        ) : (
+          <div className="flex items-center">
+            <Button variant="tinted" tone="amber" size="sm" onClick={handleSaveBookmark} className="h-7 rounded-r-none">
+              <Bookmark size={13} fill="currentColor" /> {loc.player.bookmark}
+            </Button>
+            <Button
+              variant="tinted"
+              tone="amber"
+              size="sm"
+              onClick={() => handleJumpToBookmark(currentBookmark)}
+              title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
+              className="h-7 rounded-none border-l-0 font-mono"
+            >
+              {formatTime(currentBookmark)}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteBookmark}
+              aria-label={loc.player.bookmarkDelete}
+              title={loc.player.bookmarkDelete}
+              className="h-7 rounded-l-none border-l-0 px-1.5"
+            >
+              <X size={12} />
+            </Button>
+          </div>
+        )}
+
+        {/* Cue points (multi-point bookmarks) */}
+        <Button
+          variant="tinted"
+          tone="cyan"
+          size="sm"
+          onClick={() => {
+            if (!activeTrackId && !status.current_track?.track_id) {
+              showMessage(loc.player.loadTrackToManageBookmarks, true);
+              return;
+            }
+            setIsBookmarksModalOpen(true);
+          }}
+          title={fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length))}
+          className="h-7"
+        >
+          <Bookmark size={13} />
+          {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}
+        </Button>
+
+        </ToolGroup>
+
+        <ToolGroup>
+        <Chip
+          tone="cyan"
+          pressed={loopPointA !== null}
+          onClick={() => {
+            const pos = currentPositionMs(status.position_ms);
+            setLoopPointA(pos);
+            showMessage(fmt(loc.player.pointAUpdatedMsg, formatTimeMs(pos)));
+          }}
+          title={loopPointA !== null
+            ? fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))
+            : loc.player.setPointAAtCurrent}
+          className="h-7 min-w-8 font-bold"
+        >
+          A
+        </Chip>
+        <Chip
+          tone="pink"
+          pressed={loopPointB !== null}
+          onClick={() => {
+            const pos = currentPositionMs(status.position_ms);
+            setLoopPointB(pos);
+            showMessage(fmt(loc.player.pointBUpdatedMsg, formatTimeMs(pos)));
+          }}
+          title={loopPointB !== null
+            ? fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))
+            : loc.player.setPointBAtCurrent}
+          className="h-7 min-w-8 font-bold"
+        >
+          B
+        </Chip>
+
+        {/* A-B loop editor, with a clear button once a point is set */}
+        <div className="flex items-center">
+          <Chip
+            tone="cyan"
+            pressed={loopPointA !== null && loopPointB !== null}
+            onClick={() => setIsLoopEditorOpen(true)}
+            aria-label={loc.player.editLoopTooltip}
+            title={loc.player.editLoopTooltip}
+            className={cn('h-7 min-w-8 px-2', hasLoopPoint && 'rounded-r-none')}
+          >
+            <Sliders size={13} />
+          </Chip>
+          {hasLoopPoint && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                setLoopPointA(null);
+                setLoopPointB(null);
+                showMessage(loc.player.clearedLoopMsg);
+              }}
+              aria-label={loc.shortcuts.loopClear}
+              title={loc.shortcuts.loopClear}
+              className="h-7 rounded-l-none border-l-0 px-1.5"
+            >
+              <X size={12} />
+            </Button>
+          )}
+        </div>
+
+        </ToolGroup>
+
+        <ToolGroup>
+        <Chip
+          tone="purple"
+          pressed={sleepActive}
+          onClick={() => setIsSleepTimerOpen(true)}
+          aria-label={loc.player.sleepTimer}
+          title={loc.player.sleepTimer}
+          className="h-7 min-w-8 px-2"
+        >
+          <Moon size={13} />
+          {sleepActive && (
+            <span className="font-mono text-xxs font-bold">
+              {sleepTimerRemainingSec !== null
+                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
+                : loc.player.timerEnd}
+            </span>
+          )}
+        </Chip>
+
+        <IconButton variant="secondary" label={loc.shortcuts.title} onClick={() => setIsShortcutsModalOpen(true)} className="size-7">
+          <Keyboard size={13} />
+        </IconButton>
+
+        <Chip tone="cyan" pressed={showLyrics} onClick={() => setShowLyrics(!showLyrics)} title={loc.shortcuts.lyrics} className="h-7">
+          <Mic2 size={13} />
+          {loc.player.lyrics}
+        </Chip>
+
+        </ToolGroup>
+      </div>
+
       {/* Volume */}
-      <div className="flex items-center gap-2">
+      <div className="order-3 flex items-center gap-2 rounded-2xl border border-line bg-black/25 py-1 pr-1.5 pl-1.5 lg:justify-self-end">
         <IconButton
           size="sm"
           label={status.volume === 0 ? loc.player.unmute : loc.player.mute}

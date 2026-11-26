@@ -868,7 +868,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       {/* Wave toolbar ABOVE the progress bar */}
       {showStyleSelector && (
         <div className="flex w-full items-center justify-end gap-1.5">
-          <div className="flex items-center gap-1 rounded-lg border border-line bg-ink/90 px-1 py-0.5 backdrop-blur-sm">
+          <div role="group" aria-label="Waveform style" className="flex items-center gap-0.5 rounded-full border border-line bg-black/30 p-0.5">
             {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
               const isSelected = activeStyle === st;
               return (
@@ -882,7 +882,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
                   }}
                   aria-label={styleLabels[st].name}
                   title={styleLabels[st].name}
-                  className="gap-1 border-transparent bg-transparent py-1"
+                  className="gap-1 rounded-full border-transparent bg-transparent px-2.5 py-1"
                 >
                   {styleLabels[st].icon}
                   <span className={cn('text-xxs', isSelected ? 'inline' : 'hidden')}>
