@@ -12,7 +12,7 @@
 
 ## 1. 🔊 Silnik Audio, Wyjście & Sterowniki (PipeWire & GStreamer)
 - [x] **Architektura Hard Real-Time**: Całkowita izolacja wątku audio od webview, SQLite, operacji I/O i sieci (komunikacja przez atomiki i kanały zdarzeń).
-- [x] **GStreamer Pipeline**: Potok `uridecodebin -> audioconvert -> audioresample -> queue -> DSP -> volume/replaygain -> pipewiresink/autoaudiosink`.
+- [x] **GStreamer Pipeline**: `uridecodebin -> queue_in -> audioconvert -> audioresample -> capsfilter(F32LE) -> auralune_dsp -> freeverb -> equalizer-10bands -> peq_preamp -> equalizer-nbands -> audiodynamic -> compressor_makeup -> saturator -> stereo_widener -> bs2b -> rgvolume -> rglimiter -> spectrum -> audioconvert -> audioresample -> queue_sink -> volume (user) -> sink` (pulsesink, then pipewiresink, then autoaudiosink). Full map: `docs/architecture.md` §3.
 - [x] **Wyjście PipeWire z autodetekcją**: Wykrywanie obecności serwera PipeWire, bezpieczny fallback do PulseAudio/ALSA.
 - [x] **Pro Audio & Bluetooth Codec Switcher**: Zmiana profilu karty na `Pro Audio`, wybór kodeka Bluetooth wysokiej rozdzielczości (LDAC, aptX HD, AAC, SBC-XQ).
 - [x] **Konfigurowalny bufor audio**: Zmiana rozmiaru bufora `audio_buffer_duration_ms` (10 ms – 1000 ms) w Ustawieniach.
@@ -78,7 +78,7 @@
 - [x] **Studio Dynamiki (`DynamicsStudioModal`)**:
   - **Kompresor audio**: Próg (Threshold), Współczynnik (Ratio 1:1 do 20:1), Miękkie kolano (Soft Knee), Wzmocnienie wyjściowe (Makeup Gain) z wizualną krzywą transferu.
   - **Saturator lampowy/taśmowy**: Tryby *Tube Warmth*, *Tape Saturation*, *Overdrive* z regulacją Drive, Warmth i Dry/Wet mix.
-  - **True-Peak Limiter**: Sztywne ograniczenie ceilingu (np. -0.2 dB) zabezpieczające przetworniki DAC przed zniekształceniami międzypróbkowymi.
+  - **Clip protector (`rglimiter`)**: a soft limiter after ReplayGain that gently compresses samples above about -6 dBFS so they never pass 0 dBFS. It has no adjustable ceiling and does not detect true (inter-sample) peaks. It is active only while ReplayGain is on and "prevent clipping" is enabled.
 - [x] **Natywny Stereo Widener (Baza Stereo)**:
   - Bezalokacyjna 32-bitowa sonda buforowa `F32LE` bazująca na matrycy Mid-Side ($M/S$) z automatyczną kompensacją energii i ochroną mono (brak rwania dźwięku).
 - [x] **Efekt Pogłosu Przestrzennego (GStreamer Freeverb)**:
@@ -89,7 +89,7 @@
   - Wdrożona obsługa backendowa (`get_crossfeed_config` / `set_crossfeed_config`) redukująca zmęczenie odsłuchem na słuchawkach.
 - [x] **Zgodność z ReplayGain 2.0**:
   - Tryby: Track Gain, Album Gain, Off (natywny passthrough bez overheadu).
-  - Przedwzmacniacz (Pre-Amp) dla utworów z tagami RG i bez tagów RG.
+  - Pre-amp (`rgvolume` `pre-amp`) and fallback gain (`fallback-gain`, for tracks without RG tags). Verified behaviour (`crates/audio-engine/tests/replaygain_semantics_test.rs`): the pre-amp applies to untagged tracks too, giving `fallback-gain + pre-amp`. Because those tracks carry no peak, a positive total is capped at `rgvolume` `headroom`, which the engine leaves at its default of 0 dB, so a boost on an untagged track is currently lost while a cut works.
   - Wbudowany skaner ReplayGain (`scan_track_replaygain`, `scan_library_replaygain`).
 
 ---

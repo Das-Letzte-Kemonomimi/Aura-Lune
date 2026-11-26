@@ -26,6 +26,7 @@ export const SETTING_KEYS = [
   'listenbrainz_enabled',
   'listenbrainz_token',
   'playback_session_state',
+  'playback_volume',
   'restore_session_on_startup',
   'seek_fade_enabled',
   'stereo_widener_active',

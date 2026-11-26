@@ -1,11 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Volume2, Volume1, VolumeX } from '../ui/icons';
 import { cn } from '../../utils/cn';
+import { useVolumeCurve } from '../../hooks/useVolumeCurve';
+import { formatVolume, gainToPosition } from '../../utils/volumeCurve';
+import { VolumeIcon } from './VolumeSlider';
 
 export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'off';
 
+/** Default spot: the corner beside the dock's volume controls, clear of the centred DSP/tempo bar. */
+export const DEFAULT_VOLUME_OSD_POSITION: VolumeOsdPosition = 'bottom-right';
+
+/** How long the OSD stays after the last volume change. */
+export const VOLUME_OSD_HIDE_MS = 1200;
+
 interface VolumeOsdProps {
-  volume: number; // 0.0 - 1.0 (or up to 2.0)
+  /** Linear gain (0..1), as in `PlaybackStatus.volume`. */
+  volume: number;
   position: VolumeOsdPosition;
   unit?: 'percent' | 'db';
 }
@@ -22,14 +31,14 @@ const OSD_POSITIONS: Record<string, string> = {
 
 export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = 'percent' }) => {
   const [visible, setVisible] = useState(false);
+  const [curve] = useVolumeCurve();
   const hideTimerRef = useRef<number | null>(null);
   const isFirstMount = useRef(true);
 
-  const percentage = Math.round(volume * 100);
+  // The bar and the percentage follow the slider position, the dB readout the real gain.
+  const percentage = Math.round(gainToPosition(volume, curve) * 100);
   const isDb = unit === 'db';
-  const displayValue = isDb
-    ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
-    : `${percentage}%`;
+  const displayValue = formatVolume(volume, unit, curve);
 
   useEffect(() => {
     // Do not show on initialisation
@@ -51,7 +60,7 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
 
     hideTimerRef.current = window.setTimeout(() => {
       setVisible(false);
-    }, 1300);
+    }, VOLUME_OSD_HIDE_MS);
 
     return () => {
       if (hideTimerRef.current) {
@@ -66,19 +75,14 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
 
   return (
     <div
+      role="status"
       className={cn(
         'pointer-events-none fixed z-130 flex min-w-45 flex-col items-center gap-3 rounded-2xl border border-accent-pink/35 bg-ink/85 px-6 py-4 shadow-modal backdrop-blur-xl transition-opacity duration-300 motion-safe:animate-osd-pop',
-        OSD_POSITIONS[position] ?? OSD_POSITIONS['bottom-center'],
+        OSD_POSITIONS[position] ?? OSD_POSITIONS[DEFAULT_VOLUME_OSD_POSITION],
       )}
     >
       <div className="flex items-center gap-2.5">
-        {percentage === 0 ? (
-          <VolumeX size={26} className="text-accent-pink" />
-        ) : percentage < 50 ? (
-          <Volume1 size={26} className="text-accent-cyan" />
-        ) : (
-          <Volume2 size={26} className="text-accent-pink" />
-        )}
+        <VolumeIcon gain={volume} size={26} className={percentage < 50 && percentage > 0 ? 'text-accent-cyan' : 'text-accent-pink'} />
         <div className="flex items-baseline gap-1.5">
           <span className="font-mono text-2xl font-extrabold tracking-tight text-fg">
             {displayValue}

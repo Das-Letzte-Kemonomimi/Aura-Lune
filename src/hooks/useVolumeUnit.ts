@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { Translations } from '../i18n';
+import { fmt } from '../utils/fmt';
+import { formatVolume, type FormatVolumeOptions, type VolumeCurve } from '../utils/volumeCurve';
+import { useVolumeCurve } from './useVolumeCurve';
 
 export type VolumeUnit = 'percent' | 'db';
 
@@ -17,6 +20,7 @@ export function useVolumeUnit({ loc, showMessage }: UseVolumeUnitOptions) {
       return 'percent';
     }
   });
+  const [volumeCurve, setVolumeCurve] = useVolumeCurve();
 
   const handleSetVolumeUnit = useCallback(
     (unit: VolumeUnit) => {
@@ -34,20 +38,30 @@ export function useVolumeUnit({ loc, showMessage }: UseVolumeUnitOptions) {
     [loc.notifications.volumeUnitChanged, loc.notifications.volumeUnitDb, loc.notifications.volumeUnitPercent, showMessage]
   );
 
+  // The playback status holds linear gain, so switching the curve only moves the slider
+  // thumb: loudness stays exactly the same and nothing is sent to the engine.
+  const handleSetVolumeCurve = useCallback(
+    (curve: VolumeCurve) => {
+      setVolumeCurve(curve);
+      showMessage(
+        fmt(
+          loc.notifications.volumeCurveChanged,
+          curve === 'db-linear' ? loc.settings.volumeCurveDbLinear : loc.settings.volumeCurveCubic
+        )
+      );
+    },
+    [loc.notifications.volumeCurveChanged, loc.settings.volumeCurveCubic, loc.settings.volumeCurveDbLinear, setVolumeCurve, showMessage]
+  );
+
   const handleToggleVolumeUnit = useCallback(() => {
     handleSetVolumeUnit(volumeUnit === 'percent' ? 'db' : 'percent');
   }, [handleSetVolumeUnit, volumeUnit]);
 
+  /** `%` = slider position on the active curve, dB = real gain. */
   const formatVolumeValue = useCallback(
-    (vol: number, unit: VolumeUnit = volumeUnit): string => {
-      if (unit === 'db') {
-        if (vol <= 0.0001) return '-∞ dB';
-        const db = 20 * Math.log10(vol);
-        return `${db >= 0 ? '0.0' : db.toFixed(1)} dB`;
-      }
-      return `${Math.round(vol * 100)}%`;
-    },
-    [volumeUnit]
+    (gain: number, unit: VolumeUnit = volumeUnit, options?: FormatVolumeOptions): string =>
+      formatVolume(gain, unit, volumeCurve, options),
+    [volumeCurve, volumeUnit]
   );
 
   return {
@@ -55,6 +69,8 @@ export function useVolumeUnit({ loc, showMessage }: UseVolumeUnitOptions) {
     setVolumeUnit,
     handleSetVolumeUnit,
     handleToggleVolumeUnit,
+    volumeCurve,
+    handleSetVolumeCurve,
     formatVolumeValue,
   };
 }

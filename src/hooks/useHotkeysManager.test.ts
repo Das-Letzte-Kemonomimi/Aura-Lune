@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { cleanup, renderHook } from '@testing-library/react';
 import { useHotkeysManager } from './useHotkeysManager';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
 import { getTranslations } from '../i18n';
+import { gainToPosition, positionToGain } from '../utils/volumeCurve';
 
 describe('useHotkeysManager', () => {
+  // Unmount every hook, so its window listener does not answer the next test's keys.
+  afterEach(cleanup);
+
   it('triggers play/pause on Space keydown when not in input field', () => {
     const handlePlayPause = vi.fn();
     const statusRef = { current: { ...DEFAULT_PLAYBACK_STATUS } };
@@ -18,6 +22,8 @@ describe('useHotkeysManager', () => {
         handlePrevious: vi.fn(),
         handleSeek: vi.fn(),
         handleVolumeChange: vi.fn(),
+        handleToggleMute: vi.fn(),
+        volumeCurve: 'cubic' as const,
         handleToggleShuffle: vi.fn(),
         handleCycleLoopMode: vi.fn(),
         handlePitchChange: vi.fn(),
@@ -64,6 +70,8 @@ describe('useHotkeysManager', () => {
         handlePrevious,
         handleSeek: vi.fn(),
         handleVolumeChange: vi.fn(),
+        handleToggleMute: vi.fn(),
+        volumeCurve: 'cubic' as const,
         handleToggleShuffle: vi.fn(),
         handleCycleLoopMode: vi.fn(),
         handlePitchChange: vi.fn(),
@@ -113,6 +121,8 @@ describe('useHotkeysManager', () => {
       handleNext: vi.fn(),
       handlePrevious: vi.fn(),
       handleSeek: vi.fn(),
+      handleToggleMute: vi.fn(),
+      volumeCurve: 'cubic' as const,
       handleToggleShuffle: vi.fn(),
       handleCycleLoopMode: vi.fn(),
       handlePitchChange: vi.fn(),
@@ -158,7 +168,72 @@ describe('useHotkeysManager', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown' }));
 
     expect(firstNotify).not.toHaveBeenCalled();
-    expect(latestVolumeChange).toHaveBeenCalledWith(0.95);
-    expect(latestNotify).toHaveBeenCalledWith(pl.notifications.volumeMsg.replace('{0}', '-0.4 dB'));
+    // One step down from full is 98% of the slider on the cubic curve.
+    expect(latestVolumeChange).toHaveBeenCalledWith(positionToGain(0.98, 'cubic'));
+    expect(latestNotify).toHaveBeenCalledWith(pl.notifications.volumeMsg.replace('{0}', '-0.5 dB'));
+  });
+
+  function renderWithVolume(volume: number, volumeCurve: 'cubic' | 'db-linear' = 'cubic') {
+    const props = {
+      statusRef: { current: { ...DEFAULT_PLAYBACK_STATUS, volume } },
+      handlePlayPause: vi.fn(),
+      handleNext: vi.fn(),
+      handlePrevious: vi.fn(),
+      handleSeek: vi.fn(),
+      handleVolumeChange: vi.fn(),
+      handleToggleMute: vi.fn(),
+      volumeCurve,
+      handleToggleShuffle: vi.fn(),
+      handleCycleLoopMode: vi.fn(),
+      handlePitchChange: vi.fn(),
+      handleTempoChange: vi.fn(),
+      handleResetDsp: vi.fn(),
+      toggleMiniPlayer: vi.fn(),
+      setIsBigScreen: vi.fn(),
+      setIsSettingsOpen: vi.fn(),
+      setIsQueueOpen: vi.fn(),
+      setIsQuickLoadOpen: vi.fn(),
+      setShowPlaylistModal: vi.fn(),
+      setIsScanFolderOpen: vi.fn(),
+      setIsShortcutsModalOpen: vi.fn(),
+      setIsCommandPaletteOpen: vi.fn(),
+      setShowLyrics: vi.fn(),
+      setLoopPointA: vi.fn(),
+      setLoopPointB: vi.fn(),
+      setActiveTab: vi.fn(),
+      handleIncreaseScale: vi.fn(),
+      handleDecreaseScale: vi.fn(),
+      handleResetScale: vi.fn(),
+      formatTime: (ms: number) => `${ms}ms`,
+      formatVolumeValue: (vol: number) => `${Math.round(vol * 100)}%`,
+      showMessage: vi.fn(),
+      t: getTranslations('en'),
+    };
+    renderHook(() => useHotkeysManager(props));
+    return props;
+  }
+
+  it.each([
+    [{}, 0.52],
+    [{ shiftKey: true }, 0.505],
+    [{ ctrlKey: true }, 0.55],
+  ])('ArrowUp with %o steps the slider position to %f', (mods, expected) => {
+    const props = renderWithVolume(positionToGain(0.5, 'cubic'));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', code: 'ArrowUp', ...mods }));
+    expect(gainToPosition(props.handleVolumeChange.mock.lastCall![0], 'cubic')).toBeCloseTo(expected, 9);
+  });
+
+  it('ArrowDown follows the dB-linear curve and stops at mute', () => {
+    const props = renderWithVolume(positionToGain(0.01, 'db-linear'), 'db-linear');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown' }));
+    expect(props.handleVolumeChange).toHaveBeenCalledWith(0);
+  });
+
+  it('M toggles mute through handleToggleMute instead of jumping to full volume', () => {
+    const props = renderWithVolume(0);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', code: 'KeyM' }));
+    expect(props.handleToggleMute).toHaveBeenCalledTimes(1);
+    expect(props.handleVolumeChange).not.toHaveBeenCalled();
+    expect(props.showMessage).toHaveBeenCalledWith(props.t.notifications.unmutedMsg);
   });
 });

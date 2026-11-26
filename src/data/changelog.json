@@ -62,6 +62,13 @@
         "de": "Klare Systemmeldungen bei Startproblemen, bis zu 3 gestapelte Benachrichtigungen und ein Recap-Schnellbutton in den Statistiken.",
         "fi": "Selkeä järjestelmän virheikkuna käynnistysongelmissa, enintään 3 päällekkäistä ilmoitusta ja Recap-painike tilastonäkymässä.",
         "la": "Dialogus erroris initii, usque ad tres nuntios simul, et compendium Recap in statisticis."
+      },
+      {
+        "en": "Easier volume control: scroll the mouse wheel over any volume slider (hold Shift for fine steps, Ctrl for big ones), double-click to jump back to 70%, and mute with M brings back your previous level. Volume changes are also click-free, saved while you listen, and the volume pop-up now sits in the corner instead of covering the tempo controls.",
+        "pl": "Wygodniejsza głośność: kręć kółkiem myszy nad dowolnym suwakiem głośności (z Shift drobne kroki, z Ctrl duże), dwuklik wraca do 70%, a wyciszenie klawiszem M przywraca poprzedni poziom. Zmiany głośności są też bez trzasków, zapisują się w trakcie słuchania, a okienko głośności pojawia się w rogu zamiast zasłaniać ustawienia tempa.",
+        "de": "Bequemere Lautstärke: Mausrad über jedem Lautstärkeregler (mit Shift feine Schritte, mit Strg große), Doppelklick springt auf 70 % zurück, und Stummschalten mit M stellt die vorherige Lautstärke wieder her. Lautstärkeänderungen sind knackfrei, werden beim Hören gespeichert, und die Lautstärkeanzeige erscheint in der Ecke statt über den Tempo-Reglern.",
+        "fi": "Helpompi äänenvoimakkuus: rullaa hiiren rullaa minkä tahansa äänenvoimakkuussäätimen päällä (Shift pienille askelille, Ctrl suurille), kaksoisnapsautus palauttaa 70 %:iin ja M-mykistys palauttaa edellisen tason. Muutokset ovat myös naksahduksettomia, tallentuvat kuunnellessa, ja äänenvoimakkuusilmoitus näkyy nyt kulmassa eikä peitä tempon säätimiä.",
+        "la": "Volumen facilius: rotam muris super quamlibet regulam voluminis verte (Shift gradus parvos, Ctrl magnos dat), duplex ictus ad 70% redit, et silentium clave M volumen prius restituit. Mutationes voluminis sine strepitu fiunt, inter audiendum servantur, et fenestella voluminis nunc in angulo apparet, non super moderamina tempi."
       }
     ],
     "changed": [
@@ -113,6 +120,13 @@
         "de": "Höhere untere Wiedergabeleiste mit größeren, leichter bedienbaren Steuerungstasten, Cover-Vorschau und Symbolen.",
         "fi": "Korkeampi alapalkki, jossa on suuremmat ja helpommin napsautettavat toistopainikkeet, kansikuva ja kuvakkeet.",
         "la": "Vectis inferior altior cum clavibus moderationis maioribus, imagine operculi et iconibus clarioribus."
+      },
+      {
+        "en": "The volume slider now follows your ears: loudness changes evenly along the whole slider instead of all at the bottom. Pick a cubic or decibel curve in Settings; switching keeps the current loudness.",
+        "pl": "Suwak głośności działa teraz tak, jak słyszy ucho: głośność zmienia się równomiernie na całej jego długości, a nie tylko na samym dole. W ustawieniach wybierzesz krzywą sześcienną lub decybelową; zmiana nie wpływa na bieżącą głośność.",
+        "de": "Der Lautstärkeregler folgt jetzt dem Gehör: die Lautstärke ändert sich gleichmäßig über den ganzen Regler statt nur ganz unten. In den Einstellungen wählst du eine kubische oder eine Dezibel-Kurve; der Wechsel behält die aktuelle Lautstärke.",
+        "fi": "Äänenvoimakkuussäädin seuraa nyt korvaa: äänenvoimakkuus muuttuu tasaisesti koko säätimen matkalla eikä vain aivan alhaalla. Valitse asetuksista kuutiollinen tai desibelikäyrä; vaihto säilyttää nykyisen äänenvoimakkuuden.",
+        "la": "Regula voluminis nunc aures sequitur: volumen aequaliter per totam regulam mutatur, non solum in imo. In optionibus curvam cubicam vel decibelium eligis; mutatio volumen praesens servat."
       }
     ],
     "fixed": [

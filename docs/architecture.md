@@ -50,42 +50,40 @@ Zgodnie ze specyfikacją projektu, docelowa struktura modułowa obejmuje:
 
 ---
 
-## 3. Pipeline audio
+## 3. Audio pipeline
 
-Proponowana architektura potoku multimedialnego opiera się na frameworku GStreamer:
+The playback pipeline is a single GStreamer graph, built in `crates/audio-engine/src/pipeline/graph.rs`. The order below is the real link order:
 
 ```
-[ Plik lokalny (URI) ]
-         |
-         v
-    [ filesrc ]
-         |
-         v
-   [ decodebin ] (auto demux & decode: FLAC, MP3, OGG, WAV, AAC...)
-         |
-         v
-  [ audioconvert ]
-         |
-         v
- [ audioresample ]
-         |
-         v
-     [ queue ]
-         |
-         v
-  [ DSP Processing ]  <-- Kontrolowany w locie (SoundTouch / Rubber Band)
-         |
-         v
-  [ volume / replaygain ]
-         |
-         v
-  [ pipewiresink ] (fallback: autoaudiosink)
+uridecodebin            (auto demux & decode: FLAC, MP3, OGG/Opus, WAV, AAC…)
+  -> queue_in
+  -> audioconvert -> audioresample
+  -> capsfilter         (F32LE, interleaved)
+  -> auralune_dsp       (pitch/tempo: Rubber Band / SoundTouch, lock-free bypass)
+  -> freeverb           (reverb)
+  -> equalizer-10bands  (graphic EQ)
+  -> peq_preamp         (volume element: parametric EQ / AutoEQ preamp)
+  -> equalizer-nbands   (parametric EQ)
+  -> audiodynamic       (compressor)
+  -> compressor_makeup  (volume element: makeup gain)
+  -> saturator          (identity element + F32 pad probe)
+  -> stereo_widener     (identity element + F32 pad probe, Mid/Side)
+  -> bs2b               (crossfeed)
+  -> rgvolume           (ReplayGain: track/album gain, pre-amp, fallback gain)
+  -> rglimiter          (soft clip protector, enabled with "prevent clipping")
+  -> spectrum           (analyser for the visualisers)
+  -> audioconvert -> audioresample
+  -> queue_sink
+  -> volume             (user volume: linear gain 0..1, smooth ramps in pipeline/fades.rs)
+  -> sink               (pulsesink via pipewire-pulse, then pipewiresink, then autoaudiosink)
 ```
 
-### Izolacja i bezpieczeństwo
-1. **Brak alokacji na callbackach krytycznych**: Parametry DSP są przekazywane asynchronicznie za pomocą thread-safe struktur z atomowymi wskaźnikami lub mechanizmu właściwości elementów GStreamera.
-2. **Kompensacja opóźnień**: Silnik Rubber Band w trybie real-time wprowadza stałe opóźnienie (latency frames/start delay). Pipeline musi raportować i korygować segmenty czasowe dla dokładnego seekowania i prezentacji pozycji utworu w UI.
-3. **Płynna zmiana parametrów**: Zmiana wysokości dźwięku (pitch) oraz tempa odbywa się bez restartowania pipeline'u, z wygładzaniem wartości na granicach bloków audio w celu eliminacji klików i trzasków.
+The user volume is the last stage before the sink, so it never changes what the EQ, dynamics, ReplayGain or the spectrum see. The UI maps the slider position to this linear gain through a perceptual curve (`src/utils/volumeCurve.ts`); IPC, MPRIS and the saved `playback_volume` setting always carry linear gain.
+
+### Isolation and safety
+1. **No allocation in critical callbacks**: DSP parameters are passed asynchronously through thread-safe structures with atomics, or through GStreamer element properties.
+2. **Latency compensation**: Rubber Band in real-time mode adds a fixed latency (start delay). The pipeline must report and correct time segments so seeking and the position shown in the UI stay accurate.
+3. **Smooth parameter changes**: pitch and tempo change without restarting the pipeline, with values smoothed at audio block boundaries to avoid clicks and pops.
 
 ---
 

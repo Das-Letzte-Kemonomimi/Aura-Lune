@@ -132,6 +132,7 @@ export {
   IconUser as User,
   IconVinyl as Disc3,
   IconVolume as Volume2,
+  IconVolume3 as Volume,
   IconVolume2 as Volume1,
   IconVolumeOff as VolumeX,
   IconWand as Wand2,

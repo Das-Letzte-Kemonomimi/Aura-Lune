@@ -206,7 +206,8 @@ describe('usePlaybackController', () => {
       result.current.handleVolumeChange(0.65);
     });
     expect(setStatus).toHaveBeenCalled();
-    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.65 });
+    // Instant mode still ramps for a few ms in the engine, so a jump never clicks.
+    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.65, smooth: true, fadeMs: 15 });
   });
 
   it('handleToggleMute mutes and restores last non-zero volume', async () => {
@@ -238,14 +239,14 @@ describe('usePlaybackController', () => {
     act(() => {
       result.current.handleToggleMute();
     });
-    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0 });
+    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0, smooth: true, fadeMs: 15 });
 
     // Muted: rerender with volume 0 -> unmute restores 0.8
     rerender({ status: { ...mockStatus, volume: 0 } });
     act(() => {
       result.current.handleToggleMute();
     });
-    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.8 });
+    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.8, smooth: true, fadeMs: 15 });
   });
 
   it('handleVolumeChange in smooth fade mode sends smooth flag and fadeMs', async () => {
@@ -263,6 +264,26 @@ describe('usePlaybackController', () => {
       result.current.handleToggleMute();
     });
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0, smooth: true, fadeMs: 120 });
+  });
+
+  it('saves the volume once, 750 ms after the last change', () => {
+    const { result } = setupHook();
+    const saves = () => mockInvoke.mock.calls.filter(([cmd]) => cmd === 'set_app_setting');
+
+    act(() => {
+      result.current.handleVolumeChange(0.3);
+      vi.advanceTimersByTime(500);
+      result.current.handleVolumeChange(0.4);
+      vi.advanceTimersByTime(500);
+      result.current.handleVolumeChange(0.5);
+      vi.advanceTimersByTime(749);
+    });
+    expect(saves()).toHaveLength(0);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(saves()).toEqual([['set_app_setting', { key: 'playback_volume', value: '0.5' }]]);
   });
 
   it('handleCycleLoopMode cycles through loop modes', async () => {

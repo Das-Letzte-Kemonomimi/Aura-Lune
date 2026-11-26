@@ -214,11 +214,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
+                  { id: 'bottom-right', label: loc.onboarding.hudBottomRight },
                   { id: 'center', label: loc.onboarding.hudCenter },
                   { id: 'top-right', label: loc.onboarding.hudTopRight },
                   { id: 'bottom-center', label: loc.onboarding.hudBottom },
                   { id: 'top-left', label: loc.onboarding.hudTopLeft },
-                  { id: 'bottom-right', label: loc.onboarding.hudBottomRight },
                   { id: 'off', label: loc.onboarding.hudDisabled },
                 ].map((pos) => (
                   <Chip

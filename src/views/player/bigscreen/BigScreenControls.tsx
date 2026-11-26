@@ -1,21 +1,20 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from '../../../components/ui/icons';
+import { Play, Pause, SkipBack, SkipForward } from '../../../components/ui/icons';
 import { SpectrumVisualizer } from '../../../components/player/SpectrumVisualizer';
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
+import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
 import { formatTime } from '../../../utils/timeFormat';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
-import { Badge, Button, IconButton, RangeSlider, SegmentedControl } from '../../../components/ui';
+import { Badge, Button, IconButton, SegmentedControl } from '../../../components/ui';
 
-/** Keys the volume slider hands back to the global shortcuts (seek, volume, play/pause). */
-const SHORTCUT_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
 /** Round transport button (previous, next). */
 const transportClass = 'size-11.5 rounded-full border-transparent bg-white/8 text-fg';
 
-export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlaying' | 'durationMs' | 'currentLang' | 'onSeek' | 'onSeekPreview' | 'onSeekCommit' | 'tempoRatio' | 'onPrev' | 'onPlayPause' | 'onNext' | 'onVolumeChange' | 'onToggleVolumeUnit' | 'volumeUnit'> & {
+export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlaying' | 'durationMs' | 'currentLang' | 'onSeek' | 'onSeekPreview' | 'onSeekCommit' | 'tempoRatio' | 'onPrev' | 'onPlayPause' | 'onNext' | 'onVolumeChange' | 'onToggleMute' | 'formatVolumeValue' | 'onToggleVolumeUnit' | 'volumeUnit'> & {
   showHud: boolean;
   setBottomVisualMode: Dispatch<SetStateAction<"spectrum" | "vumeter">>;
   bottomVisualMode: "spectrum" | "vumeter";
@@ -30,6 +29,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
   bottomVisualMode,
   currentLang,
   durationMs,
+  formatVolumeValue,
   isPlaying,
   onNext,
   onPlayPause,
@@ -37,6 +37,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
   onSeek,
   onSeekCommit,
   onSeekPreview,
+  onToggleMute,
   onToggleVolumeUnit,
   onVolumeChange,
   positionMs,
@@ -171,23 +172,10 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         </IconButton>
 
         <div className="absolute right-12 flex items-center gap-2">
-          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)}>
-            {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={onToggleMute}>
+            <VolumeIcon gain={volume} size={18} />
           </IconButton>
-          <RangeSlider
-            aria-label={t.player.volume}
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={onVolumeChange}
-            onPointerUp={(e) => e.currentTarget.blur()}
-            onKeyDown={(e) => {
-              // Hand the arrow keys and Space back to the global shortcuts.
-              if (SHORTCUT_KEYS.includes(e.key)) e.currentTarget.blur();
-            }}
-            className="w-20"
-          />
+          <VolumeSlider ariaLabel={t.player.volume} gain={volume} onGainChange={onVolumeChange} className="w-20" />
           <Button
             size="sm"
             onClick={onToggleVolumeUnit}
@@ -195,9 +183,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
             title={t.player.volumeToggleUnitTooltip}
             className={cn('min-w-11.5 rounded-md px-1.5 py-0.5 font-mono', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
           >
-            {volumeUnit === 'db'
-              ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
-              : `${Math.round(volume * 100)}%`}
+            {formatVolumeValue(volume)}
           </Button>
         </div>
       </div>

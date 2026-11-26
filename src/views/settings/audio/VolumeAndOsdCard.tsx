@@ -12,6 +12,8 @@ export type VolumeAndOsdCardProps = Pick<
   | 'onToggleInstantVolume'
   | 'volumeUnit'
   | 'onSetVolumeUnit'
+  | 'volumeCurve'
+  | 'onSetVolumeCurve'
   | 'volumeOsdPosition'
   | 'onSetVolumeOsdPosition'
   | 'onToggleRecapOptIn'
@@ -22,10 +24,12 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   instantVolume,
   loc,
   onSetVolumeOsdPosition,
+  onSetVolumeCurve,
   onSetVolumeUnit,
   onToggleInstantVolume,
   onToggleRecapOptIn,
   recapOptIn,
+  volumeCurve,
   volumeOsdPosition,
   volumeUnit,
 }) => (
@@ -73,6 +77,25 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
         }
       />
 
+      {/* Volume slider curve: how the slider position maps to loudness */}
+      <SettingRow
+        title={loc.settings.volumeCurveTitle}
+        description={volumeCurve === 'db-linear' ? loc.settings.volumeCurveDbLinearDesc : loc.settings.volumeCurveCubicDesc}
+        control={
+          <SegmentedControl
+            size="sm"
+            tone="cyan"
+            label={loc.settings.volumeCurveTitle}
+            items={[
+              { value: 'cubic', label: loc.settings.volumeCurveCubic },
+              { value: 'db-linear', label: loc.settings.volumeCurveDbLinear },
+            ]}
+            value={volumeCurve}
+            onChange={onSetVolumeCurve}
+          />
+        }
+      />
+
       {/* Volume OSD position */}
       <SettingRow
         title={loc.settings.volumeOsdPosTitle}
@@ -84,11 +107,11 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
             onChange={(e) => onSetVolumeOsdPosition(e.target.value as VolumeOsdPosition)}
             className="w-auto"
           >
+            <option value="bottom-right">{loc.settings.volumeOsdBottomRight}</option>
             <option value="bottom-center">{loc.settings.volumeOsdBottomCenter}</option>
             <option value="center">{loc.settings.volumeOsdCenter}</option>
             <option value="top-right">{loc.settings.volumeOsdTopRight}</option>
             <option value="top-left">{loc.settings.volumeOsdTopLeft}</option>
-            <option value="bottom-right">{loc.settings.volumeOsdBottomRight}</option>
             <option value="bottom-left">{loc.settings.volumeOsdBottomLeft}</option>
             <option value="off">{loc.settings.volumeOsdOff}</option>
           </Select>

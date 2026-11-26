@@ -40,6 +40,7 @@ import {
   MiniPlayerWidget,
   AnimeAmbienceFX,
   VolumeOsd,
+  DEFAULT_VOLUME_OSD_POSITION,
   type VolumeOsdPosition,
 } from './components/player';
 import { BigScreenView } from './views/player/BigScreenView';
@@ -253,7 +254,7 @@ export default function App() {
   });
   const [volumeOsdPosition, setVolumeOsdPosition] = usePersistedState<VolumeOsdPosition>(
     'auralune_volume_osd_position',
-    'bottom-center',
+    DEFAULT_VOLUME_OSD_POSITION,
     { parse: parseOneOf(['center', 'top-right', 'top-left', 'bottom-center', 'bottom-right', 'bottom-left', 'off']) },
   );
   const [instantVolume, setInstantVolume] = usePersistedState('auralune_instant_volume', true, {
@@ -275,6 +276,8 @@ export default function App() {
     setVolumeUnit,
     handleSetVolumeUnit,
     handleToggleVolumeUnit,
+    volumeCurve,
+    handleSetVolumeCurve,
     formatVolumeValue,
   } = useVolumeUnit({ loc: t, showMessage });
 
@@ -421,6 +424,7 @@ export default function App() {
     handleSeekPreview,
     handleSeekCommit,
     handleVolumeChange,
+    handleToggleMute,
     handleNext,
     handlePrevious,
     handleCycleLoopMode,
@@ -761,6 +765,8 @@ export default function App() {
     handlePrevious,
     handleSeek,
     handleVolumeChange,
+    handleToggleMute,
+    volumeCurve,
     handleToggleShuffle,
     handleCycleLoopMode,
     handlePitchChange,
@@ -810,6 +816,8 @@ export default function App() {
       setInstantVolume,
       volumeUnit,
       handleSetVolumeUnit,
+      volumeCurve,
+      handleSetVolumeCurve,
       volumeOsdPosition,
       setVolumeOsdPosition,
       recapOptIn,
@@ -1045,6 +1053,7 @@ export default function App() {
     currentCover,
     queue,
     formatTime,
+    formatVolumeValue,
     mainContentRef,
     setActiveTab,
     handleOpenContainingFolder,
@@ -1073,6 +1082,7 @@ export default function App() {
         onNext={handleNext}
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
+        onToggleMute={handleToggleMute}
         onToggleVolumeUnit={handleToggleVolumeUnit}
         onRestore={toggleMiniPlayer}
       />
@@ -1174,6 +1184,10 @@ export default function App() {
           onSeekPreview={handleSeekPreview}
           onSeekCommit={handleSeekCommit}
           onVolumeChange={handleVolumeChange}
+          onToggleMute={handleToggleMute}
+          formatVolumeValue={formatVolumeValue}
+          volumeUnit={volumeUnit}
+          onToggleVolumeUnit={handleToggleVolumeUnit}
           onClose={() => setIsBigScreen(false)}
           onFetchCover={handleFetchCurrentTrackCover}
           onUploadCover={() => handleUploadCustomCoverDirect(currentAlbum)}

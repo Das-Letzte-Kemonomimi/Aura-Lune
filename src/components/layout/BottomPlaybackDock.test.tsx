@@ -58,6 +58,7 @@ describe('BottomPlaybackDock component', () => {
     onSelectDspEngine: vi.fn(),
     onToggleMute: vi.fn(),
     onVolumeChange: vi.fn(),
+    formatVolumeValue: (gain: number) => `${Math.round(gain * 100)}%`,
     onToggleMiniPlayer: vi.fn(),
   };
 

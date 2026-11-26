@@ -9,8 +9,6 @@ import {
   Repeat,
   Repeat1,
   Square,
-  Volume2,
-  VolumeX,
   Disc,
   FolderOpen,
   Zap,
@@ -25,8 +23,9 @@ import { useLiveStatus } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
 import { cssVars } from '../../utils/cssVars';
 import { fmt } from '../../utils/fmt';
-import { Badge, Button, Chip, IconButton, MenuItem, Popover, RangeSlider, type Tone } from '../ui';
+import { Badge, Button, Chip, IconButton, MenuItem, Popover, type Tone } from '../ui';
 import { textTones, tintedTones } from '../ui/tones';
+import { VolumeIcon, VolumeSlider } from '../player/VolumeSlider';
 
 export interface BottomPlaybackDockProps {
   isVisible: boolean;
@@ -56,6 +55,8 @@ export interface BottomPlaybackDockProps {
   onSelectDspEngine: (engine: DspEngineType) => void;
   onToggleMute: () => void;
   onVolumeChange: (val: number) => void;
+  /** Volume readout in the user's unit (`useVolumeUnit().formatVolumeValue`). */
+  formatVolumeValue: (gain: number) => string;
   onToggleMiniPlayer: () => void;
 }
 
@@ -103,6 +104,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   onSelectDspEngine,
   onToggleMute,
   onVolumeChange,
+  formatVolumeValue,
   onToggleMiniPlayer,
 }) => {
   // Live position/spectrum (livePlayback): this component renders, not the whole app.
@@ -353,16 +355,13 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             onClick={onToggleMute}
             className="size-10 rounded-full"
           >
-            {status.volume === 0 ? <VolumeX size={21} /> : <Volume2 size={21} />}
+            <VolumeIcon gain={status.volume} size={21} />
           </IconButton>
-          <RangeSlider
-            aria-label={loc.player.volume}
-            min={0}
-            max={1}
-            step={0.01}
-            value={status.volume}
-            onChange={onVolumeChange}
-            title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
+          <VolumeSlider
+            ariaLabel={loc.player.volume}
+            gain={status.volume}
+            onGainChange={onVolumeChange}
+            title={`${loc.player.volume}: ${formatVolumeValue(status.volume)}`}
             className="h-1.5 w-18 lg:w-28"
           />
         </div>
