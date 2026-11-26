@@ -24,6 +24,7 @@ import {
 } from '../../utils/chordChart';
 import { ChordChart, ChordOverview } from './ChordChart';
 import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -383,45 +384,41 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
       {/* Modal eksportu */}
       {exportOutput && (
-        <div
-          className="fixed inset-0 z-100 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in"
-          onClick={() => setExportOutput(null)}
+        <ModalShell
+          onClose={() => setExportOutput(null)}
+          layer="tool"
+          className="flex max-h-[80vh] max-w-140 flex-col gap-3.5 rounded-3xl border border-white/15 bg-ink p-5 shadow-2xl shadow-black/80"
         >
-          <div
-            className="flex max-h-[80vh] w-full max-w-140 flex-col gap-3.5 rounded-3xl border border-white/15 bg-ink p-5 shadow-2xl shadow-black/80 motion-safe:animate-modal-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-white/8 pb-3">
-              <h3 className="m-0 text-base font-extrabold text-fg">
-                {fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
-              </h3>
-              <button
-                onClick={() => setExportOutput(null)}
-                className="border-0 bg-transparent text-fg-secondary"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <textarea
-              readOnly
-              value={exportOutput}
-              className="h-55 w-full resize-none rounded-xl border border-white/10 bg-deep p-3 font-mono text-ui text-fg outline-none"
-            />
-
-            <div className="flex justify-end gap-2.5">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(exportOutput);
-                  setExportOutput(null);
-                }}
-                className="rounded-xl border-0 bg-linear-135 from-accent-pink to-purple-400 px-4.5 py-2 text-ui font-bold text-fg"
-              >
-                {t.common.copyToClipboard}
-              </button>
-            </div>
+          <div className="flex items-center justify-between border-b border-white/8 pb-3">
+            <h3 className="m-0 text-base font-extrabold text-fg">
+              {fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
+            </h3>
+            <button
+              onClick={() => setExportOutput(null)}
+              className="border-0 bg-transparent text-fg-secondary"
+            >
+              <X size={18} />
+            </button>
           </div>
-        </div>
+
+          <textarea
+            readOnly
+            value={exportOutput}
+            className="h-55 w-full resize-none rounded-xl border border-white/10 bg-deep p-3 font-mono text-ui text-fg outline-none"
+          />
+
+          <div className="flex justify-end gap-2.5">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(exportOutput);
+                setExportOutput(null);
+              }}
+              className="rounded-xl border-0 bg-linear-135 from-accent-pink to-purple-400 px-4.5 py-2 text-ui font-bold text-fg"
+            >
+              {t.common.copyToClipboard}
+            </button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

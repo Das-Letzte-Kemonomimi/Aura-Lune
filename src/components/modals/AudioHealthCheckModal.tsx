@@ -16,6 +16,8 @@ import {
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface AudioCodecStatus {
   format: string;
@@ -115,353 +117,238 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 2100,
-        background: 'rgba(5, 6, 14, 0.82)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        animation: 'fadeIn 0.2s ease-out',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="system"
+      className="flex max-h-[88vh] max-w-170 flex-col overflow-hidden rounded-3xl border border-accent-purple/40 px-7 py-6.5 text-fg"
     >
-      <div
-        className="glass-card"
-        style={{
-          width: '100%',
-          maxWidth: '680px',
-          maxHeight: '88vh',
-          borderRadius: '24px',
-          background: 'linear-gradient(145deg, rgba(20, 22, 42, 0.96), rgba(10, 12, 24, 0.98))',
-          border: '1px solid rgba(168, 85, 247, 0.4)',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.85), 0 0 30px rgba(168, 85, 247, 0.25)',
-          padding: '26px 28px',
-          display: 'flex',
-          flexDirection: 'column',
-          color: '#fff',
-          overflow: 'hidden',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(236, 72, 153, 0.4)',
-              }}
-            >
-              <Activity size={22} color="#fff" />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                {t.healthCheck.title} <span style={{ color: 'var(--accent-pink)', fontSize: '0.9rem' }}>v1.0</span>
-              </h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {t.healthCheck.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            aria-label={t.common.close}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.15s ease',
-            }}
+      {/* Header */}
+      <div className="mb-4.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-pink-500/40"
           >
-            <X size={16} />
-          </button>
+            <Activity size={22} className="text-fg" />
+          </div>
+          <div>
+            <h3 className="m-0 text-xl font-extrabold tracking-tight">
+              {t.healthCheck.title} <span className="text-sm text-accent-pink">v1.0</span>
+            </h3>
+            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
+              {t.healthCheck.subtitle}
+            </p>
+          </div>
         </div>
 
-        {/* Content body */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-              <RefreshCw size={28} className="spin" color="var(--accent-pink)" />
-              <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t.healthCheck.auditing}</p>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '0.85rem' }}>
-              {fmt(t.healthCheck.testError, error)}
-            </div>
-          )}
-
-          {!loading && health && (
-            <>
-              {/* Sekcja 1: Serwer Audio PipeWire */}
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                  borderRadius: '14px',
-                  padding: '14px 16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Volume2 size={16} color="var(--accent-pink)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.healthCheck.audioServerBuffer}</span>
-                  </div>
-                  {health.pipewire_active ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                      <CheckCircle2 size={12} /> {t.healthCheck.pipewireDirect}
-                    </span>
-                  ) : (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-                      {t.healthCheck.fallbackAlsa}
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.pipewireServer}</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', marginTop: '2px' }}>
-                      {health.pipewire_version ? `v${health.pipewire_version}` : t.healthCheck.activeDaemon}
-                    </div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.bufferLatency}</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-pink)', marginTop: '2px' }}>
-                      {health.audio_buffer_ms} ms
-                    </div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.dspBlock}</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', marginTop: '2px' }}>
-                      {health.dsp_block_size} {t.healthCheck.frames}
-                    </div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>GStreamer Core</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-purple)', marginTop: '2px' }}>
-                      v{health.gstreamer_version}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sekcja 2: Silniki DSP */}
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                  borderRadius: '14px',
-                  padding: '14px 16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                  <Cpu size={16} color="var(--accent-purple)" />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.healthCheck.realtimeDsp}</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>Rubber Band v3</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.rubberbandDesc}</div>
-                    </div>
-                    <CheckCircle2 size={16} color="#4ade80" />
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>SoundTouch WSOLA</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.healthCheck.soundtouchDesc}</div>
-                    </div>
-                    <CheckCircle2 size={16} color="#4ade80" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sekcja 3: Kodeki Audio GStreamera */}
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                  borderRadius: '14px',
-                  padding: '14px 16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Layers size={16} color="var(--accent-pink)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.healthCheck.gstreamerCodecs}</span>
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>GStreamer Plugins</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {health.codecs.map((c) => (
-                    <div
-                      key={c.format}
-                      style={{
-                        background: 'rgba(0,0,0,0.25)',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                          {c.format}
-                        </div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                          {c.decoder}
-                        </div>
-                      </div>
-                      {c.available ? (
-                        <CheckCircle2 size={15} color="#4ade80" style={{ flexShrink: 0 }} />
-                      ) : (
-                        <XCircle size={15} color="#f87171" style={{ flexShrink: 0 }} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sekcja 4: Baza Danych i Integracja Pulpitu */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '12px',
-                }}
-              >
-                <div
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.07)',
-                    borderRadius: '14px',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                    <Database size={15} color="var(--accent-purple)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{t.healthCheck.databaseIntegrity}</span>
-                  </div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#4ade80' }}>
-                    {health.tracks_count} {t.stats.tracksUnit} • {health.albums_count} {t.library.albums.toLowerCase()}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {health.db_status}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.07)',
-                    borderRadius: '14px',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                    <Radio size={15} color="var(--accent-pink)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{t.healthCheck.desktopIpc}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: health.mpris_active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)', color: health.mpris_active ? '#4ade80' : 'var(--text-muted)' }}>
-                      MPRIS D-Bus
-                    </span>
-                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: health.waybar_ipc_active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)', color: health.waybar_ipc_active ? '#4ade80' : 'var(--text-muted)' }}>
-                      Waybar JSON
-                    </span>
-                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: health.fifo_ipc_active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)', color: health.fifo_ipc_active ? '#4ade80' : 'var(--text-muted)' }}>
-                      FIFO Control
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer actions */}
-        <div
-          style={{
-            marginTop: '16px',
-            paddingTop: '14px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
+        <button
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-fg-muted transition-[background] duration-150"
         >
-          <button
-            onClick={fetchHealth}
-            disabled={loading}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#fff',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: loading ? 'default' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <RefreshCw size={13} className={loading ? 'spin' : ''} />
-            {t.healthCheck.recheckBtn}
-          </button>
+          <X size={16} />
+        </button>
+      </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={handleCopyReport}
-              disabled={!health}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: copied
-                  ? 'rgba(34, 197, 94, 0.25)'
-                  : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                border: copied ? '1px solid #4ade80' : 'none',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: !health ? 'default' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 2px 10px rgba(236, 72, 153, 0.35)',
-              }}
-            >
-              {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
-              {copied ? t.healthCheck.copiedReport : t.healthCheck.copyReport}
-            </button>
+      {/* Content body */}
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1">
+        {loading && (
+          <div className="flex flex-col items-center justify-center p-10">
+            <RefreshCw size={28} className="text-accent-pink spin" />
+            <p className="mt-3 text-sm text-fg-muted">{t.healthCheck.auditing}</p>
           </div>
+        )}
+
+        {error && (
+          <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 p-4 text-sm text-red-300">
+            {fmt(t.healthCheck.testError, error)}
+          </div>
+        )}
+
+        {!loading && health && (
+          <>
+            {/* Sekcja 1: Serwer Audio PipeWire */}
+            <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
+              <div className="mb-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Volume2 size={16} className="text-accent-pink" />
+                  <span className="text-sm font-bold">{t.healthCheck.audioServerBuffer}</span>
+                </div>
+                {health.pipewire_active ? (
+                  <span className="flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/15 px-2 py-1 text-xs font-bold text-green-400">
+                    <CheckCircle2 size={12} /> {t.healthCheck.pipewireDirect}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 rounded-xl border border-yellow-500/30 bg-yellow-500/15 px-2 py-1 text-xs font-bold text-yellow-400">
+                    {t.healthCheck.fallbackAlsa}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2.5">
+                <div className="rounded-lg bg-black/25 px-2.5 py-2">
+                  <div className="text-xxs text-fg-muted">{t.healthCheck.pipewireServer}</div>
+                  <div className="mt-0.5 text-ui font-semibold text-fg">
+                    {health.pipewire_version ? `v${health.pipewire_version}` : t.healthCheck.activeDaemon}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-black/25 px-2.5 py-2">
+                  <div className="text-xxs text-fg-muted">{t.healthCheck.bufferLatency}</div>
+                  <div className="mt-0.5 text-ui font-semibold text-accent-pink">
+                    {health.audio_buffer_ms} ms
+                  </div>
+                </div>
+                <div className="rounded-lg bg-black/25 px-2.5 py-2">
+                  <div className="text-xxs text-fg-muted">{t.healthCheck.dspBlock}</div>
+                  <div className="mt-0.5 text-ui font-semibold text-fg">
+                    {health.dsp_block_size} {t.healthCheck.frames}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-black/25 px-2.5 py-2">
+                  <div className="text-xxs text-fg-muted">GStreamer Core</div>
+                  <div className="mt-0.5 text-ui font-semibold text-accent-purple">
+                    v{health.gstreamer_version}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sekcja 2: Silniki DSP */}
+            <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
+              <div className="mb-2.5 flex items-center gap-2">
+                <Cpu size={16} className="text-accent-purple" />
+                <span className="text-sm font-bold">{t.healthCheck.realtimeDsp}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex items-center justify-between rounded-lg bg-black/25 p-2.5">
+                  <div>
+                    <div className="text-ui font-bold">Rubber Band v3</div>
+                    <div className="text-xxs text-fg-muted">{t.healthCheck.rubberbandDesc}</div>
+                  </div>
+                  <CheckCircle2 size={16} className="text-green-400" />
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-black/25 p-2.5">
+                  <div>
+                    <div className="text-ui font-bold">SoundTouch WSOLA</div>
+                    <div className="text-xxs text-fg-muted">{t.healthCheck.soundtouchDesc}</div>
+                  </div>
+                  <CheckCircle2 size={16} className="text-green-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Sekcja 3: Kodeki Audio GStreamera */}
+            <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
+              <div className="mb-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers size={16} className="text-accent-pink" />
+                  <span className="text-sm font-bold">{t.healthCheck.gstreamerCodecs}</span>
+                </div>
+                <span className="text-xs text-fg-muted">GStreamer Plugins</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {health.codecs.map((c) => (
+                  <div
+                    key={c.format}
+                    className="flex items-center justify-between rounded-lg bg-black/25 px-3 py-2"
+                  >
+                    <div className="overflow-hidden">
+                      <div className="truncate text-ui font-semibold">
+                        {c.format}
+                      </div>
+                      <div className="font-mono text-xxs text-fg-muted">
+                        {c.decoder}
+                      </div>
+                    </div>
+                    {c.available ? (
+                      <CheckCircle2 size={15} className="shrink-0 text-green-400" />
+                    ) : (
+                      <XCircle size={15} className="shrink-0 text-red-400" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sekcja 4: Baza Danych i Integracja Pulpitu */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/7 bg-white/3 px-3.5 py-3">
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <Database size={15} className="text-accent-purple" />
+                  <span className="text-sm font-bold">{t.healthCheck.databaseIntegrity}</span>
+                </div>
+                <div className="text-ui font-semibold text-green-400">
+                  {health.tracks_count} {t.stats.tracksUnit} • {health.albums_count} {t.library.albums.toLowerCase()}
+                </div>
+                <div className="mt-0.5 text-xxs text-fg-muted">
+                  {health.db_status}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/7 bg-white/3 px-3.5 py-3">
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <Radio size={15} className="text-accent-pink" />
+                  <span className="text-sm font-bold">{t.healthCheck.desktopIpc}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  <span className={cn(
+                    'rounded-sm px-1.5 py-0.5 text-xxs',
+                    health.mpris_active ? 'bg-green-500/20' : 'bg-white/5',
+                    health.mpris_active ? 'text-green-400' : 'text-fg-muted',
+                  )}>
+                    MPRIS D-Bus
+                  </span>
+                  <span className={cn(
+                    'rounded-sm px-1.5 py-0.5 text-xxs',
+                    health.waybar_ipc_active ? 'bg-green-500/20' : 'bg-white/5',
+                    health.waybar_ipc_active ? 'text-green-400' : 'text-fg-muted',
+                  )}>
+                    Waybar JSON
+                  </span>
+                  <span className={cn(
+                    'rounded-sm px-1.5 py-0.5 text-xxs',
+                    health.fifo_ipc_active ? 'bg-green-500/20' : 'bg-white/5',
+                    health.fifo_ipc_active ? 'text-green-400' : 'text-fg-muted',
+                  )}>
+                    FIFO Control
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer actions */}
+      <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-3.5">
+        <button
+          onClick={fetchHealth}
+          disabled={loading}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/6 px-3.5 py-2 text-ui font-semibold text-fg',
+            loading ? 'cursor-default' : 'cursor-pointer',
+          )}
+        >
+          <RefreshCw size={13} className={loading ? 'spin' : ''} />
+          {t.healthCheck.recheckBtn}
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyReport}
+            disabled={!health}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-4 py-2 text-ui font-bold text-fg shadow-lg shadow-pink-500/35',
+              copied ? 'bg-green-500/25' : 'bg-accent-gradient',
+              copied ? 'border border-green-400' : 'border-0',
+              !health ? 'cursor-default' : 'cursor-pointer',
+            )}
+          >
+            {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+            {copied ? t.healthCheck.copiedReport : t.healthCheck.copyReport}
+          </button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

@@ -12,6 +12,8 @@ import {
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface TrackMetadataFullDto {
   title: string;
@@ -211,639 +213,360 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-170 flex-col overflow-hidden rounded-2xl border border-accent-purple"
     >
-      <div
-        style={{
-          background: 'linear-gradient(145deg, rgba(28, 22, 45, 0.98), rgba(15, 12, 28, 0.98))',
-          border: '1px solid var(--accent-purple, #a855f7)',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '680px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(168, 85, 247, 0.25)',
-          overflow: 'hidden',
-          animation: 'modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'rgba(168, 85, 247, 0.18)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-purple, #a855f7)',
-              }}
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-purple/20 text-accent-purple">
+            <TagIcon size={20} />
+          </div>
+          <div>
+            <h2 className="m-0 text-lg font-bold text-fg">
+              {loc.tagEditor.title}
+            </h2>
+            <p
+              className="mx-0 mt-0.5 mb-0 max-w-120 truncate text-xs text-fg-secondary"
+              title={filePath}
             >
-              <TagIcon size={20} />
-            </div>
+              {filePath}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-1.5 text-fg-secondary"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        {/* File Audio Specs Banner & AcoustID Trigger */}
+        <div
+          className="mb-4.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/30 px-4 py-3"
+        >
+          <div className="flex flex-wrap gap-3.5 text-ui text-slate-300">
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
-                {loc.tagEditor.title}
-              </h2>
-              <p
-                style={{
-                  margin: '2px 0 0 0',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary, #94a3b8)',
-                  maxWidth: '480px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-                title={filePath}
-              >
-                {filePath}
-              </p>
+              <span className="text-fg-muted">Format: </span>
+              <strong>{format?.toUpperCase() || 'AUDIO'}</strong>
+            </div>
+            {bitDepth && (
+              <div>
+                <span className="text-fg-muted">Bit depth: </span>
+                <strong>{bitDepth}-bit</strong>
+              </div>
+            )}
+            {sampleRate && (
+              <div>
+                <span className="text-fg-muted">Sample rate: </span>
+                <strong>{(sampleRate / 1000).toFixed(1)} kHz</strong>
+              </div>
+            )}
+            {channels && (
+              <div>
+                <span className="text-fg-muted">Channels: </span>
+                <strong>{channels === 2 ? 'Stereo (2ch)' : `${channels} ch`}</strong>
+              </div>
+            )}
+            <div>
+              <span className="text-fg-muted">File size: </span>
+              <strong>{(fileSize ? formatBytes(fileSize) : '-')}</strong>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary, #94a3b8)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
-          {/* File Audio Specs Banner & AcoustID Trigger */}
-          <div
-            style={{
-              padding: '12px 16px',
-              background: 'rgba(0, 0, 0, 0.3)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              marginBottom: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '14px',
-                fontSize: '0.78rem',
-                color: '#cbd5e1',
-              }}
-            >
-              <div>
-                <span style={{ color: '#64748b' }}>Format: </span>
-                <strong>{format?.toUpperCase() || 'AUDIO'}</strong>
-              </div>
-              {bitDepth && (
-                <div>
-                  <span style={{ color: '#64748b' }}>Bit depth: </span>
-                  <strong>{bitDepth}-bit</strong>
-                </div>
-              )}
-              {sampleRate && (
-                <div>
-                  <span style={{ color: '#64748b' }}>Sample rate: </span>
-                  <strong>{(sampleRate / 1000).toFixed(1)} kHz</strong>
-                </div>
-              )}
-              {channels && (
-                <div>
-                  <span style={{ color: '#64748b' }}>Channels: </span>
-                  <strong>{channels === 2 ? 'Stereo (2ch)' : `${channels} ch`}</strong>
-                </div>
-              )}
-              <div>
-                <span style={{ color: '#64748b' }}>File size: </span>
-                <strong>{(fileSize ? formatBytes(fileSize) : '-')}</strong>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleIdentifyFingerprint}
-              disabled={loading || saving || identifying}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '7px 14px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(236, 72, 153, 0.25))',
-                border: '1px solid rgba(168, 85, 247, 0.45)',
-                color: '#f8fafc',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: loading || saving || identifying ? 'default' : 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 10px rgba(168, 85, 247, 0.2)',
-              }}
-              title={loc.tagEditor.acoustIdTooltip}
-            >
-              {identifying ? (
-                <>
-                  <Loader2 size={15} style={{ animation: 'spin 1s linear infinite', color: '#c084fc' }} />
-                  <span>{loc.tagEditor.identifying}</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={15} style={{ color: '#e879f9' }} />
-                  <span>{loc.tagEditor.identifyAcoustId}</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {identifyMessage && (
-            <div
-              style={{
-                padding: '10px 14px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                borderRadius: '8px',
-                color: '#6ee7b7',
-                fontSize: '0.84rem',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <Sparkles size={16} />
-              <span>{identifyMessage}</span>
-            </div>
-          )}
-
-          {fingerprintMatches.length > 1 && (
-            <div
-              style={{
-                marginBottom: '18px',
-                padding: '12px 14px',
-                background: 'rgba(168, 85, 247, 0.08)',
-                borderRadius: '10px',
-                border: '1px solid rgba(168, 85, 247, 0.25)',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  color: '#d8b4fe',
-                  marginBottom: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <TagIcon size={14} />
-                <span>
-                  {fmt(loc.tagEditor.selectReleaseCandidate, String(fingerprintMatches.length))}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                {fingerprintMatches.map((m, idx) => (
-                  <button
-                    key={`${m.release_mbid || idx}`}
-                    type="button"
-                    onClick={() => {
-                      setSelectedMatchIndex(idx);
-                      applyCandidate(m);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: selectedMatchIndex === idx ? 'rgba(168, 85, 247, 0.28)' : 'rgba(0, 0, 0, 0.35)',
-                      border: selectedMatchIndex === idx ? '1px solid var(--accent-purple, #a855f7)' : '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#f8fafc',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontSize: '0.82rem',
-                      transition: 'background 0.15s ease',
-                    }}
-                  >
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '10px' }}>
-                      <strong>{m.title}</strong> — {m.artist} • <span style={{ color: '#cbd5e1' }}>{m.album || 'Single/Release'}</span> {m.year ? `(${m.year})` : ''}
-                    </div>
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        background: m.score >= 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                        color: m.score >= 80 ? '#34d399' : '#facc15',
-                        border: m.score >= 80 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
-                      }}
-                    >
-                      {m.score}% match
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div
-              style={{
-                padding: '12px 14px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                borderRadius: '8px',
-                color: '#fca5a5',
-                fontSize: '0.85rem',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AlertCircle size={18} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#a855f7' }}>
-              <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
-              <p style={{ marginTop: '12px', fontSize: '0.88rem', color: '#94a3b8' }}>
-                {loc.tagEditor.reading}
-              </p>
-            </div>
-          ) : (
-            <form id="tag-editor-form" onSubmit={handleSave}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {/* Tytuł */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.trackTitle}
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Wykonawca */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.artist}
-                  </label>
-                  <input
-                    type="text"
-                    value={artist}
-                    onChange={(e) => setArtist(e.target.value)}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Album Artist */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.albumArtist}
-                  </label>
-                  <input
-                    type="text"
-                    value={albumArtist}
-                    onChange={(e) => setAlbumArtist(e.target.value)}
-                    placeholder={artist}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Album */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.albumTitle}
-                  </label>
-                  <input
-                    type="text"
-                    value={album}
-                    onChange={(e) => setAlbum(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Rok / Rok wydania */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.year}
-                  </label>
-                  <input
-                    type="number"
-                    min="1900"
-                    max="2099"
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    placeholder="2024"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Gatunek */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.genre}
-                  </label>
-                  <input
-                    type="text"
-                    value={genre}
-                    onChange={(e) => setGenre(e.target.value)}
-                    placeholder="Anime, J-Pop, OST..."
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Numer ścieżki i suma */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.trackNumber}
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="number"
-                      min="1"
-                      value={trackNo}
-                      onChange={(e) => setTrackNo(e.target.value)}
-                      placeholder="1"
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(0, 0, 0, 0.35)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        outline: 'none',
-                      }}
-                    />
-                    <span style={{ color: '#64748b' }}>/</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={trackTotal}
-                      onChange={(e) => setTrackTotal(e.target.value)}
-                      placeholder="12"
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(0, 0, 0, 0.35)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Numer płyty i suma */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.discNumber}
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="number"
-                      min="1"
-                      value={discNo}
-                      onChange={(e) => setDiscNo(e.target.value)}
-                      placeholder="1"
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(0, 0, 0, 0.35)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        outline: 'none',
-                      }}
-                    />
-                    <span style={{ color: '#64748b' }}>/</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={discTotal}
-                      onChange={(e) => setDiscTotal(e.target.value)}
-                      placeholder="1"
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(0, 0, 0, 0.35)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Komentarz */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    {loc.tagEditor.comment}
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder={loc.tagEditor.commentPlaceholder}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#fff',
-                      fontSize: '0.88rem',
-                      outline: 'none',
-                      resize: 'none',
-                    }}
-                  />
-                </div>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: '14px 24px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
           <button
             type="button"
-            onClick={onClose}
-            disabled={saving}
-            style={{
-              padding: '9px 18px',
-              borderRadius: '8px',
-              background: 'transparent',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#cbd5e1',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            onClick={handleIdentifyFingerprint}
+            disabled={loading || saving || identifying}
+            className={cn(
+              'flex items-center gap-2 rounded-lg border border-accent-purple/45 bg-linear-135 from-accent-purple/25 to-pink-500/25 px-3.5 py-2 text-ui font-semibold text-fg shadow-lg shadow-accent-purple/20 transition-all duration-200',
+              loading || saving || identifying ? 'cursor-default' : 'cursor-pointer',
+            )}
+            title={loc.tagEditor.acoustIdTooltip}
           >
-            {loc.tagEditor.cancel}
-          </button>
-
-          <button
-            type="submit"
-            form="tag-editor-form"
-            disabled={loading || saving || savedSuccess}
-            style={{
-              padding: '9px 22px',
-              borderRadius: '8px',
-              background: savedSuccess
-                ? 'var(--accent-green, #10b981)'
-                : 'linear-gradient(135deg, var(--accent-purple, #a855f7), var(--accent-pink, #ec4899))',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: loading || saving || savedSuccess ? 'default' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 15px rgba(168, 85, 247, 0.35)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {saving ? (
+            {identifying ? (
               <>
-                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                <span>{loc.tagEditor.saving}</span>
-              </>
-            ) : savedSuccess ? (
-              <>
-                <Check size={16} />
-                <span>{loc.tagEditor.saved}</span>
+                <Loader2 size={15} className="animate-spin text-purple-400" />
+                <span>{loc.tagEditor.identifying}</span>
               </>
             ) : (
               <>
-                <Save size={16} />
-                <span>{loc.tagEditor.saveToFile}</span>
+                <Sparkles size={15} className="text-fuchsia-400" />
+                <span>{loc.tagEditor.identifyAcoustId}</span>
               </>
             )}
           </button>
         </div>
+
+        {identifyMessage && (
+          <div
+            className="mb-4 flex items-center gap-2 rounded-lg border border-accent-green/40 bg-accent-green/15 px-3.5 py-2.5 text-ui text-emerald-300"
+          >
+            <Sparkles size={16} />
+            <span>{identifyMessage}</span>
+          </div>
+        )}
+
+        {fingerprintMatches.length > 1 && (
+          <div className="mb-4.5 rounded-xl border border-accent-purple/25 bg-accent-purple/8 px-3.5 py-3">
+            <div className="mb-2 flex items-center gap-1.5 text-ui font-semibold text-purple-300">
+              <TagIcon size={14} />
+              <span>
+                {fmt(loc.tagEditor.selectReleaseCandidate, String(fingerprintMatches.length))}
+              </span>
+            </div>
+            <div className="flex max-h-35 flex-col gap-1.5 overflow-y-auto">
+              {fingerprintMatches.map((m, idx) => (
+                <button
+                  key={`${m.release_mbid || idx}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMatchIndex(idx);
+                    applyCandidate(m);
+                  }}
+                  className={cn(
+                    'flex items-center justify-between rounded-lg border px-3 py-2 text-left text-ui text-fg transition-[background] duration-150',
+                    selectedMatchIndex === idx ? 'bg-accent-purple/30' : 'bg-black/35',
+                    selectedMatchIndex === idx ? 'border-accent-purple' : 'border-white/8',
+                  )}
+                >
+                  <div className="mr-2.5 truncate">
+                    <strong>{m.title}</strong> — {m.artist} • <span className="text-slate-300">{m.album || 'Single/Release'}</span> {m.year ? `(${m.year})` : ''}
+                  </div>
+                  <span
+                    className={cn(
+                      'shrink-0 rounded-xl border px-2 py-0.5 text-xs font-semibold',
+                      m.score >= 80 ? 'bg-accent-green/20' : 'bg-yellow-500/20',
+                      m.score >= 80 ? 'text-emerald-400' : 'text-yellow-400',
+                      m.score >= 80 ? 'border-accent-green/30' : 'border-yellow-500/30',
+                    )}
+                  >
+                    {m.score}% match
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="mb-4 flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-3 text-sm text-red-300"
+          >
+            <AlertCircle size={18} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="px-0 py-10 text-center text-accent-purple">
+            <Loader2 size={32} className="animate-spin" />
+            <p className="mt-3 text-sm text-fg-secondary">
+              {loc.tagEditor.reading}
+            </p>
+          </div>
+        ) : (
+          <form id="tag-editor-form" onSubmit={handleSave}>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Tytuł */}
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.trackTitle}
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+
+              {/* Wykonawca */}
+              <div>
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.artist}
+                </label>
+                <input
+                  type="text"
+                  value={artist}
+                  onChange={(e) => setArtist(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+
+              {/* Album Artist */}
+              <div>
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.albumArtist}
+                </label>
+                <input
+                  type="text"
+                  value={albumArtist}
+                  onChange={(e) => setAlbumArtist(e.target.value)}
+                  placeholder={artist}
+                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+
+              {/* Album */}
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.albumTitle}
+                </label>
+                <input
+                  type="text"
+                  value={album}
+                  onChange={(e) => setAlbum(e.target.value)}
+                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+
+              {/* Rok / Rok wydania */}
+              <div>
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.year}
+                </label>
+                <input
+                  type="number"
+                  min="1900"
+                  max="2099"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  placeholder="2024"
+                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+
+              {/* Gatunek */}
+              <div>
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.genre}
+                </label>
+                <input
+                  type="text"
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value)}
+                  placeholder="Anime, J-Pop, OST..."
+                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+
+              {/* Numer ścieżki i suma */}
+              <div>
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.trackNumber}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={trackNo}
+                    onChange={(e) => setTrackNo(e.target.value)}
+                    placeholder="1"
+                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                  />
+                  <span className="text-fg-muted">/</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={trackTotal}
+                    onChange={(e) => setTrackTotal(e.target.value)}
+                    placeholder="12"
+                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Numer płyty i suma */}
+              <div>
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.discNumber}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={discNo}
+                    onChange={(e) => setDiscNo(e.target.value)}
+                    placeholder="1"
+                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                  />
+                  <span className="text-fg-muted">/</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={discTotal}
+                    onChange={(e) => setDiscTotal(e.target.value)}
+                    placeholder="1"
+                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Komentarz */}
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
+                  {loc.tagEditor.comment}
+                </label>
+                <textarea
+                  rows={2}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder={loc.tagEditor.commentPlaceholder}
+                  className="w-full resize-none rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
+                />
+              </div>
+            </div>
+          </form>
+        )}
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 border-t border-white/8 bg-white/2 px-6 py-3.5">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="rounded-lg border border-white/15 bg-transparent px-4.5 py-2.5 text-sm font-semibold text-slate-300"
+        >
+          {loc.tagEditor.cancel}
+        </button>
+
+        <button
+          type="submit"
+          form="tag-editor-form"
+          disabled={loading || saving || savedSuccess}
+          className={cn(
+            'flex items-center gap-2 rounded-lg border-0 px-5.5 py-2.5 text-sm font-semibold text-fg shadow-lift shadow-accent-purple/35 transition-all duration-200',
+            savedSuccess ? 'bg-accent-green' : 'bg-linear-135 from-accent-purple to-accent-pink',
+            loading || saving || savedSuccess ? 'cursor-default' : 'cursor-pointer',
+          )}
+        >
+          {saving ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>{loc.tagEditor.saving}</span>
+            </>
+          ) : savedSuccess ? (
+            <>
+              <Check size={16} />
+              <span>{loc.tagEditor.saved}</span>
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              <span>{loc.tagEditor.saveToFile}</span>
+            </>
+          )}
+        </button>
+      </div>
+    </ModalShell>
   );
 };

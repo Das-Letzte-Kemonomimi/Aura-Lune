@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
+import { cn } from '../../utils/cn';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -55,95 +56,48 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 2000,
-        background: 'rgba(5, 6, 12, 0.85)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
+      className="fixed inset-0 z-80 flex items-center justify-center bg-deep/85 p-5 backdrop-blur-lg motion-safe:animate-fade-in"
     >
       <div
-        className="glass-card"
-        style={{
-          width: '100%',
-          maxWidth: '560px',
-          borderRadius: '24px',
-          background: 'linear-gradient(145deg, rgba(22, 24, 44, 0.96), rgba(12, 14, 26, 0.98))',
-          border: '1px solid rgba(168, 85, 247, 0.4)',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.25)',
-          padding: '32px',
-          color: '#fff',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
+        className="glass-card relative flex max-h-[90vh] w-full max-w-140 flex-col overflow-y-auto rounded-3xl border border-accent-purple/40 bg-modal p-8 text-fg shadow-modal"
       >
         {/* Zamknięcie */}
         <button
           onClick={handleFinish}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            padding: '4px',
-          }}
+          className="absolute top-5 right-5 border-0 bg-transparent p-1 text-fg-muted"
           title={loc.common.close}
         >
           <X size={20} />
         </button>
 
         {/* Wskaźnik kroków */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+        <div className="mb-6 flex items-center justify-center gap-2">
           {[1, 2, 3].map((s) => (
             <div
               key={s}
-              style={{
-                width: step === s ? '32px' : '10px',
-                height: '8px',
-                borderRadius: '4px',
-                background: step === s ? 'var(--accent-pink)' : 'rgba(255, 255, 255, 0.15)',
-                transition: 'all 0.3s ease',
-              }}
+              className={cn(
+                'h-2 rounded-sm transition-all duration-300',
+                step === s ? 'w-8' : 'w-2.5',
+                step === s ? 'bg-accent-pink' : 'bg-white/15',
+              )}
             />
           ))}
         </div>
 
         {/* KROK 1: Kim jestem, dlaczego powstało Auralune & Disclaimer */}
         {step === 1 && (
-          <div style={{ animation: 'fadeIn 0.25s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+          <div className="motion-safe:animate-fade-in">
+            <div className="mb-4 flex items-center gap-3.5">
               <div
-                style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '16px',
-                  background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(168, 85, 247, 0.4))',
-                  border: '1px solid var(--accent-pink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 20px rgba(244, 63, 94, 0.3)',
-                }}
+                className="flex h-13.5 w-13.5 items-center justify-center rounded-2xl border border-accent-pink bg-linear-135 from-accent-pink/30 to-accent-purple/40 shadow-halo-lg shadow-accent-pink/30"
               >
-                <Sparkles size={28} color="var(--accent-pink)" />
+                <Sparkles size={28} className="text-accent-pink" />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                  Auralune <span style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Kitsune Player</span>
+                <h2 className="m-0 text-2xl font-extrabold tracking-tight">
+                  Auralune <span className="text-sm font-semibold text-accent-cyan">Kitsune Player</span>
                 </h2>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-secondary">
                   {loc.onboarding.subtitle}
                 </p>
               </div>
@@ -151,44 +105,26 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
             {/* Osobista notka autorki */}
             <div
-              style={{
-                padding: '16px',
-                borderRadius: '14px',
-                background: 'rgba(168, 85, 247, 0.08)',
-                border: '1px solid rgba(168, 85, 247, 0.25)',
-                marginBottom: '18px',
-                lineHeight: 1.55,
-                fontSize: '0.88rem',
-                color: '#e2e8f0',
-              }}
+              className="mb-4.5 rounded-2xl border border-accent-purple/25 bg-accent-purple/8 p-4 text-sm leading-normal text-slate-200"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: 700, color: 'var(--accent-purple)' }}>
+              <div className="mb-2 flex items-center gap-2 font-bold text-accent-purple">
                 <Heart size={16} fill="var(--accent-purple)" />
                 {loc.onboarding.whyAuralune}
               </div>
-              <p style={{ margin: 0, fontStyle: 'italic' }}>
+              <p className="m-0 italic">
                 {loc.onboarding.whyAuraluneDesc}
               </p>
             </div>
 
             {/* Klauzula wyłączenia odpowiedzialności (No warranty / As-is disclaimer) */}
             <div
-              style={{
-                padding: '14px 16px',
-                borderRadius: '14px',
-                background: 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                marginBottom: '20px',
-                fontSize: '0.8rem',
-                lineHeight: 1.5,
-                color: '#fca5a5',
-              }}
+              className="mb-5 rounded-2xl border border-accent-red/30 bg-accent-red/8 px-4 py-3.5 text-ui leading-normal text-red-300"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontWeight: 700, color: '#ef4444' }}>
+              <div className="mb-1.5 flex items-center gap-2 font-bold text-accent-red">
                 <ShieldAlert size={16} />
                 {loc.onboarding.disclaimer}
               </div>
-              <p style={{ margin: 0 }}>
+              <p className="m-0">
                 {loc.onboarding.disclaimerDesc}
               </p>
             </div>
@@ -197,27 +133,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
         {/* KROK 2: Auralune Recap (Spotify Wrapped) Opt-in & Język */}
         {step === 2 && (
-          <div style={{ animation: 'fadeIn 0.25s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div className="motion-safe:animate-fade-in">
+            <div className="mb-4 flex items-center gap-3">
               <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: 'rgba(6, 182, 212, 0.2)',
-                  border: '1px solid var(--accent-cyan)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-accent-cyan bg-accent-cyan/20"
               >
-                <BarChart2 size={24} color="var(--accent-cyan)" />
+                <BarChart2 size={24} className="text-accent-cyan" />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                <h3 className="m-0 text-xl font-bold">
                   {loc.onboarding.recapAndLang}
                 </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
                   {loc.onboarding.recapAndLangDesc}
                 </p>
               </div>
@@ -225,59 +152,42 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
             {/* Toggle Opt-in Recap */}
             <div
-              style={{
-                padding: '16px',
-                borderRadius: '14px',
-                background: recapOptIn ? 'rgba(6, 182, 212, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                border: `1px solid ${recapOptIn ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
-                marginBottom: '20px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
+              className={cn(
+                'mb-5 flex cursor-pointer items-center justify-between rounded-2xl border p-4',
+                recapOptIn ? 'bg-accent-cyan/10' : 'bg-white/4',
+                recapOptIn ? 'border-accent-cyan' : 'border-line',
+              )}
               onClick={() => onRecapOptInChange(!recapOptIn)}
             >
-              <div style={{ flex: 1, paddingRight: '14px' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.92rem', marginBottom: '4px', color: recapOptIn ? 'var(--accent-cyan)' : '#fff' }}>
+              <div className="flex-1 pr-3.5">
+                <div className={cn('mb-1 text-md font-bold', recapOptIn ? 'text-accent-cyan' : 'text-fg')}>
                   {loc.onboarding.enableRecap}
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                <div className="text-ui leading-snug text-fg-secondary">
                   {loc.onboarding.enableRecapDesc}
                 </div>
               </div>
               <div
-                style={{
-                  width: '46px',
-                  height: '26px',
-                  borderRadius: '13px',
-                  background: recapOptIn ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  transition: 'background 0.2s',
-                  flexShrink: 0,
-                }}
+                className={cn(
+                  'relative h-6.5 w-11.5 shrink-0 rounded-xl transition-[background] duration-200',
+                  recapOptIn ? 'bg-accent-cyan' : 'bg-white/20',
+                )}
               >
                 <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: '#fff',
-                    position: 'absolute',
-                    top: '3px',
-                    left: recapOptIn ? '23px' : '3px',
-                    transition: 'left 0.2s',
-                  }}
+                  className={cn(
+                    'absolute top-1 h-5 w-5 rounded-full bg-white transition-[left] duration-200',
+                    recapOptIn ? 'left-6' : 'left-1',
+                  )}
                 />
               </div>
             </div>
 
             {/* Wybór języka */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
+            <div className="mb-4.5">
+              <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.interfaceLang}
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'en', label: 'English 🇬🇧' },
                   { id: 'pl', label: 'Polski 🇵🇱' },
@@ -288,16 +198,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <button
                     key={item.id}
                     onClick={() => onLanguageChange(item.id as Language)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: currentLang === item.id ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                      border: `1px solid ${currentLang === item.id ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
-                      color: currentLang === item.id ? '#fff' : 'var(--text-secondary)',
-                      fontWeight: currentLang === item.id ? 700 : 500,
-                      cursor: 'pointer',
-                      fontSize: '0.82rem',
-                    }}
+                    className={cn(
+                      'rounded-lg border px-3 py-2 text-ui',
+                      currentLang === item.id ? 'bg-accent-purple/25' : 'bg-white/5',
+                      currentLang === item.id ? 'border-accent-purple' : 'border-line',
+                      currentLang === item.id ? 'text-fg' : 'text-fg-secondary',
+                      currentLang === item.id ? 'font-bold' : 'font-medium',
+                    )}
                   >
                     {item.label}
                   </button>
@@ -309,70 +216,57 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
         {/* KROK 3: Głośność (Instant vs Fade) & Pozycja OSD */}
         {step === 3 && (
-          <div style={{ animation: 'fadeIn 0.25s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div className="motion-safe:animate-fade-in">
+            <div className="mb-4 flex items-center gap-3">
               <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: 'rgba(244, 63, 94, 0.2)',
-                  border: '1px solid var(--accent-pink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-accent-pink bg-accent-pink/20"
               >
-                <Sliders size={24} color="var(--accent-pink)" />
+                <Sliders size={24} className="text-accent-pink" />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                <h3 className="m-0 text-xl font-bold">
                   {loc.onboarding.audioAndVolume}
                 </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
                   {loc.onboarding.audioAndVolumeDesc}
                 </p>
               </div>
             </div>
 
             {/* Tryb głośności: Instant vs Fade */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
+            <div className="mb-5">
+              <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.volumeMode}
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="grid grid-cols-2 gap-2.5">
                 <div
                   onClick={() => onInstantVolumeChange(false)}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: !instantVolume ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                    border: `1px solid ${!instantVolume ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
-                    cursor: 'pointer',
-                  }}
+                  className={cn(
+                    'cursor-pointer rounded-xl border p-3',
+                    !instantVolume ? 'bg-accent-purple/20' : 'bg-white/4',
+                    !instantVolume ? 'border-accent-purple' : 'border-line',
+                  )}
                 >
-                  <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '3px' }}>
+                  <div className="mb-1 text-sm font-bold">
                     {loc.onboarding.volumeSmooth}
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  <div className="text-xs text-fg-muted">
                     {loc.onboarding.volumeSmoothDesc}
                   </div>
                 </div>
 
                 <div
                   onClick={() => onInstantVolumeChange(true)}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: instantVolume ? 'rgba(244, 63, 94, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                    border: `1px solid ${instantVolume ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-                    cursor: 'pointer',
-                  }}
+                  className={cn(
+                    'cursor-pointer rounded-xl border p-3',
+                    instantVolume ? 'bg-accent-pink/20' : 'bg-white/4',
+                    instantVolume ? 'border-accent-pink' : 'border-line',
+                  )}
                 >
-                  <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '3px' }}>
+                  <div className="mb-1 text-sm font-bold">
                     {loc.onboarding.volumeInstant}
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  <div className="text-xs text-fg-muted">
                     {loc.onboarding.volumeInstantDesc}
                   </div>
                 </div>
@@ -380,11 +274,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
 
             {/* Pozycja wskaźnika głośności OSD */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>
+            <div className="mb-5">
+              <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.hudPlacement}
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'center', label: loc.onboarding.hudCenter },
                   { id: 'top-right', label: loc.onboarding.hudTopRight },
@@ -396,16 +290,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <button
                     key={pos.id}
                     onClick={() => onVolumeOsdPositionChange(pos.id)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: volumeOsdPosition === pos.id ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                      border: `1px solid ${volumeOsdPosition === pos.id ? 'var(--accent-cyan)' : 'var(--border-subtle)'}`,
-                      color: volumeOsdPosition === pos.id ? '#fff' : 'var(--text-secondary)',
-                      fontWeight: volumeOsdPosition === pos.id ? 700 : 500,
-                      cursor: 'pointer',
-                      fontSize: '0.78rem',
-                    }}
+                    className={cn(
+                      'rounded-lg border px-2.5 py-2 text-ui',
+                      volumeOsdPosition === pos.id ? 'bg-accent-cyan/25' : 'bg-white/5',
+                      volumeOsdPosition === pos.id ? 'border-accent-cyan' : 'border-line',
+                      volumeOsdPosition === pos.id ? 'text-fg' : 'text-fg-secondary',
+                      volumeOsdPosition === pos.id ? 'font-bold' : 'font-medium',
+                    )}
                   >
                     {pos.label}
                   </button>
@@ -416,23 +307,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         )}
 
         {/* Przyciski nawigacji kroków */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '16px' }}>
+        <div className="mt-auto flex items-center justify-between pt-4">
           {step > 1 ? (
             <button
               onClick={() => setStep(step - 1)}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border-subtle)',
-                color: '#fff',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-white/8 px-4.5 py-2.5 text-sm font-semibold text-fg"
             >
               <ChevronLeft size={16} /> {loc.onboarding.back}
             </button>
@@ -443,40 +322,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           {step < 3 ? (
             <button
               onClick={() => setStep(step + 1)}
-              style={{
-                padding: '9px 24px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                border: 'none',
-                color: '#fff',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 4px 16px rgba(244, 63, 94, 0.4)',
-              }}
+              className="flex items-center gap-1.5 rounded-xl border-0 bg-accent-gradient px-6 py-2.5 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/40"
             >
               {loc.onboarding.next} <ChevronRight size={16} />
             </button>
           ) : (
             <button
               onClick={handleFinish}
-              style={{
-                padding: '10px 28px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #10b981, #06b6d4)',
-                border: 'none',
-                color: '#fff',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
-              }}
+              className="flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-accent-green to-accent-cyan px-7 py-2.5 text-sm font-bold text-fg shadow-xl shadow-accent-green/40"
             >
               <Check size={18} /> {loc.onboarding.startListening}
             </button>

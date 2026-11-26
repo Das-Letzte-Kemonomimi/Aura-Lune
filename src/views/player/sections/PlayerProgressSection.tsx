@@ -159,8 +159,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.stopPropagation();
               setIsLoopEditorOpen(true);
             }}
-            className="absolute -top-4 z-2 -translate-x-1/2 cursor-pointer rounded-sm border border-accent-cyan px-1 py-0 text-2xs font-extrabold text-accent-cyan"
-            style={{ left: `${(loopPointA / status.duration_ms) * 100}%`, background: '#090d16' }}
+            className="absolute -top-4 z-2 -translate-x-1/2 cursor-pointer rounded-sm border border-accent-cyan bg-deep px-1 py-0 text-2xs font-extrabold text-accent-cyan"
+            style={{ left: `${(loopPointA / status.duration_ms) * 100}%` }}
             title={fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))}
           >
             A
@@ -177,8 +177,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.stopPropagation();
               setIsLoopEditorOpen(true);
             }}
-            className="absolute -top-4 z-2 -translate-x-1/2 cursor-pointer rounded-sm border border-accent-pink px-1 py-0 text-2xs font-extrabold text-accent-pink"
-            style={{ left: `${(loopPointB / status.duration_ms) * 100}%`, background: '#090d16' }}
+            className="absolute -top-4 z-2 -translate-x-1/2 cursor-pointer rounded-sm border border-accent-pink bg-deep px-1 py-0 text-2xs font-extrabold text-accent-pink"
+            style={{ left: `${(loopPointB / status.duration_ms) * 100}%` }}
             title={fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))}
           >
             B
@@ -191,8 +191,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.stopPropagation();
               handleSeek(currentBookmark);
             }}
-            className="absolute -top-4.5 z-3 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-sm border border-amber-400 px-1 py-0 text-2xs font-extrabold text-amber-400 shadow-halo-sm shadow-amber-400/40"
-            style={{ left: `${(currentBookmark / status.duration_ms) * 100}%`, background: '#090d16' }}
+            className="absolute -top-4.5 z-3 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-sm border border-amber-400 bg-deep px-1 py-0 text-2xs font-extrabold text-amber-400 shadow-halo-sm shadow-amber-400/40"
+            style={{ left: `${(currentBookmark / status.duration_ms) * 100}%` }}
             title={`${fmt(loc.player.bookmarkJump, formatTime(currentBookmark))} (${loc.player.clickToJump})`}
           >
             <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}

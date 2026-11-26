@@ -5,6 +5,8 @@ import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { formatTime } from '../../utils/timeFormat';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface TrackRecordDto {
   id: number;
@@ -94,386 +96,197 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-212.5 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
     >
+      {/* Nagłówek */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '850px',
-          background: 'var(--bg-surface, #181824)',
-          border: '1px solid var(--border-accent, rgba(236, 72, 153, 0.3))',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.7), 0 0 25px rgba(236, 72, 153, 0.15)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-        }}
+        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
       >
-        {/* Nagłówek */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(6, 182, 212, 0.15))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
-                background: 'rgba(6, 182, 212, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-cyan, #06b6d4)',
-              }}
-            >
-              <Copy size={18} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
-                {loc.duplicateFinder.title}
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary, #a1a1aa)' }}>
-                {loc.duplicateFinder.subtitle}
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-accent-cyan/25 text-accent-cyan">
+            <Copy size={18} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={loadDuplicates}
-              disabled={isLoading}
-              title={loc.duplicateFinder.refreshSearch}
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
-                color: 'var(--text-secondary, #a1a1aa)',
-                cursor: 'pointer',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.8rem',
-              }}
-            >
-              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-              {loc.duplicateFinder.refresh}
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-muted, #71717a)',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '8px',
-                display: 'flex',
-              }}
-            >
-              <X size={18} />
-            </button>
+          <div>
+            <h3 className="m-0 text-base font-bold text-fg">
+              {loc.duplicateFinder.title}
+            </h3>
+            <p className="m-0 text-ui text-fg-secondary">
+              {loc.duplicateFinder.subtitle}
+            </p>
           </div>
         </div>
-
-        {/* Komunikaty */}
-        {error && (
-          <div
-            style={{
-              margin: '16px 20px 0',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#f87171',
-              fontSize: '0.82rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadDuplicates}
+            disabled={isLoading}
+            title={loc.duplicateFinder.refreshSearch}
+            className="flex items-center gap-1.5 rounded-lg border border-line bg-white/6 px-2.5 py-1.5 text-ui text-fg-secondary"
           >
-            <AlertTriangle size={16} />
-            {error}
-          </div>
-        )}
-
-        {successMsg && (
-          <div
-            style={{
-              margin: '16px 20px 0',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              color: '#34d399',
-              fontSize: '0.82rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <CheckCircle2 size={16} />
-            {successMsg}
-          </div>
-        )}
-
-        {/* Lista grup duplikatów */}
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          {isLoading && (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-              {loc.duplicateFinder.scanning}
-            </div>
-          )}
-
-          {!isLoading && groups.length === 0 && (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                borderRadius: '12px',
-                background: 'rgba(255,255,255,0.02)',
-                color: 'var(--text-muted, #71717a)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '10px',
-              }}
-            >
-              <div
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '12px',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: '#34d399',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CheckCircle2 size={24} />
-              </div>
-              <span style={{ fontSize: '0.96rem', fontWeight: 600, color: '#fff' }}>
-                {loc.duplicateFinder.noDuplicates}
-              </span>
-              <span style={{ fontSize: '0.82rem', maxWidth: '400px' }}>
-                {loc.duplicateFinder.noDuplicatesDesc}
-              </span>
-            </div>
-          )}
-
-          {!isLoading && groups.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                {fmt(loc.duplicateFinder.detectedGroups, String(groups.length), String(groups.reduce((acc, g) => acc + g.tracks.length, 0)))}
-              </div>
-
-              {groups.map((group, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '14px',
-                    borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--accent-pink, #ec4899)' }}>
-                      🎵 {group.key}
-                    </span>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(6, 182, 212, 0.2)',
-                        color: 'var(--accent-cyan, #06b6d4)',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {group.count} {loc.duplicateFinder.copies}
-                    </span>
-                  </div>
-
-                  {/* Wiersze plików w danej grupie */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {group.tracks.map((track) => {
-                      const isLossless = ['flac', 'wav', 'alac', 'aiff'].includes(track.format.toLowerCase());
-                      return (
-                        <div
-                          key={track.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            background: 'rgba(0,0,0,0.3)',
-                            border: '1px solid var(--border-subtle, rgba(255,255,255,0.05))',
-                            gap: '12px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
-                            <span
-                              style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                background: isLossless ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.1)',
-                                color: isLossless ? '#34d399' : 'var(--text-secondary)',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                              }}
-                            >
-                              {track.format.toUpperCase()}
-                            </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                              {track.bit_depth ? `${track.bit_depth}-bit ` : ''}
-                              {Math.round(track.sample_rate / 1000)}kHz
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                            <span
-                              style={{
-                                fontSize: '0.76rem',
-                                color: 'var(--text-secondary)',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                              title={track.path}
-                            >
-                              {track.path}
-                            </span>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                              {loc.duplicateFinder.size} {formatBytes(track.file_size)} • {loc.duplicateFinder.duration} {formatTime(track.duration_ms)} • {loc.duplicateFinder.plays} {track.play_count || 0}
-                            </span>
-                          </div>
-
-                          {/* Akcje dla pliku */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <button
-                              onClick={() => onPlayTrack(track.path)}
-                              title={loc.duplicateFinder.playFile}
-                              style={{
-                                padding: '6px',
-                                borderRadius: '6px',
-                                background: 'rgba(6, 182, 212, 0.2)',
-                                border: '1px solid var(--accent-cyan, #06b6d4)',
-                                color: 'var(--accent-cyan, #06b6d4)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                              }}
-                            >
-                              <Play size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleOpenFolder(track.path)}
-                              title={loc.duplicateFinder.showInFolder}
-                              style={{
-                                padding: '6px',
-                                borderRadius: '6px',
-                                background: 'rgba(255,255,255,0.06)',
-                                border: '1px solid var(--border-subtle)',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                              }}
-                            >
-                              <FolderOpen size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(track.id, false, track.title)}
-                              title={loc.duplicateFinder.removeFromDb}
-                              style={{
-                                padding: '6px',
-                                borderRadius: '6px',
-                                background: 'rgba(255,255,255,0.06)',
-                                border: '1px solid var(--border-subtle)',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                fontSize: '0.72rem',
-                              }}
-                            >
-                              {loc.duplicateFinder.removeEntry}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(track.id, true, track.title)}
-                              title={loc.duplicateFinder.deleteFromDisk}
-                              style={{
-                                padding: '6px',
-                                borderRadius: '6px',
-                                background: 'rgba(239, 68, 68, 0.15)',
-                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                color: '#f87171',
-                                cursor: 'pointer',
-                                display: 'flex',
-                              }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Stopka */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            background: 'rgba(0,0,0,0.2)',
-          }}
-        >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            {loc.duplicateFinder.refresh}
+          </button>
           <button
             onClick={onClose}
-            style={{
-              padding: '6px 16px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
-              color: 'var(--text-secondary, #a1a1aa)',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-            }}
+            className="flex rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
           >
-            Zamknij
+            <X size={18} />
           </button>
         </div>
       </div>
-    </div>
+
+      {/* Komunikaty */}
+      {error && (
+        <div
+          className="mx-5 mt-4 mb-0 flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400"
+        >
+          <AlertTriangle size={16} />
+          {error}
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          className="mx-5 mt-4 mb-0 flex items-center gap-2 rounded-lg border border-accent-green/40 bg-accent-green/15 px-3.5 py-2.5 text-ui text-emerald-400"
+        >
+          <CheckCircle2 size={16} />
+          {successMsg}
+        </div>
+      )}
+
+      {/* Lista grup duplikatów */}
+      <div className="flex flex-col gap-4 overflow-y-auto p-5">
+        {isLoading && (
+          <div className="p-10 text-center text-fg-muted">
+            {loc.duplicateFinder.scanning}
+          </div>
+        )}
+
+        {!isLoading && groups.length === 0 && (
+          <div
+            className="flex flex-col items-center gap-2.5 rounded-xl bg-white/2 px-5 py-10 text-center text-fg-muted"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-green/15 text-emerald-400">
+              <CheckCircle2 size={24} />
+            </div>
+            <span className="text-md font-semibold text-fg">
+              {loc.duplicateFinder.noDuplicates}
+            </span>
+            <span className="max-w-100 text-ui">
+              {loc.duplicateFinder.noDuplicatesDesc}
+            </span>
+          </div>
+        )}
+
+        {!isLoading && groups.length > 0 && (
+          <div className="flex flex-col gap-3.5">
+            <div className="text-ui text-fg-secondary">
+              {fmt(loc.duplicateFinder.detectedGroups, String(groups.length), String(groups.reduce((acc, g) => acc + g.tracks.length, 0)))}
+            </div>
+
+            {groups.map((group, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col gap-2.5 rounded-xl border border-line bg-white/3 p-3.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-md font-bold text-accent-pink">
+                    🎵 {group.key}
+                  </span>
+                  <span className="rounded-md bg-accent-cyan/20 px-2 py-0.5 text-xs font-semibold text-accent-cyan">
+                    {group.count} {loc.duplicateFinder.copies}
+                  </span>
+                </div>
+
+                {/* Wiersze plików w danej grupie */}
+                <div className="flex flex-col gap-1.5">
+                  {group.tracks.map((track) => {
+                    const isLossless = ['flac', 'wav', 'alac', 'aiff'].includes(track.format.toLowerCase());
+                    return (
+                      <div
+                        key={track.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-line bg-black/30 px-3 py-2"
+                      >
+                        <div className="flex min-w-30 items-center gap-2">
+                          <span
+                            className={cn(
+                              'rounded-sm px-1.5 py-0.5 text-xs font-bold',
+                              isLossless ? 'bg-accent-green/25' : 'bg-white/10',
+                              isLossless ? 'text-emerald-400' : 'text-fg-secondary',
+                            )}
+                          >
+                            {track.format.toUpperCase()}
+                          </span>
+                          <span className="font-mono text-xs text-fg-muted">
+                            {track.bit_depth ? `${track.bit_depth}-bit ` : ''}
+                            {Math.round(track.sample_rate / 1000)}kHz
+                          </span>
+                        </div>
+
+                        <div className="flex flex-1 flex-col overflow-hidden">
+                          <span
+                            className="truncate text-xs text-fg-secondary"
+                            title={track.path}
+                          >
+                            {track.path}
+                          </span>
+                          <span className="text-xs text-fg-muted">
+                            {loc.duplicateFinder.size} {formatBytes(track.file_size)} • {loc.duplicateFinder.duration} {formatTime(track.duration_ms)} • {loc.duplicateFinder.plays} {track.play_count || 0}
+                          </span>
+                        </div>
+
+                        {/* Akcje dla pliku */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => onPlayTrack(track.path)}
+                            title={loc.duplicateFinder.playFile}
+                            className="flex rounded-md border border-accent-cyan bg-accent-cyan/20 p-1.5 text-accent-cyan"
+                          >
+                            <Play size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleOpenFolder(track.path)}
+                            title={loc.duplicateFinder.showInFolder}
+                            className="flex rounded-md border border-line bg-white/6 p-1.5 text-fg-secondary"
+                          >
+                            <FolderOpen size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(track.id, false, track.title)}
+                            title={loc.duplicateFinder.removeFromDb}
+                            className="rounded-md border border-line bg-white/6 p-1.5 text-xs text-fg-muted"
+                          >
+                            {loc.duplicateFinder.removeEntry}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(track.id, true, track.title)}
+                            title={loc.duplicateFinder.deleteFromDisk}
+                            className="flex rounded-md border border-accent-red/30 bg-accent-red/15 p-1.5 text-red-400"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Stopka */}
+      <div className="flex justify-end border-t border-line bg-black/20 px-5 py-3">
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-line bg-white/8 px-4 py-1.5 text-ui text-fg-secondary"
+        >
+          Zamknij
+        </button>
+      </div>
+    </ModalShell>
   );
 };

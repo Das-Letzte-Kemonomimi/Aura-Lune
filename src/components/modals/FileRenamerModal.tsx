@@ -3,6 +3,8 @@ import { invoke } from '../../api/ipc';
 import { FileEdit, X, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface RenamePreviewItemDto {
   track_id: number;
@@ -113,364 +115,202 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-212.5 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
     >
+      {/* Nagłówek */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '850px',
-          background: 'var(--bg-surface, #181824)',
-          border: '1px solid var(--border-accent, rgba(236, 72, 153, 0.3))',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.7), 0 0 25px rgba(236, 72, 153, 0.15)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-        }}
+        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
       >
-        {/* Nagłówek */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(6, 182, 212, 0.15))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
-                background: 'rgba(236, 72, 153, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-pink, #ec4899)',
-              }}
-            >
-              <FileEdit size={18} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
-                {loc.fileRenamer.title}
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary, #a1a1aa)' }}>
-                {loc.fileRenamer.subtitle}
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-pink-500/25 text-accent-pink">
+            <FileEdit size={18} />
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted, #71717a)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-              display: 'flex',
-            }}
-          >
-            <X size={18} />
-          </button>
+          <div>
+            <h3 className="m-0 text-base font-bold text-fg">
+              {loc.fileRenamer.title}
+            </h3>
+            <p className="m-0 text-ui text-fg-secondary">
+              {loc.fileRenamer.subtitle}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={onClose}
+          className="flex rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-        {/* Zawartość */}
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          {error && (
-            <div
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#f87171',
-                fontSize: '0.82rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AlertTriangle size={16} />
-              {error}
-            </div>
-          )}
-
-          {successCount !== null && (
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                color: '#34d399',
-                fontSize: '0.84rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}
-            >
-              <CheckCircle2 size={18} />
-              <span>{fmt(loc.fileRenamer.renameSuccess, String(successCount))}</span>
-            </div>
-          )}
-
-          {/* Konfiguracja wzorca */}
+      {/* Zawartość */}
+      <div className="flex flex-col gap-4 overflow-y-auto p-5">
+        {error && (
           <div
-            style={{
-              padding: '14px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-            }}
+            className="flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-                {loc.fileRenamer.pattern}
-              </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {loc.fileRenamer.availableTags} <code>%artist%</code>, <code>%title%</code>, <code>%album%</code>, <code>%track%</code>, <code>%disc%</code>, <code>%ext%</code>
-              </span>
-            </div>
+            <AlertTriangle size={16} />
+            {error}
+          </div>
+        )}
 
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={pattern}
-                onChange={(e) => setPattern(e.target.value)}
-                placeholder="%track% - %artist% - %title%"
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-accent, rgba(236, 72, 153, 0.4))',
-                  background: 'rgba(0,0,0,0.4)',
-                  color: '#fff',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '0.86rem',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => updatePreview(pattern)}
-                title={loc.fileRenamer.refreshPreview}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-              </button>
-            </div>
+        {successCount !== null && (
+          <div
+            className="flex items-center gap-2.5 rounded-xl border border-accent-green/40 bg-accent-green/15 px-4 py-3 text-ui text-emerald-400"
+          >
+            <CheckCircle2 size={18} />
+            <span>{fmt(loc.fileRenamer.renameSuccess, String(successCount))}</span>
+          </div>
+        )}
 
-            {/* Presety */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                {loc.fileRenamer.presets}
-              </span>
-              {presetPatterns.map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setPattern(p.pattern)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    background: pattern === p.pattern ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${pattern === p.pattern ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-                    color: pattern === p.pattern ? '#fff' : 'var(--text-secondary)',
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+        {/* Konfiguracja wzorca */}
+        <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-white/3 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-ui font-semibold text-fg">
+              {loc.fileRenamer.pattern}
+            </span>
+            <span className="text-xs text-fg-muted">
+              {loc.fileRenamer.availableTags} <code>%artist%</code>, <code>%title%</code>, <code>%album%</code>, <code>%track%</code>, <code>%disc%</code>, <code>%ext%</code>
+            </span>
           </div>
 
-          {/* Tabela podglądu zmian */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
-              {fmt(loc.fileRenamer.previewCount, String(previews.length))}
-            </span>
-
-            <div
-              style={{
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-                background: 'rgba(0,0,0,0.3)',
-                overflow: 'hidden',
-              }}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={pattern}
+              onChange={(e) => setPattern(e.target.value)}
+              placeholder="%track% - %artist% - %title%"
+              className="flex-1 rounded-lg border border-line-accent bg-black/40 px-3 py-2 font-mono text-sm text-fg"
+            />
+            <button
+              type="button"
+              onClick={() => updatePreview(pattern)}
+              title={loc.fileRenamer.refreshPreview}
+              className="flex items-center rounded-lg border border-line bg-white/8 px-3 py-2 text-fg-secondary"
             >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 24px 1fr 90px',
-                  gap: '12px',
-                  padding: '8px 14px',
-                  background: 'rgba(255,255,255,0.04)',
-                  borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.06))',
-                  fontSize: '0.74rem',
-                  fontWeight: 700,
-                  color: 'var(--text-muted)',
-                }}
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {/* Presety */}
+          <div className="mt-0.5 flex flex-wrap gap-1.5">
+            <span className="self-center text-xs text-fg-muted">
+              {loc.fileRenamer.presets}
+            </span>
+            {presetPatterns.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setPattern(p.pattern)}
+                className={cn(
+                  'rounded-md border px-2 py-1 text-xs',
+                  pattern === p.pattern ? 'bg-pink-500/25' : 'bg-white/5',
+                  pattern === p.pattern ? 'border-accent-pink' : 'border-line',
+                  pattern === p.pattern ? 'text-fg' : 'text-fg-secondary',
+                )}
               >
-                <span>{loc.fileRenamer.currentName}</span>
-                <span></span>
-                <span>{loc.fileRenamer.proposedName}</span>
-                <span>STATUS</span>
-              </div>
-
-              <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                {previews.map((item) => {
-                  const oldName = getFilenameFromPath(item.old_path);
-                  const newName = getFilenameFromPath(item.new_path);
-                  const isUnchanged = oldName === newName;
-
-                  return (
-                    <div
-                      key={item.track_id}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 24px 1fr 90px',
-                        gap: '12px',
-                        padding: '8px 14px',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        alignItems: 'center',
-                        fontSize: '0.76rem',
-                        background: item.will_overwrite ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: 'var(--text-muted)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontFamily: 'var(--font-mono)',
-                        }}
-                        title={item.old_path}
-                      >
-                        {oldName}
-                      </span>
-                      <ArrowRight size={13} style={{ color: 'var(--text-muted)' }} />
-                      <span
-                        style={{
-                          color: isUnchanged ? 'var(--text-muted)' : 'var(--accent-cyan, #06b6d4)',
-                          fontWeight: isUnchanged ? 400 : 600,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontFamily: 'var(--font-mono)',
-                        }}
-                        title={item.new_path}
-                      >
-                        {newName}
-                      </span>
-                      <div>
-                        {item.will_overwrite ? (
-                          <span style={{ color: '#f87171', fontSize: '0.7rem', fontWeight: 600 }}>
-                            {loc.fileRenamer.statusOverwrite}
-                          </span>
-                        ) : isUnchanged ? (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-                            {loc.fileRenamer.statusUnchanged}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#34d399', fontSize: '0.7rem', fontWeight: 600 }}>
-                            {loc.fileRenamer.statusRename}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Stopka */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(0,0,0,0.2)',
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-            }}
-          >
-            {loc.common.cancel}
-          </button>
+        {/* Tabela podglądu zmian */}
+        <div className="flex flex-col gap-2">
+          <span className="text-ui font-semibold text-fg-secondary">
+            {fmt(loc.fileRenamer.previewCount, String(previews.length))}
+          </span>
 
-          <button
-            onClick={handleExecuteRename}
-            disabled={isExecuting || previews.length === 0}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 18px',
-              borderRadius: '8px',
-              background: 'var(--accent-pink, #ec4899)',
-              border: 'none',
-              color: '#fff',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              cursor: isExecuting || previews.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: isExecuting || previews.length === 0 ? 0.6 : 1,
-              boxShadow: '0 4px 14px rgba(236, 72, 153, 0.35)',
-            }}
-          >
-            <CheckCircle2 size={16} />
-            {isExecuting
-              ? loc.fileRenamer.renamingProgress
-              : fmt(loc.fileRenamer.renameBtn, String(previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length))}
-          </button>
+          <div className="overflow-hidden rounded-xl border border-line bg-black/30">
+            <div
+              className="grid grid-cols-[1fr_24px_1fr_90px] gap-3 border-b border-line bg-white/4 px-3.5 py-2 text-xs font-bold text-fg-muted"
+            >
+              <span>{loc.fileRenamer.currentName}</span>
+              <span></span>
+              <span>{loc.fileRenamer.proposedName}</span>
+              <span>STATUS</span>
+            </div>
+
+            <div className="max-h-70 overflow-y-auto">
+              {previews.map((item) => {
+                const oldName = getFilenameFromPath(item.old_path);
+                const newName = getFilenameFromPath(item.new_path);
+                const isUnchanged = oldName === newName;
+
+                return (
+                  <div
+                    key={item.track_id}
+                    className={cn(
+                      'grid grid-cols-[1fr_24px_1fr_90px] items-center gap-3 border-b border-white/3 px-3.5 py-2 text-xs',
+                      item.will_overwrite ? 'bg-accent-red/8' : 'bg-transparent',
+                    )}
+                  >
+                    <span
+                      className="truncate font-mono text-fg-muted"
+                      title={item.old_path}
+                    >
+                      {oldName}
+                    </span>
+                    <ArrowRight size={13} className="text-fg-muted" />
+                    <span
+                      className={cn(
+                        'truncate font-mono',
+                        isUnchanged ? 'text-fg-muted' : 'text-accent-cyan',
+                        isUnchanged ? 'font-normal' : 'font-semibold',
+                      )}
+                      title={item.new_path}
+                    >
+                      {newName}
+                    </span>
+                    <div>
+                      {item.will_overwrite ? (
+                        <span className="text-xxs font-semibold text-red-400">
+                          {loc.fileRenamer.statusOverwrite}
+                        </span>
+                      ) : isUnchanged ? (
+                        <span className="text-xxs text-fg-muted">
+                          {loc.fileRenamer.statusUnchanged}
+                        </span>
+                      ) : (
+                        <span className="text-xxs font-semibold text-emerald-400">
+                          {loc.fileRenamer.statusRename}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Stopka */}
+      <div className="flex items-center justify-between border-t border-line bg-black/20 px-5 py-3.5">
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-line bg-white/6 px-4 py-2 text-ui text-fg-secondary"
+        >
+          {loc.common.cancel}
+        </button>
+
+        <button
+          onClick={handleExecuteRename}
+          disabled={isExecuting || previews.length === 0}
+          className={cn(
+            'flex items-center gap-2 rounded-lg border-0 bg-accent-pink px-4.5 py-2 text-ui font-bold text-fg shadow-lift shadow-pink-500/35',
+            isExecuting || previews.length === 0 ? 'cursor-not-allowed' : 'cursor-pointer',
+            isExecuting || previews.length === 0 ? 'opacity-60' : 'opacity-100',
+          )}
+        >
+          <CheckCircle2 size={16} />
+          {isExecuting
+            ? loc.fileRenamer.renamingProgress
+            : fmt(loc.fileRenamer.renameBtn, String(previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length))}
+        </button>
+      </div>
+    </ModalShell>
   );
 };

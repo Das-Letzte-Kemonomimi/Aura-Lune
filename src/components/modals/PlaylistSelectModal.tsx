@@ -2,6 +2,7 @@ import React from 'react';
 import { FolderPlus, X } from 'lucide-react';
 import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
+import { ModalShell } from '../ui';
 
 export interface PlaylistSelectModalProps {
   isOpen: boolean;
@@ -23,77 +24,47 @@ export const PlaylistSelectModal: React.FC<PlaylistSelectModalProps> = ({
   if (!isOpen || !track) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.75)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1100,
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="nested"
+      className="w-112.5 max-w-[90vw] rounded-2xl border border-line-accent p-7"
     >
-      <div
-        className="glass-panel"
-        style={{
-          padding: '28px',
-          width: '450px',
-          maxWidth: '90vw',
-          borderRadius: '16px',
-          border: '1px solid var(--border-accent)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FolderPlus size={18} color="var(--accent-purple)" /> {loc.playlists.title}
-          </h3>
-          <button
-            onClick={onClose}
-            title={loc.common.close}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-          {loc.playlists.title}: <strong style={{ color: 'var(--accent-pink)' }}>{track.title}</strong>
-        </p>
-
-        {playlists.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            {loc.playlists.empty}. {loc.playlists.emptyHint}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
-            {playlists.map((pl) => (
-              <button
-                key={pl.id}
-                onClick={() => onSelectPlaylist(pl.id, track.id)}
-                className="glass-card"
-                style={{
-                  padding: '12px 16px',
-                  textAlign: 'left',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  color: '#fff',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <span>{pl.name}</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {pl.track_count} {loc.library.tracks}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="m-0 flex items-center gap-2 text-lg">
+          <FolderPlus size={18} className="text-accent-purple" /> {loc.playlists.title}
+        </h3>
+        <button
+          onClick={onClose}
+          title={loc.common.close}
+          className="border-0 bg-transparent text-fg-muted"
+        >
+          <X size={18} />
+        </button>
       </div>
-    </div>
+      <p className="mb-4 text-sm text-fg-secondary">
+        {loc.playlists.title}: <strong className="text-accent-pink">{track.title}</strong>
+      </p>
+
+      {playlists.length === 0 ? (
+        <div className="p-5 text-center text-sm text-fg-muted">
+          {loc.playlists.empty}. {loc.playlists.emptyHint}
+        </div>
+      ) : (
+        <div className="flex max-h-62.5 flex-col gap-2 overflow-y-auto">
+          {playlists.map((pl) => (
+            <button
+              key={pl.id}
+              onClick={() => onSelectPlaylist(pl.id, track.id)}
+              className="glass-card flex items-center justify-between px-4 py-3 text-left text-sm text-fg"
+            >
+              <span>{pl.name}</span>
+              <span className="text-xs text-fg-muted">
+                {pl.track_count} {loc.library.tracks}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </ModalShell>
   );
 };

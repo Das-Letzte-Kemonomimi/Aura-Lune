@@ -6,6 +6,7 @@ import { type Language, getTranslations } from '../../i18n';
 import { type TrackBookmarkDto } from '../../types/player';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { fmt } from '../../utils/fmt';
+import { ModalShell } from '../ui';
 
 export type { TrackBookmarkDto };
 
@@ -138,529 +139,261 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-h-[90vh] max-w-140 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
     >
+      {/* Nagłówek modala */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '560px',
-          background: 'var(--bg-surface, #181824)',
-          border: '1px solid var(--border-accent, rgba(236, 72, 153, 0.3))',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(236, 72, 153, 0.15)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-        }}
+        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
       >
-        {/* Nagłówek modala */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(6, 182, 212, 0.15))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'rgba(236, 72, 153, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-pink, #ec4899)',
-              }}
-            >
-              <Bookmark size={18} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
-                {loc.trackBookmarks.title}
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.78rem',
-                  color: 'var(--text-secondary, #a1a1aa)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '380px',
-                }}
-              >
-                {trackTitle}
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/25 text-accent-pink">
+            <Bookmark size={18} />
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted, #71717a)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-              display: 'flex',
-            }}
-          >
-            <X size={18} />
-          </button>
+          <div>
+            <h3 className="m-0 text-base font-bold text-fg">
+              {loc.trackBookmarks.title}
+            </h3>
+            <p className="m-0 max-w-95 truncate text-ui text-fg-secondary">
+              {trackTitle}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={onClose}
+          className="flex rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-        {/* Zawartość */}
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          {error && (
-            <div
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#f87171',
-                fontSize: '0.82rem',
-              }}
-            >
-              {error}
-            </div>
-          )}
+      {/* Zawartość */}
+      <div className="flex flex-col gap-4 overflow-y-auto p-5">
+        {error && (
+          <div className="rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400">
+            {error}
+          </div>
+        )}
 
-          {/* Formularz dodania nowego znacznika */}
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-            }}
-          >
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>
-              {loc.trackBookmarks.addNewBookmark}
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '8px' }}>
+        {/* Formularz dodania nowego znacznika */}
+        <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-white/3 p-3.5">
+          <span className="text-ui font-semibold text-fg">
+            {loc.trackBookmarks.addNewBookmark}
+          </span>
+          <div className="grid grid-cols-[1fr_140px] gap-2">
+            <input
+              type="text"
+              placeholder={loc.trackBookmarks.namePlaceholder}
+              value={newBookmarkName}
+              onChange={(e) => setNewBookmarkName(e.target.value)}
+              className="rounded-lg border border-line bg-black/30 px-3 py-2 text-ui text-fg"
+            />
+            <div className="flex gap-1">
               <input
                 type="text"
-                placeholder={loc.trackBookmarks.namePlaceholder}
-                value={newBookmarkName}
-                onChange={(e) => setNewBookmarkName(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle, rgba(255,255,255,0.15))',
-                  background: 'rgba(0,0,0,0.3)',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                }}
+                placeholder={loc.trackBookmarks.timePlaceholder}
+                value={newBookmarkTime}
+                onChange={(e) => setNewBookmarkTime(e.target.value)}
+                className="w-full rounded-lg border border-line bg-black/30 p-2 font-mono text-ui text-fg"
               />
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <input
-                  type="text"
-                  placeholder={loc.trackBookmarks.timePlaceholder}
-                  value={newBookmarkTime}
-                  onChange={(e) => setNewBookmarkTime(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 8px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle, rgba(255,255,255,0.15))',
-                    background: 'rgba(0,0,0,0.3)',
-                    color: '#fff',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    fontSize: '0.8rem',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setNewBookmarkTime(`${currentPositionMs}ms`)}
-                  title={loc.trackBookmarks.insertCurrentPos}
-                  style={{
-                    padding: '8px',
-                    borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
-                    color: 'var(--accent-cyan, #06b6d4)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Clock size={15} />
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
               <button
                 type="button"
-                onClick={handleAddBookmark}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: 'var(--accent-pink, #ec4899)',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(236, 72, 153, 0.3)',
-                }}
+                onClick={() => setNewBookmarkTime(`${currentPositionMs}ms`)}
+                title={loc.trackBookmarks.insertCurrentPos}
+                className="flex items-center justify-center rounded-lg border border-line bg-white/8 p-2 text-accent-cyan"
               >
-                <Plus size={15} />
-                {loc.trackBookmarks.addBookmark}
+                <Clock size={15} />
               </button>
             </div>
           </div>
 
-          {/* Lista zakładek */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
-              {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
-            </span>
-
-            {bookmarks.length >= 2 && onExportRange && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(6, 182, 212, 0.1)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
-                  marginBottom: '4px',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                    {loc.trackBookmarks.exportRangeWithBookmarks}
-                  </span>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {fmt(loc.trackBookmarks.rangeFirstToLast, bookmarks[0].name, bookmarks[bookmarks.length - 1].name)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {onSetAsLoop && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSetAsLoop(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
-                        onClose();
-                      }}
-                      className="glass-card"
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-main)',
-                        fontSize: '0.76rem',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {loc.trackBookmarks.abLoop}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onExportRange(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
-                      onClose();
-                    }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-pink))',
-                      border: 'none',
-                      color: '#fff',
-                      fontSize: '0.76rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Scissors size={13} /> {loc.trackBookmarks.export}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {isLoading && (
-              <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
-                {loc.trackBookmarks.loading}
-              </div>
-            )}
-
-            {!isLoading && bookmarks.length === 0 && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '24px',
-                  borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.02)',
-                  color: 'var(--text-muted, #71717a)',
-                  fontSize: '0.84rem',
-                }}
-              >
-                {loc.trackBookmarks.noBookmarksFound}
-              </div>
-            )}
-
-            {bookmarks.map((bm, idx) => (
-              <div
-                key={bm.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid var(--border-subtle, rgba(255,255,255,0.06))',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                  <button
-                    onClick={() => onSeek(bm.position_ms)}
-                    title={loc.trackBookmarks.seekAndPlay}
-                    style={{
-                      width: '30px',
-                      height: '30px',
-                      borderRadius: '8px',
-                      background: 'rgba(6, 182, 212, 0.2)',
-                      border: '1px solid var(--accent-cyan, #06b6d4)',
-                      color: 'var(--accent-cyan, #06b6d4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Play size={14} style={{ marginLeft: '2px' }} />
-                  </button>
-
-                  {editingId === bm.id ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        autoFocus
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--accent-pink)',
-                          background: 'rgba(0,0,0,0.5)',
-                          color: '#fff',
-                          fontSize: '0.82rem',
-                          flex: 1,
-                        }}
-                      />
-                      <button
-                        onClick={() => handleUpdateName(bm.id)}
-                        style={{
-                          background: 'var(--accent-pink)',
-                          border: 'none',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        style={{
-                          background: 'rgba(255,255,255,0.1)',
-                          border: 'none',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#fff' }}>
-                        {bm.name}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.74rem',
-                          color: 'var(--accent-cyan, #06b6d4)',
-                          fontFamily: 'var(--font-mono, monospace)',
-                        }}
-                      >
-                        {formatTimeMs(bm.position_ms)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {onSetAsLoop && (
-                    <button
-                      onClick={() => onSetAsLoop(bm.position_ms, null)}
-                      title={loc.trackBookmarks.setLoopA}
-                      style={{
-                        background: 'rgba(6, 182, 212, 0.15)',
-                        border: '1px solid rgba(6, 182, 212, 0.35)',
-                        color: 'var(--accent-cyan)',
-                        cursor: 'pointer',
-                        padding: '4px 7px',
-                        borderRadius: '6px',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                      }}
-                    >
-                      A
-                    </button>
-                  )}
-                  {onSetAsLoop && (
-                    <button
-                      onClick={() => onSetAsLoop(null, bm.position_ms)}
-                      title={loc.trackBookmarks.setLoopB}
-                      style={{
-                        background: 'rgba(236, 72, 153, 0.15)',
-                        border: '1px solid rgba(236, 72, 153, 0.35)',
-                        color: 'var(--accent-pink)',
-                        cursor: 'pointer',
-                        padding: '4px 7px',
-                        borderRadius: '6px',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                      }}
-                    >
-                      B
-                    </button>
-                  )}
-                  {onExportRange && idx < bookmarks.length - 1 && (
-                    <button
-                      onClick={() => {
-                        onExportRange(bm.position_ms, bookmarks[idx + 1].position_ms);
-                        onClose();
-                      }}
-                      title={fmt(loc.trackBookmarks.exportSection, bm.name, bookmarks[idx + 1].name)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--accent-cyan)',
-                        cursor: 'pointer',
-                        padding: '5px 8px',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.72rem',
-                      }}
-                    >
-                      <Scissors size={12} />
-                    </button>
-                  )}
-                  {editingId !== bm.id && (
-                    <button
-                      onClick={() => {
-                        setEditingId(bm.id);
-                        setEditingName(bm.name);
-                      }}
-                      title={loc.trackBookmarks.rename}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted, #71717a)',
-                        cursor: 'pointer',
-                        padding: '6px',
-                        borderRadius: '6px',
-                      }}
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDeleteBookmark(bm.id)}
-                    title={loc.trackBookmarks.deleteBookmark}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'rgba(244, 63, 94, 0.7)',
-                      cursor: 'pointer',
-                      padding: '6px',
-                      borderRadius: '6px',
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="mt-1 flex justify-end">
+            <button
+              type="button"
+              onClick={handleAddBookmark}
+              className="flex items-center gap-1.5 rounded-lg border-0 bg-accent-pink px-3.5 py-2 text-ui font-semibold text-fg shadow-lift shadow-pink-500/30"
+            >
+              <Plus size={15} />
+              {loc.trackBookmarks.addBookmark}
+            </button>
           </div>
         </div>
 
-        {/* Stopka modala */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(0,0,0,0.2)',
-          }}
-        >
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            {loc.trackBookmarks.quickAddTip}
+        {/* Lista zakładek */}
+        <div className="flex flex-col gap-2">
+          <span className="text-ui font-semibold text-fg-secondary">
+            {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
           </span>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
-              color: 'var(--text-secondary, #a1a1aa)',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-            }}
-          >
-            {loc.common.close}
-          </button>
+
+          {bookmarks.length >= 2 && onExportRange && (
+            <div
+              className="mb-1 flex items-center justify-between rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3.5 py-2.5"
+            >
+              <div className="flex flex-col">
+                <span className="text-ui font-bold text-accent-cyan">
+                  {loc.trackBookmarks.exportRangeWithBookmarks}
+                </span>
+                <span className="text-xs text-fg-muted">
+                  {fmt(loc.trackBookmarks.rangeFirstToLast, bookmarks[0].name, bookmarks[bookmarks.length - 1].name)}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {onSetAsLoop && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSetAsLoop(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
+                      onClose();
+                    }}
+                    className="glass-card rounded-md border border-line bg-white/8 px-2.5 py-1.5 text-xs font-semibold text-fg"
+                  >
+                    {loc.trackBookmarks.abLoop}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportRange(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
+                    onClose();
+                  }}
+                  className="flex items-center gap-1 rounded-md border-0 bg-linear-135 from-accent-cyan to-accent-pink px-3 py-1.5 text-xs font-bold text-on-accent"
+                >
+                  <Scissors size={13} /> {loc.trackBookmarks.export}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="p-4 text-center text-fg-muted">
+              {loc.trackBookmarks.loading}
+            </div>
+          )}
+
+          {!isLoading && bookmarks.length === 0 && (
+            <div className="rounded-xl bg-white/2 p-6 text-center text-ui text-fg-muted">
+              {loc.trackBookmarks.noBookmarksFound}
+            </div>
+          )}
+
+          {bookmarks.map((bm, idx) => (
+            <div
+              key={bm.id}
+              className="flex items-center justify-between rounded-xl border border-line bg-white/4 px-3.5 py-2.5 transition-all duration-150"
+            >
+              <div className="flex flex-1 items-center gap-2.5">
+                <button
+                  onClick={() => onSeek(bm.position_ms)}
+                  title={loc.trackBookmarks.seekAndPlay}
+                  className="flex h-7.5 w-7.5 items-center justify-center rounded-lg border border-accent-cyan bg-accent-cyan/20 text-accent-cyan"
+                >
+                  <Play size={14} className="ml-0.5" />
+                </button>
+
+                {editingId === bm.id ? (
+                  <div className="flex flex-1 items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      autoFocus
+                      className="flex-1 rounded-md border border-accent-pink bg-black/50 px-2 py-1 text-ui text-fg"
+                    />
+                    <button
+                      onClick={() => handleUpdateName(bm.id)}
+                      className="rounded-md border-0 bg-accent-pink px-2 py-1 text-on-accent"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="rounded-md border-0 bg-white/10 px-2 py-1 text-fg"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-fg">
+                      {bm.name}
+                    </span>
+                    <span className="font-mono text-xs text-accent-cyan">
+                      {formatTimeMs(bm.position_ms)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {onSetAsLoop && (
+                  <button
+                    onClick={() => onSetAsLoop(bm.position_ms, null)}
+                    title={loc.trackBookmarks.setLoopA}
+                    className="rounded-md border border-accent-cyan/35 bg-accent-cyan/15 px-2 py-1 text-xs font-bold text-accent-cyan"
+                  >
+                    A
+                  </button>
+                )}
+                {onSetAsLoop && (
+                  <button
+                    onClick={() => onSetAsLoop(null, bm.position_ms)}
+                    title={loc.trackBookmarks.setLoopB}
+                    className="rounded-md border border-pink-500/35 bg-pink-500/15 px-2 py-1 text-xs font-bold text-accent-pink"
+                  >
+                    B
+                  </button>
+                )}
+                {onExportRange && idx < bookmarks.length - 1 && (
+                  <button
+                    onClick={() => {
+                      onExportRange(bm.position_ms, bookmarks[idx + 1].position_ms);
+                      onClose();
+                    }}
+                    title={fmt(loc.trackBookmarks.exportSection, bm.name, bookmarks[idx + 1].name)}
+                    className="flex items-center gap-1 rounded-md border border-line bg-white/8 px-2 py-1.5 text-xs text-accent-cyan"
+                  >
+                    <Scissors size={12} />
+                  </button>
+                )}
+                {editingId !== bm.id && (
+                  <button
+                    onClick={() => {
+                      setEditingId(bm.id);
+                      setEditingName(bm.name);
+                    }}
+                    title={loc.trackBookmarks.rename}
+                    className="rounded-md border-0 bg-transparent p-1.5 text-fg-muted"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeleteBookmark(bm.id)}
+                  title={loc.trackBookmarks.deleteBookmark}
+                  className="rounded-md border-0 bg-transparent p-1.5 text-accent-pink/70"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+
+      {/* Stopka modala */}
+      <div className="flex items-center justify-between border-t border-line bg-black/20 px-5 py-3">
+        <span className="text-xs text-fg-muted">
+          {loc.trackBookmarks.quickAddTip}
+        </span>
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-line bg-white/8 px-3.5 py-1.5 text-ui text-fg-secondary"
+        >
+          {loc.common.close}
+        </button>
+      </div>
+    </ModalShell>
   );
 };
