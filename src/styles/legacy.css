@@ -1,0 +1,122 @@
+/*
+ * Transitional rules for components not yet migrated to utilities. Each block is deleted in
+ * the phase that migrates its component; this file is removed at the end of the migration.
+ */
+
+/* AppHeader / AppNavbar (phase 2). */
+@media (max-width: 113.75rem) {
+  .header-action-text {
+    display: none !important;
+  }
+}
+
+@media (max-width: 84.375rem) {
+  .header-nav-label {
+    display: none !important;
+  }
+}
+
+/* LibraryTracksView (phase 4): fixed row height keeps virtual scrolling hitboxes exact. */
+.library-track-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed !important;
+}
+
+.library-track-row {
+  box-sizing: border-box;
+  height: 48px !important;
+  max-height: 48px !important;
+}
+
+.library-track-cell {
+  box-sizing: border-box;
+  height: 48px !important;
+  max-height: 48px !important;
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.library-track-actions {
+  display: grid;
+  grid-template-columns: repeat(5, 21px);
+  grid-auto-rows: 21px;
+  gap: 2px;
+  align-content: center;
+  justify-content: center;
+}
+
+.library-track-actions > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px !important;
+}
+
+/* Keyframes still referenced by inline `animation:` strings until each component migrates. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    translate: 0 0.75rem;
+  }
+}
+
+@keyframes pulse-drop {
+  0%,
+  100% {
+    box-shadow:
+      0 0 25px rgba(244, 63, 94, 0.4),
+      inset 0 0 30px rgba(168, 85, 247, 0.2);
+    border-color: var(--accent-pink);
+  }
+  50% {
+    box-shadow:
+      0 0 50px rgba(168, 85, 247, 0.6),
+      inset 0 0 50px rgba(6, 182, 212, 0.3);
+    border-color: var(--accent-purple);
+  }
+}
+
+@keyframes bounce-drop {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.5rem;
+  }
+}
+
+@keyframes update-dot-pulse {
+  0%,
+  100% {
+    scale: 1;
+    opacity: 1;
+  }
+  50% {
+    scale: 1.6;
+    opacity: 0.45;
+  }
+}

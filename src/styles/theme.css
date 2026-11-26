@@ -1,0 +1,181 @@
+/*
+ * Design tokens.
+ *
+ * 1. `:root` holds the runtime theme defaults. `useThemeManager` overwrites these exact
+ *    names on <html> when the user switches theme, so they must keep their names.
+ * 2. `@theme inline` bridges them into Tailwind colour/shadow utilities. `inline` makes each
+ *    utility emit `var(--accent-pink)` itself, so a theme switch restyles everything live,
+ *    and slash opacity (`bg-accent-pink/15`) becomes a theme-aware `color-mix()`.
+ * 3. `@theme` holds the static scales (type, tracking, breakpoints, motion).
+ */
+
+:root {
+  --bg-deep: #090a12;
+  --bg-surface: rgba(18, 20, 36, 0.75);
+  --bg-surface-hover: rgba(28, 32, 54, 0.85);
+  --bg-card: rgba(25, 28, 48, 0.6);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(168, 85, 247, 0.35);
+
+  --accent-pink: #f43f5e;
+  --accent-purple: #a855f7;
+  --accent-cyan: #06b6d4;
+  --accent-green: #10b981;
+  --accent-amber: #f59e0b;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --shadow-glow: 0 0 25px rgba(168, 85, 247, 0.25);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-deep: var(--bg-deep);
+  --color-surface: var(--bg-surface);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-card: var(--bg-card);
+  --color-line: var(--border-subtle);
+  --color-line-accent: var(--border-accent);
+
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-green: var(--accent-green);
+  --color-accent-amber: var(--accent-amber);
+
+  --color-fg: var(--text-primary);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+
+  /* Named apart from the runtime vars: `--shadow-glow: var(--shadow-glow)` would be a cycle. */
+  --shadow-accent-glow: var(--shadow-glow);
+  --shadow-panel: var(--shadow-card);
+
+  /* Brand shadows mixed from the live accent colours, so they follow custom themes. */
+  --shadow-brand: 0 4px 14px color-mix(in srgb, var(--accent-pink) 35%, transparent);
+  --shadow-brand-glow: 0 0 12px color-mix(in srgb, var(--accent-pink) 35%, transparent);
+  --shadow-modal:
+    0 20px 50px rgb(0 0 0 / 0.6),
+    0 0 30px color-mix(in srgb, var(--accent-purple) 25%, transparent);
+}
+
+@theme static {
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@theme {
+  /* Not part of the user theme engine: fixed semantic colours. */
+  --color-accent-red: #ef4444;
+  --color-on-accent: #fff;
+
+  /*
+   * Type scale on a 1/16rem grid (whole pixels at a 16px root). The namespace is reset so no
+   * step carries Tailwind's bundled line-height: text inherits `line-height: normal` exactly as
+   * before the migration. Use `leading-*` where a block needs explicit rhythm.
+   */
+  --text-*: initial;
+  --text-2xs: 0.625rem;
+  --text-xxs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-ui: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  --tracking-label: 0.08em;
+
+  /* Header collapse points (1350px / 1680px / 1820px). Use as `max-nav:hidden`. */
+  --breakpoint-nav: 84.375rem;
+  --breakpoint-brand: 105rem;
+  --breakpoint-actions: 113.75rem;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-fade-in-scale: fade-in-scale 0.22s var(--ease-out-expo);
+  --animate-modal-in: modal-in 0.25s var(--ease-out-expo);
+  --animate-osd-pop: fade-in-scale 0.2s var(--ease-out-expo);
+  --animate-pulse-drop: pulse-drop 2s ease-in-out infinite;
+  --animate-bounce-drop: bounce-drop 1.5s ease-in-out infinite;
+  --animate-update-dot: update-dot-pulse 1.6s ease-in-out infinite;
+  --animate-eq-bar: eq-bar 0.8s ease-in-out infinite alternate;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-in-scale {
+    from {
+      opacity: 0;
+      scale: 0.96;
+    }
+  }
+
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      translate: 0 0.75rem;
+      scale: 0.98;
+    }
+  }
+
+  @keyframes pulse-drop {
+    0%,
+    100% {
+      box-shadow:
+        0 0 25px rgba(244, 63, 94, 0.4),
+        inset 0 0 30px rgba(168, 85, 247, 0.2);
+      border-color: var(--accent-pink);
+    }
+    50% {
+      box-shadow:
+        0 0 50px rgba(168, 85, 247, 0.6),
+        inset 0 0 50px rgba(6, 182, 212, 0.3);
+      border-color: var(--accent-purple);
+    }
+  }
+
+  @keyframes bounce-drop {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 0 -0.5rem;
+    }
+  }
+
+  @keyframes update-dot-pulse {
+    0%,
+    100% {
+      scale: 1;
+      opacity: 1;
+    }
+    50% {
+      scale: 1.6;
+      opacity: 0.45;
+    }
+  }
+
+  @keyframes eq-bar {
+    from {
+      scale: 1 0.3;
+    }
+    to {
+      scale: 1 1;
+    }
+  }
+}

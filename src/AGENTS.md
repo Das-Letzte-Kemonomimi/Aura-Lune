@@ -57,7 +57,8 @@ src/
   locales/  i18n.ts        en, pl, de, fi, la dictionaries + loader
   data/changelog.json      In-app changelog
   test/                    setup.ts, ipcMock.ts, canvasMock.ts
-  index.css  App.css       Global styles, theme CSS variables, glass/anime layers
+  components/ui/           Tailwind primitives: Button, ModalShell, Callout, Badge, SettingRow…
+  index.css  styles/       Tailwind entry; theme tokens, base layer, project utilities
 ```
 
 ### How frontend talks to backend
@@ -89,7 +90,7 @@ The backend playback ticker is the clock. The frontend never polls; a watchdog f
 ## Conventions
 
 - **TypeScript only**, `strict: true`. No `any` outside tests (oxlint warns). Use `catch (e: unknown)` + `errorMessage(e)`. Backend contracts live once in `types/<domain>.ts`, and `types/player.ts` re-exports them.
-- **Styling**: global classes and theme CSS variables in `index.css` / `App.css` (`--bg-deep`, `--text-primary`, glass/anime layers); per-element values through React `style` props (the CSP allows inline style attributes, not inline scripts). Theme tokens come from the backend theme engine (`useThemeManager`). No Tailwind, no CSS modules.
+- **Styling**: Tailwind CSS v4, configured in CSS (no `tailwind.config.*`). `index.css` imports `styles/theme.css` (runtime theme defaults + `@theme` tokens), `styles/base.css` (element defaults) and `styles/utilities.css` (`glass-panel`, `glass-card`, `label-caps`, …). Use theme tokens (`bg-surface`, `text-fg-muted`, `border-line`, `bg-accent-pink/15`), never hex: the theme engine (`useThemeManager`) rewrites the underlying variables at runtime. Sizes are rem/em on fixed scales (`text-ui` = 0.8125rem is the body size). Merge conditional classes with `cn()` from `utils/cn.ts`; reuse `components/ui/` (`Button`, `ModalShell`/`ModalHeader`, `Callout`, `Badge`, `SettingRow`, `Input`). Inline `style` only for values computed at runtime (progress, transforms, per-item colours). Hover and selected states are `hover:` / `aria-pressed:` variants, never `e.currentTarget.style`. Full rules: the `tailwind-v4` skill (`skills/frontend/tailwind-v4/SKILL.md`). Components not yet migrated still use inline styles; migrate a file fully when you touch its styling. No CSS modules.
 - **Hooks**: `react-hooks/exhaustive-deps` is an **error**. An intentional mount-only effect needs an `oxlint-disable-next-line` with a reason. Long-lived timers read the latest values through refs (`useSleepTimer`, `useHotkeysManager`).
 - **State**: component state via hooks, domain state in `use*Manager` hooks, per-frame data in `livePlayback`. UI preferences use `usePersistedState` (one key for read and write, `parse` validator), not hand-written `localStorage` pairs.
 - **Formatting values**: use `utils/timeFormat.ts`, `utils/fileSizeFormat.ts`, and `fmt(template, …args)` for `{0}` placeholders. Never chain `.replace('{0}', …)` or write a local formatter copy.
