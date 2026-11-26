@@ -27,22 +27,19 @@ fn test_shuffle_order_is_a_permutation_starting_at_current() {
     let q = shuffled_queue(50, 7);
     assert_eq!(q.shuffle_order.len(), 50);
     let unique: HashSet<_> = q.shuffle_order.iter().copied().collect();
-    assert_eq!(unique.len(), 50, "Każdy utwór dokładnie raz");
-    assert_eq!(
-        q.shuffle_order[0], 7,
-        "Bieżący utwór na początku kolejności"
-    );
+    assert_eq!(unique.len(), 50, "Every track exactly once");
+    assert_eq!(q.shuffle_order[0], 7, "The current track starts the order");
     assert_eq!(q.shuffle_cursor, 0);
 }
 
 #[test]
 fn test_shuffle_differs_between_queues_of_same_length() {
-    // Wcześniej ziarno zależało tylko od długości kolejki — każda 20-elementowa kolejka
-    // miała identyczną kolejność. Przy 20! permutacjach 5 identycznych wyników jest niemożliwe.
+    // The seed used to depend only on the queue length, so every 20-item queue
+    // had the same order. With 20! permutations, 5 identical results are impossible.
     let orders: HashSet<Vec<usize>> = (0..5)
         .map(|_| shuffled_queue(20, 0).shuffle_order)
         .collect();
-    assert!(orders.len() > 1, "Kolejność losowa musi się zmieniać");
+    assert!(orders.len() > 1, "The shuffle order must change");
 }
 
 #[test]
@@ -72,7 +69,7 @@ fn test_shuffle_loop_queue_wraps_around() {
     let mut q = shuffled_queue(3, 0);
     q.set_loop_mode(LoopMode::Queue);
     for _ in 0..10 {
-        assert!(q.next().is_some(), "Loop Queue nigdy nie kończy kolejki");
+        assert!(q.next().is_some(), "Loop Queue never ends the queue");
     }
 }
 
@@ -98,7 +95,7 @@ fn test_mutations_under_shuffle_keep_current_item() {
     q.move_item(cur_idx, 0);
     assert_eq!(q.current_item().unwrap().id, current, "move_item");
 
-    // Po każdej zmianie kolejność losowa nadal obejmuje wszystkie utwory i zaczyna od bieżącego.
+    // After every change the shuffle order still covers every track and starts with the current one.
     assert_eq!(q.shuffle_order.len(), q.items.len());
     assert_eq!(q.shuffle_order[q.shuffle_cursor], q.current_index.unwrap());
 }
@@ -116,7 +113,7 @@ fn test_add_next_inserts_after_current_in_sequential_mode() {
 #[test]
 fn test_set_items_with_start_index_drops_stale_active_stream() {
     let mut q = PlaybackQueue::new();
-    // Radio nie należy do kolejki — ustawione jako aktywny strumień.
+    // Radio does not belong to the queue: it is set as the active stream.
     q.set_active_item(QueueItem {
         id: "radio-1".into(),
         track_id: None,
@@ -131,7 +128,7 @@ fn test_set_items_with_start_index_drops_stale_active_stream() {
     q.set_items(items(3), Some(1));
     assert_eq!(q.current_item().map(|i| i.id.as_str()), Some("q-1"));
 
-    // Po wyczyszczeniu indeksu radio nie może „wrócić" jako bieżący utwór.
+    // After the index is cleared, radio must not "come back" as the current track.
     q.current_index = None;
     assert!(q.current_item().is_none());
 }

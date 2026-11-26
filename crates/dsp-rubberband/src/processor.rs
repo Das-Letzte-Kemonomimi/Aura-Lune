@@ -1,4 +1,4 @@
-//! Implementacja cechy AudioProcessor dla biblioteki Rubber Band.
+//! AudioProcessor implementation for the Rubber Band library.
 
 use crate::ffi::*;
 use dsp_api::{
@@ -7,7 +7,7 @@ use dsp_api::{
 };
 use tracing::debug;
 
-/// Procesor DSP bazujący na Rubber Band.
+/// DSP processor based on Rubber Band.
 pub struct RubberBandProcessor {
     state: Option<RubberBandState>,
     format: Option<AudioFormat>,
@@ -18,8 +18,8 @@ pub struct RubberBandProcessor {
     out_ptrs: Vec<*mut f32>,
 }
 
-// RubberBandState jest wskaźnikiem na instancję C++ zarządzaną wyłącznie przez ten procesor.
-// rubberband_delete zwalnia zasoby w destruktorze Drop.
+// RubberBandState points to a C++ instance owned solely by this processor.
+// rubberband_delete frees it in the Drop destructor.
 unsafe impl Send for RubberBandProcessor {}
 
 impl Default for RubberBandProcessor {
@@ -29,9 +29,9 @@ impl Default for RubberBandProcessor {
 }
 
 impl RubberBandProcessor {
-    /// Pobiera z biblioteki wszystkie gotowe ramki i dopisuje je (z przeplotem kanałów) do
-    /// `output`. Bufory kanałowe rosną tylko przy pierwszym większym bloku — w stanie
-    /// ustalonym bez alokacji. Zwraca liczbę pobranych ramek.
+    /// Pulls every ready frame from the library and appends it (interleaved) to
+    /// `output`. The channel buffers grow only on the first larger block, so the steady
+    /// state does not allocate. Returns the number of frames pulled.
     fn retrieve_available(
         &mut self,
         state: RubberBandState,
@@ -113,11 +113,11 @@ impl AudioProcessor for RubberBandProcessor {
         let channels = format.channels as usize;
         let sample_rate = format.sample_rate;
 
-        // Konfiguracja Rubber Band:
-        // - REALTIME + ENGINE_FASTER: wydajny silnik czasu rzeczywistego (R2) z niskim narzutem CPU
-        // - PITCH_HIGH_QUALITY: najwyższa jakość przetwarzania wysokości tonu
-        // - TRANSIENTS_CRISP + DETECTOR_COMPOUND: precyzyjne zachowanie transjentów perkusyjnych
-        // - WINDOW_STANDARD: zbalansowane okno czasowo-częstotliwościowe
+        // Rubber Band configuration:
+        // - REALTIME + ENGINE_FASTER: efficient real-time engine (R2) with low CPU overhead
+        // - PITCH_HIGH_QUALITY: highest pitch processing quality
+        // - TRANSIENTS_CRISP + DETECTOR_COMPOUND: precise preservation of percussive transients
+        // - WINDOW_STANDARD: balanced time-frequency window
         let mut options = RUBBERBAND_OPTION_PROCESS_REALTIME
             | RUBBERBAND_OPTION_ENGINE_FASTER
             | RUBBERBAND_OPTION_PITCH_HIGH_QUALITY
@@ -143,7 +143,7 @@ impl AudioProcessor for RubberBandProcessor {
         if state.is_null() {
             return Err(DspError::Internal {
                 engine: "RubberBand",
-                message: "rubberband_new zwrócił wskaźnik NULL".to_string(),
+                message: "rubberband_new returned a NULL pointer".to_string(),
             });
         }
 
@@ -161,7 +161,7 @@ impl AudioProcessor for RubberBandProcessor {
         self.out_ptrs = vec![std::ptr::null_mut(); channels];
 
         debug!(
-            "Zainicjalizowano RubberBandProcessor dla {} Hz, {} kanałów (max_process_size={})",
+            "Initialised RubberBandProcessor for {} Hz, {} channels (max_process_size={})",
             sample_rate, channels, safe_block
         );
         Ok(())
@@ -186,12 +186,12 @@ impl AudioProcessor for RubberBandProcessor {
     fn process(&mut self, input: &[f32], output: &mut Vec<f32>) -> Result<ProcessStatus, DspError> {
         let state = self.state.ok_or_else(|| DspError::Internal {
             engine: "RubberBand",
-            message: "Procesor nie został przygotowany (wywołaj prepare)".into(),
+            message: "Processor not prepared (call prepare)".into(),
         })?;
 
         let format = self
             .format
-            .ok_or_else(|| DspError::FormatError("Brak przygotowanego formatu".into()))?;
+            .ok_or_else(|| DspError::FormatError("No prepared format".into()))?;
         let channels = format.channels as usize;
 
         if input.is_empty() {
@@ -205,7 +205,7 @@ impl AudioProcessor for RubberBandProcessor {
         for chunk in input.chunks(chunk_size_samples) {
             let cur_frames = chunk.len() / channels;
 
-            // 1. De-interleave do buforów kanałowych
+            // 1. De-interleave into the channel buffers
             for ch in &mut self.in_channels[..channels] {
                 ch.clear();
             }
@@ -223,7 +223,7 @@ impl AudioProcessor for RubberBandProcessor {
                 rubberband_process(state, self.in_ptrs.as_ptr(), cur_frames as u32, 0);
             }
 
-            // 3. Pobranie wszystkich dostępnych przetworzonych ramek
+            // 3. Pull all available processed frames
             total_retrieved += self.retrieve_available(state, channels, output);
         }
 
@@ -268,7 +268,7 @@ impl AudioProcessor for RubberBandProcessor {
         };
         let channels = format.channels as usize;
 
-        // Przekazanie sygnału finalnego (final = 1) z prawidłowymi wskaźnikami buforów kanałów
+        // Pass the final signal (final = 1) with valid channel buffer pointers
         for (ptr, ch) in self
             .in_ptrs
             .iter_mut()

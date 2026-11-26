@@ -1,4 +1,4 @@
-//! Ponawianie zapytań, opóźnienia i limit częstotliwości (`metadata::http`).
+//! Request retries, delays and the rate limiter (`metadata::http`).
 
 use metadata::http::{
     build_client, is_retryable_status, retry_delay, send_with_retry, RateLimiter, USER_AGENT,
@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// Lokalny serwer odpowiadający kolejno podanymi statusami; zwraca adres i licznik zapytań.
+/// Local server that answers with the given statuses in turn; returns the address and a request counter.
 fn serve_statuses(
     statuses: Vec<u16>,
 ) -> (String, Arc<AtomicUsize>, Arc<std::sync::Mutex<Vec<String>>>) {
@@ -78,7 +78,7 @@ async fn test_gives_up_after_max_attempts() {
     assert_eq!(
         resp.status(),
         503,
-        "po 3 próbach zwracamy ostatnią odpowiedź"
+        "after 3 attempts the last response is returned"
     );
     assert_eq!(hits.load(Ordering::SeqCst), 3);
 }

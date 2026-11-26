@@ -1,13 +1,13 @@
-//! Ochrona przed SSRF dla adresów URL podawanych przez interfejs (np. ręcznie wybrana okładka).
+//! SSRF protection for URLs supplied by the UI (e.g. a manually chosen cover).
 //!
-//! Adres musi używać `https` i wskazywać na publiczny host: wszystkie adresy IP, na które
-//! rozwiązuje się nazwa, są sprawdzane, aby żądanie nie trafiło do `localhost`, sieci LAN
-//! ani usług metadanych chmury (`169.254.169.254`).
+//! The address must use `https` and point at a public host: every IP address the name
+//! resolves to is checked, so the request cannot reach `localhost`, the LAN
+//! or cloud metadata services (`169.254.169.254`).
 
 use crate::MetadataError;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-/// Czy adres IP jest publicznie routowalny (nie loopback, LAN, link-local, CGNAT, multicast…).
+/// Whether the IP address is publicly routable (not loopback, LAN, link-local, CGNAT, multicast…).
 pub fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => is_public_ipv4(v4),
@@ -48,26 +48,26 @@ fn is_public_ipv6(ip: Ipv6Addr) -> bool {
         || documentation)
 }
 
-/// Sprawdza, że `url` to `https://` na publiczny host (po rozwiązaniu DNS).
+/// Checks that `url` is `https://` to a public host (after DNS resolution).
 pub async fn ensure_public_https_url(url: &str) -> Result<(), MetadataError> {
     let parsed = reqwest::Url::parse(url)
-        .map_err(|e| MetadataError::Query(format!("Nieprawidłowy adres URL {url}: {e}")))?;
+        .map_err(|e| MetadataError::Query(format!("Invalid URL {url}: {e}")))?;
     if parsed.scheme() != "https" {
         return Err(MetadataError::Query(format!(
-            "Dozwolone są tylko adresy https: {url}"
+            "Only https addresses are allowed: {url}"
         )));
     }
     let host = parsed
         .host_str()
-        .ok_or_else(|| MetadataError::Query(format!("Brak hosta w adresie {url}")))?;
+        .ok_or_else(|| MetadataError::Query(format!("No host in the URL {url}")))?;
     let port = parsed.port_or_known_default().unwrap_or(443);
     let addrs: Vec<_> = tokio::net::lookup_host((host.trim_matches(['[', ']']), port))
         .await
-        .map_err(|e| MetadataError::Query(format!("Nie można rozwiązać hosta {host}: {e}")))?
+        .map_err(|e| MetadataError::Query(format!("Cannot resolve host {host}: {e}")))?
         .collect();
     if addrs.is_empty() || addrs.iter().any(|a| !is_public_ip(a.ip())) {
         return Err(MetadataError::Query(format!(
-            "Adres {host} wskazuje na sieć lokalną — odmowa pobrania"
+            "Address {host} points to a local network, download refused"
         )));
     }
     Ok(())

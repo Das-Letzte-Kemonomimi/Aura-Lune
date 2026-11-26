@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-/// Konfiguracja automatycznego pomijania ciszy (Silence Trimming / Auto-skip silence).
+/// Automatic silence skipping configuration (silence trimming / auto-skip silence).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SilenceTrimmingConfig {
-    /// Czy automatyczne pomijanie ciszy jest aktywne.
+    /// Whether automatic silence skipping is on.
     pub enabled: bool,
-    /// Próg poziomu głośności w dBFS, poniżej którego dźwięk uznawany jest za ciszę (-80.0 dB do -20.0 dB).
+    /// Level threshold in dBFS below which sound counts as silence (-80.0 dB to -20.0 dB).
     pub threshold_db: f64,
 }
 
@@ -25,30 +25,30 @@ impl SilenceTrimmingConfig {
     }
 }
 
-/// Wykryte granice dźwięku w utworze (wszystko poza nimi to cisza).
+/// Detected sound boundaries in a track (everything outside them is silence).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SilenceBounds {
-    /// Początek pierwszego fragmentu powyżej progu (ms).
+    /// Start of the first segment above the threshold (ms).
     pub start_ms: u64,
-    /// Koniec ostatniego fragmentu powyżej progu (ms). `None`, gdy koniec utworu nie został
-    /// przeanalizowany (np. dekodowanie przerwane) — wtedy cisza końcowa nie jest pomijana.
+    /// End of the last segment above the threshold (ms). `None` when the end of the track was
+    /// not analysed (e.g. decoding was interrupted); trailing silence is then not skipped.
     pub end_ms: Option<u64>,
 }
 
-/// Długość okna RMS używanego do wykrywania ciszy.
+/// Length of the RMS window used to detect silence.
 pub const SILENCE_WINDOW_MS: u64 = 50;
-/// Minimalna cisza na początku utworu, którą warto pominąć.
+/// Minimum leading silence worth skipping.
 pub const MIN_LEADING_SILENCE_MS: u64 = 500;
-/// Minimalna cisza na końcu utworu, którą warto pominąć.
+/// Minimum trailing silence worth skipping.
 pub const MIN_TRAILING_SILENCE_MS: u64 = 1_000;
-/// Margines przed pierwszym dźwiękiem, aby nie uciąć ataku pierwszej nuty.
+/// Margin before the first sound, so the attack of the first note is not cut.
 pub const LEADING_PREROLL_MS: u64 = 100;
 
-/// Znajduje granice dźwięku w monofonicznych próbkach `f32` (zakres -1.0..=1.0).
+/// Finds the sound boundaries in mono `f32` samples (range -1.0..=1.0).
 ///
-/// Sygnał jest dzielony na okna po [`SILENCE_WINDOW_MS`]; okno jest „dźwiękiem”, gdy jego
-/// poziom RMS w dBFS przekracza `threshold_db`. Zwraca `None`, gdy cały sygnał to cisza.
-/// `end_ms` jest zawsze ustawione — o tym, czy analizę objęto cały utwór, decyduje wywołujący.
+/// The signal is split into [`SILENCE_WINDOW_MS`] windows; a window is "sound" when its
+/// RMS level in dBFS exceeds `threshold_db`. Returns `None` when the whole signal is silence.
+/// `end_ms` is always set: the caller decides whether the analysis covered the whole track.
 pub fn find_silence_bounds(
     samples: &[f32],
     sample_rate: u32,
@@ -59,8 +59,8 @@ pub fn find_silence_bounds(
     scanner.finish()
 }
 
-/// Strumieniowa wersja [`find_silence_bounds`]: próbki podawane porcjami (np. prosto
-/// z dekodera), pamięć stała — nie trzeba trzymać całego utworu.
+/// Streaming version of [`find_silence_bounds`]: samples come in chunks (e.g. straight
+/// from the decoder), with constant memory, so the whole track need not be kept.
 #[derive(Debug, Clone)]
 pub struct SilenceScanner {
     sample_rate: u32,
@@ -88,7 +88,7 @@ impl SilenceScanner {
         }
     }
 
-    /// Dodaje kolejną porcję próbek.
+    /// Adds the next chunk of samples.
     pub fn push(&mut self, samples: &[f32]) {
         for &s in samples {
             self.window_sum_sq += (s as f64) * (s as f64);
@@ -100,12 +100,12 @@ impl SilenceScanner {
         }
     }
 
-    /// Liczba dotychczas przetworzonych próbek.
+    /// Number of samples processed so far.
     pub fn samples_seen(&self) -> usize {
         self.samples_seen
     }
 
-    /// Kończy analizę (z niepełnym ostatnim oknem) i zwraca granice dźwięku.
+    /// Finishes the analysis (with an incomplete last window) and returns the sound boundaries.
     pub fn finish(mut self) -> Option<SilenceBounds> {
         if self.window_len > 0 {
             self.close_window();
@@ -134,20 +134,20 @@ impl SilenceScanner {
     }
 }
 
-/// Działanie, które odtwarzacz powinien wykonać w ramach pomijania ciszy.
+/// Action the player should take when skipping silence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrimAction {
-    /// Przewiń do podanej pozycji (pominięcie ciszy na początku).
+    /// Seek to the given position (skip the leading silence).
     SeekTo(u64),
-    /// Zakończ utwór (pominięcie ciszy na końcu).
+    /// End the track (skip the trailing silence).
     FinishTrack,
 }
 
-/// Decyduje, czy w bieżącym momencie odtwarzania pominąć ciszę.
+/// Decides whether to skip silence at the current playback moment.
 ///
-/// - Cisza początkowa jest pomijana tylko raz na utwór (`leading_done`) i tylko na samym
-///   początku odtwarzania — ręczne przewinięcie w ciszę później nie jest „poprawiane”.
-/// - Cisza końcowa jest pomijana po osiągnięciu `end_ms`, jeśli jest dostatecznie długa.
+/// - Leading silence is skipped only once per track (`leading_done`) and only at the very
+///   start of playback: a later manual seek into silence is not "corrected".
+/// - Trailing silence is skipped once `end_ms` is reached, if it is long enough.
 pub fn trim_action(
     position_ms: u64,
     duration_ms: u64,

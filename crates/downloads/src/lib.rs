@@ -1,11 +1,11 @@
-//! Moduł pobierania legalnych źródeł audio (Etap 7 z AGENTS.md).
+//! Downloads of legal audio sources.
 //!
-//! ZGODNIE Z AGENTS.md I ZASADAMI BEZPIECZEŃSTWA:
-//! - Pobieranie wyłącznie z legalnych, otwartych i bezpośrednich źródeł audio (Direct HTTP/HTTPS, Creative Commons, Archive.org, legalne podcasty/streamy).
-//! - Żadnego obchodzenia zabezpieczeń DRM, paywalli ani restrykcji.
-//! - Wszystkie ścieżki docelowe są normalizowane i chronione przed path traversal (../).
-//! - Pobieranie odbywa się do pliku tymczasowego (`.auralune_tmp_*`) i dopiero po pomyślnej weryfikacji następuje atomowe przeniesienie (`fs::rename`).
-//! - Opcjonalna weryfikacja sumy kontrolnej SHA-256 w locie.
+//! Safety rules:
+//! - Downloads only from legal, open and direct audio sources (direct HTTP/HTTPS, Creative Commons, Archive.org, legal podcasts/streams).
+//! - No circumvention of DRM, paywalls or restrictions.
+//! - Every destination path is normalised and protected against path traversal (../).
+//! - Downloads go to a temporary file (`.auralune_tmp_*`), which is moved atomically (`fs::rename`) only after successful verification.
+//! - Optional on-the-fly SHA-256 checksum verification.
 
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -26,7 +26,7 @@ pub enum DownloadError {
     ChecksumMismatch { expected: String, actual: String },
     #[error("Unsafe path access attempt (path traversal): {0}")]
     PathTraversal(String),
-    #[error("Brak wspieranego providera dla podanego adresu URL: {0}")]
+    #[error("No supported provider for the given URL: {0}")]
     UnsupportedUrl(String),
     #[error("Download was cancelled by the user")]
     Cancelled,
@@ -34,7 +34,7 @@ pub enum DownloadError {
     General(String),
 }
 
-/// Stan zadania pobierania.
+/// Download job state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DownloadJobState {
     Pending,
@@ -45,7 +45,7 @@ pub enum DownloadJobState {
     Cancelled,
 }
 
-/// Metadane zadania pobierania w kolejce.
+/// Metadata of a queued download job.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DownloadJob {
     pub id: String,
@@ -62,7 +62,7 @@ pub struct DownloadJob {
     pub completed_at: Option<u64>,
 }
 
-/// Kontrakt dla dostawców pobierania audio.
+/// Contract for audio download providers.
 #[async_trait::async_trait]
 pub trait DownloadProvider: Send + Sync {
     fn name(&self) -> &'static str;
@@ -77,7 +77,7 @@ pub trait DownloadProvider: Send + Sync {
     ) -> Result<PathBuf, DownloadError>;
 }
 
-/// Dostawca bezpośredniego pobierania przez protokół HTTP/HTTPS.
+/// Direct download provider over HTTP/HTTPS.
 pub struct HttpDownloadProvider {
     client: reqwest::Client,
 }
@@ -122,20 +122,20 @@ impl DownloadProvider for HttpDownloadProvider {
         cancel_flag: Arc<AtomicBool>,
         progress_callback: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
     ) -> Result<PathBuf, DownloadError> {
-        // 1. Walidacja bezpieczeństwa ścieżki docelowej przed path traversal
+        // 1. Validate the destination path against path traversal
         validate_safe_destination_path(destination_path)?;
 
-        // Upewnij się, że katalog docelowy istnieje
+        // Make sure the destination directory exists
         if let Some(parent) = destination_path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        // 2. Przygotowanie pliku tymczasowego obok pliku docelowego
+        // 2. Prepare the temp file next to the target file
         let file_stem = destination_path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("download");
-        // Licznik w nazwie: równoległe pobierania do tej samej nazwy nie dzielą pliku tymczasowego.
+        // Counter in the name: parallel downloads to the same name do not share a temp file.
         let temp_filename = format!(
             ".auralune_tmp_{}_{}_{}",
             std::process::id(),
@@ -147,24 +147,21 @@ impl DownloadProvider for HttpDownloadProvider {
             .map(|p| p.join(&temp_filename))
             .unwrap_or_else(|| PathBuf::from(&temp_filename));
 
-        info!(
-            "Rozpoczynanie pobierania {} -> plik tymczasowy: {:?}",
-            url, temp_path
-        );
+        info!("Starting download {} -> temp file: {:?}", url, temp_path);
 
-        // 3. Rozpoczęcie pobierania strumieniowego
+        // 3. Start the streaming download
         let res = self.client.get(url).send().await?;
         if !res.status().is_success() {
             return Err(DownloadError::General(format!(
-                "Serwer zwrócił błąd HTTP: {}",
+                "Server returned HTTP error: {}",
                 res.status()
             )));
         }
 
         let total_bytes = res.content_length();
         let mut file = tokio::fs::File::create(&temp_path).await?;
-        // Usuwa plik tymczasowy przy każdym wcześniejszym wyjściu (błąd sieci/dysku, anulowanie,
-        // niezgodna suma kontrolna). Rozbrajany dopiero po atomowym przeniesieniu.
+        // Removes the temp file on every early exit (network/disk error, cancellation,
+        // checksum mismatch). Disarmed only after the atomic move.
         let mut temp_guard = TempFileGuard::new(temp_path.clone());
         let mut hasher = Sha256::new();
         let mut downloaded_bytes: u64 = 0;
@@ -175,12 +172,12 @@ impl DownloadProvider for HttpDownloadProvider {
             if cancel_flag.load(Ordering::Relaxed) {
                 return Err(DownloadError::Cancelled);
             }
-            // Krótki limit na porcję: anulowanie działa także przy zawieszonym połączeniu.
+            // Short per-chunk timeout: cancellation works even on a stalled connection.
             let chunk = match tokio::time::timeout(CANCEL_POLL_INTERVAL, stream.chunk()).await {
                 Err(_) => {
                     if last_data.elapsed() > STALL_TIMEOUT {
                         return Err(DownloadError::General(format!(
-                            "Brak danych od {} s — przerwano pobieranie",
+                            "No data for {} s, download aborted",
                             STALL_TIMEOUT.as_secs()
                         )));
                     }
@@ -206,7 +203,7 @@ impl DownloadProvider for HttpDownloadProvider {
         file.sync_all().await?;
         drop(file);
 
-        // 4. Weryfikacja sumy kontrolnej SHA-256
+        // 4. Verify the SHA-256 checksum
         let calculated_sha256 = hex::encode(hasher.finalize());
         if let Some(expected) = expected_sha256 {
             let clean_expected = expected.trim().to_lowercase();
@@ -217,16 +214,16 @@ impl DownloadProvider for HttpDownloadProvider {
                 });
             }
             info!(
-                "Suma kontrolna SHA-256 zweryfikowana pomyślnie ({})",
+                "SHA-256 checksum verified successfully ({})",
                 calculated_sha256
             );
         }
 
-        // 5. Atomowe przeniesienie pliku tymczasowego na ścieżkę docelową
+        // 5. Atomically move the temp file to the destination path
         tokio::fs::rename(&temp_path, destination_path).await?;
         temp_guard.disarm();
         info!(
-            "Pobieranie ukończone sukcesem! Zapisano atomowo w: {:?}",
+            "Download finished! Saved atomically to: {:?}",
             destination_path
         );
 
@@ -234,7 +231,7 @@ impl DownloadProvider for HttpDownloadProvider {
     }
 }
 
-/// Menedżer kolejki pobierania audio.
+/// Audio download queue manager.
 #[derive(Clone)]
 pub struct DownloadManager {
     provider: Arc<HttpDownloadProvider>,
@@ -257,7 +254,7 @@ impl DownloadManager {
         }
     }
 
-    /// Dodaje nowe zadanie pobierania do kolejki i rozpoczyna pobieranie asynchronicznie.
+    /// Adds a new download job to the queue and starts it asynchronously.
     pub async fn add_download_job(
         &self,
         remote_url: String,
@@ -382,7 +379,7 @@ impl DownloadManager {
         Ok(job_id)
     }
 
-    /// Anuluje aktywne zadanie pobierania.
+    /// Cancels an active download job.
     pub fn cancel_download(&self, job_id: &str) -> bool {
         let flags = self
             .active_cancel_flags
@@ -396,7 +393,7 @@ impl DownloadManager {
         }
     }
 
-    /// Zwraca listę wszystkich zadań pobierania.
+    /// Returns the list of all download jobs.
     pub fn list_jobs(&self) -> Vec<DownloadJob> {
         self.jobs
             .lock()
@@ -405,9 +402,9 @@ impl DownloadManager {
     }
 }
 
-/// Sprawdza cel pobierania wg wspólnych zasad `domain::paths::check_write_target`:
-/// ścieżka absolutna, bez `..`, poza katalogami systemowymi i ukrytymi wpisami `$HOME`
-/// (z wyjątkiem katalogów danych/cache aplikacji, gdzie trafiają modele AI).
+/// Checks a download target against the shared `domain::paths::check_write_target` rules:
+/// an absolute path, no `..`, outside system directories and hidden `$HOME` entries
+/// (except the app's data/cache directories, where AI models go).
 pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> {
     let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
     let app_roots: Vec<std::path::PathBuf> = [
@@ -416,17 +413,17 @@ pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> 
     ]
     .iter()
     .flat_map(|(var, fallback)| {
-        // Zmienna XDG oraz stała lokalizacja w $HOME: `install.sh` instaluje AppImage zawsze
-        // w `~/.local/share/auralune{,-dev}`, niezależnie od `XDG_DATA_HOME`.
+        // The XDG variable plus the fixed location in $HOME: `install.sh` always installs the
+        // AppImage into `~/.local/share/auralune{,-dev}`, regardless of `XDG_DATA_HOME`.
         [
             std::env::var_os(var).map(std::path::PathBuf::from),
             home.as_ref().map(|h| h.join(fallback)),
         ]
     })
     .flatten()
-    // Modele AI i cache stemów leżą w `<base>/auralune/...` (audio_engine::model_manager),
-    // dane Tauri w `<base>/com.auralune.player`, a AppImage kanału dev (aktualizator) w
-    // `<base>/auralune-dev` — wszystkie te katalogi należą do aplikacji.
+    // AI models and the stem cache live in `<base>/auralune/...` (audio_engine::model_manager),
+    // Tauri data in `<base>/com.auralune.player`, and the dev-channel AppImage (updater) in
+    // `<base>/auralune-dev`; all of these directories belong to the app.
     .flat_map(|base| {
         [
             base.join("auralune"),
@@ -440,7 +437,7 @@ pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> 
         .map_err(|e| DownloadError::PathTraversal(e.to_string()))
 }
 
-/// Usuwa wskazany plik przy zniszczeniu, chyba że wywołano [`TempFileGuard::disarm`].
+/// Removes the given file on drop, unless [`TempFileGuard::disarm`] was called.
 struct TempFileGuard {
     path: PathBuf,
     armed: bool,
@@ -464,12 +461,12 @@ impl Drop for TempFileGuard {
     }
 }
 
-/// Co ile sprawdzana jest flaga anulowania, gdy serwer nie przysyła danych.
+/// How often the cancellation flag is checked while the server sends no data.
 const CANCEL_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
-/// Po takim czasie bez żadnych danych pobieranie jest przerywane.
+/// After this long without any data the download is aborted.
 const STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
-/// Rosnący licznik procesu — unikalne identyfikatory zadań i nazwy plików tymczasowych.
+/// Monotonic process counter: unique job IDs and temp file names.
 fn next_sequence() -> u64 {
     static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     SEQUENCE.fetch_add(1, Ordering::Relaxed)

@@ -1,4 +1,4 @@
-//! Eksport statusu odtwarzacza do `$XDG_RUNTIME_DIR/auralune/auralune.json` dla Waybara, Hyprlanda, Polybara i innych pasków zadań Linuksa.
+//! Exports the player status to `$XDG_RUNTIME_DIR/auralune/auralune.json` for Waybar, Hyprland, Polybar and other Linux bars.
 
 use crate::runtime_dir;
 use serde::{Deserialize, Serialize};
@@ -8,22 +8,22 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error};
 
-/// Struktura statusu zgodna z modułem custom Waybar (`return-type: "json"`).
+/// Status structure compatible with the Waybar custom module (`return-type: "json"`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WaybarStatus {
-    /// Główny tekst wyświetlany na pasku (np. "Artysta - Tytuł")
+    /// Main text shown on the bar (e.g. "Artist - Title")
     pub text: String,
-    /// Klasa alternatywna (np. "playing", "paused", "stopped")
+    /// Alternative class (e.g. "playing", "paused", "stopped")
     pub alt: String,
-    /// Wielolinijkowy dymek ze szczegółami po najechaniu myszką
+    /// Multi-line tooltip with details on hover
     pub tooltip: String,
-    /// Klasa CSS dla stylizowania w style.css Waybara
+    /// CSS class for styling in Waybar's style.css
     pub class: String,
-    /// Postęp odtwarzania w procentach (0 - 100)
+    /// Playback progress in percent (0 - 100)
     pub percentage: u8,
-    /// Poziom głośności w procentach (0 - 100)
+    /// Volume level in percent (0 - 100)
     pub volume: u8,
-    /// Opcjonalna ścieżka do okładki albumu
+    /// Optional path to the album cover
     pub art_url: Option<String>,
     pub title: String,
     pub artist: String,
@@ -36,14 +36,16 @@ pub struct WaybarStatus {
 impl Default for WaybarStatus {
     fn default() -> Self {
         Self {
-            text: "Auralune: Gotowy".to_string(),
+            text: "Auralune: Ready".to_string(),
             alt: "stopped".to_string(),
-            tooltip: "Auralune Hi-Fi Music Player\nBrak aktywnego odtwarzania".to_string(),
+            tooltip: "Auralune Hi-Fi Music Player
+Nothing playing"
+                .to_string(),
             class: "stopped".to_string(),
             percentage: 0,
             volume: 100,
             art_url: None,
-            title: "Brak utworu".to_string(),
+            title: "No track".to_string(),
             artist: "Auralune".to_string(),
             album: "".to_string(),
             state: "Stopped".to_string(),
@@ -53,15 +55,15 @@ impl Default for WaybarStatus {
     }
 }
 
-/// Zapisuje status atomowo do pliku JSON w prywatnym katalogu uruchomieniowym
-/// (`$XDG_RUNTIME_DIR/auralune/auralune.json`, zob. [`crate::runtime_dir`]).
+/// Writes the status atomically to the JSON file in the private runtime directory
+/// (`$XDG_RUNTIME_DIR/auralune/auralune.json`, see [`crate::runtime_dir`]).
 pub fn write_waybar_status(status: &WaybarStatus) -> std::io::Result<()> {
     let dir = runtime_dir::ensure_runtime_dir()?;
     write_waybar_status_to_path(status, dir.join(runtime_dir::WAYBAR_STATUS_FILE))
 }
 
-/// Zapisuje status do wskazanego pliku (poprzez plik tymczasowy `0600` i `fs::rename`),
-/// aby Waybar nigdy nie odczytał częściowo zapisanego pliku.
+/// Writes the status to the given file (through a `0600` temp file and `fs::rename`),
+/// so Waybar never reads a partially written file.
 pub fn write_waybar_status_to_path(
     status: &WaybarStatus,
     target_path: impl AsRef<Path>,
@@ -74,7 +76,7 @@ pub fn write_waybar_status_to_path(
     tmp_name.push(format!(".tmp.{}", std::process::id()));
     let tmp_path = PathBuf::from(tmp_name);
     let write_tmp = || -> std::io::Result<()> {
-        // O_EXCL (create_new) odmawia także istniejącego dowiązania symbolicznego.
+        // O_EXCL (create_new) also refuses an existing symbolic link.
         let _ = fs::remove_file(&tmp_path);
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -88,19 +90,16 @@ pub fn write_waybar_status_to_path(
         return Err(e);
     }
 
-    debug!(
-        "Zaktualizowano plik statusu Waybar: {}",
-        target_path.display()
-    );
+    debug!("Updated the Waybar status file: {}", target_path.display());
     Ok(())
 }
 
-/// Czyści plik statusu przy zamykaniu aplikacji.
+/// Clears the status file when the app closes.
 pub fn cleanup_waybar_status() {
     let p = runtime_dir::waybar_status_path();
     match fs::remove_file(&p) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => error!("Błąd usuwania pliku statusu Waybar: {}", e),
+        Err(e) => error!("Failed to remove the Waybar status file: {}", e),
     }
 }

@@ -1,33 +1,33 @@
-//! Zasady bezpieczeństwa ścieżek przekazywanych z interfejsu (czyste funkcje, bez I/O).
+//! Safety rules for paths passed from the UI (pure functions, no I/O).
 //!
-//! Interfejs (WebView) może poprosić backend o zapis lub odczyt pliku pod wskazaną ścieżką.
-//! Te reguły ograniczają szkody, gdyby kod interfejsu został przejęty: zapis nie może trafić
-//! do katalogów systemowych ani do ukrytych plików konfiguracyjnych w katalogu domowym
-//! (np. `~/.bashrc`, `~/.ssh`, `~/.config/autostart`), a odczyt zwracający zawartość
-//! dotyczy tylko plików o oczekiwanych rozszerzeniach.
+//! The UI (WebView) can ask the backend to write or read a file at a given path.
+//! These rules limit the damage if the UI code were compromised: a write cannot reach
+//! system directories or hidden configuration files in the home directory
+//! (e.g. `~/.bashrc`, `~/.ssh`, `~/.config/autostart`), and a read that returns contents
+//! applies only to files with the expected extensions.
 
 use crate::DomainError;
 use std::path::{Component, Path};
 
-/// Katalogi systemowe, do których aplikacja nigdy nie zapisuje.
-/// `/run/media` (montowane nośniki wymienne z muzyką) jest dozwolone mimo prefiksu `/run`.
+/// System directories the app never writes to.
+/// `/run/media` (mounted removable media with music) is allowed despite the `/run` prefix.
 const SYSTEM_PREFIXES: &[&str] = &[
     "/etc", "/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/boot", "/proc", "/sys", "/dev",
     "/root", "/var", "/opt", "/srv", "/run",
 ];
 const ALLOWED_UNDER_SYSTEM: &[&str] = &["/run/media"];
 
-/// Pliki aplikacji, których interfejs nigdy nie może nadpisać — nawet w katalogu danych
-/// aplikacji (baza biblioteki i jej pliki WAL/SHM).
+/// App files the UI may never overwrite, even inside the app's data directory
+/// (the library database and its WAL/SHM files).
 const PROTECTED_FILE_PREFIXES: &[&str] = &["auralune_library.db"];
 
-/// Sprawdza, czy `path` jest dozwolonym celem zapisu.
+/// Checks whether `path` is an allowed write target.
 ///
-/// - ścieżka musi być absolutna i nie może zawierać `..`,
-/// - nie może nadpisywać chronionych plików aplikacji (baza biblioteki),
-/// - nie może leżeć w katalogu systemowym ([`SYSTEM_PREFIXES`]),
-/// - w katalogu domowym `home` nie może dotyczyć ukrytego wpisu (`~/.cokolwiek/...`),
-///   chyba że leży w jednym z `allowed_roots` (np. katalog danych aplikacji).
+/// - the path must be absolute and must not contain `..`,
+/// - it must not overwrite protected app files (the library database),
+/// - it must not lie in a system directory ([`SYSTEM_PREFIXES`]),
+/// - inside the `home` directory it must not touch a hidden entry (`~/.anything/...`),
+///   unless it lies in one of the `allowed_roots` (e.g. the app's data directory).
 pub fn check_write_target(
     path: &Path,
     home: Option<&Path>,
@@ -78,15 +78,15 @@ pub fn check_write_target(
     Ok(())
 }
 
-/// Czy rozszerzenie pliku (bez względu na wielkość liter) należy do `allowed`.
+/// Whether the file extension (case-insensitive) is one of `allowed`.
 pub fn has_allowed_extension(path: &Path, allowed: &[&str]) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
         .is_some_and(|ext| allowed.iter().any(|a| a.eq_ignore_ascii_case(ext)))
 }
 
-/// Czy identyfikator (np. MBID z MusicBrainz) jest bezpieczny jako fragment nazwy pliku:
-/// tylko litery, cyfry, `-` i `_`, niepusty, rozsądnej długości.
+/// Whether an identifier (e.g. a MusicBrainz MBID) is safe as part of a file name:
+/// only letters, digits, `-` and `_`, non-empty, of reasonable length.
 pub fn is_safe_file_token(token: &str) -> bool {
     !token.is_empty()
         && token.len() <= 128
@@ -99,7 +99,7 @@ fn invalid(path: &Path, reason: &str) -> DomainError {
     DomainError::Validation(format!("Path not allowed {}: {}", path.display(), reason))
 }
 
-/// Rozszerzenia plików audio, które aplikacja odczytuje, taguje i odtwarza z dysku.
+/// Audio file extensions the app reads, tags and plays from disk.
 pub const AUDIO_EXTENSIONS: &[&str] = &[
     "flac", "mp3", "ogg", "opus", "wav", "m4a", "aac", "alac", "aiff", "aif", "wv", "ape",
 ];

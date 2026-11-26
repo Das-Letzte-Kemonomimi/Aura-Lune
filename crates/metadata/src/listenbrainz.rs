@@ -2,7 +2,7 @@ use crate::ScrobbleError;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-/// Metadane utworu przesyłane do protokołu ListenBrainz (MetaBrainz).
+/// Track metadata sent over the ListenBrainz (MetaBrainz) protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdditionalInfoPayload {
     pub media_player: String,
@@ -48,7 +48,7 @@ pub struct ListenItemPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubmitListensRequest {
-    /// Typ: "single" (ukończone odtworzenie) lub "playing_now" (aktualnie odtwarzany utwór)
+    /// Type: "single" (a finished play) or "playing_now" (the track playing now)
     pub listen_type: String,
     pub payload: Vec<ListenItemPayload>,
 }
@@ -61,7 +61,7 @@ pub struct ValidateTokenResponse {
     pub user_name: Option<String>,
 }
 
-/// Klient scrobblera ListenBrainz (otwarty ekosystem MetaBrainz).
+/// ListenBrainz scrobbler client (the open MetaBrainz ecosystem).
 #[derive(Clone)]
 pub struct ListenBrainzClient {
     client: reqwest::Client,
@@ -84,12 +84,12 @@ impl ListenBrainzClient {
         }
     }
 
-    /// Weryfikuje token użytkownika w serwisie ListenBrainz i zwraca nazwę użytkownika.
+    /// Verifies the user's token with ListenBrainz and returns the user name.
     pub async fn validate_token(&self, token: &str) -> Result<String, ScrobbleError> {
         let clean_token = token.trim();
         if clean_token.is_empty() {
             return Err(ScrobbleError::Validation(
-                "Token ListenBrainz nie może być pusty".to_string(),
+                "The ListenBrainz token must not be empty".to_string(),
             ));
         }
 
@@ -101,32 +101,35 @@ impl ListenBrainzClient {
             .send()
             .await
             .map_err(|e| {
-                ScrobbleError::Network(format!("Błąd połączenia z serwerem ListenBrainz: {}", e))
+                ScrobbleError::Network(format!(
+                    "Failed to connect to the ListenBrainz server: {}",
+                    e
+                ))
             })?;
 
         if !res.status().is_success() {
             return Err(ScrobbleError::Service(format!(
-                "Nieprawidłowy kod odpowiedzi HTTP ListenBrainz: {}",
+                "Unexpected ListenBrainz HTTP response status: {}",
                 res.status()
             )));
         }
 
         let body: ValidateTokenResponse = res.json().await.map_err(|e| {
-            ScrobbleError::Parse(format!("Błąd parsowania odpowiedzi ListenBrainz: {}", e))
+            ScrobbleError::Parse(format!("Failed to parse the ListenBrainz response: {}", e))
         })?;
 
         if !body.valid {
             return Err(ScrobbleError::Service(body.message.unwrap_or_else(|| {
-                "Token ListenBrainz jest nieprawidłowy lub wygasł".to_string()
+                "The ListenBrainz token is invalid or has expired".to_string()
             })));
         }
 
         Ok(body
             .user_name
-            .unwrap_or_else(|| "Użytkowniczka ListenBrainz".to_string()))
+            .unwrap_or_else(|| "ListenBrainz user".to_string()))
     }
 
-    /// Wysyła status "Playing Now" (teraz odtwarzane) do ListenBrainz.
+    /// Sends the "Playing Now" status to ListenBrainz.
     pub async fn submit_playing_now(
         &self,
         token: &str,
@@ -165,12 +168,12 @@ impl ListenBrainzClient {
             .send()
             .await
             .map_err(|e| {
-                ScrobbleError::Network(format!("Błąd wysyłania playing_now do ListenBrainz: {}", e))
+                ScrobbleError::Network(format!("Failed to send playing_now to ListenBrainz: {}", e))
             })?;
 
         if res.status().is_success() {
             debug!(
-                "Wysłano status 'playing_now' do ListenBrainz: {} - {}",
+                "Sent the 'playing_now' status to ListenBrainz: {} - {}",
                 artist, title
             );
             Ok(())
@@ -178,17 +181,17 @@ impl ListenBrainzClient {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
             error!(
-                "Błąd wysyłania playing_now ListenBrainz ({}): {}",
+                "Failed to send playing_now to ListenBrainz ({}): {}",
                 status, text
             );
             Err(ScrobbleError::Service(format!(
-                "Błąd ListenBrainz ({}): {}",
+                "ListenBrainz error ({}): {}",
                 status, text
             )))
         }
     }
 
-    /// Wysyła odtworzony utwór (scrobble) do ListenBrainz.
+    /// Sends a played track (scrobble) to ListenBrainz.
     pub async fn submit_listen(
         &self,
         token: &str,
@@ -228,21 +231,21 @@ impl ListenBrainzClient {
             .send()
             .await
             .map_err(|e| {
-                ScrobbleError::Network(format!("Błąd wysyłania listen do ListenBrainz: {}", e))
+                ScrobbleError::Network(format!("Failed to send the listen to ListenBrainz: {}", e))
             })?;
 
         if res.status().is_success() {
             info!(
-                "Zascrobblowano utwór do ListenBrainz: {} - {}",
+                "Scrobbled the track to ListenBrainz: {} - {}",
                 artist, title
             );
             Ok(())
         } else {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
-            error!("Błąd scrobblowania ListenBrainz ({}): {}", status, text);
+            error!("ListenBrainz scrobble error ({}): {}", status, text);
             Err(ScrobbleError::Service(format!(
-                "Błąd ListenBrainz ({}): {}",
+                "ListenBrainz error ({}): {}",
                 status, text
             )))
         }

@@ -1,10 +1,10 @@
-//! Operacje na bibliotece muzycznej: wykonawcy, albumy, utwory, duplikaty oraz aktualizacje ścieżek.
+//! Music library operations: artists, albums, tracks, duplicates and path updates.
 
 use crate::{AlbumRecord, ArtistRecord, Database, DuplicateGroup, StorageError, TrackRecord};
 use sqlx::{FromRow, Row};
 
 impl Database {
-    /// Wstawia lub aktualizuje artystę i zwraca jego ID.
+    /// Inserts or updates an artist and returns its ID.
     pub async fn upsert_artist(&self, name: &str) -> Result<i64, StorageError> {
         let rec = sqlx::query(
             r#"
@@ -20,7 +20,7 @@ impl Database {
         Ok(rec.get::<i64, _>("id"))
     }
 
-    /// Wstawia lub aktualizuje album i zwraca jego ID.
+    /// Inserts or updates an album and returns its ID.
     pub async fn upsert_album(
         &self,
         title: &str,
@@ -48,7 +48,7 @@ impl Database {
         Ok(rec.get::<i64, _>("id"))
     }
 
-    /// Aktualizuje okładkę oraz identyfikator MBID dla albumu.
+    /// Updates an album's cover and MBID.
     pub async fn update_album_cover(
         &self,
         album_id: i64,
@@ -72,7 +72,7 @@ impl Database {
         Ok(())
     }
 
-    /// Wstawia lub aktualizuje utwór.
+    /// Inserts or updates a track.
     pub async fn upsert_track(&self, track: &TrackRecord) -> Result<i64, StorageError> {
         let rec = sqlx::query(
             r#"
@@ -126,7 +126,7 @@ impl Database {
         Ok(rec.get::<i64, _>("id"))
     }
 
-    /// Aktualizuje wykryty lub ręcznie ustawiony BPM oraz klucz muzyczny dla utworu.
+    /// Updates a track's detected or manually set BPM and musical key.
     pub async fn update_track_key_bpm(
         &self,
         track_id: i64,
@@ -142,7 +142,7 @@ impl Database {
         Ok(())
     }
 
-    /// Aktualizuje obliczone wartości ReplayGain (Track Gain i Track Peak) dla utworu.
+    /// Updates a track's computed ReplayGain values (Track Gain and Track Peak).
     pub async fn update_track_replaygain(
         &self,
         track_id: i64,
@@ -160,7 +160,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera zapisany BPM oraz klucz muzyczny dla danego utworu.
+    /// Returns the stored BPM and musical key of a track.
     pub async fn get_track_key_bpm(
         &self,
         track_id: i64,
@@ -179,7 +179,7 @@ impl Database {
         Ok(None)
     }
 
-    /// Powiązuje dany utwór z albumem.
+    /// Links a track to an album.
     pub async fn link_track_to_album(
         &self,
         track_id: i64,
@@ -193,8 +193,8 @@ impl Database {
         Ok(())
     }
 
-    /// Rozmiar i czas modyfikacji wszystkich zindeksowanych plików (`path → (size, mtime)`),
-    /// jednym zapytaniem — skaner porównuje je w pamięci zamiast pytać bazę o każdy plik.
+    /// Size and modification time of every indexed file (`path → (size, mtime)`) in
+    /// one query: the scanner compares them in memory instead of asking the database per file.
     pub async fn track_file_stamps(
         &self,
     ) -> Result<std::collections::HashMap<String, (i64, i64)>, StorageError> {
@@ -207,7 +207,7 @@ impl Database {
             .collect())
     }
 
-    /// Pobiera utwór po ścieżce na dysku.
+    /// Returns a track by its path on disk.
     pub async fn get_track_by_path(&self, path: &str) -> Result<Option<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>("SELECT * FROM tracks WHERE path = ?1 LIMIT 1;")
             .bind(path)
@@ -217,7 +217,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Wyszukuje utwór po ścieżce lub URI (obsługuje prefiks file:// oraz dopasowanie elastyczne).
+    /// Finds a track by path or URI (handles the file:// prefix and flexible matching).
     pub async fn find_track_by_path_or_uri(
         &self,
         path_or_uri: &str,
@@ -236,7 +236,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera utwór po jego identyfikatorze ID.
+    /// Returns a track by its ID.
     pub async fn get_track_by_id(&self, id: i64) -> Result<Option<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>("SELECT * FROM tracks WHERE id = ?1 LIMIT 1;")
             .bind(id)
@@ -246,7 +246,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera listę wszystkich utworów w bibliotece.
+    /// Returns every track in the library.
     pub async fn list_tracks(&self) -> Result<Vec<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>(
             "SELECT * FROM tracks ORDER BY artist, album_id, track_no, title;",
@@ -257,7 +257,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera listę wszystkich albumów w bibliotece.
+    /// Returns every album in the library.
     pub async fn list_albums(&self) -> Result<Vec<AlbumRecord>, StorageError> {
         let res = sqlx::query_as::<_, AlbumRecord>(
             "SELECT * FROM albums ORDER BY album_artist, year, title;",
@@ -268,8 +268,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Zwraca łączną liczbę utworów w bibliotece.
-    /// Pierwszy utwór w kolejności `list_tracks` (bez wczytywania całej biblioteki).
+    /// The first track in `list_tracks` order (without loading the whole library).
     pub async fn first_track(&self) -> Result<Option<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>(
             "SELECT * FROM tracks ORDER BY artist, album_id, track_no, title LIMIT 1;",
@@ -279,6 +278,7 @@ impl Database {
         Ok(res)
     }
 
+    /// Returns the total number of tracks in the library.
     pub async fn count_tracks(&self) -> Result<i64, StorageError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tracks;")
             .fetch_one(&self.pool)
@@ -286,7 +286,7 @@ impl Database {
         Ok(count.0)
     }
 
-    /// Zwraca łączną liczbę albumów w bibliotece.
+    /// Returns the total number of albums in the library.
     pub async fn count_albums(&self) -> Result<i64, StorageError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM albums;")
             .fetch_one(&self.pool)
@@ -294,7 +294,7 @@ impl Database {
         Ok(count.0)
     }
 
-    /// Pobiera album na podstawie jego ID.
+    /// Returns an album by its ID.
     pub async fn get_album_by_id(&self, id: i64) -> Result<Option<AlbumRecord>, StorageError> {
         let res = sqlx::query_as::<_, AlbumRecord>("SELECT * FROM albums WHERE id = ?1 LIMIT 1;")
             .bind(id)
@@ -304,7 +304,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Buduje element kolejki dla utworu, uzupełniając tytuł albumu z tabeli `albums`.
+    /// Builds a queue item for a track, filling in the album title from the `albums` table.
     pub async fn queue_item_for_track(&self, track: &TrackRecord) -> domain::queue::QueueItem {
         let album_title = match track.album_id {
             Some(id) => self
@@ -318,7 +318,7 @@ impl Database {
         track.to_queue_item(album_title)
     }
 
-    /// Pobiera listę wszystkich wykonawców.
+    /// Returns every artist.
     pub async fn list_artists(&self) -> Result<Vec<ArtistRecord>, StorageError> {
         let res = sqlx::query_as::<_, ArtistRecord>("SELECT * FROM artists ORDER BY name;")
             .fetch_all(&self.pool)
@@ -327,10 +327,10 @@ impl Database {
         Ok(res)
     }
 
-    /// Wyszukuje grupy potencjalnych duplikatów utworów w bibliotece na podstawie znormalizowanego tytułu i wykonawcy.
+    /// Finds groups of potential duplicate tracks in the library by normalised title and artist.
     pub async fn find_duplicate_tracks(&self) -> Result<Vec<DuplicateGroup>, StorageError> {
-        // Jedno zapytanie zamiast osobnego zapytania na każdą grupę duplikatów (N+1).
-        // Klucz grupy liczy SQLite (LOWER/TRIM), więc grupowanie jest identyczne jak w HAVING.
+        // One query instead of a separate query per duplicate group (N+1).
+        // SQLite computes the group key (LOWER/TRIM), so grouping matches the HAVING exactly.
         let rows = sqlx::query(
             r#"
             WITH dups AS (
@@ -371,7 +371,7 @@ impl Database {
         Ok(groups)
     }
 
-    /// Usuwa rekord utworu z bazy danych (np. przy deduplikacji).
+    /// Removes a track record from the database (e.g. during deduplication).
     pub async fn delete_track(&self, track_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM tracks WHERE id = ?1;")
             .bind(track_id)
@@ -380,7 +380,7 @@ impl Database {
         Ok(())
     }
 
-    /// Aktualizuje ścieżkę pliku utworu w bazie danych po zmianie nazwy / przeniesieniu na dysku.
+    /// Updates a track's file path in the database after a rename / move on disk.
     pub async fn update_track_path(
         &self,
         track_id: i64,
@@ -394,9 +394,9 @@ impl Database {
         Ok(())
     }
 
-    /// Usuwa z bazy utwory leżące w katalogu `root`, których ścieżek nie ma już na liście
-    /// aktywnych plików. Utwory spoza `root` (inne foldery biblioteki) nie są dotykane.
-    /// Wszystkie usunięcia wykonywane są w jednej transakcji.
+    /// Removes the tracks under the `root` directory whose paths are no longer in the list of
+    /// active files. Tracks outside `root` (other library folders) are not touched.
+    /// All deletions run in one transaction.
     pub async fn delete_stale_tracks(
         &self,
         root: &str,
@@ -431,7 +431,7 @@ impl Database {
         Ok(stale.len())
     }
 
-    /// Aktualizuje metadane utworu w bazie SQLite.
+    /// Updates a track's metadata in the SQLite database.
     #[allow(clippy::too_many_arguments)]
     pub async fn update_track_metadata(
         &self,

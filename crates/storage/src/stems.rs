@@ -6,10 +6,10 @@ use crate::{Database, StorageError};
 
 impl Database {
     // =========================================================================
-    // MODUŁ SEPARACJI STEMÓW I PROJEKTÓW MULTITRACK
+    // STEM SEPARATION AND MULTITRACK PROJECTS
     // =========================================================================
 
-    /// Zapisuje metadane rozdzielonych ścieżek stemów.
+    /// Stores the metadata of separated stem tracks.
     pub async fn save_stem_tracks(
         &self,
         data: &domain::analysis::StemSeparationData,
@@ -43,7 +43,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera rozdzielone ścieżki dla danego utworu.
+    /// Returns the separated tracks of a track.
     pub async fn get_stem_tracks(
         &self,
         track_id: i64,
@@ -74,7 +74,7 @@ impl Database {
         }))
     }
 
-    /// Usuwa rekord i powiązane stemy dla danego utworu.
+    /// Removes the record and the linked stems of a track.
     pub async fn delete_stem_tracks(&self, track_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM stem_tracks WHERE track_id = ?1;")
             .bind(track_id)
@@ -83,7 +83,7 @@ impl Database {
         Ok(())
     }
 
-    /// Tworzy nowy projekt stemów i zwraca jego ID.
+    /// Creates a new stem project and returns its ID.
     pub async fn create_stem_project(
         &self,
         project: &domain::StemProject,
@@ -123,14 +123,14 @@ impl Database {
         .await?;
 
         let project_id: i64 = row.get(0);
-        // Projekt i jego kanały w jednej transakcji: nigdy projekt bez kanałów.
+        // The project and its channels in one transaction: never a project without channels.
         write_channels(&mut tx, project_id, &project.channels).await?;
         tx.commit().await?;
 
         Ok(project_id)
     }
 
-    /// Pobiera projekt stemów wraz z przypisanymi kanałami.
+    /// Returns a stem project with its channels.
     pub async fn get_stem_project(
         &self,
         project_id: i64,
@@ -182,7 +182,7 @@ impl Database {
         }))
     }
 
-    /// Zwraca listę wszystkich projektów stemów posortowaną od najnowszych.
+    /// Returns every stem project, newest first.
     pub async fn list_stem_projects(&self) -> Result<Vec<domain::StemProject>, StorageError> {
         let rows = sqlx::query(
             r#"
@@ -231,7 +231,7 @@ impl Database {
         Ok(projects)
     }
 
-    /// Aktualizuje status, postęp i rozmiar na dysku projektu stemów.
+    /// Updates a stem project's status, progress and size on disk.
     pub async fn update_stem_project_status(
         &self,
         project_id: i64,
@@ -263,7 +263,7 @@ impl Database {
         Ok(())
     }
 
-    /// Zmienia tytuł projektu stemów.
+    /// Renames a stem project.
     pub async fn rename_stem_project(
         &self,
         project_id: i64,
@@ -284,10 +284,10 @@ impl Database {
         Ok(())
     }
 
-    /// Usuwa projekt stemów (kaskadowo usuwając kanały i miksy).
+    /// Deletes a stem project (cascading to its channels and mixes).
     pub async fn delete_stem_project(&self, project_id: i64) -> Result<(), StorageError> {
-        // Jawne DELETE (a nie tylko CASCADE) w jednej transakcji — działa także na starszych
-        // bazach, w których klucz obcy mógł powstać bez kaskady.
+        // An explicit DELETE (not only CASCADE) in one transaction also works on older
+        // databases where the foreign key may have been created without the cascade.
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM stem_project_channels WHERE project_id = ?1;")
             .bind(project_id)
@@ -306,20 +306,20 @@ impl Database {
         Ok(())
     }
 
-    /// Zapisuje listę kanałów dla projektu stemów (zastępuje istniejące).
+    /// Stores the channel list of a stem project (replacing the existing one).
     pub async fn save_stem_project_channels(
         &self,
         project_id: i64,
         channels: &[domain::StemChannel],
     ) -> Result<(), StorageError> {
-        // Jedna transakcja: błąd w połowie nie zostawia projektu bez kanałów.
+        // One transaction: a failure halfway does not leave the project without channels.
         let mut tx = self.pool.begin().await?;
         write_channels(&mut tx, project_id, channels).await?;
         tx.commit().await?;
         Ok(())
     }
 
-    /// Pobiera kanały dla danego projektu stemów.
+    /// Returns the channels of a stem project.
     pub async fn get_stem_project_channels(
         &self,
         project_id: i64,
@@ -340,7 +340,7 @@ impl Database {
         Ok(rows.iter().map(channel_from_row).collect())
     }
 
-    /// Kanały wszystkich projektów jednym zapytaniem (zamiast jednego zapytania na projekt).
+    /// The channels of every project in one query (instead of one query per project).
     async fn all_stem_project_channels(
         &self,
     ) -> Result<HashMap<i64, Vec<domain::StemChannel>>, StorageError> {
@@ -365,7 +365,7 @@ impl Database {
         Ok(by_project)
     }
 
-    /// Zapisuje miks parametrów dla projektu stemów.
+    /// Stores a parameter mix for a stem project.
     pub async fn save_stem_project_mix(
         &self,
         mix: &domain::StemProjectMix,
@@ -394,7 +394,7 @@ impl Database {
         Ok(mix_id)
     }
 
-    /// Pobiera zapisane miksy dla danego projektu stemów.
+    /// Returns the saved mixes of a stem project.
     pub async fn get_stem_project_mixes(
         &self,
         project_id: i64,
@@ -430,7 +430,7 @@ impl Database {
         Ok(mixes)
     }
 
-    /// Usuwa zapisany miks.
+    /// Removes a saved mix.
     pub async fn delete_stem_project_mix(&self, mix_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM stem_project_mixes WHERE id = ?1;")
             .bind(mix_id)
@@ -439,7 +439,7 @@ impl Database {
         Ok(())
     }
 
-    /// Ustawia nazwę aktywnego miksu dla projektu stemów.
+    /// Sets the name of a stem project's active mix.
     pub async fn set_active_stem_project_mix(
         &self,
         project_id: i64,
@@ -459,8 +459,8 @@ impl Database {
         Ok(())
     }
 
-    /// Projekty, których separacja została przerwana (np. zamknięciem aplikacji), oznacza jako
-    /// nieudane — inaczej pozostałyby na zawsze w stanie „separating”. Zwraca liczbę projektów.
+    /// Marks projects whose separation was interrupted (e.g. by closing the app) as failed;
+    /// otherwise they would stay "separating" forever. Returns the number of projects.
     pub async fn fail_interrupted_stem_projects(&self) -> Result<u64, StorageError> {
         let res =
             sqlx::query("UPDATE stem_projects SET status = 'failed' WHERE status = 'separating';")
@@ -470,7 +470,7 @@ impl Database {
     }
 }
 
-/// Zastępuje kanały projektu w ramach przekazanej transakcji.
+/// Replaces a project's channels inside the given transaction.
 async fn write_channels(
     conn: &mut SqliteConnection,
     project_id: i64,
@@ -514,7 +514,7 @@ async fn write_channels(
     Ok(())
 }
 
-/// Mapuje wiersz `stem_project_channels` na kanał domenowy.
+/// Maps a `stem_project_channels` row to a domain channel.
 fn channel_from_row(r: &SqliteRow) -> domain::StemChannel {
     let q_str: String = r.get("quality_tier");
     let quality_tier = match q_str.as_str() {

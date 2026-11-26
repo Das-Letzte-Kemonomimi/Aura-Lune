@@ -64,7 +64,7 @@ fn test_audio_engine_playback_and_dsp_modulation() {
         .set_dsp_engine(dsp_api::DspEngine::Bypass)
         .expect("Switching to Bypass on the fly should succeed");
     assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::Bypass);
-    assert_eq!(engine.dsp_capabilities().name, "Brak DSP (Direct Bypass)");
+    assert_eq!(engine.dsp_capabilities().name, "Direct Bypass (No DSP)");
 
     sleep(Duration::from_millis(150));
 

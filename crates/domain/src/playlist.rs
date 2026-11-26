@@ -1,8 +1,8 @@
-//! Domena playlist.
+//! Playlist domain.
 
 use serde::{Deserialize, Serialize};
 
-/// Reprezentacja playlisty w domenie.
+/// A playlist in the domain.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Playlist {
     pub id: i64,

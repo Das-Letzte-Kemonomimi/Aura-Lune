@@ -1,28 +1,28 @@
-//! Wspólne ustawienia HTTP dla usług metadanych: User-Agent, limity czasu, ponawianie
-//! przy chwilowych błędach serwera oraz ograniczanie częstotliwości zapytań.
+//! Shared HTTP settings for the metadata services: User-Agent, timeouts, retries
+//! on transient server errors, and request rate limiting.
 
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-/// User-Agent wymagany przez MusicBrainz / AcoustID / LRCLIB (nazwa, wersja, kontakt).
+/// User-Agent required by MusicBrainz / AcoustID / LRCLIB (name, version, contact).
 pub const USER_AGENT: &str = concat!(
     "Auralune/",
     env!("CARGO_PKG_VERSION"),
     " ( https://github.com/Das-Letzte-Kemonomimi/Aura-Lune )"
 );
 
-/// Maksymalna liczba prób jednego zapytania (pierwsza + ponowienia).
+/// Maximum number of attempts for one request (the first one + retries).
 pub const MAX_ATTEMPTS: u32 = 3;
-/// Najdłuższe respektowane `Retry-After`, aby interfejs nie czekał w nieskończoność.
+/// Longest `Retry-After` honoured, so the UI does not wait forever.
 const MAX_RETRY_AFTER: Duration = Duration::from_secs(5);
 
-/// Maksymalna liczba przekierowań jednego zapytania.
+/// Maximum number of redirects for one request.
 const MAX_REDIRECTS: usize = 5;
 
-/// Klient HTTP z jednolitym User-Agentem, limitem połączenia i całego zapytania.
+/// HTTP client with a uniform User-Agent and connect and total request timeouts.
 ///
-/// Przekierowania z publicznego hosta na `localhost` lub adres IP spoza internetu są
-/// odrzucane (ochrona przed SSRF przez przekierowanie, zob. [`crate::net_guard`]).
+/// Redirects from a public host to `localhost` or a non-internet IP address are
+/// rejected (protection against SSRF via redirect, see [`crate::net_guard`]).
 pub fn build_client(timeout: Duration) -> reqwest::Client {
     let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
         if attempt.previous().len() >= MAX_REDIRECTS {
@@ -46,7 +46,7 @@ pub fn build_client(timeout: Duration) -> reqwest::Client {
         .unwrap_or_default()
 }
 
-/// Czy URL wskazuje bezpośrednio na `localhost` albo niepubliczny adres IP.
+/// Whether the URL points directly at `localhost` or a non-public IP address.
 fn is_local_target(url: &reqwest::Url) -> bool {
     let Some(host) = url.host_str() else {
         return true;
@@ -61,12 +61,12 @@ fn is_local_target(url: &reqwest::Url) -> bool {
     }
 }
 
-/// Czy odpowiedź oznacza chwilowy problem, który warto ponowić.
+/// Whether the response means a transient problem worth retrying.
 pub fn is_retryable_status(status: reqwest::StatusCode) -> bool {
     matches!(status.as_u16(), 429 | 502 | 503 | 504)
 }
 
-/// Odstęp przed kolejną próbą: `Retry-After` (sekundy, z limitem) albo 0,5 s · 3^(n-1).
+/// Delay before the next attempt: `Retry-After` (seconds, capped) or 0.5 s · 3^(n-1).
 pub fn retry_delay(attempt: u32, retry_after: Option<&str>) -> Duration {
     if let Some(secs) = retry_after.and_then(|v| v.trim().parse::<u64>().ok()) {
         return Duration::from_secs(secs).min(MAX_RETRY_AFTER);
@@ -74,8 +74,8 @@ pub fn retry_delay(attempt: u32, retry_after: Option<&str>) -> Duration {
     Duration::from_millis(500 * 3u64.pow(attempt.saturating_sub(1)))
 }
 
-/// Wysyła zapytanie, ponawiając je przy błędach sieci i statusach 429/502/503/504.
-/// Zapytania z niekopiowalnym ciałem (strumień) są wysyłane jednokrotnie.
+/// Sends a request, retrying on network errors and 429/502/503/504 statuses.
+/// Requests with a non-clonable body (a stream) are sent only once.
 pub async fn send_with_retry(
     request: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response, reqwest::Error> {
@@ -100,7 +100,7 @@ pub async fn send_with_retry(
             _ => return result,
         };
         tracing::debug!(
-            "Ponawianie zapytania HTTP (próba {}) za {:?}",
+            "Retrying HTTP request (attempt {}) in {:?}",
             attempt + 1,
             delay
         );
@@ -109,8 +109,8 @@ pub async fn send_with_retry(
     }
 }
 
-/// Minimalny odstęp między kolejnymi zapytaniami do jednej usługi (np. MusicBrainz 1/s,
-/// AcoustID 3/s). Współdzielony przez klony klienta.
+/// Minimum interval between consecutive requests to one service (e.g. MusicBrainz 1/s,
+/// AcoustID 3/s). Shared by client clones.
 #[derive(Debug)]
 pub struct RateLimiter {
     min_interval: Duration,
@@ -125,7 +125,7 @@ impl RateLimiter {
         }
     }
 
-    /// Czeka, aż od poprzedniego zapytania minie `min_interval`, i rezerwuje bieżący slot.
+    /// Waits until `min_interval` has passed since the previous request and reserves the current slot.
     pub async fn wait(&self) {
         let mut last = self.last.lock().await;
         if let Some(t) = *last {

@@ -263,12 +263,12 @@ fn test_sanitize_filename_rejects_dot_navigation_and_caps_length() {
     assert_eq!(sanitize_filename_part("..."), "___");
     assert_eq!(sanitize_filename_part("Mr. Children"), "Mr. Children");
 
-    let long = "あ".repeat(200); // 600 bajtów UTF-8
+    let long = "あ".repeat(200); // 600 bytes of UTF-8
     let out = sanitize_filename_part(&long);
     assert!(out.len() <= 200);
     assert!(
         out.chars().all(|c| c == 'あ'),
-        "Przycięcie na granicy znaku"
+        "Truncation on a character boundary"
     );
 }
 
@@ -284,17 +284,17 @@ fn test_resolve_renamed_path_stays_inside_source_directory() {
     );
     assert!(
         resolve_renamed_path(old, "/etc/passwd").is_err(),
-        "Ścieżka absolutna"
+        "Absolute path"
     );
     assert!(
         resolve_renamed_path(old, "../escape.flac").is_err(),
-        "Składnik .."
+        "A .. component"
     );
     assert!(resolve_renamed_path(old, "a/../../escape.flac").is_err());
     assert!(resolve_renamed_path(old, "").is_err());
     assert!(
         resolve_renamed_path(old, &format!("{}.flac", "x".repeat(300))).is_err(),
-        "Składnik dłuższy niż 255 bajtów"
+        "A component longer than 255 bytes"
     );
 }
 
@@ -351,18 +351,18 @@ fn test_effective_channel_gain_respects_mute_solo_and_master() {
     );
     assert!(
         (effective_channel_gain(&ch, false, 0.5) - full / 2.0).abs() < 1e-6,
-        "głośność główna mnoży"
+        "the master volume multiplies"
     );
 
     assert_eq!(
         effective_channel_gain(&ch, true, 1.0),
         0.0,
-        "inny kanał ma solo"
+        "another channel is soloed"
     );
     ch.solo = true;
     assert!(
         effective_channel_gain(&ch, true, 1.0) > 0.0,
-        "kanał z solo gra"
+        "the soloed channel plays"
     );
     ch.mute = true;
     assert_eq!(

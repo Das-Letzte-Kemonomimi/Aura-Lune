@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Wielopunktowy znacznik czasu (zakładka / cue point) wewnątrz utworu.
+/// Multi-point time marker (bookmark / cue point) inside a track.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrackBookmark {
     pub id: i64,

@@ -101,7 +101,7 @@ fn test_clean_album_title_matches_whole_words_only() {
 
 #[test]
 fn test_clean_album_title_handles_case_folding_that_changes_length() {
-    // "İ".to_lowercase() ma więcej bajtów niż "İ" — wcześniej powodowało to panikę przy cięciu.
+    // "İ".to_lowercase() has more bytes than "İ", which used to cause a panic when slicing.
     assert_eq!(clean_album_title("İstanbul Remastered"), "İstanbul");
     assert_eq!(clean_album_title("STRAẞE Deluxe"), "STRAẞE");
 }
@@ -121,7 +121,7 @@ async fn test_search_cover_candidates_online_in_extremo() {
         .await;
     assert!(
         !candidates.is_empty(),
-        "Kandydaci okładek dla '7' In Extremo powinni zostać znalezieni!"
+        "Cover candidates for '7' In Extremo should be found!"
     );
     let first = &candidates[0];
     assert_eq!(first.title, "7");

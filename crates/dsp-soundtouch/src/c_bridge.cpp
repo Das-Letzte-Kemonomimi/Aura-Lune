@@ -22,7 +22,7 @@ void soundtouch_destroy(SoundTouchHandle handle) {
         try {
             delete static_cast<soundtouch::SoundTouch*>(handle);
         } catch (...) {
-            // Ignorujemy wyjątki w destruktorze
+            // Ignore exceptions in the destructor
         }
     }
 }

@@ -1,10 +1,10 @@
-//! Zarządzanie konfiguracją aplikacji, motywami graficznymi oraz presetami DSP.
+//! App configuration, visual themes and DSP presets.
 
 use crate::{Database, DspPresetRecord, StorageError};
 use sqlx::Row;
 
 impl Database {
-    /// Zapisuje preset DSP.
+    /// Stores a DSP preset.
     pub async fn save_dsp_preset(
         &self,
         name: &str,
@@ -36,7 +36,7 @@ impl Database {
         Ok(rec.get::<i64, _>("id"))
     }
 
-    /// Pobiera listę wszystkich presetów DSP.
+    /// Returns every DSP preset.
     pub async fn list_dsp_presets(&self) -> Result<Vec<DspPresetRecord>, StorageError> {
         let res = sqlx::query_as::<_, DspPresetRecord>("SELECT * FROM dsp_presets ORDER BY name;")
             .fetch_all(&self.pool)
@@ -45,7 +45,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Zapisuje lub aktualizuje motyw w bazie danych.
+    /// Stores or updates a theme in the database.
     pub async fn save_theme(&self, theme: &domain::Theme) -> Result<(), StorageError> {
         theme.validate()?;
         let tokens_json = serde_json::to_string(&theme.tokens)?;
@@ -79,7 +79,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera motyw po ID.
+    /// Returns a theme by its ID.
     pub async fn get_theme(&self, id: &str) -> Result<Option<domain::Theme>, StorageError> {
         let row = sqlx::query(
             "SELECT id, name, schema_version, tokens_json, background_ref, overlay_opacity, blur_radius, attribution FROM themes WHERE id = ?1 LIMIT 1;"
@@ -107,7 +107,7 @@ impl Database {
         }
     }
 
-    /// Pobiera listę wszystkich dostępnych motywów.
+    /// Returns every available theme.
     pub async fn list_themes(&self) -> Result<Vec<domain::Theme>, StorageError> {
         let rows = sqlx::query(
             "SELECT id, name, schema_version, tokens_json, background_ref, overlay_opacity, blur_radius, attribution FROM themes ORDER BY id;"
@@ -135,7 +135,7 @@ impl Database {
         Ok(themes)
     }
 
-    /// Zapisuje ustawienie aplikacji (klucz-wartość).
+    /// Stores an app setting (key-value).
     pub async fn set_app_setting(&self, key: &str, value: &str) -> Result<(), StorageError> {
         sqlx::query(
             r#"
@@ -151,7 +151,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera ustawienie aplikacji.
+    /// Returns an app setting.
     pub async fn get_app_setting(&self, key: &str) -> Result<Option<String>, StorageError> {
         let row = sqlx::query("SELECT value FROM app_settings WHERE key = ?1 LIMIT 1;")
             .bind(key)
@@ -161,7 +161,7 @@ impl Database {
         Ok(row.map(|r| r.get("value")))
     }
 
-    /// Wszystkie ustawienia aplikacji jednym zapytaniem (np. przy starcie, zamiast wielu odczytów).
+    /// Every app setting in one query (e.g. at startup, instead of many reads).
     pub async fn list_app_settings(
         &self,
     ) -> Result<std::collections::HashMap<String, String>, StorageError> {

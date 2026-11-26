@@ -27,8 +27,8 @@ Filter 3: OFF PK Fc 2200.0 Hz Gain -1.8 dB Q 2.00
 Filter 4: ON HSC Fc 8500.0 Hz Gain -2.5 dB Q 0.71
 "#;
 
-    let state = ParametricEqState::parse_equalizer_apo(apo_text)
-        .expect("Prawidłowy tekst powinien się sparsować");
+    let state =
+        ParametricEqState::parse_equalizer_apo(apo_text).expect("A valid text should parse");
     assert_eq!(state.preamp_db, -6.8);
     assert_eq!(state.bands.len(), 4);
 
@@ -260,9 +260,9 @@ fn test_replaygain_defaults() {
 
 #[test]
 fn test_replaygain_modes_display() {
-    assert_eq!(ReplayGainMode::Off.display_name(), "Wyłączony (Off)");
+    assert_eq!(ReplayGainMode::Off.display_name(), "Off");
     assert_eq!(
         ReplayGainMode::Auto.display_name(),
-        "Inteligentny (Auto Track/Album)"
+        "Smart (Auto Track/Album)"
     );
 }

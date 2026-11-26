@@ -1,11 +1,11 @@
-//! Domena kolejki odtwarzania (Playback Queue) oraz trybów zapętlania i losowości.
+//! Playback queue domain, with the repeat and shuffle modes.
 //!
-//! Zgodnie z ADR 0008 i AGENTS.md:
-//! Czysta, w pełni testowalna logika domenowa bez zależności od Tauri czy GStreamera.
+//! Per ADR 0008 and AGENTS.md:
+//! pure, fully testable domain logic with no dependency on Tauri or GStreamer.
 
 use serde::{Deserialize, Serialize};
 
-/// Tryb zapętlania odtwarzacza.
+/// Player repeat mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum LoopMode {
     #[default]
@@ -14,7 +14,7 @@ pub enum LoopMode {
     Queue,
 }
 
-/// Element kolejki odtwarzania.
+/// A playback queue item.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QueueItem {
     pub id: String,
@@ -26,7 +26,7 @@ pub struct QueueItem {
     pub duration_ms: u64,
 }
 
-/// Kolejka odtwarzania z obsługą zapętlania i losowości (Shuffle).
+/// Playback queue with repeat and shuffle support.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct PlaybackQueue {
     pub items: Vec<QueueItem>,
@@ -44,7 +44,7 @@ impl PlaybackQueue {
         Self::default()
     }
 
-    /// Ustawia nową listę utworów w kolejce i opcjonalnie indeks startowy.
+    /// Sets a new list of tracks in the queue and optionally the start index.
     pub fn set_items(&mut self, items: Vec<QueueItem>, start_index: Option<usize>) {
         let count = items.len();
         self.items = items;
@@ -53,25 +53,25 @@ impl PlaybackQueue {
         } else {
             start_index.map(|idx| idx.min(count - 1))
         };
-        // Utwór z kolejki ma być teraz odtwarzany — nieaktualny strumień (np. radio)
-        // nie może go przesłaniać w `current_item()`.
+        // A queue track is to be played now: a stale stream (e.g. radio)
+        // must not shadow it in `current_item()`.
         if self.current_index.is_some() {
             self.active_stream = None;
         }
         self.rebuild_shuffle_order();
     }
 
-    /// Ustawia bieżący odtwarzany utwór w kolejce jeśli w niej istnieje.
-    /// Jeśli utwór nie znajduje się w kolejce, nie dodaje go automatycznie do listy utworów —
-    /// kolejka odtwarzania zawiera wyłącznie utwory celowo dodane przez użytkownika.
+    /// Sets the currently playing track in the queue if it exists there.
+    /// A track that is not in the queue is not added automatically: the playback
+    /// queue only holds tracks the user added on purpose.
     pub fn set_active_item(&mut self, item: QueueItem) {
         self.active_stream = Some(item.clone());
         if let Some(pos) = self.items.iter().position(|i| {
             i.uri == item.uri
                 || (i.track_id.is_some() && item.track_id.is_some() && i.track_id == item.track_id)
         }) {
-            // Wpis kolejki zostaje nietknięty (jego `id` identyfikuje go w UI), a kursor tasowania
-            // musi wskazywać ten sam utwór — inaczej następny utwór wypada z pominięciem bieżącego.
+            // The queue entry stays untouched (its `id` identifies it in the UI), and the shuffle
+            // cursor must point at the same track, otherwise the next track skips past the current one.
             self.current_index = Some(pos);
             if let Some(cursor) = self.shuffle_order.iter().position(|&i| i == pos) {
                 self.shuffle_cursor = cursor;
@@ -81,7 +81,7 @@ impl PlaybackQueue {
         }
     }
 
-    /// Dodaje utwór na koniec kolejki.
+    /// Appends a track to the end of the queue.
     pub fn add_item(&mut self, item: QueueItem) {
         self.items.push(item);
         if self.current_index.is_none() && !self.items.is_empty() {
@@ -90,7 +90,7 @@ impl PlaybackQueue {
         self.rebuild_shuffle_order();
     }
 
-    /// Wstawia utwór bezpośrednio po aktualnie odtwarzanym ("Odtwórz jako następny").
+    /// Inserts a track right after the one playing now ("Play next").
     pub fn add_next(&mut self, item: QueueItem) {
         match self.current_index {
             Some(idx) => {
@@ -101,7 +101,7 @@ impl PlaybackQueue {
         }
     }
 
-    /// Usuwa element z kolejki po unikalnym ID.
+    /// Removes an item from the queue by its unique ID.
     pub fn remove_item(&mut self, id: &str) -> Option<QueueItem> {
         let pos = self.items.iter().position(|i| i.id == id)?;
         let removed = self.items.remove(pos);
@@ -120,7 +120,7 @@ impl PlaybackQueue {
         Some(removed)
     }
 
-    /// Zmienia kolejność elementów w kolejce (przeniesienie z from_idx do to_idx).
+    /// Reorders the queue items (moves from from_idx to to_idx).
     pub fn move_item(&mut self, from_idx: usize, to_idx: usize) -> bool {
         if from_idx >= self.items.len() || to_idx >= self.items.len() {
             return false;
@@ -142,7 +142,7 @@ impl PlaybackQueue {
         true
     }
 
-    /// Czyści całą kolejkę odtwarzania.
+    /// Clears the whole playback queue.
     pub fn clear(&mut self) {
         self.items.clear();
         self.current_index = None;
@@ -150,14 +150,14 @@ impl PlaybackQueue {
         self.shuffle_cursor = 0;
     }
 
-    /// Zwraca aktualnie odtwarzany element kolejki.
+    /// Returns the queue item playing now.
     pub fn current_item(&self) -> Option<&QueueItem> {
         self.current_index
             .and_then(|idx| self.items.get(idx))
             .or(self.active_stream.as_ref())
     }
 
-    /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle.
+    /// Moves to the next track in the queue according to the loop and shuffle modes.
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<&QueueItem> {
         if self.items.is_empty() {
@@ -182,7 +182,7 @@ impl PlaybackQueue {
             }
         }
 
-        // Tryb sekwencyjny
+        // Sequential mode
         match self.current_index {
             Some(idx) => {
                 if idx + 1 < self.items.len() {
@@ -202,7 +202,7 @@ impl PlaybackQueue {
         }
     }
 
-    /// Przechodzi do poprzedniego utworu w kolejce.
+    /// Moves to the previous track in the queue.
     pub fn previous(&mut self) -> Option<&QueueItem> {
         if self.items.is_empty() {
             return None;
@@ -245,12 +245,12 @@ impl PlaybackQueue {
         }
     }
 
-    /// Ustawia tryb zapętlania (None, Track, Queue).
+    /// Sets the repeat mode (None, Track, Queue).
     pub fn set_loop_mode(&mut self, mode: LoopMode) {
         self.loop_mode = mode;
     }
 
-    /// Włącza lub wyłącza tryb Shuffle.
+    /// Turns shuffle mode on or off.
     pub fn set_shuffle(&mut self, enabled: bool) {
         self.shuffle = enabled;
         self.rebuild_shuffle_order();
@@ -264,8 +264,8 @@ impl PlaybackQueue {
             return;
         }
 
-        // Tasowanie Fishera-Yatesa. Ziarno zmienia się przy każdej przebudowie, więc dwie kolejki
-        // tej samej długości nie dostają identycznej kolejności.
+        // Fisher-Yates shuffle. The seed changes on every rebuild, so two queues
+        // of the same length do not get the same order.
         let mut order: Vec<usize> = (0..count).collect();
         let mut rng = SplitMix64::new(fresh_shuffle_seed());
         for i in (1..count).rev() {
@@ -284,8 +284,8 @@ impl PlaybackQueue {
     }
 }
 
-/// Zwraca nowe ziarno tasowania: zegar systemowy wymieszany z licznikiem wywołań
-/// (dwa wywołania w tej samej nanosekundzie nadal dają różne ziarna).
+/// Returns a new shuffle seed: the system clock mixed with a call counter
+/// (two calls in the same nanosecond still get different seeds).
 fn fresh_shuffle_seed() -> u64 {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -299,7 +299,7 @@ fn fresh_shuffle_seed() -> u64 {
             .wrapping_mul(0x9E37_79B9_7F4A_7C15)
 }
 
-/// Mały, szybki generator pseudolosowy (SplitMix64) — wystarczający do tasowania kolejki.
+/// A small, fast pseudo-random generator (SplitMix64), good enough for shuffling the queue.
 struct SplitMix64(u64);
 
 impl SplitMix64 {

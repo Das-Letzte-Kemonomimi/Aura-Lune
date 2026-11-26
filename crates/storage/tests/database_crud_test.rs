@@ -7,7 +7,7 @@ use storage::TrackRecord;
 async fn test_artist_album_and_track_crud() {
     let db = setup_test_db().await;
 
-    // 1. Dodawanie artysty i albumu
+    // 1. Add an artist and an album
     let artist_id = db.upsert_artist("RADWIMPS").await.unwrap();
     assert!(artist_id > 0);
 
@@ -17,7 +17,7 @@ async fn test_artist_album_and_track_crud() {
         .unwrap();
     assert!(album_id > 0);
 
-    // 2. Dodawanie utworu
+    // 2. Add a track
     let mut track = make_dummy_track("/music/sparkle.flac", "Sparkle", "RADWIMPS");
     track.album_artist = Some("RADWIMPS".to_string());
     track.album_id = Some(album_id);
@@ -31,7 +31,7 @@ async fn test_artist_album_and_track_crud() {
     let track_id = db.upsert_track(&track).await.unwrap();
     assert!(track_id > 0);
 
-    // 3. Weryfikacja pobierania
+    // 3. Verify the reads
     let fetched = db.get_track_by_path("/music/sparkle.flac").await.unwrap();
     assert!(fetched.is_some());
     let fetched_track = fetched.unwrap();
@@ -111,14 +111,14 @@ async fn test_duplicate_tracks_detection_and_path_update() {
     assert_eq!(duplicates[0].count, 2);
     assert_eq!(duplicates[0].tracks.len(), 2);
 
-    // Test aktualizacji ścieżki (File Renamer)
+    // Path update test (file renamer)
     db.update_track_path(dup_id, "/music/RADWIMPS - Sparkle.mp3")
         .await
         .unwrap();
     let moved_track = db.get_track_by_id(dup_id).await.unwrap().unwrap();
     assert_eq!(moved_track.path, "/music/RADWIMPS - Sparkle.mp3");
 
-    // Test usunięcia duplikatu
+    // Duplicate removal test
     db.delete_track(dup_id).await.unwrap();
     let remaining_dups = db.find_duplicate_tracks().await.unwrap();
     assert!(remaining_dups.is_empty());
@@ -138,7 +138,7 @@ async fn test_album_cover_preservation_on_rescan() {
         .await
         .unwrap();
 
-    // Symulacja ponownego skanowania pliku z tagiem embedded cover (np. /tmp/extracted_tag.jpg)
+    // Simulate rescanning a file with an embedded cover tag (e.g. /tmp/extracted_tag.jpg)
     let rescan_id = db
         .upsert_album(
             "Verehrt Und Angespien",
@@ -158,7 +158,7 @@ async fn test_album_cover_preservation_on_rescan() {
         .find(|a| a.id == album_id)
         .expect("Album must exist");
 
-    // Okładka użytkownika MUSI pozostać nienaruszona!
+    // The user's cover MUST stay untouched!
     assert_eq!(
         album_rec.cover_path.as_deref(),
         Some("/covers/custom_in_extremo.jpg")

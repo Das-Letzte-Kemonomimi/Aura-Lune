@@ -189,7 +189,7 @@ async fn test_transcription_cache_ignores_other_versions_and_keeps_one_row() {
             .await
             .unwrap()
             .is_none(),
-        "stary wpis powinien zostać usunięty przy zapisie nowej wersji"
+        "the old entry should be removed when the new version is stored"
     );
     let current = db
         .get_track_transcription(track_id, "2.0.0")

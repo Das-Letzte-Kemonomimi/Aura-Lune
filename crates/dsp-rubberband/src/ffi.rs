@@ -1,4 +1,4 @@
-//! FFI do biblioteki Rubber Band (C ABI z rubberband-c.h).
+//! FFI to the Rubber Band library (C ABI from rubberband-c.h).
 
 use std::os::raw::{c_double, c_float, c_int, c_uint, c_void};
 

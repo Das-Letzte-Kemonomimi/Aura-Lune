@@ -4,7 +4,7 @@ use storage::{Database, TrackRecord};
 pub async fn setup_test_db() -> Database {
     Database::new_in_memory()
         .await
-        .expect("Baza danych testowa w pamięci RAM powinna się zainicjalizować")
+        .expect("The in-memory test database should initialise")
 }
 
 #[allow(dead_code)]

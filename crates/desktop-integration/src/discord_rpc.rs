@@ -1,7 +1,7 @@
-//! Klient Discord Rich Presence (RPC) dla Linuksa.
+//! Discord Rich Presence (RPC) client for Linux.
 //!
-//! Komunikacja odbywa się bezblokadowo przez lokalne gniazdo Unix Domain Socket
-//! (`discord-ipc-0` .. `discord-ipc-9`) z wykorzystaniem protokołu IPC Discorda.
+//! Communication is non-blocking over the local Unix domain socket
+//! (`discord-ipc-0` .. `discord-ipc-9`) using the Discord IPC protocol.
 
 use domain::PlaybackState;
 use serde::{Deserialize, Serialize};
@@ -14,10 +14,10 @@ use tokio::net::UnixStream;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tracing::{debug, info};
 
-/// Oficjalny zarejestrowany Discord Application ID dla Auralune („Słucha Auralune”).
+/// The officially registered Discord Application ID for Auralune ("Listening to Auralune").
 pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1563876157387186226";
 
-/// Informacje o utworze przesyłane do statusu Discord RPC.
+/// Track information sent to the Discord RPC status.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DiscordTrackInfo {
     pub title: String,
@@ -27,7 +27,7 @@ pub struct DiscordTrackInfo {
     pub art_url: Option<String>,
 }
 
-/// Status połączenia z klientem Discord.
+/// Connection status with the Discord client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscordRpcStatus {
     pub enabled: bool,
@@ -36,7 +36,7 @@ pub struct DiscordRpcStatus {
     pub current_activity: Option<String>,
 }
 
-/// Polecenia wewnętrzne wysyłane do pętli roboczej Discord RPC.
+/// Internal commands sent to the Discord RPC worker loop.
 enum DiscordRpcCommand {
     UpdateTrack(DiscordTrackInfo),
     UpdatePlayback {
@@ -51,14 +51,14 @@ enum DiscordRpcCommand {
     SetClientId(String),
 }
 
-/// Kontroler Discord RPC zarządzający aktywnością użytkowniczki w Discordzie.
+/// Discord RPC controller that manages the user's Discord activity.
 pub struct DiscordRpcController {
     tx: UnboundedSender<DiscordRpcCommand>,
     status: Arc<RwLock<DiscordRpcStatus>>,
 }
 
 impl DiscordRpcController {
-    /// Tworzy i uruchamia kontroler Discord RPC w tle przy użyciu podanego lub bieżącego uchwytu Tokio.
+    /// Creates and starts the Discord RPC controller in the background on the given or current Tokio handle.
     pub fn start(
         handle: Option<&tokio::runtime::Handle>,
         enabled: bool,
@@ -88,18 +88,18 @@ impl DiscordRpcController {
                 worker.run(rx).await;
             });
         } else {
-            tracing::warn!("Nie można uruchomić DiscordRpcWorker: brak aktywnego środowiska uruchomieniowego Tokio");
+            tracing::warn!("Cannot start DiscordRpcWorker: no active Tokio runtime");
         }
 
         Arc::new(Self { tx, status })
     }
 
-    /// Aktualizuje metadane odtwarzanego utworu.
+    /// Updates the metadata of the playing track.
     pub fn update_track(&self, info: DiscordTrackInfo) {
         let _ = self.tx.send(DiscordRpcCommand::UpdateTrack(info));
     }
 
-    /// Aktualizuje stan odtwarzania (Playing, Paused, Stopped) wraz z pozycją.
+    /// Updates the playback state (Playing, Paused, Stopped) with the position.
     pub fn update_playback_status(&self, state: PlaybackState, position_ms: u64, duration_ms: u64) {
         let _ = self.tx.send(DiscordRpcCommand::UpdatePlayback {
             state,
@@ -108,22 +108,22 @@ impl DiscordRpcController {
         });
     }
 
-    /// Informuje o przesunięciu czasu (seek).
+    /// Reports a time jump (seek).
     pub fn update_position(&self, position_ms: u64) {
         let _ = self.tx.send(DiscordRpcCommand::UpdatePosition(position_ms));
     }
 
-    /// Informuje o zapętleniu utworu od początku (Repeat Track / Loop).
+    /// Reports that the track looped back to the start (Repeat Track / Loop).
     pub fn track_looped(&self) {
         let _ = self.tx.send(DiscordRpcCommand::TrackLooped);
     }
 
-    /// Czyści status aktywności na Discordzie.
+    /// Clears the activity status on Discord.
     pub fn clear_activity(&self) {
         let _ = self.tx.send(DiscordRpcCommand::ClearActivity);
     }
 
-    /// Włącza lub wyłącza Discord RPC.
+    /// Turns Discord RPC on or off.
     pub fn set_enabled(&self, enabled: bool) {
         if let Ok(mut s) = self.status.write() {
             s.enabled = enabled;
@@ -135,7 +135,7 @@ impl DiscordRpcController {
         let _ = self.tx.send(DiscordRpcCommand::SetEnabled(enabled));
     }
 
-    /// Zmienia Application ID Discorda.
+    /// Changes the Discord Application ID.
     pub fn set_client_id(&self, client_id: String) {
         if let Ok(mut s) = self.status.write() {
             s.client_id = client_id.clone();
@@ -143,7 +143,7 @@ impl DiscordRpcController {
         let _ = self.tx.send(DiscordRpcCommand::SetClientId(client_id));
     }
 
-    /// Pobiera bieżący status Discord RPC do prezentacji w UI.
+    /// Returns the current Discord RPC status for display in the UI.
     pub fn get_status(&self) -> DiscordRpcStatus {
         self.status
             .read()
@@ -157,7 +157,7 @@ impl DiscordRpcController {
     }
 }
 
-/// Wewnętrzny worker obsługujący gniazdo Unix IPC Discorda.
+/// Internal worker that handles the Discord Unix IPC socket.
 struct DiscordRpcWorker {
     enabled: bool,
     client_id: String,
@@ -195,10 +195,10 @@ impl DiscordRpcWorker {
 
     fn schedule_flush(&self, flush_deadline: &mut Option<tokio::time::Instant>) {
         let now = tokio::time::Instant::now();
-        // Błyskawiczny settle 60ms: mikro-bursty poleceń (UpdateTrack + UpdatePlayback)
-        // łączą się w dokładnie 1 ramkę SET_ACTIVITY wysłaną w ułamku sekundy
+        // Fast 60ms settle: micro-bursts of commands (UpdateTrack + UpdatePlayback)
+        // merge into exactly 1 SET_ACTIVITY frame sent within a fraction of a second
         let settle = now + Duration::from_millis(60);
-        // Ochrona przed rate-limitem Discord Gateway (max 5 na 20s, min. 1000ms między ramkami przy szybkim przewijaniu)
+        // Protection against the Discord Gateway rate limit (max 5 per 20s, min. 1000ms between frames during fast seeking)
         let min_interval = match self.last_sent_at {
             Some(t) => t + Duration::from_millis(1000),
             None => now,
@@ -354,8 +354,8 @@ impl DiscordRpcWorker {
                         .unwrap_or_default()
                         .as_secs();
 
-                    // Jeśli utwór gra, ma określoną długość i czas na Discordzie przekroczył długość (pasek osiągnął 100%),
-                    // a odtwarzacz nadal gra (np. utwór zapętlił się bez jawnego powiadomienia), zaktualizuj pozycję.
+                    // If the track is playing, has a known length and the Discord time passed that length (the bar reached 100%),
+                    // while the player is still playing (e.g. the track looped without an explicit notification), update the position.
                     if self.enabled
                         && self.playback_state == PlaybackState::Playing
                         && self.current_duration_ms > 0
@@ -371,8 +371,8 @@ impl DiscordRpcWorker {
                         }
                     }
 
-                    // Jeśli Discord RPC jest włączony, ale nie ma jeszcze połączenia (np. Vesktop/Discord uruchomiony później),
-                    // to sprawdzaj gniazdo w tle i automatycznie wyślij aktywność bez konieczności interakcji użytkowniczki
+                    // If Discord RPC is on but not connected yet (e.g. Vesktop/Discord started later),
+                    // probe the socket in the background and send the activity automatically, with no user interaction
                     if self.enabled
                         && self.writer.is_none()
                         && self.current_track.is_some()
@@ -417,7 +417,7 @@ impl DiscordRpcWorker {
             return true;
         }
 
-        // Unikaj spamu ponownych połączeń częściej niż co 500ms
+        // Avoid reconnect spam more often than every 500ms
         if let Some(last) = self.last_connect_attempt {
             if let Ok(elapsed) = last.elapsed() {
                 if elapsed < Duration::from_millis(500) {
@@ -427,7 +427,7 @@ impl DiscordRpcWorker {
         }
         self.last_connect_attempt = Some(SystemTime::now());
 
-        // ~130 sprawdzeń `exists()` i `read_dir` — poza wątkami Tokio.
+        // ~130 `exists()` and `read_dir` checks, so off the Tokio threads.
         let candidates = tokio::task::spawn_blocking(find_discord_socket_candidates)
             .await
             .unwrap_or_default();
@@ -435,10 +435,10 @@ impl DiscordRpcWorker {
             if !path.exists() {
                 continue;
             }
-            info!("Próba połączenia z gniazdem Discord IPC: {:?}", path);
+            info!("Trying to connect to the Discord IPC socket: {:?}", path);
             match UnixStream::connect(&path).await {
                 Ok(mut stream) => {
-                    // Wysłanie uścisku dłoni (Handshake opcode 0)
+                    // Send the handshake (opcode 0)
                     let handshake_payload = serde_json::json!({
                         "v": 1,
                         "client_id": self.client_id
@@ -446,11 +446,11 @@ impl DiscordRpcWorker {
                     .to_string();
 
                     if let Err(e) = send_ipc_frame(&mut stream, 0, &handshake_payload).await {
-                        debug!("Błąd wysyłania Handshake do {:?}: {}", path, e);
+                        debug!("Failed to send the handshake to {:?}: {}", path, e);
                         continue;
                     }
 
-                    // Odczyt odpowiedzi (opcode 1 - READY) z limitem czasu
+                    // Read the response (opcode 1 - READY) with a timeout
                     let read_res = tokio::time::timeout(
                         Duration::from_millis(800),
                         read_ipc_frame(&mut stream),
@@ -459,7 +459,7 @@ impl DiscordRpcWorker {
 
                     match read_res {
                         Ok(Ok((1, _payload))) => {
-                            info!("Pomyślnie połączono z Discord RPC przez {:?}", path);
+                            info!("Connected to Discord RPC via {:?}", path);
                             let (read_half, write_half) = stream.into_split();
                             tokio::spawn(async move {
                                 let mut reader = read_half;
@@ -474,20 +474,23 @@ impl DiscordRpcWorker {
 
                         Ok(Ok((opcode, payload))) => {
                             debug!(
-                                "Nieoczekiwana odpowiedź Discord IPC (opcode {}): {}",
+                                "Unexpected Discord IPC response (opcode {}): {}",
                                 opcode, payload
                             );
                         }
                         Ok(Err(e)) => {
-                            debug!("Błąd odczytu odpowiedzi Handshake z {:?}: {}", path, e);
+                            debug!(
+                                "Failed to read the handshake response from {:?}: {}",
+                                path, e
+                            );
                         }
                         Err(_) => {
-                            debug!("Przekroczono limit czasu odpowiedzi Handshake z {:?}", path);
+                            debug!("Handshake response from {:?} timed out", path);
                         }
                     }
                 }
                 Err(e) => {
-                    debug!("Nie udało się połączyć z {:?}: {}", path, e);
+                    debug!("Failed to connect to {:?}: {}", path, e);
                 }
             }
         }
@@ -550,13 +553,10 @@ impl DiscordRpcWorker {
 
         if let Some(writer) = self.writer.as_mut() {
             if let Err(e) = send_ipc_frame(writer, 1, &payload).await {
-                debug!("Błąd wysyłania SET_ACTIVITY do Discorda: {}", e);
+                debug!("Failed to send SET_ACTIVITY to Discord: {}", e);
                 self.disconnect();
             } else {
-                info!(
-                    "Pomyślnie wysłano aktywność do Discord RPC: {}",
-                    track.title
-                );
+                info!("Sent the activity to Discord RPC: {}", track.title);
                 self.update_shared_status();
             }
         }
@@ -582,17 +582,17 @@ impl DiscordRpcWorker {
 
         if let Some(writer) = self.writer.as_mut() {
             if let Err(e) = send_ipc_frame(writer, 1, &payload).await {
-                debug!("Błąd czyszczenia aktywności Discorda: {}", e);
+                debug!("Failed to clear the Discord activity: {}", e);
                 self.disconnect();
             } else {
-                debug!("Wyczyszczono aktywność Discord RPC");
+                debug!("Cleared the Discord RPC activity");
                 self.update_shared_status();
             }
         }
     }
 }
 
-/// Zwraca listę potencjalnych ścieżek gniazd Unix IPC Discorda na Linuksie.
+/// Returns the list of candidate Discord Unix IPC socket paths on Linux.
 fn find_discord_socket_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
@@ -603,8 +603,8 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
             candidates.push(base.join(format!("discord-ipc-{}", i)));
         }
 
-        // Ścieżki dla klientów Flatpak (m.in. Vesktop, WebCord, Discord):
-        // Flatpak montuje per-app xdg-run w $XDG_RUNTIME_DIR/.flatpak/<app_id>/xdg-run/
+        // Paths for Flatpak clients (Vesktop, WebCord, Discord and others):
+        // Flatpak mounts a per-app xdg-run at $XDG_RUNTIME_DIR/.flatpak/<app_id>/xdg-run/
         let flatpak_dir = base.join(".flatpak");
         if flatpak_dir.is_dir() {
             if let Ok(entries) = std::fs::read_dir(&flatpak_dir) {
@@ -638,7 +638,7 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         }
     }
 
-    // 2. /run/user/<UID> (gdy XDG_RUNTIME_DIR nie jest ustawione)
+    // 2. /run/user/<UID> (when XDG_RUNTIME_DIR is not set)
     if let Some(uid) = crate::runtime_dir::current_uid() {
         let run_user = PathBuf::from(format!("/run/user/{uid}"));
         for i in 0..10 {
@@ -646,8 +646,8 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         }
     }
 
-    // 3. /tmp (Discord bez XDG_RUNTIME_DIR) — wyłącznie gniazda należące do bieżącego
-    //    użytkownika; obcy socket w /tmp mógłby przechwytywać metadane odtwarzania.
+    // 3. /tmp (Discord without XDG_RUNTIME_DIR): only sockets owned by the current
+    //    user; a foreign socket in /tmp could intercept playback metadata.
     if let Some(uid) = crate::runtime_dir::current_uid() {
         for i in 0..10 {
             let p = PathBuf::from(format!("/tmp/discord-ipc-{i}"));
@@ -660,7 +660,7 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
         }
     }
 
-    // Zwróć tylko unikalne ścieżki, które faktycznie istnieją w systemie
+    // Return only unique paths that actually exist on the system
     let mut seen = std::collections::HashSet::new();
     let mut existing = Vec::new();
     for p in candidates {
@@ -672,10 +672,10 @@ fn find_discord_socket_candidates() -> Vec<PathBuf> {
     existing
 }
 
-/// Limit czasu zapisu jednej ramki do gniazda Discorda.
+/// Timeout for writing one frame to the Discord socket.
 const IPC_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Zapisuje ramkę binarną protokołu Discord IPC:
+/// Writes a binary Discord IPC protocol frame:
 /// [opcode: u32 LE][length: u32 LE][payload JSON UTF-8]
 async fn send_ipc_frame<W>(writer: &mut W, opcode: u32, payload: &str) -> std::io::Result<()>
 where
@@ -687,7 +687,7 @@ where
     header[0..4].copy_from_slice(&opcode.to_le_bytes());
     header[4..8].copy_from_slice(&length.to_le_bytes());
 
-    // Zawieszony klient Discorda nie może blokować wątku integracji w nieskończoność.
+    // A hung Discord client must not block the integration thread forever.
     tokio::time::timeout(IPC_WRITE_TIMEOUT, async {
         writer.write_all(&header).await?;
         writer.write_all(payload_bytes).await?;
@@ -697,7 +697,7 @@ where
     .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "Discord IPC write timed out"))?
 }
 
-/// Odczytuje pojedynczą ramkę binarną Discord IPC z gniazda.
+/// Reads a single binary Discord IPC frame from the socket.
 async fn read_ipc_frame<R>(reader: &mut R) -> std::io::Result<(u32, String)>
 where
     R: AsyncReadExt + Unpin,
@@ -710,7 +710,7 @@ where
     if length > 1024 * 1024 {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Ramka Discord IPC przekracza dopuszczalny limit 1 MB",
+            "Discord IPC frame exceeds the 1 MB limit",
         ));
     }
 
@@ -730,15 +730,15 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
     }
 }
 
-/// Buduje strukturę aktywności (Activity Type 2: Listening) dla Discord RPC.
+/// Builds the activity structure (Activity Type 2: Listening) for Discord RPC.
 ///
-/// Zasady Discord Rich Presence dla Activity Type 2 (Listening):
-/// - `details`: Tytuł utworu (Linia 1)
-/// - `state`: Wykonawca (Linia 2). Nie umieszczamy tu powtórzonego albumu, ponieważ album pojawia się
-///   w linii 3 jako `assets.large_text` lub tooltip okładki.
-/// - `assets.large_text`: Album (Linia 3 / tooltip)
-/// - `timestamps`: Pasek postępu. Discord wymaga `start` oraz `end` w sekundach UNIX, aby narysować
-///   pasek postępu z czasem aktualnym i całkowitym (np. 01:42 [====-----] 03:07).
+/// Discord Rich Presence rules for Activity Type 2 (Listening):
+/// - `details`: track title (line 1)
+/// - `state`: artist (line 2). The album is not repeated here, because it appears
+///   in line 3 as `assets.large_text` or the cover tooltip.
+/// - `assets.large_text`: album (line 3 / tooltip)
+/// - `timestamps`: progress bar. Discord needs `start` and `end` in UNIX seconds to draw
+///   the progress bar with the current and total time (e.g. 01:42 [====-----] 03:07).
 pub fn build_activity_payload(
     track: &DiscordTrackInfo,
     playback_state: PlaybackState,
@@ -748,29 +748,29 @@ pub fn build_activity_payload(
 ) -> serde_json::Value {
     let is_playing = playback_state == PlaybackState::Playing;
 
-    // Linia 1: Tytuł utworu
+    // Line 1: track title
     let details = if track.title.trim().is_empty() {
-        "Nieznany utwór".to_string()
+        "Unknown Track".to_string()
     } else {
         truncate_str(&track.title, 128)
     };
 
-    // Linia 2: Wykonawca (czysty wykonawca, bez dublowania albumu)
+    // Line 2: artist (only the artist, without repeating the album)
     let state = if !track.artist.trim().is_empty() {
         truncate_str(&track.artist, 128)
     } else {
         "Auralune".to_string()
     };
 
-    // Linia 3: Album (oraz tooltip na okładce)
+    // Line 3: album (and the cover tooltip)
     let large_text = if !track.album.trim().is_empty() {
         truncate_str(&track.album, 128)
     } else {
         "Auralune Player".to_string()
     };
 
-    // Znaczniki czasu dla paska postępu w Discordzie (Type 2: Listening)
-    // Discord renderuje pasek postępu tylko gdy obecne są zarówno `start` jak i `end` (w sekundach unix)
+    // Timestamps for the Discord progress bar (Type 2: Listening)
+    // Discord renders the progress bar only when both `start` and `end` are present (in unix seconds)
     let timestamps = if is_playing {
         let elapsed_secs = current_position_ms / 1000;
         let start_time = now_unix.saturating_sub(elapsed_secs);
@@ -790,7 +790,7 @@ pub fn build_activity_payload(
         None
     };
 
-    // Do Discord Gateway wolno wysyłać WYŁĄCZNIE publiczne adresy HTTPS/HTTP lub klucze assetów.
+    // ONLY public HTTPS/HTTP addresses or asset keys may be sent to the Discord Gateway.
     let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/src-tauri/icons/128x128.png";
     let large_image = match &track.art_url {
         Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),

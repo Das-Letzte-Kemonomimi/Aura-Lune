@@ -8,7 +8,7 @@ fn ip(s: &str) -> IpAddr {
 #[test]
 fn public_addresses_are_allowed() {
     for a in ["1.1.1.1", "142.250.74.14", "2606:4700:4700::1111"] {
-        assert!(is_public_ip(ip(a)), "{a} powinien być publiczny");
+        assert!(is_public_ip(ip(a)), "{a} should be public");
     }
 }
 
@@ -31,10 +31,7 @@ fn local_and_reserved_addresses_are_rejected() {
         "::ffff:127.0.0.1",
         "::ffff:192.168.0.1",
     ] {
-        assert!(
-            !is_public_ip(ip(a)),
-            "{a} nie może być traktowany jako publiczny"
-        );
+        assert!(!is_public_ip(ip(a)), "{a} must not be treated as public");
     }
 }
 
@@ -50,7 +47,7 @@ async fn non_https_and_local_urls_are_rejected() {
     ] {
         assert!(
             ensure_public_https_url(url).await.is_err(),
-            "{url} powinien zostać odrzucony"
+            "{url} should be rejected"
         );
     }
 }

@@ -1,4 +1,4 @@
-//! Implementacja cechy AudioProcessor dla biblioteki SoundTouch.
+//! AudioProcessor implementation for the SoundTouch library.
 
 use crate::ffi::*;
 use dsp_api::{
@@ -7,7 +7,7 @@ use dsp_api::{
 };
 use tracing::debug;
 
-/// Procesor DSP bazujący na SoundTouch.
+/// DSP processor based on SoundTouch.
 pub struct SoundTouchProcessor {
     handle: Option<SoundTouchHandle>,
     format: Option<AudioFormat>,
@@ -63,7 +63,7 @@ impl AudioProcessor for SoundTouchProcessor {
         if handle.is_null() {
             return Err(DspError::Internal {
                 engine: "SoundTouch",
-                message: "Nie udało się utworzyć instancji SoundTouch".to_string(),
+                message: "Failed to create a SoundTouch instance".to_string(),
             });
         }
 
@@ -71,11 +71,11 @@ impl AudioProcessor for SoundTouchProcessor {
             soundtouch_set_sample_rate(handle, format.sample_rate);
             soundtouch_set_channels(handle, format.channels);
 
-            // Włączenie filtru antyaliasingowego transpozera pitchu
+            // Enable the pitch transposer's anti-aliasing filter
             soundtouch_set_setting(handle, SETTING_USE_AA_FILTER, 1);
-            // Maksymalna długość filtru AA (128 taps) drastycznie redukuje szelesty i artefakty
+            // The maximum AA filter length (128 taps) greatly reduces hiss and artefacts
             soundtouch_set_setting(handle, SETTING_AA_FILTER_LENGTH, 128);
-            // Wyłączenie quickseek na rzecz precyzyjnego algorytmu korelacji próbek
+            // Disable quickseek in favour of the precise sample correlation algorithm
             soundtouch_set_setting(handle, SETTING_USE_QUICKSEEK, 0);
         }
 
@@ -83,11 +83,11 @@ impl AudioProcessor for SoundTouchProcessor {
         self.format = Some(format);
         self.out_buffer = vec![0.0f32; max_block_frames * format.channels as usize * 4];
 
-        // Zastosowanie początkowych parametrów
+        // Apply the initial parameters
         self.set_params(self.params)?;
 
         debug!(
-            "Zainicjalizowano SoundTouchProcessor dla {} Hz, {} kanałów (AA 128-tap, exact seek)",
+            "Initialised SoundTouchProcessor for {} Hz, {} channels (AA 128-tap, exact seek)",
             format.sample_rate, format.channels
         );
         Ok(())
@@ -104,14 +104,14 @@ impl AudioProcessor for SoundTouchProcessor {
                 soundtouch_set_tempo(handle, params.tempo_ratio);
                 soundtouch_set_pitch(handle, pitch_ratio);
 
-                // Adaptacja parametrów do tempa dla muzyki polyfonicznej
+                // Adapt the parameters to the tempo for polyphonic music
                 if params.tempo_ratio < 0.75 {
-                    // Dłuższa sekwencja i stabilniejsze okno poszukiwania eliminują drżenie falowe i metaliczny flutter
+                    // A longer sequence and a steadier seek window remove wave jitter and metallic flutter
                     soundtouch_set_setting(handle, SETTING_SEQUENCE_MS, 75);
                     soundtouch_set_setting(handle, SETTING_SEEKWINDOW_MS, 25);
                     soundtouch_set_setting(handle, SETTING_OVERLAP_MS, 14);
                 } else {
-                    // Standardowa charakterystyka SoundTouch dla muzyki
+                    // Standard SoundTouch characteristics for music
                     soundtouch_set_setting(handle, SETTING_SEQUENCE_MS, 0);
                     soundtouch_set_setting(handle, SETTING_SEEKWINDOW_MS, 0);
                     soundtouch_set_setting(handle, SETTING_OVERLAP_MS, 8);
@@ -124,12 +124,12 @@ impl AudioProcessor for SoundTouchProcessor {
     fn process(&mut self, input: &[f32], output: &mut Vec<f32>) -> Result<ProcessStatus, DspError> {
         let handle = self.handle.ok_or_else(|| DspError::Internal {
             engine: "SoundTouch",
-            message: "Procesor nie został przygotowany (wywołaj prepare)".into(),
+            message: "Processor not prepared (call prepare)".into(),
         })?;
 
         let format = self
             .format
-            .ok_or_else(|| DspError::FormatError("Brak przygotowanego formatu".into()))?;
+            .ok_or_else(|| DspError::FormatError("No prepared format".into()))?;
         let channels = format.channels as usize;
 
         if input.is_empty() {
@@ -170,7 +170,7 @@ impl AudioProcessor for SoundTouchProcessor {
     }
 
     fn latency_frames(&self) -> usize {
-        // SoundTouch buforuje minimalną liczbę ramek zależną od parametrów (zazwyczaj <100ms)
+        // SoundTouch buffers a minimum number of frames that depends on the parameters (usually <100ms)
         0
     }
 

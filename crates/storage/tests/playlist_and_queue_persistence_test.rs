@@ -238,12 +238,12 @@ async fn test_playlist_tracks_keep_order_and_full_track_columns() {
     assert_eq!(
         titles,
         ["Two", "Three", "Four"],
-        "nowy utwór trafia na koniec"
+        "a new track goes to the end"
     );
     assert_eq!(
         tracks[0].is_favorite,
         Some(true),
-        "playlisty zwracają też kolumny ulubionych/ocen"
+        "playlists also return the favourite/rating columns"
     );
 }
 
@@ -258,7 +258,7 @@ async fn test_toggle_favorite_flips_and_reports_state() {
     assert!(!db.toggle_favorite(id).await.unwrap());
     assert!(
         !db.toggle_favorite(9_999).await.unwrap(),
-        "brak utworu → false, bez błędu"
+        "missing track → false, no error"
     );
 }
 
@@ -283,5 +283,5 @@ async fn test_duplicate_groups_are_case_insensitive_and_best_quality_first() {
 }
 
 async fn setup_test_db() -> Database {
-    Database::new_in_memory().await.expect("baza w pamięci")
+    Database::new_in_memory().await.expect("in-memory database")
 }

@@ -2,27 +2,27 @@ use crate::DomainError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-/// Reprezentacja pojedynczego wpisu utworu w pliku M3U/M3U8.
+/// A single track entry in an M3U/M3U8 file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct M3uEntry {
-    /// Ścieżka do pliku lokalnego lub adres URI (np. file:// lub http(s)://)
+    /// Path to a local file or a URI (e.g. file:// or http(s)://)
     pub path_or_uri: String,
-    /// Opcjonalny tytuł utworu z dyrektywy #EXTINF
+    /// Optional track title from the #EXTINF directive
     pub title: Option<String>,
-    /// Opcjonalny wykonawca z dyrektywy #EXTINF
+    /// Optional artist from the #EXTINF directive
     pub artist: Option<String>,
-    /// Czas trwania w sekundach (-1 jeśli nieznany/strumień)
+    /// Duration in seconds (-1 if unknown / a stream)
     pub duration_seconds: Option<i64>,
 }
 
-/// Reprezentacja sparsowanej playlisty M3U/M3U8.
+/// A parsed M3U/M3U8 playlist.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct M3uPlaylist {
     pub name: String,
     pub entries: Vec<M3uEntry>,
 }
 
-/// Wynik operacji importu playlisty M3U/M3U8 do bazy danych Auralune.
+/// Result of importing an M3U/M3U8 playlist into the Auralune database.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportM3uResult {
     pub playlist_id: i64,
@@ -33,8 +33,8 @@ pub struct ImportM3uResult {
 }
 
 impl M3uPlaylist {
-    /// Parsuje zawartość pliku `.m3u` lub `.m3u8` w standardzie UTF-8.
-    /// Jeśli podano `base_dir`, ścieżki względne są automatycznie rozwiązywane względem tego katalogu.
+    /// Parses the contents of a UTF-8 `.m3u` or `.m3u8` file.
+    /// If `base_dir` is given, relative paths are resolved against that directory.
     pub fn parse(
         content: &str,
         playlist_name: &str,
@@ -60,7 +60,7 @@ impl M3uPlaylist {
                         pending_duration = Some(dur);
                     }
 
-                    // Próba podziału na "Wykonawca - Tytuł"
+                    // Try to split into "Artist - Title"
                     if let Some(dash_idx) = title_part.find(" - ") {
                         let artist = title_part[..dash_idx].trim().to_string();
                         let title = title_part[dash_idx + 3..].trim().to_string();
@@ -77,12 +77,12 @@ impl M3uPlaylist {
                 continue;
             }
 
-            // Ignorujemy inne dyrektywy nagłówka lub komentarze rozpoczynające się od #
+            // Ignore other header directives and comments starting with #
             if line.starts_with('#') {
                 continue;
             }
 
-            // Normalizacja separatorów ścieżek z Windows (\ -> /) dla zgodności z Linuksem
+            // Normalise Windows path separators (\ -> /) for Linux compatibility
             let normalized_path = line.replace('\\', "/");
 
             let resolved_path = if normalized_path.starts_with("file://")
@@ -93,7 +93,7 @@ impl M3uPlaylist {
                 normalized_path
             } else if let Some(dir) = base_dir {
                 let joined = dir.join(&normalized_path);
-                // Rozwijamy canonical lub upraszczamy ścieżkę
+                // Canonicalise or simplify the path
                 normalize_path(&joined)
             } else {
                 normalized_path
@@ -113,7 +113,7 @@ impl M3uPlaylist {
         })
     }
 
-    /// Eksportuje listę wpisów playlisty do standardu `#EXTM3U` (M3U8 UTF-8).
+    /// Exports the playlist entries in the `#EXTM3U` format (UTF-8 M3U8).
     pub fn export_to_m3u8(
         playlist_name: &str,
         entries: &[M3uEntry],
@@ -148,7 +148,7 @@ impl M3uPlaylist {
     }
 }
 
-/// Upraszcza i normalizuje ścieżkę systemową (usuwa zbędne . i ..).
+/// Simplifies and normalises a system path (removes redundant . and ..).
 fn normalize_path(path: &Path) -> String {
     let mut components = Vec::new();
     let is_abs = path.is_absolute();
@@ -181,9 +181,9 @@ fn normalize_path(path: &Path) -> String {
     }
 }
 
-/// Oblicza ścieżkę względną od `base_dir` do `target_path`.
+/// Computes the path of `target_path` relative to `base_dir`.
 fn compute_relative_path(target_path: &str, base_dir: &Path) -> String {
-    // Jeżeli target jest URI (np. http:// lub file://), nie zmieniamy go
+    // If the target is a URI (e.g. http:// or file://), leave it unchanged
     if target_path.starts_with("http://") || target_path.starts_with("https://") {
         return target_path.to_string();
     }

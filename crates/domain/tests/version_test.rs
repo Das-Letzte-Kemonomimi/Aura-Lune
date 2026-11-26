@@ -1,4 +1,4 @@
-//! Porównywanie wersji semantycznych (`domain::version`).
+//! Semantic version comparison (`domain::version`).
 
 use domain::version::{is_newer, Version};
 

@@ -14,7 +14,7 @@ fn test_normal_user_locations_are_writable() {
     assert!(ok("/home/kitsune/Desktop/playlist.m3u8"));
     assert!(ok("/mnt/nas/music/a.flac"));
     assert!(ok("/media/usb/a.flac"));
-    assert!(ok("/run/media/kitsune/USB/a.flac"), "nośniki wymienne");
+    assert!(ok("/run/media/kitsune/USB/a.flac"), "removable media");
     assert!(ok("/tmp/auralune-render.wav"));
 }
 
@@ -38,7 +38,7 @@ fn test_hidden_home_entries_and_system_dirs_are_rejected() {
         "/run/user/1000/evil",
         "/root/x",
     ] {
-        assert!(!ok(p), "{p} musi być zabroniona");
+        assert!(!ok(p), "{p} must be forbidden");
     }
 }
 
@@ -68,6 +68,6 @@ fn test_library_database_is_never_writable_even_in_app_data_dir() {
         "/home/kitsune/.local/share/com.auralune.player/auralune_library.db-shm",
         "/home/kitsune/Music/auralune_library.db",
     ] {
-        assert!(!ok(p), "baza biblioteki musi być chroniona: {p}");
+        assert!(!ok(p), "the library database must be protected: {p}");
     }
 }

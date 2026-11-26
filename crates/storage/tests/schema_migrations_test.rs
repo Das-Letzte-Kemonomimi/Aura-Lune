@@ -32,7 +32,7 @@ async fn test_delete_track_with_playback_bookmark_cascades() {
 
     db.delete_track(track_id)
         .await
-        .expect("Usunięcie utworu z zakładką nie może łamać klucza obcego");
+        .expect("Deleting a track with a bookmark must not break the foreign key");
     assert_eq!(db.get_bookmark(track_id).await.unwrap(), None);
 }
 
@@ -46,15 +46,15 @@ async fn test_fresh_database_reaches_latest_schema_version() {
     assert_eq!(version, 3);
 }
 
-/// Baza z wersji 1 (zakładki bez CASCADE, `album_artist` zawierający tytuł albumu)
-/// po ponownym otwarciu zostaje poprawnie zmigrowana do wersji 2, z zachowaniem danych.
+/// A version 1 database (bookmarks without CASCADE, `album_artist` holding the album title)
+/// is migrated correctly to version 2 on reopening, keeping its data.
 #[tokio::test]
 async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
     let path = temp_db_path("v1_upgrade");
     let (track_id, other_id) = {
         let db = Database::open(&path).await.unwrap();
         let pool = db.pool();
-        // Odtworzenie schematu v1 dla zakładek.
+        // Recreate the v1 bookmark schema.
         sqlx::query(
             "DROP TABLE playback_bookmarks;
              CREATE TABLE playback_bookmarks (
@@ -74,12 +74,12 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
             .unwrap();
         let mut legacy = make_dummy_track("/music/legacy.flac", "Zenzenzense", "RADWIMPS");
         legacy.album_id = Some(album_id);
-        legacy.album_artist = Some("Kimi no Na wa".into()); // błąd starego skanera
+        legacy.album_artist = Some("Kimi no Na wa".into()); // the old scanner's bug
         let track_id = db.upsert_track(&legacy).await.unwrap();
 
         let mut other = make_dummy_track("/music/other.flac", "Other", "Someone");
         other.album_id = Some(album_id);
-        other.album_artist = Some("Custom AA".into()); // poprawna wartość — nie ruszać
+        other.album_artist = Some("Custom AA".into()); // a correct value: leave it alone
         let other_id = db.upsert_track(&other).await.unwrap();
 
         db.save_bookmark(track_id, 1234).await.unwrap();
@@ -97,7 +97,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
         Some(1234),
-        "Zakładka zachowana"
+        "Bookmark kept"
     );
     let tracks = db.list_tracks().await.unwrap();
     let legacy = tracks.iter().find(|t| t.id == track_id).unwrap();
@@ -107,10 +107,10 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
 
     db.delete_track(track_id)
         .await
-        .expect("CASCADE po migracji");
+        .expect("CASCADE after the migration");
     assert_eq!(db.get_bookmark(track_id).await.unwrap(), None);
 
-    // Ponowne otwarcie jest idempotentne.
+    // Reopening is idempotent.
     db.pool().close().await;
     let db = Database::open(&path).await.unwrap();
     assert_eq!(db.list_tracks().await.unwrap().len(), 1);
@@ -174,14 +174,14 @@ async fn test_silence_bounds_cache_matches_threshold_and_file_version() {
             .await
             .unwrap(),
         None,
-        "inny próg"
+        "another threshold"
     );
     assert_eq!(
         db.get_silence_bounds(id, -50.0, 1_700_000_999)
             .await
             .unwrap(),
         None,
-        "plik zmieniony"
+        "file changed"
     );
 
     let updated = domain::SilenceBounds {
@@ -208,8 +208,8 @@ async fn test_silence_bounds_cache_matches_threshold_and_file_version() {
     );
 }
 
-/// Baza sprzed v1 (bez kolumn statystyk w `tracks` i `release_mbid` w `albums`) otwiera się
-/// i migruje do najnowszej wersji — indeksy na nowych kolumnach powstają dopiero w kroku v1.
+/// A database from before v1 (no statistics columns in `tracks`, no `release_mbid` in `albums`) opens
+/// and migrates to the newest version: the indexes on the new columns are created only in step v1.
 #[tokio::test]
 async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
     let path = temp_db_path("v0_upgrade");
@@ -256,7 +256,7 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
 
     let db = Database::open(&path)
         .await
-        .expect("baza sprzed v1 musi się zmigrować");
+        .expect("a pre-v1 database must migrate");
     let version: i32 = sqlx::query_scalar("PRAGMA user_version;")
         .fetch_one(db.pool())
         .await
@@ -273,15 +273,15 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
         "idx_tracks_last_played",
         "idx_tracks_rating",
     ] {
-        assert!(indexes.iter().any(|i| i == idx), "brak indeksu {idx}");
+        assert!(indexes.iter().any(|i| i == idx), "missing index {idx}");
     }
     let tracks = db.list_tracks().await.unwrap();
-    assert_eq!(tracks.len(), 1, "dane sprzed migracji zachowane");
+    assert_eq!(tracks.len(), 1, "pre-migration data kept");
     db.pool().close().await;
     remove_db(&path);
 }
 
-/// Pragmy wydajnościowe obowiązują na każdym połączeniu puli, nie tylko na pierwszym.
+/// Performance pragmas apply on every pool connection, not only the first one.
 #[tokio::test]
 async fn test_performance_pragmas_apply_to_every_pooled_connection() {
     let path = temp_db_path("pragmas");

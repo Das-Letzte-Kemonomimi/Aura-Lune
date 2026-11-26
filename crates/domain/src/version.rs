@@ -1,26 +1,26 @@
-//! Porównywanie wersji semantycznych (`X.Y.Z[-pre]`) używane przez mechanizm aktualizacji.
+//! Semantic version comparison (`X.Y.Z[-pre]`) used by the updater.
 //!
-//! Zasady jak w SemVer 2.0: wersja z przyrostkiem `-pre` jest mniejsza od wydania bez niego
-//! (`1.1.6-dev < 1.1.6`), identyfikatory numeryczne porównujemy liczbowo, a numeryczne są
-//! mniejsze od alfanumerycznych. Metadane budowania (`+abc`) są ignorowane.
+//! Rules as in SemVer 2.0: a version with a `-pre` suffix is lower than the release without it
+//! (`1.1.6-dev < 1.1.6`), numeric identifiers compare numerically, and numeric ones are
+//! lower than alphanumeric ones. Build metadata (`+abc`) is ignored.
 
 use crate::DomainError;
 use std::cmp::Ordering;
 
-/// Rozparsowana wersja semantyczna.
+/// A parsed semantic version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version {
     pub major: u64,
     pub minor: u64,
     pub patch: u64,
-    /// Identyfikatory przyrostka (`dev.1` → `["dev", "1"]`); pusty dla wydania stabilnego.
+    /// Suffix identifiers (`dev.1` → `["dev", "1"]`); empty for a stable release.
     pub pre: Vec<String>,
 }
 
 impl Version {
     /// Parsuje `1.2.3`, `v1.2.3`, `1.2.3-dev` i `1.2.3-rc.1+build`.
     pub fn parse(input: &str) -> Result<Self, DomainError> {
-        let invalid = || DomainError::Validation(format!("Nieprawidłowy numer wersji: {input:?}"));
+        let invalid = || DomainError::Validation(format!("Invalid version number: {input:?}"));
         let trimmed = input.trim();
         let trimmed = trimmed.strip_prefix('v').unwrap_or(trimmed);
         let without_build = trimmed.split('+').next().unwrap_or("");
@@ -56,7 +56,7 @@ impl Version {
         })
     }
 
-    /// Czy to wersja przedpremierowa (np. `1.1.6-dev`).
+    /// Whether this is a pre-release (e.g. `1.1.6-dev`).
     pub fn is_prerelease(&self) -> bool {
         !self.pre.is_empty()
     }
@@ -101,7 +101,7 @@ impl PartialOrd for Version {
     }
 }
 
-/// Czy `candidate` jest nowszą wersją niż `current`.
+/// Whether `candidate` is a newer version than `current`.
 pub fn is_newer(candidate: &str, current: &str) -> Result<bool, DomainError> {
     Ok(Version::parse(candidate)? > Version::parse(current)?)
 }

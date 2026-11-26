@@ -57,7 +57,7 @@ pub use transcode::{DspExportSettings, ExportFormat, TimeRange};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Stan odtwarzacza audio.
+/// Audio player state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PlaybackState {
     #[default]
@@ -66,11 +66,11 @@ pub enum PlaybackState {
     Paused,
 }
 
-/// Identyfikator ścieżki w bibliotece.
+/// Track identifier in the library.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TrackId(pub String);
 
-/// Metadane ścieżki audio.
+/// Audio track metadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackMetadata {
     pub id: Option<TrackId>,
