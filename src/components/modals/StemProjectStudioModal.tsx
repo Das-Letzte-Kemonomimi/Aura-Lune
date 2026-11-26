@@ -17,6 +17,7 @@ import { useLivePositionMs } from '../../state/livePlayback';
 import { StemStudioWorkspace } from './stem-studio/StemStudioWorkspace';
 import { StemStudioHeader } from './stem-studio/StemStudioHeader';
 import { fmt } from '../../utils/fmt';
+import { formatTime } from '../../utils/timeFormat';
 import { Button, Callout, Card, IconButton, ModalShell, TextField } from '../ui';
 
 export interface StemProjectStudioModalProps {
@@ -487,6 +488,8 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
             max={durationMs || 100}
             value={currentTimeMs}
             onChange={(e) => onSeek?.(parseFloat(e.target.value))}
+            aria-label={t.stems.seekLabel}
+            aria-valuetext={`${formatTime(currentTimeMs)} / ${formatTime(durationMs)}`}
             className="w-full accent-accent-pink"
           />
         </div>

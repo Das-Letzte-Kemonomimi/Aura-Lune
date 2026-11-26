@@ -1759,6 +1759,7 @@
     "panLabel": "{0} panorointi",
     "volumeResetTooltip": "Kaksoisnapsauta palauttaaksesi 0 dB oletusvoimakkuuteen",
     "faderLabel": "{0} äänenvoimakkuus",
+    "seekLabel": "Projektin kohta",
     "masterVolume": "Pää-äänenvoimakkuus:",
     "trackAnalysis": "Raita-analyysi:",
     "vocalPianoRoll": "Erotetun laulun Piano-Roll",
