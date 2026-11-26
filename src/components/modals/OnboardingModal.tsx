@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
   Sparkles,
   ShieldAlert,
@@ -13,6 +13,7 @@ import {
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { Button, IconButton, ModalBody, ModalFooter, ModalShell } from '../ui';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onVolumeOsdPositionChange,
 }) => {
   const [step, setStep] = useState<number>(1);
+  const titleId = useId();
 
   if (!isOpen) return null;
 
@@ -55,20 +57,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-80 flex items-center justify-center bg-deep/85 p-5 backdrop-blur-lg motion-safe:animate-fade-in"
-    >
-      <div
-        className="glass-card relative flex max-h-[90vh] w-full max-w-140 flex-col overflow-y-auto rounded-3xl border border-accent-purple/40 bg-modal p-8 text-fg shadow-modal"
-      >
-        {/* Close */}
-        <button
-          onClick={handleFinish}
-          className="absolute top-5 right-5 border-0 bg-transparent p-1 text-fg-muted"
-          title={loc.common.close}
-        >
-          <X size={20} />
-        </button>
+    <ModalShell onClose={handleFinish} layer="system" size="md" closeOnBackdrop={false} labelledBy={titleId}>
+      <IconButton label={loc.common.close} onClick={handleFinish} className="absolute top-4 right-4 z-10">
+        <X size={18} />
+      </IconButton>
+
+      <ModalBody className="flex flex-col p-8">
 
         {/* Step indicator */}
         <div className="mb-6 flex items-center justify-center gap-2">
@@ -94,7 +88,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <Sparkles size={28} className="text-accent-pink" />
               </div>
               <div>
-                <h2 className="m-0 text-2xl font-extrabold tracking-tight">
+                <h2 id={titleId} className="m-0 text-2xl font-extrabold tracking-tight">
                   Auralune <span className="text-sm font-semibold text-accent-cyan">Kitsune Player</span>
                 </h2>
                 <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-secondary">
@@ -141,7 +135,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <BarChart2 size={24} className="text-accent-cyan" />
               </div>
               <div>
-                <h3 className="m-0 text-xl font-bold">
+                <h3 id={titleId} className="m-0 text-xl font-bold">
                   {loc.onboarding.recapAndLang}
                 </h3>
                 <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
@@ -224,7 +218,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <Sliders size={24} className="text-accent-pink" />
               </div>
               <div>
-                <h3 className="m-0 text-xl font-bold">
+                <h3 id={titleId} className="m-0 text-xl font-bold">
                   {loc.onboarding.audioAndVolume}
                 </h3>
                 <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
@@ -306,36 +300,28 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         )}
 
-        {/* Step navigation buttons */}
-        <div className="mt-auto flex items-center justify-between pt-4">
-          {step > 1 ? (
-            <button
-              onClick={() => setStep(step - 1)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-white/8 px-4.5 py-2.5 text-sm font-semibold text-fg"
-            >
-              <ChevronLeft size={16} /> {loc.onboarding.back}
-            </button>
-          ) : (
-            <div />
-          )}
+      </ModalBody>
 
-          {step < 3 ? (
-            <button
-              onClick={() => setStep(step + 1)}
-              className="flex items-center gap-1.5 rounded-xl border-0 bg-accent-gradient px-6 py-2.5 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/40"
-            >
-              {loc.onboarding.next} <ChevronRight size={16} />
-            </button>
-          ) : (
-            <button
-              onClick={handleFinish}
-              className="flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-accent-green to-accent-cyan px-7 py-2.5 text-sm font-bold text-fg shadow-xl shadow-accent-green/40"
-            >
-              <Check size={18} /> {loc.onboarding.startListening}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+      {/* Step navigation buttons */}
+      <ModalFooter className="justify-between">
+        {step > 1 ? (
+          <Button onClick={() => setStep(step - 1)}>
+            <ChevronLeft size={16} /> {loc.onboarding.back}
+          </Button>
+        ) : (
+          <div />
+        )}
+
+        {step < 3 ? (
+          <Button variant="primary" onClick={() => setStep(step + 1)}>
+            {loc.onboarding.next} <ChevronRight size={16} />
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={handleFinish}>
+            <Check size={18} /> {loc.onboarding.startListening}
+          </Button>
+        )}
+      </ModalFooter>
+    </ModalShell>
   );
 };

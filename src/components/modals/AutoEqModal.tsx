@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import {
   X,
   Headphones,
@@ -16,7 +16,7 @@ import {
   type AutoEqProfile,
 } from '../../utils/autoEqDatabase';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ModalHeader, ModalShell } from '../ui';
 
 const EQUALIZER_LABELS = [
   '31 Hz',
@@ -49,6 +49,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
 }) => {
   const loc = getTranslations(currentLang);
 
+  const titleId = useId();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('All');
   const [selectedType, setSelectedType] = useState<string>('All');
@@ -96,37 +97,15 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="tool"
-      className="flex max-h-[90vh] max-w-240 flex-col overflow-hidden rounded-2xl border border-line bg-card text-fg"
-    >
-      {/* HEADER */}
-      <div
-        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/10 to-blue-500/8 px-6 py-4.5"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-blue-500 shadow-lift shadow-pink-500/35"
-          >
-            <Headphones size={22} className="text-fg" />
-          </div>
-          <div>
-            <h2 className="m-0 text-xl font-bold tracking-tight">
-              {loc.autoEq.title}
-            </h2>
-            <p className="m-0 text-ui text-fg-muted">
-              {loc.autoEq.subtitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-2 text-fg-muted"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="tool" size="2xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.autoEq.title}
+        subtitle={loc.autoEq.subtitle}
+        icon={<Headphones size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
       {/* TOP BAR: SEARCH AND TYPE FILTERS */}
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">

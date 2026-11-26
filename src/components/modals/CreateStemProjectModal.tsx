@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Layers,
   Cpu,
@@ -6,8 +6,6 @@ import {
   CheckCircle2,
   HardDrive,
   Clock,
-  Sparkles,
-  X,
   Play,
   Music,
 } from '../ui/icons';
@@ -16,7 +14,7 @@ import type { ModelPackInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell, Spinner } from '../ui';
 
 interface CreateStemProjectModalProps {
   isOpen: boolean;
@@ -52,6 +50,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
   const effectiveTrackArtist = track?.artist ?? trackArtist ?? t.stems.artistDefault;
   const effectiveDurationMs = track?.duration_ms ?? trackDurationMs ?? 180000;
 
+  const titleId = useId();
   const [modelPacks, setModelPacks] = useState<ModelPackInfo[]>([]);
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>([
     'pack_dsp_cascade',
@@ -130,43 +129,18 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-170 flex-col overflow-hidden rounded-3xl border border-pink-500/35"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-violet-500 shadow-lift shadow-pink-500/40"
-          >
-            <Layers size={22} className="text-fg" />
-          </div>
-          <div>
-            <h2 className="m-0 text-xl font-extrabold text-fg">
-              {t.stems.title}
-            </h2>
-            <p className="m-0 text-sm text-fg-secondary">
-              {effectiveTrackTitle} • {effectiveTrackArtist}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex rounded-full border-0 bg-transparent p-2 text-fg-secondary"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.stems.title}
+        subtitle={`${effectiveTrackTitle} • ${effectiveTrackArtist}`}
+        icon={<Layers size={20} />}
+        onClose={onClose}
+        closeLabel={t.common.close}
+      />
 
-      {/* Scrollable content */}
-      <div className="flex flex-col gap-5 overflow-y-auto p-6">
-        {error && (
-          <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
+      <ModalBody className="flex flex-col gap-5">
+        {error && <Callout tone="danger" className="text-sm text-accent-red">{error}</Callout>}
 
         {/* Project name */}
         <div>
@@ -291,39 +265,26 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
             <span>{fmt(t.stems.diskSpace, String(Math.round(calculatedStems.length * 8.5)))}</span>
           </div>
         </div>
-      </div>
+      </ModalBody>
 
-      {/* Bottom buttons */}
-      <div className="flex justify-end gap-3 border-t border-white/8 px-6 py-4">
-        <button
-          onClick={onClose}
-          disabled={isSubmitting}
-          className="rounded-xl border border-white/10 bg-white/5 px-4.5 py-2.5 font-semibold text-slate-300"
-        >
+      <ModalFooter>
+        <Button onClick={onClose} disabled={isSubmitting}>
           {t.common.cancel}
-        </button>
-
-        <button
-          onClick={handleCreate}
-          disabled={isSubmitting || !projectTitle.trim()}
-          className={cn(
-            'flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-pink-500 to-violet-500 px-5.5 py-2.5 font-bold text-fg shadow-lift shadow-pink-500/35',
-            isSubmitting ? 'cursor-not-allowed' : 'cursor-pointer',
-          )}
-        >
+        </Button>
+        <Button variant="primary" onClick={handleCreate} disabled={isSubmitting || !projectTitle.trim()}>
           {isSubmitting ? (
             <>
-              <Sparkles size={16} className="animate-spin" />
+              <Spinner size="sm" tone="neutral" />
               {t.stems.creatingProject}
             </>
           ) : (
             <>
-              <Play size={16} fill="#ffffff" />
+              <Play size={16} fill="currentColor" />
               {t.stems.createAndMix}
             </>
           )}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

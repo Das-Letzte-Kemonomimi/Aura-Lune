@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils/cn';
 import { IconButton } from './Button';
@@ -12,9 +12,14 @@ import { iconTileTones, type Tone } from './tones';
  *   100 tool · 110 tool dialog · 120 top (palette, recap) · 130 OSD · 140 fatal
  */
 const backdropVariants = cva(
-  'fixed inset-0 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in',
+  'fixed inset-0 flex justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in',
   {
     variants: {
+      placement: {
+        center: 'items-center',
+        /** Anchored near the top, for search-style dialogs (command palette). */
+        top: 'items-start pt-[12vh]',
+      },
       layer: {
         /** Ordinary modal. */
         modal: 'z-60',
@@ -32,12 +37,12 @@ const backdropVariants = cva(
         top: 'z-120',
       },
     },
-    defaultVariants: { layer: 'modal' },
+    defaultVariants: { layer: 'modal', placement: 'center' },
   },
 );
 
 const panelVariants = cva(
-  'bg-modal relative flex max-h-[90vh] w-full flex-col rounded-2xl border border-line-accent text-fg shadow-modal motion-safe:animate-modal-in',
+  'bg-modal relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-line-accent text-fg shadow-modal motion-safe:animate-modal-in',
   {
     variants: {
       size: {
@@ -46,6 +51,8 @@ const panelVariants = cva(
         lg: 'max-w-170',
         xl: 'max-w-205',
         '2xl': 'max-w-240',
+        /** Wide tools whose height follows their content (parametric EQ). */
+        '3xl': 'max-w-270',
         /** Workspaces that use the whole window (studios, editors). */
         full: 'h-[90vh] max-w-[96vw]',
       },
@@ -58,6 +65,8 @@ export interface ModalShellProps extends VariantProps<typeof backdropVariants>, 
   onClose: () => void;
   /** Id of the element that names the dialog (usually its title heading). */
   labelledBy?: string;
+  /** Accessible name for a dialog without a visible title (command palette). */
+  label?: string;
   /** Extra classes for the panel, e.g. a different surface or padding. */
   className?: string;
   /** Runtime-only panel styles (computed sizes, per-item colours). */
@@ -67,33 +76,50 @@ export interface ModalShellProps extends VariantProps<typeof backdropVariants>, 
   children: React.ReactNode;
 }
 
+/** Open dialogs in mount order; the last one is on top and is the only one Escape closes. */
+const openModals: symbol[] = [];
+
 /**
- * Backdrop + dialog panel shared by every modal. Escape and a click on the backdrop call
- * `onClose`; clicks inside the panel never reach the backdrop.
+ * Backdrop + dialog panel shared by every modal. Escape (topmost dialog only) and a click on the
+ * backdrop call `onClose`; clicks inside the panel never reach the backdrop.
  */
 export function ModalShell({
   onClose,
   labelledBy,
+  label,
   className,
   style,
   layer,
+  placement,
   size,
   closeOnBackdrop = true,
   children,
 }: ModalShellProps) {
+  // Read through a ref so a new `onClose` each render neither re-subscribes nor reorders the stack.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const token = Symbol('modal');
+    openModals.push(token);
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      // Only the most recently opened dialog answers Escape, so nested dialogs close one at a time.
+      if (e.key !== 'Escape' || openModals[openModals.length - 1] !== token) return;
       e.stopPropagation();
-      onClose();
+      onCloseRef.current();
     };
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      openModals.splice(openModals.indexOf(token), 1);
+    };
+  }, []);
 
   return (
     <div
-      className={backdropVariants({ layer })}
+      className={backdropVariants({ layer, placement })}
       onClick={(e) => {
         if (closeOnBackdrop && e.target === e.currentTarget) onClose();
       }}
@@ -102,6 +128,7 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        aria-label={label}
         className={cn(panelVariants({ size }), className)}
         style={style}
       >

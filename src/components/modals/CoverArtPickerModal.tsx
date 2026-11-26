@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { invoke } from '../../api/ipc';
-import { X, Search, Image as ImageIcon, Check, Loader2, Sparkles, Upload, FolderOpen } from '../ui/icons';
+import { Search, Image as ImageIcon, Check, Loader2, Sparkles, Upload, FolderOpen } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ModalHeader, ModalShell } from '../ui';
 
 export interface CoverCandidate {
   source: string;
@@ -39,6 +39,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
   onCoverApplied,
   currentLang = 'en',
 }) => {
+  const titleId = useId();
   const [albumQuery, setAlbumQuery] = useState(initialAlbum);
   const [artistQuery, setArtistQuery] = useState(initialArtist);
   const [candidates, setCandidates] = useState<CoverCandidate[]>([]);
@@ -178,36 +179,15 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] w-190 max-w-[96vw] flex-col overflow-hidden rounded-3xl border border-line-accent shadow-2xl shadow-black/75 motion-safe:animate-fade-in"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-line bg-white/2 px-6 py-4.5">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-gradient text-on-accent shadow-halo shadow-accent-pink/40"
-          >
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <h3 className="m-0 text-lg font-extrabold text-fg">
-              {t.covers.title}
-            </h3>
-            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
-              {t.covers.subtitle}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-fg-secondary transition-all duration-200"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.covers.title}
+        subtitle={t.covers.subtitle}
+        icon={<Sparkles size={20} />}
+        onClose={onClose}
+        closeLabel={t.common.close}
+      />
 
       {/* Upload a custom cover from disk / drag & drop */}
       <div

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Layers,
   Mic,
@@ -6,7 +6,6 @@ import {
   Radio,
   Sliders,
   Sparkles,
-  X,
   Play,
   RotateCcw,
 } from '../ui/icons';
@@ -15,7 +14,7 @@ import { listen } from '@tauri-apps/api/event';
 import type { StemSeparationData, StemMixerState } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ModalBody, ModalHeader, ModalShell } from '../ui';
 
 export interface StemMixerModalProps {
   isOpen: boolean;
@@ -44,6 +43,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
 }) => {
   const t = getTranslations(currentLang);
   const displayTrackTitle = trackTitle || t.stems.modalTrackDefault;
+  const titleId = useId();
   const [stems, setStems] = useState<StemSeparationData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [progressMsg, setProgressMsg] = useState<string>('');
@@ -421,38 +421,17 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
   }
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-w-180 flex-col overflow-hidden rounded-3xl border border-accent-cyan/35 p-6 text-fg"
-    >
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl border border-accent-cyan/35 bg-accent-cyan/20 text-sky-400"
-          >
-            <Layers size={20} />
-          </div>
-          <div>
-            <h2
-              className="m-0 bg-linear-to-r bg-clip-text from-accent-cyan to-pink-500 text-lg font-extrabold text-transparent"
-            >
-              {t.stems.modalTitle}
-            </h2>
-            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">{displayTrackTitle}</p>
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {content}
+    <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.stems.modalTitle}
+        subtitle={displayTrackTitle}
+        icon={<Layers size={20} />}
+        tone="cyan"
+        onClose={onClose}
+        closeLabel={t.common.close}
+      />
+      <ModalBody>{content}</ModalBody>
     </ModalShell>
   );
 };

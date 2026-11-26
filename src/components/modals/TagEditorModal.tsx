@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { invoke, errorMessage } from '../../api/ipc';
 import {
-  X,
   Save,
   Tag as TagIcon,
   Check,
@@ -13,7 +12,7 @@ import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, ModalBody, ModalFooter, ModalHeader, ModalShell, Spinner } from '../ui';
 
 export interface TrackMetadataFullDto {
   title: string;
@@ -70,6 +69,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   onSaveSuccess,
 }) => {
   const loc = getTranslations(currentLang);
+  const titleId = useId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,39 +213,22 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-170 flex-col overflow-hidden rounded-2xl border border-accent-purple"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-purple/20 text-accent-purple">
-            <TagIcon size={20} />
-          </div>
-          <div>
-            <h2 className="m-0 text-lg font-bold text-fg">
-              {loc.tagEditor.title}
-            </h2>
-            <p
-              className="mx-0 mt-0.5 mb-0 max-w-120 truncate text-xs text-fg-secondary"
-              title={filePath}
-            >
-              {filePath}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-1.5 text-fg-secondary"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.tagEditor.title}
+        subtitle={
+          <span className="block truncate" title={filePath}>
+            {filePath}
+          </span>
+        }
+        icon={<TagIcon size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <ModalBody>
         {/* File Audio Specs Banner & AcoustID Trigger */}
         <div
           className="mb-4.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/30 px-4 py-3"
@@ -526,47 +509,37 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
             </div>
           </form>
         )}
-      </div>
+      </ModalBody>
 
-      {/* Footer */}
-      <div className="flex items-center justify-end gap-3 border-t border-white/8 bg-white/2 px-6 py-3.5">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          className="rounded-lg border border-white/15 bg-transparent px-4.5 py-2.5 text-sm font-semibold text-slate-300"
-        >
+      <ModalFooter>
+        <Button onClick={onClose} disabled={saving}>
           {loc.tagEditor.cancel}
-        </button>
-
-        <button
+        </Button>
+        <Button
           type="submit"
           form="tag-editor-form"
+          variant={savedSuccess ? 'tinted' : 'primary'}
+          tone="green"
           disabled={loading || saving || savedSuccess}
-          className={cn(
-            'flex items-center gap-2 rounded-lg border-0 px-5.5 py-2.5 text-sm font-semibold text-fg shadow-lift shadow-accent-purple/35 transition-all duration-200',
-            savedSuccess ? 'bg-accent-green' : 'bg-linear-135 from-accent-purple to-accent-pink',
-            loading || saving || savedSuccess ? 'cursor-default' : 'cursor-pointer',
-          )}
         >
           {saving ? (
             <>
-              <Loader2 size={16} className="animate-spin" />
-              <span>{loc.tagEditor.saving}</span>
+              <Spinner size="sm" tone="neutral" />
+              {loc.tagEditor.saving}
             </>
           ) : savedSuccess ? (
             <>
               <Check size={16} />
-              <span>{loc.tagEditor.saved}</span>
+              {loc.tagEditor.saved}
             </>
           ) : (
             <>
               <Save size={16} />
-              <span>{loc.tagEditor.saveToFile}</span>
+              {loc.tagEditor.saveToFile}
             </>
           )}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

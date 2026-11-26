@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Download,
-  X,
 } from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { UrlImportResultView } from './url-import/UrlImportResultView';
 import { UrlImportForm } from './url-import/UrlImportForm';
 import { formatDuration } from '../../utils/timeFormat';
-import { cn } from '../../utils/cn';
+import { ModalBody, ModalHeader, ModalShell } from '../ui';
 
 export interface ImportedItem {
   file_path: string;
@@ -50,6 +49,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
     onAddToQueue,
     onLibraryUpdated,
   } = props;
+  const titleId = useId();
   const [url, setUrl] = useState<string>('');
   const [format, setFormat] = useState<string>('flac');
   const [bitrate, setBitrate] = useState<string>('0');
@@ -227,52 +227,31 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
   };
 
   return (
-    <div
-      className="fixed inset-0 z-70 flex items-center justify-center bg-black/80 backdrop-blur-sm motion-safe:animate-fade-in"
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="nested"
+      size={result && result.items && result.items.length > 1 ? 'lg' : 'md'}
+      labelledBy={titleId}
     >
-      <div
-        className={cn(
-          'shadow-modal',
-          'glass-card flex max-h-[92vh] max-w-[94vw] flex-col gap-5 overflow-y-auto rounded-2xl border border-line-accent bg-surface p-6 text-fg transition-[width] duration-200',
-          result && result.items && result.items.length > 1 ? 'w-170' : 'w-145',
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent-purple/45 bg-linear-135 from-accent-purple/35 to-pink-500/35 text-purple-300 shadow-halo-md shadow-accent-purple/20"
-            >
-              <Download size={22} />
-            </div>
-            <div>
-              <h2 className="m-0 text-xl font-semibold tracking-wide">
-                {loc.urlImport.title}
-              </h2>
-              <p className="m-0 text-ui text-fg-secondary">
-                {loc.urlImport.subtitle}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center rounded-lg border-0 bg-transparent p-1.5 text-fg-secondary transition-all duration-150"
-            title={loc.urlImport.closeEsc}
-          >
-            <X size={20} />
-          </button>
-        </div>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.urlImport.title}
+        subtitle={loc.urlImport.subtitle}
+        icon={<Download size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={loc.urlImport.closeEsc}
+      />
 
-        {/* Form content or the success view */}
+      {/* Form content or the success view */}
+      <ModalBody className="flex flex-col gap-5">
         {!result ? (
           <UrlImportForm {...props} handleImport={handleImport} loc={loc} url={url} setUrl={setUrl} isLoading={isLoading} handlePasteClipboard={handlePasteClipboard} handleFormatChange={handleFormatChange} format={format} setBitrate={setBitrate} bitrate={bitrate} downloadPlaylist={downloadPlaylist} setDownloadPlaylist={setDownloadPlaylist} maxItems={maxItems} setMaxItems={setMaxItems} folderStructure={folderStructure} setFolderStructure={setFolderStructure} targetDir={targetDir} setTargetDir={setTargetDir} handlePickDirectory={handlePickDirectory} errorMessage={errorMessage} />
         ) : (
           /* Success view (single item or multi-track playlist review) */
           <UrlImportResultView {...props} result={result} loc={loc} bitrate={bitrate} formatDuration={formatDuration} handlePlayAll={handlePlayAll} handleQueueAll={handleQueueAll} handlePlaySingle={handlePlaySingle} handleQueueSingle={handleQueueSingle} handleOpenFolder={handleOpenFolder} handleResetForAnother={handleResetForAnother} />
         )}
-      </div>
-    </div>
+      </ModalBody>
+    </ModalShell>
   );
 };

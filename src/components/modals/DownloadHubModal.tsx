@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import {
-  X,
   Download,
   Folder,
   ShieldCheck,
@@ -15,8 +14,7 @@ import { type Language, getTranslations } from '../../i18n';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
-import { Callout } from '../ui';
+import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
 
 export interface DownloadJobDto {
   id: string;
@@ -49,6 +47,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   currentLang = 'pl',
 }) => {
   const loc = getTranslations(currentLang);
+  const titleId = useId();
   const [remoteUrl, setRemoteUrl] = useState('');
   const [destinationFolder, setDestinationFolder] = useState('');
   const [filename, setFilename] = useState('');
@@ -175,47 +174,21 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-205 flex-col overflow-hidden rounded-3xl border border-line text-fg shadow-modal"
-    >
-      {/* HEADER */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-accent-pink/4 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex size-10.5 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-accent-pink/35"
-          >
-            <Download size={22} className="text-fg" />
-          </div>
-          <div>
-            <h2 className="m-0 text-xl font-bold tracking-tight">
-              {loc.downloadHub.title}
-            </h2>
-            <p className="m-0 mt-0.5 text-ui text-fg-muted">
-              {loc.downloadHub.subtitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border-0 bg-white/6 text-fg"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.downloadHub.title}
+        subtitle={loc.downloadHub.subtitle}
+        icon={<Download size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* MODAL CONTENT */}
-      <div className="flex flex-col gap-5.5 overflow-y-auto p-6">
-        {/* SAFETY BANNER (AGENTS.md) */}
-        <div
-          className="flex items-center gap-3 rounded-xl border border-sky-400/25 bg-sky-400/8 px-4 py-3 text-ui text-sky-200"
-        >
-          <ShieldCheck size={20} className="shrink-0 text-sky-400" />
-          <span>
-            {loc.downloadHub.securityBanner}
-          </span>
-        </div>
+      <ModalBody className="flex flex-col gap-5">
+        {/* Safety banner */}
+        <Callout tone="cyan" icon={<ShieldCheck size={20} />} className="text-ui text-fg-secondary">
+          {loc.downloadHub.securityBanner}
+        </Callout>
 
         {errorMessage && (
           <Callout
@@ -431,20 +404,12 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </ModalBody>
 
-      {/* FOOTER */}
-      <div className="flex items-center justify-between border-t border-white/8 bg-black/25 px-6 py-4">
-        <span className="text-xs text-fg-muted">
-          {loc.downloadHub.compliance}
-        </span>
-        <button
-          onClick={onClose}
-          className="rounded-xl border border-white/15 bg-white/8 px-4.5 py-2 text-sm font-semibold text-fg"
-        >
-          {loc.common.close}
-        </button>
-      </div>
+      <ModalFooter className="justify-between">
+        <span className="text-xs text-fg-muted">{loc.downloadHub.compliance}</span>
+        <Button onClick={onClose}>{loc.common.close}</Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

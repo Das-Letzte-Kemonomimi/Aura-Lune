@@ -16,6 +16,7 @@ import { useLivePositionMs } from '../../state/livePlayback';
 import { StemStudioWorkspace } from './stem-studio/StemStudioWorkspace';
 import { StemStudioHeader } from './stem-studio/StemStudioHeader';
 import { fmt } from '../../utils/fmt';
+import { Button, Callout, Card, ModalShell, TextField } from '../ui';
 
 export interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -416,16 +417,21 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
   const anySoloActive = channels.some((c) => c.solo);
 
   return (
-    <div className="fixed inset-0 z-90 flex flex-col bg-deep/90 p-4 backdrop-blur-lg motion-safe:animate-fade-in-scale">
+    <ModalShell
+      onClose={handleClose}
+      layer="studio"
+      size="full"
+      closeOnBackdrop={false}
+      label={project ? project.title : loc.stems.loadingProject}
+      className="p-4"
+    >
       {/* 1. TOP TOOLBAR (STUDIO HEADER) */}
       <StemStudioHeader {...props} project={project} loc={loc} channels={channels} handleSwitchToOriginal={handleSwitchToOriginal} t={t} isOriginalMode={isOriginalMode} handleSwitchToStems={handleSwitchToStems} handleReturnToOriginalAndClose={handleReturnToOriginalAndClose} activeMixName={activeMixName} mixes={mixes} handleLoadMix={handleLoadMix} handleResetAllToUnity={handleResetAllToUnity} setIsSavingMix={setIsSavingMix} handleExportZip={handleExportZip} handleClose={handleClose} />
 
       {exportNotice && (
-        <div
-          className="mb-2.5 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm text-emerald-400"
-        >
+        <Callout tone="green" className="mb-2.5 py-2 text-sm text-accent-green">
           {exportNotice}
-        </div>
+        </Callout>
       )}
 
       {error && (
@@ -491,35 +497,27 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       {/* Save mix modal */}
       {isSavingMix && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/65">
-          <div className="w-90 rounded-2xl border border-white/15 bg-slate-900 p-5 shadow-2xl shadow-black/80">
-            <h3 className="mx-0 mt-0 mb-3 text-base text-fg">
-              {t.stems.saveMixTitle}
-            </h3>
-            <input
-              type="text"
+          <Card variant="panel" padding="md" className="w-90">
+            <h3 className="mb-3 text-base font-bold text-fg">{t.stems.saveMixTitle}</h3>
+            <TextField
+              autoFocus
+              aria-label={t.stems.saveMixTitle}
               placeholder={t.stems.mixNamePlaceholder}
               value={newMixName}
               onChange={(e) => setNewMixName(e.target.value)}
-              className="mb-3.5 w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2 text-fg outline-none"
+              className="mb-3.5"
             />
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsSavingMix(false)}
-                className="rounded-md border border-white/10 bg-transparent px-3 py-1.5 text-slate-300"
-              >
+              <Button variant="ghost" onClick={() => setIsSavingMix(false)}>
                 {t.common.cancel}
-              </button>
-              <button
-                onClick={handleSaveMix}
-                disabled={!newMixName.trim()}
-                className="rounded-md border-0 bg-accent-pink px-3.5 py-1.5 font-bold text-on-accent"
-              >
+              </Button>
+              <Button variant="primary" onClick={handleSaveMix} disabled={!newMixName.trim()}>
                 {t.common.save}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </ModalShell>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Activity,
   CheckCircle2,
@@ -11,13 +11,12 @@ import {
   Database,
   Radio,
   Volume2,
-  X,
 } from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell, Spinner } from '../ui';
 
 export interface AudioCodecStatus {
   format: string;
@@ -59,6 +58,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
 }) => {
   const t = getTranslations(currentLang);
   const [loading, setLoading] = useState<boolean>(true);
+  const titleId = useId();
   const [health, setHealth] = useState<AudioSystemHealth | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
@@ -117,51 +117,32 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="system"
-      className="flex max-h-[88vh] max-w-170 flex-col overflow-hidden rounded-3xl border border-accent-purple/40 px-7 py-6.5 text-fg"
-    >
-      {/* Header */}
-      <div className="mb-4.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-pink-500/40"
-          >
-            <Activity size={22} className="text-fg" />
-          </div>
-          <div>
-            <h3 className="m-0 text-xl font-extrabold tracking-tight">
-              {t.healthCheck.title} <span className="text-sm text-accent-pink">v1.0</span>
-            </h3>
-            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
-              {t.healthCheck.subtitle}
-            </p>
-          </div>
-        </div>
+    <ModalShell onClose={onClose} layer="system" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={
+          <>
+            {t.healthCheck.title} <span className="text-sm text-accent-pink">v1.0</span>
+          </>
+        }
+        subtitle={t.healthCheck.subtitle}
+        icon={<Activity size={20} />}
+        onClose={onClose}
+        closeLabel={t.common.close}
+      />
 
-        <button
-          onClick={onClose}
-          aria-label={t.common.close}
-          className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-fg-muted transition-colors duration-150"
-        >
-          <X size={16} />
-        </button>
-      </div>
-
-      {/* Content body */}
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1">
+      <ModalBody className="flex flex-col gap-4">
         {loading && (
           <div className="flex flex-col items-center justify-center p-10">
-            <RefreshCw size={28} className="animate-spin text-accent-pink" />
+            <Spinner size="lg" />
             <p className="mt-3 text-sm text-fg-muted">{t.healthCheck.auditing}</p>
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 p-4 text-sm text-red-300">
+          <Callout tone="danger" className="text-sm text-accent-red">
             {fmt(t.healthCheck.testError, error)}
-          </div>
+          </Callout>
         )}
 
         {!loading && health && (
@@ -317,38 +298,23 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
             </div>
           </>
         )}
-      </div>
+      </ModalBody>
 
-      {/* Footer actions */}
-      <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-3.5">
-        <button
-          onClick={fetchHealth}
-          disabled={loading}
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/6 px-3.5 py-2 text-ui font-semibold text-fg',
-            loading ? 'cursor-default' : 'cursor-pointer',
-          )}
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+      <ModalFooter className="justify-between">
+        <Button onClick={fetchHealth} disabled={loading}>
+          <RefreshCw size={13} className={cn(loading && 'motion-safe:animate-spin')} />
           {t.healthCheck.recheckBtn}
-        </button>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopyReport}
-            disabled={!health}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-4 py-2 text-ui font-bold text-fg shadow-lg shadow-pink-500/35',
-              copied ? 'bg-green-500/25' : 'bg-accent-gradient',
-              copied ? 'border border-green-400' : 'border-0',
-              !health ? 'cursor-default' : 'cursor-pointer',
-            )}
-          >
-            {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-            {copied ? t.healthCheck.copiedReport : t.healthCheck.copyReport}
-          </button>
-        </div>
-      </div>
+        </Button>
+        <Button
+          variant={copied ? 'tinted' : 'primary'}
+          tone="green"
+          onClick={handleCopyReport}
+          disabled={!health}
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? t.healthCheck.copiedReport : t.healthCheck.copyReport}
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

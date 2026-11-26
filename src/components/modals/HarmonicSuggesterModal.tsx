@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import {
   X,
   Disc3,
@@ -21,7 +21,7 @@ import {
   calculateBeatMatchedCrossfadeMs,
 } from '../../utils/harmonicMixing';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ModalHeader, ModalShell } from '../ui';
 import { cssVars } from '../../utils/cssVars';
 
 export interface HarmonicTrack {
@@ -64,6 +64,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
 }) => {
   const loc = getTranslations(currentLang);
 
+  const titleId = useId();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOnlyInKey, setFilterOnlyInKey] = useState(false);
   const [filterOnlyBpm, setFilterOnlyBpm] = useState(false);
@@ -228,37 +229,16 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="tool"
-      className="flex max-h-[90vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-line bg-card text-fg"
-    >
-      {/* HEADER */}
-      <div
-        className="flex items-center justify-between border-b border-line bg-linear-to-r from-accent-pink/10 to-violet-500/8 px-6 py-4.5"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-violet-500 shadow-lift shadow-pink-500/35"
-          >
-            <Disc3 size={22} className="text-fg" />
-          </div>
-          <div>
-            <h2 className="m-0 text-xl font-bold tracking-tight">
-              Harmonic Queue Assistant & DJ Crossfade
-            </h2>
-            <p className="m-0 text-ui text-fg-muted">
-              {loc.harmonicSuggester.subtitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex items-center justify-center rounded-lg border-0 bg-transparent p-2 text-fg-muted transition-colors duration-150"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="tool" size="2xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title="Harmonic Queue Assistant & DJ Crossfade"
+        subtitle={loc.harmonicSuggester.subtitle}
+        icon={<Disc3 size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
       {/* CURRENT TRACK AND DJ CROSSFADE CARD */}
       <div className="grid grid-cols-2 gap-4 border-b border-line bg-black/25 px-6 py-4">

@@ -22,6 +22,7 @@ import {
 } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface CommandItem {
   id: string;
@@ -560,23 +561,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (filteredItems[selectedIndex]) {
         filteredItems[selectedIndex].onExecute();
       }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onClose();
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-120 flex items-start justify-center bg-black/75 pt-[12vh] backdrop-blur-sm motion-safe:animate-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="top"
+      placement="top"
+      size="lg"
+      className="max-h-[65vh]"
+      label={loc.commandPalette.placeholder}
     >
-      <div
-        className="flex max-h-[65vh] w-full max-w-160 flex-col overflow-hidden rounded-2xl border border-accent-purple bg-modal shadow-modal motion-safe:animate-modal-in"
-      >
-        {/* Search input header */}
         <div className="flex items-center gap-3 border-b border-white/8 bg-white/2 px-5 py-4">
           <Search size={22} className="shrink-0 text-accent-purple" />
           <input
@@ -585,6 +581,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
+            aria-label={loc.commandPalette.placeholder}
             placeholder={loc.commandPalette.placeholder}
             className="w-full border-0 bg-transparent text-base font-medium text-fg outline-none"
           />
@@ -669,7 +666,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         >
           <div className="flex gap-3.5">
             <span>
-              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↑↓</kbd> Nawigacja
+              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↑↓</kbd> Navigate
             </span>
             <span>
               <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↵</kbd> Select
@@ -679,7 +676,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             <span>Ctrl + K</span>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 };

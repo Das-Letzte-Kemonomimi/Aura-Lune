@@ -23,6 +23,15 @@ describe('ModalShell', () => {
     expect(screen.getByRole('dialog', { name: 'Sleep Timer' }).getAttribute('aria-modal')).toBe('true');
   });
 
+  it('names a dialog without a visible title through label', () => {
+    render(
+      <ModalShell onClose={vi.fn()} label="Command palette">
+        <input aria-label="Search" />
+      </ModalShell>,
+    );
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeTruthy();
+  });
+
   it('closes on Escape', () => {
     const onClose = renderModal();
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -60,6 +69,55 @@ describe('ModalShell', () => {
     unmount();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes only the topmost of two open dialogs on Escape', () => {
+    const closeOuter = vi.fn();
+    const closeInner = vi.fn();
+    const { rerender } = render(
+      <ModalShell onClose={closeOuter}>
+        <p>Outer</p>
+      </ModalShell>,
+    );
+    rerender(
+      <>
+        <ModalShell onClose={closeOuter}>
+          <p>Outer</p>
+        </ModalShell>
+        <ModalShell onClose={closeInner} layer="nested">
+          <p>Inner</p>
+        </ModalShell>
+      </>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeInner).toHaveBeenCalledTimes(1);
+    expect(closeOuter).not.toHaveBeenCalled();
+
+    rerender(
+      <ModalShell onClose={closeOuter}>
+        <p>Outer</p>
+      </ModalShell>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeOuter).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls the latest onClose without re-subscribing', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(
+      <ModalShell onClose={first}>
+        <p>Body</p>
+      </ModalShell>,
+    );
+    rerender(
+      <ModalShell onClose={second}>
+        <p>Body</p>
+      </ModalShell>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
   });
 });
 

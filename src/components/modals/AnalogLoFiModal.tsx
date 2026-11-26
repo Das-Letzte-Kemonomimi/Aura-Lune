@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Disc, CassetteTape, Volume2, Check, Radio } from '../ui/icons';
+import React, { useEffect, useId, useState } from 'react';
+import { Sparkles, Disc, CassetteTape, Volume2, Check, Radio } from '../ui/icons';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell, StatusDot } from '../ui';
 
 export interface AnalogLoFiModalProps {
   isOpen: boolean;
@@ -21,22 +21,13 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
   const t = getTranslations(currentLang);
   const [config, setConfig] = useState<VinylSimConfig>(() => vinylSimulator.getConfig());
   const [previewActive, setPreviewActive] = useState<boolean>(false);
+  const titleId = useId();
 
   useEffect(() => {
     return vinylSimulator.subscribe((newCfg) => {
       setConfig(newCfg);
     });
   }, []);
-
-  // Escape closes the modal
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   // While the modal is open and the user clicks preview, temporarily force the playing state
   useEffect(() => {
@@ -64,78 +55,40 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
   const isActuallyAudible = config.enabled && (isPlaying || previewActive || !config.autoSync);
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-140 flex-col overflow-hidden rounded-3xl border border-accent-purple/45"
-    >
-      {/* Pop-up header */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 pt-5 pb-4">
-        <div className="flex items-center gap-3.5">
-          <div
-            className="flex h-10.5 w-10.5 items-center justify-center rounded-xl border border-pink-500/50 bg-linear-135 from-pink-500/30 to-accent-purple/30 shadow-halo-lg shadow-pink-500/30"
-          >
-            <Sparkles size={22} className="text-accent-pink" />
-          </div>
-          <div>
-            <h3 className="m-0 text-xl font-extrabold tracking-tight text-fg">
-              {t.analogLoFi.title}
-            </h3>
-            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-secondary">
-              {t.analogLoFi.subtitle}
-            </p>
-          </div>
-        </div>
+    <ModalShell onClose={onClose} layer="studio" size="md" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.analogLoFi.title}
+        subtitle={t.analogLoFi.subtitle}
+        icon={<Sparkles size={20} />}
+        onClose={onClose}
+        closeLabel={t.common.close}
+      />
 
-        <button
-          onClick={onClose}
-          aria-label={t.common.close}
-          className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary transition-all duration-200"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {/* Modal content */}
-      <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5.5">
-        
+      <ModalBody className="flex flex-col gap-5">
         {/* Main ON / OFF toggle */}
-        <div
-          className={cn(
-            'flex items-center justify-between rounded-2xl border px-4.5 py-3.5 transition-all duration-300',
-            config.enabled ? 'bg-linear-135 from-pink-500/10 to-accent-purple/10' : 'bg-white/3',
-            config.enabled ? 'border-pink-500/40' : 'border-white/8',
-          )}
+        <Callout
+          tone={config.enabled ? 'pink' : 'purple'}
+          className={cn('flex items-center justify-between gap-4', !config.enabled && 'border-line bg-white/5')}
         >
           <div>
             <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  'inline-block h-2.5 w-2.5 rounded-full',
-                  config.enabled ? 'bg-green-500' : 'bg-fg-muted',
-                  config.enabled ? 'shadow-halo-sm shadow-green-500' : 'shadow-none',
-                )}
-              />
+              <StatusDot tone={config.enabled ? 'green' : 'neutral'} />
               <span className="text-base font-bold text-fg">
                 {config.enabled ? t.analogLoFi.active : t.analogLoFi.disabled}
               </span>
             </div>
-            <p className="mx-0 mt-1 mb-0 text-ui text-fg-secondary">
-              {t.analogLoFi.desc}
-            </p>
+            <p className="mt-1 text-ui text-fg-secondary">{t.analogLoFi.desc}</p>
           </div>
 
-          <button
+          <Button
+            variant={config.enabled ? 'primary' : 'secondary'}
+            aria-pressed={config.enabled}
             onClick={() => vinylSimulator.setEnabled(!config.enabled)}
-            className={cn(
-              'rounded-xl border-0 px-5 py-2 text-sm font-bold text-fg transition-all duration-200',
-              config.enabled ? 'bg-accent-gradient' : 'bg-white/10',
-              config.enabled ? 'shadow-lift shadow-pink-500/40' : 'shadow-none',
-            )}
           >
             {config.enabled ? t.analogLoFi.enabledBtn : t.analogLoFi.disabledBtn}
-          </button>
-        </div>
+          </Button>
+        </Callout>
 
         {/* Medium choice: vinyl vs tape */}
         <div>
@@ -291,17 +244,13 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
           </button>
         </div>
 
-      </div>
+      </ModalBody>
 
-      {/* Window footer */}
-      <div className="flex justify-end border-t border-white/8 bg-black/25 px-6 py-3.5">
-        <button
-          onClick={onClose}
-          className="rounded-xl border-0 bg-accent-gradient px-6 py-2 text-sm font-bold text-on-accent shadow-lift shadow-accent-purple/35"
-        >
+      <ModalFooter>
+        <Button variant="primary" onClick={onClose}>
           {t.analogLoFi.applyAndClose}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
 
     </ModalShell>
   );

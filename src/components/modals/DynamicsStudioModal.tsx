@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { invoke } from '../../api/ipc';
 import {
   Activity,
-  X,
   RotateCcw,
   Flame,
   Shield,
@@ -12,7 +11,7 @@ import {
 } from '../ui/icons';
 import { getTranslations, type Language } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, ModalHeader, ModalShell } from '../ui';
 
 export type SaturatorMode = 'Off' | 'TubeWarmth' | 'TapeSaturation' | 'Overdrive';
 
@@ -85,6 +84,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
   const loc = getTranslations(currentLang);
   const t = loc;
 
+  const titleId = useId();
   const [state, setState] = useState<DynamicsState>(DEFAULT_STATE);
   const [presets, setPresets] = useState<DynamicsPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
@@ -264,46 +264,20 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <ModalShell
-      onClose={onClose}
-      className="flex max-h-[92vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-pink-500/30 bg-ink/95 text-purple-100"
-    >
-      {/* HEADER */}
-      <div
-        className="flex items-center justify-between border-b border-white/8 bg-linear-to-r from-pink-500/10 to-accent-purple/8 px-6 py-4"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-pink-500/50 bg-pink-500/20 text-pink-400"
-          >
-            <Activity size={20} />
-          </div>
-          <div>
-            <h2 className="m-0 text-lg font-extrabold text-fuchsia-50">
-              {t.nav.dynamicsStudio}
-            </h2>
-            <p className="m-0 text-ui text-slate-300">
-              {loc.dynamicsStudio.subtitle}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleReset}
-            title={loc.dynamicsStudio.resetToBypass}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-ui text-slate-300"
-          >
+    <ModalShell onClose={onClose} size="2xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.nav.dynamicsStudio}
+        subtitle={loc.dynamicsStudio.subtitle}
+        icon={<Activity size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+        actions={
+          <Button size="sm" onClick={handleReset} title={loc.dynamicsStudio.resetToBypass}>
             <RotateCcw size={14} /> {loc.dynamicsStudio.bypass}
-          </button>
-          <button
-            onClick={onClose}
-            className="flex border-0 bg-transparent p-1 text-fg-secondary"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
       {/* QUICK PRESET LIST */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 bg-black/25 px-6 py-2.5">

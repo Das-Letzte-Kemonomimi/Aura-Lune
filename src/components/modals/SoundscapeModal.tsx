@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Waves,
   CloudRain,
@@ -8,7 +8,6 @@ import {
   Coffee,
   Volume2,
   VolumeX,
-  X,
   Sparkles,
   RotateCcw,
 } from '../ui/icons';
@@ -20,7 +19,8 @@ import {
   type SoundscapePreset,
 } from '../../utils/soundscapeAudio';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ToggleSwitch } from '../common/ToggleSwitch';
+import { Card, ModalBody, ModalHeader, ModalShell, SettingRow } from '../ui';
 
 interface SoundscapeModalProps {
   isOpen: boolean;
@@ -34,6 +34,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   currentLang = 'pl',
 }) => {
   const loc = getTranslations(currentLang);
+  const titleId = useId();
   const [volumes, setVolumes] = useState<SoundscapeVolumes>(() => soundscapeEngine.getVolumes());
   const [isMuted, setIsMuted] = useState<boolean>(() => soundscapeEngine.getIsMuted());
   const [autoSync, setAutoSync] = useState<boolean>(() => soundscapeEngine.isAutoSyncEnabled());
@@ -47,17 +48,6 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
     });
     return () => cancelAnimationFrame(anim);
   }, [isOpen]);
-
-  // Esc closes the modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -150,37 +140,18 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   const isAnyActive = soundscapeEngine.isSoundscapeActive();
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-145 flex-col gap-5 overflow-y-auto rounded-3xl border border-accent-purple/35 p-7 text-fg"
-    >
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="absolute top-5 right-5 flex size-9 items-center justify-center rounded-full border-0 bg-white/8 text-fg transition-colors duration-200 hover:bg-white/20"
-        title={loc.common.close}
-      >
-        <X size={18} />
-      </button>
+    <ModalShell onClose={onClose} layer="studio" size="md" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.soundscape.title}
+        subtitle={loc.soundscape.subtitle}
+        icon={<Waves size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-135 from-accent-purple/40 to-pink-500/30 text-pink-400 shadow-halo-lg shadow-pink-500/35"
-        >
-          <Waves size={24} />
-        </div>
-        <div>
-          <h2 className="m-0 text-xl font-bold tracking-tight">
-            {loc.soundscape.title}
-          </h2>
-          <div className="mt-0.5 text-sm text-fg-secondary">
-            {loc.soundscape.subtitle}
-          </div>
-        </div>
-      </div>
-
+      <ModalBody className="flex flex-col gap-5">
       {/* Master volume and state */}
       <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-4">
         <div className="flex items-center justify-between">
@@ -324,36 +295,18 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         })}
       </div>
 
-      {/* Sync with the anime particles option */}
-      <div
-        onClick={handleAutoSyncToggle}
-        className="flex cursor-pointer items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3.5 py-3 transition-colors duration-200"
-      >
-        <div className="flex items-center gap-2.5">
-          <Sparkles size={16} className="text-pink-400" />
-          <div>
-            <div className="text-ui font-semibold">
-              {loc.soundscape.autoSyncTitle}
-            </div>
-            <div className="text-xs text-fg-secondary">
-              {loc.soundscape.autoSyncDesc}
-            </div>
-          </div>
-        </div>
-        <div
-          className={cn(
-            'relative h-5 w-9.5 rounded-3xl transition-colors duration-200',
-            autoSync ? 'bg-purple-400' : 'bg-white/15',
-          )}
-        >
-          <div
-            className={cn(
-              'absolute top-0.5 h-4 w-4 rounded-full bg-white transition-[left] duration-200',
-              autoSync ? 'left-5' : 'left-0.5',
-            )}
+        {/* Sync with the anime particles option */}
+        <Card padding="none" className="px-4">
+          <SettingRow
+            icon={<Sparkles size={16} className="text-accent-pink" />}
+            title={loc.soundscape.autoSyncTitle}
+            description={loc.soundscape.autoSyncDesc}
+            control={
+              <ToggleSwitch checked={autoSync} onChange={handleAutoSyncToggle} label={loc.soundscape.autoSyncTitle} />
+            }
           />
-        </div>
-      </div>
+        </Card>
+      </ModalBody>
     </ModalShell>
   );
 };

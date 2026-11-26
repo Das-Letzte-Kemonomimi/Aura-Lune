@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Cpu,
   Trash2,
   CheckCircle2,
-  X,
   Sparkles,
   Zap,
   Download,
@@ -14,7 +13,7 @@ import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ModalBody, ModalHeader, ModalShell } from '../ui';
 
 export interface ModelManagerModalProps {
   isOpen: boolean;
@@ -30,6 +29,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   currentLang = 'en',
 }) => {
   const t = getTranslations(currentLang);
+  const titleId = useId();
   const [capabilities, setCapabilities] = useState<AnalysisCapabilities | null>(null);
   const [models, setModels] = useState<AiModelInfo[]>([]);
   const [downloading, setDownloading] = useState<{ [id: string]: number }>({});
@@ -253,40 +253,17 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
   }
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-w-180 flex-col overflow-hidden rounded-3xl border border-accent-purple/35 p-6 text-fg"
-    >
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl border border-accent-purple/35 bg-accent-purple/20 text-purple-400"
-          >
-            <Cpu size={20} />
-          </div>
-          <div>
-            <h2
-              className="m-0 bg-linear-to-r bg-clip-text from-purple-400 to-pink-500 text-lg font-extrabold text-transparent"
-            >
-              {t.aiModels.title}
-            </h2>
-            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
-              {t.aiModels.subtitle}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {content}
+    <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.aiModels.title}
+        subtitle={t.aiModels.subtitle}
+        icon={<Cpu size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={t.common.close}
+      />
+      <ModalBody>{content}</ModalBody>
     </ModalShell>
   );
 };

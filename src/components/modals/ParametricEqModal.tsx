@@ -5,6 +5,7 @@ import { PeqResponseChart } from './parametric-eq/PeqResponseChart';
 import { PeqBandRack } from './parametric-eq/PeqBandRack';
 import { PeqImportExportDialog } from './parametric-eq/PeqImportExportDialog';
 import { invoke } from '../../api/ipc';
+import { ModalShell } from '../ui';
 import { type Language, getTranslations } from '../../i18n';
 import {
   generateFrequencyResponseCurve,
@@ -371,31 +372,27 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 p-5 backdrop-blur-sm motion-safe:animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[92vh] w-full max-w-270 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl shadow-black/65 motion-safe:animate-fade-in-scale"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <>
+      <ModalShell onClose={onClose} layer="tool" size="3xl" labelledBy="peq-title">
         {/* WINDOW HEADER */}
         <PeqHeader {...props} state={state} loc={loc} handleToggleEnabled={handleToggleEnabled} handleResetFlat={handleResetFlat} setIsImportModalOpen={setIsImportModalOpen} />
 
-        {/* PRESET AND PREAMP CONTROL BAR */}
-        <PeqPresetBar {...props} selectedPresetName={selectedPresetName} handleSelectPreset={handleSelectPreset} loc={loc} presets={presets} state={state} handlePreampChange={handlePreampChange} maxEffectiveBoost={maxEffectiveBoost} handleApplySafePreamp={handleApplySafePreamp} safePreampDb={safePreampDb} />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {/* PRESET AND PREAMP CONTROL BAR */}
+          <PeqPresetBar {...props} selectedPresetName={selectedPresetName} handleSelectPreset={handleSelectPreset} loc={loc} presets={presets} state={state} handlePreampChange={handlePreampChange} maxEffectiveBoost={maxEffectiveBoost} handleApplySafePreamp={handleApplySafePreamp} safePreampDb={safePreampDb} />
 
-        {/* FREQUENCY CHART (INTERACTIVE SVG CANVAS) */}
-        <PeqResponseChart {...props} state={state} loc={loc} svgRef={svgRef} draggingBandId={draggingBandId} handlePointerMove={handlePointerMove} handlePointerUp={handlePointerUp} svgAreaD={svgAreaD} svgPathD={svgPathD} selectedBandId={selectedBandId} handlePointerDown={handlePointerDown} />
+          {/* FREQUENCY CHART (INTERACTIVE SVG CANVAS) */}
+          <PeqResponseChart {...props} state={state} loc={loc} svgRef={svgRef} draggingBandId={draggingBandId} handlePointerMove={handlePointerMove} handlePointerUp={handlePointerUp} svgAreaD={svgAreaD} svgPathD={svgPathD} selectedBandId={selectedBandId} handlePointerDown={handlePointerDown} />
 
-        {/* BOTTOM BAND CONTROL PANEL (BAND RACK & TABLE) */}
-        <PeqBandRack {...props} loc={loc} state={state} handleAddBand={handleAddBand} selectedBandId={selectedBandId} setSelectedBandId={setSelectedBandId} handleUpdateBand={handleUpdateBand} handleDeleteBand={handleDeleteBand} />
-      </div>
+          {/* BOTTOM BAND CONTROL PANEL (BAND RACK & TABLE) */}
+          <PeqBandRack {...props} loc={loc} state={state} handleAddBand={handleAddBand} selectedBandId={selectedBandId} setSelectedBandId={setSelectedBandId} handleUpdateBand={handleUpdateBand} handleDeleteBand={handleDeleteBand} />
+        </div>
+      </ModalShell>
 
       {/* IMPORT / EXPORT MODAL (EQUALIZERAPO / AUTOEQ) */}
       {isImportModalOpen && (
         <PeqImportExportDialog {...props} setIsImportModalOpen={setIsImportModalOpen} loc={loc} importText={importText} exportedApoText={exportedApoText} setImportText={setImportText} importError={importError} handleCopyExport={handleCopyExport} copiedExport={copiedExport} handleImportSubmit={handleImportSubmit} />
       )}
-    </div>
+    </>
   );
 };

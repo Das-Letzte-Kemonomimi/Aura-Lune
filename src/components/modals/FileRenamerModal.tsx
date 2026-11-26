@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import { invoke } from '../../api/ipc';
-import { FileEdit, X, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw } from '../ui/icons';
+import { FileEdit, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
 
 export interface RenamePreviewItemDto {
   track_id: number;
@@ -42,6 +42,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
     { label: loc.fileRenamer.presetArtistAlbumTrackTitle, pattern: '%artist% - %album% - %track% - %title%' },
     { label: loc.fileRenamer.presetFolderHierarchy, pattern: '%artist%/%album%/%track% - %title%' },
   ];
+  const titleId = useId();
   const [pattern, setPattern] = useState('%track% - %artist% - %title%');
   const [previews, setPreviews] = useState<RenamePreviewItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,45 +116,21 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-212.5 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
-    >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-pink-500/25 text-accent-pink">
-            <FileEdit size={18} />
-          </div>
-          <div>
-            <h3 className="m-0 text-base font-bold text-fg">
-              {loc.fileRenamer.title}
-            </h3>
-            <p className="m-0 text-ui text-fg-secondary">
-              {loc.fileRenamer.subtitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.fileRenamer.title}
+        subtitle={loc.fileRenamer.subtitle}
+        icon={<FileEdit size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Content */}
-      <div className="flex flex-col gap-4 overflow-y-auto p-5">
+      <ModalBody className="flex flex-col gap-4">
         {error && (
-          <div
-            className="flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400"
-          >
-            <AlertTriangle size={16} />
+          <Callout tone="danger" icon={<AlertTriangle size={16} />} className="text-ui text-accent-red">
             {error}
-          </div>
+          </Callout>
         )}
 
         {successCount !== null && (
@@ -285,32 +262,17 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </ModalBody>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-line bg-black/20 px-5 py-3.5">
-        <button
-          onClick={onClose}
-          className="rounded-lg border border-line bg-white/6 px-4 py-2 text-ui text-fg-secondary"
-        >
-          {loc.common.cancel}
-        </button>
-
-        <button
-          onClick={handleExecuteRename}
-          disabled={isExecuting || previews.length === 0}
-          className={cn(
-            'flex items-center gap-2 rounded-lg border-0 bg-accent-pink px-4.5 py-2 text-ui font-bold text-fg shadow-lift shadow-pink-500/35',
-            isExecuting || previews.length === 0 ? 'cursor-not-allowed' : 'cursor-pointer',
-            isExecuting || previews.length === 0 ? 'opacity-60' : 'opacity-100',
-          )}
-        >
+      <ModalFooter className="justify-between">
+        <Button onClick={onClose}>{loc.common.cancel}</Button>
+        <Button variant="primary" onClick={handleExecuteRename} disabled={isExecuting || previews.length === 0}>
           <CheckCircle2 size={16} />
           {isExecuting
             ? loc.fileRenamer.renamingProgress
             : fmt(loc.fileRenamer.renameBtn, String(previews.filter((p) => getFilenameFromPath(p.old_path) !== getFilenameFromPath(p.new_path)).length))}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

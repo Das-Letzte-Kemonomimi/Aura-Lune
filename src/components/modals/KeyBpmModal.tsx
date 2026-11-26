@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
-  X,
   Activity,
   ArrowRight,
   RotateCcw,
@@ -15,7 +14,7 @@ import { invoke } from '../../api/ipc';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
 
 interface KeyBpmModalProps {
   isOpen: boolean;
@@ -77,6 +76,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   const loc = getTranslations(currentLang);
 
   // Default base key and BPM
+  const titleId = useId();
   const [baseKeyIndex, setBaseKeyIndex] = useState<number>(0); // 0 = C
   const [isMinor, setIsMinor] = useState<boolean>(false);
   const [baseBpm, setBaseBpm] = useState<number>(128.0);
@@ -254,36 +254,17 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="top"
-      className="flex max-w-170 flex-col gap-5 rounded-3xl border border-white/10 p-7 text-fg"
-    >
-      {/* Window header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent-pink/40 bg-linear-135 from-accent-pink/25 to-accent-cyan/25"
-          >
-            <Activity size={22} className="text-accent-pink" />
-          </div>
-          <div>
-            <h2 className="m-0 text-xl font-extrabold tracking-tight">
-              {loc.keyBpm.title}
-            </h2>
-            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
-              {currentTrackTitle || loc.keyBpm.currentTrack}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex rounded-xl border border-line bg-white/6 p-2 text-fg-muted"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="top" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.keyBpm.title}
+        subtitle={currentTrackTitle || loc.keyBpm.currentTrack}
+        icon={<Activity size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
+      <ModalBody className="flex flex-col gap-5">
       {/* Automatic detection status bar */}
       <div
         className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/3 px-3.5 py-2.5"
@@ -556,47 +537,35 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           {loc.keyBpm.tapTempo}
         </button>
       </div>
+      </ModalBody>
 
-      {/* Bottom quick transposition and save buttons */}
-      <div className="flex items-center justify-between border-t border-white/8 pt-2">
+      {/* Quick transposition and save */}
+      <ModalFooter className="justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-ui text-fg-muted">
-            {loc.keyBpm.quickShift}
-          </span>
-          <button
-            onClick={() => onPitchChange(pitchSemitones - 1)}
-            className="rounded-lg border border-line bg-white/6 px-3 py-2 text-ui font-semibold text-fg"
-          >
-            -1 semitone
-          </button>
-          <button
-            onClick={() => onPitchChange(pitchSemitones + 1)}
-            className="rounded-lg border border-line bg-white/6 px-3 py-2 text-ui font-semibold text-fg"
-          >
-            +1 semitone
-          </button>
-          <button
+          <span className="text-ui text-fg-muted">{loc.keyBpm.quickShift}</span>
+          <Button onClick={() => onPitchChange(pitchSemitones - 1)}>−1 semitone</Button>
+          <Button onClick={() => onPitchChange(pitchSemitones + 1)}>+1 semitone</Button>
+          <Button
+            variant="ghost"
             onClick={() => {
               onPitchChange(0);
               onTempoChange(1.0);
             }}
-            className="flex items-center gap-1 rounded-lg border border-line bg-white/6 px-3 py-2 text-ui font-semibold text-fg-muted"
           >
             <RotateCcw size={13} /> {loc.dsp.reset}
-          </button>
+          </Button>
         </div>
-
-        <button
+        <Button
+          variant="primary"
           onClick={() => {
             handleSaveForTrack();
             onClose();
           }}
-          className="flex items-center gap-1.5 rounded-xl border-0 bg-accent-gradient px-5 py-2.5 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/30"
         >
           <Check size={16} />
           {loc.keyBpm.saveAndClose}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

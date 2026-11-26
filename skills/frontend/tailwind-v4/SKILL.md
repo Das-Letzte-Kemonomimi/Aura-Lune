@@ -103,7 +103,7 @@ All primitives live in `components/ui/` (import from `components/ui`). Each take
 
 | Need | Primitive | Variants |
 |---|---|---|
-| Dialog | `ModalShell` + `ModalHeader` / `ModalBody` / `ModalFooter` | `size` sm·md·lg·xl·2xl·full, `layer`; header `icon`, `tone`, `title`, `subtitle`, `onClose` + `closeLabel` |
+| Dialog | `ModalShell` + `ModalHeader` / `ModalBody` / `ModalFooter` | `size` sm 28rem · md 35rem · lg 42.5rem · xl 51.25rem · 2xl 60rem · 3xl 67.5rem · full (96vw × 90vh workspaces), `layer`, `placement` center·top; header `icon`, `tone`, `title`, `subtitle`, `onClose` + `closeLabel`, `actions`. The shell owns radius, border, background, shadow and `overflow-hidden`: pass only height or padding through `className`. Escape closes only the topmost open dialog. Render a nested dialog next to its parent shell, not inside it |
 | Action | `Button` | `variant` primary·secondary·tinted·danger·ghost, `tone` (tinted), `size` sm·md·lg; `type="button"` by default |
 | Icon-only action | `IconButton` | `variant` ghost·secondary, `size` sm·md; **required** `label` (aria-label + tooltip) |
 | On/off option | `Chip` | `pressed` (→ `aria-pressed`), `tone`, `size` xs·sm |

@@ -35,7 +35,7 @@ export const PeqHeader: React.FC<PeqHeaderProps> = ({
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="m-0 text-xl font-extrabold">
+            <h2 id="peq-title" className="m-0 text-xl font-extrabold">
               Parametric EQ Studio
             </h2>
             <span
