@@ -1,13 +1,13 @@
-//! Pomocnicze operacje na blokadach.
+//! Lock helpers.
 //!
-//! Zatrute (poisoned) muteksy — po panice wątku trzymającego blokadę — nie mogą wyłączać
-//! całego silnika audio: każde kolejne `lock().unwrap()` panikowałoby ponownie. Stan potoku
-//! GStreamera pozostaje używalny, więc odzyskujemy strażnika i kontynuujemy.
+//! Poisoned mutexes (after a panic in a thread holding the lock) must not take down
+//! the whole audio engine: every later `lock().unwrap()` would panic again. The GStreamer
+//! pipeline state stays usable, so the guard is recovered and work continues.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 pub(crate) trait LockExt<T> {
-    /// Jak `lock()`, ale odzyskuje blokadę zatrutą przez panikę innego wątku.
+    /// Like `lock()`, but recovers a lock poisoned by another thread's panic.
     fn lock_safe(&self) -> MutexGuard<'_, T>;
 }
 

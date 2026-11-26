@@ -1,31 +1,31 @@
-//! Wspólny typ błędu komend Tauri.
+//! Shared error type for Tauri commands.
 //!
-//! Każda komenda zwraca `Result<T, CommandError>`. Błąd serializuje się do frontendu jako
-//! `{ "code": "not_found", "message": "…" }`; frontend (`src/api/ipc.ts`) zamienia go na
-//! `IpcError`, dzięki czemu może reagować na kategorię błędu zamiast na treść komunikatu.
+//! Every command returns `Result<T, CommandError>`. The error serialises to the frontend as
+//! `{ "code": "not_found", "message": "…" }`; the frontend (`src/api/ipc.ts`) turns it into
+//! an `IpcError`, so it can react to the error category instead of the message text.
 //!
-//! Konwersje `From` pozwalają używać `?` bezpośrednio na błędach crate'ów domenowych —
-//! zamiast `.map_err(|e| e.to_string())`.
+//! The `From` conversions allow `?` directly on domain crate errors,
+//! instead of `.map_err(|e| e.to_string())`.
 
 use serde::Serialize;
 
-/// Kategoria błędu widoczna dla frontendu (`IpcErrorCode` w `src/api/ipc.ts`).
+/// Error category visible to the frontend (`IpcErrorCode` in `src/api/ipc.ts`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
-    /// Baza danych SQLite.
+    /// SQLite database.
     Storage,
-    /// Silnik audio / GStreamer / analiza.
+    /// Audio engine / GStreamer / analysis.
     Engine,
-    /// System plików.
+    /// File system.
     Io,
-    /// Brak utworu, pliku, karty dźwiękowej itp.
+    /// Missing track, file, sound card and so on.
     NotFound,
-    /// Nieprawidłowe dane wejściowe od użytkownika lub frontendu.
+    /// Invalid input from the user or the frontend.
     Validation,
-    /// Usługi sieciowe (MusicBrainz, Last.fm, ListenBrainz, pobieranie modeli).
+    /// Network services (MusicBrainz, Last.fm, ListenBrainz, model downloads).
     Network,
-    /// Pozostałe błędy wewnętrzne.
+    /// Other internal errors.
     Internal,
 }
 
@@ -36,7 +36,7 @@ pub struct CommandError {
     pub message: String,
 }
 
-/// Skrót dla sygnatur komend.
+/// Shorthand for command signatures.
 pub type CommandResult<T> = Result<T, CommandError>;
 
 impl CommandError {
@@ -59,14 +59,14 @@ impl CommandError {
         Self::new(ErrorCode::Internal, message)
     }
 
-    /// Poprzedza komunikat kontekstem operacji, zachowując kategorię błędu.
+    /// Prefixes the message with the operation context, keeping the error category.
     pub fn context(mut self, context: impl std::fmt::Display) -> Self {
         self.message = format!("{context}: {}", self.message);
         self
     }
 }
 
-/// Komunikaty tekstowe bez jawnej kategorii (np. `format!(…)` z kontekstem).
+/// Text messages without an explicit category (e.g. `format!(…)` with context).
 impl From<String> for CommandError {
     fn from(message: String) -> Self {
         Self::internal(message)
@@ -183,7 +183,7 @@ impl From<library::LibraryError> for CommandError {
 
 impl From<serde_json::Error> for CommandError {
     fn from(e: serde_json::Error) -> Self {
-        Self::validation(format!("Nieprawidłowe dane JSON: {e}"))
+        Self::validation(format!("Invalid JSON data: {e}"))
     }
 }
 
@@ -195,7 +195,7 @@ impl From<tauri::Error> for CommandError {
 
 impl From<tokio::task::JoinError> for CommandError {
     fn from(e: tokio::task::JoinError) -> Self {
-        Self::internal(format!("Zadanie w tle zakończyło się błędem: {e}"))
+        Self::internal(format!("Background task failed: {e}"))
     }
 }
 

@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { invoke, errorMessage } from '../../api/ipc';
 import {
   FileCode,
-  X,
   Play,
   ListPlus,
   AlertCircle,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatTime } from '../../utils/timeFormat';
-import { ModalShell } from '../ui';
+import { Button, Callout, Card, FieldLabel, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, TextArea, TextField } from '../ui';
+import { iconTileTones } from '../ui/tones';
 
 export interface CueTrackDto {
   number: number;
@@ -48,6 +48,7 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
   const [parsedSheet, setParsedSheet] = useState<CueSheetDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [audioTargetOverride, setAudioTargetOverride] = useState('');
+  const titleId = useId();
 
   const handleParse = async () => {
     if (!cueContent.trim()) {
@@ -70,110 +71,68 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[85vh] max-w-170 flex-col overflow-hidden rounded-2xl border border-accent-purple"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-purple/20 text-accent-purple">
-            <FileCode size={20} />
-          </div>
-          <div>
-            <h2 className="m-0 text-lg font-bold text-fg">
-              {loc.cueSheet.title}
-            </h2>
-            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
-              {loc.cueSheet.subtitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="border-0 bg-transparent p-1.5 text-fg-secondary"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.cueSheet.title}
+        subtitle={loc.cueSheet.subtitle}
+        icon={<FileCode size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <ModalBody>
         {error && (
-          <div
-            className="mb-4 flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-3 text-sm text-red-300"
-          >
-            <AlertCircle size={18} />
-            <span>{error}</span>
-          </div>
+          <Callout tone="danger" icon={<AlertCircle size={18} />} className="mb-4 text-sm text-accent-red">
+            {error}
+          </Callout>
         )}
 
         {!parsedSheet ? (
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-200">
-              {loc.cueSheet.pasteContent}
-            </label>
-            <textarea
+            <FieldLabel htmlFor={`${titleId}-cue`}>{loc.cueSheet.pasteContent}</FieldLabel>
+            <TextArea
+              id={`${titleId}-cue`}
+              mono
               rows={10}
               value={cueContent}
               onChange={(e) => setCueContent(e.target.value)}
               placeholder={`PERFORMER "Yuki Kajiura"\nTITLE "FictionJunction OST"\nFILE "album.flac" WAVE\n  TRACK 01 AUDIO\n    TITLE "Prologue"\n    INDEX 01 00:00:00\n  TRACK 02 AUDIO\n    TITLE "Swordland"\n    INDEX 01 02:45:00`}
-              className="w-full resize-y rounded-xl border border-white/10 bg-black/35 p-3 font-mono text-sm text-fg outline-none"
             />
-
-            <div className="mt-4 flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={handleParse}
-                className="rounded-lg border-0 bg-accent-purple px-5.5 py-2.5 text-sm font-semibold text-fg"
-              >
-                {loc.cueSheet.parseBtn}
-              </button>
-            </div>
           </div>
         ) : (
           <div>
-            {/* Header album info */}
-            <div className="mb-4 rounded-xl border border-accent-purple/30 bg-accent-purple/10 px-4 py-3.5">
-              <h3 className="m-0 text-base text-fg">
-                {parsedSheet.album_title || 'Album CUE'}
-              </h3>
-              <p className="mx-0 mt-1 mb-0 text-ui text-slate-300">
-                {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} • {fmt(loc.cueSheet.tracksCount, String(parsedSheet.tracks.length))}
+            {/* Album info */}
+            <Callout tone="purple" className="mb-4">
+              <h3 className="text-base font-semibold text-fg">{parsedSheet.album_title || 'Album CUE'}</h3>
+              <p className="mt-1 text-ui text-fg-secondary">
+                {parsedSheet.album_artist} {parsedSheet.date ? `(${parsedSheet.date})` : ''} •{' '}
+                {fmt(loc.cueSheet.tracksCount, String(parsedSheet.tracks.length))}
               </p>
-              <div className="mt-2 text-ui text-fg-secondary">
+              <label className="mt-2 flex items-center gap-1.5 text-ui text-fg-secondary">
                 <span>{loc.cueSheet.audioFileLabel}</span>
-                <input
-                  type="text"
+                <TextField
+                  size="sm"
                   value={audioTargetOverride}
                   onChange={(e) => setAudioTargetOverride(e.target.value)}
                   placeholder="album.flac"
-                  className="ml-1.5 w-65 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-ui text-fg"
+                  className="w-65"
                 />
-              </div>
-            </div>
+              </label>
+            </Callout>
 
             {/* Tracks list */}
             <div className="flex max-h-85 flex-col gap-1.5 overflow-y-auto">
               {parsedSheet.tracks.map((track) => (
-                <div
-                  key={track.number}
-                  className="flex items-center justify-between rounded-lg border border-white/6 bg-white/3 px-3 py-2"
-                >
+                <Card key={track.number} padding="none" className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-2.5">
                     <span className="w-5.5 text-ui font-bold text-accent-purple">
                       {track.number < 10 ? `0${track.number}` : track.number}
                     </span>
                     <div>
-                      <div className="text-sm font-semibold text-fg">
-                        {track.title}
-                      </div>
-                      {track.performer && (
-                        <div className="text-xs text-fg-secondary">
-                          {track.performer}
-                        </div>
-                      )}
+                      <div className="text-sm font-semibold text-fg">{track.title}</div>
+                      {track.performer && <div className="text-xs text-fg-secondary">{track.performer}</div>}
                     </div>
                   </div>
 
@@ -182,43 +141,45 @@ export const CueSheetModal: React.FC<CueSheetModalProps> = ({
                       {formatTime(track.start_offset_ms)}
                       {track.duration_ms ? ` (${formatTime(track.duration_ms)})` : ''}
                     </span>
-                    <button
+                    <IconButton
+                      size="sm"
+                      label={loc.cueSheet.playFromIndexTooltip}
                       onClick={() => onPlayCueTrack(audioTargetOverride, track)}
-                      title={loc.cueSheet.playFromIndexTooltip}
-                      className="flex items-center justify-center rounded-md border border-accent-purple/40 bg-accent-purple/20 p-1.5 text-fg"
+                      className={iconTileTones.purple}
                     >
                       <Play size={14} />
-                    </button>
+                    </IconButton>
                   </div>
-                </div>
+                </Card>
               ))}
-            </div>
-
-            {/* Action buttons */}
-            <div className="mt-4 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setParsedSheet(null)}
-                className="rounded-lg border border-white/15 bg-transparent px-3.5 py-2 text-ui text-fg-secondary"
-              >
-                {loc.cueSheet.editCue}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onAddCueTracksToQueue(audioTargetOverride, parsedSheet.tracks);
-                  onClose();
-                }}
-                className="flex items-center gap-1.5 rounded-lg border-0 bg-accent-purple px-4.5 py-2.5 text-sm font-semibold text-fg"
-              >
-                <ListPlus size={16} />
-                <span>{loc.cueSheet.addAllToQueue}</span>
-              </button>
             </div>
           </div>
         )}
-      </div>
+      </ModalBody>
+
+      {!parsedSheet ? (
+        <ModalFooter>
+          <Button variant="primary" onClick={handleParse}>
+            {loc.cueSheet.parseBtn}
+          </Button>
+        </ModalFooter>
+      ) : (
+        <ModalFooter className="justify-between">
+          <Button variant="ghost" onClick={() => setParsedSheet(null)}>
+            {loc.cueSheet.editCue}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              onAddCueTracksToQueue(audioTargetOverride, parsedSheet.tracks);
+              onClose();
+            }}
+          >
+            <ListPlus size={16} />
+            {loc.cueSheet.addAllToQueue}
+          </Button>
+        </ModalFooter>
+      )}
     </ModalShell>
   );
 };

@@ -1,14 +1,14 @@
 /**
- * Baza profili słuchawkowych AutoEQ dla Auralune.
+ * AutoEQ headphone profile database for Auralune.
  * 
- * Zawiera zoptymalizowane profile pomiarowe dla ponad 160 popularnych modeli słuchawek
- * nagłownych (Over-Ear) oraz dokanałowych (In-Ear / IEM) od czołowych producentów
- * (Sennheiser, Audio-Technica, Beyerdynamic, Moondrop, Sony, Apple, Hifiman, AKG, Truthear, Tangzu, 7Hz i innych).
+ * Contains optimised measurement profiles for more than 160 popular over-ear
+ * and in-ear (IEM) headphone models from leading manufacturers
+ * (Sennheiser, Audio-Technica, Beyerdynamic, Moondrop, Sony, Apple, Hifiman, AKG, Truthear, Tangzu, 7Hz and others).
  * 
- * Pasma częstotliwości odpowiadają precyzyjnie 10-pasmowemu korektorowi Auralune:
+ * The frequency bands match Auralune's 10-band equalizer exactly:
  * [31 Hz, 62 Hz, 125 Hz, 250 Hz, 500 Hz, 1 kHz, 2 kHz, 4 kHz, 8 kHz, 16 kHz].
  * 
- * Każdy profil zawiera także zalecaną wartość Preamp (dB), zapobiegającą przesterowaniom (digital clipping).
+ * Each profile also has a recommended preamp value (dB) that prevents digital clipping.
  */
 
 export interface AutoEqProfile {
@@ -16,14 +16,14 @@ export interface AutoEqProfile {
   name: string;
   brand: string;
   type: 'Over-Ear' | 'In-Ear' | 'Earbuds' | 'Wireless';
-  target: string; // np. "Harman Over-Ear 2018", "Harman In-Ear 2019v2", "Diffuse Field"
+  target: string; // e.g. "Harman Over-Ear 2018", "Harman In-Ear 2019v2", "Diffuse Field"
   bands: [number, number, number, number, number, number, number, number, number, number];
   preampDb: number;
   description?: string;
 }
 
 export const AUTO_EQ_BRANDS = [
-  'Wszystkie',
+  'All',
   'Moondrop',
   'Sennheiser',
   'Sony',
@@ -54,7 +54,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-0.5, -0.8, -1.2, -0.6, 0.4, 1.2, 0.8, -2.1, 1.5, 0.2],
     preampDb: -1.5,
-    description: 'Wyrównanie sub-basu i złagodzenie piku przy 6-8 kHz dla naturalnego wokalu.',
+    description: 'Evens out the sub-bass and softens the 6-8 kHz peak for natural vocals.',
   },
   {
     id: 'moondrop_chu',
@@ -64,7 +64,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [3.8, 2.9, 1.5, 0.2, -0.4, 0.5, -0.8, -3.2, 1.8, 0.5],
     preampDb: -4.0,
-    description: 'Dodanie brakującego ciepła basowego i wygładzenie japońskiej góry.',
+    description: 'Adds the missing bass warmth and smooths the Japanese-tuned treble.',
   },
   {
     id: 'moondrop_aria',
@@ -74,7 +74,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.8, 0.4, -0.2, -0.6, 0.2, 0.9, -0.4, -1.5, 1.2, -0.3],
     preampDb: -1.2,
-    description: 'Klasyczny profil VDSF zbliżony idealnie do krzywej Harmana.',
+    description: 'Classic VDSF profile, very close to the Harman curve.',
   },
   {
     id: 'moondrop_kato',
@@ -84,7 +84,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [1.2, 0.6, -0.3, -0.8, 0.1, 0.8, -0.2, -1.8, 0.9, -0.5],
     preampDb: -1.4,
-    description: 'Flagowy przetwornik dynamiczny Ultima — idealny balans i krystaliczny wokal.',
+    description: 'Flagship Ultima dynamic driver: ideal balance and crystal-clear vocals.',
   },
   {
     id: 'moondrop_blessing_2',
@@ -94,7 +94,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [4.2, 3.1, 1.4, 0.1, -0.5, 0.4, 0.6, -1.9, 1.5, 0.4],
     preampDb: -4.5,
-    description: 'Legendarna hybryda 1DD+4BA — dodaje uderzenie sub-basu bez rozmycia średnicy.',
+    description: 'Legendary 1DD+4BA hybrid: adds sub-bass punch without blurring the mids.',
   },
   {
     id: 'moondrop_blessing_2_dusk',
@@ -104,7 +104,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [1.1, 0.4, -0.2, -0.5, 0.0, 0.6, 0.2, -1.4, 1.0, 0.1],
     preampDb: -1.2,
-    description: 'Jedne z najlepiej nastrojonych IEM-ów na świecie — subtelne szlify.',
+    description: 'One of the best-tuned IEMs in the world: subtle polish.',
   },
   {
     id: 'moondrop_blessing_3',
@@ -114,7 +114,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [3.2, 2.4, 0.8, -0.2, -0.4, 0.5, -0.6, -2.2, 0.8, 0.2],
     preampDb: -3.4,
-    description: 'Podwójny przetwornik basowy H.O.D.D.D.U.S. — optymalizacja krzywej sub-basu.',
+    description: 'Dual H.O.D.D.D.U.S. bass driver: optimised sub-bass curve.',
   },
   {
     id: 'moondrop_variations',
@@ -124,7 +124,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-0.4, -0.6, -0.2, 0.8, 0.6, -0.2, -0.5, 0.4, -1.8, -0.8],
     preampDb: -1.0,
-    description: 'Wypełnienie niższego środka przy zachowaniu krystalicznych sopranów elektrostatycznych.',
+    description: 'Fills in the lower mids while keeping the crystal-clear electrostatic treble.',
   },
   {
     id: 'moondrop_space_travel',
@@ -134,7 +134,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [1.8, 1.2, 0.3, -0.4, 0.2, 0.8, -0.6, -1.6, 1.4, 0.5],
     preampDb: -2.0,
-    description: 'Popularne bezprzewodowe słuchawki anime — maksymalizacja sceny i klarowności.',
+    description: 'Popular wireless anime headphones: maximum stage and clarity.',
   },
 
   // ================= SENNHEISER =================
@@ -146,7 +146,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [5.8, 4.2, 2.0, 0.4, -0.2, -0.5, 0.8, -1.2, 2.4, 1.5],
     preampDb: -6.0,
-    description: 'Referencyjny złoty standard — rozszerzenie sub-basu poniżej 60 Hz oraz poszerzenie góry.',
+    description: 'The golden reference standard: extends the sub-bass below 60 Hz and widens the treble.',
   },
   {
     id: 'sennheiser_hd650_6xx',
@@ -156,7 +156,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [6.4, 4.6, 1.8, -0.2, -0.8, -0.2, 1.1, -0.8, 3.2, 2.1],
     preampDb: -6.6,
-    description: 'Klasyczne ciepłe brzmienie — dodaje głębię najniższych rejestrów i otwiera górę.',
+    description: 'Classic warm sound: adds depth to the lowest registers and opens up the treble.',
   },
   {
     id: 'sennheiser_hd560s',
@@ -166,7 +166,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [3.5, 2.1, 0.6, -0.3, 0.2, 0.4, -0.8, -2.6, 1.2, 0.4],
     preampDb: -3.8,
-    description: 'Świetna scena — wyrównanie pików przy 4.5 kHz i nasycenie basu.',
+    description: 'Great stage: evens out the 4.5 kHz peaks and fills out the bass.',
   },
   {
     id: 'sennheiser_hd800s',
@@ -176,7 +176,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [6.8, 4.8, 2.2, 0.5, 0.1, -0.4, 0.8, -3.8, 1.1, -0.6],
     preampDb: -7.0,
-    description: 'Maksymalna scena dźwiękowa — neutralizacja piku przy 6 kHz i potężny sub-bas.',
+    description: 'Maximum soundstage: neutralises the 6 kHz peak and adds powerful sub-bass.',
   },
   {
     id: 'sennheiser_hd660s2',
@@ -186,7 +186,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [3.2, 2.1, 0.8, -0.1, -0.3, 0.2, 0.9, -1.4, 2.5, 1.2],
     preampDb: -3.5,
-    description: 'Udoskonalona wersja HD660 z ulepszonym sub-basem i precyzyjną średnicą.',
+    description: 'Refined HD660 with improved sub-bass and precise mids.',
   },
   {
     id: 'sennheiser_hd280_pro',
@@ -196,7 +196,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [1.2, 0.4, -1.2, -1.8, 0.8, 1.4, -0.6, -2.8, 2.6, 1.0],
     preampDb: -2.8,
-    description: 'Słuchawki studyjne — złagodzenie twardości średnicy i wyrównanie sopranów.',
+    description: 'Studio headphones: softens harsh mids and evens out the treble.',
   },
   {
     id: 'sennheiser_ie200',
@@ -206,7 +206,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [2.1, 1.4, 0.4, -0.2, 0.1, 0.6, 0.3, -2.4, 1.8, 0.6],
     preampDb: -2.4,
-    description: 'Kompaktowe przetworniki TrueResponse — optymalizacja zbalansowania tonalnego.',
+    description: 'Compact TrueResponse drivers: optimised tonal balance.',
   },
   {
     id: 'sennheiser_ie600',
@@ -216,7 +216,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-0.6, -0.4, 0.2, 0.4, 0.2, -0.1, 0.4, -2.1, 1.1, -0.2],
     preampDb: -1.2,
-    description: 'Amorficzny metal ZR01 — wygładzenie rezonansu komory akustycznej.',
+    description: 'ZR01 amorphous metal: smooths the acoustic chamber resonance.',
   },
   {
     id: 'sennheiser_momentum_4',
@@ -226,7 +226,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-3.2, -2.4, -1.1, 0.2, 0.8, 1.2, 0.4, 1.8, 2.2, 1.4],
     preampDb: -2.5,
-    description: 'Skorygowanie nadmiernego basu fabrycznego na rzecz przejrzystej sceny i wokali.',
+    description: 'Corrects the excessive factory bass in favour of a clear stage and vocals.',
   },
 
   // ================= BEYERDYNAMIC =================
@@ -238,7 +238,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-1.4, -0.8, 0.4, 1.2, 1.8, 0.6, -1.2, -4.8, -2.2, 1.5],
     preampDb: -2.0,
-    description: 'Eliminacja słynnego "Beyer peak" przy 6-9 kHz z zachowaniem głębokiego basu.',
+    description: 'Removes the famous "Beyer peak" at 6-9 kHz while keeping the deep bass.',
   },
   {
     id: 'beyerdynamic_dt770_250',
@@ -248,7 +248,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-1.8, -1.2, 0.2, 1.4, 2.0, 0.8, -0.9, -5.4, -3.1, 1.2],
     preampDb: -2.2,
-    description: 'Wersja 250 omowa — łagodne i precyzyjne odciążenie ostrych sybilantów.',
+    description: '250-ohm version: gentle, precise relief of sharp sibilants.',
   },
   {
     id: 'beyerdynamic_dt990_pro',
@@ -258,7 +258,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [3.8, 2.4, 0.6, 0.8, 1.6, 0.4, -1.5, -6.8, -4.2, 0.8],
     preampDb: -4.0,
-    description: 'Konstrukcja otwarta — przekształca ostre V-shape w zrównoważony profil studyjny.',
+    description: 'Open design: turns a sharp V-shape into a balanced studio profile.',
   },
   {
     id: 'beyerdynamic_dt1990_pro_a',
@@ -268,7 +268,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [4.6, 3.2, 1.1, 0.2, 0.4, 0.1, -0.8, -5.6, -2.8, 0.5],
     preampDb: -4.8,
-    description: 'Tesla 2.0 — poskromienie piku przy 8.5 kHz, uzyskując absolutną referencję miksu.',
+    description: 'Tesla 2.0: tames the 8.5 kHz peak for a true mixing reference.',
   },
   {
     id: 'beyerdynamic_dt880_pro',
@@ -278,7 +278,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [4.8, 3.4, 1.2, 0.1, 0.2, 0.4, 0.2, -4.2, -1.8, 0.6],
     preampDb: -5.0,
-    description: 'Półotwarta klasyka — nasycenie sub-basu i jedwabiste wysokie tony.',
+    description: 'Semi-open classic: fuller sub-bass and silky highs.',
   },
   {
     id: 'beyerdynamic_tygr_300r',
@@ -288,7 +288,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [2.8, 1.8, 0.4, 0.2, 0.6, 0.2, -0.6, -3.2, -1.2, 0.4],
     preampDb: -3.0,
-    description: 'Model gamingowo-akustyczny z wytłumionym przetwornikiem DT990.',
+    description: 'Gaming/acoustic model with a damped DT990 driver.',
   },
 
   // ================= AUDIO-TECHNICA =================
@@ -300,7 +300,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-2.1, -1.6, -0.4, 0.8, 1.2, 0.2, -1.8, -2.6, 1.4, 0.8],
     preampDb: -1.6,
-    description: 'Najpopularniejsze słuchawki studyjne — oczyszczenie średnicy z basowego nalotu.',
+    description: 'The most popular studio headphones: cleans the bass haze out of the mids.',
   },
   {
     id: 'audiotechnica_ath_m40x',
@@ -310,7 +310,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [0.8, 0.2, -0.6, 0.4, 0.9, 0.5, -0.8, -2.2, 1.8, 0.4],
     preampDb: -1.2,
-    description: 'Naturalniejsza alternatywa dla M50x — subtelne wyrównanie sopranu.',
+    description: 'A more natural alternative to the M50x: subtle treble levelling.',
   },
   {
     id: 'audiotechnica_ath_r70x',
@@ -320,7 +320,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [4.8, 3.2, 1.2, 0.1, -0.2, 0.4, 0.8, -1.2, 2.2, 1.1],
     preampDb: -5.0,
-    description: 'Flagowe otwarte słuchawki referencyjne 470 omów — wybitna przestrzeń.',
+    description: 'Flagship open 470-ohm reference headphones: outstanding space.',
   },
   {
     id: 'audiotechnica_ath_ad700x',
@@ -330,7 +330,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [6.4, 4.8, 2.4, 0.6, -0.4, -0.6, 0.2, -1.8, 1.2, 0.6],
     preampDb: -6.5,
-    description: 'Seria Air Dynamic — dodanie brakującego fundamentu basowego do gigantycznej sceny.',
+    description: 'Air Dynamic series: adds the missing bass foundation to a huge stage.',
   },
 
   // ================= SONY =================
@@ -342,7 +342,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-4.6, -3.2, -1.8, 0.6, 1.8, 2.4, 1.1, 1.6, 2.8, 1.2],
     preampDb: -3.0,
-    description: 'Dramatyczna poprawa klarowności — redukcja dudniącego basu i otwarcie wokali.',
+    description: 'Dramatically better clarity: tames the boomy bass and opens up the vocals.',
   },
   {
     id: 'sony_wh1000xm5',
@@ -352,7 +352,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-3.8, -2.8, -1.2, 0.4, 1.4, 1.9, 0.8, 1.8, 2.5, 0.9],
     preampDb: -2.8,
-    description: 'Przetwornik węglowy 30mm — zbliżenie do audiofilskiej neutralności.',
+    description: '30 mm carbon driver: brings it closer to audiophile neutrality.',
   },
   {
     id: 'sony_wf1000xm4',
@@ -362,7 +362,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-1.2, -0.8, 0.2, 0.8, 0.6, 0.4, -0.4, 1.2, 2.4, 0.8],
     preampDb: -2.5,
-    description: 'Flagowe dokanałówki TWS — usunięcie przyciemnienia i dodanie blasku.',
+    description: 'Flagship TWS earbuds: removes the darkening and adds sparkle.',
   },
   {
     id: 'sony_wf1000xm5',
@@ -372,7 +372,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-0.8, -0.4, 0.1, 0.4, 0.2, 0.6, -0.2, 0.8, 1.8, 0.4],
     preampDb: -1.9,
-    description: 'Dynamic Driver X — perfekcyjny balans tonalny.',
+    description: 'Dynamic Driver X: a perfect tonal balance.',
   },
   {
     id: 'sony_mdr_7506',
@@ -382,7 +382,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [3.2, 1.8, -0.4, -0.8, 0.4, 1.2, -0.4, -3.8, 0.8, 1.2],
     preampDb: -3.5,
-    description: 'Klasyk broadcastu i nagrań studyjnych od 1991 roku — wygładzenie jaskrawych tonów.',
+    description: 'A broadcast and studio recording classic since 1991: smooths the bright tones.',
   },
   {
     id: 'sony_ier_m9',
@@ -392,7 +392,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.8, 0.4, -0.2, -0.4, 0.1, 0.4, 0.2, -0.8, 1.2, -0.2],
     preampDb: -1.2,
-    description: 'Sceniczny monitor douszny ze stopu magnezu — subtelna linearyzacja.',
+    description: 'Magnesium-alloy in-ear stage monitor: subtle linearisation.',
   },
 
   // ================= APPLE =================
@@ -404,7 +404,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.6, 0.2, -0.3, -0.5, 0.1, 0.4, 0.2, -1.1, 0.8, -0.2],
     preampDb: -1.0,
-    description: 'Niezwykle bliskie krzywej Harmana fabrycznie — mikro-szlifowanie.',
+    description: 'Remarkably close to the Harman curve out of the box: micro polish.',
   },
   {
     id: 'apple_airpods_max',
@@ -414,7 +414,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [0.8, 0.2, -0.4, -0.6, 0.4, 1.1, 0.2, -1.8, 1.6, 0.5],
     preampDb: -1.8,
-    description: 'Aluminiowe słuchawki bezprzewodowe Apple — optymalizacja prezencji wokali.',
+    description: "Apple's aluminium wireless headphones: optimised vocal presence.",
   },
   {
     id: 'apple_airpods_pro_1',
@@ -424,7 +424,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [1.8, 1.1, 0.2, -0.3, 0.2, 0.6, -0.4, -1.6, 1.4, 0.4],
     preampDb: -2.0,
-    description: 'Pierwsza generacja Pro — dodanie uderzenia basowego i rozciągnięcie sopranu.',
+    description: 'First-generation Pro: adds bass punch and extends the treble.',
   },
 
   // ================= HIFIMAN (Planar Magnetic) =================
@@ -436,7 +436,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [5.2, 3.6, 1.4, 0.2, -0.1, 0.2, 0.8, -1.6, 1.4, 0.8],
     preampDb: -5.4,
-    description: 'Najpopularniejszy planar na rynku — wypełnienie sub-basu planarnego.',
+    description: 'The most popular planar on the market: fills in the planar sub-bass.',
   },
   {
     id: 'hifiman_edition_xs',
@@ -446,7 +446,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [4.4, 2.9, 1.1, 0.1, 0.0, 0.3, 0.6, -1.4, 0.9, 0.2],
     preampDb: -4.5,
-    description: 'Owalne przetworniki w kształcie łezki — spektakularna scena z głębszym basem.',
+    description: 'Oval teardrop drivers: a spectacular stage with deeper bass.',
   },
   {
     id: 'hifiman_ananda',
@@ -456,7 +456,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [4.8, 3.2, 1.2, 0.2, -0.1, 0.4, 0.5, -2.1, 0.8, 0.4],
     preampDb: -5.0,
-    description: 'Wysoka skuteczność planarna — redukcja szorstkości przy 3.5 kHz.',
+    description: 'High planar efficiency: reduces the roughness at 3.5 kHz.',
   },
   {
     id: 'hifiman_arya_stealth',
@@ -466,7 +466,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [4.6, 3.1, 1.0, 0.0, 0.1, 0.3, 0.7, -1.8, 0.6, 0.2],
     preampDb: -4.8,
-    description: 'Holograficzne obrazowanie i warstwowość dźwięku — referencyjne dostrojenie.',
+    description: 'Holographic imaging and layered sound: a reference tuning.',
   },
   {
     id: 'hifiman_he400se',
@@ -476,7 +476,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [5.6, 3.8, 1.5, 0.3, -0.2, 0.4, 0.9, -1.2, 1.8, 0.9],
     preampDb: -5.8,
-    description: 'Przystępne cenowo planary — ocieplenie fundamentu i wygładzenie sopranów.',
+    description: 'Affordable planars: a warmer foundation and smoother treble.',
   },
 
   // ================= TRUTHEAR =================
@@ -488,7 +488,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.6, 0.2, -0.2, -0.4, 0.1, 0.5, 0.2, -0.8, 0.9, -0.2],
     preampDb: -1.0,
-    description: 'Wzorzec neutralności IEF z sub-basowym przetwornikiem 10mm.',
+    description: 'An IEF neutrality benchmark with a 10 mm sub-bass driver.',
   },
   {
     id: 'truthear_zero_blue',
@@ -498,7 +498,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-1.2, -0.8, 0.2, 0.4, 0.2, 0.4, -0.2, -1.4, 1.1, 0.2],
     preampDb: -1.2,
-    description: 'Mocny dedykowany sub-woofer zoptymalizowany pod Harman Target.',
+    description: 'Strong dedicated sub-woofer optimised for the Harman target.',
   },
   {
     id: 'truthear_hexa',
@@ -508,7 +508,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [1.8, 1.2, 0.4, -0.2, 0.0, 0.4, 0.1, -1.2, 1.4, 0.4],
     preampDb: -2.0,
-    description: 'Precyzja armatur zbalansowanych — dodanie masy na basie.',
+    description: 'Balanced armature precision: adds body to the bass.',
   },
   {
     id: 'truthear_hola',
@@ -518,7 +518,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.8, 0.4, -0.2, -0.4, 0.2, 0.6, -0.2, -1.1, 1.2, 0.2],
     preampDb: -1.4,
-    description: 'Ciepłe, niemęczące brzmienie — subtelne otwarcie detali.',
+    description: 'Warm, non-fatiguing sound: subtly opens up the detail.',
   },
   {
     id: 'truthear_nova',
@@ -528,7 +528,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-0.4, -0.2, 0.1, 0.2, 0.0, 0.3, 0.1, -0.9, 0.6, -0.1],
     preampDb: -0.8,
-    description: 'Fabrycznie niemal perfekcyjnie na krzywej Harmana.',
+    description: 'Almost perfectly on the Harman curve out of the box.',
   },
 
   // ================= TANGZU & 7HZ =================
@@ -540,7 +540,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [1.2, 0.6, -0.1, -0.4, 0.2, 0.7, -0.4, -1.6, 1.5, 0.4],
     preampDb: -1.6,
-    description: 'Znakomity wokal kobiecy anime — linearyzacja wysokich rejestrów.',
+    description: 'Excellent female anime vocals: linearises the upper registers.',
   },
   {
     id: '7hz_zero',
@@ -550,7 +550,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [2.8, 1.9, 0.8, 0.1, -0.2, 0.4, -0.3, -2.1, 1.4, 0.5],
     preampDb: -3.0,
-    description: 'Klarowne strojenie Crinacle — nasycenie basu.',
+    description: 'Clear Crinacle tuning: a fuller bass.',
   },
   {
     id: '7hz_zero_2',
@@ -560,7 +560,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.6, 0.2, -0.3, -0.5, 0.1, 0.5, -0.2, -1.4, 1.2, 0.3],
     preampDb: -1.3,
-    description: 'Poprawiony bas fabryczny — idealny balans tonalny.',
+    description: 'Improved factory bass: an ideal tonal balance.',
   },
   {
     id: '7hz_timeless',
@@ -570,7 +570,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-0.6, -0.8, -0.4, 0.2, 0.4, 0.2, -0.6, -2.4, 0.8, -0.4],
     preampDb: -1.0,
-    description: 'Przełomowy 14.2mm planar dokanałowy — złagodzenie piku przy 8 kHz.',
+    description: 'Ground-breaking 14.2 mm in-ear planar: softens the 8 kHz peak.',
   },
 
   // ================= AKG =================
@@ -582,7 +582,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-0.6, -0.4, 0.1, 0.3, 0.2, 0.4, 0.1, -1.2, 0.9, -0.2],
     preampDb: -1.0,
-    description: 'Stworzone bezpośrednio przez grupę badawczą Harman — referencyjny profil.',
+    description: 'Made directly by the Harman research group: a reference profile.',
   },
   {
     id: 'akg_k240_studio',
@@ -592,7 +592,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [6.8, 5.1, 2.4, 0.4, -0.6, 0.2, 0.8, -1.6, 1.9, 0.8],
     preampDb: -7.0,
-    description: 'Legendarne półotwarte słuchawki studyjne — potężne rozszerzenie basu.',
+    description: 'Legendary semi-open studio headphones: powerful bass extension.',
   },
   {
     id: 'akg_k702',
@@ -602,7 +602,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [6.5, 4.8, 2.2, 0.5, -0.3, 0.1, 0.6, -2.8, 1.4, 0.6],
     preampDb: -6.8,
-    description: 'Słynna gigantyczna scena z cewkami płaskimi — nasycenie fundamentu basowego.',
+    description: 'Famous huge stage with flat coils: a fuller bass foundation.',
   },
   {
     id: 'akg_k712_pro',
@@ -612,7 +612,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [3.8, 2.4, 0.8, -0.4, -0.6, 0.4, 0.9, -1.8, 1.6, 0.8],
     preampDb: -4.0,
-    description: 'Bogatszy dół w porównaniu do K702 — optymalizacja prezencji wokali.',
+    description: 'Richer lows than the K702: optimised vocal presence.',
   },
 
   // ================= KOSS =================
@@ -624,7 +624,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [2.4, 1.2, -1.4, -2.2, 0.4, 1.8, 1.2, -0.8, 3.4, 2.1],
     preampDb: -3.5,
-    description: 'Klasyk retro z 1984 roku — oczyszczenie buczącego mid-basu i rozjaśnienie góry.',
+    description: 'A 1984 retro classic: cleans up the humming mid-bass and brightens the treble.',
   },
   {
     id: 'koss_ksc75',
@@ -634,7 +634,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [6.8, 4.9, 2.0, 0.2, 0.0, 0.4, 0.2, -1.4, 1.8, 0.6],
     preampDb: -7.0,
-    description: 'Tytanowe klipsy za ucho — dodanie głębokiego basu do wybitnej góry pasma.',
+    description: 'Titanium ear clips: adds deep bass to an outstanding top end.',
   },
 
   // ================= BOSE & SAMSUNG =================
@@ -646,7 +646,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [1.4, 0.8, -0.2, -0.4, 0.2, 0.8, 0.4, -1.8, 2.2, 1.1],
     preampDb: -2.4,
-    description: 'Komfort podróżny z ANC — poszerzenie sceny i przejrzystości.',
+    description: 'Travel comfort with ANC: a wider stage and more transparency.',
   },
   {
     id: 'bose_qc45',
@@ -656,7 +656,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [1.8, 1.1, 0.2, -0.2, 0.1, 0.6, -0.4, -2.6, 1.6, 0.8],
     preampDb: -2.8,
-    description: 'Wygładzenie ostrego piku przy 6 kHz typowego dla QC45.',
+    description: 'Smooths the sharp 6 kHz peak typical of the QC45.',
   },
   {
     id: 'samsung_galaxy_buds_2_pro',
@@ -666,7 +666,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [0.4, 0.1, -0.2, -0.3, 0.1, 0.4, 0.2, -0.9, 0.8, 0.1],
     preampDb: -1.0,
-    description: 'Strojone we współpracy z AKG — fabrycznie znakomite, z lekkim szlifem.',
+    description: 'Tuned together with AKG: excellent out of the box, with a light polish.',
   },
 
   // ================= FOCAL, MEZE, SHURE & PHILIPS =================
@@ -678,7 +678,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [5.8, 4.1, 1.6, 0.2, 0.1, 0.4, -0.4, -3.2, 0.8, 0.4],
     preampDb: -6.0,
-    description: 'Budżetowy mistrz otwarty — kompensacja braku sub-basu i usunięcie ziaren.',
+    description: 'Budget open champion: makes up for the missing sub-bass and removes grain.',
   },
   {
     id: 'philips_fidelio_x2hr',
@@ -688,7 +688,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [0.8, 0.2, -0.8, -0.4, 0.2, 0.8, 0.4, -3.4, 1.4, 0.6],
     preampDb: -1.6,
-    description: 'Mocny bas i szeroka scena — neutralizacja rezonansu sopranów.',
+    description: 'Strong bass and a wide stage: neutralises the treble resonance.',
   },
   {
     id: 'meze_99_classics',
@@ -698,7 +698,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [-4.2, -3.8, -2.1, 0.4, 1.4, 1.8, 0.8, 1.4, 2.6, 1.2],
     preampDb: -2.8,
-    description: 'Drewniane obudowy z potężnym basem — usunięcie buczenia i rozkwit wokali.',
+    description: 'Wooden cups with powerful bass: removes the boom and lets the vocals bloom.',
   },
   {
     id: 'focal_clear',
@@ -708,7 +708,7 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman Over-Ear 2018',
     bands: [3.4, 2.2, 0.6, -0.2, 0.0, 0.4, 0.8, -1.8, 1.2, 0.4],
     preampDb: -3.5,
-    description: 'Przetwornik aluminiowo-magnezowy M-dome — wybitna dynamika.',
+    description: 'Aluminium-magnesium M-dome driver: outstanding dynamics.',
   },
   {
     id: 'shure_se215',
@@ -718,6 +718,6 @@ export const AUTO_EQ_PROFILES: AutoEqProfile[] = [
     target: 'Harman In-Ear 2019v2',
     bands: [-1.4, -1.8, -0.8, 0.6, 1.4, 1.9, 0.8, 2.2, 3.8, 2.4],
     preampDb: -4.0,
-    description: 'Sceniczny klasyk izolacyjny — rozjaśnienie stłumionych wysokich tonów.',
+    description: 'An isolating stage classic: brightens the muffled highs.',
   },
 ];

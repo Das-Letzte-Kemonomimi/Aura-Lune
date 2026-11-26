@@ -1,9 +1,9 @@
 /**
- * Silnik transliteracji japońskich tekstów na alfabet łaciński (Hepburn Romanization).
- * Obsługuje Hiraganę, Katakanę, digrafy (Youon), podwójne spółgłoski (Sokuon) i przedłużenia.
+ * Transliteration engine for Japanese text to the Latin alphabet (Hepburn romanisation).
+ * Handles Hiragana, Katakana, digraphs (youon), double consonants (sokuon) and long vowels.
  */
 
-// Złożone digrafy Youon (Hiragana + małe ya/yu/yo/a/i/u/e/o)
+// Compound youon digraphs (Hiragana + small ya/yu/yo/a/i/u/e/o)
 const HIRAGANA_DIGRAPHS: Record<string, string> = {
   きゃ: 'kya', きゅ: 'kyu', きょ: 'kyo',
   しゃ: 'sha', しゅ: 'shu', しょ: 'sho',
@@ -21,7 +21,7 @@ const HIRAGANA_DIGRAPHS: Record<string, string> = {
   てぃ: 'ti', でぃ: 'di',
 };
 
-// Złożone digrafy Katakana
+// Compound Katakana digraphs
 const KATAKANA_DIGRAPHS: Record<string, string> = {
   キャ: 'kya', キュ: 'kyu', キョ: 'kyo',
   シャ: 'sha', シュ: 'shu', ショ: 'sho',
@@ -41,7 +41,7 @@ const KATAKANA_DIGRAPHS: Record<string, string> = {
   ヴァ: 'va', ヴィ: 'vi', ヴ: 'vu', ヴェ: 've', ヴォ: 'vo',
 };
 
-// Pojedyncze znaki Hiragana
+// Single Hiragana characters
 const HIRAGANA_MAP: Record<string, string> = {
   あ: 'a', い: 'i', う: 'u', え: 'e', お: 'o',
   か: 'ka', き: 'ki', く: 'ku', け: 'ke', こ: 'ko',
@@ -63,7 +63,7 @@ const HIRAGANA_MAP: Record<string, string> = {
   ゐ: 'i', ゑ: 'e', ゔ: 'vu',
 };
 
-// Pojedyncze znaki Katakana
+// Single Katakana characters
 const KATAKANA_MAP: Record<string, string> = {
   ア: 'a', イ: 'i', ウ: 'u', エ: 'e', オ: 'o',
   カ: 'ka', キ: 'ki', ク: 'ku', ケ: 'ke', コ: 'ko',
@@ -88,7 +88,7 @@ const KATAKANA_MAP: Record<string, string> = {
   ㇸ: 'he', ㇹ: 'ho', ㇺ: 'mu', ㇻ: 'ra', ㇼ: 'ri', ㇽ: 'ru', ㇾ: 're', ㇿ: 'ro',
 };
 
-// Japońskie znaki interpunkcyjne
+// Japanese punctuation
 const JAPANESE_PUNCTUATION: Record<string, string> = {
   '、': ', ',
   '。': '. ',
@@ -105,15 +105,15 @@ const JAPANESE_PUNCTUATION: Record<string, string> = {
 };
 
 /**
- * Sprawdza, czy ciąg znaków zawiera japońskie pismo (Hiragana, Katakana lub Kanji).
+ * Checks whether a string contains Japanese script (Hiragana, Katakana or Kanji).
  */
 export function hasJapaneseCharacters(text: string): boolean {
   return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(text);
 }
 
 /**
- * Transliteruje japoński tekst (Hiragana, Katakana) do alfabetu łacińskiego (Hepburn Romaji).
- * Znaki łacińskie, cyfry i znaki bez bezpośredniego odpowiednika są zachowywane.
+ * Transliterates Japanese text (Hiragana, Katakana) to the Latin alphabet (Hepburn romaji).
+ * Latin characters, digits and characters without a direct equivalent are kept.
  */
 export function toRomaji(input: string): string {
   if (!input) return '';
@@ -130,7 +130,7 @@ export function toRomaji(input: string): string {
     const nextChar = i + 1 < input.length ? input[i + 1] : '';
     const twoChars = char + nextChar;
 
-    // Sprawdzenie interpunkcji japońskiej
+    // Check for Japanese punctuation
     if (JAPANESE_PUNCTUATION[char]) {
       result += JAPANESE_PUNCTUATION[char];
       lastChar = '';
@@ -138,7 +138,7 @@ export function toRomaji(input: string): string {
       continue;
     }
 
-    // Sprawdzenie przedłużenia Katakany (Choonpu ー)
+    // Check for the Katakana long vowel mark (chōonpu ー)
     if (char === 'ー') {
       if (lastChar && /[aiueo]/.test(lastChar)) {
         result += lastChar;
@@ -149,11 +149,11 @@ export function toRomaji(input: string): string {
       continue;
     }
 
-    // Sprawdzenie sokuon (małe tsu っ / ッ)
+    // Check for sokuon (small tsu っ / ッ)
     if (char === 'っ' || char === 'ッ') {
-      // Podwojenie spółgłoski następnego znaku
+      // Double the consonant of the next character
       if (i + 1 < input.length) {
-        // Peek ahead następnej sylaby
+        // Peek at the next syllable
         let nextRomaji = '';
         if (i + 2 < input.length && (HIRAGANA_DIGRAPHS[input.substring(i + 1, i + 3)] || KATAKANA_DIGRAPHS[input.substring(i + 1, i + 3)])) {
           nextRomaji = HIRAGANA_DIGRAPHS[input.substring(i + 1, i + 3)] || KATAKANA_DIGRAPHS[input.substring(i + 1, i + 3)];
@@ -164,7 +164,7 @@ export function toRomaji(input: string): string {
         if (nextRomaji && nextRomaji.length > 0) {
           const firstLetter = nextRomaji[0].toLowerCase();
           if (firstLetter === 'c' && nextRomaji.startsWith('ch')) {
-            result += 't'; // tch dla ch (np. mat-cha)
+            result += 't'; // tch for ch (e.g. mat-cha)
           } else if (/[bcdfghjklmnpqrstvwxyz]/.test(firstLetter)) {
             result += firstLetter;
           }
@@ -174,7 +174,7 @@ export function toRomaji(input: string): string {
       continue;
     }
 
-    // Sprawdzenie dwuznaków (Digraphs)
+    // Check for digraphs
     if (twoChars && (HIRAGANA_DIGRAPHS[twoChars] || KATAKANA_DIGRAPHS[twoChars])) {
       const romaji = HIRAGANA_DIGRAPHS[twoChars] || KATAKANA_DIGRAPHS[twoChars];
       result += romaji;
@@ -183,7 +183,7 @@ export function toRomaji(input: string): string {
       continue;
     }
 
-    // Sprawdzenie pojedynczych znaków Hiragana / Katakana
+    // Check for single Hiragana / Katakana characters
     if (HIRAGANA_MAP[char] || KATAKANA_MAP[char]) {
       const romaji = HIRAGANA_MAP[char] || KATAKANA_MAP[char];
       result += romaji;
@@ -192,12 +192,12 @@ export function toRomaji(input: string): string {
       continue;
     }
 
-    // Standardowe znaki (alfabet łaciński, spacje, liczby, Kanji)
+    // Standard characters (Latin alphabet, spaces, digits, Kanji)
     result += char;
     lastChar = /[a-zA-Z]/.test(char) ? char.toLowerCase() : '';
     i++;
   }
 
-  // Uporządkowanie podwójnych spacji
+  // Collapse double spaces
   return result.replace(/\s+/g, ' ').trim();
 }

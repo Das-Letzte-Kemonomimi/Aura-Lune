@@ -1,7 +1,7 @@
-//! Aktualizacje aplikacji: informacje o budowie, sprawdzanie wydań, instalacja AppImage i restart.
+//! App updates: build info, release checks, AppImage installation and restart.
 //!
-//! Zapytania do GitHuba idą wyłącznie z Rusta (CSP WebView blokuje je we frontendzie). Kanały są
-//! rozdzielone: dev porównuje commit z wydaniem `dev-build`, stable — wersję z `releases/latest`.
+//! GitHub requests go only from Rust (the WebView CSP blocks them in the frontend). The channels are
+//! separate: dev compares the commit with the `dev-build` release, stable compares the version with `releases/latest`.
 
 use crate::commands::error::CommandError;
 use crate::updater::check::{self, CheckContext};
@@ -15,14 +15,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use storage::Database;
 use tauri::{AppHandle, State};
 
-/// Limit czasu pojedynczego zapytania do API GitHuba.
+/// Timeout of a single GitHub API request.
 const API_TIMEOUT: Duration = Duration::from_secs(20);
-/// Limit czasu pobierania `SHA256SUMS`.
+/// Timeout for downloading `SHA256SUMS`.
 const CHECKSUMS_TIMEOUT: Duration = Duration::from_secs(30);
 
 static INSTALLING: AtomicBool = AtomicBool::new(false);
 
-/// Zwalnia flagę trwającej instalacji także przy błędzie lub panice.
+/// Releases the install-in-progress flag on errors and panics too.
 struct InstallGuard;
 
 impl InstallGuard {
@@ -30,7 +30,7 @@ impl InstallGuard {
         INSTALLING
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map(|_| Self)
-            .map_err(|_| CommandError::validation("Aktualizacja jest już w trakcie instalacji"))
+            .map_err(|_| CommandError::validation("An update is already being installed"))
     }
 }
 
@@ -63,7 +63,7 @@ fn current_install_target(build: &BuildInfo) -> Option<std::path::PathBuf> {
     )
 }
 
-/// Wersja, commit, kanał i rodzaj instalacji uruchomionej aplikacji.
+/// Version, commit, channel and installation kind of the running app.
 #[tauri::command]
 pub fn get_build_info() -> BuildInfo {
     updater::current_build_info()
@@ -72,12 +72,12 @@ pub fn get_build_info() -> BuildInfo {
 async fn cached_info(db: &Database, build: &BuildInfo) -> Option<UpdateInfo> {
     let raw = db.get_app_setting(SETTING_LAST_RESULT).await.ok()??;
     let info: UpdateInfo = serde_json::from_str(&raw).ok()?;
-    // Po aktualizacji albo zmianie rodzaju instalacji zapisany wynik nie dotyczy tej budowy.
+    // After an update or a change of installation kind, the saved result is not for this build.
     (info.matches_build(&build.version, &build.commit) && info.install_kind == build.install_kind)
         .then_some(info)
 }
 
-/// Sprawdza aktualizację. Bez `force` wynik z ostatnich 6 h pochodzi z cache (bez sieci).
+/// Checks for an update. Without `force`, a result from the last 6 h comes from the cache (no network).
 pub async fn perform_check(db: &Database, force: bool) -> Result<UpdateInfo, CommandError> {
     let build = updater::current_build_info();
     let now = unix_now();
@@ -109,7 +109,7 @@ pub async fn perform_check(db: &Database, force: bool) -> Result<UpdateInfo, Com
     Ok(info)
 }
 
-/// Ostatni zapisany wynik sprawdzenia (bez sieci) — do pokazania odznaki tuż po starcie.
+/// The last saved check result (no network), to show the badge right after start-up.
 #[tauri::command]
 pub async fn get_cached_update_info(
     state: State<'_, AppState>,
@@ -125,7 +125,7 @@ pub async fn check_for_update(
     perform_check(&state.db, force).await
 }
 
-/// Pobiera, weryfikuje (SHA-256) i podmienia AppImage. Dozwolone tylko dla instalacji z `install.sh`.
+/// Downloads, verifies (SHA-256) and replaces the AppImage. Allowed only for `install.sh` installations.
 #[tauri::command]
 pub async fn install_update(
     app: AppHandle,
@@ -134,37 +134,41 @@ pub async fn install_update(
     let build = updater::current_build_info();
     if !updater::can_self_install(build.install_kind, &build.channel) {
         return Err(CommandError::validation(
-            "Automatyczna aktualizacja działa tylko dla AppImage zainstalowanego przez install.sh \
-             oraz dla uruchomienia deweloperskiego kanału dev",
+            "Automatic updates only work for an AppImage installed by install.sh \
+             and for a developer run of the dev channel",
         ));
     }
     let target = current_install_target(&build).ok_or_else(|| {
-        CommandError::validation("Nie ustalono pliku AppImage do podmiany (APPIMAGE / HOME)")
+        CommandError::validation(
+            "Could not determine the AppImage file to replace (APPIMAGE / HOME)",
+        )
     })?;
     let _guard = InstallGuard::acquire()?;
 
-    // Wymuszone sprawdzenie: ruchome wydanie dev mogło się zmienić od ostatniego razu.
+    // Forced check: the moving dev release may have changed since last time.
     let info = perform_check(&state.db, true).await?;
     let asset = info
         .asset
         .as_ref()
         .filter(|_| info.available)
-        .ok_or_else(|| CommandError::validation("Brak dostępnej aktualizacji do zainstalowania"))?;
+        .ok_or_else(|| CommandError::validation("No update available to install"))?;
     let client = metadata::http::build_client(CHECKSUMS_TIMEOUT);
     let sha256 = check::resolve_sha256(&client, asset).await?;
     install::download_and_replace(&app, asset, &sha256, &target).await
 }
 
-/// Zamyka aplikację zwykłą ścieżką (zapis kolejki i głośności w `RunEvent::Exit`) i uruchamia
-/// nową wersję przez launcher.
+/// Quits the app the normal way (queue and volume saved in `RunEvent::Exit`) and starts
+/// the new version through the launcher.
 #[tauri::command]
 pub async fn restart_after_update(app: AppHandle) -> Result<(), CommandError> {
     let build = updater::current_build_info();
     let is_dev = build.channel == "dev";
     let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
     let appimage = current_install_target(&build).map(|p| p.to_string_lossy().into_owned());
-    let target = install::restart_target(home.as_deref(), is_dev, appimage.as_deref())
-        .ok_or_else(|| CommandError::validation("Nie znaleziono launchera ani pliku AppImage"))?;
+    let target =
+        install::restart_target(home.as_deref(), is_dev, appimage.as_deref()).ok_or_else(|| {
+            CommandError::validation("Neither a launcher nor an AppImage file was found")
+        })?;
     install::spawn_detached_restart(&target, is_dev)?;
     app.exit(0);
     Ok(())

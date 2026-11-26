@@ -7,7 +7,7 @@ fn lock_safe_recovers_poisoned_mutex() {
     let m2 = Arc::clone(&m);
     let _ = std::thread::spawn(move || {
         let _guard = m2.lock().unwrap();
-        panic!("zatrucie blokady w teście");
+        panic!("poisoning the lock in a test");
     })
     .join();
 

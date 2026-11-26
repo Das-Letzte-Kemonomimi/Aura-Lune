@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
   Sparkles,
   ShieldAlert,
@@ -9,10 +9,11 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-} from 'lucide-react';
+} from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { Button, Callout, Chip, IconButton, ModalBody, ModalFooter, ModalShell, OptionCard, ToggleCard } from '../ui';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onVolumeOsdPositionChange,
 }) => {
   const [step, setStep] = useState<number>(1);
+  const titleId = useId();
 
   if (!isOpen) return null;
 
@@ -49,34 +51,26 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     try {
       localStorage.setItem('auralune_onboarding_completed', 'true');
     } catch {
-      // Ignoruj błędy localStorage
+      // Ignore localStorage errors
     }
     onClose();
   };
 
   return (
-    <div
-      className="fixed inset-0 z-80 flex items-center justify-center bg-deep/85 p-5 backdrop-blur-lg motion-safe:animate-fade-in"
-    >
-      <div
-        className="glass-card relative flex max-h-[90vh] w-full max-w-140 flex-col overflow-y-auto rounded-3xl border border-accent-purple/40 bg-modal p-8 text-fg shadow-modal"
-      >
-        {/* Zamknięcie */}
-        <button
-          onClick={handleFinish}
-          className="absolute top-5 right-5 border-0 bg-transparent p-1 text-fg-muted"
-          title={loc.common.close}
-        >
-          <X size={20} />
-        </button>
+    <ModalShell onClose={handleFinish} layer="system" size="md" closeOnBackdrop={false} labelledBy={titleId}>
+      <IconButton label={loc.common.close} onClick={handleFinish} className="absolute top-4 right-4 z-10">
+        <X size={18} />
+      </IconButton>
 
-        {/* Wskaźnik kroków */}
+      <ModalBody className="flex flex-col p-8">
+
+        {/* Step indicator */}
         <div className="mb-6 flex items-center justify-center gap-2">
           {[1, 2, 3].map((s) => (
             <div
               key={s}
               className={cn(
-                'h-2 rounded-sm transition-all duration-300',
+                'h-2 rounded-sm motion-safe:transition-[width] motion-safe:duration-300',
                 step === s ? 'w-8' : 'w-2.5',
                 step === s ? 'bg-accent-pink' : 'bg-white/15',
               )}
@@ -84,7 +78,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           ))}
         </div>
 
-        {/* KROK 1: Kim jestem, dlaczego powstało Auralune & Disclaimer */}
+        {/* STEP 1: who I am, why Auralune exists & disclaimer */}
         {step === 1 && (
           <div className="motion-safe:animate-fade-in">
             <div className="mb-4 flex items-center gap-3.5">
@@ -94,7 +88,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <Sparkles size={28} className="text-accent-pink" />
               </div>
               <div>
-                <h2 className="m-0 text-2xl font-extrabold tracking-tight">
+                <h2 id={titleId} className="m-0 text-2xl font-extrabold tracking-tight">
                   Auralune <span className="text-sm font-semibold text-accent-cyan">Kitsune Player</span>
                 </h2>
                 <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-secondary">
@@ -103,35 +97,21 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Osobista notka autorki */}
-            <div
-              className="mb-4.5 rounded-2xl border border-accent-purple/25 bg-accent-purple/8 p-4 text-sm leading-normal text-slate-200"
-            >
-              <div className="mb-2 flex items-center gap-2 font-bold text-accent-purple">
-                <Heart className="fill-accent-purple" size={16} />
-                {loc.onboarding.whyAuralune}
-              </div>
-              <p className="m-0 italic">
-                {loc.onboarding.whyAuraluneDesc}
-              </p>
-            </div>
+            {/* The author's personal note */}
+            <Callout tone="purple" icon={<Heart size={16} fill="currentColor" />} className="mb-4.5 text-sm leading-normal">
+              <div className="mb-1.5 font-bold text-accent-purple">{loc.onboarding.whyAuralune}</div>
+              <p className="m-0 text-fg-secondary italic">{loc.onboarding.whyAuraluneDesc}</p>
+            </Callout>
 
-            {/* Klauzula wyłączenia odpowiedzialności (No warranty / As-is disclaimer) */}
-            <div
-              className="mb-5 rounded-2xl border border-accent-red/30 bg-accent-red/8 px-4 py-3.5 text-ui leading-normal text-red-300"
-            >
-              <div className="mb-1.5 flex items-center gap-2 font-bold text-accent-red">
-                <ShieldAlert size={16} />
-                {loc.onboarding.disclaimer}
-              </div>
-              <p className="m-0">
-                {loc.onboarding.disclaimerDesc}
-              </p>
-            </div>
+            {/* No warranty / as-is disclaimer */}
+            <Callout tone="danger" icon={<ShieldAlert size={16} />} className="mb-5 text-ui leading-normal">
+              <div className="mb-1.5 font-bold text-accent-red">{loc.onboarding.disclaimer}</div>
+              <p className="m-0 text-fg-secondary">{loc.onboarding.disclaimerDesc}</p>
+            </Callout>
           </div>
         )}
 
-        {/* KROK 2: Auralune Recap (Spotify Wrapped) Opt-in & Język */}
+        {/* STEP 2: Auralune Recap (Spotify Wrapped) opt-in & language */}
         {step === 2 && (
           <div className="motion-safe:animate-fade-in">
             <div className="mb-4 flex items-center gap-3">
@@ -141,7 +121,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <BarChart2 size={24} className="text-accent-cyan" />
               </div>
               <div>
-                <h3 className="m-0 text-xl font-bold">
+                <h3 id={titleId} className="m-0 text-xl font-bold">
                   {loc.onboarding.recapAndLang}
                 </h3>
                 <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
@@ -150,39 +130,19 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Toggle Opt-in Recap */}
-            <div
-              className={cn(
-                'mb-5 flex cursor-pointer items-center justify-between rounded-2xl border p-4',
-                recapOptIn ? 'bg-accent-cyan/10' : 'bg-white/4',
-                recapOptIn ? 'border-accent-cyan' : 'border-line',
-              )}
-              onClick={() => onRecapOptInChange(!recapOptIn)}
-            >
-              <div className="flex-1 pr-3.5">
-                <div className={cn('mb-1 text-md font-bold', recapOptIn ? 'text-accent-cyan' : 'text-fg')}>
-                  {loc.onboarding.enableRecap}
-                </div>
-                <div className="text-ui leading-snug text-fg-secondary">
-                  {loc.onboarding.enableRecapDesc}
-                </div>
-              </div>
-              <div
-                className={cn(
-                  'relative h-6.5 w-11.5 shrink-0 rounded-xl transition-colors duration-200',
-                  recapOptIn ? 'bg-accent-cyan' : 'bg-white/20',
-                )}
-              >
-                <div
-                  className={cn(
-                    'absolute top-1 h-5 w-5 rounded-full bg-white transition-[left] duration-200',
-                    recapOptIn ? 'left-6' : 'left-1',
-                  )}
-                />
-              </div>
+            {/* Recap opt-in */}
+            <div className="mb-5">
+              <ToggleCard
+                icon={<BarChart2 size={18} />}
+                tone="cyan"
+                title={loc.onboarding.enableRecap}
+                description={loc.onboarding.enableRecapDesc}
+                checked={recapOptIn}
+                onChange={onRecapOptInChange}
+              />
             </div>
 
-            {/* Wybór języka */}
+            {/* Language choice */}
             <div className="mb-4.5">
               <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.interfaceLang}
@@ -195,26 +155,22 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   { id: 'fi', label: 'Suomi 🇫🇮' },
                   { id: 'la', label: 'Latina 🏛️' },
                 ].map((item) => (
-                  <button
+                  <Chip
                     key={item.id}
+                    pressed={currentLang === item.id}
+                    tone="purple"
                     onClick={() => onLanguageChange(item.id as Language)}
-                    className={cn(
-                      'rounded-lg border px-3 py-2 text-ui',
-                      currentLang === item.id ? 'bg-accent-purple/25' : 'bg-white/5',
-                      currentLang === item.id ? 'border-accent-purple' : 'border-line',
-                      currentLang === item.id ? 'text-fg' : 'text-fg-secondary',
-                      currentLang === item.id ? 'font-bold' : 'font-medium',
-                    )}
+                    className="py-2 text-ui"
                   >
                     {item.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* KROK 3: Głośność (Instant vs Fade) & Pozycja OSD */}
+        {/* STEP 3: volume (instant vs fade) & OSD position */}
         {step === 3 && (
           <div className="motion-safe:animate-fade-in">
             <div className="mb-4 flex items-center gap-3">
@@ -224,7 +180,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <Sliders size={24} className="text-accent-pink" />
               </div>
               <div>
-                <h3 className="m-0 text-xl font-bold">
+                <h3 id={titleId} className="m-0 text-xl font-bold">
                   {loc.onboarding.audioAndVolume}
                 </h3>
                 <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
@@ -233,47 +189,25 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Tryb głośności: Instant vs Fade */}
+            {/* Volume mode: instant vs fade */}
             <div className="mb-5">
               <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.volumeMode}
               </label>
               <div className="grid grid-cols-2 gap-2.5">
-                <div
-                  onClick={() => onInstantVolumeChange(false)}
-                  className={cn(
-                    'cursor-pointer rounded-xl border p-3',
-                    !instantVolume ? 'bg-accent-purple/20' : 'bg-white/4',
-                    !instantVolume ? 'border-accent-purple' : 'border-line',
-                  )}
-                >
-                  <div className="mb-1 text-sm font-bold">
-                    {loc.onboarding.volumeSmooth}
-                  </div>
-                  <div className="text-xs text-fg-muted">
-                    {loc.onboarding.volumeSmoothDesc}
-                  </div>
-                </div>
+                <OptionCard pressed={!instantVolume} tone="purple" onClick={() => onInstantVolumeChange(false)} className="p-3">
+                  <span className="text-sm font-bold">{loc.onboarding.volumeSmooth}</span>
+                  <span className="text-xs text-fg-muted">{loc.onboarding.volumeSmoothDesc}</span>
+                </OptionCard>
 
-                <div
-                  onClick={() => onInstantVolumeChange(true)}
-                  className={cn(
-                    'cursor-pointer rounded-xl border p-3',
-                    instantVolume ? 'bg-accent-pink/20' : 'bg-white/4',
-                    instantVolume ? 'border-accent-pink' : 'border-line',
-                  )}
-                >
-                  <div className="mb-1 text-sm font-bold">
-                    {loc.onboarding.volumeInstant}
-                  </div>
-                  <div className="text-xs text-fg-muted">
-                    {loc.onboarding.volumeInstantDesc}
-                  </div>
-                </div>
+                <OptionCard pressed={instantVolume} tone="pink" onClick={() => onInstantVolumeChange(true)} className="p-3">
+                  <span className="text-sm font-bold">{loc.onboarding.volumeInstant}</span>
+                  <span className="text-xs text-fg-muted">{loc.onboarding.volumeInstantDesc}</span>
+                </OptionCard>
               </div>
             </div>
 
-            {/* Pozycja wskaźnika głośności OSD */}
+            {/* OSD volume indicator position */}
             <div className="mb-5">
               <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.hudPlacement}
@@ -287,55 +221,43 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   { id: 'bottom-right', label: loc.onboarding.hudBottomRight },
                   { id: 'off', label: loc.onboarding.hudDisabled },
                 ].map((pos) => (
-                  <button
+                  <Chip
                     key={pos.id}
+                    pressed={volumeOsdPosition === pos.id}
+                    tone="cyan"
                     onClick={() => onVolumeOsdPositionChange(pos.id)}
-                    className={cn(
-                      'rounded-lg border px-2.5 py-2 text-ui',
-                      volumeOsdPosition === pos.id ? 'bg-accent-cyan/25' : 'bg-white/5',
-                      volumeOsdPosition === pos.id ? 'border-accent-cyan' : 'border-line',
-                      volumeOsdPosition === pos.id ? 'text-fg' : 'text-fg-secondary',
-                      volumeOsdPosition === pos.id ? 'font-bold' : 'font-medium',
-                    )}
+                    className="py-2 text-ui"
                   >
                     {pos.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* Przyciski nawigacji kroków */}
-        <div className="mt-auto flex items-center justify-between pt-4">
-          {step > 1 ? (
-            <button
-              onClick={() => setStep(step - 1)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-white/8 px-4.5 py-2.5 text-sm font-semibold text-fg"
-            >
-              <ChevronLeft size={16} /> {loc.onboarding.back}
-            </button>
-          ) : (
-            <div />
-          )}
+      </ModalBody>
 
-          {step < 3 ? (
-            <button
-              onClick={() => setStep(step + 1)}
-              className="flex items-center gap-1.5 rounded-xl border-0 bg-accent-gradient px-6 py-2.5 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/40"
-            >
-              {loc.onboarding.next} <ChevronRight size={16} />
-            </button>
-          ) : (
-            <button
-              onClick={handleFinish}
-              className="flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-accent-green to-accent-cyan px-7 py-2.5 text-sm font-bold text-fg shadow-xl shadow-accent-green/40"
-            >
-              <Check size={18} /> {loc.onboarding.startListening}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+      {/* Step navigation buttons */}
+      <ModalFooter className="justify-between">
+        {step > 1 ? (
+          <Button onClick={() => setStep(step - 1)}>
+            <ChevronLeft size={16} /> {loc.onboarding.back}
+          </Button>
+        ) : (
+          <div />
+        )}
+
+        {step < 3 ? (
+          <Button variant="primary" onClick={() => setStep(step + 1)}>
+            {loc.onboarding.next} <ChevronRight size={16} />
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={handleFinish}>
+            <Check size={18} /> {loc.onboarding.startListening}
+          </Button>
+        )}
+      </ModalFooter>
+    </ModalShell>
   );
 };

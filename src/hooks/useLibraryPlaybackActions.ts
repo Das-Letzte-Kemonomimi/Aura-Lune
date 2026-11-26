@@ -79,7 +79,7 @@ export function useLibraryPlaybackActions({
 }: UseLibraryPlaybackActionsOptions) {
   const isPlayingLibraryTrackRef = useRef<boolean>(false);
 
-  // Sterowanie odtwarzaczem - ładowanie bezpośrednie pliku
+  // Player control: load a file directly
   const handleLoadFile = async (path: string) => {
     try {
       setFilePath(path);
@@ -95,7 +95,7 @@ export function useLibraryPlaybackActions({
       const filename = path.split('/').pop() || path;
       invoke('update_mpris_metadata', {
         title: matchingTrack?.title || filename,
-        artist: matchingTrack?.artist || 'Plik lokalny',
+        artist: matchingTrack?.artist || 'Local File',
         album: matchingAlbum?.title || 'Auralune Player',
         durationMs: matchingTrack?.duration_ms || 0,
         artUrl: appCover,
@@ -103,11 +103,11 @@ export function useLibraryPlaybackActions({
 
       await invoke('load_file', { path });
 
-      // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
+      // Linux desktop notification (libnotify / D-Bus)
       if (desktopNotificationsEnabled) {
         invoke('show_desktop_notification', {
           title: matchingTrack?.title || filename,
-          body: matchingTrack?.artist || 'Plik lokalny',
+          body: matchingTrack?.artist || 'Local File',
           icon: null,
         }).catch(() => {});
       }
@@ -118,7 +118,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Systemowy wybór plików audio (kdialog Dolphin / zenity)
+  // System audio file picker (kdialog Dolphin / zenity)
   const handlePickFiles = async () => {
     try {
       const selected = await invoke<string[]>('pick_files');
@@ -135,9 +135,9 @@ export function useLibraryPlaybackActions({
             track_id: matchingTrack?.id ?? null,
             uri: filePath,
             title: matchingTrack?.title || fname,
-            artist: matchingTrack?.artist || 'Plik lokalny',
+            artist: matchingTrack?.artist || 'Local File',
             album: alb?.title || null,
-            duration_ms: (matchingTrack?.duration_ms || 0) as any,
+            duration_ms: matchingTrack?.duration_ms || 0,
           };
         });
 
@@ -160,7 +160,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Obsługa upuszczenia plików lub folderów (Drag & Drop)
+  // Dropped files or folders (drag & drop)
   const handleDropPaths = async (paths: string[]) => {
     if (!paths || paths.length === 0) return;
     try {
@@ -179,7 +179,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Odtwarzanie utworu z biblioteki z obsługą zakładek, kontekstu kolejki i globalnego Loop
+  // Play a library track, with bookmarks, the queue context and the global loop
   const handlePlayLibraryTrack = async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
     initialStartupPositionRef.current = null;
     if (isPlayingLibraryTrackRef.current) return;
@@ -191,7 +191,7 @@ export function useLibraryPlaybackActions({
       setActiveTrackId(track.id);
       setFilePath(track.path);
 
-      // 1. Natychmiastowe zaktualizowanie Discord RPC / MPRIS (0ms) z okładką
+      // 1. Update Discord RPC / MPRIS right away (0 ms), with the cover
       const matchingAlbum = albums.find((a) => a.id === track.album_id);
       const appCover = matchingAlbum?.release_mbid
         ? `https://coverartarchive.org/release/${matchingAlbum.release_mbid}/front-500`
@@ -205,7 +205,7 @@ export function useLibraryPlaybackActions({
         artUrl: appCover,
       }).catch(() => {});
 
-      // 2. Zarządzanie kolejką odtwarzania w zależności od albumPlaybackMode i kontekstu
+      // 2. Manage the playback queue according to albumPlaybackMode and the context
       const effectiveTracks = contextTracks && contextTracks.length > 0 ? contextTracks : [track];
 
       if (albumPlaybackMode === 'replace') {
@@ -220,7 +220,7 @@ export function useLibraryPlaybackActions({
             title: t.title,
             artist: t.artist,
             album: alb?.title || t.album_artist || null,
-            duration_ms: (t.duration_ms || 0) as any,
+            duration_ms: t.duration_ms || 0,
           };
         });
         await invoke('set_queue', { items: queueItems, startIndex });
@@ -237,7 +237,7 @@ export function useLibraryPlaybackActions({
             title: t.title,
             artist: t.artist,
             album: alb?.title || t.album_artist || null,
-            duration_ms: (t.duration_ms || 0) as any,
+            duration_ms: t.duration_ms || 0,
           };
         });
         const currentLen = queue.items.length;
@@ -246,13 +246,13 @@ export function useLibraryPlaybackActions({
         await invoke('set_queue', { items: combined, startIndex: targetIdx });
         await refreshQueue();
       } else {
-        // Tryb 'single': bezpośrednie załadowanie utworu bez modyfikacji kolejki
+        // 'single' mode: load the track directly without changing the queue
         await invoke('load_file', { path: track.path });
         await invoke('play');
         await refreshQueue();
       }
 
-      // Sprawdź czy jest zapisana zakładka (bookmark)
+      // Check whether a bookmark is saved
       const bookmark = await invoke<number | null>('get_bookmark', { trackId: track.id });
       setCurrentBookmark(bookmark ?? null);
 
@@ -267,7 +267,7 @@ export function useLibraryPlaybackActions({
         showMessage(fmt(loc.notifications.startedPlayback, track.title, track.artist));
       }
 
-      // Powiadomienie pulpitu Linuksa (libnotify / D-Bus)
+      // Linux desktop notification (libnotify / D-Bus)
       if (desktopNotificationsEnabled) {
         invoke('show_desktop_notification', {
           title: track.title,
@@ -305,7 +305,7 @@ export function useLibraryPlaybackActions({
         }).catch((e) => console.warn('Last.fm Now Playing error:', e));
       }
 
-      // Auto ReplayGain: dynamiczne dopasowanie Album Gain vs Track Gain
+      // Auto ReplayGain: dynamic choice of album gain vs track gain
       if (replaygainMode === 'Auto') {
         const prevTrack = tracks.find((t) => t.id === activeTrackId);
         const isSameAlbum = prevTrack?.album_id != null && prevTrack.album_id === track.album_id;
@@ -347,7 +347,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Wymieszanie i natychmiastowe odtworzenie całej biblioteki lub kontekstu utworów
+  // Shuffle and immediately play the whole library or the track context
   const handleShuffleAll = async (sourceTracks?: TrackRecord[]) => {
     const pool = (sourceTracks && sourceTracks.length > 0)
       ? sourceTracks
@@ -391,7 +391,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Profile sygnaturowe Auralune (Mastering Sound Profiles)
+  // Auralune signature profiles (mastering sound profiles)
   const handleApplySignatureProfile = async (profileId: string) => {
     try {
       if (profileId === 'vocal_air') {
@@ -415,7 +415,7 @@ export function useLibraryPlaybackActions({
           equalizer_enabled: true,
           equalizer_bands: vocalBands,
         }));
-        showMessage('🌸 Zastosowano profil: Anime Vocal Air (Czysty wokal, poszerzona scena)');
+        showMessage('🌸 Applied profile: Anime Vocal Air (clean vocals, wider stage)');
       } else if (profileId === 'lofi_tape') {
         await invoke('set_dsp_params', {
           engine: 'SoundTouch',
@@ -464,7 +464,7 @@ export function useLibraryPlaybackActions({
           equalizer_enabled: false,
           equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         }));
-        showMessage('🎧 Zastosowano profil: Audiophile Bit-Perfect (Passthrough bez DSP)');
+        showMessage('🎧 Applied profile: Audiophile Bit-Perfect (passthrough without DSP)');
       } else if (profileId === 'nightcore') {
         await invoke('set_dsp_params', {
           engine: 'RubberBand',
@@ -486,7 +486,7 @@ export function useLibraryPlaybackActions({
           equalizer_enabled: true,
           equalizer_bands: clubBands,
         }));
-        showMessage('⚡ Zastosowano profil: Nightcore Club Anthem (+2 st, 1.25x, Limiter)');
+        showMessage('⚡ Applied profile: Nightcore Club Anthem (+2 st, 1.25x, Limiter)');
       } else if (profileId === 'slowed') {
         await invoke('set_dsp_params', {
           engine: 'RubberBand',
@@ -507,14 +507,14 @@ export function useLibraryPlaybackActions({
           equalizer_enabled: true,
           equalizer_bands: ambientBands,
         }));
-        showMessage('🌌 Zastosowano profil: Ambient Slowed & Space (0.84x, -1.5 st, Wide M/S)');
+        showMessage('🌌 Applied profile: Ambient Slowed & Space (0.84x, -1.5 st, Wide M/S)');
       }
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
   };
 
-  // Zapis zakładki dla aktywnego utworu
+  // Save a bookmark for the active track
   const handleSaveBookmark = async () => {
     if (!activeTrackId) {
       showMessage(loc.notifications.firstSelectTrack, true);
@@ -533,7 +533,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Usunięcie zakładki dla aktywnego utworu
+  // Delete a bookmark for the active track
   const handleDeleteBookmark = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!activeTrackId) return;
@@ -546,13 +546,13 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Skok do zapisanej zakładki
+  // Jump to a saved bookmark
   const handleJumpToBookmark = async (pos: number) => {
     await handleSeek(pos);
     showMessage(fmt(loc.player.bookmarkJump, formatTime(pos)));
   };
 
-  // Reset licznika odtworzeń utworu
+  // Reset the track's play count
   const handleResetTrackPlays = async (trackId: number) => {
     try {
       await invoke('reset_track_plays', { trackId });
@@ -572,7 +572,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Otwarcie folderu nadrzędnego
+  // Open the parent folder
   const handleOpenContainingFolder = async (rawPath: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!rawPath) return;
@@ -585,7 +585,7 @@ export function useLibraryPlaybackActions({
     }
   };
 
-  // Ustawienie oceny gwiazdkowej (0-5)
+  // Set the star rating (0-5)
   const handleSetTrackRating = async (trackId: number, rating: number) => {
     try {
       await invoke('set_track_rating', { trackId, rating });
@@ -593,11 +593,11 @@ export function useLibraryPlaybackActions({
         prev.map((t) => (t.id === trackId ? { ...t, rating } : t))
       );
     } catch (err: unknown) {
-      console.error('Błąd zapisu oceny utworu:', err);
+      console.error('Failed to save the track rating:', err);
     }
   };
 
-  // Funkcja przełączania ulubionego (Favorites ❤️)
+  // Toggle a favourite (Favorites ❤️)
   const handleToggleFavorite = async (trackId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     try {
@@ -607,7 +607,7 @@ export function useLibraryPlaybackActions({
       );
       showMessage(isFav ? loc.notifications.addedFavorite : loc.notifications.removedFavorite);
     } catch (err) {
-      console.error('Błąd przełączania ulubionego:', err);
+      console.error('Failed to toggle the favourite:', err);
     }
   };
 

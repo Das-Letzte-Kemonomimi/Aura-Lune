@@ -1,10 +1,10 @@
-//! Operacje na zakładkach odtwarzania i wielopunktowych znacznikach czasu (Cue points).
+//! Playback bookmarks and multi-point time markers (cue points).
 
 use crate::{Database, StorageError};
 use sqlx::Row;
 
 impl Database {
-    /// Zapisuje pozycję odtwarzania (zakładkę) dla danego utworu.
+    /// Stores the playback position (bookmark) of a track.
     pub async fn save_bookmark(&self, track_id: i64, position_ms: u64) -> Result<(), StorageError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -29,7 +29,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera zapisaną pozycję utworu.
+    /// Returns the stored position of a track.
     pub async fn get_bookmark(&self, track_id: i64) -> Result<Option<u64>, StorageError> {
         let rec = sqlx::query("SELECT position_ms FROM playback_bookmarks WHERE track_id = ?1;")
             .bind(track_id)
@@ -39,7 +39,7 @@ impl Database {
         Ok(rec.map(|r| r.get::<i64, _>("position_ms") as u64))
     }
 
-    /// Usuwa zakładkę odtwarzania dla danego utworu.
+    /// Removes the playback bookmark of a track.
     pub async fn delete_bookmark(&self, track_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM playback_bookmarks WHERE track_id = ?1;")
             .bind(track_id)
@@ -49,7 +49,7 @@ impl Database {
         Ok(())
     }
 
-    /// Dodaje nowy nazwany znacznik czasu (zakładkę / cue point) do utworu.
+    /// Adds a new named time marker (bookmark / cue point) to a track.
     pub async fn add_track_bookmark(
         &self,
         track_id: i64,
@@ -84,7 +84,7 @@ impl Database {
         })
     }
 
-    /// Pobiera listę wszystkich zakładek dla danego utworu posortowaną rosnąco według czasu.
+    /// Returns all bookmarks of a track, sorted by time ascending.
     pub async fn get_track_bookmarks(
         &self,
         track_id: i64,
@@ -110,7 +110,7 @@ impl Database {
         Ok(bookmarks)
     }
 
-    /// Aktualizuje nazwę znacznika czasu.
+    /// Updates the name of a time marker.
     pub async fn update_track_bookmark(
         &self,
         bookmark_id: i64,
@@ -124,7 +124,7 @@ impl Database {
         Ok(())
     }
 
-    /// Usuwa znacznik czasu o podanym ID.
+    /// Removes the time marker with the given ID.
     pub async fn delete_track_bookmark(&self, bookmark_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM track_bookmarks WHERE id = ?1;")
             .bind(bookmark_id)

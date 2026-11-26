@@ -58,7 +58,7 @@ export type PianoRollViewMode = 'follow' | 'free';
 export interface PianoRollViewChange {
   pxPerSec?: number;
   mode?: PianoRollViewMode;
-  /** Wysokość wiersza w px albo `null` (auto). */
+  /** Row height in px, or `null` (auto). */
   rowHeight?: number | null;
 }
 
@@ -73,15 +73,15 @@ export interface PianoRollCanvasProps {
   bpm: number;
   durationMs: number;
   isPlaying: boolean;
-  /** Prędkość czasu źródła względem rzeczywistego (zob. `playbackSpeed`). */
+  /** Speed of the source time relative to real time (see `playbackSpeed`). */
   speed?: number;
-  /** Pozycja używana, dopóki nie dotarł pierwszy status z backendu. */
+  /** Position used until the first status arrives from the backend. */
   fallbackPositionMs: number;
   pxPerSec: number;
   mode: PianoRollViewMode;
-  /** Podpisy nut (np. D2, C4) wewnątrz prostokątów, o ile nuta jest dość szeroka. */
+  /** Note labels (e.g. D2, C4) inside the rectangles, when the note is wide enough. */
   showLabels: boolean;
-  /** Wysokość wiersza (px); `null` = dopasowana automatycznie. */
+  /** Row height (px); `null` = fitted automatically. */
   rowHeight: number | null;
   onViewChange: (change: PianoRollViewChange) => void;
   onSeek: (positionMs: number) => void;
@@ -89,21 +89,21 @@ export interface PianoRollCanvasProps {
   ariaLabel: string;
 }
 
-/** Przesunięcie kursora (px) powyżej którego kliknięcie staje się przeciąganiem (panoramowaniem). */
+/** Cursor movement (px) above which a click becomes a drag (panning). */
 const DRAG_THRESHOLD_PX = 4;
 const NOTE_MIN_WIDTH = 3;
-/** Poniżej tej wysokości wiersza podpis byłby nieczytelny. */
+/** Below this row height a label would be unreadable. */
 const MIN_LABEL_KEY_HEIGHT = 10;
-/** Różnica pozycji (ms), poniżej której uznajemy głowicę za ustaloną i usypiamy pętlę. */
-/** Odstęp podpisu od krawędzi nuty (z każdej strony). */
+/** Position difference (ms) below which the playhead counts as settled and the loop sleeps. */
+/** Label padding from the note edge (on each side). */
 const LABEL_PAD_PX = 4;
 const SETTLED_EPSILON_MS = 0.5;
 
-/** Nuty z tego okna wokół głowicy decydują o pionowym śledzeniu w trybie Follow. */
+/** Notes in this window around the playhead drive the vertical tracking in Follow mode. */
 const FOLLOW_LOOKBEHIND_MS = 400;
 const FOLLOW_LOOKAHEAD_MS = 3000;
 const SCROLLBAR_WIDTH = 6;
-/** Szerokość strefy chwytania suwaka (łatwiej trafić niż w 6 px). */
+/** Width of the scrollbar grab zone (easier to hit than 6 px). */
 const SCROLLBAR_HIT_WIDTH = 14;
 const SCROLLBAR_MIN_THUMB = 24;
 
@@ -111,7 +111,7 @@ interface FrameGeometry {
   layout: Layout;
   time: TimeAxis;
   pitch: PitchAxis;
-  /** Maksymalne przewinięcie w wierszach (0 = wszystko się mieści). */
+  /** Maximum scroll in rows (0 = everything fits). */
   maxScroll: number;
 }
 
@@ -122,11 +122,11 @@ interface DragState {
   lastX: number;
   lastY: number;
   moved: boolean;
-  /** Przesunięcie poziome przekroczyło próg → zmieniamy czas (i wychodzimy z Follow). */
+  /** The horizontal movement crossed the threshold → the time changes (and Follow is left). */
   panningTime: boolean;
 }
 
-/** Półprzezroczysty pas z trójkątem na górnej / dolnej krawędzi: „są tu jeszcze nuty — przewiń”. */
+/** Translucent strip with a triangle on the top / bottom edge: "there are more notes here, scroll". */
 function drawEdgeMarker(ctx: CanvasRenderingContext2D, roll: { x: number; y: number; w: number; h: number }, edge: 'top' | 'bottom') {
   const h = 18;
   const y0 = edge === 'top' ? roll.y : roll.y + roll.h;
@@ -148,7 +148,7 @@ function drawEdgeMarker(ctx: CanvasRenderingContext2D, roll: { x: number; y: num
   ctx.fill();
 }
 
-/** Pionowy suwak wzdłuż prawej krawędzi obszaru nut: tor i uchwyt w pikselach CSS. */
+/** Vertical scrollbar along the right edge of the note area: track and thumb in CSS pixels. */
 function scrollbarGeometry(roll: { x: number; y: number; w: number; h: number }, viewRows: number, maxScroll: number, scrollRows: number) {
   const totalRows = viewRows + maxScroll;
   const thumbH = clamp((viewRows / totalRows) * roll.h, SCROLLBAR_MIN_THUMB, roll.h);
@@ -168,7 +168,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
   const displayRef = useRef<number | null>(null);
   const freeOriginRef = useRef(0);
   const scrollRowsRef = useRef(0);
-  /** Follow przewija pionowo sam, dopóki użytkownik nie przewinie ręcznie (wraca po ponownym włączeniu Follow). */
+  /** Follow scrolls vertically on its own until the user scrolls by hand (it resumes when Follow is turned on again). */
   const autoVerticalRef = useRef(true);
   const lastPxPerSecRef = useRef(props.pxPerSec);
   const geometryRef = useRef<FrameGeometry | null>(null);
@@ -191,7 +191,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     const roll = rollRect(layout);
     if (roll.w <= 0 || roll.h <= 0) return false;
 
-    // --- pozycja: ekstrapolacja między tickami backendu (60+ Hz zamiast 10 Hz) ---
+    // --- position: extrapolation between backend ticks (60+ Hz instead of 10 Hz) ---
     const now = performance.now();
     const snap = livePlayback.getSnapshot();
     const reported = snap.ready ? snap.positionMs : p.fallbackPositionMs;
@@ -205,11 +205,11 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     displayRef.current = position;
     const settled = !p.isPlaying && Math.abs(position - target) < SETTLED_EPSILON_MS;
 
-    // --- oś czasu ---
+    // --- time axis ---
     const view = viewRef.current;
     const visibleMs = (roll.w / view.pxPerSec) * 1000;
     if (view.pxPerSec !== lastPxPerSecRef.current) {
-      // Zmiana zoomu z paska narzędzi: w trybie Free zachowujemy środek widoku.
+      // A zoom change from the toolbar: in Free mode the centre of the view is kept.
       const centre = freeOriginRef.current + ((roll.w / lastPxPerSecRef.current) * 1000) / 2;
       freeOriginRef.current = centre - visibleMs / 2;
       lastPxPerSecRef.current = view.pxPerSec;
@@ -226,14 +226,14 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     const t0 = originMs;
     const t1 = originMs + visibleMs;
 
-    // --- oś wysokości ---
+    // --- pitch axis ---
     const rows = rowCount(range);
     const keyHeight = resolveKeyHeight(roll.h, rows, view.rowHeight, p.showLabels);
     const maxScroll = maxScrollRows(roll.h, keyHeight, rows);
     const viewRows = roll.h / keyHeight;
     let verticalSettled = true;
     if (maxScroll > 0 && view.mode === 'follow' && autoVerticalRef.current) {
-      // Follow: widok pionowy sam śledzi nuty tuż przed i za głowicą — przesuwa się tylko wtedy, gdy wypadają z okna.
+      // Follow: the vertical view tracks the notes just before and after the playhead, moving only when they fall out of the window.
       const near = pitchSpanInWindow(index, position - FOLLOW_LOOKBEHIND_MS, position + FOLLOW_LOOKAHEAD_MS);
       const current = scrollRowsRef.current;
       const goal = followScrollGoal({ span: near, maxMidi: range.maxMidi, viewRows, current, maxScroll });
@@ -251,8 +251,8 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     };
     geometryRef.current = { layout, time, pitch, maxScroll };
 
-    // --- warstwy statyczne (przebudowa tylko przy zmianie klucza) ---
-    // Warstwa obejmuje jeden wiersz więcej i jest przesuwana o część ułamkową — przebudowa tylko przy zmianie pełnego wiersza.
+    // --- static layers (rebuilt only when the key changes) ---
+    // The layer covers one extra row and is shifted by the fractional part, so it is rebuilt only when a whole row changes.
     const wholeRows = Math.floor(scrollRowsRef.current);
     const subRow = (scrollRowsRef.current - wholeRows) * keyHeight;
     const layerHeight = Math.ceil(roll.h + keyHeight);
@@ -278,7 +278,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.drawImage(layers.rows, roll.x, roll.y - subRow, roll.w, layerHeight);
     ctx.restore();
 
-    // --- siatka: tylko widoczne linie, 1 piksel urządzenia ---
+    // --- grid: only the visible lines, 1 device pixel ---
     const line = 1 / dpr;
     for (const g of visibleGridLines(t0, t1, p.bpm, view.pxPerSec)) {
       const x = Math.round(timeToX(time, g.ms) * dpr) / dpr;
@@ -287,7 +287,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       ctx.fillRect(x, roll.y, line, roll.h);
     }
 
-    // --- nuty: tylko te z okna ---
+    // --- notes: only those in the window ---
     ctx.save();
     ctx.beginPath();
     ctx.rect(roll.x, roll.y, roll.w, roll.h);
@@ -319,7 +319,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.fillStyle = fill;
         currentFill = fill;
       }
-      // Z podpisami tło nuty nie schodzi poniżej 0,75 krycia — inaczej ciemny tekst traci kontrast.
+      // With labels the note background does not go below 0.75 opacity, otherwise dark text loses contrast.
       const velocityAlpha = clamp(note.velocity / 127, 0, 1);
       ctx.globalAlpha = isActive ? 1 : drawLabels ? 0.75 + 0.25 * velocityAlpha : 0.5 + 0.5 * velocityAlpha;
       ctx.beginPath();
@@ -332,7 +332,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         ctx.stroke();
       }
       if (drawLabels) {
-        // Podpis zaczyna się przy lewej krawędzi widocznej części nuty i musi się w niej zmieścić (zmniejszamy czcionkę albo pomijamy).
+        // The label starts at the left edge of the visible part of the note and must fit in it (shrink the font or skip it).
         const labelX = Math.max(x, roll.x) + LABEL_PAD_PX;
         const room = x + w - labelX - LABEL_PAD_PX;
         const fontPx = fitLabelFontPx(note.pitch_name.length, room, labelFontPx);
@@ -349,7 +349,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     }
     ctx.globalAlpha = 1;
 
-    // --- znaczniki: w oknie czasu są nuty poza widocznymi wierszami ---
+    // --- markers: there are notes outside the visible rows in the time window ---
     if (maxScroll > 0) {
       const hidden = hiddenNotesBeyondView({
         span: pitchSpanInWindow(index, t0, t1),
@@ -361,14 +361,14 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       if (hidden.below) drawEdgeMarker(ctx, roll, 'bottom');
     }
 
-    // --- głowica ---
+    // --- playhead ---
     const playheadX = timeToX(time, position);
     if (playheadX >= roll.x && playheadX <= roll.x + roll.w) {
       ctx.fillStyle = COLORS.playhead;
       ctx.fillRect(playheadX - 1, roll.y, 2, roll.h);
     }
 
-    // --- pionowy suwak (tylko gdy jest co przewijać) ---
+    // --- vertical scrollbar (only when there is something to scroll) ---
     if (maxScroll > 0) {
       const bar = scrollbarGeometry(roll, viewRows, maxScroll, scrollRowsRef.current);
       ctx.fillStyle = COLORS.scrollTrack;
@@ -380,7 +380,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     }
     ctx.restore();
 
-    // --- klawiatura z podświetleniem brzmiących nut ---
+    // --- keyboard with the sounding notes highlighted ---
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, roll.y, layout.keyWidth, roll.h);
@@ -396,7 +396,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     }
     ctx.restore();
 
-    // --- linijka czasu ---
+    // --- time ruler ---
     ctx.fillStyle = COLORS.rulerBg;
     ctx.fillRect(0, 0, width, layout.rulerHeight);
     ctx.fillStyle = COLORS.rulerTick;
@@ -419,7 +419,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       ctx.fill();
     }
 
-    // --- minimapa ---
+    // --- minimap ---
     if (layout.minimapHeight > 0 && p.durationMs > 0) {
       const mm = minimapRect(layout);
       ctx.fillStyle = COLORS.minimapBg;
@@ -446,7 +446,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       ctx.fillRect(mm.x + clamp(position / p.durationMs, 0, 1) * mm.w - 1, mm.y, 2, mm.h);
     }
 
-    // --- nuta pod kursorem (też podczas przewijania pod nieruchomą myszą) ---
+    // --- note under the cursor (also while scrolling under a still mouse) ---
     updateHover(pitch, time);
 
     return !(settled && verticalSettled);
@@ -480,26 +480,26 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     },
   });
 
-  // Najnowsze propsy dla pętli i handlerów; zmiana widoku/danych budzi uśpioną pętlę.
+  // The latest props for the loop and handlers; a view/data change wakes the sleeping loop.
   useEffect(() => {
     propsRef.current = props;
     viewRef.current = { mode: props.mode, pxPerSec: props.pxPerSec, rowHeight: props.rowHeight };
     invalidate();
   });
 
-  // Ponowne włączenie Follow przywraca automatyczne śledzenie wierszy.
+  // Turning Follow on again restores the automatic row tracking.
   useEffect(() => {
     if (props.mode === 'follow') autoVerticalRef.current = true;
   }, [props.mode]);
 
-  // Start/stop odtwarzania: nowa kotwica z aktualnej pozycji wyświetlanej, żeby głowica nie skoczyła.
+  // Playback start/stop: a new anchor from the current displayed position, so the playhead does not jump.
   useEffect(() => {
     const at = performance.now();
     anchorRef.current = { positionMs: displayRef.current ?? anchorRef.current.positionMs, at };
     invalidate();
   }, [props.isPlaying, invalidate]);
 
-  // Nowy status backendu (np. seek w trakcie pauzy) budzi pętlę.
+  // A new backend status (e.g. a seek while paused) wakes the loop.
   useEffect(() => livePlayback.subscribe(invalidate), [invalidate]);
 
   const toLocal = (clientX: number, clientY: number) => {
@@ -530,7 +530,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     if (!region) return;
     if (region === 'roll' && geo.maxScroll > 0 && x >= roll.x + roll.w - SCROLLBAR_HIT_WIDTH) {
       region = 'vscroll';
-      // Kliknięcie w tor ustawia uchwyt pod kursorem; dalsze przeciąganie przesuwa go płynnie.
+      // A click on the track puts the thumb under the cursor; further dragging moves it smoothly.
       const bar = scrollbarGeometry(roll, roll.h / geo.pitch.keyHeight, geo.maxScroll, geo.pitch.scrollRows);
       if (y < bar.thumbY || y > bar.thumbY + bar.thumbH) {
         scrollVertically(((y - roll.y - bar.thumbH / 2) / bar.travel) * geo.maxScroll, 'absolute');
@@ -540,7 +540,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     dragRef.current = { region, startX: x, startY: y, lastX: x, lastY: y, moved: false, panningTime: false };
   };
 
-  /** Ręczne przewijanie pionowe nie wychodzi z Follow w czasie, tylko wyłącza automatyczne centrowanie. */
+  /** Manual vertical scrolling does not leave Follow in time; it only turns off the automatic centring. */
   const scrollVertically = (rows: number, kind: 'delta' | 'absolute') => {
     autoVerticalRef.current = false;
     scrollRowsRef.current = kind === 'delta' ? scrollRowsRef.current + rows : rows;
@@ -553,7 +553,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     const tip = tooltipRef.current;
     if (tip) {
       const w = wrapRef.current?.clientWidth ?? 0;
-      // Tooltip po prawej od kursora, a przy prawej krawędzi — po lewej.
+      // Tooltip to the right of the cursor, or to the left near the right edge.
       const flip = w > 0 && x > w * 0.6;
       tip.style.transform = `translate(${Math.round(x + (flip ? -12 : 14))}px, ${Math.round(y + 14)}px)${flip ? ' translateX(-100%)' : ''}`;
     }
@@ -570,7 +570,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     if (drag && geo && drag.region === 'roll') {
       if (!drag.moved && Math.abs(x - drag.startX) + Math.abs(y - drag.startY) >= DRAG_THRESHOLD_PX) drag.moved = true;
       if (drag.moved) {
-        // Przeciągnięcie w pionie przewija wiersze i zostawia Follow; dopiero ruch w poziomie przesuwa czas (→ Free).
+        // A vertical drag scrolls the rows and keeps Follow; only horizontal movement shifts the time (→ Free).
         if (!drag.panningTime && Math.abs(x - drag.startX) >= DRAG_THRESHOLD_PX) {
           drag.panningTime = true;
           if (viewRef.current.mode !== 'free') setView({ mode: 'free' });
@@ -614,7 +614,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     invalidate();
   };
 
-  // Natywny listener `wheel` z `passive: false` — React podpina `onWheel` jako pasywny i nie da się anulować przewijania modala.
+  // A native `wheel` listener with `passive: false`: React attaches `onWheel` as passive, so modal scrolling could not be cancelled.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -629,7 +629,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       const view = viewRef.current;
 
       if (e.altKey) {
-        // Alt+kółko: wysokość wierszy; wiersz pod kursorem zostaje pod kursorem.
+        // Alt+wheel: row height; the row under the cursor stays under the cursor.
         const { y } = toLocal(e.clientX, e.clientY);
         const oldHeight = geo.pitch.keyHeight;
         const next = clamp(oldHeight * Math.exp(-(e.deltaY || e.deltaX) * 0.0015), ROW_HEIGHT_MIN, ROW_HEIGHT_MAX);
@@ -649,8 +649,8 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
         setView({ pxPerSec: next });
         return;
       }
-      // Kółko przewija wiersze (bez wychodzenia z Follow), gdy jest co przewijać; Shift i ruch poziomy (gładzik)
-      // przesuwają czas. Gdy wszystkie wiersze się mieszczą, kółko przesuwa czas jak dotąd.
+      // The wheel scrolls the rows (without leaving Follow) when there is something to scroll; Shift and horizontal movement (touchpad)
+      // shift the time. When all rows fit, the wheel shifts the time as before.
       const canScrollRows = geo.maxScroll > 0;
       const wantsRows = canScrollRows && !e.shiftKey && Math.abs(e.deltaY) >= Math.abs(e.deltaX);
       if (wantsRows) {
@@ -668,7 +668,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     };
     canvas.addEventListener('wheel', onWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', onWheel);
-    // `toLocal`/`setView` czytają tylko refy, więc handler jest stabilny.
+    // `toLocal`/`setView` read only refs, so the handler is stable.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasRef, invalidate]);
 
@@ -695,7 +695,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       />
       <div
         ref={tooltipRef}
-        className="pointer-events-none absolute left-0 top-0 z-5 hidden rounded-md border border-fg-secondary/35 bg-slate-900/95 px-2 py-1 text-xs whitespace-nowrap text-slate-200"
+        className="pointer-events-none absolute left-0 top-0 z-5 hidden rounded-md border border-line-accent bg-modal px-2 py-1 text-xs whitespace-nowrap text-fg"
       />
     </div>
   );

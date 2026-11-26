@@ -1,17 +1,17 @@
-//! Własny element GStreamer dla silników DSP Auralune (Bypass, Rubber Band, SoundTouch).
+//! Custom GStreamer element for the Auralune DSP engines (Bypass, Rubber Band, SoundTouch).
 //!
-//! ## Bezpieczeństwo czasu rzeczywistego (crates/AGENTS.md, „Real-Time Audio Safety”)
-//! Funkcja `chain` działa w wątku strumieniowym GStreamera:
-//! - **Bypass** (tryb bit-perfect, najczęstszy) nie dotyka blokady — silnik jest czytany
-//!   z atomika, a bufor przekazywany dalej bez zmian.
-//! - **Przetwarzanie** trzyma blokadę stanu tylko na czas obróbki jednego bufora. Wątek
-//!   sterujący nigdy nie trzyma jej podczas kosztownych operacji: nowe procesory są
-//!   przygotowywane (`prepare`) poza blokadą i jedynie podmieniane pod nią.
-//! - Brak alokacji na stercie Rusta w stanie ustalonym: bufory FIFO i wyjściowy mają
-//!   zarezerwowaną pojemność, a bloki wyjściowe zbierane są w tablicy na stosie.
-//!   (Pamięć `gst::Buffer` pochodzi z alokatora GStreamera przeznaczonego dla wątków strumieniowych.)
-//! - Format (częstotliwość, kanały) jest ustalany ze zdarzenia Caps, nie odpytywany przy każdym buforze.
-//! - Rzutowanie bajtów na `f32` jest sprawdzane (`crate::rt`); błędy DSP są logowane z limitem.
+//! ## Real-time safety (crates/AGENTS.md, "Real-Time Audio Safety")
+//! `chain` runs on the GStreamer streaming thread:
+//! - **Bypass** (bit-perfect mode, the common case) never takes the lock: the engine is read
+//!   from an atomic and the buffer is passed on unchanged.
+//! - **Processing** holds the state lock only while one buffer is processed. The control
+//!   thread never holds it during expensive work: new processors are
+//!   prepared (`prepare`) outside the lock and only swapped in under it.
+//! - No Rust heap allocation in steady state: the FIFO and output buffers have
+//!   reserved capacity, and output blocks are collected in an array on the stack.
+//!   (`gst::Buffer` memory comes from the GStreamer allocator meant for streaming threads.)
+//! - The format (rate, channels) comes from the Caps event, not a per-buffer query.
+//! - Byte-to-`f32` casts are checked (`crate::rt`); DSP errors are logged with a rate limit.
 
 use crate::rt::{self, RateLimiter};
 use crate::sync::LockExt;
@@ -63,14 +63,14 @@ static ELEMENT_METADATA: LazyLock<gst::subclass::ElementMetadata> = LazyLock::ne
     )
 });
 
-/// Maksymalna liczba bloków wyjściowych wypychanych z jednego wywołania `chain`.
-/// Nadmiar zostaje w FIFO i trafia do kolejnego wywołania (lub do drenażu przy EOS).
+/// Maximum number of output blocks pushed from one `chain` call.
+/// The rest stays in the FIFO for the next call (or the drain at EOS).
 const MAX_BLOCKS_PER_CHAIN: usize = 16;
-/// Minimalny rozmiar bloku przekazywany procesorom w `prepare`.
+/// Minimum block size passed to the processors in `prepare`.
 const MIN_PREPARE_BLOCK: usize = 2048;
-/// Zakładany maksymalny rozmiar bufora wejściowego (ramek) przy rezerwacji pamięci.
+/// Assumed maximum input buffer size (frames) when reserving memory.
 const TYPICAL_INPUT_FRAMES: usize = 4096;
-/// Najmniejsze tempo obu silników to 0.15× — wyjście może być ~6.7× dłuższe niż wejście.
+/// The slowest tempo of both engines is 0.15×, so output can be ~6.7× longer than input.
 const MAX_STRETCH_FACTOR: usize = 7;
 
 fn engine_to_u8(engine: DspEngine) -> u8 {
@@ -85,7 +85,7 @@ fn is_bypass_u8(value: u8) -> bool {
     value == engine_to_u8(DspEngine::Bypass)
 }
 
-/// Para procesorów przygotowanych dla danego formatu (tworzona poza blokadą stanu).
+/// A pair of processors prepared for a format (created outside the state lock).
 struct Processors {
     rubberband: RubberBandProcessor,
     soundtouch: SoundTouchProcessor,
@@ -99,15 +99,15 @@ impl Processors {
         }
     }
 
-    /// Tworzy i przygotowuje oba procesory. Kosztowne — wywoływać bez blokady stanu.
+    /// Creates and prepares both processors. Expensive: call without the state lock.
     fn prepared(format: AudioFormat, block_size: usize, params: DspParams) -> Self {
         let mut p = Self::unprepared();
         let prep_block = block_size.max(MIN_PREPARE_BLOCK);
         if let Err(e) = p.rubberband.prepare(format, prep_block) {
-            warn!("Błąd prepare RubberBand: {:?}", e);
+            warn!("RubberBand prepare failed: {:?}", e);
         }
         if let Err(e) = p.soundtouch.prepare(format, prep_block) {
-            warn!("Błąd prepare SoundTouch: {:?}", e);
+            warn!("SoundTouch prepare failed: {:?}", e);
         }
         let _ = p.rubberband.set_params(params);
         let _ = p.soundtouch.set_params(params);
@@ -121,7 +121,7 @@ struct DspNodeState {
     processors: Processors,
     fifo: VecDeque<f32>,
     out_buffer: Vec<f32>,
-    /// Kopia wejścia, gdy bufor GStreamera nie jest wyrównany do `f32` (rzadkie).
+    /// Copy of the input when the GStreamer buffer is not `f32`-aligned (rare).
     unaligned_input: Vec<f32>,
     current_pts: Option<u64>,
     current_offset: u64,
@@ -143,10 +143,10 @@ impl DspNodeState {
         }
     }
 
-    /// Podmienia procesory przygotowane poza blokadą i rezerwuje bufory dla nowego formatu.
+    /// Swaps in processors prepared outside the lock and reserves buffers for the new format.
     fn install(&mut self, format: AudioFormat, processors: Processors) {
         let mut processors = processors;
-        // Parametry mogły się zmienić, gdy procesory były przygotowywane bez blokady.
+        // Parameters may have changed while the processors were prepared without the lock.
         let _ = processors.rubberband.set_params(self.params);
         let _ = processors.soundtouch.set_params(self.params);
         self.processors = processors;
@@ -173,9 +173,9 @@ impl DspNodeState {
             self.on_engine_changed(old_params.engine, params.engine);
         }
 
-        // Gdy zmienia się prędkość (tempo/rate) lub tonacja, natychmiast zredukuj zalegające
-        // w FIFO próbki wygenerowane na starych parametrach. Zapobiega to efektowi opóźnienia
-        // oraz "pływania" dźwięku przed ustabilizowaniem nowej wartości.
+        // When speed (tempo/rate) or pitch changes, immediately trim the samples left in the
+        // FIFO that were produced with the old parameters. This avoids added latency
+        // and "drifting" sound before the new value settles.
         let params_changed = (old_params.rate_ratio - params.rate_ratio).abs() > 1e-4
             || (old_params.tempo_ratio - params.tempo_ratio).abs() > 1e-4
             || (old_params.pitch_semitones - params.pitch_semitones).abs() > 1e-4;
@@ -199,14 +199,14 @@ impl DspNodeState {
         }
     }
 
-    /// Przy zmianie silnika resetuj oba procesory i czyść FIFO, aby próbki z poprzedniego
-    /// silnika nie mieszały się z nowym. `current_pts` zostaje — bez skoków znaczników czasu.
+    /// On an engine change reset both processors and clear the FIFO so samples from the old
+    /// engine don't mix with the new one. `current_pts` is kept, so timestamps don't jump.
     fn on_engine_changed(&mut self, old_engine: DspEngine, engine: DspEngine) {
         let _ = self.processors.rubberband.reset();
         let _ = self.processors.soundtouch.reset();
         self.fifo.clear();
         debug!(
-            "AuraluneDsp: Silnik zmieniony {:?} -> {:?}, reset buforów",
+            "AuraluneDsp: engine changed {:?} -> {:?}, resetting buffers",
             old_engine, engine
         );
     }
@@ -219,8 +219,8 @@ impl DspNodeState {
         self.current_offset = 0;
     }
 
-    /// Zdejmuje z FIFO do `max_frames` ramek jako jeden `gst::Buffer` z poprawnymi PTS/offsetami.
-    /// `fallback_pts` (PTS bufora wejściowego) wyznacza bazę czasu po resecie.
+    /// Pops up to `max_frames` frames from the FIFO as one `gst::Buffer` with correct PTS/offsets.
+    /// `fallback_pts` (the input buffer's PTS) sets the time base after a reset.
     fn take_block(&mut self, max_frames: usize, fallback_pts: Option<u64>) -> Option<gst::Buffer> {
         let fmt = self.format?;
         let channels = fmt.channels as usize;
@@ -284,9 +284,9 @@ pub struct AuraluneDspImpl {
     sinkpad: gst::Pad,
     srcpad: gst::Pad,
     state: Arc<Mutex<DspNodeState>>,
-    /// Aktywny silnik (dla ścieżki Bypass bez blokady w `chain`).
+    /// Active engine (for the lock-free Bypass path in `chain`).
     engine: Arc<AtomicU8>,
-    /// Ustawiane przy przejściu na Bypass — `chain` jednorazowo czyści FIFO pod blokadą.
+    /// Set when switching to Bypass: `chain` clears the FIFO once under the lock.
     bypass_reset_pending: Arc<AtomicBool>,
 }
 
@@ -313,7 +313,7 @@ impl ObjectSubclass for AuraluneDspImpl {
     }
 }
 
-/// Wspólne uchwyty przekazywane do funkcji `chain` i obsługi zdarzeń.
+/// Shared handles passed to the `chain` function and the event handler.
 #[derive(Clone)]
 struct Shared {
     srcpad: gst::Pad,
@@ -381,7 +381,7 @@ static DSP_ERROR_LOG: RateLimiter = RateLimiter::new();
 
 impl AuraluneDspImpl {
     fn chain(shared: &Shared, buffer: gst::Buffer) -> Result<gst::FlowSuccess, gst::FlowError> {
-        // 1. Bypass: czysty, bit-perfect passthrough bez blokady.
+        // 1. Bypass: clean, bit-perfect passthrough without the lock.
         if is_bypass_u8(shared.engine.load(Ordering::Acquire)) {
             if shared.bypass_reset_pending.swap(false, Ordering::AcqRel) {
                 let mut state = shared.state.lock_safe();
@@ -391,9 +391,9 @@ impl AuraluneDspImpl {
             return shared.srcpad.push(buffer);
         }
 
-        // 2. Przetwarzanie DSP (Rubber Band lub SoundTouch)
+        // 2. DSP processing (Rubber Band or SoundTouch)
         let mut blocks: [Option<gst::Buffer>; MAX_BLOCKS_PER_CHAIN] = Default::default();
-        // `true`: przepuść bufor wejściowy bez zmian — wypychany dopiero po zwolnieniu blokady.
+        // `true`: pass the input buffer on unchanged; it is pushed only after the lock is released.
         let passthrough = 'locked: {
             let mut state = shared.state.lock_safe();
             if state.format.is_none() {
@@ -420,8 +420,8 @@ impl AuraluneDspImpl {
             };
 
             let status = match engine {
-                // Okno przełączania silnika: atomowa flaga mówiła "przetwarzaj", a stan jest już
-                // (lub jeszcze) Bypass — przepuść bufor bez zmian zamiast go zgubić.
+                // Engine-switch window: the atomic flag said "process", but the state is already
+                // (or still) Bypass, so pass the buffer on unchanged instead of dropping it.
                 DspEngine::Bypass => {
                     drop(map);
                     state.out_buffer = out_buffer;
@@ -438,7 +438,7 @@ impl AuraluneDspImpl {
             if let Err(err) = status {
                 if DSP_ERROR_LOG.should_log(500) {
                     warn!(
-                        "Błąd przetwarzania DSP ({:?}): {:?} (log co 500 wystąpień)",
+                        "DSP processing error ({:?}): {:?} (logged every 500 occurrences)",
                         engine, err
                     );
                 }
@@ -447,16 +447,16 @@ impl AuraluneDspImpl {
                 break 'locked true;
             }
 
-            // Umieść wyprodukowane próbki w elastycznym buforze FIFO
+            // Put the produced samples into the elastic FIFO
             state.fifo.extend(out_buffer.iter().copied());
             state.out_buffer = out_buffer;
 
-            // Drenujemy dostępne próbki w blokach do block_size ramek — natychmiastowe wypychanie
-            // zapobiega zawieszeniu prerollu GStreamera oraz głodzeniu zlewu PipeWire.
+            // Drain available samples in blocks of up to block_size frames; pushing right away
+            // avoids stalling the GStreamer preroll and starving the PipeWire sink.
             let fallback_pts = buffer.pts().map(|p| p.nseconds());
-            // Przy silnym spowolnieniu (tempo < 1) procesor produkuje więcej ramek niż
-            // MAX_BLOCKS_PER_CHAIN · block_size — powiększ blok, aby w każdym wywołaniu
-            // opróżnić całe FIFO (inaczej rośnie bez końca: realokacje i narastające opóźnienie).
+            // Under heavy slow-down (tempo < 1) the processor produces more frames than
+            // MAX_BLOCKS_PER_CHAIN · block_size, so grow the block to empty the whole FIFO
+            // on every call (otherwise it grows forever: reallocations and growing latency).
             let channels = state.format.map_or(1, |f| (f.channels as usize).max(1));
             let queued_frames = state.fifo.len() / channels;
             let block_size = state
@@ -474,7 +474,7 @@ impl AuraluneDspImpl {
             return shared.srcpad.push(buffer);
         }
 
-        // Wypychanie poza blokadą — element w dół potoku może blokować.
+        // Push outside the lock: a downstream element may block.
         for block in blocks.into_iter().flatten() {
             shared.srcpad.push(block)?;
         }
@@ -512,7 +512,7 @@ impl AuraluneDspImpl {
                 shared.srcpad.push_event(event)
             }
             EventView::Eos(..) => {
-                // Drenaż resztek bufora procesora (EOS nie jest gorącą ścieżką — Vec dozwolony).
+                // Drain what is left in the processor (EOS is not a hot path, so a Vec is fine).
                 let mut tail = Vec::new();
                 {
                     let mut state = shared.state.lock_safe();
@@ -539,7 +539,7 @@ impl AuraluneDspImpl {
         }
     }
 
-    /// Przygotowuje procesory dla nowego formatu. Kosztowny `prepare` odbywa się poza blokadą.
+    /// Prepares processors for a new format. The expensive `prepare` runs outside the lock.
     fn prepare_for_format(shared: &Shared, format: AudioFormat) {
         let (block_size, params) = {
             let state = shared.state.lock_safe();
@@ -549,7 +549,7 @@ impl AuraluneDspImpl {
             (state.block_size, state.params)
         };
         info!(
-            "AuraluneDsp: Przygotowanie silników dla {} Hz, {} kanałów (block_size: {})",
+            "AuraluneDsp: preparing engines for {} Hz, {} channels (block_size: {})",
             format.sample_rate, format.channels, block_size
         );
         let processors = Processors::prepared(format, block_size, params);
@@ -583,8 +583,8 @@ impl AuraluneDsp {
         self.publish_engine(engine);
     }
 
-    /// Zmienia rozmiar bloku. Procesory są przygotowywane od nowa poza blokadą stanu,
-    /// więc wątek strumieniowy nie czeka na kosztowny `prepare`.
+    /// Changes the block size. Processors are prepared again outside the state lock,
+    /// so the streaming thread never waits for the expensive `prepare`.
     pub fn set_block_size(&self, size: usize) {
         let imp = self.imp();
         let clamped = size.clamp(512, 16384);
@@ -597,10 +597,7 @@ impl AuraluneDsp {
             let processors = Processors::prepared(format, clamped, params);
             imp.state.lock_safe().install(format, processors);
         }
-        info!(
-            "AuraluneDsp: Zaktualizowano block_size na {} ramek",
-            clamped
-        );
+        info!("AuraluneDsp: block_size updated to {} frames", clamped);
     }
 
     pub fn block_size(&self) -> usize {

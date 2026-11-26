@@ -32,7 +32,7 @@ export function useAudioMasteringEffects({
       await invoke('set_crossfade_duration', { durationMs: clamped });
       await setSetting('crossfade_duration', clamped.toString());
     } catch (e) {
-      console.warn('Błąd zapisu crossfade_duration:', e);
+      console.warn('Failed to save crossfade_duration:', e);
     }
   };
 
@@ -47,7 +47,7 @@ export function useAudioMasteringEffects({
           : loc.notifications.limiterOff
       );
     } catch (e) {
-      console.warn('Błąd przełączania limitera:', e);
+      console.warn('Failed to toggle the limiter:', e);
     }
   };
 
@@ -74,7 +74,7 @@ export function useAudioMasteringEffects({
           : loc.notifications.bassBoostOff
       );
     } catch (e) {
-      console.warn('Błąd ustawiania Bass Boost:', e);
+      console.warn('Failed to set Bass Boost:', e);
     }
   };
 
@@ -89,7 +89,7 @@ export function useAudioMasteringEffects({
           : loc.notifications.stereoWidenerOff
       );
     } catch (e) {
-      console.warn('Błąd przełączania stereo widenera:', e);
+      console.warn('Failed to toggle the stereo widener:', e);
     }
   };
 
@@ -102,7 +102,7 @@ export function useAudioMasteringEffects({
       await setSetting('stereo_widener_amount', clamped.toString());
       await setSetting('stereo_widener_active', 'true');
     } catch (e) {
-      console.warn('Błąd ustawiania stereo widenera:', e);
+      console.warn('Failed to set the stereo widener:', e);
     }
   };
 

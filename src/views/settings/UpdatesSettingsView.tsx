@@ -1,5 +1,15 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Download, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  ExternalLink,
+  RefreshCw,
+  RotateCw,
+} from '../../components/ui/icons';
+import { Badge, Button, Callout, Card, ProgressBar, SectionHeader, SettingRow, StatusDot } from '../../components/ui';
 import { errorMessage, invoke } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo, InstallKind, UpdateInfo, UpdateProgress } from '../../types/updates';
@@ -8,6 +18,7 @@ import { ToggleSwitch } from '../../components/common/ToggleSwitch';
 import { MarkdownText } from '../../components/common/MarkdownText';
 import { ChangelogView } from '../changelog/ChangelogView';
 import { cn } from '../../utils/cn';
+import { SettingsPage } from './SettingsPage';
 
 export interface UpdatesSettingsViewProps {
   language: Language;
@@ -27,11 +38,6 @@ export interface UpdatesSettingsViewProps {
   onSkip: () => void;
   onToggleAutoCheck: (enabled: boolean) => void;
 }
-
-const CARD = 'glass-card flex flex-col gap-3 p-5';
-const BUTTON =
-  'inline-flex items-center gap-1.5 rounded-lg border border-line bg-white/6 px-4 py-2 text-ui font-bold text-accent-cyan';
-const PRIMARY_BUTTON = cn(BUTTON, 'bg-accent-gradient border-0 text-on-accent');
 
 function kindLabel(loc: Translations, kind: InstallKind): string {
   switch (kind) {
@@ -102,9 +108,9 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
   };
 
   return (
-    <div className="mx-auto my-0 flex max-w-187.5 flex-col gap-4">
-      <div className={CARD}>
-        <h3 className="m-0 text-lg font-extrabold">{t.title}</h3>
+    <SettingsPage>
+      <Card className="flex flex-col gap-3">
+        <SectionHeader icon={<RefreshCw size={18} />} tone="cyan" title={t.title} />
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-3">
           <div>
             <div className="label-caps">{t.currentVersion}</div>
@@ -124,52 +130,46 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className={BUTTON} onClick={onCheckNow} disabled={checking || installing}>
-            <RefreshCw size={14} className={cn(checking && 'animate-spin')} />
+          <Button onClick={onCheckNow} disabled={checking || installing}>
+            <RefreshCw size={14} className={cn(checking && 'motion-safe:animate-spin')} />
             {checking ? t.checking : t.checkNow}
-          </button>
+          </Button>
           <span className="text-ui text-fg-muted">
             {t.lastChecked}: {lastChecked}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
-          <div>
-            <div className="text-sm font-semibold">{t.autoCheck}</div>
-            <div className="mt-0.5 text-xs text-fg-muted">{t.autoCheckDesc}</div>
-          </div>
-          <ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />
-        </div>
-      </div>
+        <SettingRow
+          title={t.autoCheck}
+          description={t.autoCheckDesc}
+          control={<ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />}
+          className="border-t border-line pb-0"
+        />
+      </Card>
 
       {info && !available && !installed && (
-        <div className={cn(CARD, 'font-semibold text-accent-green')}>
+        <Callout tone="green" icon={<CheckCircle size={16} />} className="font-semibold text-accent-green">
           {t.upToDate}
-        </div>
+        </Callout>
       )}
 
       {(available || installed) && (
-        <div className={cn(CARD, 'border-line-accent')}>
+        <Card highlight="green" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full border border-green-500/45 bg-green-500/20 px-2.5 py-1 text-xs font-extrabold tracking-wider text-green-400 uppercase"
-            >
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-full bg-green-400 motion-safe:animate-update-dot"
-              />
+            <Badge tone="green" className="tracking-wider uppercase">
+              <StatusDot tone="green" className="motion-safe:animate-update-dot" />
               {installed ? t.badgeInstalledTitle : t.available}
-            </span>
+            </Badge>
             <span className="font-mono font-bold">{info?.latest_version}</span>
             {info?.release_notes && (
-              <button
-                type="button"
+              <Button
+                size="sm"
                 aria-expanded={notesExpanded}
                 onClick={() => setNotesExpanded((open) => !open)}
-                className={cn(BUTTON, 'ml-auto px-2.5 py-1 text-xs')}
+                className="ml-auto"
               >
                 {t.releaseNotes}
                 {notesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
+              </Button>
             )}
           </div>
           {notesExpanded && info?.release_notes && (
@@ -180,64 +180,46 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
           {installing && (
             <div>
               <div className="mb-1 text-ui">{fmt(t.downloading, percent)}</div>
-              <div
-                role="progressbar"
-                aria-valuenow={percent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                className="h-1.5 overflow-hidden rounded-sm bg-white/10"
-              >
-                <div
-                  className="h-full bg-linear-to-r from-accent-pink to-accent-purple transition-[width] duration-200"
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
+              <ProgressBar value={percent} label={fmt(t.downloading, percent)} />
             </div>
           )}
           {installed && <div className="font-semibold text-accent-green">{t.installedReady}</div>}
-          {!installed && installNotice && (
-            <div className="text-ui leading-normal text-fg-secondary">{installNotice}</div>
-          )}
+          {!installed && installNotice && <div className="text-ui leading-normal text-fg-secondary">{installNotice}</div>}
           <div className="flex flex-wrap gap-2.5">
             {installed ? (
-              <button type="button" className={PRIMARY_BUTTON} onClick={onRestart}>
+              <Button variant="primary" onClick={onRestart}>
                 <RotateCw size={14} /> {t.restartNow}
-              </button>
+              </Button>
             ) : (
               info?.can_install && (
-                <button type="button" className={PRIMARY_BUTTON} onClick={onInstall} disabled={installing}>
+                <Button variant="primary" onClick={onInstall} disabled={installing}>
                   <Download size={14} /> {installing ? t.installing : t.install}
-                </button>
+                </Button>
               )
             )}
             {info?.release_url && (
-              <button type="button" className={BUTTON} onClick={() => info.release_url && openLink(info.release_url)}>
+              <Button onClick={() => info.release_url && openLink(info.release_url)}>
                 <ExternalLink size={14} /> {t.openRelease}
-              </button>
+              </Button>
             )}
             {!installed && !isSkipped && (
-              <button type="button" className={BUTTON} onClick={onSkip} disabled={installing}>
+              <Button variant="ghost" onClick={onSkip} disabled={installing}>
                 {t.skip}
-              </button>
+              </Button>
             )}
           </div>
-          {isSkipped && !installed && (
-            <div className="text-xs text-fg-muted">{t.skipped}</div>
-          )}
-        </div>
+          {isSkipped && !installed && <div className="text-xs text-fg-muted">{t.skipped}</div>}
+        </Card>
       )}
 
       {(error || linkError) && (
-        <div
-          role="alert"
-          className={cn(CARD, 'border-red-400/40 text-ui text-red-400')}
-        >
+        <Callout role="alert" tone="danger" icon={<AlertTriangle size={16} />} className="text-ui text-accent-red">
           {t.errorPrefix}: {error ?? linkError}
-        </div>
+        </Callout>
       )}
 
-      <h3 className="mx-0 mt-2 mb-0 text-lg font-extrabold">{loc.settings.changelog}</h3>
+      <h3 className="mt-2 text-lg font-bold text-fg">{loc.settings.changelog}</h3>
       <ChangelogView currentLang={language} />
-    </div>
+    </SettingsPage>
   );
 };

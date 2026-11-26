@@ -1,23 +1,23 @@
 /**
- * Wygładzanie niezależne od liczby klatek na sekundę.
+ * Frame-rate-independent smoothing.
  *
- * Stałe „na klatkę” (np. `x += (cel - x) * 0.45`) działają 2.4× szybciej na ekranie 144 Hz niż na 60 Hz.
- * Tu wszystko jest wyrażone w czasie: stała czasowa `tau` (sekundy) i `dt` (sekundy).
+ * "Per frame" constants (e.g. `x += (target - x) * 0.45`) run 2.4× faster on a 144 Hz screen than on 60 Hz.
+ * Here everything is expressed in time: a time constant `tau` (seconds) and `dt` (seconds).
  */
 
-/** Wygładzanie wykładnicze: zbliża `current` do `target` z stałą czasową `tau` (s) w czasie `dt` (s). */
+/** Exponential smoothing: moves `current` towards `target` with time constant `tau` (s) over `dt` (s). */
 export function smoothTo(current: number, target: number, dt: number, tau: number): number {
   if (!(tau > 0) || !(dt > 0)) return dt > 0 ? target : current;
   return current + (target - current) * (1 - Math.exp(-dt / tau));
 }
 
-/** Stała czasowa (s) odpowiadająca współczynnikowi `factor` stosowanemu co klatkę przy `hz` klatek/s. */
+/** Time constant (s) matching the `factor` applied every frame at `hz` frames/s. */
 export function tauFromFrameLerp(factor: number, hz = 60): number {
   const f = Math.min(0.999999, Math.max(1e-6, factor));
   return -1 / (hz * Math.log(1 - f));
 }
 
-/** Przelicza spadek „na klatkę” (przy `hz` klatek/s) na spadek na sekundę. */
+/** Converts a "per frame" decay (at `hz` frames/s) to a decay per second. */
 export function fallPerSec(perFrame: number, hz = 60): number {
   return perFrame * hz;
 }

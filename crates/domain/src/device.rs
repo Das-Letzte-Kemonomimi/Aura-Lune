@@ -1,16 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-/// Tryb jakości dźwięku wyjściowego.
+/// Output audio quality mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AudioQualityMode {
-    /// Standardowy mikser systemowy.
+    /// Standard system mixer.
     #[default]
     Standard,
-    /// Dźwięk profesjonalny (bit-perfect, unikanie resamplingu, bezpośredni profil ALSA / PipeWire).
+    /// Professional audio (bit-perfect, avoids resampling, direct ALSA / PipeWire profile).
     ProAudio,
 }
 
-/// Zaawansowane kodeki Bluetooth A2DP.
+/// Advanced Bluetooth A2DP codecs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BluetoothCodec {
     /// Sony LDAC (do 990 kbps, 96 kHz / 24-bit).
@@ -23,14 +23,14 @@ pub enum BluetoothCodec {
     Aac,
     /// SBC-XQ (Subband Codec - eXtra Quality).
     SbcXq,
-    /// Standardowy SBC.
+    /// Standard SBC.
     Sbc,
-    /// Inny/niestandardowy kodek.
+    /// Other / non-standard codec.
     Other(String),
 }
 
 impl BluetoothCodec {
-    /// Rozpoznaje kodek na podstawie nazwy profilu PipeWire / PulseAudio.
+    /// Recognises the codec from the PipeWire / PulseAudio profile name.
     pub fn from_profile_name(profile: &str) -> Option<Self> {
         let p = profile.to_lowercase();
         if p.contains("ldac") {
@@ -50,7 +50,7 @@ impl BluetoothCodec {
         }
     }
 
-    /// Zwraca identyfikator profilu PipeWire odpowiadający temu kodekowi.
+    /// Returns the PipeWire profile identifier for this codec.
     pub fn to_profile_name(&self) -> &'static str {
         match self {
             Self::Ldac => "a2dp-sink-ldac",
@@ -63,7 +63,7 @@ impl BluetoothCodec {
         }
     }
 
-    /// Czytelna nazwa kodeka do prezentacji w UI.
+    /// Readable codec name for display in the UI.
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::Ldac => "Sony LDAC (High-Res 990 kbps)",
@@ -72,12 +72,12 @@ impl BluetoothCodec {
             Self::Aac => "AAC (MPEG-4)",
             Self::SbcXq => "SBC-XQ (High Quality)",
             Self::Sbc => "SBC (Standard)",
-            Self::Other(_) => "Inny kodek",
+            Self::Other(_) => "Other codec",
         }
     }
 }
 
-/// Profil karty dźwiękowej.
+/// Sound card profile.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AudioCardProfile {
     pub name: String,
@@ -87,7 +87,7 @@ pub struct AudioCardProfile {
     pub bluetooth_codec: Option<BluetoothCodec>,
 }
 
-/// Reprezentacja karty dźwiękowej w systemie PipeWire.
+/// A sound card in the PipeWire system.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AudioCard {
     pub index: u32,
@@ -99,12 +99,12 @@ pub struct AudioCard {
 }
 
 impl AudioCard {
-    /// Sprawdza, czy karta wspiera profil Pro Audio.
+    /// Checks whether the card supports the Pro Audio profile.
     pub fn supports_pro_audio(&self) -> bool {
         self.profiles.iter().any(|p| p.is_pro_audio)
     }
 
-    /// Zwraca listę dostępnych kodeków Bluetooth dla tej karty.
+    /// Returns the list of Bluetooth codecs available for this card.
     pub fn available_bluetooth_codecs(&self) -> Vec<BluetoothCodec> {
         self.profiles
             .iter()

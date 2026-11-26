@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import { invoke } from '../../api/ipc';
-import { Copy, Trash2, FolderOpen, Play, X, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Copy, Trash2, FolderOpen, Play, RefreshCw, AlertTriangle, CheckCircle2 } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { formatTime } from '../../utils/timeFormat';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
 
 export interface TrackRecordDto {
   id: number;
@@ -44,6 +44,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
   currentLang = 'pl',
 }) => {
   const loc = getTranslations(currentLang);
+  const titleId = useId();
   const [groups, setGroups] = useState<DuplicateGroupDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +57,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
       const res = await invoke<DuplicateGroupDto[]>('find_duplicate_tracks');
       setGroups(res);
     } catch (err) {
-      console.error('Błąd wyszukiwania duplikatów:', err);
+      console.error('Duplicate search failed:', err);
       setError(String(err));
     } finally {
       setIsLoading(false);
@@ -96,68 +97,35 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-212.5 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
-    >
-      {/* Nagłówek */}
-      <div
-        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-accent-cyan/25 text-accent-cyan">
-            <Copy size={18} />
-          </div>
-          <div>
-            <h3 className="m-0 text-base font-bold text-fg">
-              {loc.duplicateFinder.title}
-            </h3>
-            <p className="m-0 text-ui text-fg-secondary">
-              {loc.duplicateFinder.subtitle}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadDuplicates}
-            disabled={isLoading}
-            title={loc.duplicateFinder.refreshSearch}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-white/6 px-2.5 py-1.5 text-ui text-fg-secondary"
-          >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+    <ModalShell onClose={onClose} layer="studio" size="xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.duplicateFinder.title}
+        subtitle={loc.duplicateFinder.subtitle}
+        icon={<Copy size={20} />}
+        tone="cyan"
+        onClose={onClose}
+        closeLabel={loc.common.close}
+        actions={
+          <Button size="sm" onClick={loadDuplicates} disabled={isLoading} title={loc.duplicateFinder.refreshSearch}>
+            <RefreshCw size={14} className={cn(isLoading && 'motion-safe:animate-spin')} />
             {loc.duplicateFinder.refresh}
-          </button>
-          <button
-            onClick={onClose}
-            className="flex rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
-      {/* Komunikaty */}
-      {error && (
-        <div
-          className="mx-5 mt-4 mb-0 flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400"
-        >
-          <AlertTriangle size={16} />
-          {error}
-        </div>
-      )}
+      <ModalBody className="flex flex-col gap-4">
+        {error && (
+          <Callout tone="danger" icon={<AlertTriangle size={16} />} className="text-ui text-accent-red">
+            {error}
+          </Callout>
+        )}
+        {successMsg && (
+          <Callout tone="green" icon={<CheckCircle2 size={16} />} className="text-ui text-accent-green">
+            {successMsg}
+          </Callout>
+        )}
 
-      {successMsg && (
-        <div
-          className="mx-5 mt-4 mb-0 flex items-center gap-2 rounded-lg border border-accent-green/40 bg-accent-green/15 px-3.5 py-2.5 text-ui text-emerald-400"
-        >
-          <CheckCircle2 size={16} />
-          {successMsg}
-        </div>
-      )}
-
-      {/* Lista grup duplikatów */}
-      <div className="flex flex-col gap-4 overflow-y-auto p-5">
         {isLoading && (
           <div className="p-10 text-center text-fg-muted">
             {loc.duplicateFinder.scanning}
@@ -200,7 +168,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                   </span>
                 </div>
 
-                {/* Wiersze plików w danej grupie */}
+                {/* File rows in the group */}
                 <div className="flex flex-col gap-1.5">
                   {group.tracks.map((track) => {
                     const isLossless = ['flac', 'wav', 'alac', 'aiff'].includes(track.format.toLowerCase());
@@ -237,7 +205,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                           </span>
                         </div>
 
-                        {/* Akcje dla pliku */}
+                        {/* File actions */}
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => onPlayTrack(track.path)}
@@ -249,14 +217,14 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                           <button
                             onClick={() => handleOpenFolder(track.path)}
                             title={loc.duplicateFinder.showInFolder}
-                            className="flex rounded-md border border-line bg-white/6 p-1.5 text-fg-secondary"
+                            className="flex rounded-md border border-line bg-white/5 p-1.5 text-fg-secondary"
                           >
                             <FolderOpen size={13} />
                           </button>
                           <button
                             onClick={() => handleDelete(track.id, false, track.title)}
                             title={loc.duplicateFinder.removeFromDb}
-                            className="rounded-md border border-line bg-white/6 p-1.5 text-xs text-fg-muted"
+                            className="rounded-md border border-line bg-white/5 p-1.5 text-xs text-fg-muted"
                           >
                             {loc.duplicateFinder.removeEntry}
                           </button>
@@ -276,17 +244,11 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
             ))}
           </div>
         )}
-      </div>
+      </ModalBody>
 
-      {/* Stopka */}
-      <div className="flex justify-end border-t border-line bg-black/20 px-5 py-3">
-        <button
-          onClick={onClose}
-          className="rounded-lg border border-line bg-white/8 px-4 py-1.5 text-ui text-fg-secondary"
-        >
-          Zamknij
-        </button>
-      </div>
+      <ModalFooter>
+        <Button onClick={onClose}>{loc.common.close}</Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

@@ -1,15 +1,15 @@
-//! Moduł pamięci trwałej i bazy SQLite (sqlx).
+//! Persistent storage and the SQLite database (sqlx).
 //!
-//! Zdekomponowana i modularna warstwa persystencji danych Aura-Lune:
-//! - [`models`]: Struktury DTO, encje bazodanowe i błędy [`StorageError`].
-//! - [`schema`]: Migracje SQLite, schematy tabel, indeksy i domyślne motywy.
-//! - [`library`]: Zarządzanie artystami, albumami, utworami i wykrywaniem duplikatów.
-//! - [`bookmarks`]: Zakładki odtwarzania oraz wielopunktowe znaczniki (cue points).
-//! - [`settings`]: Ustawienia aplikacji, motywy graficzne i presety DSP.
-//! - [`playlists`]: Playlisty użytkowniczki oraz stan kolejki odtwarzania.
-//! - [`stats`]: Statystyki odsłuchów, historia, inteligentne zapytania i roczne/okresowe Recap.
-//! - [`analysis`]: Wyniki analizy muzycznej (akordy, transkrypcja, punkty szczytowe fali, modele AI).
-//! - [`stems`]: Wyniki separacji stemów oraz wielościeżkowe projekty miksów (Moises-like).
+//! Aura-Lune's modular persistence layer:
+//! - [`models`]: DTOs, database entities and the [`StorageError`] errors.
+//! - [`schema`]: SQLite migrations, table schemas, indexes and default themes.
+//! - [`library`]: artists, albums, tracks and duplicate detection.
+//! - [`bookmarks`]: playback bookmarks and multi-point markers (cue points).
+//! - [`settings`]: app settings, visual themes and DSP presets.
+//! - [`playlists`]: the user's playlists and the playback queue state.
+//! - [`stats`]: listening statistics, history, smart queries and yearly/periodic Recap.
+//! - [`analysis`]: music analysis results (chords, transcription, waveform peaks, AI models).
+//! - [`stems`]: stem separation results and multitrack mix projects (Moises-like).
 
 pub mod analysis;
 pub mod bookmarks;
@@ -28,25 +28,25 @@ use std::path::Path;
 use std::str::FromStr;
 use tracing::info;
 
-/// Główny interfejs bazy danych SQLite.
+/// Main SQLite database interface.
 #[derive(Clone)]
 pub struct Database {
     pub(crate) pool: SqlitePool,
 }
 
 impl Database {
-    /// Pragmy wydajnościowe stosowane do **każdego** połączenia puli (są per-połączenie):
-    /// pamięć podręczna 64 MB, tabele tymczasowe w RAM, mmap 256 MB.
+    /// Performance pragmas applied to **every** pool connection (they are per connection):
+    /// a 64 MB page cache, temp tables in RAM, 256 MB mmap.
     fn with_performance_pragmas(opts: SqliteConnectOptions) -> SqliteConnectOptions {
         opts.pragma("temp_store", "MEMORY")
             .pragma("cache_size", "-64000")
             .pragma("mmap_size", "268435456")
     }
 
-    /// Tworzy bazę danych w pamięci RAM (przydatne do testów i sesji ulotnych).
+    /// Creates an in-memory database (useful for tests and ephemeral sessions).
     ///
-    /// Każde połączenie `sqlite::memory:` to osobna, pusta baza — pula ma więc dokładnie
-    /// jedno połączenie, inaczej zapytania mogłyby trafić do bazy bez schematu.
+    /// Every `sqlite::memory:` connection is a separate, empty database, so the pool has exactly
+    /// one connection; otherwise queries could reach a database without the schema.
     pub async fn new_in_memory() -> Result<Self, StorageError> {
         let opts =
             Self::with_performance_pragmas(SqliteConnectOptions::from_str("sqlite::memory:")?);
@@ -62,10 +62,10 @@ impl Database {
         Ok(db)
     }
 
-    /// Otwiera lub tworzy bazę danych w podanej ścieżce na dysku.
+    /// Opens or creates the database at the given path on disk.
     ///
-    /// Ścieżka jest przekazywana jako nazwa pliku (nie URL), więc `?`, `#`, `%` i nazwy
-    /// spoza UTF-8 działają poprawnie.
+    /// The path is passed as a file name (not a URL), so `?`, `#`, `%` and names
+    /// outside UTF-8 work correctly.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let opts = SqliteConnectOptions::new()
@@ -82,11 +82,11 @@ impl Database {
 
         let db = Self { pool };
         db.run_migrations().await?;
-        info!("Baza danych SQLite zainicjalizowana: {}", path.display());
+        info!("SQLite database initialised: {}", path.display());
         Ok(db)
     }
 
-    /// Zwraca referencję do wewnętrznej puli połączeń SQLite.
+    /// Returns a reference to the internal SQLite connection pool.
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }

@@ -11,25 +11,25 @@ fn test_desktop_backend_smoke() {
 
     assert!(
         fixture_wav.exists(),
-        "Plik WAV powinien istnieć: {:?}",
+        "The WAV file should exist: {:?}",
         fixture_wav
     );
 
-    let engine = Arc::new(AudioEngine::new().expect("Silnik audio powinien wystartować"));
+    let engine = Arc::new(AudioEngine::new().expect("The audio engine should start"));
     let uri = format!("file://{}", fixture_wav.canonicalize().unwrap().display());
 
     engine
         .load_uri(&uri)
-        .expect("Ładowanie pliku w teście dymnym");
-    engine.play().expect("Play w teście dymnym");
+        .expect("Loading the file in the smoke test");
+    engine.play().expect("Play in the smoke test");
 
-    // Weryfikacja modyfikacji DSP
+    // Check the DSP changes
     engine.set_pitch_semitones(2.0).expect("Pitch shift +2 st");
     assert_eq!(engine.dsp_params().pitch_semitones, 2.0);
 
-    // Weryfikacja korektora EQ
+    // Check the EQ
     engine.set_equalizer_band(0, 4.0).expect("EQ band 0 gain");
     assert_eq!(engine.get_equalizer_bands()[0], 4.0);
 
-    engine.stop().expect("Stop w teście dymnym");
+    engine.stop().expect("Stop in the smoke test");
 }

@@ -1,7 +1,7 @@
 /**
- * Rysowanie poszczególnych trybów wizualizatora widma. Funkcje są czyste względem canvasu: dostają kontekst
- * (współrzędne w pikselach CSS), wygładzone pasma i stan animacji. Każdy tryb sam zapisuje/przywraca stan
- * kontekstu (`save`/`restore`), więc `lineCap`, cienie itp. nie „przeciekają” między trybami.
+ * Drawing of the individual spectrum visualiser modes. The functions are pure with respect to the canvas: they get a context
+ * (coordinates in CSS pixels), the smoothed bands and the animation state. Each mode saves/restores the context
+ * state itself (`save`/`restore`), so `lineCap`, shadows etc. do not "leak" between modes.
  */
 import { GradientCache, roundRectPath } from '../../utils/canvasDraw';
 import { circularBandIndex } from '../../utils/spectrumBands';
@@ -27,22 +27,22 @@ export function nextVisualizerMode(mode: VisualizerMode): VisualizerMode {
   return VISUALIZER_MODES[(VISUALIZER_MODES.indexOf(mode) + 1) % VISUALIZER_MODES.length];
 }
 
-/** Prędkość obrotu (rad/s) trybów, które się obracają — tylko podczas odtwarzania. */
+/** Rotation speed (rad/s) of the rotating modes; only during playback. */
 export const ROTATION_RAD_PER_SEC: Partial<Record<VisualizerMode, number>> = {
   circular: 0.42,
   anime_circle: 0.72,
   lissajous: 2.1,
 };
 
-/** Prędkość „czasu” oscyloskopu (jednostki/s) — dawne `Date.now() * 0.003`. */
+/** Oscilloscope "time" speed (units/s): formerly `Date.now() * 0.003`. */
 export const OSCILLOSCOPE_TIME_PER_SEC = 3;
 
 export interface SpectrumDrawState {
   ctx: CanvasRenderingContext2D;
-  /** Rozmiar w pikselach CSS. */
+  /** Size in CSS pixels. */
   width: number;
   height: number;
-  /** Wygładzone pasma 0..1 (liczba ważnych: `count`). */
+  /** Smoothed bands 0..1 (number of valid ones: `count`). */
   bands: readonly number[];
   peaks: readonly number[];
   count: number;
@@ -63,7 +63,7 @@ const drawBars: Drawer = ({ ctx, width, height, bands, peaks, count, gradients }
     const y = height - barHeight;
     const gradY = Math.round(y);
 
-    // Gradient neonowy zależy tylko od wysokości słupka — współdzielony między słupkami i klatkami
+    // The neon gradient depends only on the bar height, so it is shared between bars and frames
     ctx.fillStyle = gradients.get(`bars:${height}:${gradY}`, () => {
       const grad = ctx.createLinearGradient(0, height, 0, gradY);
       grad.addColorStop(0, 'rgba(6, 182, 212, 0.35)');
@@ -75,7 +75,7 @@ const drawBars: Drawer = ({ ctx, width, height, bands, peaks, count, gradients }
     roundRectPath(ctx, x, y, barWidth, barHeight, [4, 4, 0, 0]);
     ctx.fill();
 
-    // Kapturek szczytu (Peak cap) w jaskrawym kolorze neonu
+    // Peak cap in a bright neon colour
     const peakY = height - Math.max(6, peaks[i] * (height - 8)) - 3;
     ctx.fillStyle = '#ff6b81';
     ctx.fillRect(x, Math.max(0, peakY), barWidth, 3);
@@ -83,7 +83,7 @@ const drawBars: Drawer = ({ ctx, width, height, bands, peaks, count, gradients }
 };
 
 const drawWave: Drawer = ({ ctx, width, height, bands, count, gradients }) => {
-  if (count < 2) return; // krzywa wymaga co najmniej 2 pasm (inaczej dzielenie przez zero)
+  if (count < 2) return; // the curve needs at least 2 bands (otherwise division by zero)
   const step = width / (count - 1);
   ctx.beginPath();
   ctx.moveTo(0, height - bands[0] * (height - 8));
@@ -97,12 +97,12 @@ const drawWave: Drawer = ({ ctx, width, height, bands, count, gradients }) => {
   }
   ctx.lineTo(width, height - bands[count - 1] * (height - 8));
 
-  // Obrys fali
+  // Wave outline
   ctx.strokeStyle = '#06b6d4';
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // Wypełnienie gradientem
+  // Gradient fill
   ctx.lineTo(width, height);
   ctx.lineTo(0, height);
   ctx.closePath();
@@ -130,9 +130,9 @@ const drawMirrored: Drawer = ({ ctx, width, height, bands, count, gradients }) =
       return grad;
     });
 
-    // Prawa strona
+    // Right side
     ctx.fillRect(halfWidth + i * (barWidth + 2), height / 2 - barHeight, barWidth, barHeight * 2);
-    // Lewa strona (lustrzana)
+    // Left side (mirrored)
     ctx.fillRect(halfWidth - (i + 1) * (barWidth + 2), height / 2 - barHeight, barWidth, barHeight * 2);
   }
 };
@@ -145,7 +145,7 @@ const drawCircular: Drawer = ({ ctx, width, height, bands, count, rotation, grad
   const maxRay = Math.min(width, height) * 0.25;
 
   ctx.save();
-  // Okrąg wewnętrzny
+  // Inner circle
   ctx.beginPath();
   ctx.arc(cx, cy, baseRadius - 2, 0, 2 * Math.PI);
   ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
@@ -160,7 +160,7 @@ const drawCircular: Drawer = ({ ctx, width, height, bands, count, rotation, grad
     const rayLen = Math.max(3, val * maxRay);
     const len = Math.round(rayLen);
 
-    // Promień rysowany w lokalnym układzie (obrót wokół środka) — gradient zależy tylko od długości
+    // The ray is drawn in a local frame (rotation around the centre); the gradient depends only on the length
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
@@ -176,7 +176,7 @@ const drawCircular: Drawer = ({ ctx, width, height, bands, count, rotation, grad
     });
     ctx.stroke();
 
-    // Kropka na szczycie promienia
+    // Dot at the tip of the ray
     ctx.fillStyle = '#ff6b81';
     ctx.beginPath();
     ctx.arc(baseRadius + rayLen, 0, 1.2, 0, 2 * Math.PI);
@@ -193,12 +193,12 @@ const drawAnimeCircle: Drawer = ({ ctx, width, height, bands, count, rotation, g
   const bassLevel = (bands[0] || 0) * 0.6 + (bands[1] || 0) * 0.4;
   const coreR = Math.max(8, 14 + bassLevel * 16);
 
-  // Pulsujące jądro anime z poświatą neonową
+  // Pulsing anime core with a neon glow
   ctx.save();
   ctx.shadowBlur = 14;
   ctx.shadowColor = 'rgba(255, 77, 148, 0.75)';
 
-  // Wewnętrzne koło (Kitsune Core)
+  // Inner circle (Kitsune Core)
   const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreR);
   coreGrad.addColorStop(0, '#ffffff');
   coreGrad.addColorStop(0.5, '#ff4d94');
@@ -208,7 +208,7 @@ const drawAnimeCircle: Drawer = ({ ctx, width, height, bands, count, rotation, g
   ctx.arc(cx, cy, coreR, 0, 2 * Math.PI);
   ctx.fill();
 
-  // Podwójny pierścień rezonansowy
+  // Double resonance ring
   ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
   ctx.lineWidth = 1.8;
   ctx.beginPath();
@@ -216,7 +216,7 @@ const drawAnimeCircle: Drawer = ({ ctx, width, height, bands, count, rotation, g
   ctx.stroke();
   ctx.restore();
 
-  // 36 promieni mocy
+  // 36 power rays
   ctx.save();
   ctx.lineWidth = 2.2;
   ctx.lineCap = 'round';
@@ -244,7 +244,7 @@ const drawAnimeCircle: Drawer = ({ ctx, width, height, bands, count, rotation, g
     });
     ctx.stroke();
 
-    // Iskra energii na szczycie każdego promienia
+    // Energy spark at the tip of every ray
     if (val > 0.22) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
@@ -257,7 +257,7 @@ const drawAnimeCircle: Drawer = ({ ctx, width, height, bands, count, rotation, g
 };
 
 const drawOscilloscope: Drawer = ({ ctx, width, height, bands, count, isPlaying, time }) => {
-  // Siatka laboratoryjna CRT (delikatne linie pomocnicze) — bez poświaty
+  // CRT lab grid (faint guide lines), without a glow
   ctx.save();
   ctx.strokeStyle = 'rgba(0, 255, 204, 0.08)';
   ctx.lineWidth = 1;
@@ -268,7 +268,7 @@ const drawOscilloscope: Drawer = ({ ctx, width, height, bands, count, isPlaying,
   ctx.lineTo(width / 2, height);
   ctx.stroke();
 
-  // Wiązka wektorowa CRT Phosphor Beam na podstawie składowych widma
+  // CRT Phosphor Beam vector beam from the spectrum components
   const pointsCount = 120;
   ctx.beginPath();
   for (let i = 0; i <= pointsCount; i++) {
@@ -290,7 +290,7 @@ const drawOscilloscope: Drawer = ({ ctx, width, height, bands, count, isPlaying,
     else ctx.lineTo(x, y);
   }
 
-  // Poświata tylko na szerokiej wiązce (jedno rozmycie zamiast trzech), cienka biała linia bez cienia
+  // Glow only on the wide beam (one blur instead of three), a thin white line without a shadow
   ctx.shadowBlur = 12;
   ctx.shadowColor = '#00ffcc';
   ctx.strokeStyle = '#00ffcc';
@@ -306,7 +306,7 @@ const drawOscilloscope: Drawer = ({ ctx, width, height, bands, count, isPlaying,
 };
 
 const drawRetroBars: Drawer = ({ ctx, width, height, bands, peaks, count, isPlaying }) => {
-  // Klasyczny rack Hi-Fi z segmentowanymi diodami LED VFD (zielony / bursztynowy / czerwony peak)
+  // Classic Hi-Fi rack with segmented VFD LEDs (green / amber / red peak)
   const segmentsPerCol = 14;
   const barSpacing = 4;
   const barWidth = (width - (count - 1) * barSpacing) / count;
@@ -348,7 +348,7 @@ const drawLissajous: Drawer = ({ ctx, width, height, bands, count, isPlaying, ro
   const radius = Math.min(width, height) * 0.44;
 
   ctx.save();
-  // Siatka celownicza oscyloskopu
+  // Oscilloscope graticule
   ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
   ctx.lineWidth = 1;
   ctx.beginPath();

@@ -1,4 +1,4 @@
-//! Adapter DSP dla silnika SoundTouch.
+//! DSP adapter for the SoundTouch engine.
 
 pub mod ffi;
 pub mod processor;

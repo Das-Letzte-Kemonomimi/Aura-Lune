@@ -24,7 +24,7 @@ async fn test_dsp_presets_crud() {
 async fn test_custom_themes_and_app_settings() {
     let db = setup_test_db().await;
 
-    // Domyślne motywy zainicjowane migracją
+    // Default themes seeded by the migration
     let themes = db.list_themes().await.unwrap();
     assert_eq!(themes.len(), 7);
     let active = db.get_app_setting("active_theme_id").await.unwrap();

@@ -22,7 +22,7 @@ pub async fn get_active_theme(state: State<'_, AppState>) -> Result<Theme, Comma
             .db
             .get_theme("cyber-kitsune")
             .await?
-            .ok_or_else(|| CommandError::not_found("Nie znaleziono domyślnego motywu"))
+            .ok_or_else(|| CommandError::not_found("Default theme not found"))
     }
 }
 
@@ -31,11 +31,10 @@ pub async fn set_active_theme(
     theme_id: String,
     state: State<'_, AppState>,
 ) -> Result<Theme, CommandError> {
-    let theme = state
-        .db
-        .get_theme(&theme_id)
-        .await?
-        .ok_or_else(|| CommandError::not_found(format!("Motyw '{}' nie istnieje", theme_id)))?;
+    let theme =
+        state.db.get_theme(&theme_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Theme '{}' does not exist", theme_id))
+        })?;
     state
         .db
         .set_app_setting("active_theme_id", &theme_id)
@@ -51,11 +50,10 @@ pub async fn update_theme_background(
     blur_radius: f32,
     state: State<'_, AppState>,
 ) -> Result<Theme, CommandError> {
-    let mut theme = state
-        .db
-        .get_theme(&theme_id)
-        .await?
-        .ok_or_else(|| CommandError::not_found(format!("Motyw '{}' nie istnieje", theme_id)))?;
+    let mut theme =
+        state.db.get_theme(&theme_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Theme '{}' does not exist", theme_id))
+        })?;
     theme.background_ref = background_ref;
     theme.overlay_opacity = overlay_opacity;
     theme.blur_radius = blur_radius;
@@ -69,11 +67,10 @@ pub async fn export_theme_json(
     theme_id: String,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
-    let theme = state
-        .db
-        .get_theme(&theme_id)
-        .await?
-        .ok_or_else(|| CommandError::not_found(format!("Motyw '{}' nie istnieje", theme_id)))?;
+    let theme =
+        state.db.get_theme(&theme_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Theme '{}' does not exist", theme_id))
+        })?;
     serde_json::to_string_pretty(&theme).map_err(CommandError::from)
 }
 
@@ -83,7 +80,7 @@ pub async fn import_theme_json(
     state: State<'_, AppState>,
 ) -> Result<Theme, CommandError> {
     let theme: Theme = serde_json::from_str(&json_content)
-        .map_err(|e| CommandError::from(e).context("Błąd parsowania JSON"))?;
+        .map_err(|e| CommandError::from(e).context("JSON parse error"))?;
     theme.validate()?;
     state.db.save_theme(&theme).await?;
     state
@@ -96,7 +93,7 @@ pub async fn import_theme_json(
 #[tauri::command]
 pub async fn upload_background_image(file_path: String) -> Result<String, CommandError> {
     tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
-        // Rozwiązanie dowiązań: rozszerzenie sprawdzane jest na pliku docelowym.
+        // Resolve links: the extension is checked on the target file.
         let resolved = super::paths::ensure_readable(
             std::path::Path::new(&file_path),
             &["png", "jpg", "jpeg", "webp", "gif", "mp4", "webm"],
@@ -107,21 +104,20 @@ pub async fn upload_background_image(file_path: String) -> Result<String, Comman
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_lowercase();
-        let mime = match ext.as_str() {
-            "png" => "image/png",
-            "jpg" | "jpeg" => "image/jpeg",
-            "webp" => "image/webp",
-            "mp4" => "video/mp4",
-            "webm" => "video/webm",
-            _ => {
-                return Err(CommandError::validation(
-                    "Obsługiwane są pliki PNG, JPG, WebP oraz animowane wideo tła MP4/WebM",
-                ))
-            }
-        };
+        let mime =
+            match ext.as_str() {
+                "png" => "image/png",
+                "jpg" | "jpeg" => "image/jpeg",
+                "webp" => "image/webp",
+                "mp4" => "video/mp4",
+                "webm" => "video/webm",
+                _ => return Err(CommandError::validation(
+                    "Supported files are PNG, JPG, WebP and animated MP4/WebM video backgrounds",
+                )),
+            };
 
-        let bytes =
-            std::fs::read(path).map_err(|e| CommandError::from(e).context("Błąd odczytu pliku"))?;
+        let bytes = std::fs::read(path)
+            .map_err(|e| CommandError::from(e).context("Failed to read the file"))?;
         let max_size = if mime.starts_with("video/") {
             100 * 1024 * 1024
         } else {
@@ -129,7 +125,7 @@ pub async fn upload_background_image(file_path: String) -> Result<String, Comman
         };
         if bytes.len() > max_size {
             return Err(format!(
-                "Plik tła jest zbyt duży (maks. {} MB)",
+                "The background file is too large (max. {} MB)",
                 max_size / (1024 * 1024)
             )
             .into());
@@ -142,7 +138,7 @@ pub async fn upload_background_image(file_path: String) -> Result<String, Comman
     .await?
 }
 
-/// Tożsamość instalacji w systemie (kanał stable / dev), używana do nazw ikon i wpisu .desktop.
+/// The installation's identity on the system (stable / dev channel), used for icon names and the .desktop entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstallIdentity {
     pub app_id: &'static str,
@@ -150,8 +146,8 @@ pub struct InstallIdentity {
     pub is_dev: bool,
 }
 
-/// Kanał dev rozpoznajemy po `AURALUNE_CHANNEL=dev` (ustawia go launcher z `install.sh`)
-/// albo po ścieżce AppImage (`auralune-dev`). Wszystko inne to kanał stable.
+/// The dev channel is recognised by `AURALUNE_CHANNEL=dev` (set by the `install.sh` launcher)
+/// or by the AppImage path (`auralune-dev`). Everything else is the stable channel.
 pub fn install_identity(channel_env: Option<&str>, appimage: Option<&str>) -> InstallIdentity {
     let is_dev = channel_env == Some("dev") || appimage.is_some_and(|p| p.contains("auralune-dev"));
     if is_dev {
@@ -176,14 +172,14 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
         "lineout"
     };
 
-    // Wbudowane ikony aplikacji bez zależności od lokalnych ścieżek dewelopera
+    // App icons embedded in the binary, with no dependency on local developer paths
     let icon_bytes: Vec<u8> = if clean_style == "classic" {
         include_bytes!("../../icons/icon_classic.png").to_vec()
     } else {
         include_bytes!("../../icons/icon_lineout.png").to_vec()
     };
 
-    // 1. Zaktualizuj ikonę okna Tauri w locie
+    // 1. Update the Tauri window icon on the fly
     if let Some(window) = app.get_webview_window("main") {
         if let Ok(tauri_icon) = tauri::image::Image::from_bytes(&icon_bytes) {
             let _ = window.set_icon(tauri_icon);
@@ -195,7 +191,7 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
         std::env::var("APPIMAGE").ok().as_deref(),
     );
 
-    // 2. Zainstaluj w ~/.local/share/icons/hicolor dla środowiska Wayland / KDE Plasma
+    // 2. Install into ~/.local/share/icons/hicolor for Wayland / KDE Plasma
     if let Some(home) = std::env::var_os("HOME") {
         let base_icons = std::path::PathBuf::from(home.clone()).join(".local/share/icons/hicolor");
         let sizes = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
@@ -203,17 +199,17 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
             let dir = base_icons.join(format!("{}x{}/apps", s, s));
             let _ = std::fs::create_dir_all(&dir);
 
-            // Ikona pochodzi wyłącznie z zasobów wbudowanych w aplikację (nigdy z /tmp,
-            // gdzie dowolny użytkownik mógłby podłożyć plik).
+            // The icon comes only from resources embedded in the app (never from /tmp,
+            // where any user could plant a file).
             let _ = std::fs::write(dir.join(format!("{}.png", identity.app_id)), &icon_bytes);
             if !identity.is_dev {
                 let _ = std::fs::write(dir.join("auralune-desktop.png"), &icon_bytes);
             }
         }
 
-        // 3. Zaktualizuj pliki .desktop w ~/.local/share/applications
-        // Kanał dev ma własny wpis `auralune-dev.desktop` tworzony przez install.sh (Exec wskazuje
-        // jego launcher), więc nie nadpisujemy go ani nie tworzymy wpisu stable.
+        // 3. Update the .desktop files in ~/.local/share/applications
+        // The dev channel has its own `auralune-dev.desktop` entry created by install.sh (Exec points at
+        // its launcher), so we neither overwrite it nor create a stable entry.
         if !identity.is_dev {
             let apps_dir = std::path::PathBuf::from(home).join(".local/share/applications");
             let _ = std::fs::create_dir_all(&apps_dir);
@@ -237,7 +233,7 @@ Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
             let _ = std::fs::write(apps_dir.join("auralune-desktop.desktop"), desktop_content);
         }
 
-        // 4. Odśwież pamięć podręczną ikon
+        // 4. Refresh the icon cache
         let _ = std::process::Command::new("gtk-update-icon-cache")
             .arg("-f")
             .arg("-t")
@@ -261,7 +257,7 @@ pub async fn set_app_icon_style(
     };
     state.db.set_app_setting("app_icon_style", clean).await?;
 
-    // ~20 zapisów plików i `gtk-update-icon-cache` — poza wątkami Tokio.
+    // ~20 file writes and `gtk-update-icon-cache`, so off the Tokio threads.
     tokio::task::spawn_blocking(move || update_system_icons(&app, clean)).await??;
     Ok(clean.to_string())
 }

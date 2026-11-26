@@ -1,10 +1,10 @@
-//! Kanały sterowania IPC dla środowisk Linuksa (Hyprland, Sway, i3, Waybar, Polybar, Bash, Rofi).
+//! IPC control channels for Linux environments (Hyprland, Sway, i3, Waybar, Polybar, Bash, Rofi).
 //!
-//! Oba punkty wejściowe leżą w prywatnym katalogu uruchomieniowym (zob. [`crate::runtime_dir`]):
-//! 1. Nazwany potok FIFO `$XDG_RUNTIME_DIR/auralune/ctl`: sterowanie z dowolnego skryptu powłoki,
-//!    np. `echo next > "$XDG_RUNTIME_DIR/auralune/ctl"`.
-//! 2. Gniazdo Unix `$XDG_RUNTIME_DIR/auralune/auralune.sock`: dwukierunkowy interfejs dla
-//!    `socat`, `nc -U` lub aplikacji klienckich.
+//! Both entry points live in the private runtime directory (see [`crate::runtime_dir`]):
+//! 1. The named FIFO pipe `$XDG_RUNTIME_DIR/auralune/ctl`: control from any shell script,
+//!    e.g. `echo next > "$XDG_RUNTIME_DIR/auralune/ctl"`.
+//! 2. The Unix socket `$XDG_RUNTIME_DIR/auralune/auralune.sock`: a two-way interface for
+//!    `socat`, `nc -U` or client apps.
 
 use crate::runtime_dir;
 use audio_engine::AudioEngine;
@@ -21,12 +21,12 @@ use tokio::net::UnixListener;
 use tokio::sync::{Notify, Semaphore};
 use tracing::{debug, error, info, warn};
 
-/// Maksymalna długość jednego polecenia (bajty). Dłuższe linie zamykają połączenie.
+/// Maximum length of one command (bytes). Longer lines close the connection.
 const MAX_COMMAND_LEN: u64 = 256;
-/// Maksymalna liczba jednoczesnych połączeń z gniazdem sterowania.
+/// Maximum number of simultaneous connections to the control socket.
 const MAX_SOCKET_CONNECTIONS: usize = 8;
 
-/// Kontroler IPC sterowania odtwarzaczem.
+/// IPC controller for controlling the player.
 pub struct ControlIpcServer {
     engine: Arc<AudioEngine>,
     running: Arc<AtomicBool>,
@@ -36,7 +36,7 @@ pub struct ControlIpcServer {
 }
 
 impl ControlIpcServer {
-    /// Tworzy nową instancję serwera IPC.
+    /// Creates a new IPC server instance.
     pub fn new(engine: Arc<AudioEngine>) -> Self {
         Self {
             engine,
@@ -47,17 +47,17 @@ impl ControlIpcServer {
         }
     }
 
-    /// Uruchamia nasłuchiwanie na kolejce FIFO oraz gnieździe Unix Socket.
+    /// Starts listening on the FIFO and the Unix socket.
     pub fn start(&self, rt: &tokio::runtime::Runtime) {
         if let Err(e) = runtime_dir::ensure_runtime_dir() {
             warn!(
-                "Prywatny katalog IPC niedostępny ({}) — pomijam IPC sterowania",
+                "Private IPC directory unavailable ({}), skipping control IPC",
                 e
             );
             return;
         }
 
-        // 1. FIFO w osobnym wątku blokującym (otwarcie FIFO blokuje do pojawienia się piszącego).
+        // 1. FIFO on its own blocking thread (opening a FIFO blocks until a writer appears).
         let running_flag = self.running.clone();
         let engine_for_fifo = self.engine.clone();
         let fifo_path = self.fifo_path.clone();
@@ -67,7 +67,7 @@ impl ControlIpcServer {
                 Self::run_fifo_listener(engine_for_fifo, running_flag, &fifo_path);
             })
         {
-            error!("Błąd tworzenia wątku nasłuchu FIFO IPC: {}", e);
+            error!("Failed to spawn the IPC FIFO listener thread: {}", e);
         }
 
         // 2. Unix Domain Socket na runtime Tokio.
@@ -81,15 +81,15 @@ impl ControlIpcServer {
         });
 
         info!(
-            "Zainicjalizowano IPC sterowania: FIFO={} oraz Socket={}",
+            "Control IPC initialised: FIFO={} and Socket={}",
             self.fifo_path.display(),
             self.socket_path.display()
         );
     }
 
-    /// Pętla obsługi kolejki FIFO.
+    /// FIFO handling loop.
     fn run_fifo_listener(engine: Arc<AudioEngine>, running: Arc<AtomicBool>, fifo_path: &Path) {
-        // Usuń stare FIFO, jeśli istnieje (katalog jest prywatny, więc to nasz plik).
+        // Remove a stale FIFO if it exists (the directory is private, so the file is ours).
         let _ = fs::remove_file(fifo_path);
 
         match Command::new("mkfifo")
@@ -102,7 +102,7 @@ impl ControlIpcServer {
             Ok(s) if s.success() => {}
             Ok(s) => {
                 warn!(
-                    "mkfifo {} zakończył się kodem {:?} — IPC FIFO niedostępne",
+                    "mkfifo {} exited with code {:?}, IPC FIFO unavailable",
                     fifo_path.display(),
                     s.code()
                 );
@@ -110,7 +110,7 @@ impl ControlIpcServer {
             }
             Err(e) => {
                 warn!(
-                    "Nie udało się uruchomić mkfifo dla {}: {} — IPC FIFO niedostępne",
+                    "Failed to run mkfifo for {}: {}, IPC FIFO unavailable",
                     fifo_path.display(),
                     e
                 );
@@ -119,20 +119,17 @@ impl ControlIpcServer {
         }
         if !is_own_private_fifo(fifo_path) {
             warn!(
-                "{} nie jest prywatną kolejką FIFO bieżącego użytkownika — pomijam IPC FIFO",
+                "{} is not a private FIFO of the current user, skipping the IPC FIFO",
                 fifo_path.display()
             );
             return;
         }
 
-        info!(
-            "Kolejka FIFO gotowa do odbioru poleceń: {}",
-            fifo_path.display()
-        );
+        info!("FIFO ready to receive commands: {}", fifo_path.display());
 
         while running.load(Ordering::Relaxed) {
-            // Otwarcie FIFO w trybie tylko do odczytu blokuje wątek do momentu otwarcia przez
-            // piszącego; `stop()` budzi je, otwierając FIFO do zapisu.
+            // Opening the FIFO read-only blocks the thread until a writer opens it;
+            // `stop()` wakes it by opening the FIFO for writing.
             match fs::OpenOptions::new().read(true).open(fifo_path) {
                 Ok(file) => {
                     let mut reader = BufReader::new(file);
@@ -142,13 +139,13 @@ impl ControlIpcServer {
                         match (&mut reader).take(MAX_COMMAND_LEN + 1).read_line(&mut line) {
                             Ok(0) | Err(_) => break,
                             Ok(_) if line.len() as u64 > MAX_COMMAND_LEN => {
-                                warn!("Zbyt długie polecenie FIFO — odrzucono");
+                                warn!("FIFO command too long, rejected");
                                 break;
                             }
                             Ok(_) => {
                                 let trimmed = line.trim();
                                 if !trimmed.is_empty() {
-                                    debug!("Odebrano polecenie z FIFO: '{}'", trimmed);
+                                    debug!("Received command from FIFO: '{}'", trimmed);
                                     Self::execute_command(&engine, trimmed);
                                 }
                             }
@@ -157,7 +154,7 @@ impl ControlIpcServer {
                 }
                 Err(e) => {
                     if running.load(Ordering::Relaxed) {
-                        debug!("Błąd otwarcia FIFO: {}", e);
+                        debug!("Failed to open the FIFO: {}", e);
                         std::thread::sleep(std::time::Duration::from_millis(500));
                     }
                 }
@@ -167,7 +164,7 @@ impl ControlIpcServer {
         let _ = fs::remove_file(fifo_path);
     }
 
-    /// Pętla obsługi Unix Domain Socket.
+    /// Unix domain socket handling loop.
     async fn run_socket_listener(
         engine: Arc<AudioEngine>,
         running: Arc<AtomicBool>,
@@ -179,25 +176,21 @@ impl ControlIpcServer {
         let listener = match UnixListener::bind(socket_path) {
             Ok(l) => l,
             Err(e) => {
-                warn!(
-                    "Nie udało się powiązać socketu {}: {}",
-                    socket_path.display(),
-                    e
-                );
+                warn!("Failed to bind socket {}: {}", socket_path.display(), e);
                 return;
             }
         };
-        // Socket tylko dla bieżącego użytkownika (katalog i tak ma 0700).
+        // Socket for the current user only (the directory is 0700 anyway).
         if let Err(e) = fs::set_permissions(socket_path, fs::Permissions::from_mode(0o600)) {
             warn!(
-                "Nie udało się ograniczyć uprawnień socketu {}: {}",
+                "Failed to restrict the permissions of socket {}: {}",
                 socket_path.display(),
                 e
             );
         }
 
         info!(
-            "Gniazdo Unix Socket gotowe do odbioru poleceń: {}",
+            "Unix socket ready to receive commands: {}",
             socket_path.display()
         );
 
@@ -210,12 +203,12 @@ impl ControlIpcServer {
             let stream = match accepted {
                 Ok((stream, _)) => stream,
                 Err(e) => {
-                    debug!("Błąd accept na socket IPC: {}", e);
+                    debug!("accept error on the IPC socket: {}", e);
                     continue;
                 }
             };
             let Ok(permit) = connections.clone().try_acquire_owned() else {
-                warn!("Za dużo połączeń z gniazdem sterowania — odrzucono");
+                warn!("Too many connections to the control socket, rejected");
                 continue;
             };
             let engine_clone = engine.clone();
@@ -228,7 +221,7 @@ impl ControlIpcServer {
         let _ = fs::remove_file(socket_path);
     }
 
-    /// Obsługuje jedno połączenie: polecenie w linii → odpowiedź w linii.
+    /// Handles one connection: one command per line → one response per line.
     async fn serve_socket_connection(engine: Arc<AudioEngine>, stream: tokio::net::UnixStream) {
         let (read_half, mut write_half) = stream.into_split();
         let mut reader = TokioBufReader::new(read_half);
@@ -251,8 +244,8 @@ impl ControlIpcServer {
             if trimmed.is_empty() {
                 continue;
             }
-            debug!("Odebrano polecenie z Socket: '{}'", trimmed);
-            // Polecenia transportu blokują (mikro-fade'y) — poza wątkiem Tokio.
+            debug!("Received command from socket: '{}'", trimmed);
+            // Transport commands block (micro-fades), so they run off the Tokio thread.
             let engine = engine.clone();
             let cmd = trimmed.to_string();
             let response =
@@ -269,7 +262,7 @@ impl ControlIpcServer {
         }
     }
 
-    /// Wykonuje polecenie tekstowe na silniku audio.
+    /// Runs a text command on the audio engine.
     pub fn execute_command(engine: &Arc<AudioEngine>, cmd: &str) -> &'static str {
         let lower = cmd.to_lowercase();
         let parts: Vec<&str> = lower.split_whitespace().collect();
@@ -347,15 +340,15 @@ impl ControlIpcServer {
         }
     }
 
-    /// Kończy działanie serwera: budzi oba nasłuchy i usuwa pliki IPC.
+    /// Shuts the server down: wakes both listeners and removes the IPC files.
     pub fn stop(&self) {
         if !self.running.swap(false, Ordering::Relaxed) {
             return;
         }
-        // Gniazdo: przerwij `accept()` (permit zostaje zapamiętany, jeśli pętla jeszcze nie czeka).
+        // Socket: interrupt `accept()` (the permit is remembered if the loop is not waiting yet).
         self.shutdown.notify_one();
-        // FIFO: wątek czeka w blokującym `open()` do odczytu — nieblokujące otwarcie do zapisu
-        // je budzi; gdy nikt nie czyta, zwraca od razu ENXIO.
+        // FIFO: the thread waits in a blocking read `open()`; a non-blocking open for writing
+        // wakes it, and when nobody reads it returns ENXIO immediately.
         let _ = fs::OpenOptions::new()
             .write(true)
             .custom_flags(libc::O_NONBLOCK)
@@ -371,7 +364,7 @@ impl Drop for ControlIpcServer {
     }
 }
 
-/// Czy `path` to FIFO (nie dowiązanie) należące do bieżącego użytkownika, bez dostępu dla innych.
+/// Whether `path` is a FIFO (not a link) owned by the current user, with no access for others.
 fn is_own_private_fifo(path: &Path) -> bool {
     let Ok(meta) = fs::symlink_metadata(path) else {
         return false;

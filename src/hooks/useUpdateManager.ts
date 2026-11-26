@@ -8,9 +8,9 @@ export const UPDATE_AVAILABLE_EVENT = 'auralune://update-available';
 export const UPDATE_PROGRESS_EVENT = 'auralune://update-progress';
 
 /**
- * Stan aktualizacji aplikacji. Sprawdzanie w tle robi backend (start + co 6 h) i sygnalizuje je
- * zdarzeniem; ręczne „Sprawdź teraz” wymusza zapytanie. Instalacja jest dostępna tylko dla
- * AppImage z `install.sh` (`info.can_install`).
+ * App update state. The backend checks in the background (start-up + every 6 h) and signals it
+ * with an event; a manual "Check now" forces a request. Installation is available only for the
+ * AppImage from `install.sh` (`info.can_install`).
  */
 export function useUpdateManager() {
   const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
@@ -101,7 +101,7 @@ export function useUpdateManager() {
   }, []);
 
   const isSkipped = !!info?.latest_version && info.latest_version === skippedVersion;
-  /** Odznaka w nagłówku: nowa wersja (niepominięta) albo pobrana i czekająca na restart. */
+  /** Header badge: a new version (not skipped), or one downloaded and waiting for a restart. */
   const hasUpdate = installed || (!!info?.available && !isSkipped);
 
   return {

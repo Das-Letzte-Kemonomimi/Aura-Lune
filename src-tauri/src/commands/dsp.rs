@@ -72,7 +72,7 @@ pub fn set_equalizer_band_internal(
 ) -> Result<(), CommandError> {
     if band >= 10 {
         return Err(CommandError::validation(format!(
-            "Numer pasma {} jest nieprawidłowy (dozwolone 0-9)",
+            "Band number {} is invalid (allowed 0-9)",
             band
         )));
     }
@@ -361,7 +361,7 @@ pub async fn set_dsp_block_size(
 ) -> Result<(), CommandError> {
     let state = state.inner().clone();
     tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
-        info!("Tauri command: set_dsp_block_size({} ramek)", block_size);
+        info!("Tauri command: set_dsp_block_size({} frames)", block_size);
         state.engine.set_dsp_block_size(block_size)?;
         let db = state.db.clone();
         state.rt.spawn(async move {
@@ -601,15 +601,16 @@ pub async fn scan_track_replaygain(
         "Tauri command: scan_track_replaygain(track_id={}, write_tags={})",
         track_id, write_tags
     );
-    let track = state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
-        CommandError::not_found(format!("Nie znaleziono utworu o ID {}", track_id))
-    })?;
+    let track =
+        state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Track with ID {} not found", track_id))
+        })?;
 
-    // Pełne dekodowanie utworu — poza wątkami Tokio.
+    // Full track decode, off the Tokio threads.
     let path = track.path.clone();
     let result = tokio::task::spawn_blocking(move || analyze_track_replaygain(&path)).await??;
 
-    // Zapis do bazy danych SQLite
+    // Write to the SQLite database
     let gain = result.track_gain_db;
     let peak = result.track_peak;
     state
@@ -617,17 +618,14 @@ pub async fn scan_track_replaygain(
         .update_track_replaygain(track_id, gain, peak)
         .await?;
 
-    // Opcjonalny zapis tagów do pliku
+    // Optional tag write to the file
     if write_tags {
         let path = track.path.clone();
         let written =
             tokio::task::spawn_blocking(move || write_replaygain_tags_to_file(&path, gain, peak))
                 .await?;
         if let Err(e) = written {
-            warn!(
-                "Nie udało się zapisać tagów ReplayGain do {}: {}",
-                track.path, e
-            );
+            warn!("Failed to write ReplayGain tags to {}: {}", track.path, e);
         }
     }
 
@@ -650,7 +648,7 @@ pub async fn scan_library_replaygain(
     let mut errors = 0;
 
     for track in tracks {
-        // Analiza (pełne dekodowanie) i zapis tagów poza wątkami Tokio.
+        // Analysis (full decode) and tag write off the Tokio threads.
         let path = track.path.clone();
         let analyzed = tokio::task::spawn_blocking(move || {
             let res = analyze_track_replaygain(&path)?;
@@ -669,7 +667,7 @@ pub async fn scan_library_replaygain(
                 scanned += 1;
             }
             Err(err) => {
-                warn!("Błąd analizy ReplayGain dla {}: {}", track.path, err);
+                warn!("ReplayGain analysis error for {}: {}", track.path, err);
                 errors += 1;
             }
         }

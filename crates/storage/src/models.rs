@@ -1,4 +1,4 @@
-//! Modele danych, rekordy bazy SQLite oraz struktury DTO biblioteki i odtwarzacza.
+//! Data models, SQLite records and the library and player DTOs.
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -6,17 +6,17 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum StorageError {
-    #[error("Błąd bazy danych SQLite: {0}")]
+    #[error("SQLite database error: {0}")]
     Sqlx(#[from] sqlx::Error),
-    #[error("Błąd migracji: {0}")]
+    #[error("Migration error: {0}")]
     Migration(String),
-    #[error("Błąd serializacji danych: {0}")]
+    #[error("Data serialisation error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error(transparent)]
     Domain(#[from] domain::DomainError),
 }
 
-/// Rekord utworu w bazie danych.
+/// A track record in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct TrackRecord {
     pub id: i64,
@@ -55,8 +55,8 @@ pub struct TrackRecord {
 }
 
 impl TrackRecord {
-    /// Buduje element kolejki odtwarzania z rekordu biblioteki.
-    /// `album_title` to tytuł albumu (z tabeli `albums`), a nie wykonawca albumu.
+    /// Builds a playback queue item from a library record.
+    /// `album_title` is the album title (from the `albums` table), not the album artist.
     pub fn to_queue_item(&self, album_title: Option<String>) -> domain::queue::QueueItem {
         domain::queue::QueueItem {
             id: format!("track-{}", self.id),
@@ -70,7 +70,7 @@ impl TrackRecord {
     }
 }
 
-/// Pojedynczy utwór w podsumowaniu Recap.
+/// A single track in the Recap summary.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct RecapTopTrackDto {
     pub id: i64,
@@ -82,7 +82,7 @@ pub struct RecapTopTrackDto {
     pub total_play_time_ms: i64,
 }
 
-/// Pojedynczy wykonawca w podsumowaniu Recap.
+/// A single artist in the Recap summary.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct RecapTopArtistDto {
     pub artist: String,
@@ -90,7 +90,7 @@ pub struct RecapTopArtistDto {
     pub total_time_ms: i64,
 }
 
-/// Podsumowanie statystyk odsłuchów (Recap / Unwrapped)
+/// Listening statistics summary (Recap / Unwrapped)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct RecapSummaryDto {
     pub period: String,
@@ -102,7 +102,7 @@ pub struct RecapSummaryDto {
     pub top_artists: Vec<RecapTopArtistDto>,
 }
 
-/// Grupa potencjalnych duplikatów utworu w bibliotece.
+/// A group of potential duplicates of a track in the library.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DuplicateGroup {
     pub key: String,
@@ -110,7 +110,7 @@ pub struct DuplicateGroup {
     pub tracks: Vec<TrackRecord>,
 }
 
-/// Rekord albumu w bazie danych.
+/// An album record in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct AlbumRecord {
     pub id: i64,
@@ -121,14 +121,14 @@ pub struct AlbumRecord {
     pub release_mbid: Option<String>,
 }
 
-/// Rekord wykonawcy w bazie danych.
+/// An artist record in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct ArtistRecord {
     pub id: i64,
     pub name: String,
 }
 
-/// Rekord presetu DSP w bazie danych.
+/// A DSP preset record in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct DspPresetRecord {
     pub id: i64,
@@ -139,7 +139,7 @@ pub struct DspPresetRecord {
     pub rate_ratio: f64,
 }
 
-/// Dane wejściowe do zapisu wyniku analizy akordów w pamięci podręcznej.
+/// Input for storing a chord analysis result in the cache.
 #[derive(Debug, Clone)]
 pub struct NewTrackChords<'a> {
     pub track_id: i64,
@@ -152,8 +152,8 @@ pub struct NewTrackChords<'a> {
     pub camelot: Option<&'a str>,
 }
 
-/// Zapisany w pamięci podręcznej wynik analizy akordów.
-/// Pola `bpm`, `musical_key` i `camelot` są puste dla wpisów sprzed migracji v2.
+/// A cached chord analysis result.
+/// The `bpm`, `musical_key` and `camelot` fields are empty for entries from before migration v2.
 #[derive(Debug, Clone, FromRow, PartialEq)]
 pub struct CachedTrackChords {
     pub file_hash: String,
@@ -166,8 +166,8 @@ pub struct CachedTrackChords {
     pub camelot: Option<String>,
 }
 
-/// Zapisana w pamięci podręcznej transkrypcja nutowa.
-/// `bpm` jest puste dla wpisów sprzed migracji v2.
+/// A cached note transcription.
+/// `bpm` is empty for entries from before migration v2.
 #[derive(Debug, Clone, FromRow, PartialEq)]
 pub struct CachedTrackTranscription {
     pub file_hash: String,

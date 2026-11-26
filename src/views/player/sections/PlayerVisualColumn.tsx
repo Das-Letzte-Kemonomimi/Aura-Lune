@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CassetteTape, Disc, Disc3, Gauge, Sparkles, Upload } from 'lucide-react';
+import { CassetteTape, Disc, Disc3, Sparkles, Upload } from '../../../components/ui/icons';
 import { TapeDeckWidget } from '../../../components/player/TapeDeckWidget';
 import { VinylTurntable } from '../../../components/player/VinylTurntable';
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
@@ -8,6 +8,7 @@ import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
 import { arePlayerVisualColumnPropsEqual } from './playerVisualColumnMemo';
 import { cn } from '../../../utils/cn';
+import { Button, SegmentedControl, StatusDot } from '../../../components/ui';
 
 export type PlayerVisualColumnProps = Pick<PlayerViewProps, 'nowPlayingVisualMode' | 'handleSelectNowPlayingVisualMode' | 'loc' | 'language' | 'currentCover' | 'currentPlayingTrack' | 'tracks' | 'handlePlayPause' | 'vinylRpm' | 'handleSelectVinylRpm' | 'setIsLoFiModalOpen' | 'tapeType' | 'handleSelectTapeType' | 'tapeSpeed' | 'handleSelectTapeSpeed' | 'currentAlbum' | 'handleOpenCoverPicker' | 'albums' | 'handleUploadCustomCoverDirect' | 'dspBadgeTitle' | 'dspBadgeText'> & {
   status: PlaybackStatus;
@@ -37,7 +38,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   tracks,
   vinylRpm,
 }) => {
-  // BPM bieżącego utworu — wyszukiwanie w bibliotece tylko przy zmianie utworu/biblioteki, nie co tick
+  // BPM of the current track: looked up in the library only when the track/library changes, not on every tick
   const currentTrackId = status.current_track?.track_id;
   const currentTrackUri = status.current_track?.uri;
   const turntableBpm = useMemo(
@@ -50,50 +51,21 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
 
   return (
     <div className="flex w-full flex-col items-center">
-      {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Taśma • Wskaźnik VU */}
-      <div
-        className={cn(
-          'mb-2.5 flex w-full gap-1 rounded-lg bg-black/35 p-1 transition-[max-width] duration-200',
-          nowPlayingVisualMode === 'cover' ? 'max-w-60' : 'max-w-69',
-        )}
-      >
-        <button
-          onClick={() => handleSelectNowPlayingVisualMode('cover')}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
-            nowPlayingVisualMode === 'cover' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
-          )}
-        >
-          <Disc size={13} /> {loc.player.displayCover}
-        </button>
-        <button
-          onClick={() => handleSelectNowPlayingVisualMode('turntable')}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
-            nowPlayingVisualMode === 'turntable' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
-          )}
-        >
-          <Disc3 size={13} /> {loc.player.displayVinyl}
-        </button>
-        <button
-          onClick={() => handleSelectNowPlayingVisualMode('tape')}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
-            nowPlayingVisualMode === 'tape' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
-          )}
-        >
-          <CassetteTape size={13} /> {loc.player.displayTape}
-        </button>
-        <button
-          onClick={() => handleSelectNowPlayingVisualMode('vumeter')}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-1 rounded-md border-0 px-1.5 py-1 text-xs font-bold',
-            nowPlayingVisualMode === 'vumeter' ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
-          )}
-        >
-          <Gauge size={13} /> VU
-        </button>
-      </div>
+      {/* Visual mode selector: cover • hi-fi vinyl • tape • VU meter */}
+      <SegmentedControl
+        label={loc.player.displayModeLabel}
+        size="sm"
+        fullWidth
+        value={nowPlayingVisualMode}
+        onChange={handleSelectNowPlayingVisualMode}
+        items={[
+          { value: 'cover', label: loc.player.displayCover },
+          { value: 'turntable', label: loc.player.displayVinyl },
+          { value: 'tape', label: loc.player.displayTape },
+          { value: 'vumeter', label: 'VU' },
+        ]}
+        className={cn('mb-2.5 max-w-69', nowPlayingVisualMode === 'cover' && 'max-w-60')}
+      />
 
       {nowPlayingVisualMode === 'turntable' ? (
         <VinylTurntable
@@ -154,7 +126,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
           {!currentCover && (
             <div
               className={cn(
-                'flex h-47 w-47 items-center justify-center rounded-full border-2 border-white/8',
+                'flex h-47 w-47 items-center justify-center rounded-full border-2 border-line',
                 status.state === 'Playing' && 'animate-spin',
               )}
               style={{
@@ -162,7 +134,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
                 boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5)',
               }}
             >
-              {/* Centrum winylu z logo Kitsune */}
+              {/* Vinyl centre with the Kitsune logo */}
               <div
                 className="flex h-16 w-16 items-center justify-center rounded-full border-3 border-black/60 bg-accent-gradient shadow-halo-sm shadow-accent-pink/50"
               >
@@ -171,7 +143,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
             </div>
           )}
 
-          {/* Badge formatu na okładce */}
+          {/* Format badge on the cover */}
           <div
             className="absolute bottom-2.5 right-2.5 rounded-md border border-accent-cyan/35 bg-black/90 px-2 py-1 text-xxs font-bold tracking-wider text-accent-cyan"
           >
@@ -180,10 +152,13 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
         </div>
       )}
 
-      {/* Przyciski lub kontrolki pod elementem wizualnym w zależności od trybu */}
+      {/* Buttons or controls below the visual element, depending on the mode */}
       {nowPlayingVisualMode === 'cover' ? (
         <div className="mt-2.5 flex w-full max-w-60 gap-2">
-          <button
+          <Button
+            variant="tinted"
+            tone="pink"
+            size="sm"
             onClick={() => {
               if (currentAlbum) {
                 handleOpenCoverPicker(currentAlbum);
@@ -212,17 +187,20 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
               }
             }}
             title={loc.covers.matchCoverTitle}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent-pink/35 bg-linear-135 from-accent-pink/20 to-accent-purple/20 p-2 text-xs font-bold text-fg transition-all duration-200"
+            className="flex-1 py-2"
           >
-            <Sparkles size={12} className="text-accent-pink" /> {loc.covers.matchCover}
-          </button>
-          <button
+            <Sparkles size={12} /> {loc.covers.matchCover}
+          </Button>
+          <Button
+            variant="tinted"
+            tone="cyan"
+            size="sm"
             onClick={() => handleUploadCustomCoverDirect(currentAlbum)}
             title={loc.covers.uploadCustomCover}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent-cyan/35 bg-accent-cyan/15 p-2 text-xs font-bold text-fg transition-all duration-200"
+            className="flex-1 py-2"
           >
-            <Upload size={12} className="text-accent-cyan" /> {loc.covers.uploadCustomCover}
-          </button>
+            <Upload size={12} /> {loc.covers.uploadCustomCover}
+          </Button>
         </div>
       ) : nowPlayingVisualMode === 'turntable' ? (
         <div className="mt-2 flex w-full justify-center">
@@ -259,12 +237,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
               status.state === 'Playing' ? 'text-accent-green' : 'text-fg-muted',
             )}
           >
-            <span
-              className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                status.state === 'Playing' ? 'bg-accent-green shadow-halo-sm shadow-accent-green' : 'bg-fg-muted shadow-none',
-              )}
-            />
+            <StatusDot tone={status.state === 'Playing' ? 'green' : 'neutral'} className="size-1.5" />
             {status.state === 'Playing' ? loc.player.meterActive : loc.player.meterStandby}
           </span>
         </div>
@@ -273,5 +246,5 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   );
 };
 
-/** Zob. `statusUnchanged` w `playerVisualColumnMemo.ts` — pomija ~10 Hz zmiany pozycji i widma. */
+/** See `statusUnchanged` in `playerVisualColumnMemo.ts`: skips the ~10 Hz position and spectrum changes. */
 export const PlayerVisualColumn = React.memo(PlayerVisualColumnBase, arePlayerVisualColumnPropsEqual);

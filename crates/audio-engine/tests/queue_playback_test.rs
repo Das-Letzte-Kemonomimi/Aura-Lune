@@ -44,7 +44,7 @@ fn test_audio_engine_queue_integration() {
         duration_ms: 1000,
     };
 
-    // 1. Ustawienie kolejki
+    // 1. Set up the queue
     let active = engine
         .set_queue(vec![item1.clone(), item2.clone()], Some(0))
         .expect("set_queue");
@@ -54,12 +54,12 @@ fn test_audio_engine_queue_integration() {
 
     std::thread::sleep(Duration::from_millis(100));
 
-    // 2. Przejście do następnego utworu (play_next)
+    // 2. Move to the next track (play_next)
     let next = engine.play_next().expect("play_next");
     assert!(next.is_some());
     assert_eq!(next.unwrap().title, "Sine Opus");
 
-    // 3. Sprawdzenie pętli (LoopMode::Queue)
+    // 3. Check looping (LoopMode::Queue)
     engine.set_loop_mode(LoopMode::Queue);
     assert_eq!(engine.loop_mode(), LoopMode::Queue);
 
@@ -67,16 +67,16 @@ fn test_audio_engine_queue_integration() {
     assert!(wrapped.is_some());
     assert_eq!(wrapped.unwrap().title, "Sine WAV");
 
-    // 4. Poprzedni utwór (play_previous)
+    // 4. Previous track (play_previous)
     let prev = engine.play_previous().expect("play_previous");
     assert!(prev.is_some());
     assert_eq!(prev.unwrap().title, "Sine Opus");
 
-    // 5. Tryb losowy (Shuffle)
+    // 5. Shuffle mode
     engine.set_shuffle(true);
     assert!(engine.shuffle());
 
-    // 6. Dynamiczne dodawanie do kolejki
+    // 6. Adding to the queue on the fly
     let item3 = QueueItem {
         id: "q-3".to_string(),
         track_id: Some(3),
@@ -89,13 +89,13 @@ fn test_audio_engine_queue_integration() {
     engine.add_next_to_queue(item3);
     assert_eq!(engine.queue().items.len(), 3);
 
-    // 7. Usunięcie z kolejki
+    // 7. Remove from the queue
     let removed = engine.remove_from_queue("q-3");
     assert!(removed.is_some());
     assert_eq!(removed.unwrap().title, "Sine Interlude");
     assert_eq!(engine.queue().items.len(), 2);
 
-    // 8. Bezpośredni skok do indeksu w kolejce (play_index) — natychmiastowe przełączenie ze słyszalnym dźwiękiem (głośność przywrócona)
+    // 8. Jump straight to a queue index (play_index): an immediate switch with audible sound (volume restored)
     let indexed = engine.play_index(1).expect("play_index");
     assert!(indexed.is_some());
     assert_eq!(indexed.unwrap().title, "Sine Opus");
@@ -103,7 +103,7 @@ fn test_audio_engine_queue_integration() {
     std::thread::sleep(Duration::from_millis(50));
     assert!(
         (engine.volume() - 1.0).abs() < 0.001,
-        "Głośność po play_index musi wynosić 1.0 (nie 0.0)"
+        "The volume after play_index must be 1.0 (not 0.0)"
     );
 
     engine.stop().expect("stop");

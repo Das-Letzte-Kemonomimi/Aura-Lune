@@ -6,12 +6,12 @@ use std::time::Duration;
 async fn test_discord_rpc_controller_lifecycle() {
     let controller = DiscordRpcController::start(None, true, None);
 
-    // 1. Sprawdzenie stanu początkowego
+    // 1. Check the initial state
     let initial_status = controller.get_status();
     assert!(initial_status.enabled);
     assert_eq!(initial_status.client_id, DEFAULT_DISCORD_CLIENT_ID);
 
-    // 2. Wysłanie informacji o utworze
+    // 2. Send the track information
     controller.update_track(DiscordTrackInfo {
         title: "Kitsune Starlight".into(),
         artist: "Auralune Sound".into(),
@@ -20,16 +20,16 @@ async fn test_discord_rpc_controller_lifecycle() {
         art_url: Some("https://coverartarchive.org/release/123/front.jpg".into()),
     });
 
-    // 3. Wysłanie stanu odtwarzania
+    // 3. Send the playback state
     controller.update_playback_status(PlaybackState::Playing, 30000, 240000);
     controller.update_position(45000);
 
-    // 4. Zmiana parametrów w locie
+    // 4. Change the parameters on the fly
     controller.set_client_id("987654321098765432".into());
     controller.update_playback_status(PlaybackState::Paused, 45000, 240000);
     controller.clear_activity();
 
-    // 5. Wyłączenie
+    // 5. Turn it off
     controller.set_enabled(false);
     tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -52,7 +52,7 @@ fn test_discord_rpc_build_activity_payload_structure_and_timestamps() {
     let pos_ms = 42000u64; // 0:42 elapsed
     let dur_ms = 187000u64; // 3:07 total duration
 
-    // 1. Aktywność podczas odtwarzania (Playing)
+    // 1. Activity while playing (Playing)
     let act_playing = desktop_integration::build_activity_payload(
         &track,
         PlaybackState::Playing,
@@ -61,11 +61,11 @@ fn test_discord_rpc_build_activity_payload_structure_and_timestamps() {
         now_unix,
     );
 
-    // Linia 1: Tytuł
+    // Line 1: title
     assert_eq!(act_playing["details"], "Ich Kenne Alles");
-    // Linia 2: Wykonawca (NIE dubluje albumu!)
+    // Line 2: artist (does NOT repeat the album!)
     assert_eq!(act_playing["state"], "In Extremo");
-    // Linia 3: Album
+    // Line 3: album
     assert_eq!(act_playing["assets"]["large_text"], "Verehrt Und Angespien");
     assert_eq!(
         act_playing["assets"]["large_image"],
@@ -73,7 +73,7 @@ fn test_discord_rpc_build_activity_payload_structure_and_timestamps() {
     );
     assert_eq!(act_playing["type"], 2);
 
-    // Pasek postępu: zarówno start jak i end w sekundach UNIX
+    // Progress bar: both start and end in UNIX seconds
     let ts = &act_playing["timestamps"];
     let start = ts["start"].as_u64().expect("start timestamp must be u64");
     let end = ts["end"].as_u64().expect("end timestamp must be u64");
@@ -83,7 +83,7 @@ fn test_discord_rpc_build_activity_payload_structure_and_timestamps() {
     // duration_secs = 187, end = start + 187 = 1699999958 + 187 = 1700000145
     assert_eq!(end, start + 187);
 
-    // 2. Aktywność podczas pauzy (Paused)
+    // 2. Activity while paused (Paused)
     let act_paused = desktop_integration::build_activity_payload(
         &track,
         PlaybackState::Paused,
@@ -91,6 +91,6 @@ fn test_discord_rpc_build_activity_payload_structure_and_timestamps() {
         dur_ms,
         now_unix,
     );
-    // Na pauzie pasek postępu nie powinien odliczać czasu w Discordzie
+    // While paused the progress bar should not count time on Discord
     assert!(act_paused.get("timestamps").is_none());
 }

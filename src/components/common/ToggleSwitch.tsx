@@ -3,13 +3,13 @@ import React from 'react';
 export interface ToggleSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  /** Nazwa dostępna dla czytników ekranu. */
+  /** Accessible name for screen readers. */
   label: string;
   disabled?: boolean;
 }
 
 /**
- * Przełącznik-suwak (pigułka z białą gałką) oparty na natywnym checkboxie — działa z klawiatury.
+ * Slider switch (a pill with a white knob) built on a native checkbox, so it works from the keyboard.
  * The track and knob are styled from the checkbox state (`peer-checked:`), so they can never
  * disagree with what assistive tech reads.
  */

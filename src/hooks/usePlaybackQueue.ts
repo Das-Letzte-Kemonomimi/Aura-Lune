@@ -64,7 +64,7 @@ export function usePlaybackQueue({
       const q = await invoke<PlaybackQueue>('get_queue');
       setQueue(q);
     } catch (e: unknown) {
-      console.warn('Błąd pobierania kolejki:', e);
+      console.warn('Failed to fetch the queue:', e);
     }
   }, []);
 

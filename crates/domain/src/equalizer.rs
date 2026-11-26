@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-/// Częstotliwości środkowe pasm 10-pasmowego korektora graficznego (w Hz).
+/// Centre frequencies of the 10-band graphic equaliser bands (in Hz).
 pub const EQUALIZER_FREQUENCIES: [u32; 10] = [29, 59, 119, 237, 474, 947, 1889, 3770, 7523, 15011];
 
-/// Etykiety pasm wyświetlane w interfejsie użytkownika.
+/// Band labels shown in the user interface.
 pub const EQUALIZER_LABELS: [&str; 10] = [
     "31 Hz", "62 Hz", "125 Hz", "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz",
 ];
@@ -11,7 +11,7 @@ pub const EQUALIZER_LABELS: [&str; 10] = [
 pub const MIN_BAND_GAIN_DB: f64 = -24.0;
 pub const MAX_BAND_GAIN_DB: f64 = 12.0;
 
-/// Stan korektora graficznego.
+/// Graphic equaliser state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EqualizerState {
     pub enabled: bool,
@@ -32,12 +32,12 @@ impl EqualizerState {
         Self::default()
     }
 
-    /// Ogranicza wzmocnienie pasma do dopuszczalnego zakresu [-24.0 dB, +12.0 dB].
+    /// Clamps a band gain to the allowed range [-24.0 dB, +12.0 dB].
     pub fn clamp_gain(gain: f64) -> f64 {
         gain.clamp(MIN_BAND_GAIN_DB, MAX_BAND_GAIN_DB)
     }
 
-    /// Ustawia wzmocnienie wskazanego pasma.
+    /// Sets the gain of the given band.
     pub fn set_band(&mut self, band_idx: usize, gain_db: f64) -> bool {
         if band_idx < 10 {
             self.bands[band_idx] = Self::clamp_gain(gain_db);
@@ -47,13 +47,13 @@ impl EqualizerState {
         }
     }
 
-    /// Resetuje wszystkie pasma do poziomu 0.0 dB (Flat).
+    /// Resets every band to 0.0 dB (Flat).
     pub fn reset(&mut self) {
         self.bands = [0.0; 10];
     }
 }
 
-/// Gotowy profil brzmieniowy korektora.
+/// A ready-made equaliser sound profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EqualizerPreset {
     pub name: String,
@@ -72,7 +72,7 @@ impl EqualizerPreset {
         }
     }
 
-    /// Lista fabrycznych presetów brzmieniowych.
+    /// The built-in sound presets.
     pub fn default_presets() -> Vec<Self> {
         vec![
             Self::new("Płaski (Flat)", [0.0; 10]),

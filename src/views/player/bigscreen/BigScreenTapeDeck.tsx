@@ -29,7 +29,7 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
           : '0 20px 45px rgba(0, 0, 0, 0.85)',
       }}
     >
-      {/* 4 śrubki narożne */}
+      {/* 4 corner screws */}
       {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
         <div
           key={corner}
@@ -44,7 +44,7 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
         />
       ))}
 
-      {/* Naklejka etykiety kasety (Vintage Paper Label) */}
+      {/* Cassette label (vintage paper label) */}
       <div
         className="flex flex-col gap-0.5 rounded-lg border border-purple-200 bg-linear-135 from-fuchsia-50 to-fuchsia-100 px-3.5 py-2 text-indigo-950 shadow-md shadow-black/30"
       >
@@ -64,17 +64,17 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
         </div>
       </div>
 
-      {/* Środkowe przezroczyste okienko taśmy ze szpulami */}
+      {/* Clear central tape window with the reels */}
       <div
-        className="relative mx-0 my-2.5 flex flex-1 items-center justify-around overflow-hidden rounded-xl border border-white/10 bg-black/65"
+        className="relative mx-0 my-2.5 flex flex-1 items-center justify-around overflow-hidden rounded-xl border border-line bg-black/65"
         style={{ boxShadow: 'inset 0 0 15px rgba(0,0,0,0.9)' }}
       >
-        {/* Podziałka magnetofonowa: 100 • 50 • 0 */}
+        {/* Tape scale: 100 • 50 • 0 */}
         <div className="pointer-events-none absolute top-1 font-mono text-2xs tracking-widest text-white/40">
           100 • 50 • 0
         </div>
 
-        {/* Lewa szpula (Feed reel) - taśma maleje od 100% do 0% */}
+        {/* Left reel (feed reel): the tape shrinks from 100% to 0% */}
         <div className="relative flex items-center justify-center">
           <div
             className="absolute rounded-full shadow-halo-sm shadow-black/80 transition-[width,height] duration-200"
@@ -105,13 +105,13 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
           </div>
         </div>
 
-        {/* Przechodzący pasek taśmy magnetycznej */}
+        {/* Passing magnetic tape strip */}
         <div
           className="absolute bottom-3 h-1.5 shadow-sm shadow-black/70"
           style={{ width: '65%', background: 'linear-gradient(90deg, #451a03, #78350f, #451a03)' }}
         />
 
-        {/* Prawa szpula (Take-up reel) - taśma rośnie od 0% do 100% */}
+        {/* Right reel (take-up reel): the tape grows from 0% to 100% */}
         <div className="relative flex items-center justify-center">
           <div
             className="absolute rounded-full shadow-halo-sm shadow-black/80 transition-[width,height] duration-200"
@@ -143,7 +143,7 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
         </div>
       </div>
 
-      {/* Dolny profil kasety z rolkami prowadzącymi */}
+      {/* Bottom cassette profile with the guide rollers */}
       <div className="flex items-center justify-between px-7.5 py-0">
         <div className="h-3 w-3 rounded-full border border-fg-secondary bg-fg-muted" />
         <div className="h-2.5 w-7 rounded-xs border border-slate-600 bg-slate-700" />

@@ -16,28 +16,26 @@ fn test_opus_playback_and_pitch_shift() {
 
     assert!(
         fixture_opus.exists(),
-        "Plik testowy Opus powinien istnieć: {:?}",
+        "The Opus test file should exist: {:?}",
         fixture_opus
     );
 
-    let engine = AudioEngine::new().expect("AudioEngine powinien się zainicjalizować");
+    let engine = AudioEngine::new().expect("AudioEngine should initialise");
     let uri = format!("file://{}", fixture_opus.canonicalize().unwrap().display());
 
     engine
         .load_uri(&uri)
-        .expect("Ładowanie pliku Opus powinno się powieść");
-    engine
-        .play()
-        .expect("Odtwarzanie pliku Opus powinno się powieść");
+        .expect("Loading the Opus file should succeed");
+    engine.play().expect("Playing the Opus file should succeed");
     sleep(Duration::from_millis(150));
 
-    // Dynamiczny pitch shift na pliku Opus
+    // Pitch shift on the fly on an Opus file
     engine
         .set_pitch_semitones(5.0)
-        .expect("Pitch shift na Opus powinien się powieść");
+        .expect("Pitch shift on Opus should succeed");
     assert_eq!(engine.dsp_params().pitch_semitones, 5.0);
 
-    engine.stop().expect("Zatrzymanie powinno się powieść");
+    engine.stop().expect("Stopping should succeed");
 }
 
 #[test]
@@ -49,23 +47,23 @@ fn test_transcoding_preserves_source_file_and_creates_valid_target() {
     let output_transcoded_opus = root.join("tests/fixtures/test_converted_output.opus");
     let output_transcoded_flac = root.join("tests/fixtures/test_converted_output.flac");
 
-    // Upewniamy się, że pliki wyjściowe nie istnieją przed testem
+    // Make sure the output files don't exist before the test
     let _ = fs::remove_file(&output_transcoded_opus);
     let _ = fs::remove_file(&output_transcoded_flac);
 
     let input_size_before = fs::metadata(&input_wav)
-        .expect("Plik źródłowy WAV musi istnieć")
+        .expect("The source WAV file must exist")
         .len();
 
-    // 1. Konwersja WAV -> Opus (192 kbps)
+    // 1. Convert WAV -> Opus (192 kbps)
     Transcoder::transcode(
         &input_wav,
         &output_transcoded_opus,
         ExportFormat::Opus { bitrate_kbps: 192 },
     )
-    .expect("Transkodowanie WAV -> Opus powinno się powieść");
+    .expect("Transcoding WAV -> Opus should succeed");
 
-    // 2. Konwersja WAV -> FLAC
+    // 2. Convert WAV -> FLAC
     Transcoder::transcode(
         &input_wav,
         &output_transcoded_flac,
@@ -73,31 +71,31 @@ fn test_transcoding_preserves_source_file_and_creates_valid_target() {
             compression_level: 5,
         },
     )
-    .expect("Transkodowanie WAV -> FLAC powinno się powieść");
+    .expect("Transcoding WAV -> FLAC should succeed");
 
-    // 3. WERYFIKACJA ZASADY BEZPIECZEŃSTWA:
-    // Plik źródłowy nadal istnieje i jego rozmiar nie uległ zmianie
-    assert!(input_wav.exists(), "Plik źródłowy WAV MUSI istnieć!");
+    // 3. CHECK THE SAFETY RULE:
+    // The source file still exists and its size has not changed
+    assert!(input_wav.exists(), "The source WAV file MUST exist!");
     let input_size_after = fs::metadata(&input_wav).unwrap().len();
     assert_eq!(
         input_size_before, input_size_after,
-        "Plik źródłowy nie może być modyfikowany!"
+        "The source file must not be modified!"
     );
 
-    // 4. Weryfikacja plików wynikowych
+    // 4. Check the output files
     assert!(
         output_transcoded_opus.exists(),
-        "Plik Opus musi zostać utworzony"
+        "The Opus file must be created"
     );
     assert!(output_transcoded_opus.metadata().unwrap().len() > 1000);
 
     assert!(
         output_transcoded_flac.exists(),
-        "Plik FLAC musi zostać utworzony"
+        "The FLAC file must be created"
     );
     assert!(output_transcoded_flac.metadata().unwrap().len() > 1000);
 
-    // 5. Weryfikacja, że wygenerowany plik Opus można odtworzyć przez AudioEngine
+    // 5. Check that the generated Opus file can be played by AudioEngine
     let engine = AudioEngine::new().unwrap();
     let uri = format!(
         "file://{}",
@@ -105,14 +103,14 @@ fn test_transcoding_preserves_source_file_and_creates_valid_target() {
     );
     engine
         .load_uri(&uri)
-        .expect("Załadowanie wygenerowanego Opus powinno się powieść");
+        .expect("Loading the generated Opus should succeed");
     engine
         .play()
-        .expect("Odtworzenie wygenerowanego Opus powinno się powieść");
+        .expect("Playing the generated Opus should succeed");
     sleep(Duration::from_millis(150));
     engine.stop().unwrap();
 
-    // Czyszczenie plików tymczasowych testu
+    // Clean up the test's temp files
     let _ = fs::remove_file(&output_transcoded_opus);
     let _ = fs::remove_file(&output_transcoded_flac);
 }
@@ -123,27 +121,27 @@ fn test_device_manager_discovers_cards_and_codecs() {
         Ok(c) => c,
         Err(e) => {
             println!(
-                "Pominięto odpytywanie kart (brak serwera audio/pactl w środowisku): {}",
+                "Skipped the sound card query (no audio server/pactl in this environment): {}",
                 e
             );
             return;
         }
     };
 
-    // W bezgłowym środowisku CI (np. GitHub Actions) brak fizycznych kart dźwiękowych
+    // In a headless CI environment (e.g. GitHub Actions) there are no physical sound cards
     if cards.is_empty() {
-        println!("Brak fizycznych kart dźwiękowych w tym środowisku (np. headless CI runner)");
+        println!("No physical sound cards in this environment (e.g. a headless CI runner)");
         return;
     }
 
     for card in &cards {
-        println!("Wykryta karta: {} (BT: {})", card.name, card.is_bluetooth);
+        println!("Detected card: {} (BT: {})", card.name, card.is_bluetooth);
         if card.supports_pro_audio() {
-            println!("  -> Karta wspiera tryb Pro Audio!");
+            println!("  -> The card supports Pro Audio mode!");
         }
         if card.is_bluetooth {
             let codecs = card.available_bluetooth_codecs();
-            println!("  -> Dostępne kodeki Bluetooth: {:?}", codecs);
+            println!("  -> Available Bluetooth codecs: {:?}", codecs);
         }
     }
 }
@@ -174,18 +172,18 @@ fn test_transcoding_with_dsp_nightcore_bounce() {
         Some(&dsp_settings),
         None,
     )
-    .expect("Transkodowanie z DSP powinno się powieść");
+    .expect("Transcoding with DSP should succeed");
 
     assert!(
         output_dsp_opus.exists(),
-        "Plik wyjściowy Opus z DSP musi istnieć!"
+        "The Opus output file with DSP must exist!"
     );
     assert!(
         fs::metadata(&output_dsp_opus).unwrap().len() > 100,
-        "Wygenerowany plik z DSP nie może być pusty"
+        "The generated file with DSP must not be empty"
     );
 
-    // Odtworzenie wygenerowanego pliku z DSP
+    // Play the generated file with DSP
     let engine = AudioEngine::new().unwrap();
     let uri = format!(
         "file://{}",
@@ -208,16 +206,16 @@ fn test_transcode_range_marker_a_to_b() {
     let output_range_wav = root.join("tests/fixtures/test_range_marker_ab.wav");
     let _ = fs::remove_file(&output_range_wav);
 
-    let range = TimeRange::new(500, Some(1500)).expect("Poprawny zakres A-B");
+    let range = TimeRange::new(500, Some(1500)).expect("Valid A-B range");
 
     Transcoder::transcode_range(&input_wav, &output_range_wav, ExportFormat::Wav, &range)
-        .expect("Transkodowanie wycinka A-B powinno się powieść");
+        .expect("Transcoding the A-B slice should succeed");
 
-    assert!(output_range_wav.exists(), "Plik wycinka A-B musi istnieć");
+    assert!(output_range_wav.exists(), "The A-B slice file must exist");
     let size = fs::metadata(&output_range_wav).unwrap().len();
-    assert!(size > 1000, "Plik wycinka musi zawierać dane audio");
+    assert!(size > 1000, "The slice file must contain audio data");
 
-    // Weryfikacja odtwarzania wycinka przez AudioEngine
+    // Check playback of the slice through AudioEngine
     let engine = AudioEngine::new().unwrap();
     let uri = format!(
         "file://{}",
@@ -225,8 +223,8 @@ fn test_transcode_range_marker_a_to_b() {
     );
     engine
         .load_uri(&uri)
-        .expect("Załadowanie wycinka do odtwarzacza");
-    engine.play().expect("Odtworzenie wycinka");
+        .expect("Loading the slice into the player");
+    engine.play().expect("Playing the slice");
     sleep(Duration::from_millis(100));
     engine.stop().unwrap();
 
@@ -250,7 +248,7 @@ fn test_transcode_range_with_dsp_nightcore() {
         reverb_level: 0.1,
         eq_bands: None,
     };
-    let range = TimeRange::new(200, Some(1200)).expect("Poprawny zakres A-B");
+    let range = TimeRange::new(200, Some(1200)).expect("Valid A-B range");
 
     Transcoder::transcode_with_dsp(
         &input_wav,
@@ -259,22 +257,22 @@ fn test_transcode_range_with_dsp_nightcore() {
         Some(&dsp_settings),
         Some(&range),
     )
-    .expect("Transkodowanie wycinka z DSP powinno się powieść");
+    .expect("Transcoding the slice with DSP should succeed");
 
     assert!(
         output_range_opus.exists(),
-        "Plik wycinka z DSP musi istnieć"
+        "The slice file with DSP must exist"
     );
     let size = fs::metadata(&output_range_opus).unwrap().len();
-    assert!(size > 100, "Plik wycinka z DSP nie może być pusty");
+    assert!(size > 100, "The slice file with DSP must not be empty");
 
     let engine = AudioEngine::new().unwrap();
     let uri = format!(
         "file://{}",
         output_range_opus.canonicalize().unwrap().display()
     );
-    engine.load_uri(&uri).expect("Załadowanie wycinka z DSP");
-    engine.play().expect("Odtworzenie wycinka z DSP");
+    engine.load_uri(&uri).expect("Loading the slice with DSP");
+    engine.play().expect("Playing the slice with DSP");
     sleep(Duration::from_millis(100));
     let dur = engine.duration();
     println!(
@@ -283,7 +281,7 @@ fn test_transcode_range_with_dsp_nightcore() {
     );
     assert!(
         dur.is_some_and(|d| d.as_millis() >= 700 && d.as_millis() <= 850),
-        "Wycinek 1000ms przyspieszony 1.3x powinien trwać ~769ms, a trwał: {:?}",
+        "A 1000ms slice sped up 1.3x should last ~769ms, but lasted: {:?}",
         dur
     );
     engine.stop().unwrap();
@@ -309,7 +307,7 @@ fn test_transcode_range_invalid_order_rejected() {
 
     assert!(
         result.is_err(),
-        "Transkoder musi odrzucić nieprawidłowy zakres czasowy"
+        "The transcoder must reject an invalid time range"
     );
 }
 
@@ -326,7 +324,7 @@ fn test_transcode_range_with_file_uri_prefix() {
     let range = TimeRange::new(300, Some(900)).unwrap();
 
     Transcoder::transcode_range(uri_string, &output_wav, ExportFormat::Wav, &range)
-        .expect("Transkodowanie ze ścieżki file:// powinno się powieść");
+        .expect("Transcoding from a file:// path should succeed");
 
     assert!(output_wav.exists());
     let _ = fs::remove_file(&output_wav);
@@ -355,8 +353,8 @@ fn test_transcode_flac_range() {
     assert!(res.is_ok());
     let engine = AudioEngine::new().unwrap();
     let uri = format!("file://{}", output_opus.canonicalize().unwrap().display());
-    engine.load_uri(&uri).expect("Załadowanie wycinka");
-    engine.play().expect("Odtworzenie wycinka");
+    engine.load_uri(&uri).expect("Loading the slice");
+    engine.play().expect("Playing the slice");
     std::thread::sleep(Duration::from_millis(50));
     let dur = engine.duration();
     println!("Exported range duration: {:?}", dur);
@@ -389,7 +387,7 @@ fn test_transcode_slowed_rubberband() {
         Some(&dsp_settings),
         None,
     )
-    .expect("Transkodowanie slowed z RubberBand powinno się powieść");
+    .expect("Slowed transcoding with RubberBand should succeed");
 
     assert!(output_slowed_wav.exists());
     assert!(fs::metadata(&output_slowed_wav).unwrap().len() > 100);
@@ -420,7 +418,7 @@ fn test_transcode_different_ranges_with_rubberband_slowed() {
         eq_bands: None,
     };
 
-    // Zakres 1: 219336ms do 228354ms (9.018 sekundy źródłowo)
+    // Range 1: 219336ms to 228354ms (9.018 seconds of source)
     let range1 = TimeRange::new(219336, Some(228354)).unwrap();
     Transcoder::transcode_with_dsp(
         &input_flac,
@@ -429,9 +427,9 @@ fn test_transcode_different_ranges_with_rubberband_slowed() {
         Some(&dsp_settings),
         Some(&range1),
     )
-    .expect("Transkodowanie zakresu 1");
+    .expect("Transcoding range 1");
 
-    // Zakres 2: 22449ms do 40690ms (18.241 sekundy źródłowo)
+    // Range 2: 22449ms to 40690ms (18.241 seconds of source)
     let range2 = TimeRange::new(22449, Some(40690)).unwrap();
     Transcoder::transcode_with_dsp(
         &input_flac,
@@ -440,22 +438,19 @@ fn test_transcode_different_ranges_with_rubberband_slowed() {
         Some(&dsp_settings),
         Some(&range2),
     )
-    .expect("Transkodowanie zakresu 2");
+    .expect("Transcoding range 2");
 
-    assert!(out1.exists(), "Plik 1 musi istnieć");
-    assert!(out2.exists(), "Plik 2 musi istnieć");
+    assert!(out1.exists(), "File 1 must exist");
+    assert!(out2.exists(), "File 2 must exist");
 
     let size1 = fs::metadata(&out1).unwrap().len();
     let size2 = fs::metadata(&out2).unwrap().len();
-    println!(
-        "Rozmiary plików: out1 (9s) = {}, out2 (18s) = {}",
-        size1, size2
-    );
+    println!("File sizes: out1 (9s) = {}, out2 (18s) = {}", size1, size2);
 
-    // Zakres 2 jest dwukrotnie dłuższy niż zakres 1, więc rozmiar pliku out2 musi być wyraźnie większy niż out1!
+    // Range 2 is twice as long as range 1, so out2 must be clearly larger than out1
     assert!(
         size2 > (size1 * 15 / 10),
-        "Plik zakresu 2 (18s) musi być wyraźnie większy niż plik zakresu 1 (9s)! size1={}, size2={}",
+        "The range 2 file (18s) must be clearly larger than the range 1 file (9s)! size1={}, size2={}",
         size1,
         size2
     );

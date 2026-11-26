@@ -1,10 +1,10 @@
-//! Główny potok odtwarzacza GStreamer z dynamicznym procesorem DSP.
+//! The main GStreamer player pipeline with a dynamic DSP processor.
 //!
-//! `AudioEngine` jest zdefiniowany tutaj (stan współdzielony, typy zdarzeń, pomocnicze funkcje);
-//! metody są pogrupowane tematycznie w podmodułach (osobne bloki `impl AudioEngine`):
+//! `AudioEngine` is defined here (shared state, event types, helpers);
+//! its methods are grouped by theme in submodules (separate `impl AudioEngine` blocks):
 //! `graph`, `source`, `transport`, `fades`, `dsp`, `bus`, `queue_ops`, `equalizer`, `effects`.
 //!
-//! Kolejność blokad: `inner` może być trzymany podczas pobierania `queue`, nigdy odwrotnie.
+//! Lock order: `inner` may be held while taking `queue`, never the reverse.
 
 mod bus;
 mod dsp;
@@ -39,7 +39,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
-/// Zdarzenia emitowane przez magistralę (Bus) odtwarzacza.
+/// Events emitted by the player bus.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayerEvent {
     StateChanged {
@@ -55,7 +55,7 @@ pub enum PlayerEvent {
     Tag(String),
 }
 
-/// Wewnętrzny stan potoku audio.
+/// Internal state of the audio pipeline.
 struct PipelineInner {
     pipeline: gst::Pipeline,
     uri_decoder: Option<gst::Element>,
@@ -132,7 +132,7 @@ impl PipelineInner {
     }
 }
 
-/// Bezpieczny wielowątkowo kontroler potoku audio.
+/// Thread-safe audio pipeline controller.
 #[derive(Clone)]
 pub struct AudioEngine {
     inner: Arc<Mutex<PipelineInner>>,
@@ -144,7 +144,7 @@ pub struct AudioEngine {
     atomic_volume: Arc<AtomicU64>,
 }
 
-/// Bezpieczne czyszczenie zasobów GStreamer przy zwolnieniu kontrolera potoku.
+/// Releases the GStreamer resources safely when the pipeline controller is dropped.
 impl Drop for PipelineInner {
     fn drop(&mut self) {
         let _ = self.pipeline.set_state(gst::State::Null);

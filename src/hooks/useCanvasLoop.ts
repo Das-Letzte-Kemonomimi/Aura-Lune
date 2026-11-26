@@ -3,14 +3,14 @@ import { clampDpr, computeBackingSize } from '../utils/canvasDraw';
 import { useFrameLoop } from './useFrameLoop';
 
 export interface CanvasSize {
-  /** Rozmiar CSS (px). */
+  /** CSS size (px). */
   width: number;
   height: number;
   dpr: number;
 }
 
 export interface CanvasFrame extends CanvasSize {
-  /** Kontekst z ustawioną transformacją: współrzędne rysowania są w pikselach CSS. */
+  /** Context with the transform set: drawing coordinates are in CSS pixels. */
   ctx: CanvasRenderingContext2D;
   dt: number;
   now: number;
@@ -19,20 +19,20 @@ export interface CanvasFrame extends CanvasSize {
 export interface CanvasLoopOptions {
   active?: boolean;
   maxFps?: number;
-  /** `'device'` = `devicePixelRatio` (ostre na HiDPI, max 2×); liczba = stała skala (np. 1). Domyślnie `'device'`. */
+  /** `'device'` = `devicePixelRatio` (sharp on HiDPI, max 2×); a number = a fixed scale (e.g. 1). Default `'device'`. */
   pixelRatio?: 'device' | number;
-  /** Czyść canvas przed każdą klatką (domyślnie `true`). */
+  /** Clear the canvas before each frame (default `true`). */
   clear?: boolean;
-  /** Wywoływane po zmianie rozmiaru/DPR (np. do przebudowy warstw offscreen i cache gradientów). */
+  /** Called after a size/DPR change (e.g. to rebuild offscreen layers and gradient caches). */
   onResize?: (size: CanvasSize) => void;
 }
 
 /**
- * Pętla rysowania na canvasie: rozmiar z ResizeObserver, bufor realokowany tylko przy realnej zmianie
- * (zaokrąglony — bez migotania przy ułamkowym DPR), transformacja ustawiana raz na zmianę rozmiaru.
+ * Canvas drawing loop: size from ResizeObserver, buffer reallocated only on a real change
+ * (rounded, so no flicker with a fractional DPR), transform set once per size change.
  *
- * `draw` zwracające `false` usypia pętlę (np. paused + ustalony stan); `invalidate()` budzi ją i rysuje klatkę.
- * Pętla śpi też przy ukrytej karcie i niewidocznym elemencie (zob. `useFrameLoop`).
+ * A `draw` that returns `false` puts the loop to sleep (e.g. paused + settled state); `invalidate()` wakes it and draws a frame.
+ * The loop also sleeps while the tab is hidden and the element is not visible (see `useFrameLoop`).
  */
 export function useCanvasLoop(
   draw: (frame: CanvasFrame) => boolean | void,
@@ -60,7 +60,7 @@ export function useCanvasLoop(
       if (!ctxRef.current) ctxRef.current = canvas.getContext('2d');
       const ctx = ctxRef.current;
       const { width, height, dpr } = sizeRef.current;
-      // Brak kontekstu (np. jsdom) albo element bez rozmiaru → śpimy do kolejnego pomiaru/invalidate.
+      // No context (e.g. jsdom) or an element without a size → sleep until the next measurement/invalidate.
       if (!ctx || width <= 0 || height <= 0) return false;
       if (clearRef.current) ctx.clearRect(0, 0, width, height);
       return drawRef.current({ ctx, width, height, dpr, dt, now });
@@ -82,7 +82,7 @@ export function useCanvasLoop(
     if (width > 0 && height > 0) {
       if (!ctxRef.current) ctxRef.current = canvas.getContext('2d');
       const backing = computeBackingSize(width, height, dpr);
-      // Przypisanie width/height czyści bufor i resetuje stan kontekstu — robimy to tylko przy zmianie.
+      // Assigning width/height clears the buffer and resets the context state, so it happens only on a change.
       if (canvas.width !== backing.width) canvas.width = backing.width;
       if (canvas.height !== backing.height) canvas.height = backing.height;
       ctxRef.current?.setTransform(backing.width / width, 0, 0, backing.height / height, 0, 0);
@@ -91,7 +91,7 @@ export function useCanvasLoop(
     wake();
   }, [wake]);
 
-  // Pomiar przed pierwszym malowaniem: bez klatki z domyślnym buforem 300×150 rozciągniętym na element.
+  // Measure before the first paint: no frame with the default 300×150 buffer stretched over the element.
   useLayoutEffect(() => {
     measure();
   }, [measure, pixelRatio]);
@@ -104,7 +104,7 @@ export function useCanvasLoop(
       observer = new ResizeObserver(() => measure());
       observer.observe(canvas);
     }
-    // `resize` okna łapie też zmianę devicePixelRatio (zoom, przeniesienie na inny monitor).
+    // The window `resize` also catches devicePixelRatio changes (zoom, moving to another monitor).
     window.addEventListener('resize', measure);
     return () => {
       observer?.disconnect();

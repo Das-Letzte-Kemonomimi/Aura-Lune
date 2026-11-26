@@ -8,12 +8,12 @@ import {
   VolumeX,
   Disc,
   Zap,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { formatTime } from '../../utils/timeFormat';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
-import { cssVars } from '../../utils/cssVars';
+import { Badge, Button, IconButton, RangeSlider } from '../ui';
 
 interface MiniPlayerWidgetProps {
   title: string;
@@ -56,7 +56,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   onToggleVolumeUnit,
   onRestore,
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const positionMs = useLivePositionMs(positionMsProp);
   const t = getTranslations(currentLang);
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
@@ -66,9 +66,9 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
     <div
       className="flex h-screen w-screen select-none flex-col justify-between overflow-hidden rounded-xl border border-line-accent bg-deep px-3.5 py-3 text-fg"
     >
-      {/* Górna belka: Okładka, Tytuł, DSP i Przycisk Przywrócenia */}
+      {/* Top bar: cover, title, DSP and the restore button */}
       <div className="flex items-center gap-2.5">
-        {/* Okładka */}
+        {/* Cover */}
         <div
           className={cn(
             'flex size-10.5 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-card transition-shadow duration-300',
@@ -89,7 +89,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           )}
         </div>
 
-        {/* Tytuł i wykonawca */}
+        {/* Title and artist */}
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-bold text-fg">
             {title || 'Auralune'}
@@ -99,27 +99,21 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           </div>
         </div>
 
-        {/* Ewentualny badge aktywnego DSP */}
+        {/* Optional active DSP badge */}
         {isDspActive && (
-          <span
-            className="flex shrink-0 items-center gap-0.5 rounded-sm border border-accent-pink/40 bg-accent-pink/20 px-1.5 py-0.5 text-xxs font-bold text-accent-pink"
-          >
+          <Badge tone="pink" size="xs" className="shrink-0 gap-0.5">
             <Zap size={10} />
             {tempoRatio.toFixed(2)}x
-          </span>
+          </Badge>
         )}
 
-        {/* Przycisk powrotu do pełnego okna */}
-        <button
-          onClick={onRestore}
-          title={`${t.nav.miniPlayer} (${t.common.close})`}
-          className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white/8 p-1.5 text-fg-secondary"
-        >
+        {/* Back to the full window */}
+        <IconButton variant="secondary" size="sm" label={`${t.nav.miniPlayer} (${t.common.close})`} onClick={onRestore}>
           <Maximize2 size={13} />
-        </button>
+        </IconButton>
       </div>
 
-      {/* Pasek postępu */}
+      {/* Progress bar */}
       <div className="mx-0 my-1">
         <div
           onClick={(e) => {
@@ -142,73 +136,56 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
         </div>
       </div>
 
-      {/* Przyciski sterowania */}
+      {/* Control buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)}
-            title={volume === 0 ? t.player.unmute : t.player.mute}
-            className="flex border-0 bg-transparent p-1 text-fg-muted"
-          >
+          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)} className="size-6">
             {volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
-          </button>
-          <input
-            type="range"
+          </IconButton>
+          <RangeSlider
+            aria-label={t.player.volume}
             min={0}
             max={1}
             step={0.01}
             value={volume}
-            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            onChange={onVolumeChange}
             onPointerUp={(e) => e.currentTarget.blur()}
-            onMouseUp={(e) => e.currentTarget.blur()}
             onKeyDown={(e) => {
-              if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-                e.currentTarget.blur();
-              }
+              // Hand the arrow keys and Space back to the global shortcuts.
+              if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.currentTarget.blur();
             }}
-            className="h-1 w-12.5 range-fill"
-            style={cssVars({ '--fill': `${Math.min(100, Math.max(0, volume * 100))}%` })}
+            className="h-1 w-12.5"
           />
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onToggleVolumeUnit}
-            title={volumeUnit === 'db' ? 'dB (Toggle %)' : '% (Toggle dB)'}
-            className={cn(
-              'border-0 bg-transparent px-0.5 py-0 font-mono text-xxs font-bold',
-              volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink',
-              onToggleVolumeUnit ? 'cursor-pointer' : 'cursor-default',
-            )}
+            disabled={!onToggleVolumeUnit}
+            title={t.player.volumeToggleUnitTooltip}
+            className={cn('px-0.5 py-0 font-mono text-xxs', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
           >
             {volumeUnit === 'db'
               ? (volume <= 0.0001 ? '-∞' : `${(20 * Math.log10(volume)).toFixed(0)}dB`)
               : `${Math.round(volume * 100)}%`}
-          </button>
+          </Button>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={onPrev}
-            title={t.player.previous}
-            className="flex border-0 bg-transparent p-1 text-fg-secondary"
-          >
+          <IconButton size="sm" label={t.player.previous} onClick={onPrev} className="text-fg-secondary">
             <SkipBack size={15} />
-          </button>
-
-          <button
+          </IconButton>
+          <Button
+            variant="primary"
             onClick={onPlayPause}
+            aria-label={isPlaying ? t.player.pause : t.player.play}
             title={isPlaying ? t.player.pause : t.player.play}
-            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-linear-135 from-accent-purple to-accent-pink text-on-accent shadow-halo-sm shadow-accent-purple/40"
+            className="size-7 rounded-full p-0 shadow-halo-sm"
           >
             {isPlaying ? <Pause size={14} /> : <Play size={14} className="ml-px" />}
-          </button>
-
-          <button
-            onClick={onNext}
-            title={t.player.next}
-            className="flex border-0 bg-transparent p-1 text-fg-secondary"
-          >
+          </Button>
+          <IconButton size="sm" label={t.player.next} onClick={onNext} className="text-fg-secondary">
             <SkipForward size={15} />
-          </button>
+          </IconButton>
         </div>
       </div>
     </div>

@@ -1,22 +1,22 @@
-//! Efekty przetwarzane w sondach padów (wątek strumieniowy GStreamera).
+//! Effects processed in pad probes (the GStreamer streaming thread).
 //!
-//! Kod w zamknięciach sond wykonuje się dla każdego bufora audio, więc obowiązują zasady
-//! czasu rzeczywistego (crates/AGENTS.md, „Real-Time Audio Safety”): konfiguracja czytana z `AtomicCell` bez blokad,
-//! rzutowanie próbek przez `crate::rt`, brak alokacji i zapytań o caps w gorącej ścieżce.
+//! Probe closures run for every audio buffer, so the real-time rules apply
+//! (crates/AGENTS.md, "Real-Time Audio Safety"): configuration is read lock-free from `AtomicCell`,
+//! samples are cast through `crate::rt`, and the hot path never allocates or queries caps.
 
 use super::*;
 
-/// Saturator analogowy (lampa elektronowa / taśma): element `identity` z sondą bufora F32LE.
+/// Analog saturator (tube / tape): an `identity` element with an F32LE buffer probe.
 pub(super) fn build_saturator(
 ) -> Result<(gst::Element, Arc<AtomicCell<SaturatorConfig>>), AudioEngineError> {
-    // 3. Saturator analogowy (lampa elektronowa / taśma) z sondą bufora F32LE
+    // 3. Analog saturator (tube / tape) with an F32LE buffer probe
     let saturator = gst::ElementFactory::make("identity")
         .name("analog_saturator")
         .property("silent", true)
         .build()
         .map_err(|_| AudioEngineError::MissingElement("identity"))?;
 
-    // Konfiguracja czytana w wątku strumieniowym bez blokad (AtomicCell; zapis jest rzadki i krótki).
+    // Configuration read lock-free on the streaming thread (AtomicCell; writes are rare and short).
     let saturator_config = Arc::new(AtomicCell::new(domain::dynamics::SaturatorConfig::default()));
     let sat_cfg_clone = Arc::clone(&saturator_config);
 
@@ -42,8 +42,8 @@ pub(super) fn build_saturator(
     Ok((saturator, saturator_config))
 }
 
-/// Stereo Widener (Mid-Side Matrix): element `identity` z sondą bufora F32LE.
-/// Liczba kanałów jest śledzona ze zdarzenia Caps; inne niż stereo strumienie przechodzą bez zmian.
+/// Stereo widener (mid-side matrix): an `identity` element with an F32LE buffer probe.
+/// The channel count is tracked from the Caps event; non-stereo streams pass unchanged.
 pub(super) fn build_stereo_widener() -> Result<
     (
         gst::Element,
@@ -51,7 +51,7 @@ pub(super) fn build_stereo_widener() -> Result<
     ),
     AudioEngineError,
 > {
-    // 4. Stereo Widener (baza stereo / Stereo Stage) z natywną sondą bufora F32LE (Mid-Side Matrix)
+    // 4. Stereo widener (stereo stage) with a native F32LE buffer probe (mid-side matrix)
     let stereo_widener = gst::ElementFactory::make("identity")
         .name("stereo_widener")
         .property("silent", true)
@@ -64,8 +64,8 @@ pub(super) fn build_stereo_widener() -> Result<
     let widener_cfg_clone = Arc::clone(&stereo_widener_config);
 
     if let Some(src_pad) = stereo_widener.static_pad("src") {
-        // Liczba kanałów z ostatniego zdarzenia Caps (0 = nieznana) — bez odpytywania caps
-        // przy każdym buforze.
+        // Channel count from the last Caps event (0 = unknown), so caps are not queried
+        // on every buffer.
         let channels = Arc::new(AtomicU32::new(0));
         let channels_from_caps = Arc::clone(&channels);
         src_pad.add_probe(gst::PadProbeType::EVENT_DOWNSTREAM, move |_pad, info| {
@@ -87,7 +87,7 @@ pub(super) fn build_stereo_widener() -> Result<
                 return gst::PadProbeReturn::Ok;
             };
             let config = widener_cfg_clone.load();
-            // Stereo Widener przetwarza wyłącznie 2-kanałowy strumień stereo.
+            // The stereo widener only processes a 2-channel stereo stream.
             if !config.enabled || config.width <= 0.0 || channels.load(Ordering::Relaxed) != 2 {
                 return gst::PadProbeReturn::Ok;
             }

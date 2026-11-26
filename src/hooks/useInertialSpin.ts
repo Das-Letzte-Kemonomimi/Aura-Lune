@@ -3,24 +3,24 @@ import { stepSpin } from '../utils/inertialSpin';
 import { useFrameLoop } from './useFrameLoop';
 
 export interface InertialSpinOptions {
-  /** Docelowa prędkość kątowa (stopnie/s); 0 gdy zatrzymane. */
+  /** Target angular speed (degrees/s); 0 when stopped. */
   targetDegPerSec: number;
   playing: boolean;
-  /** Stała czasowa rozpędzania (s). */
+  /** Spin-up time constant (s). */
   tauUp: number;
-  /** Stała czasowa wytracania prędkości (s). */
+  /** Spin-down time constant (s). */
   tauDown: number;
-  /** 1 = zgodnie z ruchem wskazówek, -1 = przeciwnie. */
+  /** 1 = clockwise, -1 = counter-clockwise. */
   direction?: 1 | -1;
-  /** Zastosuj kąt (np. `style.transform` / `setAttribute('transform')`) — wołane tylko, gdy element się obraca. */
+  /** Applies the angle (e.g. `style.transform` / `setAttribute('transform')`); called only while the element rotates. */
   apply: (angleDeg: number, speedDegPerSec: number) => void;
-  /** Element, którego niewidoczność wstrzymuje pętlę. */
+  /** Element whose invisibility pauses the loop. */
   target?: RefObject<Element | null>;
 }
 
 /**
- * Bezwładny obrót (talerz, szpula): pętla działa tylko, dopóki element się obraca lub rozpędza, i śpi po
- * całkowitym zatrzymaniu. Zmiana parametrów (tempo, odtwarzanie) NIE restartuje pętli — jedynie ją budzi.
+ * Inertial rotation (platter, reel): the loop runs only while the element rotates or spins up, and sleeps after
+ * a full stop. Changing the parameters (tempo, playback) does NOT restart the loop; it only wakes it.
  */
 export function useInertialSpin(options: InertialSpinOptions): {
   angleRef: RefObject<number>;

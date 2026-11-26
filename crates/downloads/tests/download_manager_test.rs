@@ -24,7 +24,7 @@ fn test_download_job_creation() {
     assert_eq!(mgr.list_jobs().len(), 0);
 }
 
-/// Minimalny serwer HTTP na 127.0.0.1 odpowiadający jednym ustalonym komunikatem.
+/// Minimal HTTP server on 127.0.0.1 that answers with one fixed response.
 fn serve_once(status: &'static str, body: &'static [u8]) -> String {
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -51,7 +51,7 @@ fn temp_dir(name: &str) -> std::path::PathBuf {
     dir
 }
 
-/// Pliki tymczasowe `.auralune_tmp_*` pozostawione w katalogu.
+/// Temp files `.auralune_tmp_*` left in the directory.
 fn leftovers(dir: &Path) -> Vec<String> {
     fs::read_dir(dir)
         .unwrap()
@@ -107,10 +107,7 @@ async fn test_checksum_mismatch_removes_temp_file_and_keeps_no_destination() {
         "{res:?}"
     );
     assert!(!dest.exists());
-    assert!(
-        leftovers(&dir).is_empty(),
-        "plik tymczasowy musi zostać usunięty"
-    );
+    assert!(leftovers(&dir).is_empty(), "the temp file must be removed");
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -151,8 +148,8 @@ fn test_destination_policy_rejects_hidden_home_entries() {
 
 #[test]
 fn test_destination_policy_allows_ai_model_dirs_under_xdg_data() {
-    // Regresja: modele AI trafiają do `~/.local/share/auralune/models`, co było
-    // odrzucane jako „ukryty katalog” w $HOME.
+    // Regression: AI models go to `~/.local/share/auralune/models`, which used to be
+    // rejected as a "hidden directory" in $HOME.
     if let Some(home) = std::env::var_os("HOME") {
         let home = std::path::PathBuf::from(home);
         if std::env::var_os("XDG_DATA_HOME").is_none() {
@@ -161,7 +158,7 @@ fn test_destination_policy_allows_ai_model_dirs_under_xdg_data() {
             )
             .is_ok());
         }
-        // Aktualizator zapisuje AppImage obu kanałów w katalogach instalacji `install.sh`.
+        // The updater saves the AppImage of both channels into the `install.sh` install directories.
         for dir in ["auralune", "auralune-dev"] {
             assert!(validate_safe_destination_path(
                 &home.join(format!(".local/share/{dir}/{dir}.AppImage.update"))

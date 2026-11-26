@@ -1,4 +1,4 @@
-//! Integracje zewnętrzne: ListenBrainz, Last.fm, Discord RPC oraz kopia profilu.
+//! External integrations: ListenBrainz, Last.fm, Discord RPC and the profile backup.
 
 use super::error::CommandError;
 use crate::commands::playlists::PlaylistExportDto;
@@ -66,15 +66,12 @@ pub async fn export_profile_backup(
     };
 
     let json = serde_json::to_string_pretty(&backup)
-        .map_err(|e| CommandError::from(e).context("Błąd serializacji kopii profilu"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to serialise the profile backup"))?;
 
     if let Some(dest) = destination {
         fs::write(&dest, &json)
-            .map_err(|e| CommandError::from(e).context("Błąd zapisu pliku kopii zapasowej"))?;
-        Ok(format!(
-            "Pomyślnie zapisano kopię profilu w: {}",
-            dest.display()
-        ))
+            .map_err(|e| CommandError::from(e).context("Failed to write the backup file"))?;
+        Ok(format!("Saved the profile backup to: {}", dest.display()))
     } else {
         Ok(json)
     }
@@ -92,12 +89,11 @@ pub async fn import_profile_backup(
         let resolved =
             super::paths::ensure_readable(std::path::Path::new(&file_path_or_json), &["json"])?;
         fs::read_to_string(&resolved)
-            .map_err(|e| CommandError::from(e).context("Błąd odczytu pliku kopii zapasowej"))?
+            .map_err(|e| CommandError::from(e).context("Failed to read the backup file"))?
     };
 
-    let backup: ProfileBackupDto = serde_json::from_str(&json_content).map_err(|e| {
-        CommandError::from(e).context("Nieprawidłowy format pliku JSON kopii profilu")
-    })?;
+    let backup: ProfileBackupDto = serde_json::from_str(&json_content)
+        .map_err(|e| CommandError::from(e).context("Invalid profile backup JSON format"))?;
 
     let mut restored_presets = 0;
     let mut restored_themes = 0;
@@ -123,7 +119,7 @@ pub async fn import_profile_backup(
     for theme in backup.themes {
         if let Err(e) = theme.validate() {
             warn!(
-                "Pominięto nieprawidłowy motyw '{}' z kopii profilu: {}",
+                "Skipped invalid theme '{}' from the profile backup: {}",
                 theme.id, e
             );
             continue;
@@ -145,7 +141,7 @@ pub async fn import_profile_backup(
     }
 
     Ok(format!(
-        "Pomyślnie przywrócono profil (wersja kopii: {}): {} presetów DSP, {} motywów, {} playlist.",
+        "Restored the profile (backup version: {}): {} DSP presets, {} themes, {} playlists.",
         backup.version, restored_presets, restored_themes, restored_playlists
     ))
 }

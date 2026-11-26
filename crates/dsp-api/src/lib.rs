@@ -1,23 +1,23 @@
-//! Wspólny kontrakt DSP, modele parametrów i konwersje matematyczne.
+//! Shared DSP contract, parameter models and math conversions.
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Błędy operacji DSP.
+/// DSP operation errors.
 #[derive(Debug, Error, PartialEq)]
 pub enum DspError {
-    #[error("Nieprawidłowy parametr: {0}")]
+    #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
-    #[error("Błąd konfiguracji formatu audio: {0}")]
+    #[error("Audio format configuration error: {0}")]
     FormatError(String),
-    #[error("Błąd wewnętrzny procesora {engine}: {message}")]
+    #[error("Internal error in processor {engine}: {message}")]
     Internal {
         engine: &'static str,
         message: String,
     },
 }
 
-/// Dostępne silniki DSP do zmiany wysokości i tempa dźwięku.
+/// DSP engines available for pitch and tempo changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DspEngine {
     #[default]
@@ -27,7 +27,7 @@ pub enum DspEngine {
 }
 
 impl DspEngine {
-    /// Nazwa zapisywana w ustawieniach, presetach i wysyłana do interfejsu.
+    /// Name stored in settings and presets and sent to the UI.
     pub fn as_str(self) -> &'static str {
         match self {
             DspEngine::Bypass => "Bypass",
@@ -36,7 +36,7 @@ impl DspEngine {
         }
     }
 
-    /// Odczyt nazwy bez rozróżniania wielkości liter; nieznana nazwa oznacza `Bypass`.
+    /// Case-insensitive name lookup; an unknown name means `Bypass`.
     pub fn from_name(name: &str) -> Self {
         if name.eq_ignore_ascii_case("RubberBand") {
             DspEngine::RubberBand
@@ -54,7 +54,7 @@ impl std::fmt::Display for DspEngine {
     }
 }
 
-/// Zdolności i ograniczenia wybranego silnika DSP.
+/// Capabilities and limits of the selected DSP engine.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DspCapabilities {
     pub engine: DspEngine,
@@ -72,14 +72,14 @@ impl DspEngine {
         match self {
             DspEngine::Bypass => DspCapabilities {
                 engine: *self,
-                name: "Brak DSP (Direct Bypass)".to_string(),
+                name: "Direct Bypass (No DSP)".to_string(),
                 min_pitch_semitones: -24.0,
                 max_pitch_semitones: 24.0,
                 min_tempo_ratio: 0.15,
                 max_tempo_ratio: 4.0,
                 supports_formants: false,
                 description:
-                    "Czysty strumień bit-perfect bez procesora DSP (zerowe obciążenie)".to_string(),
+                    "Bit-perfect direct stream without DSP (zero CPU overhead)".to_string(),
             },
             DspEngine::RubberBand => DspCapabilities {
                 engine: *self,
@@ -90,7 +90,7 @@ impl DspEngine {
                 max_tempo_ratio: 4.0,
                 supports_formants: true,
                 description:
-                    "Precyzyjny silnik Rubber Band R3 (jak w Music Speed Changer, czyste tempo do 15%, transjenty)".to_string(),
+                    "Precise Rubber Band R3 engine (as in Music Speed Changer, clean tempo down to 15%, transients)".to_string(),
             },
             DspEngine::SoundTouch => DspCapabilities {
                 engine: *self,
@@ -101,13 +101,13 @@ impl DspEngine {
                 max_tempo_ratio: 2.0,
                 supports_formants: false,
                 description:
-                    "Lekki silnik SoundTouch (niski narzut CPU)".to_string(),
+                    "Lightweight SoundTouch engine (low CPU overhead)".to_string(),
             },
         }
     }
 }
 
-/// Format strumienia audio dla procesora DSP.
+/// Audio stream format for the DSP processor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AudioFormat {
     pub sample_rate: u32,
@@ -117,13 +117,11 @@ pub struct AudioFormat {
 impl AudioFormat {
     pub fn new(sample_rate: u32, channels: u32) -> Result<Self, DspError> {
         if sample_rate == 0 {
-            return Err(DspError::FormatError(
-                "Częstotliwość próbkowania musi być > 0".to_string(),
-            ));
+            return Err(DspError::FormatError("Sample rate must be > 0".to_string()));
         }
         if channels == 0 || channels > 16 {
             return Err(DspError::FormatError(
-                "Liczba kanałów musi mieścić się w zakresie 1..=16".to_string(),
+                "Channel count must be within 1..=16".to_string(),
             ));
         }
         Ok(Self {
@@ -133,16 +131,16 @@ impl AudioFormat {
     }
 }
 
-/// Parametry przetwarzania DSP.
+/// DSP processing parameters.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DspParams {
     /// Silnik DSP.
     pub engine: DspEngine,
-    /// Wysokość dźwięku w półtonach (0.0 = brak zmiany, np. -12.0 do +12.0).
+    /// Pitch in semitones (0.0 = no change, e.g. -12.0 to +12.0).
     pub pitch_semitones: f64,
-    /// Mnożnik tempa (1.0 = normalna długość, 0.5 = 2x wolniej, 2.0 = 2x szybciej).
+    /// Tempo multiplier (1.0 = normal length, 0.5 = 2x slower, 2.0 = 2x faster).
     pub tempo_ratio: f64,
-    /// Mnożnik szybkości (tempo i pitch zmieniają się razem, 1.0 = normalnie).
+    /// Rate multiplier (tempo and pitch change together, 1.0 = normal).
     pub rate_ratio: f64,
 }
 
@@ -174,38 +172,38 @@ impl DspParams {
         Ok(params)
     }
 
-    /// Waliduje zakresy parametrów.
+    /// Validates the parameter ranges.
     pub fn validate(&self) -> Result<(), DspError> {
         if !self.pitch_semitones.is_finite()
             || self.pitch_semitones < -24.0
             || self.pitch_semitones > 24.0
         {
             return Err(DspError::InvalidParameter(format!(
-                "pitch_semitones ({}) poza dozwolonym zakresem [-24.0, 24.0]",
+                "pitch_semitones ({}) outside the allowed range [-24.0, 24.0]",
                 self.pitch_semitones
             )));
         }
         if !self.tempo_ratio.is_finite() || self.tempo_ratio < 0.15 || self.tempo_ratio > 4.0 {
             return Err(DspError::InvalidParameter(format!(
-                "tempo_ratio ({}) poza dozwolonym zakresem [0.15, 4.0]",
+                "tempo_ratio ({}) outside the allowed range [0.15, 4.0]",
                 self.tempo_ratio
             )));
         }
         if !self.rate_ratio.is_finite() || self.rate_ratio < 0.15 || self.rate_ratio > 4.0 {
             return Err(DspError::InvalidParameter(format!(
-                "rate_ratio ({}) poza dozwolonym zakresem [0.15, 4.0]",
+                "rate_ratio ({}) outside the allowed range [0.15, 4.0]",
                 self.rate_ratio
             )));
         }
         Ok(())
     }
 
-    /// Oblicza liniowy mnożnik pitch ($2^{semitones / 12}$).
+    /// Computes the linear pitch multiplier ($2^{semitones / 12}$).
     pub fn pitch_scale(&self) -> f64 {
         semitones_to_pitch_ratio(self.pitch_semitones)
     }
 
-    /// Sprawdza, czy parametry oznaczają brak modyfikacji dźwięku (Bypass).
+    /// Checks whether the parameters mean no change to the sound (Bypass).
     pub fn is_bypass(&self) -> bool {
         self.engine == DspEngine::Bypass
             || (self.pitch_semitones.abs() < 1e-4
@@ -214,29 +212,29 @@ impl DspParams {
     }
 }
 
-/// Przelicza wysokość dźwięku z półtonów na mnożnik liniowy (skalę).
+/// Converts pitch from semitones to a linear multiplier (scale).
 ///
-/// Wzór: $scale = 2^{\frac{semitones}{12}}$.
+/// Formula: $scale = 2^{\frac{semitones}{12}}$.
 #[inline]
 pub fn semitones_to_pitch_ratio(semitones: f64) -> f64 {
     2.0f64.powf(semitones / 12.0)
 }
 
-/// Przelicza liniowy mnożnik wysokości na półtony.
+/// Converts a linear pitch multiplier to semitones.
 ///
-/// Wzór: $semitones = 12 \cdot \log_2(ratio)$.
+/// Formula: $semitones = 12 \cdot \log_2(ratio)$.
 #[inline]
 pub fn pitch_ratio_to_semitones(ratio: f64) -> f64 {
     12.0 * ratio.log2()
 }
 
-/// Konwersja centów na półtony (100 centów = 1 półton).
+/// Converts cents to semitones (100 cents = 1 semitone).
 #[inline]
 pub fn cents_to_semitones(cents: f64) -> f64 {
     cents / 100.0
 }
 
-/// Konwersja półtonów na centy.
+/// Converts semitones to cents.
 #[inline]
 pub fn semitones_to_cents(semitones: f64) -> f64 {
     semitones * 100.0
@@ -245,34 +243,34 @@ pub fn semitones_to_cents(semitones: f64) -> f64 {
 /// Status operacji przetwarzania bloku audio.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcessStatus {
-    /// Wyprodukowano próbki wyjściowe.
+    /// Output samples were produced.
     Ok,
-    /// Brak próbek wyjściowych (np. buforowanie początkowe / latencja).
+    /// No output samples (e.g. initial buffering / latency).
     Buffering,
-    /// Zakończono przetwarzanie (EOS/drain zakończony).
+    /// Processing finished (EOS/drain complete).
     Eos,
 }
 
 /// Ujednolicony interfejs procesora DSP.
 pub trait AudioProcessor: Send {
-    /// Zwraca nazwę silnika.
+    /// Returns the engine name.
     fn name(&self) -> &'static str;
 
-    /// Przygotowuje procesor do zadanego formatu próbek.
+    /// Prepares the processor for the given sample format.
     fn prepare(&mut self, format: AudioFormat, max_block_frames: usize) -> Result<(), DspError>;
 
-    /// Aktualizuje parametry DSP w locie.
+    /// Updates the DSP parameters on the fly.
     fn set_params(&mut self, params: DspParams) -> Result<(), DspError>;
 
-    /// Przetwarza wejściowy blok splecionych (interleaved) próbek f32 do bufora wyjściowego.
+    /// Processes an input block of interleaved f32 samples into the output buffer.
     fn process(&mut self, input: &[f32], output: &mut Vec<f32>) -> Result<ProcessStatus, DspError>;
 
-    /// Zwraca opóźnienie silnika w ramkach.
+    /// Returns the engine latency in frames.
     fn latency_frames(&self) -> usize;
 
-    /// Resetuje stan wewnętrznych filtrów (np. po operacji seek).
+    /// Resets the internal filter state (e.g. after a seek).
     fn reset(&mut self) -> Result<(), DspError>;
 
-    /// Opróżnia wewnętrzne bufory procesora przy końcu utworu (EOS).
+    /// Drains the processor's internal buffers at the end of a track (EOS).
     fn drain(&mut self, output: &mut Vec<f32>) -> Result<ProcessStatus, DspError>;
 }

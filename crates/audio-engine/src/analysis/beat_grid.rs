@@ -1,22 +1,22 @@
-//! Siatka uderzeń: faza z histogramu onsetów, pozycja pierwszego uderzenia taktu (4/4)
-//! oraz lokalna korekta fazy każdego taktu (łapie dryf wynikający z niedokładnego BPM).
+//! Beat grid: phase from an onset histogram, the position of the first downbeat (4/4)
+//! and a local phase correction per bar (catches drift caused by an imprecise BPM).
 
 use super::BeatPoint;
 
-/// Długość kroku obwiedni onsetów w próbkach (≈11,6 ms przy 22,05 kHz).
+/// Step length of the onset envelope in samples (≈11.6 ms at 22.05 kHz).
 const ONSET_HOP: usize = 256;
-/// Fragment początku utworu używany do wyznaczenia początkowej fazy i pierwszego uderzenia taktu.
+/// Leading part of the track used to find the initial phase and the first downbeat.
 const PHASE_SEARCH_SECONDS: f64 = 30.0;
-/// Okno przyciągania uderzenia taktu do piku onsetu, jako ułamek długości uderzenia.
+/// Window for snapping a downbeat to an onset peak, as a fraction of the beat length.
 const SNAP_WINDOW_FRACTION: f64 = 0.10;
-/// Jaką część różnicy (pik − przewidywanie) stosujemy przy korekcie fazy.
+/// How much of the (peak − prediction) difference is applied when correcting the phase.
 const SNAP_DAMPING: f64 = 0.5;
-/// Pik musi przekraczać średnią obwiedni w sąsiedztwie tyle razy, by uznać go za uderzenie.
+/// How many times a peak must exceed the local envelope mean to count as a beat.
 const SNAP_MIN_PEAK_RATIO: f64 = 1.5;
-/// Metrum – siatka zawsze jest 4/4.
+/// Time signature: the grid is always 4/4.
 const BEATS_PER_BAR: usize = 4;
 
-/// Obwiednia onsetów: dodatnia różnica logarytmu energii kolejnych kroków.
+/// Onset envelope: positive difference of the log energy of consecutive steps.
 fn onset_envelope(samples: &[f32]) -> Vec<f64> {
     let mut flux = Vec::with_capacity(samples.len() / ONSET_HOP);
     let mut prev = 0.0f64;
@@ -29,9 +29,9 @@ fn onset_envelope(samples: &[f32]) -> Vec<f64> {
     flux
 }
 
-/// Wyznacza siatkę uderzeń (4/4) na podstawie próbek audio i tempa BPM.
+/// Builds a 4/4 beat grid from audio samples and a BPM tempo.
 ///
-/// Okres uderzenia jest liczony w `f64` i zaokrąglany dopiero przy zapisie milisekund.
+/// The beat period is computed in `f64` and rounded only when milliseconds are written.
 pub fn extract_beat_grid(samples: &[f32], sample_rate: f64, bpm: f64) -> Vec<BeatPoint> {
     if samples.is_empty() || !(10.0..=400.0).contains(&bpm) {
         return Vec::new();
@@ -70,8 +70,8 @@ pub fn extract_beat_grid(samples: &[f32], sample_rate: f64, bpm: f64) -> Vec<Bea
     grid
 }
 
-/// Faza (sekundy od początku, `[0, period)`) – maksimum wygładzonego histogramu onsetów
-/// zwiniętych modulo okres uderzenia, z początku utworu.
+/// Phase (seconds from the start, `[0, period)`): the maximum of the smoothed histogram of
+/// onsets folded modulo the beat period, taken from the start of the track.
 fn initial_phase(flux: &[f64], hop_sec: f64, period: f64) -> f64 {
     let bins = ((period / hop_sec).round() as usize).max(8);
     let limit = ((PHASE_SEARCH_SECONDS / hop_sec) as usize).min(flux.len());
@@ -100,7 +100,7 @@ fn initial_phase(flux: &[f64], hop_sec: f64, period: f64) -> f64 {
     (best as f64 + 0.5) / bins as f64 * period
 }
 
-/// Który z czterech kolejnych uderzeń ma największą sumę onsetów – to pierwsze uderzenie taktu.
+/// Which of four consecutive beats has the largest onset sum: that one is the downbeat.
 fn first_downbeat(flux: &[f64], hop_sec: f64, period: f64, offset: f64, total_sec: f64) -> usize {
     let mut strength = [0.0f64; BEATS_PER_BAR];
     let limit = total_sec.min(PHASE_SEARCH_SECONDS * 2.0);
@@ -128,7 +128,7 @@ fn first_downbeat(flux: &[f64], hop_sec: f64, period: f64, offset: f64, total_se
         .0
 }
 
-/// Czas (s) piku onsetu w ±10% uderzenia wokół `predicted`, o ile wyraźnie wystaje.
+/// Time (s) of an onset peak within ±10% of a beat around `predicted`, if it clearly stands out.
 fn snap_to_onset(flux: &[f64], hop_sec: f64, period: f64, predicted: f64) -> Option<f64> {
     let half = (SNAP_WINDOW_FRACTION * period / hop_sec).ceil() as i64;
     let center = (predicted / hop_sec).round() as i64;

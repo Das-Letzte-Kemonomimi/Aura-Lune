@@ -1,16 +1,16 @@
-//! Backendowa pętla statusu odtwarzania.
+//! Backend playback status loop.
 //!
-//! Wcześniej magistrala GStreamera (koniec utworu, przejście do następnego, zapętlenie) była
-//! opróżniana wyłącznie wtedy, gdy frontend wywołał `get_status`. Ukryte do zasobnika lub
-//! zdławione okno WebView zatrzymywało więc przechodzenie między utworami.
+//! Previously the GStreamer bus (end of track, move to the next one, loop) was drained
+//! only when the frontend called `get_status`. A WebView hidden in the tray or throttled
+//! therefore stopped the move from track to track.
 //!
-//! Ticker działa w osobnym wątku niezależnie od interfejsu i w każdym takcie:
-//! 1. buduje status przez [`tick_status`] (opróżnia magistralę, aktualizuje Waybar),
-//! 2. zapamiętuje go jako migawkę zwracaną przez komendę `get_status`,
-//! 3. emituje zdarzenie [`PLAYBACK_STATUS_EVENT`] do frontendu,
-//! 4. synchronizuje MPRIS po automatycznej zmianie utworu,
-//! 5. nalicza czas słuchania do statystyk (Recap),
-//! 6. stosuje pomijanie ciszy na początku i końcu utworu (jeśli włączone).
+//! The ticker runs on its own thread, independent of the UI, and on every tick:
+//! 1. builds the status through [`tick_status`] (drains the bus, updates Waybar),
+//! 2. remembers it as the snapshot returned by the `get_status` command,
+//! 3. emits the [`PLAYBACK_STATUS_EVENT`] event to the frontend,
+//! 4. syncs MPRIS after an automatic track change,
+//! 5. adds listening time to the statistics (Recap),
+//! 6. applies silence trimming at the start and end of a track (when enabled).
 
 use crate::commands::playback::{sync_mpris_from_queue_item, tick_status, PlaybackStatusDto};
 use crate::setup::silence_trim::SilenceTrimmer;
@@ -20,43 +20,43 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tracing::{info, warn};
 
-/// Nazwa zdarzenia ze statusem odtwarzania (`PlaybackStatusDto`).
+/// Name of the event carrying the playback status (`PlaybackStatusDto`).
 pub const PLAYBACK_STATUS_EVENT: &str = "auralune://playback-status";
-/// Zdarzenie z komunikatem błędu odtwarzania (GStreamer) dla interfejsu: `{ "message": "…" }`.
+/// Event with a playback (GStreamer) error message for the UI: `{ "message": "…" }`.
 pub const PLAYBACK_ERROR_EVENT: &str = "auralune://playback-error";
 
-/// Interwał taktu podczas odtwarzania (płynny pasek postępu i wizualizacje).
+/// Tick interval while playing (smooth progress bar and visualisations).
 pub const TICK_PLAYING: Duration = Duration::from_millis(100);
-/// Interwał taktu w pauzie / po zatrzymaniu.
+/// Tick interval while paused / stopped.
 pub const TICK_IDLE: Duration = Duration::from_millis(250);
 
-/// Flaga zatrzymania tickera i blokada trwającego taktu — [`stop_playback_ticker`] czeka, aż
-/// bieżący takt się skończy, więc po powrocie ticker nie zapisze już statusu Waybara.
+/// Ticker stop flag and the lock of the running tick: [`stop_playback_ticker`] waits until
+/// the current tick ends, so after it returns the ticker no longer writes the Waybar status.
 static STOP_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static TICK_IN_PROGRESS: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// Zatrzymuje ticker (przy zamykaniu aplikacji) i czeka na zakończenie trwającego taktu.
+/// Stops the ticker (when the app quits) and waits for the running tick to finish.
 pub fn stop_playback_ticker() {
     STOP_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
     drop(TICK_IN_PROGRESS.lock());
 }
 
-/// Uruchamia ticker w dedykowanym wątku. Wywoływane raz, po `app.manage(AppState)`.
+/// Starts the ticker on a dedicated thread. Called once, after `app.manage(AppState)`.
 pub fn spawn_playback_ticker(app: AppHandle) {
     let spawn = std::thread::Builder::new()
         .name("auralune-playback-ticker".into())
         .spawn(move || run(app));
     if let Err(e) = spawn {
-        warn!("Nie udało się uruchomić wątku statusu odtwarzania: {}", e);
+        warn!("Failed to start the playback status thread: {}", e);
     }
 }
 
 fn run(app: AppHandle) {
     let Some(state) = app.try_state::<AppState>().map(|s| s.inner().clone()) else {
-        warn!("Ticker odtwarzania: brak AppState — pętla nie wystartowała");
+        warn!("Playback ticker: no AppState, the loop did not start");
         return;
     };
-    info!("Ticker odtwarzania uruchomiony");
+    info!("Playback ticker started");
 
     let started = Instant::now();
     let mut listening = ListeningTracker::default();
@@ -69,7 +69,7 @@ fn run(app: AppHandle) {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if STOP_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
-            info!("Ticker odtwarzania zatrzymany");
+            info!("Playback ticker stopped");
             return;
         }
         let status = tick_status(&state, &mut errors);
@@ -98,7 +98,7 @@ fn run(app: AppHandle) {
             let db = state.db.clone();
             state.rt.spawn(async move {
                 if let Err(e) = db.record_track_listening(id, ms as i64).await {
-                    warn!("Nie udało się zapisać czasu słuchania: {}", e);
+                    warn!("Failed to save the listening time: {}", e);
                 }
             });
         }
@@ -118,14 +118,14 @@ fn next_interval(status: &PlaybackStatusDto) -> Duration {
     }
 }
 
-/// Wykrywa zmianę bieżącego elementu kolejki (po `id`), w tym automatyczne przejście po EOS.
+/// Detects a change of the current queue item (by `id`), including the automatic move after EOS.
 #[derive(Debug, Default)]
 pub struct TrackChangeWatcher {
     last_id: Option<String>,
 }
 
 impl TrackChangeWatcher {
-    /// Zwraca `true` przy pierwszym takcie z innym utworem niż poprzednio.
+    /// Returns `true` on the first tick with a different track than before.
     pub fn changed(&mut self, status: &PlaybackStatusDto) -> bool {
         let id = status.current_track.as_ref().map(|t| t.id.clone());
         if id == self.last_id {
@@ -133,17 +133,17 @@ impl TrackChangeWatcher {
         }
         let is_first_observation = self.last_id.is_none();
         self.last_id = id;
-        // Pierwszy odczyt po starcie to stan przywrócony z sesji — nie nadpisujemy MPRIS.
+        // The first read after start-up is the state restored from the session, so MPRIS is not overwritten.
         !is_first_observation
     }
 }
 
-/// Nalicza rzeczywisty czas odtwarzania utworu i zwraca porcje do zapisania w bazie.
+/// Counts the real playback time of a track and returns chunks to store in the database.
 ///
-/// - liczy tylko czas w stanie `Playing`,
-/// - pojedynczy przyrost jest ograniczony do [`ListeningTracker::MAX_TICK_GAP_MS`]
-///   (uśpienie systemu lub zawieszenie wątku nie dolicza godzin),
-/// - zapis następuje co [`ListeningTracker::FLUSH_EVERY_MS`] oraz przy zmianie utworu.
+/// - counts only time in the `Playing` state,
+/// - a single increment is capped at [`ListeningTracker::MAX_TICK_GAP_MS`]
+///   (system sleep or a stalled thread does not add hours),
+/// - writes happen every [`ListeningTracker::FLUSH_EVERY_MS`] and on a track change.
 #[derive(Debug, Default)]
 pub struct ListeningTracker {
     track_id: Option<i64>,
@@ -155,7 +155,7 @@ impl ListeningTracker {
     pub const FLUSH_EVERY_MS: u64 = 5_000;
     pub const MAX_TICK_GAP_MS: u64 = 1_000;
 
-    /// Rejestruje takt. Zwraca `(track_id, ms)` do zapisania, jeśli przyszła pora.
+    /// Records a tick. Returns `(track_id, ms)` to store when it is time.
     pub fn on_tick(
         &mut self,
         now_ms: u64,

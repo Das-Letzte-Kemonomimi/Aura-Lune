@@ -1,10 +1,10 @@
-//! Zarządzanie playlistami, utworami w playlistach oraz stanem kolejki odtwarzania.
+//! Playlists, playlist tracks and the playback queue state.
 
 use crate::{Database, StorageError, TrackRecord};
 use sqlx::Row;
 
 impl Database {
-    /// Tworzy nową playlistę i zwraca jej ID.
+    /// Creates a new playlist and returns its ID.
     pub async fn create_playlist(&self, name: &str) -> Result<i64, StorageError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -26,7 +26,7 @@ impl Database {
         Ok(rec.get::<i64, _>("id"))
     }
 
-    /// Usuwa playlistę wraz ze wszystkimi powiązanymi wpisami utworów.
+    /// Deletes a playlist with all its track entries.
     pub async fn delete_playlist(&self, playlist_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM playlists WHERE id = ?1;")
             .bind(playlist_id)
@@ -36,7 +36,7 @@ impl Database {
         Ok(())
     }
 
-    /// Zwraca listę wszystkich playlist wraz z liczbą przypisanych utworów.
+    /// Returns every playlist with its number of tracks.
     pub async fn list_playlists(&self) -> Result<Vec<domain::Playlist>, StorageError> {
         let rows = sqlx::query(
             r#"
@@ -63,14 +63,14 @@ impl Database {
         Ok(playlists)
     }
 
-    /// Dodaje utwór na koniec wybranej playlisty.
+    /// Appends a track to the end of the chosen playlist.
     pub async fn add_track_to_playlist(
         &self,
         playlist_id: i64,
         track_id: i64,
     ) -> Result<(), StorageError> {
-        // Pozycja liczona w tym samym poleceniu co wstawienie — dwa równoległe dodania
-        // nie dostaną tej samej pozycji.
+        // The position is computed in the same statement as the insert, so two parallel adds
+        // do not get the same position.
         sqlx::query(
             r#"
             INSERT INTO playlist_tracks (playlist_id, track_id, position)
@@ -86,7 +86,7 @@ impl Database {
         Ok(())
     }
 
-    /// Usuwa utwór z playlisty.
+    /// Removes a track from a playlist.
     pub async fn remove_track_from_playlist(
         &self,
         playlist_id: i64,
@@ -101,14 +101,14 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera utwory z playlisty z zachowaniem kolejności `position`.
+    /// Returns a playlist's tracks in `position` order.
     pub async fn get_playlist_tracks(
         &self,
         playlist_id: i64,
     ) -> Result<Vec<TrackRecord>, StorageError> {
         let rows = sqlx::query_as::<_, TrackRecord>(
             r#"
-            -- Wszystkie kolumny: ulubione, ocena, BPM i ReplayGain są widoczne także w playlistach.
+            -- Every column: favourites, rating, BPM and ReplayGain are visible in playlists too.
             SELECT t.*
             FROM tracks t
             JOIN playlist_tracks pt ON t.id = pt.track_id
@@ -123,7 +123,7 @@ impl Database {
         Ok(rows)
     }
 
-    /// Zapisuje bieżący stan kolejki odtwarzania.
+    /// Stores the current playback queue state.
     pub async fn save_queue_state(
         &self,
         queue: &domain::PlaybackQueue,
@@ -151,7 +151,7 @@ impl Database {
         Ok(())
     }
 
-    /// Ładuje zapisany stan kolejki odtwarzania.
+    /// Loads the stored playback queue state.
     pub async fn load_queue_state(&self) -> Result<Option<domain::PlaybackQueue>, StorageError> {
         let row = sqlx::query("SELECT queue_json FROM queue_state WHERE id = 1 LIMIT 1;")
             .fetch_optional(&self.pool)

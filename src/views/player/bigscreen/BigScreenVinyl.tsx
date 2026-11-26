@@ -1,5 +1,5 @@
 import React from 'react';
-import { Disc } from 'lucide-react';
+import { Disc } from '../../../components/ui/icons';
 import type { BigScreenViewProps } from '../BigScreenView';
 import { cn } from '../../../utils/cn';
 
@@ -22,10 +22,10 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
         height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
       }}
     >
-      {/* Czarna płyta winylowa z mikro-rowkami */}
+      {/* Black vinyl record with micro-grooves */}
       <div
         className={cn(
-          'relative flex size-full items-center justify-center overflow-hidden rounded-full border-3 border-white/10',
+          'relative flex size-full items-center justify-center overflow-hidden rounded-full border-3 border-line',
           isPlaying && 'motion-safe:animate-spin',
         )}
         style={{
@@ -42,7 +42,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
           animationDuration: `${Math.max(1, 3.6 / (tempoRatio || 1.0))}s`,
         }}
       >
-        {/* Stożkowe odbłyski światła na winylu (Vinyl sheen reflections) */}
+        {/* Conical light reflections on the vinyl (vinyl sheen) */}
         <div
           className="pointer-events-none absolute inset-0 rounded-full"
           style={{
@@ -59,13 +59,13 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
           }}
         />
 
-        {/* Wewnętrzny rowek wybiegowy (Run-out groove) */}
+        {/* Inner run-out groove */}
         <div
-          className="pointer-events-none absolute rounded-full border border-white/8"
+          className="pointer-events-none absolute rounded-full border border-line"
           style={{ width: '52%', height: '52%', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)' }}
         />
 
-        {/* Centralna naklejka albumu z otworem wrzeciona */}
+        {/* Centre album label with the spindle hole */}
         <div
           className="relative flex items-center justify-center overflow-hidden rounded-full border-2 border-white/25 shadow-halo-md shadow-black/60"
           style={{
@@ -77,7 +77,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
           }}
         >
           {!coverUrl && <Disc size={36} className="text-accent-pink" />}
-          {/* Otwór na wrzeciono gramofonu */}
+          {/* Spindle hole */}
           <div
             className="absolute h-3.5 w-3.5 rounded-full border-2 border-white/60 bg-black"
             style={{ boxShadow: 'inset 0 0 4px #000' }}
@@ -85,7 +85,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
         </div>
       </div>
 
-      {/* Ramię gramofonowe (Tonearm) płynnie sunące po rowkach wraz z postępem utworu */}
+      {/* Tonearm gliding along the grooves as the track progresses */}
       <div
         className="pointer-events-none absolute -top-4 -right-4 z-10 h-60 w-32.5 transition-transform duration-500"
         style={{
@@ -96,7 +96,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
           filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.75))',
         }}
       >
-        {/* Jednolita, ciągła konstrukcja ramienia gramofonowego SVG (eliminacja efektu złamania/rozłączenia) */}
+        {/* One continuous SVG tonearm (no broken or disconnected look) */}
         <svg
           width="130"
           height="240"
@@ -120,15 +120,15 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
             </linearGradient>
           </defs>
 
-          {/* Przeciwwaga (Counterweight) na górze osi */}
+          {/* Counterweight at the top of the pivot */}
           <rect x="86" y="2" width="18" height="18" rx="3" fill="#334155" stroke="#94a3b8" strokeWidth="1.5" />
           <rect x="93" y="1" width="4" height="20" rx="1" fill="#cbd5e1" />
 
-          {/* Podstawa osi obrotu (Pivot Base & Gimbal Ring) */}
+          {/* Pivot base & gimbal ring */}
           <circle cx="95" cy="25" r="16" fill="url(#pivotBaseGrad)" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
           <circle cx="95" cy="25" r="6" fill="#1e293b" stroke="#cbd5e1" strokeWidth="1.5" />
 
-          {/* Ciągła, metalowa rurka ramienia J-shape (spójna ścieżka od osi aż po wkładkę) */}
+          {/* Continuous metal J-shaped arm tube (one path from the pivot to the cartridge) */}
           <path
             d="M 95 25 L 95 160 Q 95 180 82 195 L 75 208"
             fill="none"
@@ -138,7 +138,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
             strokeLinejoin="round"
           />
 
-          {/* Wkładka gramofonowa (Cartridge) z igłą i neonowym podświetleniem */}
+          {/* Cartridge with the stylus and a neon glow */}
           <g transform="translate(75, 208) rotate(22)">
             <rect
               x="-8"
@@ -150,7 +150,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
               stroke="rgba(255,255,255,0.4)"
               strokeWidth="1"
             />
-            {/* Igła / Stylus cantilever */}
+            {/* Stylus cantilever */}
             <line x1="0" y1="20" x2="0" y2="25" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" />
             <circle cx="0" cy="25" r="1.5" fill="#ffffff" />
           </g>

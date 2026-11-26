@@ -1,6 +1,6 @@
 use auralune_desktop::setup::playback_ticker::ListeningTracker;
 
-/// Symuluje takty co `step_ms` przez `total_ms`; zwraca wszystkie zapisy.
+/// Simulates ticks every `step_ms` for `total_ms`; returns all the writes.
 fn run(
     tracker: &mut ListeningTracker,
     start_ms: u64,
@@ -39,23 +39,19 @@ fn test_track_change_flushes_remaining_time_for_previous_track() {
     let mut tr = ListeningTracker::default();
     run(&mut tr, 0, 3_000, 100, true, Some(1));
     assert_eq!(tr.on_tick(3_100, true, Some(2)), Some((1, 3_000)));
-    // Nowy utwór zaczyna liczyć od zera.
+    // A new track starts counting from zero.
     let flushes = run(&mut tr, 3_200, 5_000, 100, true, Some(2));
     assert_eq!(flushes, vec![(2, 5_000)]);
 }
 
 #[test]
 fn test_long_gap_between_ticks_is_capped() {
-    // Uśpienie systemu na godzinę nie może dopisać godziny słuchania.
+    // An hour of system sleep must not add an hour of listening.
     let mut tr = ListeningTracker::default();
     tr.on_tick(0, true, Some(3));
     assert_eq!(tr.on_tick(3_600_000, true, Some(3)), None);
     let flushes = run(&mut tr, 3_600_100, 4_000, 100, true, Some(3));
-    assert_eq!(
-        flushes,
-        vec![(3, 5_000)],
-        "1 s (limit) + 4 s zwykłych taktów"
-    );
+    assert_eq!(flushes, vec![(3, 5_000)], "1 s (cap) + 4 s of normal ticks");
 }
 
 #[test]

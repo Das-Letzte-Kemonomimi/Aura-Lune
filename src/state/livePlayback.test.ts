@@ -63,7 +63,7 @@ describe('livePlayback store', () => {
     expect(result.current).toBe(1);
     const afterFirst = renders;
 
-    act(() => livePlayback.publish({ positionMs: 1_400, spectrum: [0.2] })); // ta sama sekunda
+    act(() => livePlayback.publish({ positionMs: 1_400, spectrum: [0.2] })); // the same second
     expect(renders).toBe(afterFirst);
 
     act(() => livePlayback.publish({ positionMs: 2_050, spectrum: [0.2] }));

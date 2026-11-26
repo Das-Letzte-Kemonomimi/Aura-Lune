@@ -1,4 +1,6 @@
 import type { AppTab } from '../../types/navigation';
+import type { AlbumRecord, TrackRecord } from '../../types/library';
+import type { AmbienceMode } from '../player/AnimeAmbienceFX';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search,
@@ -19,9 +21,10 @@ import {
   Waves,
   Disc3,
   Headphones,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { Kbd, ModalShell } from '../ui';
 
 export interface CommandItem {
   id: string;
@@ -34,21 +37,21 @@ export interface CommandItem {
 }
 
 interface CommandPaletteModalProps {
-  tracks: any[];
-  albums: any[];
+  tracks: TrackRecord[];
+  albums: AlbumRecord[];
   isPlaying: boolean;
   currentLang?: Language;
   stopAfterCurrent?: boolean;
   onClose: () => void;
-  onPlayTrack: (track: any) => void;
-  onAddToQueue?: (track: any) => void;
+  onPlayTrack: (track: TrackRecord) => void;
+  onAddToQueue?: (track: TrackRecord) => void;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrevious: () => void;
   onToggleShuffle: () => void;
   onToggleStopAfterCurrent?: () => void;
   onOpenUrlImportModal?: () => void;
-  onSetAmbience: (mode: any) => void;
+  onSetAmbience: (mode: AmbienceMode) => void;
   onSetDspEngine: (engine: 'RubberBand' | 'SoundTouch') => void;
   onResetDsp: () => void;
   onOpenBigScreen: () => void;
@@ -101,7 +104,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     inputRef.current?.focus();
   }, []);
 
-  // Wszystkie stałe akcje systemowe
+  // All fixed system actions
   const systemActions: CommandItem[] = useMemo(() => {
     return [
       {
@@ -476,7 +479,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     ];
   }, [isPlaying, loc, stopAfterCurrent, onTogglePlay, onClose, onNext, onPrevious, onToggleShuffle, onShuffleAll, onOpenHealthCheck, onToggleStopAfterCurrent, onOpenUrlImportModal, onOpenBigScreen, onOpenSoundscape, onOpenHarmonicSuggester, onOpenAutoEq, onOpenParametricEq, onOpenDynamicsStudio, onSetAmbience, onSetDspEngine, onResetDsp, onOpenReplayGainScanner, onSelectTab]);
 
-  // Filtrowane wyniki
+  // Filtered results
   const filteredItems: CommandItem[] = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
@@ -485,7 +488,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
     const results: CommandItem[] = [];
 
-    // 1. Akcje systemowe dopasowane do zapytania
+    // 1. System actions matching the query
     for (const act of systemActions) {
       if (
         act.title.toLowerCase().includes(q) ||
@@ -495,7 +498,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       }
     }
 
-    // 2. Utwory z biblioteki
+    // 2. Library tracks
     for (const t of tracks) {
       if (
         t.title.toLowerCase().includes(q) ||
@@ -518,7 +521,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (results.length >= 35) break;
     }
 
-    // 3. Albumy
+    // 3. Albums
     for (const a of albums) {
       if (
         a.title.toLowerCase().includes(q) ||
@@ -547,7 +550,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     setSelectedIndex(0);
   }, [query]);
 
-  // Obsługa klawiatury
+  // Keyboard handling
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -560,39 +563,33 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (filteredItems[selectedIndex]) {
         filteredItems[selectedIndex].onExecute();
       }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onClose();
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-120 flex items-start justify-center bg-black/75 pt-[12vh] backdrop-blur-sm motion-safe:animate-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <ModalShell
+      onClose={onClose}
+      layer="top"
+      placement="top"
+      size="lg"
+      className="max-h-[65vh]"
+      label={loc.commandPalette.placeholder}
     >
-      <div
-        className="flex max-h-[65vh] w-full max-w-160 flex-col overflow-hidden rounded-2xl border border-accent-purple bg-modal shadow-modal motion-safe:animate-modal-in"
-      >
-        {/* Search input header */}
-        <div className="flex items-center gap-3 border-b border-white/8 bg-white/2 px-5 py-4">
+        <div className="flex items-center gap-3 border-b border-line bg-white/2 px-5 py-4">
           <Search size={22} className="shrink-0 text-accent-purple" />
+          {/* Borderless by design: the field is focused for as long as the palette is open, so the
+              panel itself shows where typing goes and a focus ring would only outline the header. */}
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
+            aria-label={loc.commandPalette.placeholder}
             placeholder={loc.commandPalette.placeholder}
             className="w-full border-0 bg-transparent text-base font-medium text-fg outline-none"
           />
-          <kbd
-            className="rounded-md border border-white/10 bg-white/8 px-2 py-1 font-mono text-xs font-semibold text-fg-secondary"
-          >
-            ESC
-          </kbd>
+          <Kbd size="xs">ESC</Kbd>
         </div>
 
         {/* Results list */}
@@ -665,21 +662,20 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
         {/* Footer hints */}
         <div
-          className="flex items-center justify-between border-t border-white/6 bg-black/25 px-4.5 py-2.5 text-xs text-fg-muted"
+          className="flex items-center justify-between border-t border-line bg-black/25 px-4.5 py-2.5 text-xs text-fg-muted"
         >
           <div className="flex gap-3.5">
             <span>
-              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↑↓</kbd> Nawigacja
+              <Kbd size="xs">↑↓</Kbd> Navigate
             </span>
             <span>
-              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↵</kbd> Wybierz
+              <Kbd size="xs">↵</Kbd> Select
             </span>
           </div>
           <div>
             <span>Ctrl + K</span>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 };

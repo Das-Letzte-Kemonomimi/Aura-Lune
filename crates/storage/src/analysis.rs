@@ -4,10 +4,10 @@ use crate::{CachedTrackChords, CachedTrackTranscription, Database, NewTrackChord
 
 impl Database {
     // =========================================================================
-    // MODUŁ ANALIZY MUZYCZNEJ (AKORDY, TRANSKRYPCJA, WAVEFORM, MODELE AI)
+    // MUSIC ANALYSIS (CHORDS, TRANSCRIPTION, WAVEFORM, AI MODELS)
     // =========================================================================
 
-    /// Zapisuje wynik detekcji akordów i siatki taktowej dla utworu.
+    /// Stores the chord detection result and the bar grid of a track.
     pub async fn save_track_chords(&self, entry: &NewTrackChords<'_>) -> Result<(), StorageError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -40,8 +40,8 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera zapisane dane akordów i siatki taktów dla danego utworu, o ile pochodzą z podanej
-    /// wersji analizatora (wpis innej wersji jest traktowany jak brak).
+    /// Returns the stored chord and bar grid data of a track, if it comes from the given
+    /// analyser version (an entry of another version counts as missing).
     pub async fn get_track_chords(
         &self,
         track_id: i64,
@@ -62,7 +62,7 @@ impl Database {
         Ok(row)
     }
 
-    /// Zapisuje ręczne poprawki akordów wprowadzone przez użytkowniczkę (do najnowszego wpisu).
+    /// Stores manual chord corrections made by the user (to the newest entry).
     pub async fn save_chord_overrides(
         &self,
         track_id: i64,
@@ -79,7 +79,7 @@ impl Database {
         Ok(())
     }
 
-    /// Zapisuje wynik polifonicznej transkrypcji nutowej (wraz z wykrytym tempem).
+    /// Stores the result of polyphonic note transcription (with the detected tempo).
     pub async fn save_track_transcription(
         &self,
         track_id: i64,
@@ -92,7 +92,7 @@ impl Database {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
-        // Jeden wpis na utwór: stare (także innej wersji analizatora) usuwamy w tej samej transakcji.
+        // One entry per track: old ones (also of another analyser version) are deleted in the same transaction.
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM track_transcriptions WHERE track_id = ?1;")
             .bind(track_id)
@@ -116,8 +116,8 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera zapisaną transkrypcję nutową utworu, o ile pochodzi z podanej wersji analizatora
-    /// (wpis innej wersji jest traktowany jak brak).
+    /// Returns the stored note transcription of a track, if it comes from the given analyser version
+    /// (an entry of another version counts as missing).
     pub async fn get_track_transcription(
         &self,
         track_id: i64,
@@ -137,7 +137,7 @@ impl Database {
         Ok(row)
     }
 
-    /// Zapisuje wyekstrahowane punkty szczytowe fali (waveform peaks) dla utworu.
+    /// Stores the extracted waveform peaks of a track.
     pub async fn save_track_waveform(
         &self,
         track_id: i64,
@@ -167,7 +167,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera zapisane punkty szczytowe fali utworu (waveform peaks).
+    /// Returns the stored waveform peaks of a track.
     pub async fn get_track_waveform(&self, track_id: i64) -> Result<Option<String>, StorageError> {
         let row =
             sqlx::query("SELECT peaks_json FROM track_waveforms WHERE track_id = ?1 LIMIT 1;")
@@ -177,7 +177,7 @@ impl Database {
         Ok(row.map(|r| r.get(0)))
     }
 
-    /// Rejestruje zainstalowany model AI w menedżerze modeli.
+    /// Registers an installed AI model in the model manager.
     pub async fn register_ai_model(
         &self,
         model: &domain::analysis::AiModelInfo,
@@ -212,7 +212,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera zarejestrowany model po identyfikatorze.
+    /// Returns a registered model by its identifier.
     pub async fn get_ai_model(
         &self,
         id: &str,
@@ -242,7 +242,7 @@ impl Database {
         }))
     }
 
-    /// Listuje wszystkie zarejestrowane modele AI.
+    /// Lists every registered AI model.
     pub async fn list_ai_models(&self) -> Result<Vec<domain::analysis::AiModelInfo>, StorageError> {
         let rows = sqlx::query(
             "SELECT id, name, task_type, file_path, file_size, sha256, license, download_url, description FROM ai_models ORDER BY name ASC;",
@@ -271,7 +271,7 @@ impl Database {
             .collect())
     }
 
-    /// Usuwa model z rejestru.
+    /// Removes a model from the registry.
     pub async fn delete_ai_model(&self, id: &str) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM ai_models WHERE id = ?1;")
             .bind(id)
@@ -282,8 +282,8 @@ impl Database {
 }
 
 impl Database {
-    /// Zwraca zapisane granice ciszy utworu, jeśli były liczone dla tego samego progu
-    /// i niezmienionego pliku (`file_modified_time`).
+    /// Returns the stored silence bounds of a track if they were computed for the same threshold
+    /// and an unchanged file (`file_modified_time`).
     pub async fn get_silence_bounds(
         &self,
         track_id: i64,
@@ -307,7 +307,7 @@ impl Database {
         }))
     }
 
-    /// Zapisuje (nadpisuje) granice ciszy utworu.
+    /// Stores (overwrites) the silence bounds of a track.
     pub async fn save_silence_bounds(
         &self,
         track_id: i64,

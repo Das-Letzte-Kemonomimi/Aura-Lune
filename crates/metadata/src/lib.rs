@@ -1,11 +1,11 @@
-//! Moduł integracji metadanych MusicBrainz oraz Cover Art Archive.
+//! MusicBrainz and Cover Art Archive metadata integration.
 //!
-//! Zgodnie z ADR 0007 i AGENTS.md:
-//! - Identyfikacja wydań muzycznych przez identyfikatory MBID,
-//! - Jawny User-Agent z wersją i adresem projektu (`http::USER_AGENT`),
-//! - Ograniczenie zapytań (rate limiting 1 req/s na serwer MusicBrainz),
-//! - Zwracanie kandydatów wydań do potwierdzenia przy niejednoznacznym dopasowaniu,
-//! - Pobieranie i lokalne buforowanie okładek z Cover Art Archive.
+//! Per ADR 0007 and AGENTS.md:
+//! - releases are identified by MBID,
+//! - an explicit User-Agent with the version and project address (`http::USER_AGENT`),
+//! - request rate limiting (1 req/s to the MusicBrainz server),
+//! - release candidates are returned for confirmation when the match is ambiguous,
+//! - covers are downloaded from Cover Art Archive and cached locally.
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -28,38 +28,38 @@ pub use lyrics::*;
 
 #[derive(Debug, Error)]
 pub enum MetadataError {
-    #[error("Błąd sieciowy HTTP: {0}")]
+    #[error("HTTP network error: {0}")]
     Network(#[from] reqwest::Error),
-    #[error("Błąd parsowania JSON: {0}")]
+    #[error("JSON parse error: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("Błąd operacji wejścia/wyjścia (I/O): {0}")]
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Nie znaleziono okładki dla wydania MBID: {0}")]
+    #[error("No cover found for release MBID: {0}")]
     CoverNotFound(String),
-    #[error("Błąd zapytania MusicBrainz: {0}")]
+    #[error("MusicBrainz query error: {0}")]
     Query(String),
-    #[error("Błąd AcoustID / Chromaprint: {0}")]
+    #[error("AcoustID / Chromaprint error: {0}")]
     AcoustId(String),
 }
 
-/// Błędy klientów scrobblingu (Last.fm, ListenBrainz).
+/// Scrobbling client errors (Last.fm, ListenBrainz).
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ScrobbleError {
-    /// Brakujące lub puste dane wejściowe (token, klucz sesji).
+    /// Missing or empty input (token, session key).
     #[error("{0}")]
     Validation(String),
-    /// Brak połączenia / błąd transportu HTTP.
+    /// No connection / HTTP transport error.
     #[error("{0}")]
     Network(String),
-    /// Nieoczekiwany format odpowiedzi.
+    /// Unexpected response format.
     #[error("{0}")]
     Parse(String),
-    /// Serwis odpowiedział błędem (kod HTTP, nieprawidłowy token, odrzucony scrobble).
+    /// The service answered with an error (HTTP status, invalid token, rejected scrobble).
     #[error("{0}")]
     Service(String),
 }
 
-/// Reprezentacja kandydata wydania z MusicBrainz.
+/// A MusicBrainz release candidate.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReleaseCandidateDto {
     pub mbid: String,
@@ -71,7 +71,7 @@ pub struct ReleaseCandidateDto {
     pub score: u32,
 }
 
-/// Kandydat okładki do wyboru w oknie dialogowym (w stylu Poweramp Cover Art Picker).
+/// A cover candidate to pick in the dialog (in the style of the Poweramp Cover Art Picker).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CoverCandidateDto {
     pub source: String,
@@ -83,7 +83,7 @@ pub struct CoverCandidateDto {
     pub height: Option<u32>,
 }
 
-/// Klient API MusicBrainz.
+/// MusicBrainz API client.
 pub struct MusicBrainzClient {
     http: reqwest::Client,
     limiter: Arc<http::RateLimiter>,
@@ -99,17 +99,17 @@ impl MusicBrainzClient {
     pub fn new() -> Self {
         Self {
             http: http::build_client(Duration::from_secs(10)),
-            // MusicBrainz: najwyżej 1 zapytanie na sekundę.
+            // MusicBrainz: at most 1 request per second.
             limiter: Arc::new(http::RateLimiter::new(Duration::from_millis(1050))),
         }
     }
 
-    /// Zapewnia przestrzeganie limitu 1 zapytania na sekundę (MusicBrainz Rate Limit).
+    /// Enforces the limit of 1 request per second (MusicBrainz rate limit).
     async fn wait_rate_limit(&self) {
         self.limiter.wait().await;
     }
 
-    /// Wyszukuje wydania na podstawie tytułu albumu i artysty.
+    /// Searches releases by album title and artist.
     pub async fn search_releases(
         &self,
         album: &str,
@@ -137,7 +137,7 @@ impl MusicBrainzClient {
 
         if !resp.status().is_success() {
             return Err(MetadataError::Query(format!(
-                "Serwer MusicBrainz zwrócił kod HTTP: {}",
+                "MusicBrainz server returned HTTP status: {}",
                 resp.status()
             )));
         }
@@ -146,7 +146,7 @@ impl MusicBrainzClient {
         Ok(Self::parse_release_candidates(&body))
     }
 
-    /// Parsuje odpowiedź JSON z MusicBrainz do listy kandydatów.
+    /// Parses the MusicBrainz JSON response into a list of candidates.
     pub fn parse_release_candidates(json: &serde_json::Value) -> Vec<ReleaseCandidateDto> {
         let mut candidates = Vec::new();
         if let Some(releases) = json.get("releases").and_then(|r| r.as_array()) {
@@ -158,7 +158,7 @@ impl MusicBrainzClient {
                 let title = r
                     .get("title")
                     .and_then(|t| t.as_str())
-                    .unwrap_or("Nieznany album")
+                    .unwrap_or("Unknown Album")
                     .to_string();
 
                 let artist = r
@@ -167,7 +167,7 @@ impl MusicBrainzClient {
                     .and_then(|arr| arr.first())
                     .and_then(|obj| obj.get("name"))
                     .and_then(|n| n.as_str())
-                    .unwrap_or("Nieznany wykonawca")
+                    .unwrap_or("Unknown Artist")
                     .to_string();
 
                 let date = r
@@ -200,10 +200,10 @@ impl MusicBrainzClient {
     }
 }
 
-/// Czyści tytuł albumu ze zbędnego szumu (nawiasy, dopiski remasterów, wydania specjalne, dyski),
-/// aby serwisy muzyczne (Deezer, Apple Music, MusicBrainz) mogły precyzyjnie znaleźć oryginalne wydanie.
+/// Cleans an album title of extra noise (brackets, remaster notes, special editions, discs),
+/// so music services (Deezer, Apple Music, MusicBrainz) can find the original release precisely.
 pub fn clean_album_title(title: &str) -> String {
-    // 1. Usunięcie zawartości w nawiasach okrągłych (), kwadratowych [] i klamrowych {}
+    // 1. Remove the contents of round (), square [] and curly {} brackets
     let mut cleaned = String::new();
     let mut depth = 0;
     for c in title.chars() {
@@ -219,9 +219,9 @@ pub fn clean_album_title(title: &str) -> String {
         }
     }
 
-    // 2. Usunięcie typowych słów-kluczy szumu, gdyby nie były w nawiasach. Dopasowanie po
-    //    całych słowach (bez rozróżniania wielkości liter): "Ghost" ani "Lost" nie tracą "ost",
-    //    a znaki, których małe litery mają inną długość (np. "İ"), nie psują indeksów.
+    // 2. Remove common noise keywords in case they were not in brackets. Matching is by
+    //    whole words (case-insensitive): "Ghost" and "Lost" do not lose "ost",
+    //    and characters whose lowercase form has a different length (e.g. "İ") do not break the indexes.
     const NOISE_PATTERNS: &[&[&str]] = &[
         &["remastered"],
         &["remaster"],
@@ -274,7 +274,7 @@ pub fn clean_album_title(title: &str) -> String {
     }
 }
 
-/// Czyści nazwę wykonawcy z nawiasów i szumu.
+/// Cleans an artist name of brackets and noise.
 pub fn clean_artist_name(artist: &str) -> String {
     let mut cleaned = String::new();
     let mut depth = 0;
@@ -299,7 +299,7 @@ pub fn clean_artist_name(artist: &str) -> String {
     }
 }
 
-/// Klient Cover Art Archive odpowiedzialny za pobieranie i lokalne buforowanie okładek.
+/// Cover Art Archive client that downloads and caches covers locally.
 pub struct CoverArtArchiveClient {
     http: reqwest::Client,
     cache_dir: PathBuf,
@@ -317,8 +317,8 @@ impl CoverArtArchiveClient {
         }
     }
 
-    /// Pobiera okładkę (front thumbnail 500px) dla danego MBID i zapisuje w pamięci podręcznej.
-    /// Jeśli okładka jest już w cache, natychmiast zwraca istniejącą ścieżkę.
+    /// Downloads the cover (500px front thumbnail) for the given MBID and stores it in the cache.
+    /// If the cover is already cached, returns the existing path immediately.
     pub async fn fetch_and_cache_cover(&self, mbid: &str) -> Result<PathBuf, MetadataError> {
         ensure_safe_token(mbid)?;
         let covers_dir = self.cache_dir.join("covers");
@@ -330,15 +330,15 @@ impl CoverArtArchiveClient {
             return Ok(cached_file);
         }
 
-        // Pobieranie miniatury 500px lub front cover
+        // Download the 500px thumbnail or the front cover
         let url = format!("https://coverartarchive.org/release/{}/front-500", mbid);
-        info!("Pobieranie okładki z Cover Art Archive: {}", url);
+        info!("Downloading cover from Cover Art Archive: {}", url);
 
         let resp = self.http.get(&url).send().await?;
 
         if !resp.status().is_success() {
             warn!(
-                "Brak okładki w Cover Art Archive (HTTP {}) dla MBID: {}",
+                "No cover in Cover Art Archive (HTTP {}) for MBID: {}",
                 resp.status(),
                 mbid
             );
@@ -350,12 +350,12 @@ impl CoverArtArchiveClient {
             return Err(MetadataError::CoverNotFound(mbid.to_string()));
         }
 
-        // Zapis do pliku tymczasowego i atomowa zmiana nazwy
+        // Write to a temp file and rename atomically
         let temp_file = covers_dir.join(format!("{}.tmp", mbid));
         tokio::fs::write(&temp_file, &bytes).await?;
         tokio::fs::rename(&temp_file, &cached_file).await?;
 
-        info!("Okładka zapisana w pamięci podręcznej: {:?}", cached_file);
+        info!("Cover stored in the cache: {:?}", cached_file);
         Ok(cached_file)
     }
 
@@ -365,7 +365,7 @@ impl CoverArtArchiveClient {
         default_album: &str,
         default_artist: &str,
     ) -> Vec<CoverCandidateDto> {
-        debug!("Wyszukiwanie okładek Deezer: {}", url);
+        debug!("Searching Deezer covers: {}", url);
         let req = self.http.get(url).send();
 
         let resp = match tokio::time::timeout(Duration::from_millis(3500), req).await {
@@ -423,7 +423,7 @@ impl CoverArtArchiveClient {
         default_album: &str,
         default_artist: &str,
     ) -> Vec<CoverCandidateDto> {
-        debug!("Wyszukiwanie okładek iTunes: {}", url);
+        debug!("Searching iTunes covers: {}", url);
         let req = self.http.get(url).send();
 
         let resp = match tokio::time::timeout(Duration::from_millis(3500), req).await {
@@ -471,8 +471,8 @@ impl CoverArtArchiveClient {
         results
     }
 
-    /// Wyszukuje kandydatów na okładki w internecie (Deezer, Apple Music / iTunes) w stylu Poweramp Cover Art Picker.
-    /// Zapytania do serwisów są wykonywane współbieżnie (równolegle), z natychmiastowym buforowaniem w pamięci RAM.
+    /// Searches the internet for cover candidates (Deezer, Apple Music / iTunes) in the style of the Poweramp Cover Art Picker.
+    /// The service queries run concurrently, and the results are cached in RAM immediately.
     pub async fn search_cover_candidates(
         &self,
         album: &str,
@@ -491,19 +491,19 @@ impl CoverArtArchiveClient {
             clean_artist.trim().to_lowercase()
         );
 
-        // 1. Sprawdź szybki cache pamięci podręcznej (0ms)
+        // 1. Check the fast in-memory cache (0ms)
         {
             let cache = self.search_cache.lock().await;
             if let Some(cached) = cache.get(&cache_key) {
                 debug!(
-                    "Cover Art Search Cache Hit dla: '{}' / '{}'",
+                    "Cover art search cache hit for: '{}' / '{}'",
                     clean_album, clean_artist
                 );
                 return cached.clone();
             }
         }
 
-        // 2. Przygotuj równoległe zapytania do Deezer i iTunes/Apple Music
+        // 2. Prepare the parallel queries to Deezer and iTunes/Apple Music
         let deezer_adv_url = if !clean_artist.is_empty() && !clean_album.is_empty() {
             Some(format!(
                 "https://api.deezer.com/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
@@ -550,7 +550,7 @@ impl CoverArtArchiveClient {
             None
         };
 
-        // Równoległe pobieranie (concurrent tokio::join!)
+        // Concurrent fetching (tokio::join!)
         let (res_deezer_adv, res_deezer_gen, res_itunes_1, res_itunes_2) = tokio::join!(
             async {
                 if let Some(url) = deezer_adv_url {
@@ -596,7 +596,7 @@ impl CoverArtArchiveClient {
             }
         }
 
-        // Fallback dla raw query jeśli wyczyszczone dało niewiele wyników
+        // Fall back to the raw query if the cleaned one gave few results
         let raw_album = album.trim();
         if candidates.len() < 3 && raw_album != clean_album && !raw_album.is_empty() {
             let fallback_url = format!(
@@ -611,7 +611,7 @@ impl CoverArtArchiveClient {
             }
         }
 
-        // Ranking i sortowanie (dokładne dopasowanie tytułu i wykonawcy na pierwszym miejscu)
+        // Ranking and sorting (exact title and artist matches first)
         let target_album_lower = clean_album.to_lowercase();
         let target_artist_lower = clean_artist.to_lowercase();
 
@@ -641,7 +641,7 @@ impl CoverArtArchiveClient {
             b_score.cmp(&a_score)
         });
 
-        // Zapisz w pamięci podręcznej dla natychmiastowych ponownych otwarć
+        // Store in the cache for instant reopening
         {
             let mut cache = self.search_cache.lock().await;
             cache.insert(cache_key, candidates.clone());
@@ -650,7 +650,7 @@ impl CoverArtArchiveClient {
         candidates
     }
 
-    /// Pobiera okładkę ze wskazanego bezpośredniego adresu URL i zapisuje pod wybranym stemem pliku w pamięci podręcznej.
+    /// Downloads a cover from the given direct URL and stores it in the cache under the chosen file stem.
     pub async fn download_cover_from_url(
         &self,
         url: &str,
@@ -663,7 +663,7 @@ impl CoverArtArchiveClient {
 
         let cached_file = covers_dir.join(format!("{}.jpg", file_stem));
         info!(
-            "Pobieranie okładki z URL: {} do pliku: {:?}",
+            "Downloading cover from URL: {} to file: {:?}",
             url, cached_file
         );
 
@@ -671,7 +671,7 @@ impl CoverArtArchiveClient {
 
         if !resp.status().is_success() {
             return Err(MetadataError::Query(format!(
-                "Serwer zwrócił kod HTTP: {} podczas pobierania okładki",
+                "Server returned HTTP status {} while downloading the cover",
                 resp.status()
             )));
         }
@@ -685,11 +685,11 @@ impl CoverArtArchiveClient {
         tokio::fs::write(&temp_file, &bytes).await?;
         tokio::fs::rename(&temp_file, &cached_file).await?;
 
-        info!("Okładka zapisana pomyślnie: {:?}", cached_file);
+        info!("Cover stored successfully: {:?}", cached_file);
         Ok(cached_file)
     }
 
-    /// Zapisuje plik własnej okładki z lokalnego dysku do katalogu pamięci podręcznej okładek Auralune.
+    /// Copies a custom cover file from the local disk into the Auralune cover cache directory.
     pub async fn save_custom_cover_file(
         &self,
         album_id: i64,
@@ -699,7 +699,7 @@ impl CoverArtArchiveClient {
         if !src.exists() {
             return Err(MetadataError::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                "Wskazany plik graficzny nie istnieje",
+                "The given image file does not exist",
             )));
         }
         let ext = image_extension(src.extension().and_then(|e| e.to_str()).unwrap_or("jpg"))?;
@@ -712,13 +712,13 @@ impl CoverArtArchiveClient {
         tokio::fs::copy(src, &temp_file).await?;
         tokio::fs::rename(&temp_file, &cached_file).await?;
         info!(
-            "Zapisano własną okładkę dla albumu #{}: {:?}",
+            "Stored custom cover for album #{}: {:?}",
             album_id, cached_file
         );
         Ok(cached_file)
     }
 
-    /// Zapisuje dane binarne własnej okładki (np. z przeciągniętego pliku / inputu) do pamięci podręcznej.
+    /// Stores the binary data of a custom cover (e.g. from a dropped file / input) in the cache.
     pub async fn save_custom_cover_bytes(
         &self,
         album_id: i64,
@@ -735,14 +735,14 @@ impl CoverArtArchiveClient {
         tokio::fs::write(&temp_file, bytes).await?;
         tokio::fs::rename(&temp_file, &cached_file).await?;
         info!(
-            "Zapisano własną okładkę z danych binarnych dla albumu #{}: {:?}",
+            "Stored custom cover from binary data for album #{}: {:?}",
             album_id, cached_file
         );
         Ok(cached_file)
     }
 }
 
-// Prosta funkcja kodowania URL bez potrzeby dodatkowych dużych zależności
+// Simple URL encoding without extra heavy dependencies
 pub mod urlencoding {
     pub fn encode(s: &str) -> String {
         let mut encoded = String::with_capacity(s.len() * 2);
@@ -761,35 +761,35 @@ pub mod urlencoding {
     }
 }
 
-/// Maksymalny rozmiar pobieranej okładki (chroni przed zapełnieniem pamięci i dysku).
+/// Maximum size of a downloaded cover (protects memory and disk from filling up).
 pub const MAX_COVER_BYTES: u64 = 20 * 1024 * 1024;
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
 
-/// Identyfikator używany w nazwie pliku okładki (MBID, `album_<id>`) nie może zawierać
-/// separatorów ścieżki ani `..`.
+/// The identifier used in a cover file name (MBID, `album_<id>`) must not contain
+/// path separators or `..`.
 fn ensure_safe_token(token: &str) -> Result<(), MetadataError> {
     if domain::paths::is_safe_file_token(token) {
         Ok(())
     } else {
         Err(MetadataError::Query(format!(
-            "Niedozwolony identyfikator okładki: {token:?}"
+            "Invalid cover identifier: {token:?}"
         )))
     }
 }
 
-/// Rozszerzenie pliku okładki z listy dozwolonych (zwraca je małymi literami).
+/// Cover file extension from the allow-list (returned in lowercase).
 fn image_extension(ext: &str) -> Result<String, MetadataError> {
     let lower = ext.to_ascii_lowercase();
     if IMAGE_EXTENSIONS.contains(&lower.as_str()) {
         Ok(lower)
     } else {
         Err(MetadataError::Query(format!(
-            "Nieobsługiwany format okładki: .{ext}"
+            "Unsupported cover format: .{ext}"
         )))
     }
 }
 
-/// Czyta odpowiedź z okładką: wymaga typu `image/*` (gdy serwer go podaje) i limitu rozmiaru.
+/// Reads a cover response: requires an `image/*` type (when the server sends one) and the size limit.
 async fn read_image_body(resp: reqwest::Response) -> Result<Vec<u8>, MetadataError> {
     let content_type = resp
         .headers()
@@ -799,21 +799,21 @@ async fn read_image_body(resp: reqwest::Response) -> Result<Vec<u8>, MetadataErr
         .to_ascii_lowercase();
     if !content_type.is_empty() && !content_type.starts_with("image/") {
         return Err(MetadataError::Query(format!(
-            "Serwer zwrócił {content_type} zamiast obrazu okładki"
+            "Server returned {content_type} instead of a cover image"
         )));
     }
     if resp
         .content_length()
         .is_some_and(|len| len > MAX_COVER_BYTES)
     {
-        return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
+        return Err(MetadataError::Query("The cover exceeds 20 MB".into()));
     }
-    // Strumieniowo: serwer bez Content-Length (chunked) też nie przekroczy limitu.
+    // Streaming: a server without Content-Length (chunked) cannot exceed the limit either.
     let mut resp = resp;
     let mut bytes = Vec::new();
     while let Some(chunk) = resp.chunk().await? {
         if bytes.len() as u64 + chunk.len() as u64 > MAX_COVER_BYTES {
-            return Err(MetadataError::Query("Okładka przekracza 20 MB".into()));
+            return Err(MetadataError::Query("The cover exceeds 20 MB".into()));
         }
         bytes.extend_from_slice(&chunk);
     }

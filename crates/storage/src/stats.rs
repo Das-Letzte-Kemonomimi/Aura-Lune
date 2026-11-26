@@ -1,4 +1,4 @@
-//! Statystyki odsłuchów, podsumowania Recap, oceny, ulubione oraz inteligentne zapytania (Smart Playlists).
+//! Listening statistics, Recap summaries, ratings, favourites and smart queries (smart playlists).
 
 use crate::{
     Database, RecapSummaryDto, RecapTopArtistDto, RecapTopTrackDto, StorageError, TrackRecord,
@@ -6,9 +6,9 @@ use crate::{
 use sqlx::Row;
 
 impl Database {
-    /// Przełącza status ulubionego (is_favorite) dla danego utworu.
+    /// Toggles a track's favourite status (is_favorite).
     pub async fn toggle_favorite(&self, track_id: i64) -> Result<bool, StorageError> {
-        // Jedno polecenie: odczyt i zapis nie mogą się przeplatać z innym przełączeniem.
+        // One statement: the read and the write cannot interleave with another toggle.
         let new_val: Option<bool> = sqlx::query_scalar(
             "UPDATE tracks SET is_favorite = NOT COALESCE(is_favorite, 0) WHERE id = ?1 RETURNING is_favorite;",
         )
@@ -18,7 +18,7 @@ impl Database {
         Ok(new_val.unwrap_or(false))
     }
 
-    /// Odnotowuje odsłuchanie utworu (zwiększa play_count i aktualizuje last_played_at).
+    /// Records a play of a track (increments play_count and updates last_played_at).
     pub async fn record_track_play(&self, track_id: i64) -> Result<(), StorageError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -34,7 +34,7 @@ impl Database {
         Ok(())
     }
 
-    /// Odnotowuje czas odtwarzania utworu w milisekundach (zwiększa total_play_time_ms i dodaje wpis do listening_history).
+    /// Records a track's play time in milliseconds (increments total_play_time_ms and adds a listening_history entry).
     pub async fn record_track_listening(
         &self,
         track_id: i64,
@@ -48,7 +48,7 @@ impl Database {
             .unwrap_or_default()
             .as_secs() as i64;
 
-        // Licznik utworu i historia odsłuchów zmieniają się razem albo wcale.
+        // The track counter and the listening history change together or not at all.
         let mut tx = self.pool.begin().await?;
         sqlx::query(
             "UPDATE tracks SET total_play_time_ms = COALESCE(total_play_time_ms, 0) + ?1, last_played_at = ?2 WHERE id = ?3;",
@@ -72,7 +72,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera podsumowanie odsłuchów dla zadanego okresu (np. od danego timestampu UTC).
+    /// Returns the listening summary for a period (e.g. from a given UTC timestamp).
     pub async fn get_recap_summary(
         &self,
         period: &str,
@@ -271,7 +271,7 @@ impl Database {
         })
     }
 
-    /// Resetuje licznik odtworzeń dla danego utworu.
+    /// Resets a track's play counter.
     pub async fn reset_track_plays(&self, track_id: i64) -> Result<(), StorageError> {
         sqlx::query(
             "UPDATE tracks SET play_count = 0, total_play_time_ms = 0, last_played_at = NULL WHERE id = ?1;",
@@ -282,7 +282,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera utwory oznaczone jako ulubione (Favorites).
+    /// Returns the tracks marked as favourites.
     pub async fn list_favorite_tracks(&self) -> Result<Vec<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>(
             "SELECT * FROM tracks WHERE is_favorite = 1 ORDER BY artist, title;",
@@ -292,7 +292,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera ostatnio odtwarzane utwory (History).
+    /// Returns the recently played tracks (History).
     pub async fn list_recently_played_tracks(
         &self,
         limit: i64,
@@ -306,7 +306,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera najczęściej odtwarzane utwory (Top Played).
+    /// Returns the most played tracks (Top Played).
     pub async fn list_top_played_tracks(
         &self,
         limit: i64,
@@ -320,7 +320,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera utwory w formacie Hi-Res Audio (24-bit lub częstotliwość > 48000 Hz).
+    /// Returns Hi-Res Audio tracks (24-bit or a sample rate > 48000 Hz).
     pub async fn list_hires_tracks(&self) -> Result<Vec<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>(
             "SELECT * FROM tracks WHERE (bit_depth IS NOT NULL AND bit_depth >= 24) OR sample_rate > 48000 ORDER BY artist, title;",
@@ -330,7 +330,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Ustawia ocenę gwiazdkową (0-5) dla danego utworu.
+    /// Sets a track's star rating (0-5).
     pub async fn set_track_rating(&self, track_id: i64, rating: i64) -> Result<(), StorageError> {
         let clamped = rating.clamp(0, 5);
         sqlx::query("UPDATE tracks SET rating = ?1 WHERE id = ?2;")
@@ -341,7 +341,7 @@ impl Database {
         Ok(())
     }
 
-    /// Pobiera utwory zapomniane (nigdy nieodtwarzane lub play_count = 0).
+    /// Returns forgotten tracks (never played, or play_count = 0).
     pub async fn list_forgotten_tracks(
         &self,
         limit: i64,
@@ -355,7 +355,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera utwory o wysokim BPM (np. >= 130 BPM).
+    /// Returns tracks with a high BPM (e.g. >= 130 BPM).
     pub async fn list_high_bpm_tracks(
         &self,
         min_bpm: f64,
@@ -369,7 +369,7 @@ impl Database {
         Ok(res)
     }
 
-    /// Pobiera najwyżej ocenione utwory (rating >= 4).
+    /// Returns the top-rated tracks (rating >= 4).
     pub async fn list_top_rated_tracks(&self) -> Result<Vec<TrackRecord>, StorageError> {
         let res = sqlx::query_as::<_, TrackRecord>(
             "SELECT * FROM tracks WHERE rating IS NOT NULL AND rating >= 4 ORDER BY rating DESC, play_count DESC;",

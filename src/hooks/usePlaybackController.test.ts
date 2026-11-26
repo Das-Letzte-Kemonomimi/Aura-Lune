@@ -310,7 +310,7 @@ describe('usePlaybackController', () => {
 
       expect(livePlayback.getSnapshot()).toMatchObject({ ready: true, positionMs: 10_300 });
       expect(livePlayback.getSnapshot().spectrum).toEqual([10.3]);
-      // Updater wywołany, ale bez zmian strukturalnych zwraca poprzedni obiekt (brak re-renderu).
+      // The updater is called, but without structural changes it returns the previous object (no re-render).
       expect(mockStatus.position_ms).toBe(10_000);
 
       act(() => emitStatus(playing(10_300, { volume: 0.3 })));

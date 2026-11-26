@@ -21,9 +21,9 @@ fn test_waybar_status_serialization_and_write() {
     };
 
     let res = write_waybar_status_to_path(&status, &tmp_path);
-    assert!(res.is_ok(), "Zapis pliku statusu powiódł się");
+    assert!(res.is_ok(), "Writing the status file succeeded");
 
-    let read_back = fs::read_to_string(&tmp_path).expect("Odczyt pliku statusu");
+    let read_back = fs::read_to_string(&tmp_path).expect("Read the status file");
     assert!(read_back.contains("\"text\": \"Kitsune - Resonance\""));
     assert!(read_back.contains("\"class\": \"playing\""));
     assert!(read_back.contains("\"percentage\": 65"));

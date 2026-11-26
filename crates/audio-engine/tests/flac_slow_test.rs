@@ -25,48 +25,51 @@ fn test_flac_slow_playback_cleanliness() {
         return;
     }
 
-    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
     let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
-    engine.load_uri(&flac_uri).expect("Ładowanie utworu FLAC");
+    engine.load_uri(&flac_uri).expect("Loading the FLAC track");
 
-    // Test tempa poniżej 50% (0.35x - głęboki slowdown)
+    // Tempo below 50% (0.35x, a deep slow-down)
     engine
         .set_tempo_ratio(0.35)
-        .expect("Ustawienie tempa 0.35x");
-    engine.play().expect("Start odtwarzania");
+        .expect("Setting the tempo to 0.35x");
+    engine.play().expect("Starting playback");
 
-    // Odtwarzanie przez 1.5 sekundy
+    // Play for 1.5 seconds
     for _ in 0..15 {
         sleep(Duration::from_millis(100));
         let events = engine.poll_events();
         for ev in &events {
             if let audio_engine::PlayerEvent::Error(err) = ev {
-                panic!("Wystąpił błąd w trakcie odtwarzania FLAC: {}", err);
+                panic!("An error occurred during FLAC playback: {}", err);
             }
         }
     }
 
-    assert!(engine.position().is_some(), "Pozycja powinna być dostępna");
+    assert!(
+        engine.position().is_some(),
+        "The position should be available"
+    );
     assert!(
         engine.duration().is_some(),
-        "Czas utworu powinien być dostępny"
+        "The track duration should be available"
     );
 
-    // Test dynamicznej zmiany parametrów tempa i silnika w locie na FLAC
+    // Change tempo parameters and the engine on the fly during FLAC playback
     engine
         .set_dsp_engine(dsp_api::DspEngine::SoundTouch)
-        .expect("Przełączenie na SoundTouch");
+        .expect("Switching to SoundTouch");
     sleep(Duration::from_millis(300));
 
-    engine.set_tempo_ratio(1.2).expect("Przyspieszenie do 1.2x");
+    engine.set_tempo_ratio(1.2).expect("Speeding up to 1.2x");
     sleep(Duration::from_millis(300));
 
     engine
         .set_dsp_engine(dsp_api::DspEngine::RubberBand)
-        .expect("Przełączenie z powrotem na RubberBand");
+        .expect("Switching back to RubberBand");
     sleep(Duration::from_millis(300));
 
-    engine.stop().expect("Zatrzymanie odtwarzania");
+    engine.stop().expect("Stopping playback");
 }
 
 #[test]
@@ -101,7 +104,7 @@ fn test_dsp_flac_blocks_rubberband() {
     }
     assert!(
         total_out > 0,
-        "RubberBand musi wyprodukować próbki dla bloków FLAC"
+        "RubberBand must produce samples for the FLAC blocks"
     );
 }
 
@@ -137,7 +140,7 @@ fn test_dsp_flac_soundtouch() {
     }
     assert!(
         total_out > 0,
-        "SoundTouch musi wyprodukować próbki dla bloków FLAC"
+        "SoundTouch must produce samples for the FLAC blocks"
     );
 }
 
@@ -159,16 +162,16 @@ fn test_switch_tracks_flac() {
         return;
     }
 
-    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
     let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
 
     println!("Loading track 1...");
-    engine.load_uri(&flac_uri).expect("Ładowanie utworu 1");
+    engine.load_uri(&flac_uri).expect("Loading track 1");
     engine.play().expect("Play 1");
     std::thread::sleep(Duration::from_millis(300));
 
     println!("Loading track 2 (same FLAC while playing)...");
-    engine.load_uri(&flac_uri).expect("Ładowanie utworu 2");
+    engine.load_uri(&flac_uri).expect("Loading track 2");
     println!("Playing track 2...");
     engine.play().expect("Play 2");
     std::thread::sleep(Duration::from_millis(300));
@@ -196,12 +199,12 @@ fn test_library_track_click_and_rapid_status_query() {
         return;
     }
 
-    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
     let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
     let wav_uri = format!("file://{}", wav_path.canonicalize().unwrap().display());
 
-    // 1. Kliknięcie utworu w bibliotece (load_uri + play + natychmiastowe odpytywanie statusu)
-    engine.load_uri(&wav_uri).expect("Ładowanie WAV");
+    // 1. Clicking a track in the library (load_uri + play + immediate status polling)
+    engine.load_uri(&wav_uri).expect("Loading the WAV");
     engine.play().expect("Play WAV");
 
     for _ in 0..10 {
@@ -210,8 +213,8 @@ fn test_library_track_click_and_rapid_status_query() {
         std::thread::sleep(Duration::from_millis(20));
     }
 
-    // 2. Kliknięcie innego utworu w bibliotece podczas trwania odtwarzania
-    engine.load_uri(&flac_uri).expect("Przełączenie na FLAC");
+    // 2. Clicking another library track while playback is running
+    engine.load_uri(&flac_uri).expect("Switching to the FLAC");
     engine.play().expect("Play FLAC");
 
     for _ in 0..15 {
@@ -245,20 +248,20 @@ fn test_switch_to_bypass_during_active_playback() {
         return;
     }
 
-    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
     let flac_uri = format!("file://{}", flac_path.canonicalize().unwrap().display());
-    engine.load_uri(&flac_uri).expect("Ładowanie FLAC");
+    engine.load_uri(&flac_uri).expect("Loading the FLAC");
 
     engine.play().expect("Play FLAC");
     sleep(Duration::from_millis(300));
 
-    // Sprawdź stan
+    // Check the state
     assert_eq!(engine.state(), domain::PlaybackState::Playing);
 
-    // Przełącz na Bypass w trakcie aktywnego grania
+    // Switch to Bypass while playing
     engine
         .set_dsp_engine(dsp_api::DspEngine::Bypass)
-        .expect("Przełączenie na Bypass");
+        .expect("Switching to Bypass");
     assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::Bypass);
 
     for _ in 0..10 {
@@ -266,10 +269,10 @@ fn test_switch_to_bypass_during_active_playback() {
         let _pos = engine.position();
     }
 
-    // Przełącz z powrotem na RubberBand
+    // Switch back to RubberBand
     engine
         .set_dsp_engine(dsp_api::DspEngine::RubberBand)
-        .expect("Przełączenie na RubberBand");
+        .expect("Switching to RubberBand");
     assert_eq!(engine.dsp_params().engine, dsp_api::DspEngine::RubberBand);
 
     for _ in 0..10 {

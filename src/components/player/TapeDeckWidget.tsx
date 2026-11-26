@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useId, useRef } from 'react';
-import { CassetteTape, Sparkles } from 'lucide-react';
+import { CassetteTape, Sparkles } from '../ui/icons';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { getTranslations, type Language } from '../../i18n';
 import { useInertialSpin } from '../../hooks/useInertialSpin';
 import { playbackSpeed } from '../../utils/playbackSpeed';
 import { tauFromFrameLerp } from '../../utils/smoothing';
-import { cn } from '../../utils/cn';
+import { Chip } from '../ui';
 
-// Dawna bezwładność szpul: 0.09 (rozpędzanie) / 0.05 (hamowanie) na klatkę 60 Hz => ~0.18 s / ~0.33 s
+// Former reel inertia: 0.09 (spin-up) / 0.05 (braking) per 60 Hz frame => ~0.18 s / ~0.33 s
 const REEL_TAU_UP = tauFromFrameLerp(0.09);
 const REEL_TAU_DOWN = tauFromFrameLerp(0.05);
 
@@ -98,7 +98,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
 
   const effectiveSpeed = playbackSpeed({ engine, tempo, rate, isDspActive });
 
-  // Tematyczne warianty wizualne dla 3 typów taśmy studyjnej
+  // Visual variants for the 3 studio tape types
   const currentTheme = {
     TYPE_I: {
       name: 'FE-I',
@@ -153,7 +153,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     },
   }[tapeType];
 
-  // Procent postępu odtwarzania (0.0 do 1.0)
+  // Playback progress (0.0 to 1.0)
   const progress = durationMs > 0 ? Math.min(1.0, Math.max(0.0, positionMs / durationMs)) : 0.0;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -161,17 +161,17 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   const rightSpoolRef = useRef<SVGGElement | null>(null);
   const pinchRollerRef = useRef<SVGGElement | null>(null);
 
-  // Promienie nawoju taśmy (lewa ubywa, prawa przybywa)
+  // Tape wind radii (the left one shrinks, the right one grows)
   const leftTapeRadius = 38 - progress * 20; // 38 -> 18
   const rightTapeRadius = 18 + progress * 20; // 18 -> 38
 
-  // 7½ IPS obraca się dwukrotnie szybciej niż standardowe 3¾ IPS
+  // 7½ IPS turns twice as fast as the standard 3¾ IPS
   const speedMultiplier = tapeSpeed === '7.5' ? 1.0 : 0.5;
   const baseLinearVelocity = 280 * effectiveSpeed * speedMultiplier;
 
-  // Zgodnie z mechaniką szpulowca: prędkość kątowa ω = v / r. Obie szpule obracają się w lewo
-  // (taśma biegnie dołem z lewej do prawej). Parametry trafiają do pętli przez ref — zmiana promienia,
-  // tempa czy prędkości taśmy jej nie restartuje, a po zatrzymaniu pętla śpi.
+  // As on a reel-to-reel deck: angular speed ω = v / r. Both reels turn left
+  // (the tape runs along the bottom from left to right). The parameters reach the loop through a ref, so changing the radius,
+  // tempo or tape speed does not restart it, and the loop sleeps once stopped.
   useInertialSpin({
     targetDegPerSec: isPlaying ? (baseLinearVelocity / leftTapeRadius) * 36 : 0,
     playing: isPlaying,
@@ -192,7 +192,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     target: rootRef,
     apply: (angle) => {
       rightSpoolRef.current?.setAttribute('transform', `rotate(${angle.toFixed(2)} 175 75)`);
-      // Rolka dociskowa napędzana od prawej szpuli
+      // Pinch roller driven from the right reel
       pinchRollerRef.current?.setAttribute(
         'transform',
         `rotate(${((angle * (tapeSpeed === '7.5' ? 2.4 : 1.2)) % 360).toFixed(2)} 158 135)`
@@ -200,7 +200,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     },
   });
 
-  // Licznik obrotów taśmy (Tape Counter 4-cyfrowy) — na 7.5 IPS tyka 2x szybciej
+  // Tape counter (4 digits): ticks 2x faster at 7.5 IPS
   const tapeCounterVal = Math.floor((positionMs / 1000) * (tapeSpeed === '7.5' ? 3.2 : 1.6));
   const counterFormatted = String(tapeCounterVal % 10000).padStart(4, '0');
 
@@ -232,7 +232,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     >
       {/* Header Decka */}
       <div
-        className="flex items-center justify-between border-b border-white/8 pb-1.5 text-xxs font-bold text-slate-300"
+        className="flex items-center justify-between border-b border-line pb-1.5 text-xxs font-bold text-fg-secondary"
       >
         <div className="flex items-center gap-1.5">
           <CassetteTape size={14} style={{ color: currentTheme.accentColor }} />
@@ -242,7 +242,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
           </span>
         </div>
 
-        {/* Mechaniczny licznik cyfrowy */}
+        {/* Mechanical digital counter */}
         <div
           className="rounded-sm px-1.5 py-px font-mono text-xs tracking-widest"
           style={{
@@ -257,21 +257,21 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         </div>
       </div>
 
-      {/* Widok szpul i głowicy (SVG) */}
+      {/* Reels and head view (SVG) */}
       <div className="relative flex h-36.5 w-full justify-center">
         <svg
           viewBox="0 0 240 155"
           className="h-full w-full overflow-visible"
         >
           <defs>
-            {/* Dynamiczny gradient taśmy magnetycznej (FE-I vs CR-II vs METAL) */}
+            {/* Dynamic magnetic tape gradient (FE-I vs CR-II vs METAL) */}
             <radialGradient id={packGradId} cx="50%" cy="50%" r="50%">
               <stop offset="60%" stopColor={currentTheme.tapePackStart} />
               <stop offset="90%" stopColor={currentTheme.tapePackMid} />
               <stop offset="100%" stopColor={currentTheme.tapePackEnd} />
             </radialGradient>
 
-            {/* Dynamiczny gradient szpuli NAB (Aluminium vs Tytan vs Złoto) */}
+            {/* Dynamic NAB reel gradient (aluminium vs titanium vs gold) */}
             <linearGradient id={spoolGradId} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={currentTheme.spoolStart} />
               <stop offset="50%" stopColor={currentTheme.spoolMid} />
@@ -279,10 +279,10 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             </linearGradient>
           </defs>
 
-          {/* Podstawa mechanizmu głowic */}
+          {/* Head mechanism base */}
           <rect x="30" y="20" width="180" height="120" rx="8" fill="rgba(10, 8, 18, 0.6)" stroke="rgba(255,255,255,0.06)" />
 
-          {/* Naklejka etykiety taśmy studyjnej (Tape Label Badge) */}
+          {/* Studio tape label badge */}
           <rect
             x="86"
             y="28"
@@ -304,7 +304,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             {currentTheme.biasLabel}
           </text>
 
-          {/* Ścieżka taśmy łącząca szpule i głowice */}
+          {/* Tape path joining the reels and heads */}
           <path
             d="M 65 110 L 85 132 L 120 130 L 155 132 L 175 110"
             fill="none"
@@ -313,7 +313,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             strokeLinecap="round"
           />
 
-          {/* --- LEWA SZPULA (Podająca / Feed Reel) --- */}
+          {/* --- LEFT REEL (feed reel) --- */}
           <circle cx="65" cy="75" r={leftTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
           <g ref={leftSpoolRef}>
             <circle cx="65" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
@@ -324,7 +324,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             <path d="M 77 82 L 94 92 L 91 97 Z" fill={`url(#${spoolGradId})`} />
           </g>
 
-          {/* --- PRAWA SZPULA (Odbierająca / Take-up Reel) --- */}
+          {/* --- RIGHT REEL (take-up reel) --- */}
           <circle cx="175" cy="75" r={rightTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
           <g ref={rightSpoolRef}>
             <circle cx="175" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
@@ -335,15 +335,15 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             <path d="M 187 82 L 204 92 L 201 97 Z" fill={`url(#${spoolGradId})`} />
           </g>
 
-          {/* Rolki prowadzące i głowica studyjna (Head Block) */}
+          {/* Guide rollers and the studio head block */}
           <circle cx="85" cy="132" r="6" fill="#475569" stroke="#94a3b8" strokeWidth="1.2" />
           <circle cx="85" cy="132" r="2" fill="#0f172a" />
 
-          {/* Głowica odczytu (Playback Head) */}
+          {/* Playback head */}
           <rect x="111" y="123" width="18" height="14" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="1.2" />
           <line x1="120" y1="123" x2="120" y2="137" stroke={currentTheme.accentColor} strokeWidth="1.4" />
 
-          {/* Capstan i gumowa rolka dociskowa (Pinch Roller) */}
+          {/* Capstan and rubber pinch roller */}
           <circle cx="147" cy="128" r="3" fill="#cbd5e1" />
           <g ref={pinchRollerRef}>
             <circle cx="158" cy="135" r="7" fill="#18181b" stroke="#52525b" strokeWidth="1.5" />
@@ -352,93 +352,50 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         </svg>
       </div>
 
-      {/* Dolny pasek kontrolny i selektory szpulowca */}
-      <div className="z-20 flex items-center justify-between border-t border-white/8 pt-1.5 text-xxs font-bold">
-        {/* Wybór prędkości taśmy & Lo-Fi */}
+      {/* Bottom control bar and reel-to-reel selectors */}
+      <div className="z-20 flex items-center justify-between border-t border-line pt-1.5 text-xxs font-bold">
+        {/* Tape speed choice & Lo-Fi */}
         <div className="flex items-center gap-1 rounded-md bg-black/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setTapeSpeed('7.5')}
-            title={t.player.tapeSpeedStudio}
-            className={cn(
-              'rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
-              tapeSpeed === '7.5' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          <Chip size="xs" tone="purple" pressed={tapeSpeed === '7.5'} onClick={() => setTapeSpeed('7.5')} title={t.player.tapeSpeedStudio} className="px-1.5 text-2xs">
             7½ IPS
-          </button>
-          <button
-            type="button"
-            onClick={() => setTapeSpeed('3.75')}
-            title={t.player.tapeSpeedStandard}
-            className={cn(
-              'rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
-              tapeSpeed === '3.75' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          </Chip>
+          <Chip size="xs" tone="purple" pressed={tapeSpeed === '3.75'} onClick={() => setTapeSpeed('3.75')} title={t.player.tapeSpeedStandard} className="px-1.5 text-2xs">
             3¾ IPS
-          </button>
+          </Chip>
 
-          {/* Przycisk Lo-Fi Tape FX — otwiera pełne okno dialogowe Popup */}
-          <button
-            type="button"
+          {/* Lo-Fi Tape FX button: opens the full pop-up dialog */}
+          <Chip
+            size="xs"
+            pressed={simConfig.enabled}
             onClick={(e) => {
               e.stopPropagation();
               handleOpenLoFi();
             }}
             title={t.player.tapeLoFiTooltip}
-            className={cn(
-              'flex items-center gap-1 rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
-              simConfig.enabled ? 'text-fg' : 'text-fg-muted',
-              simConfig.enabled ? 'bg-linear-135 from-accent-purple/90 to-pink-500/90' : 'bg-white/8',
-            )}
+            className="gap-1 px-1.5 text-2xs"
           >
-            <Sparkles size={10} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
-            <span>{simConfig.enabled ? `${Math.round(simConfig.intensity * 100)}%` : 'FX'}</span>
-          </button>
+            <Sparkles size={10} />
+            {simConfig.enabled ? `${Math.round(simConfig.intensity * 100)}%` : 'FX'}
+          </Chip>
         </div>
 
-        {/* Selektor typu taśmy (FE-I, CR-II, METAL) */}
+        {/* Tape type selector (FE-I, CR-II, METAL) */}
         <div className="flex gap-0.5 rounded-md bg-black/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setTapeType('TYPE_I')}
-            title={t.player.tapeTypeFerric}
-            className={cn(
-              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
-              tapeType === 'TYPE_I' ? 'bg-accent-amber text-black' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          <Chip size="xs" tone="amber" pressed={tapeType === 'TYPE_I'} onClick={() => setTapeType('TYPE_I')} title={t.player.tapeTypeFerric} className="px-1.5 text-2xs">
             FE-I
-          </button>
-          <button
-            type="button"
-            onClick={() => setTapeType('TYPE_II')}
-            title={t.player.tapeTypeChrome}
-            className={cn(
-              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
-              tapeType === 'TYPE_II' ? 'bg-accent-cyan text-black' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          </Chip>
+          <Chip size="xs" tone="cyan" pressed={tapeType === 'TYPE_II'} onClick={() => setTapeType('TYPE_II')} title={t.player.tapeTypeChrome} className="px-1.5 text-2xs">
             CR-II
-          </button>
-          <button
-            type="button"
-            onClick={() => setTapeType('METAL')}
-            title={t.player.tapeTypeMetal}
-            className={cn(
-              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
-              tapeType === 'METAL' ? 'bg-yellow-500 text-black' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          </Chip>
+          <Chip size="xs" tone="pink" pressed={tapeType === 'METAL'} onClick={() => setTapeType('METAL')} title={t.player.tapeTypeMetal} className="px-1.5 text-2xs">
             METAL
-          </button>
+          </Chip>
         </div>
 
-        {/* Dioda Play / Rec State */}
+        {/* Play / Rec state LED */}
         <div className="flex items-center gap-1">
           <span
-            className="h-1.5 w-1.5 rounded-full transition-all duration-200"
+            className="size-1.5 rounded-full"
             style={{
               background: isPlaying ? currentTheme.accentColor : '#64748b',
               boxShadow: isPlaying ? `0 0 6px ${currentTheme.accentColor}` : 'none',
@@ -450,7 +407,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         </div>
       </div>
 
-      {/* Samodzielny modal Pop-up (jeśli brak nadrzędnego handlera) */}
+      {/* Standalone pop-up modal (when there is no parent handler) */}
       {internalLoFiModalOpen && (
         <React.Suspense fallback={null}>
           <AnalogLoFiModal

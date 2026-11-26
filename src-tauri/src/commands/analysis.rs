@@ -1,4 +1,4 @@
-//! Analiza muzyczna: BPM, tonacja, akordy, fale dźwiękowe i transkrypcja MIDI.
+//! Music analysis: BPM, key, chords, waveforms and MIDI transcription.
 
 use super::error::CommandError;
 use crate::AppState;
@@ -22,7 +22,7 @@ pub async fn detect_track_key_bpm(
     state: State<'_, AppState>,
 ) -> Result<TrackKeyBpm, CommandError> {
     let recompute = force_recompute.unwrap_or(false);
-    // 1. Sprawdź, czy mamy już zapisany BPM i klucz w bazie danych (chyba że wymuszono przeliczenie)
+    // 1. Check whether the BPM and key are already stored in the database (unless a recompute is forced)
     if !recompute {
         if let Some(id) = track_id {
             if let Ok(Some((bpm, key_name))) = state.db.get_track_key_bpm(id).await {
@@ -47,15 +47,15 @@ pub async fn detect_track_key_bpm(
         }
     }
 
-    // 2. Jeśli nie ma w bazie, wykonaj analizę w tle (tokio spawn_blocking)
+    // 2. If not in the database, run the analysis in the background (tokio spawn_blocking)
     let path_clone = path.clone();
     let analysis_res =
         tokio::task::spawn_blocking(move || audio_engine::analyze_track_key_bpm(&path_clone))
             .await
-            .map_err(|e| CommandError::from(e).context("Błąd wątku analizy"))?
-            .map_err(|e| CommandError::from(e).context("Błąd analizy"))?;
+            .map_err(|e| CommandError::from(e).context("Analysis thread error"))?
+            .map_err(|e| CommandError::from(e).context("Analysis error"))?;
 
-    // 3. Jeśli mamy track_id, zapisz wynik w bazie danych
+    // 3. If we have a track_id, store the result in the database
     if let Some(id) = track_id {
         let db = state.db.clone();
         let bpm = analysis_res.bpm;
@@ -85,7 +85,7 @@ pub async fn get_analysis_capabilities() -> Result<AnalysisCapabilities, Command
     Ok(engine_get_analysis_capabilities())
 }
 
-/// Nakłada ręczne poprawki akordów (dopasowane po `start_ms`) na wynik analizy.
+/// Applies manual chord corrections (matched by `start_ms`) on top of the analysis result.
 fn apply_chord_overrides(chords: &mut [ChordSegment], overrides: &[ChordSegment]) {
     for ov in overrides {
         let (root, quality) = parse_chord_symbol(&ov.chord);
@@ -99,7 +99,7 @@ fn apply_chord_overrides(chords: &mut [ChordSegment], overrides: &[ChordSegment]
     }
 }
 
-/// Uzupełnia tempo/tonację dla wpisów pamięci podręcznej sprzed migracji v2 z tagów utworu.
+/// Fills in tempo/key for cache entries from before migration v2, using the track tags.
 async fn track_bpm_and_key(state: &AppState, track_id: i64) -> (Option<f64>, Option<String>) {
     match state.db.get_track_by_id(track_id).await {
         Ok(Some(t)) => (t.bpm, t.initial_key),
@@ -107,7 +107,7 @@ async fn track_bpm_and_key(state: &AppState, track_id: i64) -> (Option<f64>, Opt
     }
 }
 
-/// Odtwarza `TrackChordsData` z pamięci podręcznej. Zwraca `None` przy uszkodzonym JSON.
+/// Rebuilds `TrackChordsData` from the cache. Returns `None` for corrupted JSON.
 async fn chords_from_cache(
     state: &AppState,
     track_id: i64,
@@ -166,8 +166,8 @@ pub async fn detect_track_chords(
     let analysis_res =
         tokio::task::spawn_blocking(move || analyze_track_chords_and_grid(&path_clone, id_val))
             .await
-            .map_err(|e| CommandError::from(e).context("Błąd wątku analizy"))?
-            .map_err(|e| CommandError::from(e).context("Błąd analizy akordów"))?;
+            .map_err(|e| CommandError::from(e).context("Analysis thread error"))?
+            .map_err(|e| CommandError::from(e).context("Chord analysis error"))?;
 
     if let Some(id) = track_id {
         let beat_json = serde_json::to_string(&analysis_res.beat_grid).unwrap_or_default();
@@ -228,7 +228,7 @@ pub async fn export_chords_file(
 ) -> Result<String, CommandError> {
     let chords_data = get_cached_chords(track_id, state)
         .await?
-        .ok_or_else(|| CommandError::not_found("Brak przeanalizowanych akordów dla tego utworu"))?;
+        .ok_or_else(|| CommandError::not_found("No analysed chords for this track"))?;
 
     match format.to_lowercase().as_str() {
         "chordpro" | "cho" => Ok(export_chords_to_chordpro(&chords_data, &title, &artist)),
@@ -237,10 +237,10 @@ pub async fn export_chords_file(
     }
 }
 
-/// Domyślne tempo MIDI, gdy ani analiza, ani tagi utworu go nie znają.
+/// Default MIDI tempo when neither the analysis nor the track tags know it.
 const DEFAULT_MIDI_BPM: f64 = 120.0;
 
-/// Odtwarza `TrackTranscriptionData` z pamięci podręcznej. Zwraca `None` przy uszkodzonym JSON.
+/// Rebuilds `TrackTranscriptionData` from the cache. Returns `None` for corrupted JSON.
 async fn transcription_from_cache(
     state: &AppState,
     track_id: i64,
@@ -290,8 +290,8 @@ pub async fn detect_track_transcription(
     let analysis_res =
         tokio::task::spawn_blocking(move || analyze_track_transcription(&path_clone, id_val))
             .await
-            .map_err(|e| CommandError::from(e).context("Błąd wątku analizy"))?
-            .map_err(|e| CommandError::from(e).context("Błąd transkrypcji nutowej"))?;
+            .map_err(|e| CommandError::from(e).context("Analysis thread error"))?
+            .map_err(|e| CommandError::from(e).context("Note transcription error"))?;
 
     if let Some(id) = track_id {
         if let Ok(json) = serde_json::to_string(&analysis_res.notes) {
@@ -326,8 +326,8 @@ pub async fn get_cached_transcription(
     }
 }
 
-/// Zapisuje transkrypcję utworu jako plik `.mid` pod wskazaną ścieżką (po walidacji celu zapisu).
-/// Zwraca ścieżkę, pod którą plik faktycznie zapisano.
+/// Writes the track transcription as a `.mid` file at the given path (after validating the target).
+/// Returns the path the file was actually written to.
 #[tauri::command]
 pub async fn export_transcription_midi(
     track_id: i64,
@@ -337,7 +337,7 @@ pub async fn export_transcription_midi(
     let resolved = super::paths::ensure_writable(std::path::Path::new(&export_path))?;
     if !domain::paths::has_allowed_extension(&resolved, &["mid", "midi"]) {
         return Err(CommandError::validation(
-            "Plik MIDI musi mieć rozszerzenie .mid lub .midi",
+            "A MIDI file must have the .mid or .midi extension",
         ));
     }
     let cached = state
@@ -348,10 +348,10 @@ pub async fn export_transcription_midi(
         Some(cached) => transcription_from_cache(&state, track_id, cached).await,
         None => None,
     }
-    .ok_or_else(|| CommandError::not_found("Brak zapisanej transkrypcji dla tego utworu"))?;
+    .ok_or_else(|| CommandError::not_found("No saved transcription for this track"))?;
     let bytes = export_transcription_to_midi(&data.notes, data.bpm);
     tokio::fs::write(&resolved, bytes)
         .await
-        .map_err(|e| CommandError::from(e).context("Nie udało się zapisać pliku MIDI"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to write the MIDI file"))?;
     Ok(resolved.to_string_lossy().into_owned())
 }

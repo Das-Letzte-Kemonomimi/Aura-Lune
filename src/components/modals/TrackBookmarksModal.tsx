@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useId } from 'react';
 import { invoke } from '../../api/ipc';
-import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from 'lucide-react';
+import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from '../ui/icons';
 import { formatTimeMs } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';
 import { type TrackBookmarkDto } from '../../types/player';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { fmt } from '../../utils/fmt';
-import { ModalShell } from '../ui';
+import { Button, Callout, Card, EmptyState, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, Spinner, TextField } from '../ui';
+import { iconTileTones } from '../ui/tones';
 
 export type { TrackBookmarkDto };
 
@@ -35,7 +36,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   onSetAsLoop,
   currentLang = 'pl',
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = getTranslations(currentLang);
   const [bookmarks, setBookmarks] = useState<TrackBookmarkDto[]>([]);
@@ -45,6 +46,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const titleId = useId();
 
   const loadBookmarks = useCallback(async () => {
     try {
@@ -53,7 +55,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
       const bms = await invoke<TrackBookmarkDto[]>('get_track_bookmarks', { trackId });
       setBookmarks(bms);
     } catch (err) {
-      console.error('Błąd pobierania zakładek utworu:', err);
+      console.error('Failed to fetch the track bookmarks:', err);
       setError(String(err));
     } finally {
       setIsLoading(false);
@@ -139,261 +141,209 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-140 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
-    >
-      {/* Nagłówek modala */}
-      <div
-        className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/25 text-accent-pink">
-            <Bookmark size={18} />
-          </div>
-          <div>
-            <h3 className="m-0 text-base font-bold text-fg">
-              {loc.trackBookmarks.title}
-            </h3>
-            <p className="m-0 max-w-95 truncate text-ui text-fg-secondary">
-              {trackTitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="md" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.trackBookmarks.title}
+        subtitle={<span className="block truncate">{trackTitle}</span>}
+        icon={<Bookmark size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Zawartość */}
-      <div className="flex flex-col gap-4 overflow-y-auto p-5">
-        {error && (
-          <div className="rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400">
-            {error}
-          </div>
-        )}
+      <ModalBody className="flex flex-col gap-4">
+        {error && <Callout tone="danger" className="text-ui text-accent-red">{error}</Callout>}
 
-        {/* Formularz dodania nowego znacznika */}
-        <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-white/3 p-3.5">
-          <span className="text-ui font-semibold text-fg">
-            {loc.trackBookmarks.addNewBookmark}
-          </span>
+        {/* Form for adding a new marker */}
+        <Card variant="inset" padding="sm" className="flex flex-col gap-2.5">
+          <span className="text-ui font-semibold text-fg">{loc.trackBookmarks.addNewBookmark}</span>
           <div className="grid grid-cols-[1fr_--spacing(35)] gap-2">
-            <input
-              type="text"
+            <TextField
+              aria-label={loc.trackBookmarks.namePlaceholder}
               placeholder={loc.trackBookmarks.namePlaceholder}
               value={newBookmarkName}
               onChange={(e) => setNewBookmarkName(e.target.value)}
-              className="rounded-lg border border-line bg-black/30 px-3 py-2 text-ui text-fg"
             />
             <div className="flex gap-1">
-              <input
-                type="text"
+              <TextField
+                mono
+                aria-label={loc.trackBookmarks.timePlaceholder}
                 placeholder={loc.trackBookmarks.timePlaceholder}
                 value={newBookmarkTime}
                 onChange={(e) => setNewBookmarkTime(e.target.value)}
-                className="w-full rounded-lg border border-line bg-black/30 p-2 font-mono text-ui text-fg"
+                className="px-2"
               />
-              <button
-                type="button"
+              <IconButton
+                variant="secondary"
+                label={loc.trackBookmarks.insertCurrentPos}
                 onClick={() => setNewBookmarkTime(`${currentPositionMs}ms`)}
-                title={loc.trackBookmarks.insertCurrentPos}
-                className="flex items-center justify-center rounded-lg border border-line bg-white/8 p-2 text-accent-cyan"
+                className="text-accent-cyan"
               >
                 <Clock size={15} />
-              </button>
+              </IconButton>
             </div>
           </div>
 
           <div className="mt-1 flex justify-end">
-            <button
-              type="button"
-              onClick={handleAddBookmark}
-              className="flex items-center gap-1.5 rounded-lg border-0 bg-accent-pink px-3.5 py-2 text-ui font-semibold text-fg shadow-lift shadow-pink-500/30"
-            >
+            <Button variant="primary" onClick={handleAddBookmark}>
               <Plus size={15} />
               {loc.trackBookmarks.addBookmark}
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
 
-        {/* Lista zakładek */}
+        {/* Bookmark list */}
         <div className="flex flex-col gap-2">
           <span className="text-ui font-semibold text-fg-secondary">
             {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
           </span>
 
           {bookmarks.length >= 2 && onExportRange && (
-            <div
-              className="mb-1 flex items-center justify-between rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3.5 py-2.5"
-            >
+            <Callout tone="cyan" className="mb-1 flex items-center justify-between gap-3">
               <div className="flex flex-col">
-                <span className="text-ui font-bold text-accent-cyan">
-                  {loc.trackBookmarks.exportRangeWithBookmarks}
-                </span>
+                <span className="text-ui font-bold text-accent-cyan">{loc.trackBookmarks.exportRangeWithBookmarks}</span>
                 <span className="text-xs text-fg-muted">
                   {fmt(loc.trackBookmarks.rangeFirstToLast, bookmarks[0].name, bookmarks[bookmarks.length - 1].name)}
                 </span>
               </div>
               <div className="flex gap-2">
                 {onSetAsLoop && (
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
                     onClick={() => {
                       onSetAsLoop(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
                       onClose();
                     }}
-                    className="glass-card rounded-md border border-line bg-white/8 px-2.5 py-1.5 text-xs font-semibold text-fg"
                   >
                     {loc.trackBookmarks.abLoop}
-                  </button>
+                  </Button>
                 )}
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     onExportRange(bookmarks[0].position_ms, bookmarks[bookmarks.length - 1].position_ms);
                     onClose();
                   }}
-                  className="flex items-center gap-1 rounded-md border-0 bg-linear-135 from-accent-cyan to-accent-pink px-3 py-1.5 text-xs font-bold text-on-accent"
                 >
                   <Scissors size={13} /> {loc.trackBookmarks.export}
-                </button>
+                </Button>
               </div>
-            </div>
+            </Callout>
           )}
 
-          {isLoading && (
-            <div className="p-4 text-center text-fg-muted">
-              {loc.trackBookmarks.loading}
-            </div>
-          )}
+          {isLoading && <Spinner label={loc.trackBookmarks.loading} className="mx-auto my-4" />}
 
-          {!isLoading && bookmarks.length === 0 && (
-            <div className="rounded-xl bg-white/2 p-6 text-center text-ui text-fg-muted">
-              {loc.trackBookmarks.noBookmarksFound}
-            </div>
-          )}
+          {!isLoading && bookmarks.length === 0 && <EmptyState title={loc.trackBookmarks.noBookmarksFound} />}
 
           {bookmarks.map((bm, idx) => (
-            <div
-              key={bm.id}
-              className="flex items-center justify-between rounded-xl border border-line bg-white/4 px-3.5 py-2.5 transition-all duration-150"
-            >
-              <div className="flex flex-1 items-center gap-2.5">
-                <button
+            <Card key={bm.id} padding="none" className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                <IconButton
+                  size="sm"
+                  label={loc.trackBookmarks.seekAndPlay}
                   onClick={() => onSeek(bm.position_ms)}
-                  title={loc.trackBookmarks.seekAndPlay}
-                  className="flex h-7.5 w-7.5 items-center justify-center rounded-lg border border-accent-cyan bg-accent-cyan/20 text-accent-cyan"
+                  className={iconTileTones.cyan}
                 >
-                  <Play size={14} className="ml-0.5" />
-                </button>
+                  <Play size={14} />
+                </IconButton>
 
                 {editingId === bm.id ? (
                   <div className="flex flex-1 items-center gap-1.5">
-                    <input
-                      type="text"
+                    <TextField
+                      size="sm"
+                      aria-label={loc.trackBookmarks.rename}
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       autoFocus
-                      className="flex-1 rounded-md border border-accent-pink bg-black/50 px-2 py-1 text-ui text-fg"
+                      className="flex-1"
                     />
-                    <button
+                    <IconButton
+                      size="sm"
+                      label={loc.common.save}
                       onClick={() => handleUpdateName(bm.id)}
-                      className="rounded-md border-0 bg-accent-pink px-2 py-1 text-on-accent"
+                      className="text-accent-pink"
                     >
                       <Check size={14} />
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="rounded-md border-0 bg-white/10 px-2 py-1 text-fg"
-                    >
+                    </IconButton>
+                    <IconButton size="sm" label={loc.common.cancel} onClick={() => setEditingId(null)}>
                       <X size={14} />
-                    </button>
+                    </IconButton>
                   </div>
                 ) : (
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-fg">
-                      {bm.name}
-                    </span>
-                    <span className="font-mono text-xs text-accent-cyan">
-                      {formatTimeMs(bm.position_ms)}
-                    </span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-fg">{bm.name}</span>
+                    <span className="font-mono text-xs text-accent-cyan">{formatTimeMs(bm.position_ms)}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1">
                 {onSetAsLoop && (
-                  <button
+                  <Button
+                    variant="tinted"
+                    tone="cyan"
+                    size="sm"
                     onClick={() => onSetAsLoop(bm.position_ms, null)}
                     title={loc.trackBookmarks.setLoopA}
-                    className="rounded-md border border-accent-cyan/35 bg-accent-cyan/15 px-2 py-1 text-xs font-bold text-accent-cyan"
                   >
                     A
-                  </button>
+                  </Button>
                 )}
                 {onSetAsLoop && (
-                  <button
+                  <Button
+                    variant="tinted"
+                    tone="pink"
+                    size="sm"
                     onClick={() => onSetAsLoop(null, bm.position_ms)}
                     title={loc.trackBookmarks.setLoopB}
-                    className="rounded-md border border-pink-500/35 bg-pink-500/15 px-2 py-1 text-xs font-bold text-accent-pink"
                   >
                     B
-                  </button>
+                  </Button>
                 )}
                 {onExportRange && idx < bookmarks.length - 1 && (
-                  <button
+                  <IconButton
+                    size="sm"
+                    label={fmt(loc.trackBookmarks.exportSection, bm.name, bookmarks[idx + 1].name)}
                     onClick={() => {
                       onExportRange(bm.position_ms, bookmarks[idx + 1].position_ms);
                       onClose();
                     }}
-                    title={fmt(loc.trackBookmarks.exportSection, bm.name, bookmarks[idx + 1].name)}
-                    className="flex items-center gap-1 rounded-md border border-line bg-white/8 px-2 py-1.5 text-xs text-accent-cyan"
+                    className="text-accent-cyan"
                   >
-                    <Scissors size={12} />
-                  </button>
+                    <Scissors size={13} />
+                  </IconButton>
                 )}
                 {editingId !== bm.id && (
-                  <button
+                  <IconButton
+                    size="sm"
+                    label={loc.trackBookmarks.rename}
                     onClick={() => {
                       setEditingId(bm.id);
                       setEditingName(bm.name);
                     }}
-                    title={loc.trackBookmarks.rename}
-                    className="rounded-md border-0 bg-transparent p-1.5 text-fg-muted"
                   >
                     <Edit2 size={14} />
-                  </button>
+                  </IconButton>
                 )}
-                <button
+                <IconButton
+                  size="sm"
+                  label={loc.trackBookmarks.deleteBookmark}
                   onClick={() => handleDeleteBookmark(bm.id)}
-                  title={loc.trackBookmarks.deleteBookmark}
-                  className="rounded-md border-0 bg-transparent p-1.5 text-accent-pink/70"
+                  className="text-accent-red hover:text-accent-red"
                 >
                   <Trash2 size={14} />
-                </button>
+                </IconButton>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
-      </div>
+      </ModalBody>
 
-      {/* Stopka modala */}
-      <div className="flex items-center justify-between border-t border-line bg-black/20 px-5 py-3">
-        <span className="text-xs text-fg-muted">
-          {loc.trackBookmarks.quickAddTip}
-        </span>
-        <button
-          onClick={onClose}
-          className="rounded-lg border border-line bg-white/8 px-3.5 py-1.5 text-ui text-fg-secondary"
-        >
-          {loc.common.close}
-        </button>
-      </div>
+      <ModalFooter className="justify-between">
+        <span className="text-xs text-fg-muted">{loc.trackBookmarks.quickAddTip}</span>
+        <Button onClick={onClose}>{loc.common.close}</Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

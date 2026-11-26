@@ -1,9 +1,9 @@
-//! Rozpoznawanie akordów (chromagram → emisje cosinusowe → Viterbi), podział na takty,
-//! transpozycja i eksport.
+//! Chord recognition (chromagram → cosine emissions → Viterbi), bar segmentation,
+//! transposition and export.
 //!
-//! Przepływ: `chroma.rs` (STFT, szczyty, strój) → mediana chromagramu na uderzenie →
-//! podobieństwo cosinusowe do szablonów → softmax z temperaturą → Viterbi → segmenty
-//! (każdy w obrębie jednego taktu).
+//! Flow: `chroma.rs` (STFT, peaks, tuning) → median chromagram per beat →
+//! cosine similarity to templates → softmax with temperature → Viterbi → segments
+//! (each one inside a single bar).
 
 use super::chroma::{normalize_chroma, StftChroma};
 use super::*;
@@ -12,41 +12,41 @@ use crate::AnalysisError;
 pub use super::beat_grid::extract_beat_grid;
 pub use super::chroma::extract_chroma_frame;
 
-/// Wersja algorytmu akordów zapisywana w pamięci podręcznej; wpisy innej wersji są ignorowane.
+/// Chord algorithm version stored in the cache; entries from another version are ignored.
 pub const CHORD_ANALYZER_VERSION: &str = "2.1.0-chroma-hmm";
 
-/// Maksymalna długość analizowanego audio (sekundy).
+/// Maximum length of analysed audio (seconds).
 pub const CHORD_ANALYSIS_MAX_SECONDS: f64 = 900.0;
 
-/// Prawdopodobieństwo pozostania w tym samym akordzie na kolejnym uderzeniu.
+/// Probability of staying on the same chord on the next beat.
 pub const SELF_TRANSITION_PROB: f64 = 0.4;
-/// Ile razy bardziej prawdopodobny jest ruch o kwartę/kwintę niż inna zmiana akordu.
+/// How much more likely a move by a fourth/fifth is than any other chord change.
 pub const FOURTH_FIFTH_TRANSITION_BONUS: f64 = 2.0;
-/// Temperatura softmaxu emisji (mniejsza = ostrzejsze dowody z chromagramu).
+/// Softmax temperature of the emissions (lower = sharper evidence from the chromagram).
 pub const EMISSION_TEMPERATURE: f64 = 0.1;
-/// Mnożnik podobieństwa dla akordów z septymą, sus, zmniejszonych i zwiększonych.
+/// Similarity multiplier for seventh, sus, diminished and augmented chords.
 pub const COMPLEX_CHORD_PRIOR: f64 = 0.92;
-/// Słaby przyrost prawdopodobieństwa akordów diatonicznych (≤ 1,1×).
+/// Weak probability boost for diatonic chords (≤ 1.1×).
 pub const DIATONIC_PRIOR: f64 = 1.1;
-/// Absolutny próg RMS ciszy.
+/// Absolute RMS silence threshold.
 const SILENCE_RMS_ABS: f64 = 1e-3;
-/// Uderzenie jest ciszą, gdy jego RMS < ten ułamek mediany RMS utworu.
+/// A beat is silence when its RMS < this fraction of the track's median RMS.
 const SILENCE_RMS_REL: f64 = 0.05;
-/// Podłoga prawdopodobieństwa przed logarytmem.
+/// Probability floor applied before taking the logarithm.
 const MIN_PROB: f64 = 1e-12;
 
-/// Struktura definicji akordu dla szablonów chromatycznych.
+/// Chord definition used to build the chroma templates.
 #[derive(Debug, Clone)]
 pub struct ChordDef {
     pub root_idx: usize,
     pub quality: &'static str,
     pub symbol: String,
     pub template: [f64; 12],
-    /// Mnożnik podobieństwa cosinusowego (< 1 dla akordów złożonych, by trójdźwięki wygrywały).
+    /// Cosine similarity multiplier (< 1 for extended chords, so triads win).
     pub prior: f64,
 }
 
-/// Generuje komplet szablonów chromagramu dla 12 tonacji i 9 typów akordów (+ stan ciszy/brak akordu).
+/// Builds the full set of chroma templates for 12 roots and 9 chord types (+ the silence / no-chord state).
 pub fn generate_chord_templates() -> Vec<ChordDef> {
     let qualities: [(&str, &[usize], &[f64]); 9] = [
         ("maj", &[0, 4, 7], &[1.0, 0.8, 0.8]),
@@ -93,7 +93,7 @@ pub fn generate_chord_templates() -> Vec<ChordDef> {
         }
     }
 
-    // Dodanie stanu braku akordu / ciszy (No Chord = "N")
+    // Add the no-chord / silence state (No Chord = "N")
     defs.push(ChordDef {
         root_idx: 0,
         quality: "N",
@@ -105,8 +105,8 @@ pub fn generate_chord_templates() -> Vec<ChordDef> {
     defs
 }
 
-/// Wyznacza korzeń i jakość akordu z jego symbolu (np. `"Dm7"`, `"C#maj7/G"`); nieznane
-/// przyrostki dają jakość `"maj"`. Zwraca `("N", "N")` dla braku akordu.
+/// Derives a chord's root and quality from its symbol (e.g. `"Dm7"`, `"C#maj7/G"`); unknown
+/// suffixes give the quality `"maj"`. Returns `("N", "N")` for no chord.
 pub fn parse_chord_symbol(symbol: &str) -> (String, &'static str) {
     let main = symbol.trim().split('/').next().unwrap_or("");
     if main.is_empty() || main == "N" {
@@ -148,11 +148,11 @@ pub fn parse_chord_symbol(symbol: &str) -> (String, &'static str) {
     (root, quality)
 }
 
-/// Emisje jednego uderzenia: `(prawdopodobieństwa, podobieństwa)` dla każdego stanu.
+/// Emissions of one beat: `(probabilities, similarities)` for each state.
 ///
-/// Podobieństwo to cosinus chromagramu i szablonu razy `prior` akordu. Prawdopodobieństwa to
-/// softmax podobieństw z temperaturą [`EMISSION_TEMPERATURE`], więc skala dowodów jest zgodna ze
-/// skalą prawdopodobieństw przejść. Dla ciszy wygrywa stan „N”.
+/// Similarity is the cosine of chromagram and template times the chord's `prior`. Probabilities are
+/// the softmax of the similarities with temperature [`EMISSION_TEMPERATURE`], so the evidence scale
+/// matches the transition probability scale. For silence the "N" state wins.
 pub fn chord_emissions(
     chroma: &[f64; 12],
     silent: bool,
@@ -184,9 +184,9 @@ pub fn chord_emissions(
     (probs, sims)
 }
 
-/// Macierz log-prawdopodobieństw przejść (wiersz = stan poprzedni, kolumna = następny).
-/// Wiersze są znormalizowane; pozostanie = [`SELF_TRANSITION_PROB`], reszta rozłożona równo
-/// z premią [`FOURTH_FIFTH_TRANSITION_BONUS`] dla ruchów o kwartę/kwintę.
+/// Matrix of transition log-probabilities (row = previous state, column = next).
+/// Rows are normalised; staying = [`SELF_TRANSITION_PROB`], the rest is spread evenly
+/// with a [`FOURTH_FIFTH_TRANSITION_BONUS`] for moves by a fourth/fifth.
 fn log_transition_matrix(defs: &[ChordDef]) -> Vec<f64> {
     let n = defs.len();
     let no_chord = n - 1;
@@ -219,10 +219,10 @@ fn log_transition_matrix(defs: &[ChordDef]) -> Vec<f64> {
     log_trans
 }
 
-/// Wygładzanie sekwencji akordów algorytmem Viterbiego (HMM).
+/// Smooths the chord sequence with the Viterbi algorithm (HMM).
 ///
-/// `emission_probs[t][s]` to prawdopodobieństwa emisji (np. z [`chord_emissions`]). Przejścia
-/// są znormalizowane, a tonacja daje tylko słaby prior diatoniczny ([`DIATONIC_PRIOR`]).
+/// `emission_probs[t][s]` are emission probabilities (e.g. from [`chord_emissions`]). Transitions
+/// are normalised, and the key only adds a weak diatonic prior ([`DIATONIC_PRIOR`]).
 pub fn viterbi_smooth_chords(
     emission_probs: &[Vec<f64>],
     chord_defs: &[ChordDef],
@@ -290,7 +290,7 @@ pub fn viterbi_smooth_chords(
     path
 }
 
-/// Pojedyncze uderzenie wstawione między dwa identyczne akordy jest szumem – wchłaniamy je.
+/// A single beat between two identical chords is noise, so it is absorbed.
 fn absorb_single_beat_flickers(path: &mut [usize]) {
     for i in 1..path.len().saturating_sub(1) {
         if path[i] != path[i - 1] && path[i - 1] == path[i + 1] {
@@ -299,7 +299,7 @@ fn absorb_single_beat_flickers(path: &mut [usize]) {
     }
 }
 
-/// Wykonuje pełną analizę harmoniczną próbek audio (siatka taktowa + akordy + Viterbi).
+/// Runs the full harmonic analysis of audio samples (bar grid + chords + Viterbi).
 pub fn detect_chords_from_samples(
     samples: &[f32],
     sample_rate: f64,
@@ -312,9 +312,9 @@ pub fn detect_chords_from_samples(
     (beat_grid, chords)
 }
 
-/// Rozpoznaje akordy na zadanej siatce uderzeń. Każdy zwrócony segment mieści się w jednym takcie
-/// i niesie jego rzeczywisty numer; ostatni segment sięga końca analizowanego audio.
-/// Uderzenia przed pierwszym uderzeniem taktu (przedtakt) są pomijane.
+/// Recognises chords on a given beat grid. Every returned segment fits in one bar
+/// and carries its real bar number; the last segment reaches the end of the analysed audio.
+/// Beats before the first downbeat (the pickup) are skipped.
 pub fn detect_chords_with_grid(
     samples: &[f32],
     sample_rate: f64,
@@ -356,7 +356,7 @@ pub fn detect_chords_with_grid(
     segments_per_bar(beats, &path, &similarities, &chord_defs, audio_end_ms)
 }
 
-/// Zamienia ścieżkę akordów (po jednym stanie na uderzenie) na segmenty nieprzekraczające taktu.
+/// Turns a chord path (one state per beat) into segments that never cross a bar line.
 fn segments_per_bar(
     beats: &[BeatPoint],
     path: &[usize],
@@ -410,7 +410,7 @@ fn segments_per_bar(
     segments
 }
 
-/// Transponuje symbol akordu o zadaną liczbę półtonów (z obsługą notacji z basem np. C/G).
+/// Transposes a chord symbol by a number of semitones (slash chords such as C/G included).
 pub fn transpose_chord(chord: &str, semitones: i32) -> String {
     let s = chord.trim();
     if s.is_empty() || s == "N" {
@@ -470,7 +470,7 @@ fn transpose_single_note(note: &str, semitones: i32) -> String {
     }
 }
 
-/// Eksportuje zbiór akordów do profesjonalnego formatu ChordPro (.cho / .chordpro).
+/// Exports a chord set to the ChordPro format (.cho / .chordpro).
 pub fn export_chords_to_chordpro(data: &TrackChordsData, title: &str, artist: &str) -> String {
     let mut out = String::new();
     out.push_str(&format!("{{title: {}}}\n", title));
@@ -498,11 +498,12 @@ pub fn export_chords_to_chordpro(data: &TrackChordsData, title: &str, artist: &s
     out
 }
 
-/// Eksportuje akordy do czytelnego formatu tekstowego z podziałem na takty (| C | G | Am | F |).
+/// Exports chords to a readable text format split into bars (| C | G | Am | F |).
 pub fn export_chords_to_text(data: &TrackChordsData) -> String {
     let mut out = String::new();
     out.push_str(&format!(
-        "Klucz: {} (Camelot: {}), Tempo: {:.1} BPM\n",
+        "Key: {} (Camelot: {}), Tempo: {:.1} BPM
+",
         data.key, data.camelot, data.bpm
     ));
     out.push_str("====================================================\n\n");
@@ -533,16 +534,16 @@ pub fn export_chords_to_text(data: &TrackChordsData) -> String {
     out
 }
 
-/// Eksportuje zbiór akordów do formatu JSON.
+/// Exports a chord set to JSON.
 pub fn export_chords_to_json(data: &TrackChordsData) -> Result<String, serde_json::Error> {
     serde_json::to_string_pretty(data)
 }
 
-/// Główna funkcja wykonująca analizę harmoniczną dla podanej ścieżki pliku lub URI.
+/// Entry point of the harmonic analysis for a file path or URI.
 ///
-/// Analizuje cały utwór (do [`CHORD_ANALYSIS_MAX_SECONDS`]). Przekroczenie limitu czasu
-/// dekodowania jest błędem, więc niepełny wynik nigdy nie trafia do pamięci podręcznej.
-/// Tempo z tagu pliku (jeśli wiarygodne) ma pierwszeństwo przed detekcją akustyczną.
+/// Analyses the whole track (up to [`CHORD_ANALYSIS_MAX_SECONDS`]). A decode timeout
+/// is an error, so an incomplete result never reaches the cache.
+/// A trustworthy tempo from the file's tags takes precedence over acoustic detection.
 pub fn analyze_track_chords_and_grid(
     uri_or_path: &str,
     track_id: i64,

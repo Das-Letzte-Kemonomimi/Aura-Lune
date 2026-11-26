@@ -1,4 +1,4 @@
-//! Implementacja interfejsów D-Bus MPRIS 2.2 dla Auralune.
+//! MPRIS 2.2 D-Bus interfaces for Auralune.
 
 use audio_engine::AudioEngine;
 use domain::PlaybackState;
@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, info};
 
-/// Kontekst i stan pojedynczego utworu dla D-Bus MPRIS.
+/// Context and state of a single track for D-Bus MPRIS.
 #[derive(Debug, Clone, Default)]
 pub struct MprisTrackInfo {
     pub title: String,
@@ -21,7 +21,7 @@ pub struct MprisTrackInfo {
     pub art_url: Option<String>,
 }
 
-/// Obiekt obsługujący wywołania RPC ze środowiska graficznego (KDE/GNOME/Waybar/playerctl).
+/// Object handling RPC calls from the desktop environment (KDE/GNOME/Waybar/playerctl).
 #[derive(Clone)]
 pub struct AuraluneMprisHandler {
     engine: Arc<AudioEngine>,
@@ -107,10 +107,10 @@ impl RootInterface for AuraluneMprisHandler {
 }
 
 impl AuraluneMprisHandler {
-    /// Wykonuje operację na silniku poza wątkiem wykonawcy D-Bus.
+    /// Runs an engine operation off the D-Bus executor thread.
     ///
-    /// Metody przełączające utwory i przewijające śpią na czas mikro-fade'ów (do ~150 ms) —
-    /// wywołane bezpośrednio blokowałyby wątek Tokio obsługujący zapytania MPRIS.
+    /// Methods that switch tracks or seek sleep for the micro-fades (up to ~150 ms);
+    /// called directly, they would block the Tokio thread serving MPRIS requests.
     async fn on_engine<T, F>(&self, f: F) -> Option<T>
     where
         T: Send + 'static,
@@ -246,7 +246,7 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn set_rate(&self, rate: PlaybackRate) -> mpris_server::zbus::Result<()> {
-        // MPRIS: Rate 0.0 oznacza pauzę. Zmiana tempa przebudowuje DSP — poza executorem D-Bus.
+        // MPRIS: a Rate of 0.0 means pause. A tempo change rebuilds the DSP, so off the D-Bus executor.
         if rate <= 0.0 {
             self.on_engine(|e| e.pause()).await;
         } else {
@@ -365,23 +365,23 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 }
 
-/// Kontroler D-Bus MPRIS zarządzający serwerem i wysyłaniem sygnałów PropertiesChanged.
+/// D-Bus MPRIS controller that manages the server and sends PropertiesChanged signals.
 pub struct MprisController {
     server: Server<AuraluneMprisHandler>,
     handler: AuraluneMprisHandler,
 }
 
 impl MprisController {
-    /// Inicjalizuje i rejestruje odtwarzacz w sesyjnej magistrali D-Bus jako org.mpris.MediaPlayer2.auralune.
+    /// Initialises and registers the player on the D-Bus session bus as org.mpris.MediaPlayer2.auralune.
     pub async fn start(engine: Arc<AudioEngine>) -> Result<Self, mpris_server::zbus::Error> {
         let handler = AuraluneMprisHandler::new(engine);
         let server = Server::new("auralune", handler.clone()).await?;
 
-        info!("Zarejestrowano serwis MPRIS D-Bus: org.mpris.MediaPlayer2.auralune");
+        info!("Registered the MPRIS D-Bus service: org.mpris.MediaPlayer2.auralune");
         Ok(Self { server, handler })
     }
 
-    /// Aktualizuje metadane odtwarzanego utworu i emituje sygnał PropertiesChanged na magistrali D-Bus.
+    /// Updates the metadata of the playing track and emits PropertiesChanged on the D-Bus bus.
     pub async fn update_track(&self, info: MprisTrackInfo) {
         let mut builder = Metadata::builder()
             .title(&info.title)
@@ -401,11 +401,11 @@ impl MprisController {
             .properties_changed([Property::Metadata(metadata)])
             .await
         {
-            debug!("Błąd wysyłania PropertiesChanged(Metadata): {}", e);
+            debug!("Failed to send PropertiesChanged(Metadata): {}", e);
         }
     }
 
-    /// Aktualizuje status odtwarzania na magistrali D-Bus.
+    /// Updates the playback status on the D-Bus bus.
     pub async fn update_playback_status(&self, state: PlaybackState) {
         let mpris_status = match state {
             PlaybackState::Playing => PlaybackStatus::Playing,
@@ -418,33 +418,33 @@ impl MprisController {
             .properties_changed([Property::PlaybackStatus(mpris_status)])
             .await
         {
-            debug!("Błąd wysyłania PropertiesChanged(PlaybackStatus): {}", e);
+            debug!("Failed to send PropertiesChanged(PlaybackStatus): {}", e);
         }
     }
 
-    /// Informuje środowisko graficzne o wykonaniu skoku (Seeked signal).
+    /// Tells the desktop environment that a seek happened (Seeked signal).
     pub async fn emit_seeked(&self, position_ms: u64) {
         let time = Time::from_millis(position_ms as i64);
         if let Err(e) = self.server.emit(Signal::Seeked { position: time }).await {
-            debug!("Błąd wysyłania sygnału Seeked: {}", e);
+            debug!("Failed to send the Seeked signal: {}", e);
         }
     }
 
-    /// Aktualizuje głośność na magistrali D-Bus.
+    /// Updates the volume on the D-Bus bus.
     pub async fn update_volume(&self, volume: f64) {
         if let Err(e) = self
             .server
             .properties_changed([Property::Volume(volume)])
             .await
         {
-            debug!("Błąd wysyłania PropertiesChanged(Volume): {}", e);
+            debug!("Failed to send PropertiesChanged(Volume): {}", e);
         }
     }
 }
 
-/// Czy `OpenUri` z magistrali sesji może zostać odtworzony: strumień `http(s)` albo istniejący
-/// lokalny plik audio (`file://` lub ścieżka) — żaden inny klient D-Bus nie poda przez to
-/// dowolnego pliku czy schematu GStreamera.
+/// Whether an `OpenUri` from the session bus may be played: an `http(s)` stream or an existing
+/// local audio file (`file://` or a path), so no other D-Bus client can pass an arbitrary
+/// file or GStreamer scheme through it.
 fn is_openable_uri(uri: &str) -> bool {
     if uri.starts_with("http://") || uri.starts_with("https://") {
         return true;

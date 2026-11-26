@@ -18,7 +18,7 @@ describe('computeBackingSize', () => {
       expect(b).toEqual(a);
       expect(Number.isInteger(a.width) && Number.isInteger(a.height)).toBe(true);
     }
-    // 333 * 1.25 = 416.25 -> 416 (obcięcie dawało to samo, ale 333 * 1.5 = 499.5 -> 500, nie 499)
+    // 333 * 1.25 = 416.25 -> 416 (truncation gave the same, but 333 * 1.5 = 499.5 -> 500, not 499)
     expect(computeBackingSize(333, 87, 1.5)).toEqual({ width: 500, height: 131 });
   });
 

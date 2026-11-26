@@ -1,18 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { invoke } from '../../api/ipc';
-import {
-  Activity,
-  X,
-  RotateCcw,
-  Flame,
-  Shield,
-  Sparkles,
-  Sliders,
-  Check,
-} from 'lucide-react';
+import { Activity, RotateCcw, Flame, Shield, Sparkles, Sliders } from '../ui/icons';
 import { getTranslations, type Language } from '../../i18n';
-import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalShell,
+  OptionCard,
+  SliderRow,
+  ToggleCard,
+  type Tone,
+} from '../ui';
+import { textTones } from '../ui/tones';
 
 export type SaturatorMode = 'Off' | 'TubeWarmth' | 'TapeSaturation' | 'Overdrive';
 
@@ -56,6 +60,39 @@ interface DynamicsStudioModalProps {
   currentLang?: Language;
 }
 
+
+const RATIO_PRESETS = [1.5, 2, 3, 4, 8, 20] as const;
+
+/** Transfer curve preview (280 × 140) with its title and three axis labels. `children` draws the grid. */
+function CurveChart({
+  title,
+  tone,
+  points,
+  axisLabels,
+  children,
+}: {
+  title: string;
+  tone: Tone;
+  points: string;
+  axisLabels: readonly [string, string, string];
+  children: React.ReactNode;
+}) {
+  return (
+    <Card variant="inset" padding="none" className="flex flex-col items-center p-2">
+      <div className="mb-1 w-full text-left text-xxs text-fg-secondary">{title}</div>
+      <svg width="280" height="140" className="overflow-visible text-fg" aria-hidden="true">
+        {children}
+        <polyline fill="none" stroke="currentColor" strokeWidth="2.5" points={points} className={textTones[tone]} />
+      </svg>
+      <div className="mt-1 flex w-full justify-between text-xxs text-fg-muted">
+        {axisLabels.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 const DEFAULT_STATE: DynamicsState = {
   compressor: {
     enabled: false,
@@ -85,48 +122,49 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
   const loc = getTranslations(currentLang);
   const t = loc;
 
+  const titleId = useId();
   const [state, setState] = useState<DynamicsState>(DEFAULT_STATE);
   const [presets, setPresets] = useState<DynamicsPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
-  // Pobierz stan początkowy oraz presety przy otwarciu
+  // Fetch the initial state and the presets on open
   useEffect(() => {
     if (!isOpen) return;
 
     invoke<DynamicsState>('get_dynamics_state')
       .then((loaded) => {
-        setState(loaded);
+        if (loaded) setState(loaded);
       })
       .catch((err) => {
-        console.error('Błąd get_dynamics_state:', err);
+        console.error('get_dynamics_state failed:', err);
       });
 
     invoke<DynamicsPreset[]>('get_dynamics_presets')
       .then((list) => {
-        setPresets(list);
+        setPresets(list ?? []);
       })
       .catch((err) => {
-        console.error('Błąd get_dynamics_presets:', err);
+        console.error('get_dynamics_presets failed:', err);
       });
   }, [isOpen]);
 
-  // Aplikuj stan do silnika audio w czasie rzeczywistym
+  // Apply the state to the audio engine in real time
   const applyState = async (newState: DynamicsState) => {
     setState(newState);
     try {
       await invoke('set_dynamics_state', { dynamicsState: newState });
     } catch (err) {
-      console.error('Błąd set_dynamics_state:', err);
+      console.error('set_dynamics_state failed:', err);
     }
   };
 
-  // Obsługa zmiany presetu
+  // Preset change
   const handleSelectPreset = (preset: DynamicsPreset) => {
     setActivePresetId(preset.id);
     applyState(preset.state);
   };
 
-  // Reset do neutralnego bit-perfect bypass
+  // Reset to a neutral bit-perfect bypass
   const handleReset = () => {
     setActivePresetId('bypass');
     applyState({
@@ -151,8 +189,8 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
     });
   };
 
-  // Wyliczanie punktów SVG dla krzywej kompresji dynamiki
-  // Wejście X: -60 dBFS .. 0 dBFS -> Wyjście Y: -60 dBFS .. +12 dBFS
+  // SVG points for the dynamics compression curve
+  // Input X: -60 dBFS .. 0 dBFS -> output Y: -60 dBFS .. +12 dBFS
   const compressionCurvePoints = useMemo(() => {
     const width = 280;
     const height = 140;
@@ -194,13 +232,13 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         outputDb += makeup;
       }
 
-      // Mapowanie dBFS do współrzędnych SVG
+      // Map dBFS to SVG coordinates
       // X: -60 dB = 0, 0 dB = effW
       const normX = (inputDb + 60) / 60;
       const svgX = padding + normX * effW;
 
-      // Y: -60 dB = effH, 0 dB = padding + effH * 0.25 (zostawiamy miejsce na makeup gain do +15dB)
-      const maxRangeDb = 72; // od -60 do +12 dBFS
+      // Y: -60 dB = effH, 0 dB = padding + effH * 0.25 (leaves room for makeup gain up to +15dB)
+      const maxRangeDb = 72; // from -60 to +12 dBFS
       const normY = Math.min(1.0, Math.max(0.0, (outputDb + 60) / maxRangeDb));
       const svgY = padding + effH * (1.0 - normY);
 
@@ -210,8 +248,8 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
     return points.join(' ');
   }, [state.compressor]);
 
-  // Wyliczanie punktów SVG dla krzywej transferu nasycenia falowego (waveshaper)
-  // X: wejście -1.0 .. +1.0 -> Y: wyjście -1.0 .. +1.0
+  // SVG points for the waveshaper saturation transfer curve
+  // X: input -1.0 .. +1.0 -> Y: output -1.0 .. +1.0
   const waveshaperCurvePoints = useMemo(() => {
     const width = 280;
     const height = 140;
@@ -263,516 +301,233 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
 
   if (!isOpen) return null;
 
+  const setCompressor = (patch: Partial<CompressorConfig>) =>
+    applyState({ ...state, compressor: { ...state.compressor, ...patch } });
+  const setSaturator = (patch: Partial<SaturatorConfig>) =>
+    applyState({ ...state, saturator: { ...state.saturator, ...patch } });
+  const saturatorOn = state.saturator.enabled && state.saturator.mode !== 'Off';
+  const saturatorModes = [
+    { id: 'TubeWarmth', label: loc.dynamicsStudio.modeTube, desc: loc.dynamicsStudio.modeTubeDesc },
+    { id: 'TapeSaturation', label: loc.dynamicsStudio.modeTape, desc: loc.dynamicsStudio.modeTapeDesc },
+    { id: 'Overdrive', label: loc.dynamicsStudio.modeOverdrive, desc: loc.dynamicsStudio.modeOverdriveDesc },
+  ] as const satisfies readonly { id: SaturatorMode; label: string; desc: string }[];
+
   return (
-    <ModalShell
-      onClose={onClose}
-      className="flex max-h-[92vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-pink-500/30 bg-ink/95 text-purple-100"
-    >
-      {/* NAGŁÓWEK */}
-      <div
-        className="flex items-center justify-between border-b border-white/8 bg-linear-to-r from-pink-500/10 to-accent-purple/8 px-6 py-4"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-pink-500/50 bg-pink-500/20 text-pink-400"
-          >
-            <Activity size={20} />
-          </div>
-          <div>
-            <h2 className="m-0 text-lg font-extrabold text-fuchsia-50">
-              {t.nav.dynamicsStudio}
-            </h2>
-            <p className="m-0 text-ui text-slate-300">
-              {loc.dynamicsStudio.subtitle}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleReset}
-            title={loc.dynamicsStudio.resetToBypass}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-ui text-slate-300"
-          >
+    <ModalShell onClose={onClose} size="2xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={t.nav.dynamicsStudio}
+        subtitle={loc.dynamicsStudio.subtitle}
+        icon={<Activity size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+        actions={
+          <Button size="sm" onClick={handleReset} title={loc.dynamicsStudio.resetToBypass}>
             <RotateCcw size={14} /> {loc.dynamicsStudio.bypass}
-          </button>
-          <button
-            onClick={onClose}
-            className="flex border-0 bg-transparent p-1 text-fg-secondary"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
-      {/* LISTA SZYBKICH PRESETÓW */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 bg-black/25 px-6 py-2.5">
-        <span className="text-xs font-bold whitespace-nowrap text-accent-purple">
-          <Sparkles size={14} className="mr-1 inline" />
+      {/* Presets */}
+      <div
+        role="group"
+        aria-labelledby={`${titleId}-presets`}
+        className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-line bg-black/25 px-6 py-2.5"
+      >
+        <span id={`${titleId}-presets`} className="flex shrink-0 items-center gap-1 text-xs font-bold text-accent-purple">
+          <Sparkles size={14} />
           {loc.dynamicsStudio.presets}
         </span>
-        {presets.map((p) => {
-          const isSelected = activePresetId === p.id;
-          return (
-            <button
-              key={p.id}
-              onClick={() => handleSelectPreset(p)}
-              className={cn(
-                'rounded-3xl border px-3 py-1.5 text-xs whitespace-nowrap transition-all duration-150',
-                isSelected ? 'font-bold' : 'font-medium',
-                isSelected ? 'bg-pink-500/30' : 'bg-white/4',
-                isSelected ? 'border-pink-500' : 'border-white/10',
-                isSelected ? 'text-fuchsia-50' : 'text-slate-300',
-              )}
-            >
-              {p.name}
-            </button>
-          );
-        })}
+        {presets.map((p) => (
+          <Chip key={p.id} pressed={activePresetId === p.id} onClick={() => handleSelectPreset(p)} className="shrink-0 rounded-full">
+            {p.name}
+          </Chip>
+        ))}
       </div>
 
-      {/* ZAWARTOŚĆ GŁÓWNA - 3 PANELE */}
-      <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5">
-        {/* RACK 1: KOMPRESOR DYNAMIKI */}
-        <div
-          className={cn(
-            'rounded-xl border bg-white/3 p-4 transition-all duration-200',
-            state.compressor.enabled ? 'border-pink-500/45' : 'border-white/7',
-            state.compressor.enabled ? 'shadow-halo-md shadow-pink-500/10' : 'shadow-none',
-          )}
+      <ModalBody className="flex flex-col gap-5">
+        {/* Dynamic range compressor */}
+        <ToggleCard
+          icon={<Sliders size={18} />}
+          tone="pink"
+          title={loc.dynamicsStudio.drcTitle}
+          badges={<Badge tone={state.compressor.enabled ? 'pink' : 'neutral'} size="xs">{state.compressor.enabled ? 'ACTIVE' : 'BYPASS'}</Badge>}
+          checked={state.compressor.enabled}
+          onChange={(on) => setCompressor({ enabled: on })}
         >
-          <div className="mb-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sliders size={18} className="text-pink-500" />
-              <span className="text-md font-extrabold text-fuchsia-50">
-                {loc.dynamicsStudio.drcTitle}
-              </span>
-              <span
-                className={cn(
-                  'rounded-xl px-2 py-0.5 text-xxs font-bold',
-                  state.compressor.enabled ? 'bg-pink-500/20' : 'bg-white/5',
-                  state.compressor.enabled ? 'text-pink-400' : 'text-fg-muted',
-                )}
-              >
-                {state.compressor.enabled ? 'ACTIVE' : 'BYPASS'}
-              </span>
-            </div>
-
-            <button
-              onClick={() =>
-                applyState({
-                  ...state,
-                  compressor: { ...state.compressor, enabled: !state.compressor.enabled },
-                })
-              }
-              className={cn(
-                'flex items-center gap-1.5 rounded-3xl border-0 px-3.5 py-1.5 text-xs font-bold',
-                state.compressor.enabled ? 'bg-pink-500' : 'bg-white/8',
-                state.compressor.enabled ? 'text-fg' : 'text-fg-secondary',
-              )}
-            >
-              {state.compressor.enabled ? <Check size={13} /> : null}
-              {state.compressor.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
-            </button>
-          </div>
-
           <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
-            {/* SUWAKI KOMPRESORA */}
             <div className="flex flex-col gap-3">
-              {/* Threshold */}
+              <SliderRow
+                label={loc.dynamicsStudio.threshold}
+                min={-60}
+                max={0}
+                step={0.5}
+                value={state.compressor.threshold_db}
+                format={(v) => `${v.toFixed(1)} dBFS`}
+                onChange={(v) => setCompressor({ threshold_db: v })}
+              />
               <div>
-                <div className="mb-1 flex justify-between text-ui">
-                  <span className="text-slate-300">{loc.dynamicsStudio.threshold}</span>
-                  <span className="font-bold text-pink-400">
-                    {state.compressor.threshold_db.toFixed(1)} dBFS
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-60}
-                  max={0}
-                  step={0.5}
-                  value={state.compressor.threshold_db}
-                  onChange={(e) =>
-                    applyState({
-                      ...state,
-                      compressor: { ...state.compressor, threshold_db: parseFloat(e.target.value) },
-                    })
-                  }
-                  className="w-full cursor-pointer accent-pink-500"
-                />
-              </div>
-
-              {/* Ratio & Presets */}
-              <div>
-                <div className="mb-1 flex justify-between text-ui">
-                  <span className="text-slate-300">{loc.dynamicsStudio.ratio}</span>
-                  <span className="font-bold text-pink-400">
-                    {state.compressor.ratio.toFixed(1)} : 1
-                  </span>
-                </div>
-                <input
-                  type="range"
+                <SliderRow
+                  label={loc.dynamicsStudio.ratio}
                   min={1}
                   max={20}
                   step={0.1}
                   value={state.compressor.ratio}
-                  onChange={(e) =>
-                    applyState({
-                      ...state,
-                      compressor: { ...state.compressor, ratio: parseFloat(e.target.value) },
-                    })
-                  }
-                  className="w-full cursor-pointer accent-pink-500"
+                  format={(v) => `${v.toFixed(1)} : 1`}
+                  onChange={(v) => setCompressor({ ratio: v })}
                 />
                 <div className="mt-1.5 flex gap-1.5">
-                  {[1.5, 2.0, 3.0, 4.0, 8.0, 20.0].map((r) => (
-                    <button
+                  {RATIO_PRESETS.map((r) => (
+                    <Chip
                       key={r}
-                      onClick={() =>
-                        applyState({
-                          ...state,
-                          compressor: { ...state.compressor, ratio: r },
-                        })
-                      }
-                      className={cn(
-                        'flex-1 rounded-md border px-0 py-1 text-xxs',
-                        Math.abs(state.compressor.ratio - r) < 0.1 ? 'bg-pink-500/25' : 'bg-white/4',
-                        Math.abs(state.compressor.ratio - r) < 0.1 ? 'border-pink-500' : 'border-white/8',
-                        Math.abs(state.compressor.ratio - r) < 0.1 ? 'text-fuchsia-50' : 'text-fg-secondary',
-                      )}
+                      size="xs"
+                      pressed={Math.abs(state.compressor.ratio - r) < 0.1}
+                      onClick={() => setCompressor({ ratio: r })}
+                      className="flex-1 justify-center"
                     >
                       {r === 20 ? 'Limit' : `${r}:1`}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </div>
-
-              {/* Soft-Knee & Makeup Gain */}
-              <div className="grid grid-cols-[--spacing(30)_1fr] items-center gap-4">
+              <div className="grid grid-cols-[--spacing(30)_1fr] items-end gap-4">
                 <div>
-                  <span className="mb-1 block text-ui text-slate-300">
+                  <span id={`${titleId}-knee`} className="mb-1 block text-xs font-semibold text-fg-secondary">
                     {loc.dynamicsStudio.knee}
                   </span>
-                  <button
-                    onClick={() =>
-                      applyState({
-                        ...state,
-                        compressor: { ...state.compressor, soft_knee: !state.compressor.soft_knee },
-                      })
-                    }
-                    className={cn(
-                      'w-full rounded-lg border px-2 py-1.5 text-xs font-bold',
-                      state.compressor.soft_knee ? 'bg-pink-500/20' : 'bg-white/5',
-                      state.compressor.soft_knee ? 'border-pink-500' : 'border-white/10',
-                      state.compressor.soft_knee ? 'text-pink-400' : 'text-fg-secondary',
-                    )}
+                  <Chip
+                    aria-describedby={`${titleId}-knee`}
+                    pressed={state.compressor.soft_knee}
+                    onClick={() => setCompressor({ soft_knee: !state.compressor.soft_knee })}
+                    className="w-full justify-center"
                   >
                     {state.compressor.soft_knee ? 'Soft Knee' : 'Hard Knee'}
-                  </button>
+                  </Chip>
                 </div>
-
-                <div>
-                  <div className="mb-1 flex justify-between text-ui">
-                    <span className="text-slate-300">{loc.dynamicsStudio.makeup}</span>
-                    <span className="font-bold text-pink-400">
-                      +{state.compressor.makeup_gain_db.toFixed(1)} dB
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    value={state.compressor.makeup_gain_db}
-                    onChange={(e) =>
-                      applyState({
-                        ...state,
-                        compressor: { ...state.compressor, makeup_gain_db: parseFloat(e.target.value) },
-                      })
-                    }
-                    className="w-full cursor-pointer accent-pink-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* WYKRES KRZYWEJ KOMPRESJI SVG */}
-            <div className="flex flex-col items-center rounded-xl border border-white/8 bg-black/40 p-2">
-              <div className="mb-1 w-full text-left text-xxs text-fg-secondary">
-                {loc.dynamicsStudio.inputOutputCurve}
-              </div>
-              <svg width="280" height="140" className="overflow-visible">
-                {/* Siatka tła */}
-                <line x1="10" y1="130" x2="270" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                <line x1="10" y1="10" x2="10" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                {/* Linia prosta 1:1 bez kompresji (szara przerywana) */}
-                <line x1="10" y1="130" x2="270" y2="40" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                {/* Dynamiczna krzywa kompresora */}
-                <polyline
-                  fill="none"
-                  stroke="#ec4899"
-                  strokeWidth="2.5"
-                  points={compressionCurvePoints}
+                <SliderRow
+                  label={loc.dynamicsStudio.makeup}
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={state.compressor.makeup_gain_db}
+                  format={(v) => `+${v.toFixed(1)} dB`}
+                  onChange={(v) => setCompressor({ makeup_gain_db: v })}
                 />
-              </svg>
-              <div className="mt-1 flex w-full justify-between text-xxs text-fg-muted">
-                <span>-60 dB</span>
-                <span>-30 dB</span>
-                <span>0 dBFS</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* RACK 2: SATURATOR ANALOGOWY & LAMPA */}
-        <div
-          className={cn(
-            'rounded-xl border bg-white/3 p-4 transition-all duration-200',
-            state.saturator.enabled && state.saturator.mode !== 'Off' ? 'border-accent-amber/45' : 'border-white/7',
-            state.saturator.enabled && state.saturator.mode !== 'Off' ? 'shadow-halo-md shadow-accent-amber/10' : 'shadow-none',
-          )}
-        >
-          <div className="mb-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Flame size={18} className="text-accent-amber" />
-              <span className="text-md font-extrabold text-fuchsia-50">
-                {loc.dynamicsStudio.saturatorTitle}
-              </span>
-              <span
-                className={cn(
-                  'rounded-xl px-2 py-0.5 text-xxs font-bold',
-                  state.saturator.enabled && state.saturator.mode !== 'Off' ? 'bg-accent-amber/20' : 'bg-white/5',
-                  state.saturator.enabled && state.saturator.mode !== 'Off' ? 'text-amber-400' : 'text-fg-muted',
-                )}
-              >
-                {state.saturator.enabled && state.saturator.mode !== 'Off' ? state.saturator.mode.toUpperCase() : 'BYPASS'}
-              </span>
-            </div>
-
-            <button
-              onClick={() =>
-                applyState({
-                  ...state,
-                  saturator: {
-                    ...state.saturator,
-                    enabled: !state.saturator.enabled,
-                    mode: !state.saturator.enabled && state.saturator.mode === 'Off' ? 'TubeWarmth' : state.saturator.mode,
-                  },
-                })
-              }
-              className={cn(
-                'flex items-center gap-1.5 rounded-3xl border-0 px-3.5 py-1.5 text-xs font-bold',
-                state.saturator.enabled ? 'bg-accent-amber' : 'bg-white/8',
-                state.saturator.enabled ? 'text-fg' : 'text-fg-secondary',
-              )}
+            <CurveChart
+              title={loc.dynamicsStudio.inputOutputCurve}
+              tone="pink"
+              points={compressionCurvePoints}
+              axisLabels={['-60 dB', '-30 dB', '0 dBFS']}
             >
-              {state.saturator.enabled ? <Check size={13} /> : null}
-              {state.saturator.enabled ? loc.dynamicsStudio.enabled : loc.dynamicsStudio.bypass}
-            </button>
+              <line x1="10" y1="130" x2="270" y2="130" stroke="currentColor" strokeOpacity="0.1" />
+              <line x1="10" y1="10" x2="10" y2="130" stroke="currentColor" strokeOpacity="0.1" />
+              {/* 1:1 line without compression */}
+              <line x1="10" y1="130" x2="270" y2="40" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="3 3" />
+            </CurveChart>
           </div>
+        </ToggleCard>
 
-          {/* Wybór trybu saturacji */}
+        {/* Analog saturator. Switching it on without a mode picks tube warmth. */}
+        <ToggleCard
+          icon={<Flame size={18} />}
+          tone="amber"
+          title={loc.dynamicsStudio.saturatorTitle}
+          badges={<Badge tone={saturatorOn ? 'amber' : 'neutral'} size="xs">{saturatorOn ? state.saturator.mode.toUpperCase() : 'BYPASS'}</Badge>}
+          checked={state.saturator.enabled}
+          onChange={(on) =>
+            setSaturator({ enabled: on, mode: on && state.saturator.mode === 'Off' ? 'TubeWarmth' : state.saturator.mode })
+          }
+        >
           <div className="mb-4 flex gap-2">
-            {[
-              { id: 'TubeWarmth' as SaturatorMode, label: loc.dynamicsStudio.modeTube, desc: loc.dynamicsStudio.modeTubeDesc },
-              { id: 'TapeSaturation' as SaturatorMode, label: loc.dynamicsStudio.modeTape, desc: loc.dynamicsStudio.modeTapeDesc },
-              { id: 'Overdrive' as SaturatorMode, label: loc.dynamicsStudio.modeOverdrive, desc: loc.dynamicsStudio.modeOverdriveDesc },
-            ].map((m) => {
-              const isCurrent = state.saturator.mode === m.id && state.saturator.enabled;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() =>
-                    applyState({
-                      ...state,
-                      saturator: { ...state.saturator, mode: m.id, enabled: true },
-                    })
-                  }
-                  className={cn(
-                    'flex-1 rounded-lg border px-3 py-2 text-left transition-all duration-150',
-                    isCurrent ? 'bg-accent-amber/25' : 'bg-white/4',
-                    isCurrent ? 'border-accent-amber' : 'border-white/8',
-                  )}
-                  style={{ color: isCurrent ? '#fef3c7' : '#cbd5e1' }}
-                >
-                  <div className="text-ui font-bold">{m.label}</div>
-                  <div className={cn('text-xxs', isCurrent ? 'text-amber-200' : 'text-fg-muted')}>{m.desc}</div>
-                </button>
-              );
-            })}
+            {saturatorModes.map((m) => (
+              <OptionCard
+                key={m.id}
+                tone="amber"
+                pressed={state.saturator.enabled && state.saturator.mode === m.id}
+                onClick={() => setSaturator({ mode: m.id, enabled: true })}
+                className="flex-1 gap-0.5 rounded-lg px-3 py-2"
+              >
+                <span className="text-ui font-bold">{m.label}</span>
+                <span className="text-xxs text-fg-muted">{m.desc}</span>
+              </OptionCard>
+            ))}
           </div>
 
           <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
-            {/* SUWAKI SATURATORA */}
             <div className="flex flex-col gap-3">
-              {/* Drive */}
-              <div>
-                <div className="mb-1 flex justify-between text-ui">
-                  <span className="text-slate-300">{loc.dynamicsStudio.drive}</span>
-                  <span className="font-bold text-amber-400">
-                    {state.saturator.drive.toFixed(2)}x
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1.0}
-                  max={5.0}
-                  step={0.05}
-                  value={state.saturator.drive}
-                  onChange={(e) =>
-                    applyState({
-                      ...state,
-                      saturator: { ...state.saturator, drive: parseFloat(e.target.value) },
-                    })
-                  }
-                  className="w-full cursor-pointer accent-accent-amber"
-                />
-              </div>
-
-              {/* Warmth (tylko dla TubeWarmth) */}
+              <SliderRow
+                label={loc.dynamicsStudio.drive}
+                tone="amber"
+                min={1}
+                max={5}
+                step={0.05}
+                value={state.saturator.drive}
+                format={(v) => `${v.toFixed(2)}x`}
+                onChange={(v) => setSaturator({ drive: v })}
+              />
               {state.saturator.mode === 'TubeWarmth' && (
-                <div>
-                  <div className="mb-1 flex justify-between text-ui">
-                    <span className="text-slate-300">
-                      {loc.dynamicsStudio.evenHarmonics}
-                    </span>
-                    <span className="font-bold text-amber-400">
-                      {Math.round(state.saturator.warmth * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={state.saturator.warmth}
-                    onChange={(e) =>
-                      applyState({
-                        ...state,
-                        saturator: { ...state.saturator, warmth: parseFloat(e.target.value) },
-                      })
-                    }
-                    className="w-full cursor-pointer accent-accent-amber"
-                  />
-                </div>
-              )}
-
-              {/* Dry/Wet Mix */}
-              <div>
-                <div className="mb-1 flex justify-between text-ui">
-                  <span className="text-slate-300">{loc.dynamicsStudio.dryWet}</span>
-                  <span className="font-bold text-amber-400">
-                    {Math.round(state.saturator.mix * 100)}% Wet
-                  </span>
-                </div>
-                <input
-                  type="range"
+                <SliderRow
+                  label={loc.dynamicsStudio.evenHarmonics}
+                  tone="amber"
                   min={0}
                   max={1}
                   step={0.01}
-                  value={state.saturator.mix}
-                  onChange={(e) =>
-                    applyState({
-                      ...state,
-                      saturator: { ...state.saturator, mix: parseFloat(e.target.value) },
-                    })
-                  }
-                  className="w-full cursor-pointer accent-accent-amber"
+                  value={state.saturator.warmth}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                  onChange={(v) => setSaturator({ warmth: v })}
                 />
-              </div>
-            </div>
-
-            {/* WYKRES KRZYWEJ FALOWEJ WSUWAKÓW */}
-            <div className="flex flex-col items-center rounded-xl border border-white/8 bg-black/40 p-2">
-              <div className="mb-1 w-full text-left text-xxs text-fg-secondary">
-                {loc.dynamicsStudio.waveshaperCurve}
-              </div>
-              <svg width="280" height="140" className="overflow-visible">
-                {/* Osie x = 0 i y = 0 */}
-                <line x1="10" y1="70" x2="270" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                <line x1="140" y1="10" x2="140" y2="130" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                {/* Linia neutralna liniowa (szara przerywana) */}
-                <line x1="10" y1="130" x2="270" y2="10" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                {/* Dynamiczna krzywa nasycenia */}
-                <polyline
-                  fill="none"
-                  stroke="#f59e0b"
-                  strokeWidth="2.5"
-                  points={waveshaperCurvePoints}
-                />
-              </svg>
-              <div className="mt-1 flex w-full justify-between text-xxs text-fg-muted">
-                <span>-1.0</span>
-                <span>0.0</span>
-                <span>+1.0</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* RACK 3: MASTER LIMITER SŁUCHAWKOWY */}
-        <div
-          className={cn(
-            'flex items-center justify-between rounded-xl border bg-white/3 p-4',
-            state.limiter.enabled ? 'border-blue-500/40' : 'border-white/7',
-            state.limiter.enabled ? 'shadow-halo-md shadow-blue-500/10' : 'shadow-none',
-          )}
-        >
-          <div className="flex items-center gap-3.5">
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-500/50 bg-blue-500/20 text-blue-400"
-            >
-              <Shield size={20} />
-            </div>
-            <div>
-              <div className="text-md font-extrabold text-fuchsia-50">
-                {loc.dynamicsStudio.limiterTitle}
-              </div>
-              <div className="text-xs text-fg-secondary">
-                {loc.dynamicsStudio.limiterDesc}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-blue-400">
-              Ceiling: {state.limiter.ceiling_db.toFixed(1)} dBFS
-            </span>
-            <button
-              onClick={() => {
-                const newLim = !state.limiter.enabled;
-                applyState({
-                  ...state,
-                  limiter: { ...state.limiter, enabled: newLim },
-                });
-              }}
-              className={cn(
-                'flex items-center gap-1.5 rounded-3xl border-0 px-3.5 py-1.5 text-xs font-bold',
-                state.limiter.enabled ? 'bg-blue-500' : 'bg-white/8',
-                state.limiter.enabled ? 'text-fg' : 'text-fg-secondary',
               )}
+              <SliderRow
+                label={loc.dynamicsStudio.dryWet}
+                tone="amber"
+                min={0}
+                max={1}
+                step={0.01}
+                value={state.saturator.mix}
+                format={(v) => `${Math.round(v * 100)}% Wet`}
+                onChange={(v) => setSaturator({ mix: v })}
+              />
+            </div>
+
+            <CurveChart
+              title={loc.dynamicsStudio.waveshaperCurve}
+              tone="amber"
+              points={waveshaperCurvePoints}
+              axisLabels={['-1.0', '0.0', '+1.0']}
             >
-              {state.limiter.enabled ? <Check size={13} /> : null}
-              {state.limiter.enabled ? loc.dynamicsStudio.active : loc.dynamicsStudio.off}
-            </button>
+              <line x1="10" y1="70" x2="270" y2="70" stroke="currentColor" strokeOpacity="0.15" />
+              <line x1="140" y1="10" x2="140" y2="130" stroke="currentColor" strokeOpacity="0.15" />
+              {/* Linear transfer without saturation */}
+              <line x1="10" y1="130" x2="270" y2="10" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="3 3" />
+            </CurveChart>
           </div>
-        </div>
-      </div>
+        </ToggleCard>
 
-      {/* STOPKA */}
-      <div className="flex items-center justify-between border-t border-white/8 bg-black/20 px-6 py-3">
-        <div className="text-xs text-fg-muted">
-          {loc.dynamicsStudio.realTimeTip}
-        </div>
+        {/* Headphone master limiter */}
+        <ToggleCard
+          icon={<Shield size={18} />}
+          tone="cyan"
+          title={loc.dynamicsStudio.limiterTitle}
+          description={loc.dynamicsStudio.limiterDesc}
+          badges={
+            <Badge tone={state.limiter.enabled ? 'cyan' : 'neutral'} size="xs" mono>
+              Ceiling: {state.limiter.ceiling_db.toFixed(1)} dBFS
+            </Badge>
+          }
+          checked={state.limiter.enabled}
+          onChange={(on) => applyState({ ...state, limiter: { ...state.limiter, enabled: on } })}
+        />
+      </ModalBody>
 
-        <button
-          onClick={onClose}
-          className="rounded-lg border-0 bg-linear-to-r from-pink-500 to-accent-purple px-5 py-2 text-ui font-bold text-fg shadow-lift shadow-pink-500/30"
-        >
+      <ModalFooter className="justify-between">
+        <span className="text-xs text-fg-muted">{loc.dynamicsStudio.realTimeTip}</span>
+        <Button variant="primary" onClick={onClose}>
           {loc.dynamicsStudio.done}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

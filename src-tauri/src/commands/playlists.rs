@@ -49,7 +49,7 @@ pub async fn load_radio_stream(
             uri: url.clone(),
             title: station_name.clone(),
             artist: station_name.clone(),
-            album: Some("Radio internetowe".to_string()),
+            album: Some("Internet Radio".to_string()),
             duration_ms: 0,
         };
 
@@ -69,7 +69,7 @@ pub async fn save_queue_as_playlist(
     info!("Tauri command: save_queue_as_playlist('{}')", name);
     let queue = state.engine.queue();
     if queue.items.is_empty() {
-        return Err(CommandError::validation("Kolejka odtwarzania jest pusta"));
+        return Err(CommandError::validation("The playback queue is empty"));
     }
 
     let pl_id = state.db.create_playlist(&name).await?;
@@ -183,13 +183,13 @@ pub async fn export_playlist_m3u8(
         .db
         .get_playlist_tracks(playlist_id)
         .await
-        .map_err(|e| CommandError::from(e).context("Błąd pobierania utworów playlisty"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to fetch the playlist tracks"))?;
 
     let playlists = state
         .db
         .list_playlists()
         .await
-        .map_err(|e| CommandError::from(e).context("Błąd pobierania listy playlist"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to fetch the playlist list"))?;
 
     let playlist_name = playlists
         .iter()
@@ -212,10 +212,10 @@ pub async fn export_playlist_m3u8(
         M3uPlaylist::export_to_m3u8(&playlist_name, &entries, export_dir, use_relative_paths);
 
     fs::write(&export_path, content)
-        .map_err(|e| CommandError::from(e).context("Nie udało się zapisać pliku M3U8"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to write the M3U8 file"))?;
 
     Ok(format!(
-        "Pomyślnie wyeksportowano playlistę '{}' ({} utworów)",
+        "Exported playlist '{}' ({} tracks)",
         playlist_name,
         entries.len()
     ))
@@ -232,7 +232,7 @@ pub async fn import_playlist_m3u8(
         super::paths::ensure_readable(std::path::Path::new(&file_path), &["m3u", "m3u8"])?;
 
     let content = fs::read_to_string(&resolved)
-        .map_err(|e| CommandError::from(e).context("Nie udało się odczytać pliku M3U/M3U8"))?;
+        .map_err(|e| CommandError::from(e).context("Failed to read the M3U/M3U8 file"))?;
 
     let path_obj = std::path::Path::new(&file_path);
     let base_dir = path_obj.parent();
@@ -240,7 +240,7 @@ pub async fn import_playlist_m3u8(
     let fallback_name = path_obj
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("Zaimportowana Playlista");
+        .unwrap_or("Imported Playlist");
 
     let playlist_name = custom_name
         .filter(|n| !n.trim().is_empty())
@@ -248,11 +248,9 @@ pub async fn import_playlist_m3u8(
 
     let m3u = M3uPlaylist::parse(&content, &playlist_name, base_dir)?;
 
-    let playlist_id = state
-        .db
-        .create_playlist(&m3u.name)
-        .await
-        .map_err(|e| CommandError::from(e).context("Błąd tworzenia playlisty w bazie"))?;
+    let playlist_id = state.db.create_playlist(&m3u.name).await.map_err(|e| {
+        CommandError::from(e).context("Failed to create the playlist in the database")
+    })?;
 
     let mut matched_tracks = 0;
     let mut missing_tracks = Vec::new();
@@ -265,7 +263,7 @@ pub async fn import_playlist_m3u8(
             .unwrap_or(None)
         {
             if let Err(e) = state.db.add_track_to_playlist(playlist_id, track.id).await {
-                error!("Błąd dodawania utworu {} do playlisty: {}", track.id, e);
+                error!("Failed to add track {} to the playlist: {}", track.id, e);
             } else {
                 matched_tracks += 1;
             }

@@ -1,10 +1,10 @@
-//! Obsługa magistrali GStreamera (EOS, błędy, tagi, spektrum) — wywoływana przez ticker odtwarzania.
+//! GStreamer bus handling (EOS, errors, tags, spectrum), called by the playback ticker.
 
 use super::*;
 
 impl AudioEngine {
-    /// Odpytuje magistralę GStreamera o oczekujące komunikaty bez blokowania wątku,
-    /// obsługuje koniec utworu (powtarzanie / następny / stop) i płynne wyciszenie przed EOS.
+    /// Polls the GStreamer bus for pending messages without blocking the thread,
+    /// handles end of track (repeat / next / stop) and the fade-out before EOS.
     pub fn poll_events(&self) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
         let pipeline = self.inner.lock_safe().pipeline.clone();
@@ -28,13 +28,13 @@ impl AudioEngine {
         use gst::MessageView;
         match msg.view() {
             MessageView::Eos(..) => {
-                info!("Otrzymano komunikat EOS (koniec strumienia)");
+                info!("Received the EOS message (end of stream)");
                 self.handle_eos(events);
                 events.push(PlayerEvent::Eos);
             }
             MessageView::Error(err) => {
                 let error_msg = format!(
-                    "GStreamer Error od {}: {} ({:?})",
+                    "GStreamer error from {}: {} ({:?})",
                     msg.src()
                         .map(|s| s.path_string().to_string())
                         .unwrap_or_default(),
@@ -52,7 +52,7 @@ impl AudioEngine {
             }
             MessageView::Buffering(buffering) => {
                 let percent = buffering.percent();
-                debug!("Buforowanie: {}%", percent);
+                debug!("Buffering: {}%", percent);
                 events.push(PlayerEvent::Buffering(percent));
             }
             MessageView::StateChanged(state_changed) => {
@@ -68,7 +68,7 @@ impl AudioEngine {
                 let old = map_state(state_changed.old());
                 let new = map_state(state_changed.current());
                 if old != new {
-                    debug!("Zmiana stanu potoku: {:?} -> {:?}", old, new);
+                    debug!("Pipeline state change: {:?} -> {:?}", old, new);
                     events.push(PlayerEvent::StateChanged { old, new });
                 }
             }
@@ -86,11 +86,11 @@ impl AudioEngine {
         }
     }
 
-    /// Koniec utworu: „stop po bieżącym”, powtarzanie albo przejście do następnego.
+    /// End of track: "stop after current", repeat, or move to the next one.
     fn handle_eos(&self, events: &mut Vec<PlayerEvent>) {
-        // Flaga "Stop After Current Track" (foobar2000 classic) — jednorazowa.
+        // The "Stop After Current Track" flag (foobar2000 classic) is one-shot.
         if self.stop_after_current.swap(false, Ordering::SeqCst) {
-            info!("'Stop After Current Track' aktywny — zatrzymuję potok audio i nie przechodzę do kolejnego utworu");
+            info!("'Stop After Current Track' is active; stopping the audio pipeline instead of moving to the next track");
             let old_state = {
                 let mut inner = self.inner.lock_safe();
                 let old = inner.state;
@@ -110,39 +110,39 @@ impl AudioEngine {
             (q.loop_mode, q.items.is_empty())
         };
         match loop_mode {
-            // Globalne powtórzenie bieżącego utworu — niezależnie, skąd utwór został uruchomiony.
+            // Global repeat of the current track, wherever it was started from.
             LoopMode::Track => self.replay_current("LoopMode::Track", events),
-            // Pojedynczy utwór poza kolejką z aktywnym zapętlaniem całości.
+            // A single track outside the queue with repeat-all on.
             LoopMode::Queue if queue_is_empty => {
-                self.replay_current("LoopMode::Queue (pojedynczy utwór)", events)
+                self.replay_current("LoopMode::Queue (single track)", events)
             }
             _ => self.advance_after_eos(),
         }
     }
 
-    /// Przeładowuje bieżące URI i odtwarza je od początku (`PlayerEvent::TrackLooped`).
+    /// Reloads the current URI and plays it from the start (`PlayerEvent::TrackLooped`).
     fn replay_current(&self, reason: &str, events: &mut Vec<PlayerEvent>) {
         let Some(uri) = self.inner.lock_safe().current_uri.clone() else {
-            warn!("{} aktywny, ale brak URI do powtórzenia", reason);
+            warn!("{} is active, but there is no URI to repeat", reason);
             self.mark_stopped();
             return;
         };
         info!(
-            "{} — przeładowuję i powtarzam utwór od nowa: {}",
+            "{}: reloading and replaying the track from the start: {}",
             reason, uri
         );
         if let Err(e) = self.load_uri(&uri) {
-            error!("Błąd ładowania URI przy powtarzaniu: {}", e);
+            error!("Failed to load the URI for repeat: {}", e);
             self.mark_stopped();
         } else if let Err(e) = self.play() {
-            error!("Błąd odtwarzania przy powtarzaniu utworu: {}", e);
+            error!("Failed to play the track for repeat: {}", e);
             self.mark_stopped();
         } else {
             events.push(PlayerEvent::TrackLooped);
         }
     }
 
-    /// Automatyczne przejście do następnego utworu w kolejce (z crossfade, jeśli włączony).
+    /// Automatically moves to the next track in the queue (with crossfade, if enabled).
     fn advance_after_eos(&self) {
         self.mark_stopped();
         let next_item = self.queue.lock_safe().next().cloned();
@@ -151,7 +151,7 @@ impl AudioEngine {
             return;
         };
         if let Err(e) = self.load_uri(&item.uri) {
-            error!("Błąd ładowania następnego utworu po EOS: {}", e);
+            error!("Failed to load the next track after EOS: {}", e);
             return;
         }
         let (crossfade_ms, user_vol) = {
@@ -164,7 +164,7 @@ impl AudioEngine {
             let _ = self.play();
         }
         info!(
-            "Kolejka: automatyczne płynne przejście po EOS do utworu: {}",
+            "Queue: automatic transition after EOS to track: {}",
             item.title
         );
     }
@@ -173,7 +173,7 @@ impl AudioEngine {
         self.inner.lock_safe().state = PlaybackState::Stopped;
     }
 
-    /// Gdy utwór zbliża się do końca, wycisza go krzywą equal-power (pierwsza połowa crossfade).
+    /// As a track nears its end, fade it out on an equal-power curve (first half of the crossfade).
     fn apply_pre_eos_fade(&self) {
         if self.is_fading_in.load(Ordering::Relaxed) {
             return;
@@ -214,7 +214,7 @@ impl AudioEngine {
     }
 }
 
-/// Wyciąga widmo stereo z komunikatu elementu `spectrum` (pole `magnitude`).
+/// Extracts the stereo spectrum from a `spectrum` element message (the `magnitude` field).
 fn spectrum_from_structure(structure: &gst::StructureRef) -> Option<Vec<f32>> {
     if structure.name() != "spectrum" {
         return None;
@@ -242,7 +242,7 @@ fn spectrum_from_structure(structure: &gst::StructureRef) -> Option<Vec<f32>> {
     crate::spectrum::stereo_display_spectrum(&channel_mags, &flat_db)
 }
 
-/// Tekst „Wykonawca - Tytuł” z tagów strumienia (np. radia internetowego).
+/// "Artist - Title" text from the stream tags (e.g. internet radio).
 fn tag_text(tags: &gst::TagListRef) -> Option<String> {
     let title = tags.get::<gst::tags::Title>().map(|t| t.get().to_string());
     let artist = tags.get::<gst::tags::Artist>().map(|a| a.get().to_string());

@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  Radio,
-  Activity,
-  RefreshCw,
-  VolumeX,
-  History,
-  ListMusic,
-} from 'lucide-react';
+import { Radio, Activity, RefreshCw, VolumeX, History, ListMusic, Check, Cpu, Power, Tv, Waves } from '../../components/ui/icons';
+import { Badge, Button, Card, Chip, SectionHeader, Select, SliderRow, ToggleCard } from '../../components/ui';
 import { type Language, type Translations } from '../../i18n';
 import {
   type AudioCard,
@@ -20,7 +14,7 @@ import { ReplayGainOption } from './audio/ReplayGainOption';
 import { DspBlockSizeOption } from './audio/DspBlockSizeOption';
 import { OutputBufferOption } from './audio/OutputBufferOption';
 import { VolumeAndOsdCard } from './audio/VolumeAndOsdCard';
-import { cn } from '../../utils/cn';
+import { SettingsPage } from './SettingsPage';
 
 export interface AudioDevicesSettingsViewProps {
   language: Language;
@@ -88,7 +82,6 @@ export interface AudioDevicesSettingsViewProps {
 
 export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> = (props) => {
   const {
-    language: _language,
     loc,
     onOpenHealthCheck,
     onRefreshDevices,
@@ -108,298 +101,162 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
     silenceTrimmingThreshold,
     onSetSilenceTrimming,
   } = props;
+
+  const albumModes: { id: AlbumPlaybackBehavior; label: string; short: string }[] = [
+    { id: 'replace', label: loc.settings.albumPlaybackReplace, short: loc.settings.albumModeReplace },
+    { id: 'append', label: loc.settings.albumPlaybackAppend, short: loc.settings.albumModeAppend },
+    { id: 'single', label: loc.settings.albumPlaybackSingle, short: loc.settings.albumModeSingle },
+  ];
+
   return (
-    <div className="glass-panel mx-auto my-0 max-w-200 p-7">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl">
-          <Radio size={20} className="text-accent-green" /> {loc.settings.audioDevices}
-        </h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenHealthCheck}
-            className="flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/20 px-3.5 py-2 text-ui font-bold text-green-400"
-          >
-            <Activity size={14} />
-            Test Toru Audio (Health Check)
-          </button>
-          <button
-            onClick={onRefreshDevices}
-            className="glass-card flex items-center gap-1.5 px-3.5 py-2 text-ui text-fg"
-          >
+    <SettingsPage
+      title={loc.settings.audioDevices}
+      icon={<Radio size={18} />}
+      tone="green"
+      actions={
+        <>
+          <Button variant="tinted" tone="green" onClick={onOpenHealthCheck}>
+            <Activity size={14} /> {loc.settings.runHealthCheck}
+          </Button>
+          <Button onClick={onRefreshDevices}>
             <RefreshCw size={14} /> {loc.library.refresh}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </>
+      }
+    >
+      {/* Smooth fade when seeking */}
+      <ToggleCard
+        icon={<Waves size={18} />}
+        tone="pink"
+        title={loc.player.seekFadeTitle}
+        description={loc.player.seekFadeDesc}
+        checked={seekFadeEnabled}
+        onChange={onToggleSeekFade}
+      />
 
-      {/* Opcja płynnego wyciszenia paska postępu (Seek Fade) */}
-      <div
-        className={cn(
-          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
-          seekFadeEnabled ? 'border-pink-500/40' : 'border-line',
-        )}
-      >
-        <div>
-          <div className="mb-1 text-md font-bold text-fg">
-            {loc.player.seekFadeTitle}
-          </div>
-          <div className="text-ui text-fg-secondary">
-            {loc.player.seekFadeDesc}
-          </div>
-        </div>
-        <button
-          onClick={onToggleSeekFade}
-          className={cn(
-            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
-            seekFadeEnabled ? 'bg-pink-500/25' : 'bg-white/6',
-            seekFadeEnabled ? 'border-accent-pink' : 'border-line',
-            seekFadeEnabled ? 'text-accent-pink' : 'text-fg-muted',
-          )}
-        >
-          {seekFadeEnabled ? loc.player.seekFadeOn : loc.player.seekFadeOff}
-        </button>
-      </div>
-
-      {/* Karta Konfiguracji Głośności, OSD i Statystyk Recap */}
+      {/* Volume, OSD and Recap stats card */}
       <VolumeAndOsdCard {...props} />
 
-      {/* Opcja zapamiętywania sesji odtwarzania przy ponownym uruchomieniu */}
-      <div
-        className={cn(
-          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
-          restoreSessionOnStartup ? 'border-accent-purple/45' : 'border-line',
-        )}
-      >
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-md font-bold text-fg">
-            <History size={16} className="text-accent-purple" />
-            {loc.settings.restoreSessionTitle}
-          </div>
-          <div className="text-ui text-fg-secondary">
-            {loc.settings.restoreSessionDesc}
-          </div>
-        </div>
-        <button
-          onClick={onToggleRestoreSessionOnStartup}
-          className={cn(
-            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
-            restoreSessionOnStartup ? 'bg-accent-purple/25' : 'bg-white/6',
-            restoreSessionOnStartup ? 'border-accent-purple' : 'border-line',
-            restoreSessionOnStartup ? 'text-accent-purple' : 'text-fg-muted',
-          )}
-        >
-          {restoreSessionOnStartup ? loc.settings.restoreSessionOn : loc.settings.restoreSessionOff}
-        </button>
-      </div>
+      {/* Remember the playback session on restart */}
+      <ToggleCard
+        icon={<History size={18} />}
+        tone="purple"
+        title={loc.settings.restoreSessionTitle}
+        description={loc.settings.restoreSessionDesc}
+        checked={restoreSessionOnStartup}
+        onChange={onToggleRestoreSessionOnStartup}
+      />
 
-      {/* Opcja zapamiętywania ustawień DSP przy uruchomieniu aplikacji */}
-      <div
-        className={cn(
-          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
-          dspAutoStartup ? 'border-accent-green/40' : 'border-line',
-        )}
-      >
-        <div>
-          <div className="mb-1 text-md font-bold text-fg">
-            {loc.dsp.dspAutostart}
-          </div>
-          <div className="text-ui text-fg-secondary">
-            {loc.dsp.bypassActiveNotice}
-          </div>
-        </div>
-        <button
-          onClick={onToggleDspAutoStartup}
-          className={cn(
-            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
-            dspAutoStartup ? 'bg-accent-green/25' : 'bg-white/6',
-            dspAutoStartup ? 'border-accent-green' : 'border-line',
-            dspAutoStartup ? 'text-accent-green' : 'text-fg-muted',
-          )}
-        >
-          {dspAutoStartup ? loc.dsp.dspAutostartOn : loc.dsp.dspAutostartOff}
-        </button>
-      </div>
+      {/* Remember the DSP settings at app start-up */}
+      <ToggleCard
+        icon={<Power size={18} />}
+        tone="green"
+        title={loc.dsp.dspAutostart}
+        description={loc.dsp.bypassActiveNotice}
+        checked={dspAutoStartup}
+        onChange={onToggleDspAutoStartup}
+      />
 
-      {/* Opcja wyboru domyślnego silnika DSP przy uruchomieniu */}
-      <div className="glass-card mb-3.5 flex items-center justify-between rounded-xl px-5 py-4">
-        <div>
-          <div className="mb-1 text-md font-bold text-fg">
-            {loc.settings.dspStartupTitle}
-          </div>
-          <div className="text-ui text-fg-secondary">
-            {loc.settings.dspStartupDesc}
-          </div>
-        </div>
-        <select
-          value={dspDefaultEngine}
-          onChange={(e) => onSetDefaultDspEngine(e.target.value as DspEngineType)}
-          className="pl-3 pr-7.5 py-2"
-        >
-          <option value="Bypass">
-            {loc.settings.dspEngineDirectBypass}
-          </option>
-          <option value="RubberBand">Rubber Band (Hi-Fi R3)</option>
-          <option value="SoundTouch">
-            {loc.settings.dspEngineSoundTouch}
-          </option>
-        </select>
-      </div>
+      {/* Default DSP engine at start-up */}
+      <Card>
+        <SectionHeader
+          icon={<Cpu size={18} />}
+          tone="purple"
+          title={loc.settings.dspStartupTitle}
+          description={loc.settings.dspStartupDesc}
+          actions={
+            <Select
+              aria-label={loc.settings.dspStartupTitle}
+              value={dspDefaultEngine}
+              onChange={(e) => onSetDefaultDspEngine(e.target.value as DspEngineType)}
+              className="w-auto"
+            >
+              <option value="Bypass">{loc.settings.dspEngineDirectBypass}</option>
+              <option value="RubberBand">Rubber Band (Hi-Fi R3)</option>
+              <option value="SoundTouch">{loc.settings.dspEngineSoundTouch}</option>
+            </Select>
+          }
+        />
+      </Card>
 
-      {/* Opcja bufora wyjściowego audio (PipeWire / ALSA) */}
+      {/* Audio output buffer (PipeWire / ALSA) */}
       <OutputBufferOption {...props} />
 
-      {/* Opcja rozmiaru bloku procesora DSP (Block Size) */}
+      {/* DSP processor block size */}
       <DspBlockSizeOption {...props} />
 
-      {/* Opcja powiadomień OSD Linuksa (libnotify / D-Bus) */}
-      <div
-        className={cn(
-          'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
-          desktopNotificationsEnabled ? 'border-blue-500/40' : 'border-line',
-        )}
-      >
-        <div>
-          <div className="mb-1 text-md font-bold text-fg">
-            {loc.settings.desktopNotificationsTitle}
-          </div>
-          <div className="text-ui text-fg-secondary">
-            {loc.settings.desktopNotificationsDesc}
-          </div>
-        </div>
-        <button
-          onClick={onToggleDesktopNotifications}
-          className={cn(
-            'rounded-lg border px-4 py-2 text-ui font-bold transition-all duration-150',
-            desktopNotificationsEnabled ? 'bg-blue-500/25' : 'bg-white/6',
-            desktopNotificationsEnabled ? 'border-blue-500' : 'border-line',
-            desktopNotificationsEnabled ? 'text-blue-400' : 'text-fg-muted',
-          )}
-        >
-          {desktopNotificationsEnabled
-            ? loc.settings.desktopNotificationsEnabled
-            : loc.settings.desktopNotificationsDisabled}
-        </button>
-      </div>
+      {/* Desktop notifications (libnotify / D-Bus) */}
+      <ToggleCard
+        icon={<Tv size={18} />}
+        tone="cyan"
+        title={loc.settings.desktopNotificationsTitle}
+        description={loc.settings.desktopNotificationsDesc}
+        checked={desktopNotificationsEnabled}
+        onChange={onToggleDesktopNotifications}
+      />
 
-      {/* Opcja zachowania odtwarzania albumów i playlist (Autoplay & Kolejka) */}
-      <div className="glass-card mb-3.5 rounded-xl border border-line bg-white/3 px-5 py-4.5">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ListMusic size={18} className="text-accent-pink" />
-            <span className="text-md font-bold text-fg">
-              {loc.settings.albumPlaybackTitle}
-            </span>
-          </div>
-          <span className="rounded-md bg-pink-500/20 px-2 py-1 text-xs font-bold text-accent-pink">
-            {albumPlaybackMode === 'replace'
-              ? loc.settings.albumModeReplace
-              : albumPlaybackMode === 'append'
-                ? loc.settings.albumModeAppend
-                : loc.settings.albumModeSingle}
-          </span>
-        </div>
-
-        <div className="mb-3.5 text-ui text-fg-secondary">
-          {loc.settings.albumPlaybackDesc}
-        </div>
-
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(50),1fr))] gap-2">
-          {[
-            { id: 'replace', label: loc.settings.albumPlaybackReplace },
-            { id: 'append', label: loc.settings.albumPlaybackAppend },
-            { id: 'single', label: loc.settings.albumPlaybackSingle },
-          ].map((item) => {
-            const isActive = albumPlaybackMode === item.id;
+      {/* Album and playlist playback behaviour (autoplay and queue) */}
+      <Card>
+        <SectionHeader
+          icon={<ListMusic size={18} />}
+          tone="pink"
+          title={loc.settings.albumPlaybackTitle}
+          description={loc.settings.albumPlaybackDesc}
+          actions={<Badge tone="pink">{albumModes.find((m) => m.id === albumPlaybackMode)?.short}</Badge>}
+        />
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(50),1fr))] gap-2">
+          {albumModes.map((mode) => {
+            const isActive = albumPlaybackMode === mode.id;
             return (
-              <button
-                key={item.id}
-                onClick={() => onSetAlbumPlaybackMode(item.id as AlbumPlaybackBehavior)}
-                className={cn(
-                  'rounded-lg border px-3.5 py-2.5 text-left text-ui font-semibold transition-all duration-150',
-                  isActive ? 'bg-pink-500/25' : 'bg-white/5',
-                  isActive ? 'border-accent-pink' : 'border-line',
-                  isActive ? 'text-fg' : 'text-fg-muted',
-                )}
+              <Chip
+                key={mode.id}
+                pressed={isActive}
+                onClick={() => onSetAlbumPlaybackMode(mode.id)}
+                className="justify-start px-3.5 py-2.5 text-left text-ui whitespace-normal"
               >
-                {isActive ? '✓ ' : ''}{item.label}
-              </button>
+                {isActive && <Check size={12} className="shrink-0" />}
+                {mode.label}
+              </Chip>
             );
           })}
         </div>
-      </div>
+      </Card>
 
-      {/* Opcja normalizacji głośności ReplayGain 2.0 / EBU R128 */}
+      {/* ReplayGain 2.0 / EBU R128 volume normalisation */}
       <ReplayGainOption {...props} />
 
-      {/* Opcja filtra Bauer Crossfeed (bs2b) dla słuchawek */}
+      {/* Bauer crossfeed filter (bs2b) for headphones */}
       <CrossfeedOption {...props} />
 
-      {/* Opcja automatycznego pomijania ciszy (Silence Trimming) */}
-      <div
-        className={cn(
-          'glass-card mb-3.5 rounded-xl border px-5 py-4.5 transition-all duration-200',
-          silenceTrimmingEnabled ? 'border-accent-green/45' : 'border-line',
-          silenceTrimmingEnabled ? 'bg-accent-green/5' : 'bg-white/3',
-        )}
+      {/* Automatic silence skipping (silence trimming) */}
+      <ToggleCard
+        icon={<VolumeX size={18} />}
+        tone="green"
+        title={loc.settings.silenceTrimmingTitle}
+        description={loc.settings.silenceTrimmingDesc}
+        checked={silenceTrimmingEnabled}
+        onChange={(on) => onSetSilenceTrimming(on, silenceTrimmingThreshold)}
       >
-        <div className="mb-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <VolumeX size={18} className="text-accent-green" />
-            <span className="text-md font-bold text-fg">
-              {loc.settings.silenceTrimmingTitle}
-            </span>
-          </div>
-          <label className="flex cursor-pointer items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={silenceTrimmingEnabled}
-              onChange={(e) => onSetSilenceTrimming(e.target.checked, silenceTrimmingThreshold)}
-              className="h-4.5 w-4.5 cursor-pointer accent-accent-green"
-            />
-            <span className={cn(
-              'text-ui font-semibold',
-              silenceTrimmingEnabled ? 'text-accent-green' : 'text-fg-muted',
-            )}>
-              {silenceTrimmingEnabled ? loc.settings.desktopNotificationsEnabled : loc.settings.desktopNotificationsDisabled}
-            </span>
-          </label>
+        <SliderRow
+          label={loc.settings.silenceTrimmingThreshold}
+          tone="green"
+          min={-80}
+          max={-25}
+          step={2.5}
+          value={silenceTrimmingThreshold}
+          format={(v) => `${v.toFixed(1)} dBFS`}
+          disabled={!silenceTrimmingEnabled}
+          onChange={(v) => onSetSilenceTrimming(silenceTrimmingEnabled, v)}
+        />
+        <div className="mt-1 flex justify-between text-xxs text-fg-muted">
+          <span>-80 dB ({loc.settings.silenceTrimmingPure})</span>
+          <span>-50 dB ({loc.settings.silenceTrimmingRecommended})</span>
+          <span>-25 dB ({loc.settings.silenceTrimmingAggressive})</span>
         </div>
+      </ToggleCard>
 
-        <div className="mb-3.5 text-ui text-fg-secondary">
-          {loc.settings.silenceTrimmingDesc}
-        </div>
-
-        <div className={cn(
-          'transition-opacity duration-200',
-          silenceTrimmingEnabled ? 'opacity-100' : 'opacity-45',
-          silenceTrimmingEnabled ? 'pointer-events-auto' : 'pointer-events-none',
-        )}>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-ui text-fg-secondary">
-              {loc.settings.silenceTrimmingThreshold}
-            </span>
-            <span className="font-mono text-ui font-bold text-fg">
-              {silenceTrimmingThreshold.toFixed(1)} dBFS
-            </span>
-          </div>
-          <input
-            type="range"
-            min="-80"
-            max="-25"
-            step="2.5"
-            value={silenceTrimmingThreshold}
-            onChange={(e) => onSetSilenceTrimming(silenceTrimmingEnabled, parseFloat(e.target.value))}
-            className="w-full accent-accent-green"
-          />
-          <div className="mt-1 flex justify-between text-xxs text-fg-muted">
-            <span>-80 dB ({loc.settings.silenceTrimmingPure})</span>
-            <span>-50 dB ({loc.settings.silenceTrimmingRecommended})</span>
-            <span>-25 dB ({loc.settings.silenceTrimmingAggressive})</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista kart dźwiękowych */}
+      {/* Sound card list */}
       <SoundCardList {...props} />
-    </div>
+    </SettingsPage>
   );
 };

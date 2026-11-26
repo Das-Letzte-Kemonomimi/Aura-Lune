@@ -157,10 +157,10 @@ pub async fn start_stem_separation_internal(
         )
     })
     .await
-    .map_err(|e| CommandError::from(e).context("Błąd wątku separacji"))?
-    .map_err(|e| CommandError::from(e).context("Błąd separacji stemów"))?;
+    .map_err(|e| CommandError::from(e).context("Separation thread error"))?
+    .map_err(|e| CommandError::from(e).context("Stem separation error"))?;
 
-    // Zapisz w SQLite
+    // Store in SQLite
     let _ = state.db.save_stem_tracks(&separation).await;
 
     Ok(separation)
@@ -186,7 +186,7 @@ pub async fn load_track_stems_internal(
     start_playing: Option<bool>,
 ) -> Result<StemMixerState, CommandError> {
     let stems = state.db.get_stem_tracks(track_id).await?.ok_or_else(|| {
-        "Brak rozdzielonych stemów dla tego utworu. Rozpocznij separację najpierw.".to_string()
+        "No separated stems for this track. Start the separation first.".to_string()
     })?;
 
     let orig_track = state.db.get_track_by_id(track_id).await.ok().flatten();
@@ -255,19 +255,20 @@ pub async fn create_stem_project_internal(
     requested_packs: Vec<String>,
     app_handle: &tauri::AppHandle,
 ) -> Result<StemProject, CommandError> {
-    let track = state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
-        CommandError::not_found(format!("Nie znaleziono utworu o ID {}", track_id))
-    })?;
+    let track =
+        state.db.get_track_by_id(track_id).await?.ok_or_else(|| {
+            CommandError::not_found(format!("Track with ID {} not found", track_id))
+        })?;
 
     let track_path = track.path.clone();
-    // SHA-256 całego pliku audio (setki MB dla hi-res) — poza wątkami Tokio.
+    // SHA-256 of the whole audio file (hundreds of MB for hi-res), off the Tokio threads.
     let hash_path = track_path.clone();
     let track_hash = tokio::task::spawn_blocking(move || {
         audio_engine::calculate_file_sha256(Path::new(&hash_path))
     })
     .await
-    .map_err(|e| CommandError::internal(format!("Przerwane obliczanie SHA-256: {e}")))?
-    .map_err(|e| CommandError::from(e).context("Błąd kalkulacji SHA-256"))?;
+    .map_err(|e| CommandError::internal(format!("SHA-256 computation interrupted: {e}")))?
+    .map_err(|e| CommandError::from(e).context("SHA-256 computation error"))?;
 
     let album_title = if let Some(a_id) = track.album_id {
         state
@@ -320,9 +321,9 @@ pub async fn create_stem_project_internal(
         .db
         .get_stem_project(project_id)
         .await?
-        .ok_or_else(|| CommandError::internal("Błąd odczytu nowo utworzonego projektu"))?;
+        .ok_or_else(|| CommandError::internal("Failed to read the newly created project"))?;
 
-    // Asynchroniczne zadanie separacji kaskadowej w tle
+    // Asynchronous cascaded separation task in the background
     let db_clone = state.db.clone();
     let app_handle_clone = app_handle.clone();
     let requested_packs_clone = requested_packs.clone();
@@ -382,7 +383,7 @@ pub async fn create_stem_project_internal(
                     StemProjectProgressPayload {
                         project_id,
                         progress: 1.0,
-                        message: "Separacja stemów zakończona pomyślnie".to_string(),
+                        message: "Stem separation finished".to_string(),
                         status: "ready".to_string(),
                     },
                 );
@@ -397,7 +398,7 @@ pub async fn create_stem_project_internal(
                     StemProjectProgressPayload {
                         project_id,
                         progress: 0.0,
-                        message: format!("Błąd separacji: {}", e),
+                        message: format!("Separation error: {}", e),
                         status: "failed".to_string(),
                     },
                 );
@@ -412,7 +413,7 @@ pub async fn create_stem_project_internal(
                     StemProjectProgressPayload {
                         project_id,
                         progress: 0.0,
-                        message: format!("Awaria wątku roboczego separacji: {}", join_err),
+                        message: format!("Separation worker thread crashed: {}", join_err),
                         status: "failed".to_string(),
                     },
                 );
@@ -523,12 +524,12 @@ pub async fn load_stem_project_internal(
         .get_stem_project(project_id)
         .await?
         .ok_or_else(|| {
-            CommandError::not_found(format!("Nie znaleziono projektu o ID {}", project_id))
+            CommandError::not_found(format!("Project with ID {} not found", project_id))
         })?;
 
     if project.channels.is_empty() {
         return Err(CommandError::validation(
-            "Projekt nie posiada wygenerowanych ścieżek audio",
+            "The project has no generated audio tracks",
         ));
     }
 
@@ -610,7 +611,7 @@ pub async fn export_stem_project_zip_internal(
         .get_stem_project(project_id)
         .await?
         .ok_or_else(|| {
-            CommandError::not_found(format!("Nie znaleziono projektu o ID {}", project_id))
+            CommandError::not_found(format!("Project with ID {} not found", project_id))
         })?;
 
     let target = export_path.to_string();
@@ -618,16 +619,16 @@ pub async fn export_stem_project_zip_internal(
         let proj_dir = get_stem_projects_cache_dir().join(project_id.to_string());
         if !proj_dir.exists() {
             return Err(CommandError::not_found(
-                "Katalog stemów projektu nie istnieje na dysku",
+                "The project's stem directory does not exist on disk",
             ));
         }
 
         let json_str = serde_json::to_string_pretty(&project)?;
         std::fs::write(proj_dir.join("project.json"), json_str)
-            .map_err(|e| CommandError::from(e).context("Błąd zapisu project.json"))?;
+            .map_err(|e| CommandError::from(e).context("Failed to write project.json"))?;
 
-        // `zip -r` dopisuje do istniejącego archiwum — pakujemy do świeżego pliku
-        // tymczasowego i dopiero po sukcesie podmieniamy cel (bez starych wpisów i połówek).
+        // `zip -r` appends to an existing archive, so we pack into a fresh temp file
+        // and replace the target only on success (no old entries or half-written files).
         let partial = format!("{target}.partial.zip");
         let _ = std::fs::remove_file(&partial);
         let output = std::process::Command::new("zip")
@@ -637,19 +638,16 @@ pub async fn export_stem_project_zip_internal(
             .arg(".")
             .current_dir(&proj_dir)
             .output()
-            .map_err(|e| CommandError::from(e).context("Błąd uruchomienia /usr/bin/zip"))?;
+            .map_err(|e| CommandError::from(e).context("Failed to run /usr/bin/zip"))?;
 
         if !output.status.success() {
             let _ = std::fs::remove_file(&partial);
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(CommandError::from(format!(
-                "Błąd pakowania ZIP: {}",
-                stderr
-            )));
+            return Err(CommandError::from(format!("ZIP packing error: {}", stderr)));
         }
         std::fs::rename(&partial, &target).map_err(|e| {
             let _ = std::fs::remove_file(&partial);
-            CommandError::from(e).context("Błąd zapisu archiwum ZIP")
+            CommandError::from(e).context("Failed to write the ZIP archive")
         })?;
 
         Ok(target)

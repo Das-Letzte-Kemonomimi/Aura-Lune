@@ -1,17 +1,25 @@
 import React from 'react';
-import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Sliders, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Sliders, Square, Volume2, VolumeX, X } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs } from '../../../state/livePlayback';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
-import { cssVars } from '../../../utils/cssVars';
+import { Button, Chip, IconButton, RangeSlider } from '../../../components/ui';
 
-export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'volumeProgressPercent' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
+export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
 };
 
-// Memo: sekcja nie zależy od pozycji odtwarzania — nie renderuje się w każdej klatce statusu.
+/** Keys the volume slider hands back to the global shortcuts (seek, volume, play/pause). */
+const SHORTCUT_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
+
+/** Round transport button (previous, stop, next). */
+const transportClass = 'size-9.5 rounded-full border-transparent bg-white/8 text-fg';
+/** Round toggle (shuffle, repeat). */
+const roundToggleClass = 'size-9 rounded-full p-0';
+
+// Memo: the section does not depend on the playback position, so it does not render on every status frame.
 export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = React.memo(({
   activeTrackId,
   currentBookmark,
@@ -47,52 +55,60 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   sleepTimerRemainingSec,
   sleepTimerTargetMode,
   status,
-  volumeProgressPercent,
   volumeUnit,
-}) => (
+}) => {
+  const hasLoopPoint = loopPointA !== null || loopPointB !== null;
+  const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
+  const playing = status.state === 'Playing';
+  return (
     <div className="flex items-center justify-between">
-      {/* Narzędzia lewe: Zakładka, Pętla A-B, Sleep Timer, Skróty */}
+      {/* Left tools: bookmark, A-B loop, sleep timer, shortcuts, then the transport */}
       <div className="flex items-center gap-1.5">
-        {/* 1. Przycisk Zakładki (Bookmark) */}
         {currentBookmark === null ? (
-          <button
+          <Button
+            variant={activeTrackId ? 'tinted' : 'secondary'}
+            tone="amber"
+            size="sm"
             onClick={handleSaveBookmark}
             title={loc.player.bookmarkDesc}
-            className={cn(
-              'glass-card flex h-8 items-center gap-1.5 rounded-lg border px-3 py-0 text-xs font-bold',
-              activeTrackId ? 'border-amber-400/35 bg-amber-400/8 text-amber-400' : 'border-line bg-white/4 text-fg-muted',
-            )}
+            className="h-8"
           >
-            <Bookmark size={13} fill={activeTrackId ? '#fbbf24' : 'none'} className="text-amber-400" />
-            <span>{loc.player.bookmark}</span>
-          </button>
+            <Bookmark size={13} fill={activeTrackId ? 'currentColor' : 'none'} className="text-accent-amber" />
+            {loc.player.bookmark}
+          </Button>
         ) : (
-          <div className="flex items-center gap-px">
-            <button
-              onClick={handleSaveBookmark}
-              className="glass-card flex h-8 items-center gap-1 rounded-none rounded-l-lg border border-amber-400/45 bg-amber-400/15 px-2.5 py-1.5 text-xs font-bold text-amber-400"
-            >
-              <Bookmark size={13} fill="#fbbf24" className="text-amber-400" /> {loc.player.bookmark}
-            </button>
-            <button
+          <div className="flex items-center">
+            <Button variant="tinted" tone="amber" size="sm" onClick={handleSaveBookmark} className="h-8 rounded-r-none">
+              <Bookmark size={13} fill="currentColor" /> {loc.player.bookmark}
+            </Button>
+            <Button
+              variant="tinted"
+              tone="amber"
+              size="sm"
               onClick={() => handleJumpToBookmark(currentBookmark)}
-              className="glass-card h-8 border-t border-b border-l-0 border-r border-amber-400/45 border-amber-400/30 bg-amber-400/10 p-1.5 font-mono text-xs font-bold text-amber-400"
               title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
+              className="h-8 rounded-none border-l-0 font-mono"
             >
               {formatTime(currentBookmark)}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
               onClick={handleDeleteBookmark}
-              className="glass-card h-8 rounded-none rounded-r-lg border border-l-0 border-amber-400/45 bg-amber-400/10 p-1.5 text-rose-400"
+              aria-label={loc.player.bookmarkDelete}
               title={loc.player.bookmarkDelete}
+              className="h-8 rounded-l-none border-l-0 px-1.5"
             >
               <X size={12} />
-            </button>
+            </Button>
           </div>
         )}
 
-        {/* 2. Przycisk Wielopunktowych Zakładek (Points / Cue Points) */}
-        <button
+        {/* Cue points (multi-point bookmarks) */}
+        <Button
+          variant="tinted"
+          tone="cyan"
+          size="sm"
           onClick={() => {
             if (!activeTrackId && !status.current_track?.track_id) {
               showMessage(loc.player.loadTrackToManageBookmarks, true);
@@ -100,219 +116,178 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
             }
             setIsBookmarksModalOpen(true);
           }}
-          className="glass-card flex h-8 items-center gap-1 rounded-lg border border-accent-cyan/40 bg-accent-cyan/10 px-2.5 py-0 text-xs font-bold text-accent-cyan"
           title={fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length))}
+          className="h-8"
         >
-          <Bookmark size={13} className="text-accent-cyan" />
-          <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}</span>
-        </button>
+          <Bookmark size={13} />
+          {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}
+        </Button>
 
-        {/* 3. Przycisk Punktu A */}
-        <button
+        <Chip
+          tone="cyan"
+          pressed={loopPointA !== null}
           onClick={() => {
             const pos = currentPositionMs(status.position_ms);
             setLoopPointA(pos);
             showMessage(fmt(loc.player.pointAUpdatedMsg, formatTimeMs(pos)));
           }}
-          className={cn(
-            'glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 py-0 text-ui font-extrabold transition-all duration-150',
-            loopPointA !== null ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-line bg-white/5 text-fg-secondary',
-          )}
           title={loopPointA !== null
             ? fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))
             : loc.player.setPointAAtCurrent}
+          className="h-8 min-w-8 font-bold"
         >
           A
-        </button>
-
-        {/* 4. Przycisk Punktu B */}
-        <button
+        </Chip>
+        <Chip
+          tone="pink"
+          pressed={loopPointB !== null}
           onClick={() => {
             const pos = currentPositionMs(status.position_ms);
             setLoopPointB(pos);
             showMessage(fmt(loc.player.pointBUpdatedMsg, formatTimeMs(pos)));
           }}
-          className={cn(
-            'glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 py-0 text-ui font-extrabold transition-all duration-150',
-            loopPointB !== null ? 'border-accent-pink bg-accent-pink/20 text-accent-pink' : 'border-line bg-white/5 text-fg-secondary',
-          )}
           title={loopPointB !== null
             ? fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))
             : loc.player.setPointBAtCurrent}
+          className="h-8 min-w-8 font-bold"
         >
           B
-        </button>
+        </Chip>
 
-        {/* 5. Przycisk Edytora Pętli A-B (Sliders) */}
-        <div className="flex items-center gap-0.5">
-          <button
+        {/* A-B loop editor, with a clear button once a point is set */}
+        <div className="flex items-center">
+          <Chip
+            tone="cyan"
+            pressed={loopPointA !== null && loopPointB !== null}
             onClick={() => setIsLoopEditorOpen(true)}
-            className={cn(
-              'glass-card flex h-8 min-w-8 items-center justify-center border px-2 py-0',
-              (loopPointA !== null && loopPointB !== null) ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-line bg-white/5 text-fg-secondary',
-            )}
-            style={{ borderRadius: (loopPointA !== null || loopPointB !== null) ? '8px 0' : '8px' }}
+            aria-label={loc.player.editLoopTooltip}
             title={loc.player.editLoopTooltip}
+            className={cn('h-8 min-w-8 px-2', hasLoopPoint && 'rounded-r-none')}
           >
             <Sliders size={13} />
-          </button>
-          {(loopPointA !== null || loopPointB !== null) && (
-            <button
+          </Chip>
+          {hasLoopPoint && (
+            <Button
+              variant="danger"
+              size="sm"
               onClick={() => {
                 setLoopPointA(null);
                 setLoopPointB(null);
                 showMessage(loc.player.clearedLoopMsg);
               }}
-              className="glass-card flex h-8 min-w-5.5 items-center justify-center rounded-none rounded-r-lg border border-l-0 border-rose-400/35 bg-rose-400/15 px-1 py-0 text-rose-400"
+              aria-label={loc.shortcuts.loopClear}
               title={loc.shortcuts.loopClear}
+              className="h-8 rounded-l-none border-l-0 px-1.5"
             >
               <X size={12} />
-            </button>
+            </Button>
           )}
         </div>
 
-        {/* 6. Przycisk Wyłącznika czasowego (Sleep Timer) */}
-        <button
+        <Chip
+          tone="purple"
+          pressed={sleepActive}
           onClick={() => setIsSleepTimerOpen(true)}
-          className={cn(
-            'glass-card flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg border px-2 py-0 text-xs',
-            sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track' ? 'border-accent-purple bg-accent-purple/20 text-accent-purple' : 'border-line bg-white/5 text-fg-secondary',
-          )}
+          aria-label={loc.player.sleepTimer}
           title={loc.player.sleepTimer}
+          className="h-8 min-w-8 px-2"
         >
           <Moon size={13} />
-          {(sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track') && (
-            <span className="ml-0.5 font-mono text-xxs font-bold">
+          {sleepActive && (
+            <span className="font-mono text-xxs font-bold">
               {sleepTimerRemainingSec !== null
                 ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
                 : loc.player.timerEnd}
             </span>
           )}
-        </button>
+        </Chip>
 
-        {/* 7. Przycisk Skrótów klawiszowych */}
-        <button
-          onClick={() => setIsShortcutsModalOpen(true)}
-          className="glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border border-line bg-white/5 px-2 py-0 text-xs text-fg-secondary"
-          title={loc.shortcuts.title}
-        >
+        <IconButton variant="secondary" label={loc.shortcuts.title} onClick={() => setIsShortcutsModalOpen(true)} className="size-8">
           <Keyboard size={13} />
-        </button>
+        </IconButton>
 
-        {/* 8. Przycisk Tekstów piosenki (Lyrics) */}
-        <button
-          onClick={() => setShowLyrics(!showLyrics)}
-          className={cn(
-            'glass-card flex h-8 items-center gap-1.5 rounded-lg border px-2.5 py-0 text-xs font-semibold',
-            showLyrics ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-line bg-white/5 text-fg-secondary',
-          )}
-          title={loc.shortcuts.lyrics}
-        >
+        <Chip tone="cyan" pressed={showLyrics} onClick={() => setShowLyrics(!showLyrics)} title={loc.shortcuts.lyrics} className="h-8">
           <Mic2 size={13} />
-          <span>{loc.player.lyrics}</span>
-        </button>
+          {loc.player.lyrics}
+        </Chip>
 
-        {/* Shuffle Button */}
-        <button
+        <Chip
+          tone="cyan"
+          pressed={queue.shuffle}
           onClick={handleToggleShuffle}
+          aria-label={loc.shortcuts.shuffle}
           title={loc.shortcuts.shuffle}
-          className={cn(
-            'glass-card flex h-9 w-9 items-center justify-center rounded-full',
-            queue.shuffle ? 'border border-accent-cyan bg-accent-cyan/25 text-accent-cyan' : 'border-0 bg-white/6 text-fg-muted',
-          )}
+          className={roundToggleClass}
         >
           <Shuffle size={16} />
-        </button>
+        </Chip>
 
-        {/* Previous Button */}
-        <button
-          onClick={handlePrevious}
-          title={loc.player.previous}
-          className="flex h-9.5 w-9.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
-        >
+        <IconButton label={loc.player.previous} onClick={handlePrevious} className={transportClass}>
           <SkipBack size={18} />
-        </button>
-
-        {/* Stop Button */}
-        <button
-          onClick={handleStop}
-          title={loc.player.stop}
-          className="flex h-9.5 w-9.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
-        >
+        </IconButton>
+        <IconButton label={loc.player.stop} onClick={handleStop} className={transportClass}>
           <Square size={16} />
-        </button>
-
-        {/* Play / Pause Button */}
-        <button
+        </IconButton>
+        <Button
+          variant="primary"
           onClick={handlePlayPause}
-          className="flex h-14 w-14 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent shadow-accent-glow"
+          aria-label={playing ? loc.player.pause : loc.player.play}
+          className="size-14 rounded-full p-0 shadow-accent-glow"
         >
-          {status.state === 'Playing' ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
-        </button>
-
-        {/* Next Button */}
-        <button
-          onClick={handleNext}
-          title={loc.player.next}
-          className="flex h-9.5 w-9.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
-        >
+          {playing ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+        </Button>
+        <IconButton label={loc.player.next} onClick={handleNext} className={transportClass}>
           <SkipForward size={18} />
-        </button>
+        </IconButton>
 
-        {/* Repeat Button */}
-        <button
+        <Chip
+          tone="pink"
+          pressed={queue.loop_mode !== 'None'}
           onClick={handleCycleLoopMode}
+          aria-label={queue.loop_mode === 'Track' ? loc.player.loopTrack : queue.loop_mode === 'Queue' ? loc.player.loopQueue : loc.player.loopOff}
           title={queue.loop_mode === 'Track' ? loc.player.loopTrack : queue.loop_mode === 'Queue' ? loc.player.loopQueue : loc.player.loopOff}
-          className={cn(
-            'relative flex h-9 w-9 items-center justify-center rounded-full',
-            queue.loop_mode !== 'None' ? 'border border-accent-pink bg-accent-pink/25 text-accent-pink' : 'border-0 bg-white/6 text-fg-muted',
-          )}
+          className={cn(roundToggleClass, 'relative')}
         >
           {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
           {queue.loop_mode === 'Queue' && (
-            <span className="absolute bottom-1 right-1 h-1 w-1 rounded-full bg-accent-pink" />
+            <span aria-hidden="true" className="absolute right-1 bottom-1 size-1 rounded-full bg-accent-pink" />
           )}
-        </button>
+        </Chip>
       </div>
 
-      {/* Volume Slider */}
+      {/* Volume */}
       <div className="flex items-center gap-2">
-        <button
+        <IconButton
+          size="sm"
+          label={status.volume === 0 ? loc.player.unmute : loc.player.mute}
           onClick={handleToggleMute}
-          className="flex items-center border-0 bg-transparent p-0 text-fg-muted"
-          title={status.volume === 0 ? loc.player.unmute : loc.player.mute}
         >
-          {status.volume === 0 ? <VolumeX size={16} className="text-fg-muted" /> : <Volume2 size={16} className="text-fg-secondary" />}
-        </button>
-        <input
-          type="range"
+          {status.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} className="text-fg-secondary" />}
+        </IconButton>
+        <RangeSlider
+          aria-label={loc.player.volume}
           min={0}
           max={1}
           step={0.01}
           value={status.volume}
-          onChange={(e) => handleVolumeChange(Number(e.target.value))}
+          onChange={handleVolumeChange}
           onPointerUp={(e) => e.currentTarget.blur()}
-          onMouseUp={(e) => e.currentTarget.blur()}
           onKeyDown={(e) => {
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-              e.currentTarget.blur();
-            }
+            // Hand the arrow keys and Space back to the global shortcuts.
+            if (SHORTCUT_KEYS.includes(e.key)) e.currentTarget.blur();
           }}
-          className="w-30 range-fill"
-          style={cssVars({ '--fill': `${volumeProgressPercent}%` })}
+          className="w-30"
           title={`${loc.player.volume}: ${formatVolumeValue(status.volume)} (${Math.round(status.volume * 100)}%)`}
         />
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={handleToggleVolumeUnit}
           title={loc.player.volumeToggleUnitTooltip}
-          className={cn(
-            'min-w-13 rounded-md border border-line bg-white/6 px-1.5 py-0.5 text-center font-mono text-xs font-bold transition-all duration-150',
-            volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink',
-          )}
+          className={cn('min-w-13 rounded-md px-1.5 py-0.5 font-mono', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
         >
           {formatVolumeValue(status.volume)}
-        </button>
+        </Button>
       </div>
     </div>
-));
+  );
+});

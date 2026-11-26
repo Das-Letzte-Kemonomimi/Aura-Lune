@@ -1,19 +1,19 @@
-//! Szczyty przebiegu fali do rysowania falogramu.
+//! Waveform peaks for drawing the waveform.
 
 use super::decode::{DecodeEnd, DecodeSession};
 use crate::AnalysisError;
 use std::time::Duration;
 
-/// Częstotliwość dekodowania dla falogramu (wystarcza do obwiedni amplitudy).
+/// Decode sample rate for the waveform (enough for the amplitude envelope).
 const WAVEFORM_SAMPLE_RATE: u32 = 11_025;
-/// Liczba próbek w jednym bloku statystyk (szczyt + suma kwadratów).
+/// Number of samples in one statistics block (peak + sum of squares).
 const BLOCK_SAMPLES: usize = 256;
-/// Najdłuższy czas dekodowania; dłuższe dekodowanie daje falogram początku utworu.
+/// Longest decode time; a longer decode yields a waveform of the beginning of the track.
 const MAX_DECODE: Duration = Duration::from_secs(60);
 
-/// Strumieniowy akumulator falogramu. Zamiast przechowywać wszystkie próbki, zapisuje
-/// statystyki bloków po [`BLOCK_SAMPLES`] próbek, więc pamięć nie rośnie z długością utworu
-/// tak jak sygnał (2 h przy 11 kHz to ok. 4 MB zamiast ok. 320 MB).
+/// Streaming waveform accumulator. Instead of keeping every sample it stores
+/// statistics per block of [`BLOCK_SAMPLES`] samples, so memory does not grow with the track
+/// length the way the signal does (2 h at 11 kHz is about 4 MB instead of about 320 MB).
 #[derive(Debug, Default)]
 pub struct WaveformAccumulator {
     blocks: Vec<(f32, f64, u32)>,
@@ -41,7 +41,7 @@ impl WaveformAccumulator {
         self.blocks.is_empty() && self.current.2 == 0
     }
 
-    /// `count` znormalizowanych wartości w zakresie `0.05..=1.0` (0.7 × szczyt + 0.3 × RMS).
+    /// `count` normalised values in `0.05..=1.0` (0.7 × peak + 0.3 × RMS).
     pub fn finish(mut self, count: usize) -> Vec<f32> {
         if self.current.2 > 0 {
             self.blocks.push(self.current);
@@ -75,8 +75,8 @@ impl WaveformAccumulator {
     }
 }
 
-/// Ekstrahuje znormalizowane wartości szczytowe/RMS amplitudy dla całego utworu
-/// w określonej liczbie kubełków (np. 160), umożliwiając renderowanie falogramu.
+/// Extracts normalised peak/RMS amplitude values for the whole track
+/// in a given number of buckets (e.g. 160) for rendering the waveform.
 pub fn extract_track_waveform_peaks(
     uri_or_path: &str,
     count: usize,
@@ -92,12 +92,12 @@ pub fn extract_track_waveform_peaks(
     });
     if acc.is_empty() {
         return Err(match end {
-            DecodeEnd::Failed(e) => format!("Nie udało się zdekodować utworu: {e}").into(),
-            _ => "Brak próbek audio do wygenerowania przebiegu fali".into(),
+            DecodeEnd::Failed(e) => format!("Failed to decode the track: {e}").into(),
+            _ => "No audio samples to build the waveform from".into(),
         });
     }
     if end == DecodeEnd::TimedOut {
-        tracing::warn!("Falogram {uri_or_path}: przekroczono czas dekodowania, przebieg częściowy");
+        tracing::warn!("Waveform {uri_or_path}: decode timed out, partial waveform");
     }
     Ok(acc.finish(count))
 }

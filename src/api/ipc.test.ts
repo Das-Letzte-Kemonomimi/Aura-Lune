@@ -13,22 +13,22 @@ describe('api/ipc', () => {
   });
 
   it('normalizes structured CommandError payloads', async () => {
-    invokeMock.mockRejectedValueOnce({ code: 'not_found', message: 'Nie znaleziono utworu o ID 7' });
+    invokeMock.mockRejectedValueOnce({ code: 'not_found', message: 'Track with ID 7 not found' });
     const err = await invoke('set_active_track', { trackId: 7 }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(IpcError);
     expect(isIpcError(err, 'not_found')).toBe(true);
     expect((err as IpcError).command).toBe('set_active_track');
-    expect(String(err)).toBe('Nie znaleziono utworu o ID 7');
-    expect(`${err}`).toBe('Nie znaleziono utworu o ID 7');
+    expect(String(err)).toBe('Track with ID 7 not found');
+    expect(`${err}`).toBe('Track with ID 7 not found');
   });
 
   it('keeps plain string errors readable for existing String(err) call sites', async () => {
-    invokeMock.mockRejectedValueOnce('Błąd bazy danych');
+    invokeMock.mockRejectedValueOnce('Database error');
     const err = await invoke('get_queue').catch((e: unknown) => e);
 
     expect(isIpcError(err, 'unknown')).toBe(true);
-    expect(String(err)).toBe('Błąd bazy danych');
+    expect(String(err)).toBe('Database error');
   });
 
   it('maps unknown codes and odd shapes to "unknown"', () => {

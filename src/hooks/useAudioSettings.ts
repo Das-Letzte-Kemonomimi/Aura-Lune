@@ -54,7 +54,7 @@ export function useAudioSettings({
   const handleSetCardProfile = useCallback(async (cardName: string, profile: string) => {
     try {
       await invoke('set_card_profile', { cardName, profile });
-      showMessage(`Aktywowano profil karty '${cardName}': ${profile}`);
+      showMessage(`Activated card profile '${cardName}': ${profile}`);
       await refreshDevices();
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
@@ -64,7 +64,7 @@ export function useAudioSettings({
   const handleSetBluetoothCodec = useCallback(async (cardName: string, codec: string) => {
     try {
       await invoke('set_bluetooth_codec', { cardName, codec });
-      showMessage(`Zmieniono kodek Bluetooth na: ${codec}`);
+      showMessage(`Bluetooth codec changed to: ${codec}`);
       await refreshDevices();
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
@@ -140,7 +140,7 @@ export function useAudioSettings({
         localStorage.setItem('auralune_replaygain_prevent_clipping', preventClipping.toString());
       } catch {}
     } catch (e: unknown) {
-      console.error('Błąd aktualizacji ReplayGain:', e);
+      console.error('Failed to update ReplayGain:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
     }
   }, [loc.common.errorPrefix, replaygainFallbackGain, replaygainPreventClipping, showMessage]);
@@ -161,7 +161,7 @@ export function useAudioSettings({
         await loadLibrary();
       }
     } catch (e: unknown) {
-      console.error('Błąd skanowania ReplayGain:', e);
+      console.error('ReplayGain scan failed:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
     } finally {
       setIsReplaygainScanning(false);
@@ -196,7 +196,7 @@ export function useAudioSettings({
         );
       }
     } catch (e: unknown) {
-      console.error('Błąd analizy ReplayGain dla utworu:', e);
+      console.error('ReplayGain analysis of the track failed:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
     }
   }, [loc.common.errorPrefix, loc.settings.scanReplayGainScanning, replaygainScanWriteTags, setTracks, showMessage]);
@@ -277,7 +277,7 @@ export function useAudioSettings({
           : loc.notifications.crossfeedOff
       );
     } catch (e: unknown) {
-      console.error('Błąd aktualizacji Crossfeed:', e);
+      console.error('Failed to update Crossfeed:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
     }
   }, [crossfeedFcut, crossfeedFeed, loc.common.errorPrefix, loc.notifications.crossfeedOff, loc.notifications.crossfeedOn, showMessage]);
@@ -314,7 +314,7 @@ export function useAudioSettings({
         localStorage.setItem('auralune_silence_trimming_threshold', threshold.toString());
       } catch {}
     } catch (e: unknown) {
-      console.error('Błąd aktualizacji Silence Trimming:', e);
+      console.error('Failed to update Silence Trimming:', e);
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
     }
   }, [loc.common.errorPrefix, showMessage]);
@@ -373,7 +373,7 @@ export function useAudioSettings({
         fallback_gain_db: savedRgFallback,
         prevent_clipping: savedRgClipping,
       },
-    }).catch((e) => console.warn('Błąd inicjalizacji ReplayGain:', e));
+    }).catch((e) => console.warn('Failed to initialise ReplayGain:', e));
 
     // 2. Crossfeed
     const savedCfEnabled = localStorage.getItem('auralune_crossfeed_enabled') === 'true';
@@ -387,7 +387,7 @@ export function useAudioSettings({
         fcut_hz: savedCfFcut,
         feed_tenth_db: savedCfFeed,
       },
-    }).catch((e) => console.warn('Błąd inicjalizacji Crossfeed:', e));
+    }).catch((e) => console.warn('Failed to initialise Crossfeed:', e));
 
     // 3. Silence Trimming
     const savedStEnabled = localStorage.getItem('auralune_silence_trimming_enabled') === 'true';
@@ -397,7 +397,7 @@ export function useAudioSettings({
         enabled: savedStEnabled,
         threshold_db: savedStThreshold,
       },
-    }).catch((e) => console.warn('Błąd inicjalizacji Silence Trimming:', e));
+    }).catch((e) => console.warn('Failed to initialise Silence Trimming:', e));
 
     // 4. Seek fade setting
     getSetting('seek_fade_enabled')

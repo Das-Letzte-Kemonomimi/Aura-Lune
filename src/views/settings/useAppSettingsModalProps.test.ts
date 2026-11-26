@@ -219,7 +219,7 @@ describe('useAppSettingsModalProps', () => {
       loc,
       appVersion: '1.2.3',
       updateManager: {} as any,
-      // Częściowe mocki menedżerów — test sprawdza tylko pola zakładki About.
+      // Partial manager mocks: the test checks only the About tab fields.
       themeManager: mockThemeManager as unknown as UseAppSettingsModalPropsParams['themeManager'],
       modalManager: mockModalManager as unknown as UseAppSettingsModalPropsParams['modalManager'],
       sessionManager: mockSessionManager as unknown as UseAppSettingsModalPropsParams['sessionManager'],

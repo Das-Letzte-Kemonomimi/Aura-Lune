@@ -59,7 +59,7 @@ fn waybar_status_file_is_private_and_replaces_stale_temp_symlink() {
     let target = base.join(WAYBAR_STATUS_FILE);
     let victim = base.join("victim.txt");
     fs::write(&victim, "keep").unwrap();
-    // Pozostawione dowiązanie w miejscu pliku tymczasowego nie może przekierować zapisu.
+    // A link left in place of the temp file must not redirect the write.
     let tmp = PathBuf::from(format!("{}.tmp.{}", target.display(), std::process::id()));
     symlink(&victim, &tmp).unwrap();
 

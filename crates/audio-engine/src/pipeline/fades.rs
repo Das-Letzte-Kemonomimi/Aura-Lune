@@ -1,9 +1,9 @@
-//! Głośność, płynne przejścia (equal-power) i crossfade.
+//! Volume, smooth (equal-power) transitions and crossfade.
 
 use super::*;
 
 impl AudioEngine {
-    /// Ustawia głośność (zakres 0.0 do 1.0+) w sposób bezzwłoczny bez blokowania na głównym mutexie potoku.
+    /// Sets the volume (range 0.0 to 1.0+) immediately, without blocking on the main pipeline mutex.
     pub fn set_volume(&self, volume: f64) -> Result<(), AudioEngineError> {
         self.fade_generation.fetch_add(1, Ordering::SeqCst);
         self.is_fading_in.store(false, Ordering::SeqCst);
@@ -11,11 +11,11 @@ impl AudioEngine {
         self.atomic_volume
             .store(clamped.to_bits(), Ordering::Relaxed);
         self.volume_element.set_property("volume", clamped);
-        debug!("Ustawiono głośność na: {:.2}", clamped);
+        debug!("Volume set to: {:.2}", clamped);
         Ok(())
     }
 
-    /// Ustawia głośność z płynną interpolacją (Smooth Fade / S-curve ramp), zapobiegając trzaskom cyfrowym.
+    /// Sets the volume with smooth interpolation (S-curve ramp), avoiding digital clicks.
     pub fn set_volume_smooth(
         &self,
         volume: f64,
@@ -30,7 +30,7 @@ impl AudioEngine {
 
         if duration.is_zero() || (current_vol - clamped).abs() < 0.005 {
             self.volume_element.set_property("volume", clamped);
-            debug!("Ustawiono głośność natychmiastowo na: {:.2}", clamped);
+            debug!("Volume set immediately to: {:.2}", clamped);
             return Ok(());
         }
 
@@ -50,7 +50,7 @@ impl AudioEngine {
                         return;
                     }
                     let t = (i as f64) / (steps as f64);
-                    // Płynna krzywa S (cosinusowa): łagodne przyspieszenie i wyhamowanie bez skoków
+                    // Smooth (cosine) S-curve: gentle acceleration and deceleration without jumps
                     let factor = (1.0 - (t * std::f64::consts::PI).cos()) * 0.5;
                     let interpolated = current_vol + (clamped - current_vol) * factor;
                     volume_el.set_property("volume", interpolated);
@@ -63,19 +63,19 @@ impl AudioEngine {
             });
 
         debug!(
-            "Uruchomiono płynne przejście głośności do: {:.2} ({} ms)",
+            "Started a smooth volume transition to: {:.2} ({} ms)",
             clamped,
             duration.as_millis()
         );
         Ok(())
     }
 
-    /// Pobiera aktualną głośność zadaną przez użytkownika (zmienna atomowa bez blokowania).
+    /// Returns the current user-set volume (a lock-free atomic).
     pub fn volume(&self) -> f64 {
         f64::from_bits(self.atomic_volume.load(Ordering::Relaxed))
     }
 
-    /// Wykonuje płynne wyciszenie (fade-out) głośności z krzywą equal-power (cosinusową).
+    /// Fades the volume out on an equal-power (cosine) curve.
     pub(super) fn fade_out_equal_power(
         volume: &gst::Element,
         start_vol: f64,
@@ -97,7 +97,7 @@ impl AudioEngine {
                 return;
             }
             let t = (i as f64) / (steps as f64);
-            // Krzywa equal-power cosinusowa: od 1.0 (start) do 0.0 (koniec)
+            // Equal-power cosine curve: from 1.0 (start) to 0.0 (end)
             let gain = (t * std::f64::consts::FRAC_PI_2).cos();
             volume.set_property("volume", start_vol * gain);
             std::thread::sleep(step_time);
@@ -107,7 +107,7 @@ impl AudioEngine {
         }
     }
 
-    /// Wykonuje płynne wejście (fade-in) głośności z krzywą equal-power (sinusową).
+    /// Fades the volume in on an equal-power (sine) curve.
     pub(super) fn fade_in_equal_power(
         volume: gst::Element,
         target_vol: f64,
@@ -133,7 +133,7 @@ impl AudioEngine {
                 return;
             }
             let t = (i as f64) / (steps as f64);
-            // Krzywa equal-power sinusowa: od 0.0 (start) do 1.0 (koniec)
+            // Equal-power sine curve: from 0.0 (start) to 1.0 (end)
             let gain = (t * std::f64::consts::FRAC_PI_2).sin();
             volume.set_property("volume", target_vol * gain);
             std::thread::sleep(step_time);
@@ -144,13 +144,13 @@ impl AudioEngine {
         is_fading_in.store(false, Ordering::SeqCst);
     }
 
-    /// Wznawia odtwarzanie z płynnym wejściem głośności o zadanym czasie trwania wg krzywej equal-power.
+    /// Resumes playback with an equal-power fade-in of the given duration.
     pub fn play_with_fade_duration(&self, duration: Duration) -> Result<(), AudioEngineError> {
         let current_gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
         let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
-                debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play_with_fade");
+                debug!("No file loaded and no active track in the queue; skipping play_with_fade");
                 return Ok(());
             }
             inner.volume.set_property("volume", 0.0f64);
@@ -158,7 +158,7 @@ impl AudioEngine {
             (inner.pipeline.clone(), inner.volume.clone(), self.volume())
         };
 
-        // Zmiana stanu potoku poza blokadą mutexu inner
+        // Change the pipeline state outside the `inner` mutex
         pipeline.set_state(gst::State::Playing)?;
 
         if target_vol <= 0.001 || duration.is_zero() {
@@ -170,8 +170,8 @@ impl AudioEngine {
         let is_fading_in = Arc::clone(&self.is_fading_in);
         let pipeline_wait = pipeline.clone();
         std::thread::spawn(move || {
-            // Poczekaj na preroll potoku (do 150ms) w tle, aby bufory audio dotarły do wyjścia
-            // przed startem krzywej fade-in, bez blokowania wątku wywołującego (IPC/UI)
+            // Wait for the pipeline preroll (up to 150 ms) in the background, so audio buffers reach
+            // the output before the fade-in curve starts, without blocking the calling (IPC/UI) thread
             let _ = pipeline_wait.state(gst::ClockTime::from_mseconds(150));
             Self::fade_in_equal_power(
                 volume,
@@ -186,13 +186,13 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Ustawia czas płynnego przejścia (crossfade) w milisekundach (0 - 8000 ms).
+    /// Sets the crossfade duration in milliseconds (0 - 8000 ms).
     pub fn set_crossfade_duration_ms(&self, duration_ms: u64) {
         let mut inner = self.inner.lock_safe();
         inner.crossfade_duration_ms = duration_ms.clamp(0, 8000);
     }
 
-    /// Pobiera bieżący czas crossfade w milisekundach.
+    /// Returns the current crossfade duration in milliseconds.
     pub fn crossfade_duration_ms(&self) -> u64 {
         let inner = self.inner.lock_safe();
         inner.crossfade_duration_ms

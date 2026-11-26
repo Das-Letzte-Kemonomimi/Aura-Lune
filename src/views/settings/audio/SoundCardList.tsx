@@ -1,9 +1,19 @@
 import React from 'react';
-import { Zap, Headphones } from 'lucide-react';
+import { Zap, Headphones, Check, X } from '../../../components/ui/icons';
+import { Badge, Button, Card, Chip, SectionHeader } from '../../../components/ui';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
-import { cn } from '../../../utils/cn';
 
-export type SoundCardListProps = Pick<AudioDevicesSettingsViewProps, 'cards' | 'loc' | 'onDisableProAudio' | 'onEnableProAudio' | 'onSetCardProfile' | 'onSetBluetoothCodec'>;
+export type SoundCardListProps = Pick<
+  AudioDevicesSettingsViewProps,
+  'cards' | 'loc' | 'onDisableProAudio' | 'onEnableProAudio' | 'onSetCardProfile' | 'onSetBluetoothCodec'
+>;
+
+const codecLabel = (codec: string) => {
+  if (codec === 'Ldac') return 'Sony LDAC (High-Res 990 kbps)';
+  if (codec === 'AptxHd') return 'aptX HD';
+  if (codec === 'SbcXq') return 'SBC-XQ (High Quality)';
+  return codec;
+};
 
 export const SoundCardList: React.FC<SoundCardListProps> = ({
   cards,
@@ -13,111 +23,85 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
   onSetBluetoothCodec,
   onSetCardProfile,
 }) => (
-    <div className="flex flex-col gap-3.5">
-      {cards.map((card) => (
-        <div key={card.name} className="glass-card p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {card.is_bluetooth ? <Headphones size={18} className="text-accent-cyan" /> : <Zap size={18} className="text-accent-amber" />}
-              <span className="font-semibold">{card.description}</span>
-            </div>
-
-            {card.profiles && card.profiles.some((p) => p.is_pro_audio) && (
-              <span
-                className="rounded-md border border-accent-green/40 bg-accent-green/20 px-2 py-1 text-xxs font-bold text-accent-green"
-              >
-                PRO AUDIO READY
+  <div className="flex flex-col gap-3.5">
+    {cards.map((card) => {
+      const proAudioReady = card.profiles?.some((p) => p.is_pro_audio) ?? false;
+      const hardwareProfiles = card.profiles?.filter((p) => p.available && !p.bluetooth_codec) ?? [];
+      const codecProfiles = card.profiles?.filter((p) => p.bluetooth_codec) ?? [];
+      return (
+        <Card key={card.name} padding="sm" className="flex flex-col gap-3">
+          <SectionHeader
+            icon={card.is_bluetooth ? <Headphones size={18} /> : <Zap size={18} />}
+            tone={card.is_bluetooth ? 'cyan' : 'amber'}
+            title={card.description}
+            description={
+              <span className="font-mono">
+                ID: {card.name} | {loc.settings.active}: {card.active_profile || 'default'}
               </span>
-            )}
-          </div>
+            }
+            actions={proAudioReady && <Badge tone="green">PRO AUDIO READY</Badge>}
+          />
 
-          <p className="mb-2.5 font-mono text-xs text-fg-muted">
-            ID: {card.name} | {loc.settings.active}: {card.active_profile || 'default'}
-          </p>
-
-          {/* Akcje Pro Audio */}
-          {card.profiles && card.profiles.some((p) => p.is_pro_audio) && (
-            <div className="mb-2.5">
+          {/* Pro Audio actions */}
+          {proAudioReady && (
+            <div>
               {card.active_profile === 'pro-audio' ? (
-                <button
-                  onClick={() => onDisableProAudio(card.name)}
-                  className="flex items-center gap-1.5 rounded-lg border border-accent-pink/50 bg-accent-pink/25 px-3.5 py-2 text-ui font-bold text-accent-pink"
-                >
-                  ✕ Pro Audio OFF (Stereo)
-                </button>
+                <Button variant="tinted" tone="pink" onClick={() => onDisableProAudio(card.name)}>
+                  <X size={14} /> Pro Audio OFF (Stereo)
+                </Button>
               ) : (
-                <button
-                  onClick={() => onEnableProAudio(card.name)}
-                  className="rounded-lg border border-line bg-white/8 px-3 py-1.5 text-xs font-semibold text-fg"
-                >
-                  ✓ Pro Audio ON (Bit-Perfect Direct ALSA)
-                </button>
+                <Button size="sm" onClick={() => onEnableProAudio(card.name)}>
+                  <Check size={13} /> Pro Audio ON (Bit-Perfect Direct ALSA)
+                </Button>
               )}
             </div>
           )}
 
-          {/* Lista wszystkich dostępnych profili sprzętowych karty */}
-          {card.profiles && card.profiles.length > 0 && (
-            <div className="mb-2.5">
-              <span className="mb-1 block text-xs text-fg-secondary">
-                {loc.settings.hardwareProfiles}
-              </span>
+          {/* All available hardware profiles of the card */}
+          {hardwareProfiles.length > 0 && (
+            <div>
+              <span className="mb-1.5 block text-xs text-fg-secondary">{loc.settings.hardwareProfiles}</span>
               <div className="flex flex-wrap gap-1.5">
-                {card.profiles
-                  .filter((p) => p.available && !p.bluetooth_codec)
-                  .map((p) => {
-                    const isCurrent = card.active_profile === p.name;
-                    return (
-                      <button
-                        key={p.name}
-                        onClick={() => onSetCardProfile(card.name, p.name)}
-                        className={cn(
-                          'rounded-md border px-2 py-1 text-xxs',
-                          isCurrent ? 'bg-accent-green/25' : 'bg-white/4',
-                          isCurrent ? 'border-accent-green' : 'border-white/8',
-                          isCurrent ? 'text-accent-green' : 'text-fg-muted',
-                        )}
-                        title={p.description || p.name}
-                      >
-                        {isCurrent ? '✓ ' : ''}{p.description || p.name}
-                      </button>
-                    );
-                  })}
+                {hardwareProfiles.map((p) => {
+                  const isCurrent = card.active_profile === p.name;
+                  return (
+                    <Chip
+                      key={p.name}
+                      size="xs"
+                      tone="green"
+                      pressed={isCurrent}
+                      onClick={() => onSetCardProfile(card.name, p.name)}
+                      title={p.description || p.name}
+                    >
+                      {isCurrent && <Check size={12} />}
+                      {p.description || p.name}
+                    </Chip>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Kodeki Bluetooth */}
-          {card.is_bluetooth && card.profiles && (
+          {/* Bluetooth codecs */}
+          {card.is_bluetooth && codecProfiles.length > 0 && (
             <div>
-              <span className="mb-1.5 block text-xs text-fg-secondary">
-                {loc.settings.bluetoothCodecSelect}
-              </span>
+              <span className="mb-1.5 block text-xs text-fg-secondary">{loc.settings.bluetoothCodecSelect}</span>
               <div className="flex flex-wrap gap-1.5">
-                {card.profiles
-                  .filter((p) => p.bluetooth_codec)
-                  .map((p) => (
-                    <button
-                      key={p.name}
-                      onClick={() => onSetBluetoothCodec(card.name, p.bluetooth_codec!)}
-                      className={cn(
-                        'rounded-md px-2.5 py-1.5 text-xs font-medium text-fg',
-                        card.active_profile === p.name ? 'bg-accent-cyan' : 'bg-white/6',
-                      )}
-                    >
-                      {p.bluetooth_codec === 'Ldac'
-                        ? 'Sony LDAC (High-Res 990 kbps)'
-                        : p.bluetooth_codec === 'AptxHd'
-                          ? 'aptX HD'
-                          : p.bluetooth_codec === 'SbcXq'
-                            ? 'SBC-XQ (High Quality)'
-                            : p.bluetooth_codec}
-                    </button>
-                  ))}
+                {codecProfiles.map((p) => (
+                  <Chip
+                    key={p.name}
+                    tone="cyan"
+                    pressed={card.active_profile === p.name}
+                    onClick={() => onSetBluetoothCodec(card.name, p.bluetooth_codec ?? '')}
+                  >
+                    {codecLabel(p.bluetooth_codec ?? '')}
+                  </Chip>
+                ))}
               </div>
             </div>
           )}
-        </div>
-      ))}
-    </div>
+        </Card>
+      );
+    })}
+  </div>
 );

@@ -1,4 +1,4 @@
-//! Testy elementu `auralune_dsp` w prawdziwym potoku GStreamera.
+//! Tests for the `auralune_dsp` element in a real GStreamer pipeline.
 
 use audio_engine::dsp_node::{register_dsp_element, AuraluneDsp};
 use dsp_api::{DspEngine, DspParams};
@@ -20,7 +20,7 @@ impl Output {
     }
 }
 
-/// Uruchamia potok `SOURCE [! auralune_dsp] ! appsink` i zbiera wszystkie bufory wyjściowe.
+/// Runs a `SOURCE [! auralune_dsp] ! appsink` pipeline and collects every output buffer.
 fn run(with_dsp: Option<DspParams>, switch_engine_after: Option<(usize, DspEngine)>) -> Output {
     gst::init().unwrap();
     let _ = register_dsp_element();
@@ -63,10 +63,7 @@ fn run(with_dsp: Option<DspParams>, switch_engine_after: Option<(usize, DspEngin
             }
         }
     }
-    assert!(
-        sink.is_eos(),
-        "potok musi dojść do EOS (brak zakleszczenia)"
-    );
+    assert!(sink.is_eos(), "the pipeline must reach EOS (no deadlock)");
     pipeline.set_state(gst::State::Null).unwrap();
     out
 }
@@ -78,7 +75,7 @@ fn test_bypass_is_bit_perfect() {
     assert!(!reference.bytes.is_empty());
     assert_eq!(
         bypassed.bytes, reference.bytes,
-        "Bypass musi przekazywać próbki bez zmian"
+        "Bypass must pass samples through unchanged"
     );
 }
 
@@ -95,11 +92,11 @@ fn test_rubberband_double_tempo_halves_duration_with_monotonic_timestamps() {
     let ratio = out.frames() as f64 / input_frames as f64;
     assert!(
         (0.40..=0.60).contains(&ratio),
-        "oczekiwano ~0.5× długości, jest {ratio:.3}"
+        "expected ~0.5× the length, got {ratio:.3}"
     );
     assert!(
         out.pts_ns.windows(2).all(|w| w[1] > w[0]),
-        "znaczniki czasu muszą rosnąć monotonicznie"
+        "timestamps must increase monotonically"
     );
 }
 
@@ -115,7 +112,7 @@ fn test_soundtouch_slower_tempo_lengthens_output() {
     let ratio = out.frames() as f64 / input_frames as f64;
     assert!(
         (1.6..=2.4).contains(&ratio),
-        "oczekiwano ~2× długości, jest {ratio:.3}"
+        "expected ~2× the length, got {ratio:.3}"
     );
 }
 
@@ -142,15 +139,15 @@ fn test_block_size_change_while_idle_is_applied() {
     let _ = register_dsp_element();
     let dsp = AuraluneDsp::new(Some("dsp_block"));
     dsp.set_block_size(100_000);
-    assert_eq!(dsp.block_size(), 16384, "rozmiar bloku jest ograniczany");
+    assert_eq!(dsp.block_size(), 16384, "the block size is clamped");
     dsp.set_block_size(1024);
     assert_eq!(dsp.block_size(), 1024);
 }
 
 #[test]
 fn test_very_slow_tempo_keeps_all_audio_and_monotonic_timestamps() {
-    // Tempo 0.25 daje ~4× więcej ramek, niż wchodzi — więcej niż 16 bloków na wywołanie
-    // `chain`; całe wyjście musi dotrzeć w kolejności, bez zgubionych próbek.
+    // Tempo 0.25 yields ~4× more frames than go in, more than 16 blocks per `chain`
+    // call; all output must arrive in order, without lost samples.
     let input_frames = run(None, None).frames();
     let params = DspParams {
         engine: DspEngine::SoundTouch,
@@ -161,7 +158,7 @@ fn test_very_slow_tempo_keeps_all_audio_and_monotonic_timestamps() {
     let ratio = out.frames() as f64 / input_frames as f64;
     assert!(
         (3.2..=4.8).contains(&ratio),
-        "oczekiwano ~4× długości, jest {ratio:.3}"
+        "expected ~4× the length, got {ratio:.3}"
     );
     assert!(out.pts_ns.windows(2).all(|w| w[1] > w[0]));
 }

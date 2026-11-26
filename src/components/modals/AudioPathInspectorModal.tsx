@@ -1,6 +1,6 @@
-import React from 'react';
+import type { PlaybackStatus } from '../../types/playback';
+import React, { useId } from 'react';
 import {
-  X,
   Radio,
   Cpu,
   Layers,
@@ -12,9 +12,10 @@ import {
   RotateCcw,
   Sliders,
   ShieldCheck,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { Badge, Button, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
 
 export interface AudioPathTrackInfo {
   format?: string | null;
@@ -29,7 +30,7 @@ export interface AudioPathTrackInfo {
 interface AudioPathInspectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  status: any;
+  status: PlaybackStatus;
   currentTrack?: AudioPathTrackInfo | null;
   currentLang?: Language;
   onResetBitPerfect?: () => void;
@@ -43,11 +44,12 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
   currentLang = 'pl',
   onResetBitPerfect,
 }) => {
+  const titleId = useId();
   if (!isOpen) return null;
 
   const loc = getTranslations(currentLang);
 
-  // Weryfikacja czy sygnał płynie w 100% bit-perfect bez modyfikacji próbek
+  // Checks whether the signal flows 100% bit-perfect without modifying the samples
   const isBypass = status.engine === 'Bypass';
   const isDefaultTempo = Math.abs((status.tempo_ratio ?? 1.0) - 1.0) < 0.001;
   const isDefaultPitch = Math.abs(status.pitch_semitones ?? 0.0) < 0.01;
@@ -61,78 +63,29 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
   const format = currentTrack?.format?.toUpperCase() || 'FLAC';
 
   return (
-    <div
-      className="fixed inset-0 z-90 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={cn(
-          'bg-modal shadow-modal',
-          'flex max-h-[90vh] w-full max-w-170 flex-col overflow-hidden rounded-2xl border motion-safe:animate-modal-in',
-          isBitPerfect ? 'border-accent-green/45' : 'border-accent-purple/45',
-          isBitPerfect && '',
-        )}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                'flex h-9.5 w-9.5 items-center justify-center rounded-xl border',
-                isBitPerfect ? 'bg-accent-green/15' : 'bg-accent-purple/20',
-                isBitPerfect ? 'text-accent-green' : 'text-accent-purple',
-                isBitPerfect ? 'border-accent-green/30' : 'border-accent-purple/30',
-              )}
-            >
-              <Radio size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="m-0 text-lg font-bold text-fg">
-                  {loc.audioPath.title}
-                </h2>
-                <span
-                  className={cn(
-                    'flex items-center gap-1 rounded-xl border px-2 py-0.5 text-xxs font-bold',
-                    isBitPerfect ? 'bg-accent-green/20' : 'bg-accent-purple/20',
-                    isBitPerfect ? 'text-emerald-400' : 'text-purple-300',
-                    isBitPerfect ? 'border-accent-green/40' : 'border-accent-purple/40',
-                  )}
-                >
-                  {isBitPerfect ? (
-                    <>
-                      <ShieldCheck size={12} />
-                      <span>BIT-PERFECT DIRECT</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={12} />
-                      <span>PROCESSED (DSP / EQ)</span>
-                    </>
-                  )}
-                </span>
-              </div>
-              <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
-                {loc.audioPath.subtitle}
-              </p>
-            </div>
-          </div>
+    <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={
+          <span className="flex items-center gap-2">
+            {loc.audioPath.title}
+            <Badge tone={isBitPerfect ? 'green' : 'purple'} className="flex items-center gap-1">
+              {isBitPerfect ? <ShieldCheck size={12} /> : <Sparkles size={12} />}
+              {isBitPerfect ? 'BIT-PERFECT DIRECT' : 'PROCESSED (DSP / EQ)'}
+            </Badge>
+          </span>
+        }
+        subtitle={loc.audioPath.subtitle}
+        icon={<Radio size={20} />}
+        tone={isBitPerfect ? 'green' : 'purple'}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-          <button
-            onClick={onClose}
-            className="rounded-lg border-0 bg-transparent p-1.5 text-fg-secondary"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-5.5">
+      <ModalBody className="flex flex-col gap-4">
           {/* Signal Chain Flow Visualization */}
           <div
-            className="flex items-center justify-between rounded-xl border border-white/6 bg-black/35 px-4 py-3 text-xs text-slate-300"
+            className="flex items-center justify-between rounded-xl border border-line bg-black/35 px-4 py-3 text-xs text-slate-300"
           >
             <div className="flex items-center gap-1.5">
               <Layers size={14} className="text-accent-cyan" />
@@ -155,7 +108,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* 1. Źródło dźwięku (Input Source) */}
+          {/* 1. Audio input source */}
           <div className="rounded-xl border border-accent-cyan/25 bg-black/25 px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-ui font-bold text-accent-cyan">
@@ -186,7 +139,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* 2. Przetwarzanie DSP & Efekty */}
+          {/* 2. DSP processing & effects */}
           <div
             className={cn(
               'rounded-xl border bg-black/25 px-4 py-3.5',
@@ -236,7 +189,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* 3. Wyjście PipeWire (Audio Sink) */}
+          {/* 3. PipeWire output (audio sink) */}
           <div className="rounded-xl border border-accent-green/25 bg-black/25 px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-ui font-bold text-accent-green">
@@ -269,7 +222,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* Informacja podsumowująca */}
+          {/* Summary */}
           <div
             className={cn(
               'flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-ui text-slate-300',
@@ -286,32 +239,22 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
               {isBitPerfect ? loc.audioPath.bitPerfectSummary : loc.audioPath.processedSummary}
             </span>
           </div>
-        </div>
+      </ModalBody>
 
-        {/* Footer z przyciskiem resetu Bit-Perfect */}
-        <div className="flex items-center justify-between border-t border-white/8 bg-white/2 px-6 py-3.5">
-          {onResetBitPerfect && !isBitPerfect ? (
-            <button
-              onClick={() => {
-                onResetBitPerfect();
-              }}
-              className="flex items-center gap-1.5 rounded-lg border border-accent-green/35 bg-accent-green/15 px-3.5 py-2 text-ui font-bold text-emerald-400 transition-all duration-150"
-            >
-              <RotateCcw size={14} />
-              <span>{loc.audioPath.resetBtn}</span>
-            </button>
-          ) : (
-            <div />
-          )}
-
-          <button
-            onClick={onClose}
-            className="rounded-lg border-0 bg-linear-135 from-accent-purple to-accent-pink px-5 py-2 text-sm font-semibold text-on-accent shadow-lift shadow-accent-purple/35"
-          >
-            {loc.common.close}
-          </button>
-        </div>
-      </div>
-    </div>
+      {/* Footer with the Bit-Perfect reset button */}
+      <ModalFooter className="justify-between">
+        {onResetBitPerfect && !isBitPerfect ? (
+          <Button variant="tinted" tone="green" onClick={onResetBitPerfect}>
+            <RotateCcw size={14} />
+            {loc.audioPath.resetBtn}
+          </Button>
+        ) : (
+          <div />
+        )}
+        <Button variant="primary" onClick={onClose}>
+          {loc.common.close}
+        </Button>
+      </ModalFooter>
+    </ModalShell>
   );
 };

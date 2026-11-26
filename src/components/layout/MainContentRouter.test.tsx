@@ -25,6 +25,7 @@ describe('MainContentRouter component', () => {
     dspProps: {} as any,
     playlistsProps: {} as any,
     stemProjectsProps: {
+      currentLang: 'en',
       onOpenProject: vi.fn(),
       onOpenCreateProject: vi.fn(),
     },

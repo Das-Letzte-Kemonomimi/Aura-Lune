@@ -8,10 +8,11 @@ import {
   Zap,
   ChevronUp,
   ChevronDown,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Translations } from '../../i18n';
 import { type PlaybackQueue, type QueueItem } from '../../types/queue';
 import { type PlaybackStatus } from '../../types/player';
+import { Button, Chip, EmptyState, IconButton } from '../ui';
 
 export interface QueueDrawerProps {
   isOpen: boolean;
@@ -46,7 +47,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex w-105 max-w-[90vw] flex-col border-l border-line-accent bg-modal shadow-drawer">
-      {/* Nagłówek szuflady */}
+      {/* Drawer header */}
       <div className="flex items-center justify-between border-b border-line p-5">
         <div className="flex items-center gap-2.5">
           <ListMusic size={22} className="text-accent-pink" />
@@ -59,39 +60,25 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={onToggleInfinityQueue}
-            title={loc.queue.autoDjHint}
-            aria-pressed={infinityQueue}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-white/5 px-2.5 py-1.5 text-xs font-bold text-fg-muted aria-pressed:border-accent-pink aria-pressed:bg-accent-pink/25 aria-pressed:text-accent-pink"
-          >
+          <Chip pressed={infinityQueue} onClick={onToggleInfinityQueue} title={loc.queue.autoDjHint}>
             <InfinityIcon size={14} />
-            <span>{loc.queue.autoDj}</span>
-          </button>
-
+            {loc.queue.autoDj}
+          </Chip>
           {queue.items.length > 0 && (
-            <button
-              onClick={onClearQueue}
-              title={loc.queue.clear}
-              className="glass-card flex items-center gap-1 px-2.5 py-1.5 text-xs text-rose-400"
-            >
+            <Button variant="danger" size="sm" onClick={onClearQueue}>
               <Trash2 size={14} /> {loc.queue.clear}
-            </button>
+            </Button>
           )}
-          <button onClick={onClose} title={loc.common.close} className="bg-transparent p-1.5 text-fg-muted hover:text-fg">
+          <IconButton label={loc.common.close} onClick={onClose}>
             <X size={20} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
-      {/* Lista pozycji w kolejce */}
+      {/* Queue item list */}
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
         {queue.items.length === 0 ? (
-          <div className="px-5 py-15 text-center text-fg-muted">
-            <Music size={40} className="mb-3 opacity-30" />
-            <p className="text-sm">{loc.queue.empty}</p>
-            <p className="mt-1.5 text-ui opacity-70">{loc.queue.emptyHint}</p>
-          </div>
+          <EmptyState icon={<Music size={24} />} title={loc.queue.empty} description={loc.queue.emptyHint} className="py-15" />
         ) : (
           queue.items.map((item, idx) => {
             const isCurrent = idx === queue.current_index;
@@ -100,7 +87,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                 key={item.id}
                 onClick={() => onPlayQueueIndex(idx, item)}
                 aria-current={isCurrent ? 'true' : undefined}
-                className="group flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-white/5 px-3.5 py-3 transition-[border-color,background-color,box-shadow] duration-200 not-aria-[current=true]:hover:border-line-accent aria-[current=true]:border-accent-pink aria-[current=true]:bg-accent-pink/15 aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25"
+                className="group flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-white/5 px-3.5 py-3 not-aria-[current=true]:hover:border-line-accent aria-[current=true]:border-accent-pink aria-[current=true]:bg-accent-pink/15 aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25"
               >
                 <div className="w-6 text-center text-ui text-fg-muted group-aria-[current=true]:font-bold group-aria-[current=true]:text-accent-pink">
                   {isCurrent && status.state === 'Playing' ? <Zap size={16} /> : idx + 1}
@@ -116,29 +103,20 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                 <span className="font-mono text-xs text-fg-muted">{formatTime(item.duration_ms || 0)}</span>
 
                 <div className="flex items-center gap-1">
-                  <button
-                    disabled={idx === 0}
-                    onClick={(e) => onMoveQueueItem(idx, idx - 1, e)}
-                    title={loc.queue.moveUp}
-                    className="bg-transparent p-1 text-fg-muted hover:text-fg disabled:text-white/10"
-                  >
+                  <IconButton size="sm" label={loc.queue.moveUp} disabled={idx === 0} onClick={(e) => onMoveQueueItem(idx, idx - 1, e)}>
                     <ChevronUp size={16} />
-                  </button>
-                  <button
+                  </IconButton>
+                  <IconButton
+                    size="sm"
+                    label={loc.queue.moveDown}
                     disabled={idx === queue.items.length - 1}
                     onClick={(e) => onMoveQueueItem(idx, idx + 1, e)}
-                    title={loc.queue.moveDown}
-                    className="bg-transparent p-1 text-fg-muted hover:text-fg disabled:text-white/10"
                   >
                     <ChevronDown size={16} />
-                  </button>
-                  <button
-                    onClick={(e) => onRemoveFromQueue(item.id, e)}
-                    title={loc.queue.remove}
-                    className="bg-transparent p-1 text-fg-muted hover:text-accent-pink"
-                  >
+                  </IconButton>
+                  <IconButton size="sm" label={loc.queue.remove} onClick={(e) => onRemoveFromQueue(item.id, e)} className="hover:text-accent-red">
                     <Trash2 size={15} />
-                  </button>
+                  </IconButton>
                 </div>
               </div>
             );

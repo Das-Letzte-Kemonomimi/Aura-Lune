@@ -1,19 +1,19 @@
-/** Przetwarzanie pasm widma dla wizualizacji: składanie L+R, wzmocnienie, wygładzanie niezależne od FPS, szczyty. */
+/** Spectrum band processing for the visualisations: L+R folding, boost, FPS-independent smoothing, peaks. */
 import { fallPerSec, smoothTo, tauFromFrameLerp } from './smoothing';
 
-/** Liczba pasm z backendu (przy 32 wartościach: 16 L + 16 R). */
+/** Number of bands from the backend (with 32 values: 16 L + 16 R). */
 export const BAND_COUNT = 16;
 
-/** Wygładzanie słupków — dawne 0.45 na klatkę 60 Hz. */
+/** Bar smoothing: formerly 0.45 per 60 Hz frame. */
 export const BAND_SMOOTH_TAU = tauFromFrameLerp(0.45);
-/** Opadanie kapturków szczytu — dawne 0.016 na klatkę 60 Hz. */
+/** Peak cap decay: formerly 0.016 per 60 Hz frame. */
 export const PEAK_FALL_PER_SEC = fallPerSec(0.016);
-/** Poniżej tej wartości pasmo/szczyt uznajemy za wygaszone. */
+/** Below this value a band/peak counts as faded out. */
 const SETTLED_EPSILON = 0.001;
 
 /**
- * Składa pasma do `out` (bez alokacji) i zwraca ich liczbę:
- * 32+ wartości → 16 pasm (średnia L i R), 1..31 → bez zmian, brak danych → 16 zer.
+ * Folds the bands into `out` (without allocating) and returns their count:
+ * 32+ values → 16 bands (average of L and R), 1..31 → unchanged, no data → 16 zeros.
  */
 export function foldBands(spectrum: readonly number[] | undefined, out: number[]): number {
   if (spectrum && spectrum.length >= 32) {
@@ -28,7 +28,7 @@ export function foldBands(spectrum: readonly number[] | undefined, out: number[]
   return BAND_COUNT;
 }
 
-/** Nieliniowy boost, aby słupki żywo skakały na pełną wysokość. */
+/** Non-linear boost so the bars jump lively to full height. */
 export function boostBand(raw: number): number {
   const clamped = Math.min(1.0, Math.max(0.0, raw));
   return Math.min(1.0, Math.pow(clamped, 0.72) * 1.35);
@@ -40,8 +40,8 @@ export interface BandState {
 }
 
 /**
- * Aktualizuje wygładzone wartości i szczyty o `dt` sekund. Zwraca `true`, dopóki cokolwiek się zmienia
- * (można uśpić pętlę, gdy zwróci `false`).
+ * Updates the smoothed values and peaks by `dt` seconds. Returns `true` while anything changes
+ * (the loop can sleep when it returns `false`).
  */
 export function updateBands(state: BandState, bands: readonly number[], count: number, isPlaying: boolean, dt: number): boolean {
   while (state.peaks.length < count) state.peaks.push(0);
@@ -69,8 +69,8 @@ export function updateBands(state: BandState, bands: readonly number[], count: n
 }
 
 /**
- * Indeks pasma dla promienia `i` w trybie „circular”. Zachowuje dotychczasowy układ
- * (wartości 0..n/2, powtarzane) — pasma powyżej n/2 nie są w tym trybie pokazywane.
+ * Band index for ray `i` in "circular" mode. Keeps the existing layout
+ * (values 0..n/2, repeated): bands above n/2 are not shown in this mode.
  */
 export function circularBandIndex(i: number, bandCount: number): number {
   return Math.abs((i % bandCount) - Math.floor(bandCount / 2)) % bandCount;

@@ -1,9 +1,9 @@
-//! Dekodowanie utworów do próbek PCM `f32` na potrzeby analizy i separacji.
+//! Decodes tracks to `f32` PCM samples for analysis and separation.
 //!
-//! Wszystkie dekodery korzystają z jednej sesji [`DecodeSession`]
-//! (`uridecodebin → audioconvert → audioresample → appsink`). Próbki są pobierane z limitem
-//! czasu, a magistrala jest sprawdzana pod kątem błędów, więc uszkodzony plik lub brak kodeka
-//! kończy dekodowanie błędem zamiast blokować wątek analizy na zawsze.
+//! Every decoder uses one [`DecodeSession`]
+//! (`uridecodebin → audioconvert → audioresample → appsink`). Samples are pulled with a
+//! timeout and the bus is checked for errors, so a corrupt file or a missing codec
+//! ends decoding with an error instead of blocking the analysis thread forever.
 
 use crate::AnalysisError;
 use gst::prelude::*;
@@ -12,30 +12,30 @@ use gstreamer_app as gst_app;
 use gstreamer_audio as gst_audio;
 use std::time::{Duration, Instant};
 
-/// Częstotliwość próbkowania sygnału zwracanego przez [`decode_snippet_for_analysis`].
+/// Sample rate of the signal returned by [`decode_snippet_for_analysis`].
 pub const ANALYSIS_SAMPLE_RATE: u32 = 22_050;
 
-/// Częstotliwość próbkowania sygnału zwracanego przez [`decode_stereo_for_stems`].
+/// Sample rate of the signal returned by [`decode_stereo_for_stems`].
 pub const STEMS_SAMPLE_RATE: u32 = 44_100;
 
-/// Jak długo czekamy na pojedynczy bufor, zanim sprawdzimy magistralę i limit czasu.
+/// How long to wait for a single buffer before checking the bus and the timeout.
 const PULL_TIMEOUT: Duration = Duration::from_millis(100);
 
-/// Powód zakończenia [`DecodeSession::run`].
+/// Why [`DecodeSession::run`] ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum DecodeEnd {
-    /// Zdekodowano cały plik.
+    /// The whole file was decoded.
     Eos,
-    /// Wywołujący zażądał zatrzymania (zebrano dość próbek).
+    /// The caller asked to stop (enough samples collected).
     Stopped,
-    /// Przekroczono limit czasu dekodowania.
+    /// The decode timeout was exceeded.
     TimedOut,
-    /// Dekoder zgłosił błąd (uszkodzony plik, brak kodeka, brak pliku).
+    /// The decoder reported an error (corrupt file, missing codec, missing file).
     Failed(String),
 }
 
-/// Potok dekodujący plik do przeplatanych próbek `f32` o zadanej częstotliwości i liczbie kanałów.
-/// Przy zniszczeniu potok jest zawsze przełączany w stan `Null`.
+/// Pipeline decoding a file to interleaved `f32` samples at a given sample rate and channel count.
+/// On drop the pipeline is always set to `Null`.
 pub(super) struct DecodeSession {
     pipeline: gst::Pipeline,
     appsink: gst_app::AppSink,
@@ -48,14 +48,14 @@ impl DecodeSession {
         let make = |name: &str| {
             gst::ElementFactory::make(name)
                 .build()
-                .map_err(|e| format!("Brak elementu GStreamer {name}: {e}"))
+                .map_err(|e| format!("Missing GStreamer element {name}: {e}"))
         };
 
         let pipeline = gst::Pipeline::new();
         let uridecodebin = gst::ElementFactory::make("uridecodebin")
             .property("uri", &uri)
             .build()
-            .map_err(|e| format!("Brak uridecodebin: {e}"))?;
+            .map_err(|e| format!("Missing uridecodebin: {e}"))?;
         let audioconvert = make("audioconvert")?;
         let audioresample = make("audioresample")?;
         let caps = gst_audio::AudioCapsBuilder::new()
@@ -66,7 +66,7 @@ impl DecodeSession {
         let capsfilter = gst::ElementFactory::make("capsfilter")
             .property("caps", &caps)
             .build()
-            .map_err(|e| format!("Brak capsfilter: {e}"))?;
+            .map_err(|e| format!("Missing capsfilter: {e}"))?;
         let appsink = gst_app::AppSink::builder()
             .caps(&caps)
             .property("sync", false)
@@ -82,18 +82,18 @@ impl DecodeSession {
                 &capsfilter,
                 appsink.upcast_ref(),
             ])
-            .map_err(|e| format!("Błąd dodawania do potoku: {e}"))?;
+            .map_err(|e| format!("Failed to add elements to the pipeline: {e}"))?;
         gst::Element::link_many([
             &audioconvert,
             &audioresample,
             &capsfilter,
             appsink.upcast_ref(),
         ])
-        .map_err(|e| format!("Błąd linkowania elementów: {e}"))?;
+        .map_err(|e| format!("Failed to link elements: {e}"))?;
 
         let convert_sink_pad = audioconvert
             .static_pad("sink")
-            .ok_or_else(|| "Brak sink pad w audioconvert".to_string())?;
+            .ok_or_else(|| "audioconvert has no sink pad".to_string())?;
         uridecodebin.connect_pad_added(move |_bin, src_pad| {
             if convert_sink_pad.is_linked() {
                 return;
@@ -112,12 +112,12 @@ impl DecodeSession {
         session
             .pipeline
             .set_state(gst::State::Playing)
-            .map_err(|e| format!("Błąd uruchomienia dekodera: {e}"))?;
+            .map_err(|e| format!("Failed to start the decoder: {e}"))?;
         Ok(session)
     }
 
-    /// Przekazuje kolejne bufory (przeplatane próbki `f32`) do `on_chunk`, dopóki ten zwraca
-    /// `true`, a dekoder nie skończy pliku, nie zgłosi błędu ani nie minie `max_wait`.
+    /// Passes successive buffers (interleaved `f32` samples) to `on_chunk` while it returns
+    /// `true` and the decoder has not finished the file, reported an error or exceeded `max_wait`.
     pub(super) fn run(
         &self,
         max_wait: Duration,
@@ -152,7 +152,7 @@ impl DecodeSession {
             let Ok(map) = buffer.map_readable() else {
                 continue;
             };
-            // Rzutowanie sprawdzane pod kątem wyrównania; niewyrównany bufor jest kopiowany.
+            // Alignment-checked cast; an unaligned buffer is copied.
             let samples = match crate::rt::f32_samples(map.as_slice()) {
                 Some(s) => s,
                 None => {
@@ -174,7 +174,7 @@ impl Drop for DecodeSession {
     }
 }
 
-/// Zamienia błąd dekodera na `AnalysisError`, gdy nie zebrano żadnych próbek.
+/// Turns a decoder error into an `AnalysisError` when no samples were collected.
 pub(super) fn finish<T>(
     collected_any: bool,
     end: DecodeEnd,
@@ -183,20 +183,20 @@ pub(super) fn finish<T>(
 ) -> Result<T, AnalysisError> {
     if collected_any {
         if let DecodeEnd::Failed(e) = &end {
-            tracing::warn!("Dekodowanie ({what}) przerwane błędem po części pliku: {e}");
+            tracing::warn!("Decoding ({what}) stopped by an error part-way through the file: {e}");
         }
         return Ok(value);
     }
     Err(match end {
-        DecodeEnd::Failed(e) => format!("Nie udało się zdekodować ({what}): {e}").into(),
-        DecodeEnd::TimedOut => format!("Przekroczono czas dekodowania ({what})").into(),
-        _ => format!("Brak próbek audio ({what})").into(),
+        DecodeEnd::Failed(e) => format!("Failed to decode ({what}): {e}").into(),
+        DecodeEnd::TimedOut => format!("Timed out decoding ({what})").into(),
+        _ => format!("No audio samples ({what})").into(),
     })
 }
 
-/// Dekoduje reprezentatywny fragment utworu do pamięci (mono, 22050 Hz F32LE).
-/// Limit czasu dekodowania rośnie z długością fragmentu: `max(6 s, max_duration_sec / 10)`.
-/// Po przekroczeniu limitu zwracany jest częściowy wynik (z ostrzeżeniem w logu).
+/// Decodes a representative part of a track into memory (mono, 22050 Hz F32LE).
+/// The decode timeout grows with the snippet length: `max(6 s, max_duration_sec / 10)`.
+/// When the timeout is exceeded a partial result is returned (with a warning in the log).
 pub fn decode_snippet_for_analysis(
     uri_or_path: &str,
     max_duration_sec: f64,
@@ -208,8 +208,8 @@ pub fn decode_snippet_for_analysis(
     )
 }
 
-/// Jak [`decode_snippet_for_analysis`], ale przekroczenie limitu czasu po zebraniu części próbek
-/// jest błędem – dla wyników zapisywanych w pamięci podręcznej, które nie mogą być obcięte.
+/// Like [`decode_snippet_for_analysis`], but exceeding the timeout after collecting some samples
+/// is an error: for cached results, which must not be truncated.
 pub fn decode_complete_for_analysis(
     uri_or_path: &str,
     max_duration_sec: f64,
@@ -224,7 +224,7 @@ pub fn decode_complete_for_analysis(
         collected.len() < target
     });
     if end == DecodeEnd::TimedOut && !collected.is_empty() {
-        return Err("Przekroczono czas dekodowania utworu do analizy".into());
+        return Err("Timed out decoding the track for analysis".into());
     }
     let any = !collected.is_empty();
     finish(any, end, collected, "mono")
@@ -234,8 +234,8 @@ fn analysis_timeout(max_duration_sec: f64) -> Duration {
     Duration::from_secs_f64((max_duration_sec / 10.0).max(6.0))
 }
 
-/// Dekoduje do `max_duration_sec` sekund utworu (mono, [`ANALYSIS_SAMPLE_RATE`] Hz, F32LE),
-/// dekodując najwyżej `max_wait`.
+/// Decodes up to `max_duration_sec` seconds of a track (mono, [`ANALYSIS_SAMPLE_RATE`] Hz, F32LE),
+/// spending at most `max_wait` on decoding.
 pub(super) fn decode_mono_22k(
     uri_or_path: &str,
     max_duration_sec: f64,
@@ -252,7 +252,7 @@ pub(super) fn decode_mono_22k(
     });
     if end == DecodeEnd::TimedOut && !collected.is_empty() {
         tracing::warn!(
-            "Dekodowanie do analizy przerwane limitem czasu — użyto {} s audio",
+            "Decoding for analysis stopped by the timeout; used {} s of audio",
             collected.len() / ANALYSIS_SAMPLE_RATE as usize
         );
     }
@@ -260,8 +260,8 @@ pub(super) fn decode_mono_22k(
     finish(any, end, collected, "mono")
 }
 
-/// Dekoduje utwór do pełnego pasma stereo ([`STEMS_SAMPLE_RATE`] Hz, F32LE, kanały L i R)
-/// na potrzeby separacji stemów (HPSS / AI Neural).
+/// Decodes a track to full-band stereo ([`STEMS_SAMPLE_RATE`] Hz, F32LE, L and R channels)
+/// for stem separation (HPSS / AI Neural).
 pub fn decode_stereo_for_stems(
     uri_or_path: &str,
     max_duration_sec: f64,
@@ -271,8 +271,8 @@ pub fn decode_stereo_for_stems(
     let capacity = target.min(STEMS_SAMPLE_RATE as usize * 600);
     let mut left: Vec<f32> = Vec::with_capacity(capacity);
     let mut right: Vec<f32> = Vec::with_capacity(capacity);
-    // Stemy są zapisywane w cache na stałe — przerwane dekodowanie (limit czasu, błąd w połowie
-    // pliku) jest błędem, a nie krótszym wynikiem. Limit czasu rośnie z długością fragmentu.
+    // Stems are cached permanently, so interrupted decoding (timeout, error half-way through the
+    // file) is an error, not a shorter result. The timeout grows with the snippet length.
     let max_wait = Duration::from_secs_f64((max_duration_sec / 3.0).max(30.0));
     let end = session.run(max_wait, |chunk| {
         for frame in chunk.as_chunks::<2>().0 {
@@ -286,13 +286,13 @@ pub fn decode_stereo_for_stems(
     });
     match end {
         DecodeEnd::TimedOut if !left.is_empty() => {
-            return Err("Przekroczono czas dekodowania utworu do separacji stemów".into());
+            return Err("Timed out decoding the track for stem separation".into());
         }
         DecodeEnd::Failed(e) if !left.is_empty() => {
-            return Err(format!("Dekodowanie do separacji stemów przerwane błędem: {e}").into());
+            return Err(format!("Decoding for stem separation stopped by an error: {e}").into());
         }
         DecodeEnd::Stopped => tracing::warn!(
-            "Utwór dłuższy niż {max_duration_sec} s — stemy obejmują tylko początek utworu"
+            "Track longer than {max_duration_sec} s; the stems cover only its beginning"
         ),
         _ => {}
     }

@@ -1,4 +1,4 @@
-/** Kontrakty komend aktualizacji (`commands/updates.rs`, `updater/mod.rs`). */
+/** Update command contracts (`commands/updates.rs`, `updater/mod.rs`). */
 
 export type InstallKind = 'app_image_managed' | 'app_image_other' | 'system' | 'dev_server';
 
@@ -25,7 +25,7 @@ export interface UpdateInfo {
   channel: UpdateChannel;
   current_version: string;
   current_commit: string;
-  /** Wersja (stable) albo `dev-<krótki commit>` (dev); klucz ustawienia „pomiń”. */
+  /** Version (stable) or `dev-<short commit>` (dev); the "skip" setting key. */
   latest_version: string | null;
   latest_commit: string | null;
   release_url: string | null;

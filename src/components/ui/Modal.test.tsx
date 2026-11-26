@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { ModalShell } from './Modal';
+import { ModalBody, ModalFooter, ModalHeader, ModalShell } from './Modal';
 
 function renderModal(onClose = vi.fn(), closeOnBackdrop?: boolean) {
   render(
@@ -21,6 +21,15 @@ describe('ModalShell', () => {
   it('exposes a labelled modal dialog', () => {
     renderModal();
     expect(screen.getByRole('dialog', { name: 'Sleep Timer' }).getAttribute('aria-modal')).toBe('true');
+  });
+
+  it('names a dialog without a visible title through label', () => {
+    render(
+      <ModalShell onClose={vi.fn()} label="Command palette">
+        <input aria-label="Search" />
+      </ModalShell>,
+    );
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeTruthy();
   });
 
   it('closes on Escape', () => {
@@ -60,5 +69,82 @@ describe('ModalShell', () => {
     unmount();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes only the topmost of two open dialogs on Escape', () => {
+    const closeOuter = vi.fn();
+    const closeInner = vi.fn();
+    const { rerender } = render(
+      <ModalShell onClose={closeOuter}>
+        <p>Outer</p>
+      </ModalShell>,
+    );
+    rerender(
+      <>
+        <ModalShell onClose={closeOuter}>
+          <p>Outer</p>
+        </ModalShell>
+        <ModalShell onClose={closeInner} layer="nested">
+          <p>Inner</p>
+        </ModalShell>
+      </>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeInner).toHaveBeenCalledTimes(1);
+    expect(closeOuter).not.toHaveBeenCalled();
+
+    rerender(
+      <ModalShell onClose={closeOuter}>
+        <p>Outer</p>
+      </ModalShell>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeOuter).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls the latest onClose without re-subscribing', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(
+      <ModalShell onClose={first}>
+        <p>Body</p>
+      </ModalShell>,
+    );
+    rerender(
+      <ModalShell onClose={second}>
+        <p>Body</p>
+      </ModalShell>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+});
+
+describe('ModalHeader, ModalBody and ModalFooter', () => {
+  afterEach(cleanup);
+
+  it('names the dialog through the header title and closes from its button', () => {
+    const onClose = vi.fn();
+    render(
+      <ModalShell onClose={onClose} labelledBy="hdr" size="full">
+        <ModalHeader titleId="hdr" title="Tag Editor" subtitle="3 tracks" onClose={onClose} closeLabel="Close" />
+        <ModalBody>body</ModalBody>
+        <ModalFooter>
+          <button type="button">Save</button>
+        </ModalFooter>
+      </ModalShell>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Tag Editor' });
+    expect(dialog.className).toContain('max-w-[96vw]');
+    expect(screen.getByText('3 tracks')).toBeTruthy();
+    expect(screen.getByText('body').className).toContain('overflow-y-auto');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no close button without onClose', () => {
+    render(<ModalHeader title="Info" />);
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

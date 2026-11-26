@@ -32,14 +32,14 @@ describe('usePlaybackClock', () => {
 
     setNow(1_100);
     rerender({ positionMs: 10_100, playing: true, speed: 1 });
-    // mała rozbieżność jest wygładzana (nie skacze), ale zbliża się do nowej kotwicy
+    // a small drift is smoothed (no jump), but approaches the new anchor
     const eased = result.current(0.1);
     expect(eased).toBeGreaterThan(10_000);
     expect(eased).toBeLessThanOrEqual(10_100);
 
     setNow(1_150);
     rerender({ positionMs: 60_000, playing: true, speed: 1 });
-    expect(result.current(0.05)).toBe(60_000); // seek: duży skok → bez wygładzania
+    expect(result.current(0.05)).toBe(60_000); // seek: a large jump → no smoothing
   });
 
   it('holds still while paused and applies the playback speed', () => {

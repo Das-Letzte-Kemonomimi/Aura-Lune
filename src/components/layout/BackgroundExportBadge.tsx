@@ -1,7 +1,8 @@
 import type { AppTab } from '../../types/navigation';
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '../ui/icons';
 import { cn } from '../../utils/cn';
+import { Button } from '../ui';
 import type { Translations } from '../../i18n';
 
 interface BackgroundExportBadgeProps {
@@ -38,7 +39,7 @@ export const BackgroundExportBadge: React.FC<BackgroundExportBadgeProps> = ({
       )}
     >
       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-gradient shadow-halo shadow-accent-pink/50">
-        <Loader2 size={18} className="animate-spin text-on-accent" />
+        <Loader2 size={18} className="text-on-accent motion-safe:animate-spin" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex items-center justify-between">
@@ -58,13 +59,9 @@ export const BackgroundExportBadge: React.FC<BackgroundExportBadgeProps> = ({
         </div>
         <div className="truncate text-xxs text-fg-secondary">{outputFileName}</div>
       </div>
-      <button
-        onClick={onOpenTranscodeSettings}
-        className="shrink-0 rounded-lg border border-line bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-fg"
-        title={loc.notifications.exportDetailsTooltip}
-      >
+      <Button size="sm" onClick={onOpenTranscodeSettings} title={loc.notifications.exportDetailsTooltip} className="shrink-0">
         {loc.notifications.exportDetails}
-      </button>
+      </Button>
     </div>
   );
 };

@@ -97,3 +97,9 @@
 @utility bg-modal {
   background-image: linear-gradient(145deg, rgba(28, 22, 45, 0.98), rgba(15, 12, 28, 0.98));
 }
+
+/* An icon inside running text: sits on the text baseline like a glyph. */
+@utility icon-inline {
+  display: inline-block;
+  vertical-align: -0.125em;
+}

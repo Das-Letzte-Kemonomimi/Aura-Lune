@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "main", "dev", "develop" ]
   workflow_dispatch:
-  # Wywoływany przez release-publish.yml: pełna bramka jakości na dokładnie tym SHA, który jest wydawany.
+  # Called by release-publish.yml: the full quality gate on exactly the SHA being released.
   workflow_call:
 
 concurrency:
@@ -104,7 +104,7 @@ jobs:
             pulseaudio-utils \
             libasound2-plugins
           sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
-          # Cache potrzebuje tylko odczytu pobranych pakietów.
+          # The cache only needs read access to the downloaded packages.
           sudo chmod -R a+rX /var/cache/apt/archives
 
       - name: Install frontend dependencies & build bundle
@@ -128,7 +128,7 @@ jobs:
           GST_DEBUG: 2
         run: cargo test --workspace -- --test-threads=1
 
-      # desktop_smoke_test jest częścią `cargo test --workspace` powyżej (bez drugiego uruchomienia).
+      # desktop_smoke_test is part of `cargo test --workspace` above (no second run).
 
       - name: Dependency audit (cargo-deny, report only)
         uses: EmbarkStudios/cargo-deny-action@v2
@@ -154,7 +154,7 @@ jobs:
 
       - name: Build Tauri AppImage bundle
         env:
-          # Wbudowuje kanał i commit (src-tauri/build.rs); GITHUB_SHA ustawia GitHub.
+          # Embeds the channel and commit (src-tauri/build.rs); GitHub sets GITHUB_SHA.
           AURALUNE_BUILD_CHANNEL: dev
         run: |
           npm run tauri build -- --bundles appimage
@@ -170,8 +170,8 @@ jobs:
           fi
           echo "Found generated AppImage: $APPIMAGE_PATH"
 
-          # Pliki wydania: AppImage pod nazwą z Tauri oraz pod stałą nazwą (fallback install.sh),
-          # a obok SHA256SUMS — aktualizator w aplikacji odmawia instalacji bez sumy kontrolnej.
+          # Release files: the AppImage under its Tauri name and under a fixed name (install.sh fallback),
+          # plus SHA256SUMS: the in-app updater refuses to install without a checksum.
           RELEASE_DIR="$(mktemp -d)"
           cp "$APPIMAGE_PATH" "$RELEASE_DIR/$(basename "$APPIMAGE_PATH")"
           cp "$APPIMAGE_PATH" "$RELEASE_DIR/Auralune-dev-x86_64.AppImage"

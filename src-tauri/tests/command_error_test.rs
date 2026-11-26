@@ -1,5 +1,5 @@
-//! Kontrakt błędów komend: kształt JSON widziany przez frontend (`src/api/ipc.ts`)
-//! oraz mapowanie błędów crate'ów na kategorie `ErrorCode`.
+//! Command error contract: the JSON shape the frontend sees (`src/api/ipc.ts`)
+//! and the mapping of crate errors to `ErrorCode` categories.
 
 use auralune_desktop::commands::error::{CommandError, ErrorCode};
 
@@ -9,16 +9,16 @@ fn code_of(e: impl Into<CommandError>) -> ErrorCode {
 
 #[test]
 fn test_serializes_to_code_and_message_for_frontend() {
-    let json = serde_json::to_value(CommandError::not_found("Brak utworu")).unwrap();
+    let json = serde_json::to_value(CommandError::not_found("No track")).unwrap();
     assert_eq!(
         json,
-        serde_json::json!({ "code": "not_found", "message": "Brak utworu" })
+        serde_json::json!({ "code": "not_found", "message": "No track" })
     );
 }
 
 #[test]
 fn test_every_code_uses_snake_case_known_to_frontend() {
-    // Musi odpowiadać unii `IpcErrorCode` w src/api/ipc.ts.
+    // Must match the `IpcErrorCode` union in src/api/ipc.ts.
     let expected = [
         (ErrorCode::Storage, "storage"),
         (ErrorCode::Engine, "engine"),
@@ -36,19 +36,19 @@ fn test_every_code_uses_snake_case_known_to_frontend() {
         assert_eq!(serde_json::to_value(code).unwrap(), name);
         assert!(
             ipc_ts.contains(&format!("'{name}'")),
-            "IpcErrorCode w src/api/ipc.ts nie zawiera '{name}'"
+            "IpcErrorCode in src/api/ipc.ts does not contain '{name}'"
         );
     }
 }
 
 #[test]
 fn test_display_is_the_plain_message() {
-    let e = CommandError::validation("Pusta nazwa").context("Zmiana nazwy");
-    assert_eq!(e.to_string(), "Zmiana nazwy: Pusta nazwa");
+    let e = CommandError::validation("Empty name").context("Rename");
+    assert_eq!(e.to_string(), "Rename: Empty name");
     assert_eq!(
         e.code,
         ErrorCode::Validation,
-        "context() zachowuje kategorię"
+        "context() keeps the category"
     );
 }
 
@@ -84,17 +84,17 @@ fn test_crate_errors_map_to_meaningful_codes() {
         ErrorCode::NotFound
     );
     assert_eq!(
-        code_of(domain::DomainError::Parse("zły CUE".into())),
+        code_of(domain::DomainError::Parse("bad CUE".into())),
         ErrorCode::Validation
     );
     assert_eq!(
         code_of(storage::StorageError::Domain(
-            domain::DomainError::Validation("pusta nazwa".into())
+            domain::DomainError::Validation("empty name".into())
         )),
         ErrorCode::Validation
     );
     assert_eq!(
-        code_of(metadata::ScrobbleError::Validation("pusty token".into())),
+        code_of(metadata::ScrobbleError::Validation("empty token".into())),
         ErrorCode::Validation
     );
     assert_eq!(
@@ -105,13 +105,13 @@ fn test_crate_errors_map_to_meaningful_codes() {
         code_of(downloads::DownloadError::PathTraversal("../x".into())),
         ErrorCode::Validation
     );
-    assert_eq!(code_of("cokolwiek"), ErrorCode::Internal);
+    assert_eq!(code_of("anything"), ErrorCode::Internal);
 }
 
 #[test]
 fn test_domain_parse_errors_surface_through_commands() {
     let err = auralune_desktop::commands::playlists::parse_cue_sheet_content("".into())
-        .expect_err("pusty CUE nie jest poprawny");
+        .expect_err("an empty CUE is not valid");
     assert_eq!(err.code, ErrorCode::Validation);
     assert!(!err.message.is_empty());
 }

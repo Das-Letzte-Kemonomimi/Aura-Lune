@@ -31,7 +31,7 @@ fn test_soundtouch_pitch_shift_and_tempo_stretch() {
 
     assert_eq!(processor.name(), "SoundTouch");
 
-    // 1. Test zmiany pitch (+6 półtonów)
+    // 1. Pitch change test (+6 semitones)
     let params = DspParams::new(DspEngine::SoundTouch, 6.0, 1.0, 1.0).unwrap();
     processor.set_params(params).unwrap();
 
@@ -43,15 +43,12 @@ fn test_soundtouch_pitch_shift_and_tempo_stretch() {
     }
 
     let _ = processor.drain(&mut output).unwrap();
-    assert!(
-        !output.is_empty(),
-        "SoundTouch musi wyprodukować próbki wyjściowe"
-    );
+    assert!(!output.is_empty(), "SoundTouch must produce output samples");
 
     // 2. Test reset()
     processor.reset().expect("reset failed");
 
-    // 3. Test zmiany tempa (0.75x wolniej - tempo_ratio = 0.75)
+    // 3. Tempo change test (0.75x slower, tempo_ratio = 0.75)
     let params_tempo = DspParams::new(DspEngine::SoundTouch, 0.0, 0.75, 1.0).unwrap();
     processor.set_params(params_tempo).unwrap();
 

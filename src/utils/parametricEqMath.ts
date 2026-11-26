@@ -39,7 +39,7 @@ export interface ParametricEqPresetDto {
 }
 
 /**
- * Kolory akcentów dla kolejnych pasm parametrycznych w interfejsie.
+ * Accent colours for the successive parametric bands in the UI.
  */
 export const PEQ_BAND_COLORS = [
   '#f43f5e', // Rose
@@ -55,9 +55,9 @@ export const PEQ_BAND_COLORS = [
 ];
 
 /**
- * Oblicza odpowiedź częstotliwościową (gain w dB) pojedynczego filtru biquad
- * dla zadanej częstotliwości f (Hz) przy próbkowaniu fs = 48000 Hz
- * na podstawie standardowych wzorów Audio EQ Cookbook Roberta Bristowa-Johnsona.
+ * Computes the frequency response (gain in dB) of a single biquad filter
+ * at frequency f (Hz) with sampling rate fs = 48000 Hz,
+ * using the standard formulas of Robert Bristow-Johnson's Audio EQ Cookbook.
  */
 export function calculateBiquadResponseDb(
   f: number,
@@ -116,14 +116,14 @@ export function calculateBiquadResponseDb(
     }
   }
 
-  // Normalizacja współczynników przez a0
+  // Normalise the coefficients by a0
   const nb0 = b0 / a0;
   const nb1 = b1 / a0;
   const nb2 = b2 / a0;
   const na1 = a1 / a0;
   const na2 = a2 / a0;
 
-  // Obliczenie modułu transmitancji H(e^(j*w)) na częstotliwości f
+  // Compute the magnitude of the transfer function H(e^(j*w)) at frequency f
   const w = (2 * Math.PI * f) / fs;
   const cosW = Math.cos(w);
   const sinW = Math.sin(w);
@@ -147,7 +147,7 @@ export function calculateBiquadResponseDb(
 }
 
 /**
- * Generuje serię punktów [x, y] dla wykresu krzywej częstotliwości (logarytmiczna skala X od 20 Hz do 20 kHz).
+ * Generates a series of [x, y] points for the frequency curve chart (logarithmic X scale from 20 Hz to 20 kHz).
  */
 export function generateFrequencyResponseCurve(
   bands: ParametricBandDto[],
@@ -184,7 +184,7 @@ export function generateFrequencyResponseCurve(
 }
 
 /**
- * Konwertuje częstotliwość (Hz) na znormalizowaną pozycję X (0..1) w skali logarytmicznej 20 Hz - 20 kHz.
+ * Converts a frequency (Hz) to a normalised X position (0..1) on the logarithmic 20 Hz - 20 kHz scale.
  */
 export function freqToNormX(freq: number): number {
   const minLog = Math.log10(20);
@@ -194,7 +194,7 @@ export function freqToNormX(freq: number): number {
 }
 
 /**
- * Konwertuje znormalizowaną pozycję X (0..1) na częstotliwość w Hz.
+ * Converts a normalised X position (0..1) to a frequency in Hz.
  */
 export function normXToFreq(normX: number): number {
   const minLog = Math.log10(20);
@@ -204,7 +204,7 @@ export function normXToFreq(normX: number): number {
 }
 
 /**
- * Konwertuje wzmocnienie (dB w zakresie -24..+12) na znormalizowaną pozycję Y (0..1, gdzie 0 to góra +12dB, 1 to dół -24dB).
+ * Converts a gain (dB in the -24..+12 range) to a normalised Y position (0..1, where 0 is the top +12dB and 1 the bottom -24dB).
  */
 export function gainToNormY(gainDb: number, minDb: number = -24, maxDb: number = 12): number {
   const clamped = Math.max(minDb, Math.min(maxDb, gainDb));
@@ -212,7 +212,7 @@ export function gainToNormY(gainDb: number, minDb: number = -24, maxDb: number =
 }
 
 /**
- * Konwertuje pozycję Y (0..1) na wzmocnienie dB w zakresie -24..+12.
+ * Converts a Y position (0..1) to a dB gain in the -24..+12 range.
  */
 export function normYToGain(normY: number, minDb: number = -24, maxDb: number = 12): number {
   const clamped = Math.max(0, Math.min(1, normY));

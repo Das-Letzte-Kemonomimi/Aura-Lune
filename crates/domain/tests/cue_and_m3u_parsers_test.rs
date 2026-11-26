@@ -152,7 +152,7 @@ FILE "FictionJunction.flac" WAVE
     INDEX 01 06:15:37
 "#;
 
-    let sheet = CueSheet::parse(sample_cue).expect("Parsowanie CUE powinno się udać");
+    let sheet = CueSheet::parse(sample_cue).expect("Parsing the CUE should succeed");
     assert_eq!(sheet.file_path, "FictionJunction.flac");
     assert_eq!(sheet.album_title.as_deref(), Some("FictionJunction OST"));
     assert_eq!(sheet.tracks.len(), 3);

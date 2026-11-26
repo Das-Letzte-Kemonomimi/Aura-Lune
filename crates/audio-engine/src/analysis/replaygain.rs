@@ -1,4 +1,4 @@
-//! Analiza głośności ReplayGain 2.0 (`rganalysis`) i zapis tagów.
+//! ReplayGain 2.0 loudness analysis (`rganalysis`) and tag writing.
 
 use crate::AnalysisError;
 use gst::prelude::*;
@@ -7,23 +7,23 @@ use gstreamer_audio as gst_audio;
 use lofty::file::TaggedFileExt;
 use serde::{Deserialize, Serialize};
 
-/// Wynik analizy głośności EBU R128 / ReplayGain 2.0 dla utworu.
+/// EBU R128 / ReplayGain 2.0 loudness analysis result for a track.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReplayGainAnalysisResult {
-    /// Wzmocnienie utworu w dB (Track Gain, np. -5.2 dB).
+    /// Track gain in dB (Track Gain, e.g. -5.2 dB).
     pub track_gain_db: f64,
-    /// Szczytowa amplituda utworu (Track Peak, 1.0 = 0 dBFS).
+    /// Track peak amplitude (Track Peak, 1.0 = 0 dBFS).
     pub track_peak: f64,
-    /// Poziom referencyjny w dB SPL (domyślnie 89.0 dB SPL).
+    /// Reference level in dB SPL (default 89.0 dB SPL).
     pub reference_level_db: f64,
-    /// Wzmocnienie albumu w dB jeśli było kalkulowane.
+    /// Album gain in dB, if it was computed.
     pub album_gain_db: Option<f64>,
-    /// Szczytowa amplituda albumu jeśli była kalkulowana.
+    /// Album peak amplitude, if it was computed.
     pub album_peak: Option<f64>,
 }
 
-/// Przeprowadza pełną, bitowo dokładną analizę głośności EBU R128 / ReplayGain 2.0
-/// utworu za pomocą potoku GStreamer `rganalysis` i `fakesink` (ultra-szybka analiza bez czasu rzeczywistego).
+/// Runs a full, bit-exact EBU R128 / ReplayGain 2.0 loudness analysis of a track
+/// through a GStreamer `rganalysis` + `fakesink` pipeline (faster than real time).
 pub fn analyze_track_replaygain(
     uri_or_path: &str,
 ) -> Result<ReplayGainAnalysisResult, AnalysisError> {
@@ -35,15 +35,15 @@ pub fn analyze_track_replaygain(
     let uridecodebin = gst::ElementFactory::make("uridecodebin")
         .property("uri", &uri)
         .build()
-        .map_err(|e| format!("Brak uridecodebin: {}", e))?;
+        .map_err(|e| format!("Missing uridecodebin: {}", e))?;
 
     let audioconvert = gst::ElementFactory::make("audioconvert")
         .build()
-        .map_err(|e| format!("Brak audioconvert: {}", e))?;
+        .map_err(|e| format!("Missing audioconvert: {}", e))?;
 
     let audioresample = gst::ElementFactory::make("audioresample")
         .build()
-        .map_err(|e| format!("Brak audioresample: {}", e))?;
+        .map_err(|e| format!("Missing audioresample: {}", e))?;
 
     let caps = gst_audio::AudioCapsBuilder::new()
         .format(gst_audio::AudioFormat::F32le)
@@ -54,18 +54,18 @@ pub fn analyze_track_replaygain(
     let capsfilter = gst::ElementFactory::make("capsfilter")
         .property("caps", &caps)
         .build()
-        .map_err(|e| format!("Brak capsfilter: {}", e))?;
+        .map_err(|e| format!("Missing capsfilter: {}", e))?;
 
     let rganalysis = gst::ElementFactory::make("rganalysis")
         .property("forced", true)
         .property("reference-level", 89.0f64)
         .build()
-        .map_err(|e| format!("Brak rganalysis: {}", e))?;
+        .map_err(|e| format!("Missing rganalysis: {}", e))?;
 
     let fakesink = gst::ElementFactory::make("fakesink")
         .property("sync", false)
         .build()
-        .map_err(|e| format!("Brak fakesink: {}", e))?;
+        .map_err(|e| format!("Missing fakesink: {}", e))?;
 
     pipeline
         .add_many([
@@ -76,7 +76,7 @@ pub fn analyze_track_replaygain(
             &rganalysis,
             &fakesink,
         ])
-        .map_err(|e| format!("Błąd dodawania elementów: {}", e))?;
+        .map_err(|e| format!("Failed to add elements: {}", e))?;
 
     gst::Element::link_many([
         &audioconvert,
@@ -85,11 +85,11 @@ pub fn analyze_track_replaygain(
         &rganalysis,
         &fakesink,
     ])
-    .map_err(|e| format!("Błąd linkowania: {}", e))?;
+    .map_err(|e| format!("Failed to link elements: {}", e))?;
 
     let convert_sink_pad = audioconvert
         .static_pad("sink")
-        .ok_or_else(|| "Brak sink pad w audioconvert".to_string())?;
+        .ok_or_else(|| "audioconvert has no sink pad".to_string())?;
 
     uridecodebin.connect_pad_added(move |_bin, src_pad| {
         if convert_sink_pad.is_linked() {
@@ -109,9 +109,9 @@ pub fn analyze_track_replaygain(
 
     pipeline
         .set_state(gst::State::Playing)
-        .map_err(|e| format!("Błąd uruchomienia pipeline: {:?}", e))?;
+        .map_err(|e| format!("Failed to start the pipeline: {:?}", e))?;
 
-    let bus = pipeline.bus().ok_or("Brak busa w potoku")?;
+    let bus = pipeline.bus().ok_or("The pipeline has no bus")?;
     let mut track_gain = None;
     let mut track_peak = None;
     let mut ref_level = 89.0;
@@ -122,7 +122,7 @@ pub fn analyze_track_replaygain(
     loop {
         if start_time.elapsed() > std::time::Duration::from_secs(60) {
             let _ = pipeline.set_state(gst::State::Null);
-            return Err("Przekroczono limit czasu analizy ReplayGain (60s)".into());
+            return Err("ReplayGain analysis timed out (60s)".into());
         }
 
         if let Some(msg) = bus.timed_pop(gst::ClockTime::from_mseconds(100)) {
@@ -150,7 +150,7 @@ pub fn analyze_track_replaygain(
                 }
                 gst::MessageView::Error(err) => {
                     let _ = pipeline.set_state(gst::State::Null);
-                    return Err(format!("Błąd analizy potoku audio: {}", err.error()).into());
+                    return Err(format!("Audio pipeline analysis error: {}", err.error()).into());
                 }
                 _ => {}
             }
@@ -171,7 +171,7 @@ pub fn analyze_track_replaygain(
     })
 }
 
-/// Zapisuje obliczone tagi ReplayGain (Track Gain i Track Peak) bezpośrednio do pliku audio.
+/// Writes the computed ReplayGain tags (track gain and track peak) straight into the audio file.
 pub fn write_replaygain_tags_to_file(
     path: &str,
     gain: f64,
@@ -183,9 +183,9 @@ pub fn write_replaygain_tags_to_file(
     use lofty::tag::{ItemKey, ItemValue, TagItem};
 
     let mut tagged_file = Probe::open(path)
-        .map_err(|e| AnalysisError::Tags(format!("Błąd otwarcia pliku: {}", e)))?
+        .map_err(|e| AnalysisError::Tags(format!("Failed to open the file: {}", e)))?
         .read()
-        .map_err(|e| AnalysisError::Tags(format!("Błąd odczytu tagów: {}", e)))?;
+        .map_err(|e| AnalysisError::Tags(format!("Failed to read tags: {}", e)))?;
 
     let tag = match tagged_file.primary_tag_mut() {
         Some(primary) => primary,
@@ -194,7 +194,7 @@ pub fn write_replaygain_tags_to_file(
                 first
             } else {
                 return Err(AnalysisError::Tags(
-                    "Brak obsługiwanego kontenera tagów w pliku audio".into(),
+                    "The audio file has no supported tag container".into(),
                 ));
             }
         }
@@ -211,6 +211,6 @@ pub fn write_replaygain_tags_to_file(
 
     tagged_file
         .save_to_path(path, WriteOptions::default())
-        .map_err(|e| AnalysisError::Tags(format!("Błąd zapisu tagów do pliku {}: {}", path, e)))?;
+        .map_err(|e| AnalysisError::Tags(format!("Failed to write tags to {}: {}", path, e)))?;
     Ok(())
 }

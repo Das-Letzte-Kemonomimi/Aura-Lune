@@ -7,7 +7,7 @@ fn bytes_of(samples: &[f32]) -> Vec<u8> {
     samples.iter().flat_map(|s| s.to_ne_bytes()).collect()
 }
 
-/// Bajty przesunięte o 1 względem wyrównania 4 — wymusza ścieżkę kopiującą.
+/// Bytes offset by 1 from 4-byte alignment, which forces the copying path.
 fn misaligned(samples: &[f32]) -> (Vec<u8>, usize) {
     let mut buf = vec![0u8; samples.len() * 4 + 8];
     let base = buf.as_ptr() as usize;
@@ -32,7 +32,7 @@ fn test_misaligned_bytes_fall_back_to_copy() {
     assert_eq!(
         f32_samples(view),
         None,
-        "niewyrównany bufor nie może być rzutowany"
+        "an unaligned buffer must not be cast"
     );
 
     let mut out = Vec::new();

@@ -1,14 +1,14 @@
 /**
- * Prędkość odtwarzania względem czasu rzeczywistego.
+ * Playback speed relative to real time.
  *
- * `position_ms` z backendu jest czasem źródła. W trybie Bypass dźwięk płynie bit-perfect z prędkością 1.0×,
- * w pozostałych silnikach DSP czas źródła biegnie z prędkością `tempo * rate`.
+ * `position_ms` from the backend is source time. In Bypass mode the sound flows bit-perfect at 1.0× speed;
+ * in the other DSP engines the source time runs at `tempo * rate` speed.
  */
 export interface PlaybackSpeedInput {
   engine?: string;
   tempo?: number;
   rate?: number;
-  /** Jawna informacja, czy DSP moduluje strumień (nadpisuje wnioskowanie z `engine`). */
+  /** Explicit flag for whether DSP modulates the stream (overrides the inference from `engine`). */
   isDspActive?: boolean;
 }
 

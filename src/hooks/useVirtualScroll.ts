@@ -54,7 +54,7 @@ export function useVirtualScroll({
       offsetTop = Math.max(0, Math.round(tableRect.top - containerRect.top + scrollTop));
     }
 
-    // Liczba pikseli, o jaką przewinięto w głąb tabeli
+    // Number of pixels scrolled into the table
     const scrollInside = Math.max(0, scrollTop - offsetTop);
 
     const rawStart = Math.floor(scrollInside / itemHeight);
@@ -97,7 +97,7 @@ export function useVirtualScroll({
     };
   }, [calculateRange, containerRef]);
 
-  // Gdy liczba elementów zmieni się (np. filtr, wyszukiwanie, sortowanie), natychmiast zaktualizuj zakres
+  // When the item count changes (e.g. filter, search, sort), update the range right away
   useEffect(() => {
     calculateRange();
   }, [itemCount, calculateRange]);

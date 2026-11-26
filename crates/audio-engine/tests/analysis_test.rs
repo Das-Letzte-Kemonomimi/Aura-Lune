@@ -26,7 +26,7 @@ fn test_parse_musical_key() {
 
 #[test]
 fn test_detect_key_from_sine_440hz() {
-    // Generuj 1 sekundę fali 440 Hz (dźwięk A, pitch class 9)
+    // Generate 1 second of a 440 Hz wave (note A, pitch class 9)
     let sample_rate = 22050.0;
     let n = 22050;
     let mut samples = Vec::with_capacity(n);
@@ -38,20 +38,20 @@ fn test_detect_key_from_sine_440hz() {
     let (key_idx, _) = detect_key_from_samples(&samples, sample_rate);
     assert_eq!(
         CHROMATIC_NOTES[key_idx], "A",
-        "Dźwięk 440 Hz powinien zostać wykryty jako tonacja A"
+        "A 440 Hz tone should be detected as the key of A"
     );
 }
 
 #[test]
 fn test_detect_bpm_synthetic_clicks() {
-    // Generuj impulsy perkusyjne co 0.5 sekundy (120 BPM)
+    // Generate percussive impulses every 0.5 seconds (120 BPM)
     let sample_rate = 22050.0;
-    let n = (sample_rate * 6.0) as usize; // 6 sekund
+    let n = (sample_rate * 6.0) as usize; // 6 seconds
     let mut samples = vec![0.0f32; n];
 
     let interval = (sample_rate * 0.5) as usize; // 120 BPM
     for i in (0..n).step_by(interval) {
-        // Dodaj krótki impuls (click)
+        // Add a short impulse (click)
         for k in 0..100.min(n - i) {
             samples[i + k] = 0.8;
         }
@@ -60,7 +60,7 @@ fn test_detect_bpm_synthetic_clicks() {
     let bpm = detect_bpm_from_samples(&samples, sample_rate);
     assert!(
         (bpm - 120.0).abs() < 2.5,
-        "Wykryte tempo {} powinno być bliskie 120 BPM",
+        "Detected tempo {} should be close to 120 BPM",
         bpm
     );
 }
@@ -73,10 +73,14 @@ fn test_analyze_track_key_bpm_fixture() {
 
     if wav_path.exists() {
         let res = analyze_track_key_bpm(wav_path.to_str().unwrap());
-        assert!(res.is_ok(), "Analiza pliku WAV powinna się udać: {:?}", res);
+        assert!(
+            res.is_ok(),
+            "Analysing the WAV file should succeed: {:?}",
+            res
+        );
         let info = res.unwrap();
         assert!(info.bpm >= 40.0 && info.bpm <= 280.0);
-        assert_eq!(info.base_key_index, 9, "440Hz to nuta A (indeks 9)");
+        assert_eq!(info.base_key_index, 9, "440Hz is note A (index 9)");
     }
 }
 
@@ -88,12 +92,12 @@ fn test_omnia_sol_temperat() {
 
     if flac_path.exists() {
         let res = analyze_track_key_bpm(flac_path.to_str().unwrap()).unwrap();
-        println!("Wynik Omnia Sol Temperat: {:?}", res);
-        assert_eq!(res.key_name, "A m", "Omnia Sol Temperat jest w Am");
-        assert_eq!(res.camelot, "8A", "Am to kod Camelot 8A");
+        println!("Omnia Sol Temperat result: {:?}", res);
+        assert_eq!(res.key_name, "A m", "Omnia Sol Temperat is in Am");
+        assert_eq!(res.camelot, "8A", "Am has Camelot code 8A");
         assert!(
             res.bpm >= 135.0 && res.bpm <= 150.0,
-            "BPM około 143-144: got {}",
+            "BPM around 143-144: got {}",
             res.bpm
         );
     }
@@ -107,7 +111,7 @@ fn test_skrzydla_biale() {
 
     if flac_path.exists() {
         let res = analyze_track_key_bpm(flac_path.to_str().unwrap()).unwrap();
-        println!("Wynik Skrzydła Białe: {:?}", res);
+        println!("Skrzydła Białe result: {:?}", res);
         assert!(!res.key_name.is_empty());
         assert!(!res.camelot.is_empty());
         assert!(res.bpm > 0.0);
@@ -123,19 +127,16 @@ fn test_analyze_track_replaygain_flac() {
 
     if flac_path.exists() {
         let res = analyze_track_replaygain(flac_path.to_str().unwrap()).unwrap();
-        println!("Wynik ReplayGain Skrzydła Białe: {:?}", res);
-        // Spodziewany track_gain około -5.2 dB, peak ~0.98, ref 89.0
+        println!("Skrzydła Białe ReplayGain result: {:?}", res);
+        // Expected track_gain around -5.2 dB, peak ~0.98, ref 89.0
         assert!(
             res.track_gain_db < 0.0,
-            "Utwór głośny powinien mieć ujemny gain"
+            "A loud track should have a negative gain"
         );
-        assert!(
-            res.track_peak > 0.5 && res.track_peak <= 1.2,
-            "Prawidłowy peak"
-        );
+        assert!(res.track_peak > 0.5 && res.track_peak <= 1.2, "Valid peak");
         assert_eq!(
             res.reference_level_db, 89.0,
-            "Domyślny reference level EBU R128 to 89 dB SPL"
+            "The default EBU R128 reference level is 89 dB SPL"
         );
     }
 }
@@ -144,7 +145,11 @@ fn test_analyze_track_replaygain_flac() {
 fn test_chord_templates_generation() {
     use audio_engine::analysis::generate_chord_templates;
     let defs = generate_chord_templates();
-    assert_eq!(defs.len(), 12 * 9 + 1, "Powinno być 109 definicji akordów");
+    assert_eq!(
+        defs.len(),
+        12 * 9 + 1,
+        "There should be 109 chord definitions"
+    );
 
     let c_maj = defs.iter().find(|d| d.symbol == "C").unwrap();
     assert_eq!(c_maj.root_idx, 0);
@@ -164,7 +169,7 @@ fn test_chord_templates_generation() {
 #[test]
 fn test_extract_chroma_synthetic_c_major() {
     use audio_engine::analysis::extract_chroma_frame;
-    // Syntetyczny akord C-dur: C4 (261.63 Hz), E4 (329.63 Hz), G4 (392.00 Hz)
+    // Synthetic C major chord: C4 (261.63 Hz), E4 (329.63 Hz), G4 (392.00 Hz)
     let sample_rate = 22050.0;
     let n = 2048;
     let mut samples = Vec::with_capacity(n);
@@ -177,20 +182,20 @@ fn test_extract_chroma_synthetic_c_major() {
     }
 
     let chroma = extract_chroma_frame(&samples, sample_rate);
-    // Sprawdź czy składowe C (0), E (4), G (7) dominują
+    // Check that the C (0), E (4) and G (7) components dominate
     assert!(
         chroma[0] > 0.2,
-        "Nuta C (indeks 0) powinna mieć wysoką energię: {}",
+        "Note C (index 0) should have high energy: {}",
         chroma[0]
     );
     assert!(
         chroma[4] > 0.2,
-        "Nuta E (indeks 4) powinna mieć wysoką energię: {}",
+        "Note E (index 4) should have high energy: {}",
         chroma[4]
     );
     assert!(
         chroma[7] > 0.2,
-        "Nuta G (indeks 7) powinna mieć wysoką energię: {}",
+        "Note G (index 7) should have high energy: {}",
         chroma[7]
     );
 }
@@ -295,7 +300,7 @@ fn test_export_chords_formats() {
     assert!(chordpro.contains("| [Am]"));
 
     let text = export_chords_to_text(&data);
-    assert!(text.contains("Klucz: C Maj"));
+    assert!(text.contains("Key: C Maj"));
     assert!(text.contains("| C"));
     assert!(text.contains("| Am"));
 }
@@ -307,14 +312,14 @@ fn test_detect_notes_and_midi_export() {
     };
     use domain::analysis::DetectedNote;
 
-    // 1. Sprawdzenie konwersji numerów MIDI
+    // 1. Check MIDI number conversion
     assert_eq!(midi_pitch_to_name(60), "C4");
     assert_eq!(midi_pitch_to_name(69), "A4");
     assert_eq!(midi_pitch_to_name(72), "C5");
 
-    // 2. Syntetyczna próba dźwięku: 500ms 440 Hz (A4 = 69) oraz 500ms 523.25 Hz (C5 = 72)
+    // 2. Synthetic tone sample: 500ms 440 Hz (A4 = 69) and 500ms 523.25 Hz (C5 = 72)
     let sample_rate = 44100.0;
-    let n = sample_rate as usize; // 1 sekunda
+    let n = sample_rate as usize; // 1 second
     let mut samples = Vec::with_capacity(n);
     for i in 0..n {
         let t = i as f64 / sample_rate;
@@ -328,15 +333,15 @@ fn test_detect_notes_and_midi_export() {
     let detected = detect_notes_from_samples(&samples, sample_rate, Some("vocals"));
     assert!(
         !detected.is_empty(),
-        "Powinny zostać wykryte syntetyczne nuty"
+        "The synthetic notes should be detected"
     );
 
     let has_a4 = detected.iter().any(|n| n.midi_pitch == 69);
     let has_c5 = detected.iter().any(|n| n.midi_pitch == 72);
-    assert!(has_a4, "Powinna zostać wykryta nuta A4 (69)");
-    assert!(has_c5, "Powinna zostać wykryta nuta C5 (72)");
+    assert!(has_a4, "Note A4 (69) should be detected");
+    assert!(has_c5, "Note C5 (72) should be detected");
 
-    // 3. Sprawdzenie eksportu do MIDI
+    // 3. Check the MIDI export
     let notes = vec![
         DetectedNote {
             onset_ms: 0,
@@ -359,9 +364,9 @@ fn test_detect_notes_and_midi_export() {
     ];
 
     let midi_bytes = export_transcription_to_midi(&notes, 120.0);
-    assert!(midi_bytes.starts_with(b"MThd"), "Nagłówek SMF MThd");
-    assert!(midi_bytes.windows(4).any(|w| w == b"MTrk"), "Ścieżka MTrk");
-    // Weryfikacja zdarzenia End of Track (FF 2F 00)
+    assert!(midi_bytes.starts_with(b"MThd"), "SMF MThd header");
+    assert!(midi_bytes.windows(4).any(|w| w == b"MTrk"), "MTrk track");
+    // Check the End of Track event (FF 2F 00)
     assert!(midi_bytes.windows(3).any(|w| w == [0xFF, 0x2F, 0x00]));
 }
 
@@ -380,10 +385,10 @@ fn test_stem_separation_lifecycle_and_reconstruction() {
 
     assert!(
         fixture_path.exists(),
-        "Plik test_sine_440hz.wav musi istnieć"
+        "The file test_sine_440hz.wav must exist"
     );
 
-    // 1. Wykonaj separację stemów
+    // 1. Run the stem separation
     let separation = StemSeparator::separate_track(
         &fixture_path,
         999,
@@ -393,7 +398,7 @@ fn test_stem_separation_lifecycle_and_reconstruction() {
             assert!(!msg.is_empty());
         })),
     )
-    .expect("Separacja stemów powinna zakończyć się sukcesem");
+    .expect("Stem separation should succeed");
 
     assert_eq!(separation.track_id, 999);
     assert_eq!(separation.model_name, "htdemucs_v4");
@@ -402,12 +407,12 @@ fn test_stem_separation_lifecycle_and_reconstruction() {
     assert!(Path::new(&separation.bass_path).exists());
     assert!(Path::new(&separation.other_path).exists());
 
-    // 2. Drugie wywołanie powinno być natychmiastowym cache-hit
+    // 2. The second call should be an instant cache hit
     let cached = StemSeparator::separate_track(&fixture_path, 999, "htdemucs_v4", None)
-        .expect("Cache hit powinien działać");
+        .expect("The cache hit should work");
     assert_eq!(cached.file_hash, separation.file_hash);
 
-    // 3. Weryfikacja StemMixerState
+    // 3. Check the StemMixerState
     let mut state = StemMixerState {
         enabled: true,
         vocals_volume: 1.0,
@@ -459,16 +464,16 @@ fn test_stem_mixer_pipeline_playback() {
         .join("tests/fixtures/test_sine_440hz.wav");
 
     let separation = StemSeparator::separate_track(&fixture_path, 999, "htdemucs_v4", None)
-        .expect("Separacja powiodła się");
+        .expect("Separation succeeded");
 
-    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
 
-    // 1. Ładowanie stemów do miksera
+    // 1. Load the stems into the mixer
     engine
         .load_stems(&separation, StemMixerState::default(), None, None, false)
-        .expect("Załadowanie stemów do audiomixera");
+        .expect("Loading stems into the audiomixer");
 
-    // 2. Modyfikacja stanu miksera w locie
+    // 2. Change the mixer state on the fly
     let mixer_state = StemMixerState {
         enabled: true,
         vocals_volume: 0.5,
@@ -477,25 +482,23 @@ fn test_stem_mixer_pipeline_playback() {
     };
     engine
         .set_stem_mixer_state(mixer_state)
-        .expect("Aktualizacja miksera");
+        .expect("Updating the mixer");
 
     let current = engine.get_stem_mixer_state();
     assert!(current.karaoke_mode);
     assert_eq!(current.get_effective_volume("vocals"), 0.0);
 
-    // 3. Odtwarzanie stemów
-    engine.play().expect("Odtwarzanie stemów");
+    // 3. Play the stems
+    engine.play().expect("Playing the stems");
     thread::sleep(Duration::from_millis(100));
 
-    // 4. Pauza
-    engine.pause().expect("Pauza stemów");
+    // 4. Pause
+    engine.pause().expect("Pausing the stems");
     assert_eq!(engine.state(), PlaybackState::Paused);
 
-    // 5. Powrót do standardowego pliku pojedynczego
+    // 5. Back to a standard single file
     let uri = format!("file://{}", fixture_path.display());
-    engine
-        .load_uri(&uri)
-        .expect("Załadowanie standardowego URI");
+    engine.load_uri(&uri).expect("Loading a standard URI");
     assert_eq!(engine.state(), PlaybackState::Stopped);
 }
 
@@ -526,20 +529,20 @@ fn test_stem_project_cascaded_separation_and_reconstruction() {
         &requested_packs,
         None,
     )
-    .expect("Kaskadowa separacja powiodła się");
+    .expect("Cascaded separation succeeded");
 
-    // Powinno powstać co najmniej 14 szczegółowych stemów
+    // At least 14 detailed stems should be created
     assert!(
         channels.len() >= 14,
-        "Oczekiwano co najmniej 14 kanałów, otrzymano {}",
+        "Expected at least 14 channels, got {}",
         channels.len()
     );
 
-    // Sprawdzenie domyślnych wartości faderów (75% głośności per specyfikacja użytkownika)
+    // Check the default fader values (75% volume per the user's spec)
     for ch in &channels {
         assert_eq!(
             ch.volume, 0.75,
-            "Domyślna głośność kanału {} powinna wynosić 75% (0.75)",
+            "Default volume of channel {} should be 75% (0.75)",
             ch.id
         );
         assert_eq!(ch.pan, 0.0);
@@ -547,12 +550,12 @@ fn test_stem_project_cascaded_separation_and_reconstruction() {
         assert!(!ch.solo);
         assert!(
             Path::new(&ch.file_path).exists(),
-            "Plik stemu {} nie istnieje",
+            "Stem file {} does not exist",
             ch.file_path
         );
     }
 
-    // Weryfikacja obecności kluczowych kanałów
+    // Check that the key channels are present
     assert!(channels.iter().any(|c| c.id == "lead_vocal"));
     assert!(channels.iter().any(|c| c.id == "backing_vocals"));
     assert!(channels.iter().any(|c| c.id == "kick"));
@@ -572,7 +575,7 @@ fn test_stem_project_cascaded_separation_and_reconstruction() {
     assert!(channels.iter().any(|c| c.id == "woodwinds"));
     assert!(channels.iter().any(|c| c.id == "other"));
 
-    // Jakość
+    // Quality
     let lead_voc = channels.iter().find(|c| c.id == "lead_vocal").unwrap();
     assert_eq!(lead_voc.quality_tier, StemQualityTier::HighQuality);
 }
@@ -603,11 +606,11 @@ fn test_stem_project_multitrack_pipeline_playback() {
         &requested_packs,
         None,
     )
-    .expect("Separacja dla playbacku");
+    .expect("Separation for playback");
 
-    let engine = AudioEngine::new().expect("Inicjalizacja AudioEngine");
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
 
-    // 1. Ładowanie multitracku projektu stemów
+    // 1. Load the stem project multitrack
     engine
         .load_stem_project_channels(
             888,
@@ -617,20 +620,20 @@ fn test_stem_project_multitrack_pipeline_playback() {
             None,
             false,
         )
-        .expect("Załadowanie multitracku stemów do potoku");
+        .expect("Loading the stem multitrack into the pipeline");
 
     assert!(engine.is_stems_active());
     assert_eq!(engine.active_stem_project_id(), Some(888));
     assert!(engine.original_track_uri().is_some());
 
-    // Test przywracania oryginalnego utworu
+    // Restoring the original track
     engine
         .restore_original_track()
-        .expect("Przywrócenie oryginalnego utworu");
+        .expect("Restoring the original track");
     assert!(!engine.is_stems_active());
     assert_eq!(engine.active_stem_project_id(), None);
 
-    // Ponowne załadowanie dla testu miksu
+    // Load again for the mix test
     engine
         .load_stem_project_channels(
             888,
@@ -640,9 +643,9 @@ fn test_stem_project_multitrack_pipeline_playback() {
             None,
             false,
         )
-        .expect("Załadowanie multitracku stemów do potoku");
+        .expect("Loading the stem multitrack into the pipeline");
 
-    // 2. Modyfikacja miksu (np. Solo na lead_vocal, Mute na kick)
+    // 2. Change the mix (e.g. solo on lead_vocal, mute on kick)
     let mut modified_channels = channels.clone();
     for ch in &mut modified_channels {
         if ch.id == "lead_vocal" {
@@ -656,14 +659,14 @@ fn test_stem_project_multitrack_pipeline_playback() {
 
     engine
         .apply_stem_project_mix(&modified_channels, 0.95)
-        .expect("Aplikacja miksu w czasie rzeczywistym");
+        .expect("Applying the mix in real time");
 
     // 3. Playback
-    engine.play().expect("Odtwarzanie multitracku");
+    engine.play().expect("Playing the multitrack");
     thread::sleep(Duration::from_millis(80));
 
-    // 4. Pauza
-    engine.pause().expect("Pauza multitracku");
+    // 4. Pause
+    engine.pause().expect("Pausing the multitrack");
     assert_eq!(engine.state(), PlaybackState::Paused);
 }
 
@@ -695,43 +698,39 @@ fn test_extract_track_waveform_peaks() {
         .unwrap()
         .join("tests/fixtures/Skrzydła Białe.flac");
 
-    assert!(fixture_path.exists(), "Plik fixture musi istnieć");
+    assert!(fixture_path.exists(), "The fixture file must exist");
 
     let count = 160;
     let peaks = audio_engine::extract_track_waveform_peaks(fixture_path.to_str().unwrap(), count)
-        .expect("Ekstrakcja szczytów fali powinna się powieść");
+        .expect("Extracting the waveform peaks should succeed");
 
-    assert_eq!(
-        peaks.len(),
-        count,
-        "Liczba punktów szczytowych powinna wynosić 160"
-    );
+    assert_eq!(peaks.len(), count, "There should be 160 peak points");
 
-    // Wszystkie punkty powinny być w przedziale [0.05, 1.0]
+    // Every point should be within [0.05, 1.0]
     for &p in &peaks {
         assert!(
             (0.05..=1.0).contains(&p),
-            "Punkt fali {} poza zakresem [0.05, 1.0]",
+            "Waveform point {} outside the range [0.05, 1.0]",
             p
         );
     }
 
-    // Najwyższy punkt powinien osiągać 1.0 (znormalizowany)
+    // The highest point should reach 1.0 (normalised)
     let max_peak = peaks.iter().cloned().fold(0.0f32, f32::max);
     assert!(
         (max_peak - 1.0).abs() < 1e-3,
-        "Maksymalny punkt fali powinien wynosić 1.0"
+        "The maximum waveform point should be 1.0"
     );
 
-    // Powinna istnieć zmienność dynamiczna (nie linia prosta)
+    // There should be dynamic variation (not a flat line)
     let min_peak = peaks.iter().cloned().fold(1.0f32, f32::min);
     assert!(
         max_peak > min_peak + 0.1,
-        "Wykres fali powinien odzwierciedlać dynamikę utworu"
+        "The waveform should reflect the track's dynamics"
     );
 }
 
-/// Trójdźwięk z kilkoma alikwotami (basowa pryma o oktawę niżej), `cents` odstrojenia.
+/// A triad with a few overtones (bass root an octave lower), detuned by `cents`.
 fn synth_triad(
     root_midi: f64,
     intervals: [f64; 3],
@@ -756,7 +755,7 @@ fn synth_triad(
     out
 }
 
-/// Siatka 4/4 co `beat_ms` od zera.
+/// A 4/4 grid every `beat_ms` from zero.
 fn fixed_grid(beats: usize, beat_ms: u64) -> Vec<domain::analysis::BeatPoint> {
     (0..beats)
         .map(|i| domain::analysis::BeatPoint {
@@ -771,7 +770,7 @@ const MAJOR: [f64; 3] = [0.0, 4.0, 7.0];
 const MINOR: [f64; 3] = [0.0, 3.0, 7.0];
 
 fn progression_audio(cents: f64, sample_rate: f64) -> Vec<f32> {
-    // C – G – Am – F, po 2 takty (4 s przy 120 BPM) na akord.
+    // C – G – Am – F, 2 bars each (4 s at 120 BPM) per chord.
     let mut audio = Vec::new();
     for (root, intervals) in [(60.0, MAJOR), (55.0, MAJOR), (57.0, MINOR), (53.0, MAJOR)] {
         audio.extend(synth_triad(root, intervals, 4.0, cents, sample_rate));
@@ -790,7 +789,7 @@ fn test_chord_progression_c_g_am_f_detected_per_bar() {
     for seg in &chords {
         assert!(
             seg.end_ms - seg.start_ms <= 2000,
-            "Segment {seg:?} przekracza jeden takt"
+            "Segment {seg:?} crosses a bar line"
         );
     }
     let expected = ["C", "C", "G", "G", "Am", "Am", "F", "F"];
@@ -798,7 +797,7 @@ fn test_chord_progression_c_g_am_f_detected_per_bar() {
     for (bar0, want) in expected.iter().enumerate() {
         let bar = bar0 as u32 + 1;
         let in_bar: Vec<_> = chords.iter().filter(|c| c.bar == bar).collect();
-        assert!(!in_bar.is_empty(), "Brak segmentu dla taktu {bar}");
+        assert!(!in_bar.is_empty(), "No segment for bar {bar}");
         let best = in_bar.iter().max_by_key(|c| c.end_ms - c.start_ms).unwrap();
         if best.chord == *want {
             correct += 1;
@@ -806,7 +805,7 @@ fn test_chord_progression_c_g_am_f_detected_per_bar() {
     }
     assert!(
         correct >= 7,
-        "Poprawnie rozpoznano {correct}/8 taktów: {chords:?}"
+        "Correctly recognised {correct}/8 bars: {chords:?}"
     );
 }
 
@@ -820,7 +819,7 @@ fn test_chord_detection_tolerates_detuning() {
     assert!(!chords.is_empty());
     assert!(
         chords.iter().all(|c| c.chord == "C"),
-        "Odstrojone +30 centów C-dur powinno nadal być C: {chords:?}"
+        "C major detuned by +30 cents should still be C: {chords:?}"
     );
 }
 
@@ -828,7 +827,7 @@ fn test_chord_detection_tolerates_detuning() {
 fn test_last_chord_segment_reaches_audio_end() {
     use audio_engine::analysis::detect_chords_with_grid;
     let sample_rate = 22050.0;
-    // 7,3 s – ostatnie uderzenie siatki zaczyna się 7,0 s, a audio kończy po 300 ms.
+    // 7.3 s: the last grid beat starts at 7.0 s and the audio ends 300 ms later.
     let audio = synth_triad(60.0, MAJOR, 7.3, 0.0, sample_rate);
     let grid = fixed_grid(15, 500);
     let chords = detect_chords_with_grid(&audio, sample_rate, &grid, None, None);
@@ -871,7 +870,7 @@ fn test_viterbi_switches_within_two_beats_of_clear_evidence() {
     let first_g = path.iter().position(|&s| s == g).unwrap();
     assert!(
         (8 - 2..=8 + 2).contains(&first_g),
-        "Zmiana akordu na uderzeniu {first_g}, oczekiwano w pobliżu 8"
+        "Chord change on beat {first_g}, expected near 8"
     );
     assert!(path[first_g..].iter().all(|&s| s == g));
 }
@@ -918,7 +917,7 @@ fn test_beat_grid_follows_click_track_without_drift() {
     let seconds = 40.0;
     let n = (sample_rate * seconds) as usize;
     let mut samples = vec![0.0f32; n];
-    // 119,5 BPM (okres 502,09 ms), a siatka dostaje zaokrąglone 120 – korekta fazy musi dryf wyłapać.
+    // 119.5 BPM (period 502.09 ms) while the grid gets a rounded 120: the phase correction must catch the drift.
     let period = 60.0 / 119.5;
     let mut t = 0.123;
     while t < seconds - 0.1 {
@@ -935,7 +934,7 @@ fn test_beat_grid_follows_click_track_without_drift() {
     let click_ms = (0.123 + click_idx * period) * 1000.0;
     assert!(
         (last.time_ms as f64 - click_ms).abs() < 40.0,
-        "Ostatni beat siatki {} ms dryfuje względem klika {} ms",
+        "Last grid beat {} ms drifts from the click at {} ms",
         last.time_ms,
         click_ms
     );
@@ -946,7 +945,7 @@ fn test_beat_grid_follows_click_track_without_drift() {
 fn test_note_onsets_do_not_drift_with_fractional_hop() {
     use audio_engine::analysis::detect_notes_from_samples;
 
-    // Przy 22,05 kHz krok ramki to 46,44 ms. Obcięcie do 46 ms przesuwało nuty o ~1% (≈3 s po 5 minutach).
+    // At 22.05 kHz the frame step is 46.44 ms. Truncating to 46 ms moved notes by ~1% (≈3 s after 5 minutes).
     let sample_rate = 22050.0;
     let total = (130.0 * sample_rate) as usize;
     let onset_s = 120.0;
@@ -962,7 +961,7 @@ fn test_note_onsets_do_not_drift_with_fractional_hop() {
     let a4 = notes
         .iter()
         .find(|n| n.midi_pitch == 69)
-        .expect("powinna zostać wykryta nuta A4");
+        .expect("note A4 should be detected");
     let error_ms = (a4.onset_ms as i64 - (onset_s * 1000.0) as i64).abs();
-    assert!(error_ms <= 60, "dryf początku nuty: {error_ms} ms");
+    assert!(error_ms <= 60, "note onset drift: {error_ms} ms");
 }

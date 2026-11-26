@@ -43,7 +43,7 @@ describe('easeDisplayPosition', () => {
   it('starts at the target and snaps on large jumps (seek / loop wrap)', () => {
     expect(easeDisplayPosition(null, 5_000, 0.016, true)).toBe(5_000);
     expect(easeDisplayPosition(5_000, 5_000 + SNAP_THRESHOLD_MS + 1, 0.016, true)).toBe(5_000 + SNAP_THRESHOLD_MS + 1);
-    expect(easeDisplayPosition(20_000, 10_000, 0.016, true)).toBe(10_000); // zapętlenie A-B: skok do tyłu
+    expect(easeDisplayPosition(20_000, 10_000, 0.016, true)).toBe(10_000); // A-B loop: jump back
   });
 
   it('eases small forward differences toward the target', () => {

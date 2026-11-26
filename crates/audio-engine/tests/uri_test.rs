@@ -14,12 +14,15 @@ fn test_media_uri_percent_encodes_spaces_and_unicode() {
     let path = temp_file("Skrzydła Białe 100%.wav");
     let uri = media_uri(path.to_str().unwrap());
     assert!(uri.starts_with("file:///"));
-    assert!(!uri.contains(' '), "Spacje muszą być zakodowane: {uri}");
+    assert!(!uri.contains(' '), "Spaces must be encoded: {uri}");
     assert!(uri.contains("%20"));
-    assert!(uri.contains("%25"), "Znak % musi być zakodowany: {uri}");
+    assert!(
+        uri.contains("%25"),
+        "The % character must be encoded: {uri}"
+    );
     assert!(
         uri.is_ascii(),
-        "Znaki spoza ASCII muszą być zakodowane: {uri}"
+        "Non-ASCII characters must be encoded: {uri}"
     );
     assert_eq!(local_path(&uri), path.canonicalize().unwrap());
 }

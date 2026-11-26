@@ -1,4 +1,4 @@
-//! Moduł zarządzania lokalną biblioteką muzyczną i skanerem.
+//! Local music library management and the scanner.
 
 pub mod scanner;
 

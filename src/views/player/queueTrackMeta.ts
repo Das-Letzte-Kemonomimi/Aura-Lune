@@ -1,7 +1,7 @@
 import type { AlbumRecord, TrackRecord } from '../../types/player';
 import type { QueueItem } from '../../types/queue';
 
-/** Dane biblioteki wyświetlane przy elemencie kolejki (okładka, format, jakość). */
+/** Library data shown next to a queue item (cover, format, quality). */
 export interface QueueTrackMeta {
   track: TrackRecord | undefined;
   album: AlbumRecord | null | undefined;
@@ -12,9 +12,9 @@ export interface QueueTrackMeta {
 }
 
 /**
- * Dopasowuje element kolejki do utworu i albumu z biblioteki: najpierw po `track_id`
- * lub ścieżce, album po `album_id`, a w razie braku — po tytule albumu z elementu kolejki.
- * Format bez dopasowania to rozszerzenie pliku (lub `AUDIO`).
+ * Matches a queue item to a library track and album: first by `track_id`
+ * or path, the album by `album_id`, and failing that by the album title of the queue item.
+ * Without a match the format is the file extension (or `AUDIO`).
  */
 export function resolveQueueTrackMeta(
   item: QueueItem,

@@ -1,22 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  X,
-  Download,
-  Folder,
-  ShieldCheck,
-  AlertCircle,
-  CheckCircle2,
-  RefreshCw,
-  FileAudio,
-  Play,
-} from 'lucide-react';
-import { invoke } from '../../api/ipc';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Download, Folder, ShieldCheck, AlertCircle, CheckCircle2, RefreshCw, FileAudio, Play } from '../ui/icons';
+import { errorMessage as describeError, invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { formatBytes } from '../../utils/fileSizeFormat';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
-import { Callout } from '../ui';
+import {
+  Badge,
+  Button,
+  Callout,
+  Card,
+  EmptyState,
+  FieldLabel,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalShell,
+  ProgressBar,
+  SectionHeader,
+  Spinner,
+  TextField,
+  type ToneOrNeutral,
+} from '../ui';
 
 export interface DownloadJobDto {
   id: string;
@@ -32,6 +37,16 @@ export interface DownloadJobDto {
   created_at: number;
   completed_at: number | null;
 }
+
+/** Badge colour of each job state. */
+const STATE_TONES: Record<DownloadJobDto['state'], ToneOrNeutral> = {
+  Pending: 'neutral',
+  Downloading: 'cyan',
+  Paused: 'amber',
+  Completed: 'green',
+  Failed: 'red',
+  Cancelled: 'neutral',
+};
 
 interface DownloadHubModalProps {
   isOpen: boolean;
@@ -49,6 +64,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   currentLang = 'pl',
 }) => {
   const loc = getTranslations(currentLang);
+  const titleId = useId();
   const [remoteUrl, setRemoteUrl] = useState('');
   const [destinationFolder, setDestinationFolder] = useState('');
   const [filename, setFilename] = useState('');
@@ -59,7 +75,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   const [jobs, setJobs] = useState<DownloadJobDto[]>([]);
   const pollTimerRef = useRef<number | null>(null);
 
-  // Pobierz domyślny katalog muzyki przy pierwszym otwarciu
+  // Fetch the default music folder on first open
   useEffect(() => {
     if (isOpen) {
       invoke<string>('get_default_music_dir')
@@ -71,7 +87,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     }
   }, [isOpen]);
 
-  // Automatycznie zaproponuj nazwę pliku na podstawie wpisywanego URL
+  // Suggest a file name automatically from the URL being typed
   useEffect(() => {
     if (!remoteUrl) return;
     try {
@@ -84,11 +100,11 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         setFilename((prev) => prev || 'audio_download.mp3');
       }
     } catch {
-      // Ignoruj niepełny URL podczas pisania
+      // Ignore an incomplete URL while typing
     }
   }, [remoteUrl]);
 
-  // Cykliczne odpytywanie o stan pobierania (co 1s, gdy modal otwarty)
+  // Poll the download state periodically (every 1 s while the modal is open)
   useEffect(() => {
     if (!isOpen) {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -107,8 +123,8 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     try {
       const list = await invoke<DownloadJobDto[]>('list_download_jobs');
       setJobs(list);
-    } catch (err) {
-      console.warn('Błąd pobierania listy zadań:', err);
+    } catch (err: unknown) {
+      console.warn('Failed to fetch the job list:', err);
     }
   };
 
@@ -118,8 +134,8 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       if (selected) {
         setDestinationFolder(selected);
       }
-    } catch (err) {
-      setErrorMessage(fmt(loc.downloadHub.errorSelectFolder, String(err)));
+    } catch (err: unknown) {
+      setErrorMessage(fmt(loc.downloadHub.errorSelectFolder, describeError(err)));
     }
   };
 
@@ -139,7 +155,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     }
 
     const cleanFilename = filename.trim() || 'audio_track.mp3';
-    // Konstrukcja pełnej ścieżki
+    // Build the full path
     const sep = destinationFolder.endsWith('/') ? '' : '/';
     const fullDestinationPath = `${destinationFolder}${sep}${cleanFilename}`;
 
@@ -156,8 +172,8 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       setFilename('');
       setExpectedSha('');
       await fetchJobs();
-    } catch (err) {
-      setErrorMessage(fmt(loc.downloadHub.errorStartDownload, String(err)));
+    } catch (err: unknown) {
+      setErrorMessage(fmt(loc.downloadHub.errorStartDownload, describeError(err)));
     } finally {
       setIsSubmitting(false);
     }
@@ -167,178 +183,125 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     try {
       await invoke('cancel_download_job', { jobId });
       await fetchJobs();
-    } catch (err) {
-      console.error('Błąd anulowania zadania:', err);
+    } catch (err: unknown) {
+      console.error('Failed to cancel the job:', err);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-205 flex-col overflow-hidden rounded-3xl border border-line text-fg shadow-modal"
-    >
-      {/* NAGŁÓWEK */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-accent-pink/4 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex size-10.5 items-center justify-center rounded-xl bg-accent-gradient shadow-lift shadow-accent-pink/35"
-          >
-            <Download size={22} className="text-fg" />
-          </div>
-          <div>
-            <h2 className="m-0 text-xl font-bold tracking-tight">
-              {loc.downloadHub.title}
-            </h2>
-            <p className="m-0 mt-0.5 text-ui text-fg-muted">
-              {loc.downloadHub.subtitle}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border-0 bg-white/6 text-fg"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="xl" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.downloadHub.title}
+        subtitle={loc.downloadHub.subtitle}
+        icon={<Download size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* TREŚĆ MODALA */}
-      <div className="flex flex-col gap-5.5 overflow-y-auto p-6">
-        {/* BANER BEZPIECZEŃSTWA AGENTS.md */}
-        <div
-          className="flex items-center gap-3 rounded-xl border border-sky-400/25 bg-sky-400/8 px-4 py-3 text-ui text-sky-200"
-        >
-          <ShieldCheck size={20} className="shrink-0 text-sky-400" />
-          <span>
-            {loc.downloadHub.securityBanner}
-          </span>
-        </div>
+      <ModalBody className="flex flex-col gap-5">
+        <Callout tone="cyan" icon={<ShieldCheck size={20} />} className="text-ui text-fg-secondary">
+          {loc.downloadHub.securityBanner}
+        </Callout>
 
         {errorMessage && (
-          <Callout
-            tone="red" className="flex items-center gap-2 text-sm text-red-300"
-          >
-            <AlertCircle size={16} />
+          <Callout tone="danger" role="alert" icon={<AlertCircle size={16} />} className="text-sm text-fg">
             {errorMessage}
           </Callout>
         )}
 
         {successMessage && (
-          <div
-            className="flex items-center gap-2 rounded-xl border border-green-500/35 bg-green-500/15 px-4 py-3 text-sm text-green-300"
-          >
-            <CheckCircle2 size={16} />
+          <Callout tone="green" role="status" icon={<CheckCircle2 size={16} />} className="text-sm text-fg">
             {successMessage}
-          </div>
+          </Callout>
         )}
 
-        {/* FORMULARZ NOWEGO POBIERANIA */}
+        {/* New download */}
         <form onSubmit={handleStartDownload} className="flex flex-col gap-3.5">
           <div>
-            <label className="mb-1.5 block text-ui font-semibold text-slate-300">
-              {loc.downloadHub.directUrl}
-            </label>
-            <input
+            <FieldLabel htmlFor={`${titleId}-url`}>{loc.downloadHub.directUrl}</FieldLabel>
+            <TextField
+              id={`${titleId}-url`}
               type="url"
               required
               placeholder="https://archive.org/download/.../track.flac"
               value={remoteUrl}
               onChange={(e) => setRemoteUrl(e.target.value)}
-              className="w-full rounded-xl border border-white/15 bg-black/35 px-3.5 py-2.5 text-sm text-fg outline-none"
             />
           </div>
 
           <div className="grid grid-cols-[1.2fr_0.8fr] gap-3">
             <div>
-              <label className="mb-1.5 block text-ui font-semibold text-slate-300">
-                {loc.downloadHub.destinationFolder}
-              </label>
+              <FieldLabel htmlFor={`${titleId}-dest`}>{loc.downloadHub.destinationFolder}</FieldLabel>
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <TextField
+                  id={`${titleId}-dest`}
                   required
                   readOnly
                   placeholder={loc.downloadHub.selectFolderPlaceholder}
                   value={destinationFolder}
-                  className="flex-1 rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-ui text-slate-300 outline-none"
+                  className="flex-1 text-fg-secondary"
                 />
-                <button
-                  type="button"
-                  onClick={handlePickFolder}
-                  className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3.5 py-0 text-ui font-semibold text-fg"
-                >
+                <Button onClick={handlePickFolder}>
                   <Folder size={16} /> {loc.downloadHub.browse}
-                </button>
+                </Button>
               </div>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-ui font-semibold text-slate-300">
-                {loc.downloadHub.filename}
-              </label>
-              <input
-                type="text"
+              <FieldLabel htmlFor={`${titleId}-name`}>{loc.downloadHub.filename}</FieldLabel>
+              <TextField
+                id={`${titleId}-name`}
                 required
                 placeholder={loc.downloadHub.filenamePlaceholder}
                 value={filename}
                 onChange={(e) => setFilename(e.target.value)}
-                className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 text-ui text-fg outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-ui font-semibold text-slate-300">
+            <FieldLabel htmlFor={`${titleId}-sha`}>
               {loc.downloadHub.expectedSha256}{' '}
-              <span className="font-normal text-fg-muted">
-                {loc.downloadHub.integrityOptional}
-              </span>
-            </label>
-            <input
-              type="text"
+              <span className="font-normal normal-case text-fg-muted">{loc.downloadHub.integrityOptional}</span>
+            </FieldLabel>
+            <TextField
+              id={`${titleId}-sha`}
+              mono
               placeholder={loc.downloadHub.shaPlaceholder}
               value={expectedSha}
               onChange={(e) => setExpectedSha(e.target.value)}
-              className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 font-mono text-xs text-fg outline-none"
+              className="text-xs"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={cn(
-              'mt-1.5 flex items-center justify-center gap-2 rounded-xl border-0 bg-accent-gradient px-5 py-3 text-sm font-bold text-on-accent shadow-lift shadow-accent-pink/30 transition-opacity duration-200',
-              isSubmitting && 'cursor-not-allowed opacity-70',
-            )}
-          >
-            <Download size={18} />
+          <Button type="submit" variant="primary" size="lg" disabled={isSubmitting} className="mt-1.5">
+            {isSubmitting ? <Spinner size="sm" className="text-current" /> : <Download size={18} />}
             {isSubmitting ? loc.downloadHub.starting : loc.downloadHub.startDownload}
-          </button>
+          </Button>
         </form>
 
-        {/* LISTA ZADAŃ W KOLEJCE */}
+        {/* Queued jobs */}
         <div className="mt-2.5">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="m-0 flex items-center gap-2 text-md font-bold text-slate-200">
-              <FileAudio size={18} className="text-accent-pink" /> {loc.downloadHub.queueTitle} ({jobs.length})
-            </h3>
-            <button
-              onClick={fetchJobs}
-              className="flex items-center gap-1 border-0 bg-transparent text-xs text-fg-muted"
-            >
-              <RefreshCw size={12} /> {loc.downloadHub.refreshList}
-            </button>
-          </div>
+          <SectionHeader
+            icon={<FileAudio size={18} />}
+            title={`${loc.downloadHub.queueTitle} (${jobs.length})`}
+            actions={
+              <Button variant="ghost" size="sm" onClick={fetchJobs}>
+                <RefreshCw size={12} /> {loc.downloadHub.refreshList}
+              </Button>
+            }
+            className="mb-3"
+          />
 
           {jobs.length === 0 ? (
-            <div
-              className="rounded-xl border border-dashed border-white/10 bg-black/20 p-7 text-center text-sm text-fg-muted"
-            >
-              {loc.downloadHub.emptyQueue}
-            </div>
+            <EmptyState
+              icon={<Download size={28} />}
+              title={loc.downloadHub.emptyQueue}
+              className="rounded-xl border border-dashed border-line bg-black/20"
+            />
           ) : (
             <div className="flex flex-col gap-2.5">
               {jobs.map((job) => {
@@ -346,63 +309,50 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                   job.total_bytes && job.total_bytes > 0
                     ? Math.min(100, Math.round((job.downloaded_bytes / job.total_bytes) * 100))
                     : null;
+                const fileName = job.destination_path.split('/').pop();
 
                 return (
-                  <div
-                    key={job.id}
-                    className="flex flex-col gap-2 rounded-xl border border-white/8 bg-white/4 px-4 py-3.5"
-                  >
+                  <Card key={job.id} padding="none" className="flex flex-col gap-2 px-4 py-3.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <span
-                          className={cn(
-                            'rounded-md px-2 py-0.5 text-xxs font-bold uppercase',
-                            job.state === 'Completed' ? 'bg-green-500/20' : job.state === 'Downloading' ? 'bg-sky-400/20' : job.state === 'Failed' ? 'bg-accent-red/20' : 'bg-white/10',
-                            job.state === 'Completed' ? 'text-green-400' : job.state === 'Downloading' ? 'text-sky-400' : job.state === 'Failed' ? 'text-red-400' : 'text-slate-300',
-                          )}
-                        >
+                        <Badge tone={STATE_TONES[job.state]} size="xs" className="uppercase">
                           {job.state === 'Downloading' ? loc.downloadHub.downloading : job.state}
-                        </span>
-                        <span
-                          className="max-w-112.5 truncate text-sm font-semibold text-fg"
-                          title={job.destination_path}
-                        >
-                          {job.destination_path.split('/').pop()}
+                        </Badge>
+                        <span className="max-w-112.5 truncate text-sm font-semibold text-fg" title={job.destination_path}>
+                          {fileName}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {job.state === 'Downloading' && (
-                          <button
-                            onClick={() => handleCancelJob(job.id)}
-                            className="rounded-md border border-accent-red/40 bg-accent-red/20 px-2.5 py-1 text-xs font-semibold text-red-400"
-                          >
+                          <Button variant="danger" size="sm" onClick={() => handleCancelJob(job.id)}>
                             {loc.common.cancel}
-                          </button>
+                          </Button>
                         )}
                         {job.state === 'Completed' && (
-                          <button
+                          <Button
+                            variant="tinted"
+                            tone="green"
+                            size="sm"
                             onClick={() => {
                               onRefreshLibrary();
                               if (onPlayPath) onPlayPath(job.destination_path);
                             }}
-                            className="flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/20 px-2.5 py-1 text-xs font-semibold text-green-400"
                           >
                             <Play size={12} /> {loc.downloadHub.playInAuralune}
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
 
-                    {/* PASEK POSTĘPU */}
                     {job.state === 'Downloading' && (
                       <div>
-                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-sm bg-black/40">
-                          <div
-                            className="h-full rounded-sm bg-linear-to-r from-accent-pink to-sky-400 transition-[width] duration-300"
-                            style={{ width: percent !== null ? `${percent}%` : '60%' }}
-                          />
-                        </div>
+                        {/* Without a known size the bar only shows that bytes are arriving. */}
+                        <ProgressBar
+                          value={percent ?? 60}
+                          label={fileName}
+                          className={cn('mt-1', percent === null && 'motion-safe:animate-pulse')}
+                        />
                         <div className="mt-1 flex justify-between text-xs text-fg-muted">
                           <span>
                             {formatBytes(job.downloaded_bytes)}
@@ -414,7 +364,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                     )}
 
                     {job.error && (
-                      <div className="text-xs text-red-400">
+                      <div className="text-xs text-accent-red">
                         {loc.downloadHub.error} {job.error}
                       </div>
                     )}
@@ -425,26 +375,18 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                         {job.expected_sha256 && loc.downloadHub.verified}
                       </div>
                     )}
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )}
         </div>
-      </div>
+      </ModalBody>
 
-      {/* STOPKA */}
-      <div className="flex items-center justify-between border-t border-white/8 bg-black/25 px-6 py-4">
-        <span className="text-xs text-fg-muted">
-          {loc.downloadHub.compliance}
-        </span>
-        <button
-          onClick={onClose}
-          className="rounded-xl border border-white/15 bg-white/8 px-4.5 py-2 text-sm font-semibold text-fg"
-        >
-          {loc.common.close}
-        </button>
-      </div>
+      <ModalFooter className="justify-between">
+        <span className="text-xs text-fg-muted">{loc.downloadHub.compliance}</span>
+        <Button onClick={onClose}>{loc.common.close}</Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

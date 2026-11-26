@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Flame, Clock, BarChart3, RefreshCw, X, RotateCcw } from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Flame, Clock, BarChart3, RefreshCw, RotateCcw } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { formatTime, formatRelativeTime as formatRelativeTimeBase } from '../../utils/timeFormat';
-import { ModalShell } from '../ui';
+import { cn } from '../../utils/cn';
+import { textTones } from '../ui/tones';
+import { Button, Card, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
 
 export interface TrackStatsData {
   id: number;
@@ -34,6 +36,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
   onResetPlays,
 }) => {
   const [currentTimestamp] = useState(() => Math.floor(Date.now() / 1000));
+  const titleId = useId();
 
   if (!track) return null;
 
@@ -74,102 +77,59 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
   const totalListenedMs = (track.play_count || 0) * track.duration_ms;
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-w-140 flex-col overflow-hidden rounded-2xl border border-line-accent shadow-2xl shadow-black/70"
-    >
-      {/* Nagłówek modala */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-gradient shadow-lg shadow-accent-pink/40"
-          >
-            <BarChart3 size={18} className="text-fg" />
-          </div>
-          <div>
-            <h3 className="m-0 text-lg font-extrabold text-fg">
-              {loc.player.statsTitle}
-            </h3>
-            <span className="text-xs text-fg-muted">
-              {loc.player.trackStats} • ID #{track.id}
-            </span>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="rounded-lg border-0 bg-transparent p-1.5 text-fg-muted"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <ModalShell onClose={onClose} layer="studio" size="md" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.player.statsTitle}
+        subtitle={`${loc.player.trackStats} • ID #${track.id}`}
+        icon={<BarChart3 size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Zawartość statystyk */}
-      <div className="flex flex-col gap-4.5 p-6">
-        {/* Tytuł i wykonawca */}
+      <ModalBody className="flex flex-col gap-4">
+        {/* Title and artist */}
         <div>
-          <h4 className="mx-0 mt-0 mb-1 text-xl font-bold text-fg">
-            {track.title}
-          </h4>
-          <p className="m-0 text-sm font-semibold text-accent-pink">
+          <h3 className="mb-1 text-xl font-bold text-fg">{track.title}</h3>
+          <p className="text-sm font-semibold text-accent-pink">
             {track.artist} {track.album ? `• ${track.album}` : ''}
           </p>
         </div>
 
-        {/* Kafelki metryk odsłuchu */}
+        {/* Listening metric tiles */}
         <div className="grid grid-cols-3 gap-2.5">
-          {/* Licznik odtworzeń */}
-          <div className="glass-card flex flex-col gap-1 border-l-3 border-accent-amber p-3.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-accent-amber uppercase">
-              <Flame size={14} />
-              <span>{loc.player.playCount}</span>
-            </div>
-            <div className="mx-0 my-0.5 text-2xl font-extrabold text-fg">
-              {track.play_count || 0}
-            </div>
-            <span className="text-xxs text-fg-muted">
-              {track.play_count === 1 ? loc.trackStatsModal.singlePlay : `${track.play_count || 0} ${loc.player.plays}`}
-            </span>
-          </div>
-
-          {/* Łączny czas odsłuchu */}
-          <div className="glass-card flex flex-col gap-1 border-l-3 border-accent-purple p-3.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-accent-purple uppercase">
-              <Clock size={14} />
-              <span>{loc.trackStatsModal.totalTime}</span>
-            </div>
-            <div className="mx-0 my-1 text-lg font-extrabold text-fg">
-              {formatTotalTime(totalListenedMs)}
-            </div>
-            <span className="text-xxs text-fg-muted">
-              {loc.trackStatsModal.trackDuration.replace('{t}', formatTime(track.duration_ms))}
-            </span>
-          </div>
-
-          {/* Ostatnio odtwarzano */}
-          <div className="glass-card flex flex-col gap-1 border-l-3 border-accent-cyan p-3.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-accent-cyan uppercase">
-              <RefreshCw size={14} />
-              <span>{loc.player.lastPlayed}</span>
-            </div>
-            <div className="mx-0 my-1.5 text-md font-bold text-fg">
-              {formatRelativeTime(track.last_played_at)}
-            </div>
-            <span className="truncate text-xxs text-fg-muted">
-              {formatDate(track.last_played_at)}
-            </span>
-          </div>
+          <StatTile
+            tone="amber"
+            icon={<Flame size={14} />}
+            label={loc.player.playCount}
+            value={<span className="text-2xl">{track.play_count || 0}</span>}
+            hint={track.play_count === 1 ? loc.trackStatsModal.singlePlay : `${track.play_count || 0} ${loc.player.plays}`}
+          />
+          <StatTile
+            tone="purple"
+            icon={<Clock size={14} />}
+            label={loc.trackStatsModal.totalTime}
+            value={formatTotalTime(totalListenedMs)}
+            hint={loc.trackStatsModal.trackDuration.replace('{t}', formatTime(track.duration_ms))}
+          />
+          <StatTile
+            tone="cyan"
+            icon={<RefreshCw size={14} />}
+            label={loc.player.lastPlayed}
+            value={formatRelativeTime(track.last_played_at)}
+            hint={formatDate(track.last_played_at)}
+          />
         </div>
 
-        {/* Szczegóły techniczne i ścieżka pliku */}
-        <div className="glass-card flex flex-col gap-2 px-4.5 py-3.5 text-ui">
-          <div className="flex justify-between border-b border-white/5 pb-1.5">
+        {/* Technical details and file path */}
+        <Card padding="sm" className="flex flex-col gap-2 text-ui">
+          <div className="flex justify-between border-b border-line pb-1.5">
             <span className="text-fg-muted">{loc.trackStatsModal.formatCodec}</span>
             <span className="font-mono font-bold text-accent-cyan">
               {track.format} {track.bit_depth ? `• ${track.bit_depth}-bit` : ''} • {Math.round(track.sample_rate / 1000)} kHz
             </span>
           </div>
-          <div className="flex justify-between border-b border-white/5 pb-1.5">
+          <div className="flex justify-between border-b border-line pb-1.5">
             <span className="text-fg-muted">{loc.trackStatsModal.audioChannels}</span>
             <span className="font-semibold text-fg">
               {track.channels === 2 ? loc.trackStatsModal.stereoChannels : `${track.channels} ch`}
@@ -177,33 +137,61 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
           </div>
           <div className="flex flex-col gap-1 pt-1">
             <span className="text-fg-muted">{loc.trackStatsModal.filePath}</span>
-            <span className="font-mono text-xs break-all text-fg-secondary">
-              {track.path}
-            </span>
+            <span className="font-mono text-xs break-all text-fg-secondary">{track.path}</span>
           </div>
-        </div>
-      </div>
+        </Card>
+      </ModalBody>
 
-      {/* Dolny pasek akcji */}
-      <div className="flex items-center justify-between border-t border-white/8 bg-black/30 px-6 py-3.5">
+      <ModalFooter className="justify-between">
         {onResetPlays && (track.play_count || 0) > 0 ? (
-          <button
+          <Button
+            variant="danger"
+            size="sm"
             onClick={() => onResetPlays(track.id)}
-            className="flex items-center gap-1.5 rounded-lg border border-accent-red/30 bg-accent-red/15 px-3 py-1.5 text-xs font-semibold text-accent-red"
             title={loc.trackStatsModal.resetPlaysTooltip}
           >
             <RotateCcw size={13} />
             {loc.player.resetStats}
-          </button>
-        ) : <div />}
-
-        <button
-          onClick={onClose}
-          className="rounded-lg border-0 bg-linear-135 from-accent-purple to-accent-pink px-4.5 py-2 text-ui font-bold text-on-accent"
-        >
+          </Button>
+        ) : (
+          <div />
+        )}
+        <Button variant="primary" onClick={onClose}>
           {loc.settings.close}
-        </button>
-      </div>
+        </Button>
+      </ModalFooter>
     </ModalShell>
   );
 };
+
+const tileBorder: Record<'amber' | 'purple' | 'cyan', string> = {
+  amber: 'border-accent-amber',
+  purple: 'border-accent-purple',
+  cyan: 'border-accent-cyan',
+};
+
+/** One listening metric: a tinted label, a value and a hint line. */
+function StatTile({
+  tone,
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  tone: 'amber' | 'purple' | 'cyan';
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  hint: string;
+}) {
+  return (
+    <Card padding="none" className={cn('flex flex-col gap-1 border-l-3 p-3.5', tileBorder[tone])}>
+      <div className={cn('flex items-center gap-1.5 text-xs font-bold uppercase', textTones[tone])}>
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="my-1 text-md font-extrabold text-fg">{value}</div>
+      <span className="truncate text-xxs text-fg-muted">{hint}</span>
+    </Card>
+  );
+}

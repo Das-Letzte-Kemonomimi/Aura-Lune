@@ -99,10 +99,45 @@ Colours outside the theme come from Tailwind's default palette (`text-slate-300`
 
 ## Primitives
 
-- `ModalShell`: every dialog. Backdrop, `role="dialog"`/`aria-modal`, Escape and backdrop-only close, `size` (sm…2xl), `layer` (see the z-index table), panel `className` overrides the default surface, `style` for runtime-only values. Give the title an id and pass it as `labelledBy`.
-- `Callout tone`: tinted info/status box.
-- `common/ToggleSwitch`: the only switch; style comes from the checkbox (`peer-checked:`).
-- Extract a new primitive only once a pattern repeats at least five times *with the same look*; otherwise use plain classes, or an `@layer components` class when it is used at least three times. Primary buttons are still per-screen class strings (their sizes differ on purpose); normalising them is a design change, not a refactor.
+All primitives live in `components/ui/` (import from `components/ui`). Each takes a `className` that is merged last, so a caller can adjust layout, but never re-style a variant at the call site: if a look is missing, add a variant. **Never hand-write a button, chip, tab bar, field, badge or card class string.**
+
+| Need | Primitive | Variants |
+|---|---|---|
+| Dialog | `ModalShell` + `ModalHeader` / `ModalBody` / `ModalFooter` | `size` sm 28rem · md 35rem · lg 42.5rem · xl 51.25rem · 2xl 60rem · 3xl 67.5rem · full (96vw × 90vh workspaces), `layer`, `placement` center·top; header `icon`, `tone`, `title`, `subtitle`, `onClose` + `closeLabel`, `actions`. The shell owns radius, border, background, shadow and `overflow-hidden`: pass only height or padding through `className`. Escape closes only the topmost open dialog. Render a nested dialog next to its parent shell, not inside it |
+| Action | `Button` | `variant` primary·secondary·tinted·danger·ghost, `tone` (tinted), `size` sm·md·lg; `type="button"` by default |
+| Icon-only action | `IconButton` | `variant` ghost·secondary, `size` sm·md; **required** `label` (aria-label + tooltip) |
+| On/off option | `Chip` | `pressed` (→ `aria-pressed`), `tone`, `size` xs·sm |
+| Large choice with a description | `OptionCard` | `pressed`, `tone`; the card-sized `Chip` (UI scale, icon style) |
+| One of many / tab bar | `SegmentedControl` | `items`, `value`, `onChange`, `label`, `tone`, `size`, `fullWidth`; arrow keys, Home, End |
+| Surface | `Card` | `variant` panel·card·inset, `padding` none·sm·md·lg, `interactive`, `highlight` (tone while its feature is on) |
+| Section / setting | `SectionHeader`, `SettingRow` | `icon`, `title`, `description`, `actions` / `control` |
+| Field | `TextField`, `TextArea`, `Select`, `FieldLabel` | `size` sm·md, `mono`, `icon` |
+| Readout / status | `Badge`, `StatusDot` | `tone` (+ neutral), `size` xs·sm, `mono`; dot `pulse` |
+| Key / shortcut | `Kbd` | `size` sm (shortcut lists) · xs (inline hints) |
+| Slider | `SliderRow`, `NudgeButtons` | `label`, `value`, `min`/`max`/`step`, `format`, `tone`, `nudges` |
+| Bare slider (hand-laid label/readout) | `RangeSlider` | `value`, `min`/`max`/`step`, `onChange(number)`, `aria-label`; draws the gradient fill |
+| Menu | `Popover` + `MenuItem` | `align` start·end, `side` bottom·top; item `selected` (→ `menuitemradio`) |
+| Loading / empty | `Spinner`, `ProgressBar`, `EmptyState` | `size`, `tone`, `label` |
+| Info box | `Callout` | `tone` (+ `danger`), `icon` |
+| Switch | `common/ToggleSwitch` | the only switch; style comes from the checkbox (`peer-checked:`) |
+| Page heading | `PageHeader` | `title`, `description`, `icon`, `tone`, `actions` (the h2 of a view or settings tab) |
+| Switchable feature | `ToggleCard` | `title`, `icon`, `tone`, `checked`, `onChange`, `badges`; dependent controls as children (settings options, DSP modules) |
+| Settings tab | `views/settings/SettingsPage` | page `title`, `icon`, `actions`, cards as children |
+
+**States belong to the base layer.** `styles/base.css` gives every button its hover lift, focus outline, press scale, transition and disabled look (opacity .45, no pointer events), and every text field and select its pink focus ring. Never add `transition-*`, `cursor-*`, a disabled opacity, `outline-none`, or `border-0` / `m-0` resets to a button or field.
+
+**Scales of the primitives:**
+
+| Element | Allowed values |
+|---|---|
+| Radius | `rounded-md` small controls, badges · `rounded-lg` buttons, fields, chips · `rounded-xl` cards, popovers · `rounded-2xl` modals, panels · `rounded-full` round icons, dots |
+| Control size | `sm` `px-2.5 py-1 text-xs` · `md` `px-3.5 py-2 text-ui` · `lg` `px-5 py-2.5 text-sm`; weight `font-semibold` |
+| Surface alpha | resting `bg-white/5` · hover `bg-white/8` · inset `bg-black/30`; borders `border-line`, emphasis `border-line-accent` |
+| Spacing | modal sections `px-6 py-4` · cards `p-4` / `p-5` · section gaps `gap-4` / `gap-6` |
+
+**Tints come only from `ui/tones.ts`**: info box and tinted button `bg-X/15 border-X/35 text-accent-X`; pressed chip `bg-X/20 border-X text-accent-X`; badge `bg-X/20 text-accent-X`. Use the `accent-*` tokens, not raw `pink-500` / `sky-400`. A colour outside the palette that carries meaning gets a named tone in `tones.ts`.
+
+Extract a new primitive only once a pattern repeats at least five times *with the same look*; otherwise use plain classes, or an `@layer components` class when it is used at least three times.
 
 ## Preflight notes
 

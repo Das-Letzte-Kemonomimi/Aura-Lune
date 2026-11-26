@@ -1,39 +1,39 @@
 use serde::{Deserialize, Serialize};
 
-/// Tryb normalizacji głośności ReplayGain 2.0 / EBU R128.
+/// ReplayGain 2.0 / EBU R128 loudness normalisation mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ReplayGainMode {
-    /// Normalizacja wyłączona (Bypass).
+    /// Normalisation off (Bypass).
     #[default]
     Off,
-    /// Dopasowanie głośności per utwór (Track Gain).
+    /// Per-track loudness matching (Track Gain).
     Track,
-    /// Dopasowanie głośności per album (Album Gain) - zachowuje dynamikę między utworami.
+    /// Per-album loudness matching (Album Gain): keeps the dynamics between tracks.
     Album,
-    /// Inteligentny wybór (Auto): Album Gain dla spójnego albumu, Track Gain dla trybu losowego lub miksu.
+    /// Smart choice (Auto): Album Gain for a coherent album, Track Gain for shuffle or a mix.
     Auto,
 }
 
 impl ReplayGainMode {
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::Off => "Wyłączony (Off)",
-            Self::Track => "Utwór (Track Gain)",
+            Self::Off => "Off",
+            Self::Track => "Track (Track Gain)",
             Self::Album => "Album (Album Gain)",
-            Self::Auto => "Inteligentny (Auto Track/Album)",
+            Self::Auto => "Smart (Auto Track/Album)",
         }
     }
 }
 
-/// Konfiguracja normalizacji ReplayGain.
+/// ReplayGain normalisation configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ReplayGainConfig {
     pub mode: ReplayGainMode,
-    /// Dodatkowe wzmocnienie przedwzmacniacza w dB (-12.0 dB do +12.0 dB).
+    /// Extra preamp gain in dB (-12.0 dB to +12.0 dB).
     pub pre_amp_db: f64,
-    /// Domyślne wzmocnienie dla utworów bez tagów ReplayGain w dB (np. -6.0 dB).
+    /// Default gain in dB for tracks without ReplayGain tags (e.g. -6.0 dB).
     pub fallback_gain_db: f64,
-    /// Ochrona przed obcinaniem sygnału / przesterem (ReplayGain Limiter).
+    /// Protection against clipping / distortion (ReplayGain limiter).
     pub prevent_clipping: bool,
 }
 

@@ -1,7 +1,7 @@
-//! Integracja odtwarzacza z pulpitem Linuksa przez specyfikację MPRIS 2.2 na magistrali D-Bus,
-//! Discord Rich Presence (RPC), eksport statusu do Waybar/Hyprland
-//! (`$XDG_RUNTIME_DIR/auralune/auralune.json`) oraz kanały bezpośredniego sterowania IPC
-//! FIFO/Socket (`$XDG_RUNTIME_DIR/auralune/ctl`, `$XDG_RUNTIME_DIR/auralune/auralune.sock`).
+//! Desktop integration on Linux: MPRIS 2.2 over D-Bus,
+//! Discord Rich Presence (RPC), status export for Waybar/Hyprland
+//! (`$XDG_RUNTIME_DIR/auralune/auralune.json`) and the direct IPC control channels
+//! over FIFO/socket (`$XDG_RUNTIME_DIR/auralune/ctl`, `$XDG_RUNTIME_DIR/auralune/auralune.sock`).
 
 pub mod control_ipc;
 pub mod discord_rpc;

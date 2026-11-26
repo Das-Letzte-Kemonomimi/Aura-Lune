@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::{debug, error, info, warn};
 
-/// Domyślny identyfikator klienta Auralune dla Last.fm 2.0 API.
-/// Użytkowniczka może podać własny klucz i sekret w Ustawieniach zaawansowanych.
+/// Default Auralune client identifier for the Last.fm 2.0 API.
+/// The user can enter their own key and secret in the advanced settings.
 pub const DEFAULT_LASTFM_API_KEY: &str = "b25b959554ed76058ac220b7b2e0a026";
 pub const DEFAULT_LASTFM_API_SECRET: &str = "425b55779f4227dda7900343f6048563";
 
@@ -22,7 +22,7 @@ pub fn md5_hex(data: &[u8]) -> String {
 }
 
 // =========================================================================
-// Klient Last.fm 2.0 API
+// Last.fm 2.0 API client
 // =========================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,11 +72,11 @@ impl LastFmClient {
         }
     }
 
-    /// Oblicza podpis `api_sig` według reguł Last.fm:
-    /// 1. Posortowanie parametrów alfabetycznie po kluczu (z pominięciem format i callback).
-    /// 2. Konkatenacja klucz + wartość dla każdego parametru.
-    /// 3. Dołączenie `api_secret` na końcu.
-    /// 4. Wyliczenie skrótu MD5 w hex (małe litery).
+    /// Computes the `api_sig` signature following the Last.fm rules:
+    /// 1. Sort the parameters alphabetically by key (skipping format and callback).
+    /// 2. Concatenate key + value for each parameter.
+    /// 3. Append `api_secret` at the end.
+    /// 4. Compute the MD5 hash in hex (lowercase).
     pub fn calculate_signature(&self, params: &BTreeMap<&str, String>, api_secret: &str) -> String {
         let mut pre_hash = String::new();
         for (k, v) in params {
@@ -89,7 +89,7 @@ impl LastFmClient {
         md5_hex(pre_hash.as_bytes())
     }
 
-    /// Pobiera nowy token autoryzacyjny `auth.getToken` do autoryzacji w przeglądarce.
+    /// Fetches a new `auth.getToken` token for authorisation in the browser.
     pub async fn get_auth_token(&self, api_key: Option<&str>) -> Result<String, ScrobbleError> {
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
         let url = format!(
@@ -100,34 +100,37 @@ impl LastFmClient {
 
         let res = self.client.get(&url).send().await.map_err(|e| {
             ScrobbleError::Network(format!(
-                "Błąd sieciowy przy pobieraniu tokenu Last.fm: {}",
+                "Network error while fetching the Last.fm token: {}",
                 e
             ))
         })?;
 
         if !res.status().is_success() {
             return Err(ScrobbleError::Service(format!(
-                "Serwer Last.fm zwrócił błąd HTTP: {}",
+                "Last.fm server returned HTTP error: {}",
                 res.status()
             )));
         }
 
         let json: serde_json::Value = res.json().await.map_err(|e| {
-            ScrobbleError::Parse(format!("Błąd parsowania odpowiedzi JSON Last.fm: {}", e))
+            ScrobbleError::Parse(format!("Failed to parse the Last.fm JSON response: {}", e))
         })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(ScrobbleError::Service(format!("Błąd Last.fm: {}", err_msg)));
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm error: {}",
+                err_msg
+            )));
         }
 
         let token = json.get("token").and_then(|t| t.as_str()).ok_or_else(|| {
-            ScrobbleError::Parse("Brak pola 'token' w odpowiedzi Last.fm".to_string())
+            ScrobbleError::Parse("No 'token' field in the Last.fm response".to_string())
         })?;
 
         Ok(token.to_string())
     }
 
-    /// Wymienia autoryzowany przez użytkowniczkę token na trwały klucz sesji `session_key`.
+    /// Exchanges the token the user authorised for a permanent `session_key`.
     pub async fn fetch_session(
         &self,
         token: &str,
@@ -153,34 +156,34 @@ impl LastFmClient {
             .send()
             .await
             .map_err(|e| {
-                ScrobbleError::Network(format!("Błąd żądania pobrania sesji Last.fm: {}", e))
+                ScrobbleError::Network(format!("Last.fm session request failed: {}", e))
             })?;
 
         let json: serde_json::Value = res.json().await.map_err(|e| {
-            ScrobbleError::Parse(format!("Błąd parsowania JSON sesji Last.fm: {}", e))
+            ScrobbleError::Parse(format!("Failed to parse the Last.fm session JSON: {}", e))
         })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
             return Err(ScrobbleError::Service(format!(
-                "Nie udało się uzyskać sesji Last.fm: {}",
+                "Failed to get a Last.fm session: {}",
                 err_msg
             )));
         }
 
         let session_obj = json.get("session").ok_or_else(|| {
-            ScrobbleError::Parse("Brak obiektu 'session' w odpowiedzi Last.fm".to_string())
+            ScrobbleError::Parse("No 'session' object in the Last.fm response".to_string())
         })?;
 
         let username = session_obj
             .get("name")
             .and_then(|n| n.as_str())
-            .ok_or_else(|| ScrobbleError::Parse("Brak nazwy użytkownika w sesji".to_string()))?
+            .ok_or_else(|| ScrobbleError::Parse("No user name in the session".to_string()))?
             .to_string();
 
         let session_key = session_obj
             .get("key")
             .and_then(|k| k.as_str())
-            .ok_or_else(|| ScrobbleError::Parse("Brak klucza sesji w odpowiedzi".to_string()))?
+            .ok_or_else(|| ScrobbleError::Parse("No session key in the response".to_string()))?
             .to_string();
 
         Ok(LastFmSession {
@@ -189,7 +192,7 @@ impl LastFmClient {
         })
     }
 
-    /// Weryfikuje klucz sesji poprzez zapytanie `user.getInfo`.
+    /// Verifies the session key with a `user.getInfo` request.
     pub async fn validate_session(
         &self,
         session_key: &str,
@@ -199,7 +202,7 @@ impl LastFmClient {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
             return Err(ScrobbleError::Validation(
-                "Klucz sesji Last.fm nie może być pusty".to_string(),
+                "The Last.fm session key must not be empty".to_string(),
             ));
         }
 
@@ -221,16 +224,15 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| ScrobbleError::Network(format!("Błąd połączenia z Last.fm: {}", e)))?;
+            .map_err(|e| ScrobbleError::Network(format!("Failed to connect to Last.fm: {}", e)))?;
 
-        let json: serde_json::Value = res
-            .json()
-            .await
-            .map_err(|e| ScrobbleError::Parse(format!("Błąd parsowania profilu Last.fm: {}", e)))?;
+        let json: serde_json::Value = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Failed to parse the Last.fm profile: {}", e))
+        })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
             return Err(ScrobbleError::Service(format!(
-                "Niepoprawny klucz sesji Last.fm: {}",
+                "Invalid Last.fm session key: {}",
                 err_msg
             )));
         }
@@ -239,13 +241,13 @@ impl LastFmClient {
             .get("user")
             .and_then(|u| u.get("name"))
             .and_then(|n| n.as_str())
-            .unwrap_or("Użytkowniczka Last.fm")
+            .unwrap_or("Last.fm user")
             .to_string();
 
         Ok(user_name)
     }
 
-    /// Wysyła status "Now Playing" (aktualnie odtwarzany utwór) do profilu Last.fm.
+    /// Sends the "Now Playing" status (the track playing now) to the Last.fm profile.
     pub async fn update_now_playing(
         &self,
         session_key: &str,
@@ -292,27 +294,27 @@ impl LastFmClient {
             .send()
             .await
             .map_err(|e| {
-                ScrobbleError::Network(format!("Błąd wysyłania Now Playing do Last.fm: {}", e))
+                ScrobbleError::Network(format!("Failed to send Now Playing to Last.fm: {}", e))
             })?;
 
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
-            warn!("Last.fm Now Playing błąd ({}): {}", status, text);
+            warn!("Last.fm Now Playing error ({}): {}", status, text);
             return Err(ScrobbleError::Service(format!(
-                "Last.fm zwrócił błąd HTTP {}: {}",
+                "Last.fm returned HTTP error {}: {}",
                 status, text
             )));
         }
 
         debug!(
-            "Wysłano status Now Playing do Last.fm: {} - {}",
+            "Sent the Now Playing status to Last.fm: {} - {}",
             track_info.artist, track_info.track
         );
         Ok(())
     }
 
-    /// Wysyła scrobble (ukończone odtworzenie utworu) do Last.fm.
+    /// Sends a scrobble (a finished play of a track) to Last.fm.
     pub async fn scrobble(
         &self,
         session_key: &str,
@@ -361,21 +363,21 @@ impl LastFmClient {
             .send()
             .await
             .map_err(|e| {
-                ScrobbleError::Network(format!("Błąd wysyłania scrobble do Last.fm: {}", e))
+                ScrobbleError::Network(format!("Failed to send the scrobble to Last.fm: {}", e))
             })?;
 
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
-            error!("Last.fm scrobble błąd ({}): {}", status, text);
+            error!("Last.fm scrobble error ({}): {}", status, text);
             return Err(ScrobbleError::Service(format!(
-                "Last.fm zwrócił błąd HTTP {}: {}",
+                "Last.fm returned HTTP error {}: {}",
                 status, text
             )));
         }
 
         info!(
-            "Zgłoszono scrobble do Last.fm: {} - {}",
+            "Scrobble submitted to Last.fm: {} - {}",
             track_info.artist, track_info.track
         );
         Ok(())

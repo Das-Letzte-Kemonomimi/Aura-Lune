@@ -12,29 +12,28 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Error)]
 pub enum LibraryError {
-    #[error("Błąd bazy danych: {0}")]
+    #[error("Database error: {0}")]
     Storage(#[from] storage::StorageError),
-    #[error("Błąd I/O: {0}")]
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Błąd odczytu pliku lofty: {0}")]
+    #[error("lofty file read error: {0}")]
     Lofty(#[from] lofty::error::FileParseError),
-    #[error("Przerwane zadanie odczytu pliku: {0}")]
+    #[error("Interrupted file read task: {0}")]
     Task(#[from] tokio::task::JoinError),
 }
 
-/// Podsumowanie przebiegu skanowania.
+/// Summary of a scan run.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ScanSummary {
     pub total_files_found: usize,
     pub new_or_updated_tracks: usize,
     pub skipped_unchanged: usize,
     pub errors: usize,
-    /// Liczba rekordów usuniętych z bazy, bo pliki zniknęły z dysku.
+    /// Number of records removed from the database because their files disappeared from disk.
     pub removed_stale: usize,
 }
 
-/// Skaner biblioteki z obsługą przyrostowego indeksowania i wykrywania okładek.
-/// Wynik blokującego odczytu jednego pliku (przed zapisem do bazy).
+/// Result of the blocking read of one file (before the database write).
 struct ParsedTrack {
     record: TrackRecord,
     album_name: String,
@@ -43,7 +42,7 @@ struct ParsedTrack {
     cover_path: Option<String>,
 }
 
-/// Plik audio znaleziony podczas przejścia katalogu.
+/// An audio file found while walking a directory.
 struct ScannedFile {
     path: PathBuf,
     path_str: String,
@@ -55,11 +54,12 @@ struct ScannedFile {
 struct WalkResult {
     files: Vec<ScannedFile>,
     walk_errors: usize,
-    /// Pliki, których metadanych nie udało się odczytać — nadal istnieją, więc nie mogą
-    /// zostać usunięte z bazy jako nieaktualne.
+    /// Files whose metadata could not be read: they still exist, so they must not
+    /// be removed from the database as stale.
     unreadable_paths: Vec<String>,
 }
 
+/// Library scanner with incremental indexing and cover detection.
 #[derive(Clone)]
 pub struct LibraryScanner {
     cache_dir: PathBuf,
@@ -74,7 +74,7 @@ impl LibraryScanner {
         }
     }
 
-    /// Sprawdza, czy rozszerzenie pliku wskazuje na obsługiwany format audio.
+    /// Checks whether the file extension denotes a supported audio format.
     pub fn is_supported_audio_extension(path: &Path) -> bool {
         match path
             .extension()
@@ -89,7 +89,7 @@ impl LibraryScanner {
         }
     }
 
-    /// Przeprowadza rekursywne, przyrostowe skanowanie wskazanego katalogu.
+    /// Runs a recursive, incremental scan of the given directory.
     pub async fn scan_directory(
         &self,
         dir: impl AsRef<Path>,
@@ -102,7 +102,7 @@ impl LibraryScanner {
         let mut active_paths = Vec::new();
         let mut walk_errors = 0usize;
 
-        // Przejście katalogu, canonicalize i stat są blokujące — wykonywane poza wątkami Tokio.
+        // Walking the directory, canonicalize and stat are blocking, so they run off the Tokio threads.
         let walk_root = root.to_path_buf();
         let walk = tokio::task::spawn_blocking(move || Self::walk_audio_files(&walk_root)).await?;
         walk_errors += walk.walk_errors;
@@ -110,7 +110,7 @@ impl LibraryScanner {
         summary.errors += walk.unreadable_paths.len();
         active_paths.extend(walk.unreadable_paths);
 
-        // Jedno zapytanie zamiast `get_track_by_path` dla każdego pliku.
+        // One query instead of `get_track_by_path` for every file.
         let known = db.track_file_stamps().await.unwrap_or_default();
 
         for file in walk.files {
@@ -120,32 +120,32 @@ impl LibraryScanner {
             let path_str = file.path_str;
             let (file_size, modified_time) = (file.file_size, file.modified_time);
 
-            // PRZYROSTOWE SPRAWDZENIE:
-            // Czy plik już istnieje i nie zmienił się rozmiar ani czas modyfikacji?
+            // INCREMENTAL CHECK:
+            // Does the file already exist with unchanged size and modification time?
             if known.get(&path_str) == Some(&(file_size, modified_time)) {
                 summary.skipped_unchanged += 1;
                 continue;
             }
 
-            // Pełna ekstrakcja tagów przez lofty
+            // Full tag extraction via lofty
             match self
                 .extract_and_save_track(path, &path_str, file_size, modified_time, db)
                 .await
             {
                 Ok(_) => {
                     summary.new_or_updated_tracks += 1;
-                    debug!("Zindeksowano: {}", path.display());
+                    debug!("Indexed: {}", path.display());
                 }
                 Err(err) => {
-                    warn!("Błąd odczytu tagów z {}: {:?}", path.display(), err);
+                    warn!("Failed to read tags from {}: {:?}", path.display(), err);
                     summary.errors += 1;
                 }
             }
         }
         summary.errors += walk_errors;
 
-        // Usunięcie z bazy plików, które zniknęły z dysku. Tylko po kompletnym przejściu
-        // istniejącego katalogu — niedostępny dysk lub błędy uprawnień nie mogą wyczyścić biblioteki.
+        // Remove files that disappeared from disk from the database. Only after a complete walk
+        // of an existing directory: an unreachable drive or permission errors must not wipe the library.
         if walk_errors == 0 && root.is_dir() {
             let root_str = match root.canonicalize() {
                 Ok(p) => p.display().to_string(),
@@ -154,12 +154,12 @@ impl LibraryScanner {
             let removed = db.delete_stale_tracks(&root_str, &active_paths).await?;
             summary.removed_stale = removed;
             if removed > 0 {
-                info!("Usunięto {} nieistniejących utworów z bazy", removed);
+                info!("Removed {} missing tracks from the database", removed);
             }
         }
 
         info!(
-            "Zakończono skanowanie. Znaleziono: {}, Zindeksowano: {}, Pominięto (bez zmian): {}, Błędy: {}",
+            "Scan finished. Found: {}, Indexed: {}, Skipped (unchanged): {}, Errors: {}",
             summary.total_files_found,
             summary.new_or_updated_tracks,
             summary.skipped_unchanged,
@@ -169,7 +169,7 @@ impl LibraryScanner {
         Ok(summary)
     }
 
-    /// Skanuje listę ścieżek (pliki i/lub katalogi), np. przekazanych przez Drag & Drop lub okno wyboru plików.
+    /// Scans a list of paths (files and/or directories), e.g. from drag and drop or the file picker.
     pub async fn scan_paths(
         &self,
         paths: &[impl AsRef<Path>],
@@ -197,7 +197,11 @@ impl LibraryScanner {
                 let metadata = match fs::metadata(path) {
                     Ok(m) => m,
                     Err(e) => {
-                        warn!("Błąd odczytu metadanych pliku {}: {:?}", path.display(), e);
+                        warn!(
+                            "Failed to read metadata of file {}: {:?}",
+                            path.display(),
+                            e
+                        );
                         summary.errors += 1;
                         continue;
                     }
@@ -223,10 +227,10 @@ impl LibraryScanner {
                 {
                     Ok(_) => {
                         summary.new_or_updated_tracks += 1;
-                        debug!("Zindeksowano: {}", path.display());
+                        debug!("Indexed: {}", path.display());
                     }
                     Err(err) => {
-                        warn!("Błąd odczytu tagów z {}: {:?}", path.display(), err);
+                        warn!("Failed to read tags from {}: {:?}", path.display(), err);
                         summary.errors += 1;
                     }
                 }
@@ -235,7 +239,7 @@ impl LibraryScanner {
         Ok(summary)
     }
 
-    /// Wyciąga tagi i okładkę (w `spawn_blocking`), po czym zapisuje encje do bazy.
+    /// Extracts tags and the cover (in `spawn_blocking`), then writes the entities to the database.
     async fn extract_and_save_track(
         &self,
         file_path: &Path,
@@ -267,7 +271,7 @@ impl LibraryScanner {
         Ok(())
     }
 
-    /// Blokujący odczyt tagów (lofty) i okładki jednego pliku.
+    /// Blocking read of one file's tags (lofty) and cover.
     fn read_track_file(
         &self,
         file_path: &Path,
@@ -302,7 +306,7 @@ impl LibraryScanner {
                 file_path
                     .file_stem()
                     .and_then(|s| s.to_str())
-                    .unwrap_or("Nieznany utwór")
+                    .unwrap_or("Unknown Track")
                     .to_string()
             });
 
@@ -310,16 +314,16 @@ impl LibraryScanner {
             .as_ref()
             .and_then(|t| t.artist())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "Nieznany wykonawca".to_string());
+            .unwrap_or_else(|| "Unknown Artist".to_string());
 
         let album_name = tag
             .as_ref()
             .and_then(|t| t.album())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "Nieznany album".to_string());
+            .unwrap_or_else(|| "Unknown Album".to_string());
 
-        // Wykonawca albumu (tag ALBUMARTIST) — dla kompilacji różni się od wykonawcy utworu.
-        // Gdy tagu brak, album grupowany jest po wykonawcy utworu.
+        // Album artist (ALBUMARTIST tag): for compilations it differs from the track artist.
+        // Without the tag the album is grouped by the track artist.
         let album_artist = tag
             .as_ref()
             .and_then(|t| t.get_string(lofty::tag::ItemKey::AlbumArtist))
@@ -331,7 +335,7 @@ impl LibraryScanner {
         let disc_no = tag.as_ref().and_then(|t| t.disk()).map(|d| d as i64);
         let year = tag.as_ref().and_then(|t| t.date()).map(|d| d.year as i64);
 
-        // Wykrywanie okładki: 1. Embedded, 2. Pliki w folderze
+        // Cover detection: 1. embedded, 2. files in the folder
         let cover_path = self.resolve_cover_art(file_path, tag);
 
         let bpm = tag
@@ -398,14 +402,14 @@ impl LibraryScanner {
         })
     }
 
-    /// Zbiera obsługiwane pliki audio w katalogu wraz z rozmiarem i czasem modyfikacji.
+    /// Collects the supported audio files in a directory with their size and modification time.
     fn walk_audio_files(root: &Path) -> WalkResult {
         let mut out = WalkResult::default();
         for entry in WalkDir::new(root).follow_links(true) {
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
-                    warn!("Błąd przeglądania katalogu {}: {}", root.display(), e);
+                    warn!("Error walking directory {}: {}", root.display(), e);
                     out.walk_errors += 1;
                     continue;
                 }
@@ -421,7 +425,11 @@ impl LibraryScanner {
             let metadata = match entry.metadata() {
                 Ok(m) => m,
                 Err(e) => {
-                    warn!("Błąd odczytu metadanych pliku {}: {:?}", path.display(), e);
+                    warn!(
+                        "Failed to read metadata of file {}: {:?}",
+                        path.display(),
+                        e
+                    );
                     out.unreadable_paths.push(path_str);
                     continue;
                 }
@@ -442,9 +450,9 @@ impl LibraryScanner {
         out
     }
 
-    /// Szuka okładki w tagach lub w katalogu pliku.
+    /// Looks for a cover in the tags or in the file's directory.
     fn resolve_cover_art(&self, file_path: &Path, tag: Option<&lofty::tag::Tag>) -> Option<String> {
-        // 1. Sprawdzenie osadzonej grafiki w tagach
+        // 1. Check for embedded artwork in the tags
         if let Some(tag) = tag {
             if let Some(pic) = tag.pictures().first() {
                 let data = pic.data();
@@ -463,7 +471,7 @@ impl LibraryScanner {
             }
         }
 
-        // 2. Poszukiwanie pliku graficznego w tym samym folderze
+        // 2. Look for an image file in the same folder
         if let Some(parent) = file_path.parent() {
             let candidates = [
                 "cover.jpg",

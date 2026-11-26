@@ -1,29 +1,29 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 
 export interface FrameInfo {
-  /** Czas od poprzedniej klatki w sekundach (0 przy pierwszej klatce po starcie/wybudzeniu, max 0.1). */
+  /** Time since the previous frame in seconds (0 on the first frame after start/wake, max 0.1). */
   dt: number;
-  /** `requestAnimationFrame` timestamp w ms. */
+  /** `requestAnimationFrame` timestamp in ms. */
   now: number;
 }
 
 export interface FrameLoopOptions {
-  /** `false` zatrzymuje pętlę (domyślnie `true`). */
+  /** `false` stops the loop (default `true`). */
   active?: boolean;
-  /** Górny limit klatek na sekundę (np. 30); domyślnie bez limitu (częstotliwość odświeżania ekranu). */
+  /** Upper limit of frames per second (e.g. 30); unlimited by default (the screen refresh rate). */
   maxFps?: number;
-  /** Element, którego widoczność steruje pętlą: niewidoczny (np. `display:none`, poza ekranem) → pauza. */
+  /** Element whose visibility drives the loop: not visible (e.g. `display:none`, off screen) → pause. */
   target?: RefObject<Element | null>;
 }
 
 const MAX_DT_SEC = 0.1;
 
 /**
- * Pętla `requestAnimationFrame` z oszczędzaniem energii:
- * - `onFrame` jest trzymany w refie, więc zmiana funkcji/propsów NIE restartuje pętli,
- * - pętla śpi, gdy karta jest ukryta (`document.hidden`), gdy `target` jest niewidoczny
- *   (IntersectionObserver) albo gdy `active === false`,
- * - `onFrame` zwracające `false` usypia pętlę do czasu `wake()` (np. ustalony stan bez ruchu).
+ * A `requestAnimationFrame` loop that saves energy:
+ * - `onFrame` is kept in a ref, so changing the function/props does NOT restart the loop,
+ * - the loop sleeps while the tab is hidden (`document.hidden`), while `target` is not visible
+ *   (IntersectionObserver) or while `active === false`,
+ * - an `onFrame` that returns `false` puts the loop to sleep until `wake()` (e.g. a settled state without motion).
  */
 export function useFrameLoop(
   onFrame: (frame: FrameInfo) => boolean | void,
@@ -35,7 +35,7 @@ export function useFrameLoop(
   const visibleRef = useRef(true);
   const controlRef = useRef<{ start: () => void; stop: () => void }>({ start: () => {}, stop: () => {} });
 
-  // Najnowsze wartości dla pętli (bez restartu efektu).
+  // The latest values for the loop (without restarting the effect).
   useEffect(() => {
     onFrameRef.current = onFrame;
     activeRef.current = active;

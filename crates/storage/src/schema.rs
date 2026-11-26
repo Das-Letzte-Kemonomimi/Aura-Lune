@@ -1,12 +1,12 @@
-//! Schemat bazy danych SQLite, pragmy optymalizacyjne, indeksy i migracje wersji.
+//! SQLite database schema, optimisation pragmas, indexes and version migrations.
 
 use crate::{Database, StorageError};
 
 impl Database {
-    /// Inicjalizuje tabele i indeksy w bazie danych oraz aplikuje migracje schematu.
+    /// Initialises the database tables and indexes and applies the schema migrations.
     pub async fn run_migrations(&self) -> Result<(), StorageError> {
-        // Pragmy wydajnościowe (cache, temp_store, mmap) są ustawiane per połączenie
-        // w `Database::connect_options`, nie tutaj (tu trafiłyby tylko do jednego połączenia puli).
+        // Performance pragmas (cache, temp_store, mmap) are set per connection
+        // in `Database::connect_options`, not here (here they would reach only one pool connection).
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS artists (
@@ -223,7 +223,7 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON playlist_tracks(playlist_id);
             CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track ON playlist_tracks(track_id);
             CREATE INDEX IF NOT EXISTS idx_tracks_dup_key ON tracks(LOWER(TRIM(title)), LOWER(TRIM(artist)));
-            -- `tracks.path` ma już indeks z ograniczenia UNIQUE.
+            -- `tracks.path` already has an index from its UNIQUE constraint.
             DROP INDEX IF EXISTS idx_tracks_path;
             CREATE INDEX IF NOT EXISTS idx_listening_history_played ON listening_history(played_at);
             CREATE INDEX IF NOT EXISTS idx_listening_history_track ON listening_history(track_id);
@@ -244,7 +244,7 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
-        // Zgodność wsteczna: wersjonowane migracje z użyciem PRAGMA user_version
+        // Backward compatibility: versioned migrations via PRAGMA user_version
         let user_version: i32 = sqlx::query_scalar("PRAGMA user_version;")
             .fetch_one(&self.pool)
             .await?;
@@ -260,7 +260,7 @@ impl Database {
             self.migrate_v3().await?;
         }
 
-        // Inicjalizacja domyślnych motywów anime (upewniamy się, że każdy motyw istnieje)
+        // Seed the default anime themes (make sure every theme exists)
         for theme in domain::default_themes() {
             if self.get_theme(&theme.id).await?.is_none() {
                 self.save_theme(&theme).await?;
@@ -274,11 +274,11 @@ impl Database {
         Ok(())
     }
 
-    /// v1: kolumny statystyk/analizy w `tracks`, `release_mbid` w `albums` i ich indeksy.
+    /// v1: the statistics/analysis columns in `tracks`, `release_mbid` in `albums` and their indexes.
     ///
-    /// Bazy sprzed v1 nie mają tych kolumn, więc indeksy na nich powstają dopiero tutaj
-    /// (w pierwszym bloku DDL zakończyłyby inicjalizację błędem "no such column").
-    /// Cały krok jest jedną transakcją: błąd ALTER nie oznaczy bazy jako zmigrowanej.
+    /// Databases from before v1 lack these columns, so their indexes are created only here
+    /// (in the first DDL block they would fail initialisation with "no such column").
+    /// The whole step is one transaction: a failed ALTER does not mark the database as migrated.
     async fn migrate_v1(&self) -> Result<(), StorageError> {
         const TRACK_COLUMNS: &[(&str, &str)] = &[
             ("is_favorite", "BOOLEAN DEFAULT 0"),
@@ -304,7 +304,7 @@ impl Database {
                 if existing.iter().any(|c| c == name) {
                     continue;
                 }
-                // Nazwy tabel i kolumn są stałymi z tego pliku — bez danych z zewnątrz.
+                // Table and column names are constants from this file, never external data.
                 sqlx::query(&format!("ALTER TABLE {table} ADD COLUMN {name} {ddl};"))
                     .execute(&mut *tx)
                     .await?;
@@ -324,11 +324,11 @@ impl Database {
         Ok(())
     }
 
-    /// Migracja v2:
-    /// - `playback_bookmarks.track_id` otrzymuje `ON DELETE CASCADE` (wcześniej usunięcie utworu
-    ///   z zakładką kończyło się błędem klucza obcego),
-    /// - naprawa kolumny `tracks.album_artist`, do której starszy skaner zapisywał tytuł albumu,
-    /// - kolumny `bpm` / `musical_key` / `camelot` w pamięci podręcznej analiz akordów i transkrypcji.
+    /// Migration v2:
+    /// - `playback_bookmarks.track_id` gets `ON DELETE CASCADE` (deleting a track with
+    ///   a bookmark used to fail with a foreign key error),
+    /// - repairs the `tracks.album_artist` column, where an older scanner stored the album title,
+    /// - the `bpm` / `musical_key` / `camelot` columns in the chord and transcription analysis caches.
     async fn migrate_v2(&self) -> Result<(), StorageError> {
         let mut tx = self.pool.begin().await?;
 
@@ -360,7 +360,7 @@ impl Database {
         .execute(&mut *tx)
         .await?;
 
-        // Metadane harmoniczne w pamięci podręcznej analiz (wcześniej zwracano stałe 120 BPM / "Detected").
+        // Harmonic metadata in the analysis cache (a fixed 120 BPM / "Detected" used to be returned).
         let new_columns = [
             ("track_chords", "bpm", "REAL"),
             ("track_chords", "musical_key", "TEXT"),
@@ -386,7 +386,7 @@ impl Database {
         Ok(())
     }
 
-    /// Migracja v3: pamięć podręczna granic ciszy (pomijanie ciszy podczas odtwarzania).
+    /// Migration v3: silence bounds cache (silence skipping during playback).
     async fn migrate_v3(&self) -> Result<(), StorageError> {
         let mut tx = self.pool.begin().await?;
         sqlx::query(

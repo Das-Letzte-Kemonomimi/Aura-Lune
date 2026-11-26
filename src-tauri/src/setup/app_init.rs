@@ -1,4 +1,4 @@
-//! Inicjalizacja stanu aplikacji, bazy SQLite, klientów integracji, sesji oraz odtwarzania początkowego.
+//! Initialisation of app state, the SQLite database, integration clients, the session and initial playback.
 
 use crate::commands::playback::{
     enqueue_and_play_files, extract_audio_paths_from_args, resolve_or_extract_sample_track,
@@ -20,22 +20,22 @@ use storage::Database;
 use tauri::Manager;
 use tracing::info;
 
-/// Klucz ustawienia z ostatnią głośnością (0.0–1.0); zapisywany przy zamykaniu, czytany przy starcie.
+/// Setting key for the last volume (0.0–1.0); written on quit, read on start-up.
 pub const VOLUME_SETTING_KEY: &str = "playback_volume";
 
-/// Inicjalizuje bazę danych, usługi pomocnicze, stan sesji i zasobnik systemowy.
+/// Initialises the database, helper services, session state and the system tray.
 pub fn init_app(
     app: &mut tauri::App,
     rt: Arc<tokio::runtime::Runtime>,
     engine: Arc<AudioEngine>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data_dir = app.path().app_data_dir().map_err(|e| {
-        let msg = format!("Brak katalogu danych aplikacji: {e}");
+        let msg = format!("The app data directory is missing: {e}");
         crate::setup::fatal::report_fatal_startup_error(&msg);
         msg
     })?;
     if let Err(e) = fs::create_dir_all(&data_dir) {
-        let msg = format!("Nie można utworzyć katalogu {}: {e}", data_dir.display());
+        let msg = format!("Cannot create the directory {}: {e}", data_dir.display());
         crate::setup::fatal::report_fatal_startup_error(&msg);
         return Err(msg.into());
     }
@@ -45,20 +45,16 @@ pub fn init_app(
     let db = match rt.block_on(Database::open(&db_path)) {
         Ok(db) => db,
         Err(e) => {
-            let msg = format!(
-                "Nie udało się otworzyć bazy danych {}: {}",
-                db_path.display(),
-                e
-            );
+            let msg = format!("Failed to open the database {}: {}", db_path.display(), e);
             crate::setup::fatal::report_fatal_startup_error(&msg);
             return Err(msg.into());
         }
     };
 
-    // Przywrócenie ostatniego stanu kolejki odtwarzania z bazy danych
+    // Restore the last playback queue state from the database
     if let Ok(Some(saved_queue)) = rt.block_on(async { db.load_queue_state().await }) {
         info!(
-            "Wczytano zapisany stan kolejki ({} utworów)",
+            "Loaded the saved queue state ({} tracks)",
             saved_queue.items.len()
         );
         let loop_mode = saved_queue.loop_mode;
@@ -70,7 +66,7 @@ pub fn init_app(
         engine.set_shuffle(shuffle);
     }
 
-    // Wszystkie ustawienia jednym zapytaniem zamiast kilkunastu blokujących odczytów na wątku głównym.
+    // All settings in one query instead of a dozen blocking reads on the main thread.
     let settings = rt.block_on(db.list_app_settings()).unwrap_or_default();
 
     let scanner = LibraryScanner::new(&cache_dir);
@@ -80,17 +76,17 @@ pub fn init_app(
     let mpris = rt.block_on(async {
         match desktop_integration::MprisController::start(engine.clone()).await {
             Ok(controller) => {
-                info!("Zainicjalizowano serwis MPRIS D-Bus: org.mpris.MediaPlayer2.auralune");
+                info!("Initialised the MPRIS D-Bus service: org.mpris.MediaPlayer2.auralune");
                 Some(Arc::new(controller))
             }
             Err(e) => {
-                tracing::warn!("MPRIS D-Bus niedostępny w tej sesji: {}", e);
+                tracing::warn!("MPRIS D-Bus unavailable in this session: {}", e);
                 None
             }
         }
     });
 
-    // Sprawdź czy korektor graficzny EQ ma być automatycznie włączony przy starcie
+    // Check whether the graphic EQ should be enabled automatically on start-up
     let eq_startup = settings.get("eq_enabled_on_startup").cloned();
     if let Some(val) = eq_startup {
         let enabled = val == "true";
@@ -99,7 +95,7 @@ pub fn init_app(
         engine.set_equalizer_enabled(false);
     }
 
-    // Sprawdź czy ustawienia DSP mają być automatycznie przywracane przy starcie
+    // Check whether the DSP settings should be restored automatically on start-up
     let dsp_startup = settings.get("dsp_restore_on_startup").cloned();
     if dsp_startup.as_deref() == Some("true") {
         if let Some(saved_json) = settings.get("dsp_saved_settings").cloned() {
@@ -122,7 +118,7 @@ pub fn init_app(
                     let _ = engine.set_dsp_params(params);
                 }
                 tracing::info!(
-                    "Przywrócono zapisane ustawienia DSP przy starcie: {:?}, pitch={}, tempo={}, rate={}",
+                    "Restored the saved DSP settings on start-up: {:?}, pitch={}, tempo={}, rate={}",
                     target_engine,
                     saved.pitch_semitones,
                     saved.tempo_ratio,
@@ -131,18 +127,18 @@ pub fn init_app(
             }
         }
     } else {
-        // Domyślny silnik DSP przy uruchomieniu (Bypass jako domyślny)
+        // Default DSP engine on start-up (Bypass by default)
         let default_engine_setting = settings.get("dsp_default_engine").cloned();
         let target_engine =
             DspEngine::from_name(default_engine_setting.as_deref().unwrap_or_default());
         let _ = engine.set_dsp_engine(target_engine);
         tracing::info!(
-            "Uruchomiono silnik DSP w trybie domyślnym: {:?}",
+            "Started the DSP engine in default mode: {:?}",
             target_engine
         );
     }
 
-    // Wczytanie zapisanego rozmiaru bufora wyjściowego audio (domyślnie: 600 ms)
+    // Load the saved audio output buffer size (default: 600 ms)
     let saved_audio_buffer = settings.get("audio_buffer_ms").cloned();
     if let Some(buf_str) = saved_audio_buffer {
         if let Ok(ms) = buf_str.parse::<u64>() {
@@ -151,7 +147,7 @@ pub fn init_app(
         }
     }
 
-    // Wczytanie zapisanego rozmiaru bloku przetwarzania DSP (domyślnie: 2048 ramek)
+    // Load the saved DSP block size (default: 2048 frames)
     let saved_dsp_block = settings.get("dsp_block_size").cloned();
     if let Some(block_str) = saved_dsp_block {
         if let Ok(size) = block_str.parse::<usize>() {
@@ -159,7 +155,7 @@ pub fn init_app(
         }
     }
 
-    // Głośność jest zapamiętywana niezależnie od przywracania sesji (zapis przy zamykaniu aplikacji).
+    // Volume is remembered independently of session restore (written when the app quits).
     let saved_volume = settings
         .get(VOLUME_SETTING_KEY)
         .and_then(|v| v.parse::<f64>().ok())
@@ -167,10 +163,10 @@ pub fn init_app(
     if let Some(vol) = saved_volume {
         let clamped = vol.clamp(0.0, 1.0);
         let _ = engine.set_volume(clamped);
-        info!("Przywrócono zapisaną głośność: {:.2}", clamped);
+        info!("Restored the saved volume: {:.2}", clamped);
     }
 
-    // Przywrócenie pełnego stanu sesji odtwarzania (utwór, pozycja, parametry)
+    // Restore the full playback session state (track, position, parameters)
     let restore_session_setting = settings.get("restore_session_on_startup").cloned();
     let should_restore_session = restore_session_setting.as_deref() != Some("false");
 
@@ -190,12 +186,12 @@ pub fn init_app(
             }
 
             if let Ok(session) = serde_json::from_str::<SavedSessionState>(&session_json) {
-                // 1. Migracja: głośność z zapisanej sesji tylko gdy nie ma jeszcze osobnego ustawienia
+                // 1. Migration: volume from the saved session only when there is no separate setting yet
                 if let Some(vol) = session.volume.filter(|_| saved_volume.is_none()) {
                     let clamped = vol.clamp(0.0, 1.0);
                     let _ = engine.set_volume(clamped);
                     info!(
-                        "Przywrócono zapisaną głośność sesji: {:.2} ({:.1} dB)",
+                        "Restored the saved session volume: {:.2} ({:.1} dB)",
                         clamped,
                         if clamped <= 0.0001 {
                             -100.0
@@ -205,7 +201,7 @@ pub fn init_app(
                     );
                 }
 
-                // 2. Przywrócenie aktywnego utworu ze wznowionej sesji i przygotowanie silnika audio
+                // 2. Restore the active track from the resumed session and prepare the audio engine
                 if let Some(ref uri) = session.uri {
                     if !uri.is_empty() {
                         let track_opt =
@@ -257,7 +253,7 @@ pub fn init_app(
                             }
                         };
 
-                        // Sprawdź czy utwór ze starej sesji to demo "Skrzydła Białe" podczas gdy w bibliotece są już utwory użytkownika
+                        // Check whether the old session's track is the "Skrzydła Białe" demo while the library already has user tracks
                         let is_demo_session = session.title.as_deref() == Some("Skrzydła Białe")
                             || uri.contains("Skrzydła Białe")
                             || session.track_id.is_none();
@@ -293,7 +289,7 @@ pub fn init_app(
                                 engine.set_active_item(user_queue_item.clone());
                                 if let Err(e) = engine.load_uri(&first_track.path) {
                                     tracing::warn!(
-                                        "Nie udało się załadować pliku użytkownika do potoku: {}",
+                                        "Failed to load the user's file into the pipeline: {}",
                                         e
                                     );
                                 }
@@ -303,7 +299,7 @@ pub fn init_app(
 
                             if let Err(e) = engine.load_uri(uri) {
                                 tracing::warn!(
-                                    "Nie udało się załadować pliku sesji do potoku: {}",
+                                    "Failed to load the session file into the pipeline: {}",
                                     e
                                 );
                             } else if let Some(pos) = session.position_ms {
@@ -333,13 +329,13 @@ pub fn init_app(
         }
     }
 
-    // Utwór demonstracyjny jeśli biblioteka jest pusta
+    // Demo track when the library is empty
     if engine.current_queue_item().is_none() {
         let track_count = rt.block_on(db.count_tracks()).unwrap_or(0);
         if track_count == 0 {
             if let Some(sample) = resolve_or_extract_sample_track(&data_dir) {
                 tracing::info!(
-                    "Brak utworów w bibliotece — załadowano domyślny utwór testowy: {} ({})",
+                    "No tracks in the library, loaded the default test track: {} ({})",
                     sample.title,
                     sample.artist
                 );
@@ -354,7 +350,7 @@ pub fn init_app(
                 };
                 engine.set_active_item(queue_item.clone());
                 if let Err(e) = engine.load_uri(&sample.path) {
-                    tracing::warn!("Nie udało się załadować utworu testowego do potoku: {}", e);
+                    tracing::warn!("Failed to load the test track into the pipeline: {}", e);
                 }
 
                 if let Some(ref m) = mpris {
@@ -402,12 +398,9 @@ pub fn init_app(
 
     let db = Arc::new(db);
     match rt.block_on(db.fail_interrupted_stem_projects()) {
-        Ok(n) if n > 0 => info!("Oznaczono {} przerwanych projektów stemów jako nieudane", n),
+        Ok(n) if n > 0 => info!("Marked {} interrupted stem projects as failed", n),
         Ok(_) => {}
-        Err(e) => tracing::warn!(
-            "Nie udało się zaktualizować przerwanych projektów stemów: {}",
-            e
-        ),
+        Err(e) => tracing::warn!("Failed to update the interrupted stem projects: {}", e),
     }
     let queue_saver = crate::commands::queue::QueueSaver::spawn(&rt, engine.clone(), db.clone());
     let rt_for_cli = rt.clone();
@@ -448,7 +441,7 @@ pub fn init_app(
     let initial_files = extract_audio_paths_from_args(&cli_args, None);
 
     if !initial_files.is_empty() {
-        info!("Uruchomiono Auralune z plikami CLI: {:?}", initial_files);
+        info!("Started Auralune with CLI files: {:?}", initial_files);
         let app_handle_for_cli = app.handle().clone();
         rt_for_cli.spawn(async move {
             tokio::time::sleep(Duration::from_millis(150)).await;
@@ -456,7 +449,7 @@ pub fn init_app(
         });
     }
 
-    // Zapis ikon i plików .desktop oraz gtk-update-icon-cache nie blokują startu okna.
+    // Writing icons and .desktop files and gtk-update-icon-cache does not block the window start-up.
     let icon_handle = app.handle().clone();
     std::thread::spawn(move || {
         let _ = update_system_icons(&icon_handle, &icon_style);

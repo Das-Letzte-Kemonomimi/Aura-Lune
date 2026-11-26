@@ -1,9 +1,9 @@
 /**
- * Typowany dostęp do ustawień aplikacji przechowywanych w SQLite (`app_settings`).
+ * Typed access to the app settings stored in SQLite (`app_settings`).
  *
- * Klucze są zamkniętą unią — literówka w nazwie ustawienia to błąd kompilacji, a nie
- * ciche czytanie/zapisywanie innego klucza. Nowe ustawienie: dopisz klucz do `SETTING_KEYS`.
- * Wartości są tekstowe (backend przechowuje `TEXT`); parsowanie zostaje po stronie wywołującego.
+ * The keys are a closed union: a typo in a setting name is a compile error, not a
+ * silent read or write of another key. New setting: add the key to `SETTING_KEYS`.
+ * Values are text (the backend stores `TEXT`); parsing stays with the caller.
  */
 import { invoke } from './ipc';
 
@@ -37,12 +37,12 @@ export const SETTING_KEYS = [
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
-/** Odczytuje ustawienie; `null`, gdy nie zostało jeszcze zapisane. */
+/** Reads a setting; `null` when it has not been saved yet. */
 export function getSetting(key: SettingKey): Promise<string | null> {
   return invoke<string | null>('get_app_setting', { key });
 }
 
-/** Zapisuje ustawienie (nadpisuje poprzednią wartość). */
+/** Writes a setting (overwrites the previous value). */
 export function setSetting(key: SettingKey, value: string): Promise<void> {
   return invoke<void>('set_app_setting', { key, value });
 }

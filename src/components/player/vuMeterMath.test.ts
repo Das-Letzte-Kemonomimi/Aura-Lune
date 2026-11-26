@@ -24,7 +24,7 @@ describe('calcDb (locks the dial scale)', () => {
   });
 
   it('interpolates between marks and handles the extremes', () => {
-    expect(calcDb(0.35)).toBe('-8.5 dB'); // połowa między -10 a -7
+    expect(calcDb(0.35)).toBe('-8.5 dB'); // halfway between -10 and -7
     expect(calcDb(0.0)).toBe('-∞ dB');
     expect(calcDb(1.05)).toBe('+3.8 dB');
     expect(calcDb(2)).toBe('+3.8 dB');
@@ -74,7 +74,7 @@ describe('stepVuChannel ballistics', () => {
 
   it('holds the peak and lets it fall at the configured rate', () => {
     let s: VuChannelState = { level: 0, peak: 0 };
-    s = stepVuChannel(s, 1, 0.5); // wysoki poziom => szczyt = poziom
+    s = stepVuChannel(s, 1, 0.5); // high level => peak = level
     expect(s.peak).toBe(s.level);
     const peak0 = s.peak;
     s = stepVuChannel({ level: 0, peak: peak0 }, 0, 0.1);

@@ -8,30 +8,30 @@ async fn test_library_scanner_incremental_and_db_persistence() {
     let root = manifest_dir.parent().unwrap().parent().unwrap();
 
     let fixtures_dir = root.join("tests/fixtures");
-    assert!(fixtures_dir.exists(), "Katalog fixtures musi istnieć");
+    assert!(fixtures_dir.exists(), "The fixtures directory must exist");
 
     let cache_dir = root.join("tests/fixtures/cache_test");
     let scanner = LibraryScanner::new(&cache_dir);
 
-    // 1. Tworzymy bazę danych w pamięci
+    // 1. Create an in-memory database
     let db = Database::new_in_memory().await.unwrap();
 
-    // 2. Pierwsze skanowanie (powinno zindeksować pliki WAV i Opus)
+    // 2. First scan (should index the WAV and Opus files)
     let summary1 = scanner.scan_directory(&fixtures_dir, &db).await.unwrap();
     assert!(
         summary1.total_files_found >= 2,
-        "Powinno znaleźć co najmniej test.wav i test.opus"
+        "Should find at least test.wav and test.opus"
     );
     assert!(
         summary1.new_or_updated_tracks >= 2,
-        "Powinno zindeksować co najmniej 2 nowe pliki"
+        "Should index at least 2 new files"
     );
     assert_eq!(
         summary1.skipped_unchanged, 0,
-        "Przy pierwszym skanowaniu żaden plik nie powinien być pominięty"
+        "No file should be skipped on the first scan"
     );
 
-    // Weryfikacja bazy
+    // Verify the database
     let tracks = db.list_tracks().await.unwrap();
     assert!(tracks.len() >= 2);
     let albums = db.list_albums().await.unwrap();
@@ -39,18 +39,18 @@ async fn test_library_scanner_incremental_and_db_persistence() {
     let artists = db.list_artists().await.unwrap();
     assert!(!artists.is_empty());
 
-    // 3. Drugie skanowanie (TEST PRZYROSTOWY - pliki nie uległy zmianie)
+    // 3. Second scan (INCREMENTAL TEST: the files are unchanged)
     let summary2 = scanner.scan_directory(&fixtures_dir, &db).await.unwrap();
     assert_eq!(
         summary2.new_or_updated_tracks, 0,
-        "Przy ponownym skanowaniu nie powinno być nowych utworów"
+        "A rescan should find no new tracks"
     );
     assert!(
         summary2.skipped_unchanged >= 2,
-        "Wszystkie niezmienione pliki powinny zostać pominięte w czasie mikrosekund"
+        "Every unchanged file should be skipped within microseconds"
     );
 
-    // Sprzątanie katalogu cache testu
+    // Clean up the test's cache directory
     let _ = std::fs::remove_dir_all(&cache_dir);
 }
 
@@ -77,7 +77,7 @@ async fn test_library_scanner_scan_paths_individual_files_and_folders() {
     let _ = std::fs::remove_dir_all(&cache_dir);
 }
 
-/// Tworzy unikalny katalog tymczasowy dla testu.
+/// Creates a unique temp directory for the test.
 fn temp_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "auralune_scanner_{}_{}_{}",
@@ -102,7 +102,7 @@ fn fixture(name: &str) -> PathBuf {
         .join(name)
 }
 
-/// Kopiuje fixture Opus i nadaje mu tagi (artysta, album, opcjonalnie wykonawca albumu).
+/// Copies the Opus fixture and tags it (artist, album, optionally the album artist).
 fn tagged_copy(dest: &std::path::Path, artist: &str, album: &str, album_artist: Option<&str>) {
     use lofty::config::WriteOptions;
     use lofty::file::{AudioFile, TaggedFileExt};
@@ -152,14 +152,14 @@ async fn test_scanner_groups_compilation_by_album_artist() {
     assert_eq!(
         albums.len(),
         2,
-        "Kompilacja to jeden album, nie jeden na artystę"
+        "A compilation is one album, not one per artist"
     );
     let compilation = albums.iter().find(|a| a.title == "Anime Hits").unwrap();
     assert_eq!(compilation.album_artist, "Various Artists");
     let solo = albums.iter().find(|a| a.title == "Solo Album").unwrap();
     assert_eq!(
         solo.album_artist, "Solo Artist",
-        "Bez tagu ALBUMARTIST używany jest artysta"
+        "Without an ALBUMARTIST tag the artist is used"
     );
 
     for t in db.list_tracks().await.unwrap() {
@@ -206,10 +206,10 @@ async fn test_rescan_removes_deleted_files_only_under_scanned_root() {
     assert!(paths.iter().any(|p| p.ends_with("keep.wav")));
     assert!(
         paths.iter().any(|p| p.ends_with("other.wav")),
-        "Inny folder biblioteki nietknięty"
+        "The other library folder is untouched"
     );
 
-    // Brakujący katalog (np. odmontowany dysk) nie może wyczyścić biblioteki.
+    // A missing directory (e.g. an unmounted drive) must not wipe the library.
     std::fs::remove_dir_all(&lib_a).unwrap();
     let summary = scanner.scan_directory(&lib_a, &db).await.unwrap();
     assert_eq!(summary.removed_stale, 0);

@@ -1,5 +1,5 @@
-import type { AppTab } from './types/navigation';
-import { isMainTab } from './types/navigation';
+import type { AppTab, NowPlayingVisualMode } from './types/navigation';
+import { isMainTab, isNowPlayingVisualMode } from './types/navigation';
 import { usePlaylistManager } from './hooks/usePlaylistManager';
 import { useTranscodeManager } from './hooks/useTranscodeManager';
 import { useHotkeysManager } from './hooks/useHotkeysManager';
@@ -64,6 +64,7 @@ import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
 import { useToasts } from './hooks/useToasts';
 import { useUpdateManager } from './hooks/useUpdateManager';
 import { usePlaybackErrorToasts } from './hooks/usePlaybackErrorToasts';
+import { AlertTriangle } from './components/ui/icons';
 
 export type { AlbumPlaybackBehavior };
 
@@ -97,25 +98,24 @@ export default function App() {
     spectrum: Array(16).fill(0.05),
   });
 
-  // Procent głośności dla dynamicznego wypełnienia suwaka (postęp liczą komponenty z `useLiveStatus`)
-  const volumeProgressPercent = Math.min(100, Math.max(0, (status.volume ?? 1) * 100));
+  // Volume percentage for the slider fill (progress is computed by components through `useLiveStatus`)
 
-  // Język interfejsu (domyślnie angielski: en, z opcją wyboru: pl, de, fi, la)
+  // UI language (English by default; pl, de, fi and la can be chosen)
   const [language, setLanguage] = useState<Language>('en');
   const loc = getTranslations(language);
   const t = loc;
 
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
 
-  // Kolejka komunikatów (useToasts): stabilny `showMessage` dla hooków, osobny licznik czasu
-  // dla każdego komunikatu. Komunikaty informacyjne są celowo pomijane; widoczne są tylko błędy.
+  // Message queue (useToasts): a stable `showMessage` for hooks and a separate timer
+  // for each message. Info messages are deliberately dropped; only errors are shown.
   const { toasts, showMessage, dismiss: dismissToast } = useToasts();
   const updateManager = useUpdateManager();
   usePlaybackErrorToasts(showMessage);
 
   const mainContentRef = useRef<HTMLElement | null>(null);
 
-  // Zarządzanie biblioteką audio, filtrami, sortowaniem i skanerem (useLibraryManager)
+  // Audio library, filters, sorting and scanner (useLibraryManager)
   const libraryManager = useLibraryManager({
     mainContentRef,
     status,
@@ -137,7 +137,7 @@ export default function App() {
     handleScanPaths,
   } = libraryManager;
 
-  // Konfiguracja urządzeń audio, ReplayGain, Crossfeed i Silence Trimming (useAudioSettings)
+  // Audio devices, ReplayGain, Crossfeed and Silence Trimming (useAudioSettings)
   const audioSettings = useAudioSettings({
     showMessage,
     loc,
@@ -156,7 +156,7 @@ export default function App() {
     handleToggleEqAutoStartup,
   } = audioSettings;
 
-  // Centralne zarządzanie wszystkimi oknami dialogowymi, modalnymi i szufladami (useModalManager)
+  // All dialogs, modals and drawers in one place (useModalManager)
   const modalManager = useModalManager();
   const {
     isSettingsOpen,
@@ -182,7 +182,7 @@ export default function App() {
     });
   };
 
-  // Zarządzanie silnikami DSP, korektorem EQ, pogłosem i profilami klimatycznymi (useDspManager)
+  // DSP engines, EQ, reverb and vibe profiles (useDspManager)
   const dspManager = useDspManager({
     status,
     setStatus,
@@ -197,23 +197,23 @@ export default function App() {
     handleResetDsp,
   } = dspManager;
 
-  // Stan trybu wizualnego w sekcji Now Playing: okładka, winyl hi-fi, szpulowiec/kaseta lub analogowy miernik VU
-  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<'cover' | 'turntable' | 'tape' | 'vumeter'>(() => {
+  // Now Playing visual mode: cover, hi-fi vinyl, reel-to-reel/cassette or analog VU meter
+  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<NowPlayingVisualMode>(() => {
     try {
       const saved = localStorage.getItem('auralune_nowplaying_visual_mode');
-      if (saved === 'cover' || saved === 'turntable' || saved === 'tape' || saved === 'vumeter') return saved;
+      if (isNowPlayingVisualMode(saved)) return saved;
     } catch { }
     return 'cover';
   });
 
-  const handleSelectNowPlayingVisualMode = (mode: 'cover' | 'turntable' | 'tape' | 'vumeter') => {
+  const handleSelectNowPlayingVisualMode = (mode: NowPlayingVisualMode) => {
     setNowPlayingVisualMode(mode);
     try {
       localStorage.setItem('auralune_nowplaying_visual_mode', mode);
     } catch { }
   };
 
-  // Stan parametrów wizualnych: RPM winylu, prędkość taśmy, typ taśmy
+  // Visual parameters: vinyl RPM, tape speed, tape type
   const [vinylRpm, setVinylRpm] = useState<33 | 45>(() => {
     try {
       const saved = localStorage.getItem('auralune_vinyl_rpm');
@@ -261,7 +261,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('player');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
 
-  // Zachowanie odtwarzania albumów i playlist (Autoplay & Kolejka)
+  // Album and playlist playback behaviour (autoplay and queue)
   const [albumPlaybackMode, setAlbumPlaybackMode] = useState<AlbumPlaybackBehavior>(() => {
     try {
       const saved = localStorage.getItem('auralune_album_playback_mode') as AlbumPlaybackBehavior;
@@ -269,10 +269,10 @@ export default function App() {
         return saved;
       }
     } catch { }
-    return 'replace'; // Domyślnie: zastąp kolejkę i odtwarzaj cały album z autoplay & skip
+    return 'replace'; // Default: replace the queue and play the whole album with autoplay & skip
   });
 
-  // Płynny Crossfade & Zaawansowane efekty DSP / Mastering (useAudioMasteringEffects)
+  // Smooth crossfade and advanced DSP / mastering effects (useAudioMasteringEffects)
   const masteringEffects = useAudioMasteringEffects({
     status,
     setStatus,
@@ -291,7 +291,7 @@ export default function App() {
     handleCrossfadeDurationChange,
   } = masteringEffects;
 
-  // Pierwsze uruchomienie (Onboarding) & Recap & OSD & Klucz/BPM
+  // First run (onboarding) & Recap & OSD & key/BPM
   const [recapOptIn, setRecapOptIn] = useState<boolean>(() => {
     try {
       return localStorage.getItem('auralune_recap_opt_in') !== 'false';
@@ -314,7 +314,7 @@ export default function App() {
     }
   });
 
-  // Opcja podświetlenia kursorowego przycisków (Hover glow)
+  // Button hover glow option
   const [buttonGlowEnabled, setButtonGlowEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('auralune_button_glow_enabled');
@@ -340,12 +340,12 @@ export default function App() {
     formatVolumeValue,
   } = useVolumeUnit({ loc: t, showMessage });
 
-  // Stan ręcznego wpisywania wartości DSP (Pitch, Tempo, Speed)
+  // Manually typed DSP values (pitch, tempo, speed)
   const initialStartupPositionRef = useRef<number | null>(null);
 
   const [trackDirectCover, setTrackDirectCover] = useState<string | null>(null);
 
-  // ZARZĄDZANIE PLAYLISTAMI & RADIEM
+  // PLAYLISTS & RADIO
   // ============================================
   const playlistManager = usePlaylistManager({
     language,
@@ -363,11 +363,11 @@ export default function App() {
     setShowPlaylistModal,
     setTrackToAddToPlaylist,
   } = playlistManager;
-  // Stacja zapamiętana w stanie UI jest aktywna tylko dopóki silnik gra strumień
-  // (po przejściu na bibliotekę / projekt stemów nie może przesłaniać utworu).
+  // The station kept in UI state is active only while the engine plays a stream
+  // (after switching to the library / a stem project it must not mask the track).
   const currentRadioStation = resolveActiveRadioStation(storedRadioStation, status.current_track?.uri);
 
-  // Kolejka odtwarzania, reorder, kolumny i przeciąganie (usePlaybackQueue)
+  // Playback queue, reorder, columns and drag and drop (usePlaybackQueue)
   const playbackQueue = usePlaybackQueue({
     onNotify: showMessage,
     onTrackSelected: ({ uri, trackId, title }) => {
@@ -395,7 +395,7 @@ export default function App() {
     addTrackToQueue: handleAddTrackToQueue,
   } = playbackQueue;
 
-  // Zarządzanie motywami & skalą (useThemeManager)
+  // Themes and scale (useThemeManager)
   const themeManager = useThemeManager({
     showMessage,
     loc,
@@ -447,7 +447,7 @@ export default function App() {
     setLastfmScrobbledTrackId,
   } = scrobblerManager;
 
-  // Kontroler transportu, pętli A-B, zakładek i odpytywania statusu odtwarzacza (usePlaybackController)
+  // Transport, A-B loop, bookmarks and player status polling (usePlaybackController)
   const playbackController = usePlaybackController({
     status,
     setStatus,
@@ -497,17 +497,17 @@ export default function App() {
     statusRef,
   } = playbackController;
 
-  // Dynamiczna wersja aplikacji (z package.json / Cargo.toml)
+  // Dynamic app version (from package.json / Cargo.toml)
   const [appVersion, setAppVersion] = useState<string>(
     typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.1.3'
   );
 
-  // Stan tekstów piosenek (Synchronized Lyrics LRC / LRCLIB)
+  // Song lyrics state (synchronized LRC / LRCLIB)
   const [showLyrics, setShowLyrics] = useState(false);
 
-  // Stan pływającego widżetu tekstu na pulpicie (Desktop Lyrics Overlay)
-  // Zgodnie z wymaganiem: widżet nie uruchamia się samoczynnie przy starcie aplikacji,
-  // użytkowniczka decyduje w UI kiedy go pokazać/schować.
+  // Floating desktop lyrics widget (Desktop Lyrics Overlay)
+  // By design the widget does not start on its own when the app starts;
+  // the user decides in the UI when to show or hide it.
   const [showDesktopLyrics, setShowDesktopLyrics] = useState<boolean>(false);
 
   const toggleDesktopLyrics = () => {
@@ -523,22 +523,22 @@ export default function App() {
       await invoke('set_mini_player_mode', { mini: next });
       setIsMiniPlayer(next);
     } catch (e) {
-      console.error('Błąd przełączania trybu mini-player:', e);
+      console.error('Failed to toggle the mini-player mode:', e);
     }
   };
 
-  // Stan efektów otoczenia Anime (Sakura Petals / Cyberpunk Rain / Meteors / Matrix / Momiji)
+  // Anime ambient effects (Sakura Petals / Cyberpunk Rain / Meteors / Matrix / Momiji)
   const { ambienceMode, setAmbienceMode, cycleAmbienceMode } = useAmbienceMode({
     loc: t,
     showMessage,
   });
 
-  // Stan trybu pełnoekranowego Kiosk / Big Screen Now Playing
+  // Kiosk / Big Screen Now Playing full-screen mode
   const [isBigScreen, setIsBigScreen] = useState(false);
 
-  // Powiadomienia systemowe Linuksa (libnotify / D-Bus)
-  // Wcześniej przełącznik zapisywał `auralune_notifications_enabled`, a start czytał inny klucz,
-  // więc wyłączenie powiadomień nie przetrwało restartu — stary klucz jest migrowany.
+  // Linux system notifications (libnotify / D-Bus)
+  // The toggle used to write `auralune_notifications_enabled` while start-up read another key,
+  // so disabling notifications did not survive a restart; the old key is migrated.
   const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = usePersistedState(
     'auralune_desktop_notifications',
     true,
@@ -563,7 +563,7 @@ export default function App() {
     loc: t,
   });
 
-  // Wykrywanie przewinięcia widoku poniżej górnego panelu odtwarzacza
+  // Detects scrolling below the top player panel
   const [isPlayerScrolledDown, setIsPlayerScrolledDown] = useState(false);
 
   useEffect(() => {
@@ -578,7 +578,7 @@ export default function App() {
     return () => el.removeEventListener('scroll', checkScroll);
   }, [activeTab, setIsSettingsOpen, setSettingsTab]);
 
-  // Aktualnie odtwarzany utwór, okładka albumu, parametry DSP i wizualizacja przebiegu (useCurrentTrackInfo)
+  // Current track, album cover, DSP parameters and waveform (useCurrentTrackInfo)
   const {
     currentPlayingTrack,
     currentAlbum,
@@ -603,7 +603,7 @@ export default function App() {
     loc,
   });
 
-  // Akcje odtwarzania z biblioteki, operacje plikowe, zakładki i profile dźwiękowe (useLibraryPlaybackActions)
+  // Library playback actions, file operations, bookmarks and sound profiles (useLibraryPlaybackActions)
   const libraryActions = useLibraryPlaybackActions({
     tracks,
     setTracks,
@@ -645,7 +645,7 @@ export default function App() {
     handleOpenContainingFolder,
   } = libraryActions;
 
-  // Automatyczne przekierowanie starych zakładek do okna Ustawień
+  // Automatically redirect old tabs to the Settings window
   useEffect(() => {
     if (activeTab === 'themes' || activeTab === 'devices' || activeTab === 'transcode') {
       setSettingsTab(activeTab);
@@ -656,7 +656,7 @@ export default function App() {
 
 
 
-  // Inicjalizacja usług, ustawień oraz zdarzeń drag & drop i okna (useAppBootstrap)
+  // Services, settings, drag & drop and window events (useAppBootstrap)
   const { isDraggingOver, setIsDraggingOver } = useAppBootstrap({
     refreshDevices,
     loadLibrary,
@@ -677,7 +677,7 @@ export default function App() {
     stereoWidenerAmount,
   });
 
-  // Sesja odtwarzania i autozapis (useSessionManager)
+  // Playback session and autosave (useSessionManager)
   const sessionManager = useSessionManager({
     status,
     setStatus,
@@ -701,7 +701,7 @@ export default function App() {
 
 
 
-  // Obsługa wyszukiwania wydań w MusicBrainz i pobierania okładek (useMusicBrainzManager)
+  // MusicBrainz release search and cover downloads (useMusicBrainzManager)
   const musicBrainzManager = useMusicBrainzManager({
     setAlbums,
     loadLibrary,
@@ -715,7 +715,7 @@ export default function App() {
   });
   const { handleFetchCurrentTrackCover, handleUploadCustomCoverDirect } = musicBrainzManager;
 
-  // Inteligentny Auto-DJ / Infinity Queue (useInfinityQueue)
+  // Smart Auto-DJ / Infinity Queue (useInfinityQueue)
   const {
     infinityQueue,
     handleToggleInfinityQueue,
@@ -736,7 +736,7 @@ export default function App() {
 
 
 
-  // Wyłącznik czasowy (Sleep Timer)
+  // Sleep Timer
   const {
     sleepTimerRemainingSec,
     sleepTimerTargetMode,
@@ -777,7 +777,7 @@ export default function App() {
     try {
       const filePath = await invoke<string | null>('pick_custom_file', {
         title: loc.settings.importBackupBtn,
-        filter: '*.json|Kopia zapasowa Auralune (*.json)',
+        filter: '*.json|Auralune backup (*.json)',
       });
       if (!filePath) return;
 
@@ -802,7 +802,7 @@ export default function App() {
           : t.notifications.minimizeTrayOff
       );
     } catch (e: unknown) {
-      console.warn('Błąd zapisu close_to_tray:', e);
+      console.warn('Failed to save close_to_tray:', e);
     }
   };
 
@@ -814,10 +814,10 @@ export default function App() {
 
   // ============================================
   // ============================================
-  // OBSŁUGA GLOBALNYCH SKRÓTÓW KLAWISZOWYCH
+  // GLOBAL KEYBOARD SHORTCUTS
   // ============================================
   // ============================================
-  // ZARZĄDZANIE TRANSKODOWANIEM & EKSPORTEM AUDIO
+  // TRANSCODING & AUDIO EXPORT
   // ============================================
   const transcodeManager = useTranscodeManager({
     filePath,
@@ -989,7 +989,6 @@ export default function App() {
     effectiveDisplayArtist,
     filePath,
     setFilePath,
-    volumeProgressPercent,
     volumeUnit,
     formatVolumeValue,
     handleToggleVolumeUnit,
@@ -1111,7 +1110,7 @@ export default function App() {
     onOpenUpdates: openUpdatesSettings,
     themeManager,
     modalManager,
-    // Zakładki przekierowujące do Ustawień są natychmiast zamieniane na `player` (efekt powyżej).
+    // Tabs that redirect to Settings are replaced with `player` right away (effect above).
     activeTab: isMainTab(activeTab) ? activeTab : 'player',
     setActiveTab,
     tracks,
@@ -1147,7 +1146,6 @@ export default function App() {
     effectiveDisplayArtist,
     currentCover,
     queue,
-    volumeProgressPercent,
     formatTime,
     mainContentRef,
     setActiveTab,
@@ -1157,7 +1155,7 @@ export default function App() {
     toggleMiniPlayer,
   });
 
-  // Widok miniaturowego pływającego odtwarzacza (Floating Mini-Player / PiP)
+  // Floating mini-player view (PiP)
   if (isMiniPlayer) {
     return (
       <MiniPlayerWidget
@@ -1196,13 +1194,13 @@ export default function App() {
         themeOverlay={themeOverlay}
       />
 
-      {/* Ekranowe OSD głośności z konfigurowalnym położeniem */}
+      {/* On-screen volume OSD with a configurable position */}
       <VolumeOsd volume={status.volume} position={volumeOsdPosition} unit={volumeUnit} />
 
-      {/* Efekt otoczenia Anime (Sakura Petals / Neon Rain) */}
+      {/* Anime ambient effect (Sakura Petals / Neon Rain) */}
       <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} />
 
-      {/* Główny kontener interfejsu (ukrywany bez utraty stanu gdy aktywny jest tryb pełnoekranowy Kiosk) */}
+      {/* Main UI container (hidden without losing state while the Kiosk full-screen mode is active) */}
       <div className={cn('h-full min-h-0 flex-1 flex-col overflow-hidden', isBigScreen ? 'hidden' : 'flex')}>
 
         <DragDropOverlay
@@ -1210,10 +1208,10 @@ export default function App() {
           onDismiss={() => setIsDraggingOver(false)}
           loc={loc}
         />
-        {/* Pasek górny / Nagłówek */}
+        {/* Top bar / header */}
         <AppHeader {...appHeaderProps} />
 
-        {/* Komunikat powiadomień */}
+        {/* Notification message */}
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -1221,11 +1219,12 @@ export default function App() {
             onClick={() => dismissToast(toast.id)}
             className="mb-2 cursor-pointer rounded-xl border border-accent-purple bg-accent-purple/20 px-4 py-2.5 text-sm text-fg"
           >
-            {toast.level === 'error' ? `⚠️ ${toast.text}` : toast.text}
+            {toast.level === 'error' && <AlertTriangle size={14} className="icon-inline mr-1.5" />}
+            {toast.text}
           </div>
         ))}
 
-        {/* Główna zawartość */}
+        {/* Main content */}
         <MainContentRouter
           mainContentRef={mainContentRef}
           activeTab={activeTab}
@@ -1234,7 +1233,7 @@ export default function App() {
           {...mainRouterProps}
         />
 
-        {/* Pływający dolny dok odtwarzacza (Mini-Player) */}
+        {/* Floating bottom player dock (mini-player) */}
         <BottomPlaybackDock {...bottomDockProps} />
         <QueueDrawer
           isOpen={isQueueOpen}
@@ -1253,7 +1252,7 @@ export default function App() {
 
       </div>
 
-      {/* Tryb immersyjny Kiosk / Pełny ekran Now Playing (F11) */}
+      {/* Immersive Kiosk / full-screen Now Playing mode (F11) */}
       {isBigScreen && (
         <BigScreenView
           title={effectiveDisplayTitle}

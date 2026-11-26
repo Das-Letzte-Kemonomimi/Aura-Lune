@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Gauge } from 'lucide-react';
+import { Gauge } from '../ui/icons';
 import { cn } from '../../utils/cn';
+import { Chip, type Tone } from '../ui';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { livePlayback } from '../../state/livePlayback';
 import { drawVuDynamic, renderVuFaceLayer } from './vuFace';
@@ -12,7 +13,13 @@ import {
   type VuChannelState,
   type VuTheme,
 } from './vuMeterMath';
-import { cssVars } from '../../utils/cssVars';
+
+/** Backlight theme pills: label, tooltip and the tone of the pressed state. */
+const VU_THEME_CHIPS: readonly { id: VuTheme; label: string; title: string; tone: Tone }[] = [
+  { id: 'amber', label: 'Amber', title: 'Amber 70s', tone: 'amber' },
+  { id: 'sakura', label: 'Sakura', title: 'Sakura Glow', tone: 'pink' },
+  { id: 'cyber', label: 'Cyan', title: 'Cyber Neon', tone: 'cyan' },
+];
 
 interface VuMeterWidgetProps {
   spectrum?: number[];
@@ -46,7 +53,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     } catch {}
   };
 
-  // Najnowsze wartości dla pętli rysowania (bez jej restartu przy każdym ticku spektrum co 100 ms)
+  // The latest values for the drawing loop (without restarting it on every 100 ms spectrum tick)
   const propsRef = useRef({ spectrum, volume, isPlaying });
   useEffect(() => {
     propsRef.current = { spectrum, volume, isPlaying };
@@ -60,7 +67,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     ({ ctx, width, height, dt }) => {
       const { spectrum: spectrumProp, volume: vol, isPlaying: playing } = propsRef.current;
 
-      // Spektrum prosto ze store'u (prop tylko jako zapas przed pierwszym statusem)
+      // Spectrum straight from the store (the prop is only a fallback before the first status)
       const live = livePlayback.getSnapshot();
       const spec = live.ready && live.spectrum.length > 0 ? live.spectrum : spectrumProp;
       const raw = computeVuLevels(spec, vol, playing);
@@ -74,7 +81,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
         faceRef.current = { layer: renderVuFaceLayer(canvas.width, canvas.height, width, height, colors), key };
       }
 
-      // Statyczna warstwa kopiowana 1:1 (tożsama transformacja), dynamika rysowana w pikselach CSS
+      // The static layer is copied 1:1 (identity transform), the dynamic part is drawn in CSS pixels
       const layer = faceRef.current.layer;
       if (layer) {
         ctx.save();
@@ -84,7 +91,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
       }
       drawVuDynamic(ctx, width, height, leftRef.current, rightRef.current, colors);
 
-      // Ustalony stan bez odtwarzania → pętla może spać do następnego invalidate()
+      // Settled state without playback → the loop can sleep until the next invalidate()
       return !(isVuSettled(leftRef.current, playing) && isVuSettled(rightRef.current, playing));
     },
     {
@@ -94,7 +101,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     },
   );
 
-  // Zmiana motywu / odtwarzania budzi pętlę (zmiana propsów nie restartuje efektu)
+  // A theme / playback change wakes the loop (prop changes do not restart the effect)
   useEffect(() => {
     invalidate();
   }, [theme, isPlaying, invalidate]);
@@ -115,23 +122,20 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
           </span>
         </div>
 
-        {/* Selektor motywu podświetlenia wskaźnika (kompaktowe pigułki) */}
+        {/* Meter backlight theme selector (compact pills) */}
         <div className="flex shrink-0 gap-1">
-          {[
-            { id: 'amber', label: 'Amber', color: '#f59e0b' },
-            { id: 'sakura', label: 'Sakura', color: '#ec4899' },
-            { id: 'cyber', label: 'Cyan', color: '#06b6d4' },
-          ].map((th) => (
-            <button
+          {VU_THEME_CHIPS.map((th) => (
+            <Chip
               key={th.id}
-              onClick={() => handleSelectTheme(th.id as VuTheme)}
-              title={th.id === 'amber' ? 'Amber 70s' : th.id === 'sakura' ? 'Sakura Glow' : 'Cyber Neon'}
-              aria-pressed={theme === th.id}
-              className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-2xs font-bold text-fg-muted transition-all duration-150 aria-pressed:border-(--vu) aria-pressed:bg-(--vu)/20 aria-pressed:text-(--vu)"
-              style={cssVars({ '--vu': th.color })}
+              size="xs"
+              tone={th.tone}
+              pressed={theme === th.id}
+              onClick={() => handleSelectTheme(th.id)}
+              title={th.title}
+              className="px-1.5 text-2xs"
             >
               {th.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>

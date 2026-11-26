@@ -31,11 +31,11 @@ fn test_rubberband_pitch_shift_and_tempo_stretch() {
 
     assert_eq!(processor.name(), "RubberBand");
 
-    // 1. Sprawdzenie opóźnienia
+    // 1. Check the latency
     let latency = processor.latency_frames();
     println!("Rubber Band latency: {} frames", latency);
 
-    // 2. Test zmiany pitch (+12 półtonów - 1 oktawa w górę)
+    // 2. Pitch change test (+12 semitones, one octave up)
     let params = DspParams::new(DspEngine::RubberBand, 12.0, 1.0, 1.0).unwrap();
     processor.set_params(params).unwrap();
 
@@ -49,15 +49,12 @@ fn test_rubberband_pitch_shift_and_tempo_stretch() {
     let eos_status = processor.drain(&mut output).unwrap();
     assert_eq!(eos_status, ProcessStatus::Ok);
 
-    assert!(
-        !output.is_empty(),
-        "RubberBand musi wyprodukować próbki wyjściowe"
-    );
+    assert!(!output.is_empty(), "RubberBand must produce output samples");
 
-    // 3. Sprawdzenie reset()
+    // 3. Check reset()
     processor.reset().expect("reset failed");
 
-    // 4. Test zmiany tempa (1.5x szybciej - tempo_ratio = 1.5)
+    // 4. Tempo change test (1.5x faster, tempo_ratio = 1.5)
     let params_tempo = DspParams::new(DspEngine::RubberBand, 0.0, 1.5, 1.0).unwrap();
     processor.set_params(params_tempo).unwrap();
 

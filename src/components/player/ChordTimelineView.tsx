@@ -6,7 +6,7 @@ import {
   X,
   Repeat,
   Sparkles,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type { TrackChordsData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
@@ -24,7 +24,7 @@ import {
 } from '../../utils/chordChart';
 import { ChordChart, ChordOverview } from './ChordChart';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Button, Callout, Card, Chip, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, TextArea } from '../ui';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -77,7 +77,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   onClose,
   currentLang = 'en',
 }) => {
-  // Pozycja na żywo czytana tutaj, a nie w modalu — modal nie renderuje się przy każdym ticku.
+  // The live position is read here, not in the modal, so the modal does not render on every tick.
   const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const [data, setData] = useState<TrackChordsData | null>(null);
@@ -89,7 +89,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   const [exportFormat, setExportFormat] = useState<'chordpro' | 'text' | 'json'>('text');
   const [exportOutput, setExportOutput] = useState<string | null>(null);
 
-  // Pobranie danych lub analiza
+  // Fetch the data or analyse
   useEffect(() => {
     if (!trackId && !trackPath) return;
 
@@ -130,7 +130,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
     };
   }, [trackId, trackPath]);
 
-  // Wymuszenie ponownej kalkulacji
+  // Force a recalculation
   const handleRecompute = async () => {
     if (!trackPath) return;
     setLoading(true);
@@ -164,7 +164,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
     const cell = editingCell;
     setEditingCell(null);
     if (!value || value === cell.chord) return;
-    // Zmiana dotyczy wszystkich scalonych detekcji tego akordu w takcie.
+    // The change applies to all merged detections of this chord in the bar.
     const updated = data.chords.map((c, i) => (cell.idxs.includes(i) ? { ...c, chord: value } : c));
     setData({ ...data, chords: updated });
 
@@ -174,7 +174,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         overridesJson: JSON.stringify(updated),
       });
     } catch (err) {
-      console.error('Błąd zapisu nadpisanego akordu:', err);
+      console.error('Failed to save the chord override:', err);
     }
   };
 
@@ -206,21 +206,17 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
   return (
     <div className="flex h-full w-full flex-col gap-4">
-      {/* Pasek górny pod-widoku */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
-      >
+      {/* Sub-view top bar */}
+      <Card padding="none" className="flex flex-wrap items-center justify-between gap-3 px-4.5 py-3">
         <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-accent-pink/35 bg-accent-pink/20 text-accent-pink"
-          >
+          <div className="flex size-9 items-center justify-center rounded-lg bg-accent-pink/15 text-accent-pink">
             <Music size={18} />
           </div>
           <div>
             <span className="text-sm font-extrabold text-fg">
               {t.player.chordTimelineTitle}
             </span>
-            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
+            <p className="mt-0.5 text-xs text-fg-secondary">
               {data ? `${t.dsp.keyLabel}: ${data.key} (${data.camelot}) • ${data.bpm.toFixed(1)} BPM` : t.player.harmonicAnalysis}
             </p>
           </div>
@@ -228,50 +224,32 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
         <div className="flex items-center gap-2">
           {pitchSemitones !== 0 && (
-            <button
+            <Chip
+              tone="amber"
+              pressed={showTransposed}
               onClick={() => setShowTransposed(!showTransposed)}
-              className={cn(
-                'rounded-lg border px-3 py-1.5 text-ui font-semibold',
-                showTransposed ? 'border-accent-amber/40 bg-accent-amber/20 text-amber-400' : 'border-white/10 bg-white/4 text-fg-secondary',
-              )}
               title={t.player.transposeToggleTooltip}
+              className="px-3.5 py-2 text-ui"
             >
               {fmt(t.player.transposition, pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones), showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
-            </button>
+            </Chip>
           )}
 
-          <button
-            onClick={handleRecompute}
-            disabled={loading}
-            className={cn(
-              'flex items-center justify-center rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary',
-              loading ? 'cursor-not-allowed' : 'cursor-pointer',
-            )}
-            title={t.player.recomputeChordsTooltip}
-          >
-            <RotateCcw size={16} className={cn(loading && 'animate-spin')} />
-          </button>
-
-          <button
-            onClick={() => handleExport(exportFormat)}
-            className="flex items-center justify-center rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
-            title={fmt(t.player.exportChords, exportFormat.toUpperCase())}
-          >
+          <IconButton variant="secondary" label={t.player.recomputeChordsTooltip} onClick={handleRecompute} disabled={loading}>
+            <RotateCcw size={16} className={cn(loading && 'motion-safe:animate-spin')} />
+          </IconButton>
+          <IconButton variant="secondary" label={fmt(t.player.exportChords, exportFormat.toUpperCase())} onClick={() => handleExport(exportFormat)}>
             <Download size={16} />
-          </button>
-
+          </IconButton>
           {onClose && (
-            <button
-              onClick={onClose}
-              className="rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
-            >
+            <IconButton variant="secondary" label={t.common.close} onClick={onClose}>
               <X size={16} />
-            </button>
+            </IconButton>
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Aktualny i następny akord */}
+      {/* Current and next chord */}
       <div
         className="flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4"
         style={{
@@ -315,29 +293,26 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         </div>
 
         {activeChord && onSetLoop && (
-          <button
-            onClick={() => onSetLoop(activeChord.start_ms, activeChord.end_ms)}
-            className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/7 px-3.5 py-2 text-ui font-bold text-slate-200"
-          >
+          <Button onClick={() => onSetLoop(activeChord.start_ms, activeChord.end_ms)}>
             <Repeat size={14} />
-            <span>{t.player.loopChord}</span>
-          </button>
+            {t.player.loopChord}
+          </Button>
         )}
       </div>
 
-      {/* Oś czasu: przegląd całego utworu + siatka taktów */}
+      {/* Timeline: an overview of the whole track + the bar grid */}
       <div className="flex min-h-55 flex-1 flex-col gap-3">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-3 p-12">
             <Sparkles size={28} className="animate-spin text-accent-pink" />
-            <p className="m-0 text-sm text-slate-300">
+            <p className="text-sm text-fg-secondary">
               {t.player.detectingChords}
             </p>
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-accent-red/30 bg-accent-red/15 px-4.5 py-3.5 text-sm text-red-300">
+          <Callout tone="red" role="alert" className="text-sm">
             {error}
-          </div>
+          </Callout>
         ) : cells.length > 0 ? (
           <>
             <ChordOverview
@@ -373,6 +348,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               barLabel={(bar) => fmt(t.player.chordBarLabel, bar)}
               lowConfidenceLabel={(pct) => fmt(t.player.chordLowConfidence, pct)}
               editLabel={t.common.edit}
+              saveLabel={t.common.save}
             />
           </>
         ) : (
@@ -382,42 +358,35 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         )}
       </div>
 
-      {/* Modal eksportu */}
+      {/* Export modal */}
       {exportOutput && (
-        <ModalShell
-          onClose={() => setExportOutput(null)}
-          layer="tool"
-          className="flex max-h-[80vh] max-w-140 flex-col gap-3.5 rounded-3xl border border-white/15 bg-ink p-5 shadow-2xl shadow-black/80"
-        >
-          <div className="flex items-center justify-between border-b border-white/8 pb-3">
-            <h3 className="m-0 text-base font-extrabold text-fg">
-              {fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
-            </h3>
-            <button
-              onClick={() => setExportOutput(null)}
-              className="border-0 bg-transparent text-fg-secondary"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <textarea
-            readOnly
-            value={exportOutput}
-            className="h-55 w-full resize-none rounded-xl border border-white/10 bg-deep p-3 font-mono text-ui text-fg outline-none"
+        <ModalShell onClose={() => setExportOutput(null)} layer="tool" size="md" labelledBy="chord-export-title">
+          <ModalHeader
+            titleId="chord-export-title"
+            title={fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
+            onClose={() => setExportOutput(null)}
+            closeLabel={t.common.close}
           />
-
-          <div className="flex justify-end gap-2.5">
-            <button
+          <ModalBody>
+            <TextArea
+              mono
+              readOnly
+              aria-label={fmt(t.analysis.exportChordsTitle, exportFormat.toUpperCase())}
+              value={exportOutput}
+              className="h-55 resize-none"
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="primary"
               onClick={() => {
                 navigator.clipboard.writeText(exportOutput);
                 setExportOutput(null);
               }}
-              className="rounded-xl border-0 bg-linear-135 from-accent-pink to-purple-400 px-4.5 py-2 text-ui font-bold text-fg"
             >
               {t.common.copyToClipboard}
-            </button>
-          </div>
+            </Button>
+          </ModalFooter>
         </ModalShell>
       )}
     </div>

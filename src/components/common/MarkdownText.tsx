@@ -4,7 +4,7 @@ import { parseMarkdown, type BlockNode, type InlineNode } from '../../utils/mark
 
 export interface MarkdownTextProps {
   source: string;
-  /** Wywoływane po kliknięciu linku (https) — host otwiera go w przeglądarce systemowej. */
+  /** Called when a link (https) is clicked; the host opens it in the system browser. */
   onOpenLink?: (href: string) => void;
 }
 
@@ -105,13 +105,13 @@ function renderBlock(block: BlockNode, i: number, onOpenLink: MarkdownTextProps[
       return (
         <hr
           key={i}
-          className="my-2.5 border-0 border-t border-line"
+          className="my-2.5 border-t border-line"
         />
       );
   }
 }
 
-/** Renderuje Markdown (notatki wydań) jako stylowane elementy Reacta — bez `innerHTML`. */
+/** Renders Markdown (release notes) as styled React elements, without `innerHTML`. */
 export const MarkdownText: React.FC<MarkdownTextProps> = ({ source, onOpenLink }) => {
   const blocks = React.useMemo(() => parseMarkdown(source), [source]);
   return (

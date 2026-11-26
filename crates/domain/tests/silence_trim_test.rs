@@ -4,7 +4,7 @@ use domain::silence::{
 
 const SR: u32 = 8_000;
 
-/// `lead_ms` ciszy, `tone_ms` sinusa o amplitudzie 0.5, `tail_ms` ciszy.
+/// `lead_ms` of silence, `tone_ms` of a sine with amplitude 0.5, `tail_ms` of silence.
 fn signal(lead_ms: u64, tone_ms: u64, tail_ms: u64) -> Vec<f32> {
     let n = |ms: u64| (ms * SR as u64 / 1000) as usize;
     let mut s = vec![0.0f32; n(lead_ms)];
@@ -26,7 +26,7 @@ fn test_detects_leading_and_trailing_silence() {
 #[test]
 fn test_quiet_noise_below_threshold_counts_as_silence() {
     let mut s = signal(0, 1_000, 0);
-    s.splice(0..0, vec![0.001f32; 8_000]); // -60 dBFS przez 1 s
+    s.splice(0..0, vec![0.001f32; 8_000]); // -60 dBFS for 1 s
     let b = find_silence_bounds(&s, SR, -50.0).unwrap();
     assert!(b.start_ms >= 950, "{b:?}");
 }
@@ -47,11 +47,11 @@ fn test_trim_action_skips_leading_silence_once_at_start() {
         trim_action(0, 7_000, &b, false),
         Some(TrimAction::SeekTo(2_000 - LEADING_PREROLL_MS))
     );
-    assert_eq!(trim_action(0, 7_000, &b, true), None, "tylko raz na utwór");
+    assert_eq!(trim_action(0, 7_000, &b, true), None, "only once per track");
     assert_eq!(
         trim_action(1_500, 7_000, &b, false),
         None,
-        "ręczny seek w ciszę nie jest poprawiany"
+        "a manual seek into silence is not corrected"
     );
 }
 
@@ -95,9 +95,9 @@ fn test_trim_action_keeps_short_or_unknown_trailing_silence() {
 fn streaming_scanner_matches_whole_buffer_analysis_for_any_chunking() {
     use domain::silence::{find_silence_bounds, SilenceScanner};
     let rate = 22_050;
-    let mut samples = vec![0.0f32; rate as usize]; // 1 s ciszy
+    let mut samples = vec![0.0f32; rate as usize]; // 1 s of silence
     samples.extend((0..rate as usize * 2).map(|i| (i as f32 * 0.05).sin() * 0.5)); // 2 s tonu
-    samples.extend(vec![0.0f32; rate as usize / 2 + 123]); // cisza z niepełnym oknem
+    samples.extend(vec![0.0f32; rate as usize / 2 + 123]); // silence with an incomplete window
     let expected = find_silence_bounds(&samples, rate, -50.0);
     assert!(expected.is_some());
 
@@ -106,6 +106,6 @@ fn streaming_scanner_matches_whole_buffer_analysis_for_any_chunking() {
         for part in samples.chunks(chunk) {
             scanner.push(part);
         }
-        assert_eq!(scanner.finish(), expected, "porcje po {chunk} próbek");
+        assert_eq!(scanner.finish(), expected, "chunks of {chunk} samples");
     }
 }

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Repeat, X, Zap } from '../../../components/ui/icons';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
-import { cn } from '../../../utils/cn';
 import { cssVars } from '../../../utils/cssVars';
+import { Badge, Button, Chip } from '../../../components/ui';
 
 export type PlayerProgressSectionProps = Pick<PlayerViewProps, 'formatTime' | 'dspCombination' | 'loopPointA' | 'loopPointB' | 'setIsLoopEditorOpen' | 'loc' | 'formatTimeMs' | 'setLoopPointA' | 'setLoopPointB' | 'showMessage' | 'handleToggleSeekFade' | 'seekFadeEnabled' | 'trackWaveformPeaks' | 'language' | 'handleSeek' | 'handleSeekPreview' | 'handleSeekCommit' | 'currentBookmark' | 'currentTrackBookmarks'> & {
   status: PlaybackStatus;
@@ -41,28 +41,29 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
           <span className="font-bold text-fg">
             {formatTime(status.position_ms)}
           </span>
-          {/* Wskaźnik prędkości i transpozycji DSP jeśli tempo, szybkość lub pitch jest modyfikowane */}
+          {/* DSP speed and transposition indicator when tempo, rate or pitch is changed */}
           {(dspCombination.hasTempo || dspCombination.hasRate || dspCombination.hasPitch) && (
-            <span
-              className="rounded-sm border border-accent-purple/45 bg-accent-purple/25 px-1.5 py-px text-xxs font-bold text-accent-purple"
+            <Badge
+              tone="purple"
+              size="xs"
               title={`DSP (${dspCombination.engine}): Σ Speed ${dspCombination.totalSpeedRatio.toFixed(2)}x, Σ Pitch ${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st (Tempo: ${dspCombination.tempoRatio.toFixed(2)}x, Pitch: ${dspCombination.pitchSt.toFixed(2)}st, Rate: ${dspCombination.rateRatio.toFixed(2)}x)`}
             >
               DSP {dspCombination.totalSpeedRatio !== 1.0 ? `${dspCombination.totalSpeedRatio.toFixed(2)}x` : ''}
               {dspCombination.totalSpeedRatio !== 1.0 && Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? ', ' : ''}
               {Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? `${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st` : ''}
-            </span>
+            </Badge>
           )}
           {(loopPointA !== null || loopPointB !== null) && (
             <div className="flex items-center gap-1">
-              <span
+              <Button
+                variant="tinted"
+                tone={loopPointA !== null && loopPointB !== null ? 'cyan' : 'amber'}
+                size="sm"
                 onClick={() => setIsLoopEditorOpen(true)}
-                className={cn(
-                  'flex cursor-pointer items-center gap-1 rounded-sm border px-1.5 py-px text-xxs font-bold',
-                  loopPointA !== null && loopPointB !== null ? 'border-accent-cyan/45 bg-accent-cyan/20 text-accent-cyan' : 'border-amber-400/40 bg-white/8 text-amber-400',
-                )}
                 title={loc.player.editLoopTooltip}
+                className="gap-1 px-1.5 py-px font-mono text-xxs"
               >
-                <span>🔁 {loc.player.loopAB}:</span>
+                <span className="inline-flex items-center gap-1"><Repeat size={12} />{loc.player.loopAB}:</span>
                 <span className="text-accent-cyan">{loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000'}</span>
                 <span>→</span>
                 <span className="text-accent-pink">{loopPointB !== null ? formatTimeMs(loopPointB) : '—'}</span>
@@ -71,37 +72,34 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
                     ({((loopPointB - loopPointA) / 1000).toFixed(1)}s)
                   </span>
                 )}
-              </span>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => {
                   setLoopPointA(null);
                   setLoopPointB(null);
                   showMessage(loc.player.clearedLoopMsg);
                 }}
-                className="rounded-sm border border-accent-pink/45 bg-accent-pink/20 px-1.5 py-px text-xxs text-rose-400"
                 title={loc.player.clearLoop}
+                aria-label={loc.player.clearLoop}
+                className="px-1.5 py-0.5"
               >
-                ✕
-              </button>
+                <X size={11} />
+              </Button>
             </div>
           )}
 
-          {/* Przełącznik płynnego wyciszenia paska postępu (Fade Seek) */}
-          <button
-            onClick={handleToggleSeekFade}
-            className={cn(
-              'rounded-sm border px-2 py-px text-xxs font-bold transition-all duration-150',
-              seekFadeEnabled ? 'border-pink-500/45 bg-pink-500/20 text-accent-pink' : 'border-line bg-white/6 text-fg-muted',
-            )}
-            title={loc.player.seekFadeDesc}
-          >
-            {seekFadeEnabled ? loc.player.seekFadeOn : loc.player.seekFadeOff}
-          </button>
+          {/* Fade Seek toggle for the progress bar */}
+          <Chip size="xs" pressed={seekFadeEnabled} onClick={handleToggleSeekFade} title={loc.player.seekFadeDesc}>
+            <Zap size={11} />
+            {loc.player.seekFadeShort}
+          </Chip>
         </div>
         <span>{status.duration_ms ? formatTime(status.duration_ms) : '--:--'}</span>
       </div>
 
-      {/* Wizualizacja przebiegu utworu (Waveform) - interaktywna fala zsynchronizowana z DSP */}
+      {/* Track waveform: an interactive wave synced with DSP */}
       <WaveformCanvas
         peaks={trackWaveformPeaks || []}
         progress={status.duration_ms && status.duration_ms > 0 ? (status.position_ms / status.duration_ms) * 100 : 0}
@@ -137,7 +135,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
         className="mb-2.5"
       />
 
-      {/* Kontener suwaka z podświetleniem pętli A-B oraz znacznikiem zakładki */}
+      {/* Slider container with the A-B loop highlight and the bookmark marker */}
       <div className="relative flex w-full items-center">
         {loopPointA !== null && loopPointB !== null && status.duration_ms && (
           <div
@@ -184,21 +182,21 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
             B
           </div>
         )}
-        {/* Wskaźnik zapisanej zakładki na osi czasu */}
+        {/* Saved bookmark marker on the timeline */}
         {currentBookmark !== null && status.duration_ms && (
           <div
             onClick={(e) => {
               e.stopPropagation();
               handleSeek(currentBookmark);
             }}
-            className="absolute -top-4.5 z-3 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-sm border border-amber-400 bg-deep px-1 py-0 text-2xs font-extrabold text-amber-400 shadow-halo-sm shadow-amber-400/40"
+            className="absolute -top-4.5 z-3 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-sm border border-accent-amber bg-deep px-1 py-0 text-2xs font-extrabold text-accent-amber shadow-halo-sm shadow-accent-amber/40"
             style={{ left: `${(currentBookmark / status.duration_ms) * 100}%` }}
             title={`${fmt(loc.player.bookmarkJump, formatTime(currentBookmark))} (${loc.player.clickToJump})`}
           >
-            <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
+            <Bookmark size={9} fill="currentColor" /> {formatTime(currentBookmark)}
           </div>
         )}
-        {/* Wskaźniki wielopunktowych zakładek (Track Bookmarks / Cue Points) na osi czasu */}
+        {/* Multi-point bookmark markers (track bookmarks / cue points) on the timeline */}
         {status.duration_ms && status.duration_ms > 0 && currentTrackBookmarks.map((bm) => {
           const leftPct = Math.min(100, Math.max(0, (bm.position_ms / status.duration_ms!) * 100));
           return (

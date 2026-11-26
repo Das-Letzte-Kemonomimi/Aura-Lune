@@ -7,7 +7,7 @@ import {
   Radio,
   SlidersHorizontal,
   BarChart3,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, type Translations } from '../../i18n';
 
 export type { MainTabType } from '../../types/navigation';
@@ -56,15 +56,15 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
     },
     {
       id: 'stem-projects',
-      label: 'Stem Projects',
+      label: loc.nav.stemProjects,
       icon: <Sliders size={14} />,
       title: loc.nav.stemProjectsTitle,
     },
     {
       id: 'radio',
-      label: loc.nav.radio || 'Radio',
+      label: loc.nav.radio,
       icon: <Radio size={14} />,
-      title: loc.nav.radio || 'Radio',
+      title: loc.nav.radio,
     },
     {
       id: 'dsp',
@@ -89,7 +89,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             key={tab.id}
             onClick={() => onSelectTab(tab.id)}
             aria-current={isActive ? 'page' : undefined}
-            className="flex items-center gap-1.5 bg-transparent px-3 py-2 text-ui font-semibold text-fg aria-[current=page]:bg-accent-purple"
+            className="flex items-center gap-1.5 px-3 py-2 text-ui font-semibold text-fg aria-[current=page]:bg-accent-purple"
             title={tab.title}
           >
             {tab.icon}

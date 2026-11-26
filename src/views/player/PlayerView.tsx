@@ -1,10 +1,10 @@
 import type { AppTab } from '../../types/navigation';
 import React, { useCallback } from "react";
-import { BarChart3,     FolderOpen,  Heart,                  } from "lucide-react";
+import { BarChart3, FolderOpen, Heart } from "../../components/ui/icons";
 import { LyricsView } from '../../components/player/LyricsView';
-import {  type TapeType } from '../../components/player/TapeDeckWidget';
+import type { TapeType } from '../../components/player/TapeDeckWidget';
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
-import type { AlbumRecord, TrackRecord, PlaybackStatus } from '../../types/player';
+import type { AlbumRecord, DspEngineType, TrackRecord, PlaybackStatus } from '../../types/player';
 import { type QueueItem, type PlaybackQueue, type QueueColumnConfig } from '../../types/queue';
 import type { TrackBookmarkDto } from '../../types/player';
 import type { DspCombinationInfo } from '../dsp/DspStudioView';
@@ -19,6 +19,7 @@ import { PlayerQuickDspVibes } from './sections/PlayerQuickDspVibes';
 import { PlayerVisualColumn } from './sections/PlayerVisualColumn';
 import { PlayerToolbar } from './sections/PlayerToolbar';
 import { cn } from '../../utils/cn';
+import { Badge, Button, Card, Chip, StatusDot } from '../../components/ui';
 
 export interface PlayerViewProps {
   layoutMaxWidth: string;
@@ -35,8 +36,7 @@ export interface PlayerViewProps {
   effectiveDisplayTitle: string;
   effectiveDisplayArtist: string;
   filePath: string | null;
-  setFilePath: (p: any) => void;
-  volumeProgressPercent: number;
+  setFilePath: (p: string) => void;
   volumeUnit: "percent" | "db";
   formatVolumeValue: (vol: number, unit?: "percent" | "db") => string;
   handleToggleVolumeUnit: () => void;
@@ -70,7 +70,7 @@ export interface PlayerViewProps {
   dspBadgeText: string;
   dspBadgeTitle: string;
   dspCombination: DspCombinationInfo;
-  lastActiveDspEngineRef: React.MutableRefObject<string>;
+  lastActiveDspEngineRef: React.MutableRefObject<'RubberBand' | 'SoundTouch'>;
   trackWaveformPeaks: number[] | null;
   loopPointA: number | null;
   setLoopPointA: (v: number | null) => void;
@@ -122,7 +122,7 @@ export interface PlayerViewProps {
   handleVolumeChange: (vol: number) => void;
   handlePitchChange: (st: number) => void;
   handleTempoChange: (t: number) => void;
-  handleEngineChange: (engine: any) => void;
+  handleEngineChange: (engine: DspEngineType) => void;
   handleToggleFavorite: (trackId: number, e?: React.MouseEvent) => void;
   handleOpenContainingFolder: (path: string, e?: React.MouseEvent) => void;
   handleOpenCoverPicker: (album: AlbumRecord) => void;
@@ -157,7 +157,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
     handleToggleFavorite,
     handleOpenContainingFolder,
   } = props;
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const status = useLiveStatus(statusProp);
   const seekProgressPercent =
     status.duration_ms && status.duration_ms > 0
@@ -172,56 +172,50 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
 
   return (
             <div className="mx-auto my-0 flex flex-col gap-5 pb-8" style={{ maxWidth: layoutMaxWidth }}>
-              <div className="glass-panel flex flex-col gap-5 px-7 py-6">
-                {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
+              <Card variant="panel" padding="lg" className="flex flex-col gap-5">
+                {/* Top toolbar: audio engine and a discreet open-file button */}
                 <PlayerToolbar {...props} status={statusProp} />
 
-                {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
+                {/* Main player deck: 2-column layout (cover/vinyl + controls & spectrogram) */}
                 <div
                   className={cn(
                     'grid items-center gap-6.5 transition-[grid-template-columns] duration-200',
                     nowPlayingVisualMode === 'cover' ? 'grid-cols-[--spacing(60)_1fr]' : 'grid-cols-[--spacing(69)_1fr]',
                   )}
                 >
-                  {/* Kolumna lewa: Okładka / Winyl / Tape / VU-Meter */}
+                  {/* Left column: cover / vinyl / tape / VU meter */}
                   <PlayerVisualColumn {...props} status={status} />
 
-                  {/* Kolumna prawa: Tytuł, Wykonawca, Spektrogram, Seeker i Przyciski */}
+                  {/* Right column: title, artist, spectrogram, seeker and buttons */}
                   <div className="flex min-w-0 flex-col gap-3.5">
                     <div>
                       <div className="mb-1 flex items-center gap-2">
-                        <span
-                          className={cn(
-                            'h-2 w-2 rounded-full',
-                            status.state === 'Playing' ? 'shadow-halo-sm shadow-accent-green' : 'shadow-none',
-                            status.state === 'Playing' ? 'bg-accent-green' : status.state === 'Paused' ? 'bg-accent-amber' : 'bg-fg-muted',
-                          )}
-                        />
-                        <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
+                        <StatusDot tone={status.state === 'Playing' ? 'green' : status.state === 'Paused' ? 'amber' : 'neutral'} />
+                        <span className="label-caps text-fg-muted">
                           {status.state === 'Playing' ? loc.player.statePlaying : status.state === 'Paused' ? loc.player.statePaused : loc.player.stateStopped}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <h3 className="m-0 truncate text-2xl font-extrabold tracking-tight text-fg">
+                          <h3 className="truncate text-2xl font-extrabold tracking-tight text-fg">
                             {effectiveDisplayTitle}
                           </h3>
-                          <p className="mx-0 mt-1 mb-0 truncate text-sm font-semibold text-accent-pink">
+                          <p className="mt-1 truncate text-sm font-semibold text-accent-pink">
                             {effectiveDisplayArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
                           </p>
                           {cleanLiveTitle && (
-                            <div
-                              className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-ui font-semibold text-accent-pink"
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-halo-sm shadow-red-500" />
-                              <span>LIVE: {cleanLiveTitle}</span>
-                            </div>
+                            <Badge tone="pink" size="sm" className="mt-1.5 gap-1.5">
+                              <StatusDot tone="red" pulse className="size-1.5" />
+                              LIVE: {cleanLiveTitle}
+                            </Badge>
                           )}
                         </div>
 
                         <div className="flex shrink-0 items-center gap-2">
-                          <button
+                          <Button
+                            variant="tinted"
+                            tone="amber"
                             onClick={() => {
                               if (currentPlayingTrack) {
                                 setStatsModalTrack(currentPlayingTrack);
@@ -242,28 +236,26 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                               }
                             }}
                             title={loc.player.trackStats}
-                            className="flex items-center gap-1.5 rounded-lg border border-accent-amber/35 bg-accent-amber/15 px-3 py-1.5 text-ui font-semibold text-accent-amber transition-all duration-200"
                           >
                             <BarChart3 size={16} />
-                            <span>{currentPlayingTrack?.play_count || 0} {loc.player.plays}</span>
-                          </button>
+                            {currentPlayingTrack?.play_count || 0} {loc.player.plays}
+                          </Button>
 
                           {currentPlayingTrack && (
-                            <button
+                            <Chip
+                              pressed={Boolean(currentPlayingTrack.is_favorite)}
                               onClick={(e) => handleToggleFavorite(currentPlayingTrack.id, e)}
-                              title={currentPlayingTrack.is_favorite ? loc.player.favoriteRemove : loc.player.favoriteAdd}
-                              className={cn(
-                                'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-ui font-semibold transition-all duration-200',
-                                currentPlayingTrack.is_favorite ? 'border-accent-pink bg-accent-pink/20 text-accent-pink' : 'border-line bg-white/6 text-fg-muted',
-                              )}
+                              className="px-3.5 py-2 text-ui"
                             >
-                              <Heart className={cn(currentPlayingTrack.is_favorite && 'fill-accent-pink')} size={16} />
+                              <Heart fill={currentPlayingTrack.is_favorite ? 'currentColor' : 'none'} size={16} />
                               {currentPlayingTrack.is_favorite ? loc.player.favoriteRemove : loc.player.favoriteAdd}
-                            </button>
+                            </Chip>
                           )}
 
                           {(currentPlayingTrack?.path || status.current_track?.uri || filePath) && (
-                            <button
+                            <Button
+                              variant="tinted"
+                              tone="cyan"
                               onClick={(e) =>
                                 handleOpenContainingFolder(
                                   currentPlayingTrack?.path || status.current_track?.uri || filePath || '',
@@ -271,38 +263,37 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                                 )
                               }
                               title={loc.queue.openContainingFolder}
-                              className="flex items-center gap-1.5 rounded-lg border border-accent-cyan/35 bg-accent-cyan/15 px-3 py-1.5 text-ui font-semibold text-accent-cyan transition-all duration-200"
                             >
                               <FolderOpen size={15} />
-                              <span>Dolphin</span>
-                            </button>
+                              Dolphin
+                            </Button>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Żywy animowany Canvas Spectrum Visualizer */}
+                    {/* Live animated canvas spectrum visualizer */}
                     <SpectrumVisualizer
                       spectrum={status.spectrum}
                       isPlaying={status.state === 'Playing'}
                     />
 
-                    {/* Szybkie Profile Klimatyczne DSP (Quick DSP Vibes) */}
+                    {/* Quick DSP vibe profiles (Quick DSP Vibes) */}
                     <PlayerQuickDspVibes {...props} t={t} />
 
-                    {/* Pasek postępu z pętlą A-B i wizualizacją przebiegu utworu (Waveform) */}
+                    {/* Progress bar with the A-B loop and the track waveform */}
                     <PlayerProgressSection {...props} status={status} seekProgressPercent={seekProgressPercent} />
 
-                    {/* Przyciski sterowania odtwarzaniem */}
+                    {/* Playback control buttons */}
                     <PlayerTransportControls {...props} status={statusProp} />
                   </div>
                 </div>
 
-                {/* ZINTEGROWANY MINI-PASEK DSP (Zastępuje dawne puste wielkie karty z Image 2) */}
+                {/* Integrated DSP mini bar */}
                 <PlayerDspMiniBar {...props} status={statusProp} />
-              </div>
+              </Card>
 
-              {/* SEKCJA ZSYNCHRONIZOWANYCH TEKSTÓW PIOSENEK (LRC & LRCLIB) */}
+              {/* Synced lyrics section (LRC & LRCLIB) */}
               {showLyrics && (
                 <div className="mb-1 h-105 w-full">
                   <LyricsView
@@ -319,7 +310,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                 </div>
               )}
 
-              {/* SEKCJA KOLEJKI ODTWARZANIA Z KONFIGURACJĄ KOLUMN */}
+              {/* Playback queue section with column configuration */}
               <PlayerQueuePanel {...props} status={statusProp} t={t} getQueueTrackMeta={getQueueTrackMeta} />
             </div>
   );

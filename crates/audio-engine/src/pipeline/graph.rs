@@ -1,9 +1,9 @@
-//! Budowa grafu potoku GStreamera (`AudioEngine::new`): elementy, sondy efektów i połączenia.
+//! Builds the GStreamer pipeline graph (`AudioEngine::new`): elements, effect probes and links.
 
 use super::*;
 
 impl AudioEngine {
-    /// Inicjalizuje GStreamer oraz tworzy bazowy potok odtwarzacza.
+    /// Initialises GStreamer and builds the base player pipeline.
     pub fn new() -> Result<Self, AudioEngineError> {
         static GST_INIT_ONCE: std::sync::Once = std::sync::Once::new();
         GST_INIT_ONCE.call_once(|| {
@@ -16,7 +16,7 @@ impl AudioEngine {
 
         let pipeline = gst::Pipeline::with_name("auralune-audio-pipeline");
 
-        // Bufor wejściowy audio (decoupler dekodowania od DSP)
+        // Audio input buffer (decouples decoding from the DSP)
         let queue_in = gst::ElementFactory::make("queue")
             .name("queue_in")
             .property("max-size-time", 500_000_000u64)
@@ -35,7 +35,7 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
 
-        // Wymuszenie formatu F32LE dla procesorów DSP
+        // Force F32LE for the DSP processors
         let capsfilter_dsp = gst::ElementFactory::make("capsfilter")
             .name("capsfilter_dsp")
             .property(
@@ -48,7 +48,7 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("capsfilter"))?;
 
-        // Dedykowany element DSP (Bypass / Rubber Band / SoundTouch)
+        // Dedicated DSP element (Bypass / Rubber Band / SoundTouch)
         let dsp = crate::dsp_node::AuraluneDsp::new(Some("auralune_dsp"));
 
         let equalizer = gst::ElementFactory::make("equalizer-10bands")
@@ -56,7 +56,7 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("equalizer-10bands"))?;
         if let Ok(transform) = equalizer.clone().dynamic_cast::<gst_base::BaseTransform>() {
-            transform.set_passthrough(true); // Domyślnie wyłączony (Bypass bit-perfect)
+            transform.set_passthrough(true); // Off by default (bit-perfect bypass)
         }
 
         let peq_preamp = gst::ElementFactory::make("volume")
@@ -74,11 +74,11 @@ impl AudioEngine {
             .clone()
             .dynamic_cast::<gst_base::BaseTransform>()
         {
-            transform.set_passthrough(true); // Domyślnie wyłączony (Bypass bit-perfect)
+            transform.set_passthrough(true); // Off by default (bit-perfect bypass)
         }
 
-        // Moduły Studia Dynamiki:
-        // 1. Kompresor dynamiki (audiodynamic)
+        // Dynamics Studio modules:
+        // 1. Dynamics compressor (audiodynamic)
         let compressor = match gst::ElementFactory::make("audiodynamic")
             .name("compressor_dynamics")
             .property_from_str("mode", "compressor")
@@ -89,25 +89,25 @@ impl AudioEngine {
         {
             Ok(c) => {
                 if let Ok(transform) = c.clone().dynamic_cast::<gst_base::BaseTransform>() {
-                    transform.set_passthrough(true); // Domyślnie wyłączony (bypass)
+                    transform.set_passthrough(true); // Off by default (bypass)
                 }
                 c
             }
             Err(e) => {
-                warn!("Brak elementu audiodynamic (gst-plugins-good): {:?}", e);
+                warn!("audiodynamic element missing (gst-plugins-good): {:?}", e);
                 return Err(AudioEngineError::MissingElement("audiodynamic"));
             }
         };
 
-        // 2. Wzmocnienie wyrównawcze (makeup gain) kompresora
+        // 2. Compressor makeup gain
         let compressor_makeup = gst::ElementFactory::make("volume")
             .name("compressor_makeup")
             .property("volume", 1.0f64)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // 3–4. Saturator analogowy i Stereo Widener — elementy `identity` z sondami F32LE
-        //      (kod wątku strumieniowego w `probes.rs`).
+        // 3–4. Analog saturator and stereo widener: `identity` elements with F32LE probes
+        //      (streaming-thread code in `probes.rs`).
         let (saturator, saturator_config) = super::probes::build_saturator()?;
         let (stereo_widener, stereo_widener_config) = super::probes::build_stereo_widener()?;
 
@@ -126,8 +126,8 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        // Bufor kolejki wyjściowej audio: 600ms bez sztucznego min-threshold (0 = wyłączony),
-        // co eliminuje mikro-przycięcia i zatory czasowe przed zlewem wyjściowym.
+        // Audio output queue: 600 ms without an artificial min-threshold (0 = off),
+        // which removes micro-dropouts and timing stalls before the output sink.
         let queue_sink = gst::ElementFactory::make("queue")
             .name("queue_sink")
             .property("max-size-time", 600_000_000u64)
@@ -142,13 +142,13 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioresample"))?;
 
-        // Preferencja wyjścia audio:
-        // 1. pulsesink: łączy się z demonem pipewire-pulse / PulseAudio.
-        //    Posiada dojrzały mechanizm ring-bufora sprzętowego (GstAudioBaseSink) z konfigurowalnym
-        //    buffer-time (200ms) i latency-time (10ms). Gwarantuje absolutnie beztrzaskowe odtwarzanie
-        //    na zewnętrznych przetwornikach USB (np. Focusrite Scarlett Solo).
-        // 2. pipewiresink: bezpośredni fallback dla natywnego PipeWire.
-        // 3. autoaudiosink: ogólny fallback systemowy GStreamera.
+        // Audio output preference:
+        // 1. pulsesink: connects to the pipewire-pulse / PulseAudio daemon.
+        //    It has a mature hardware ring-buffer (GstAudioBaseSink) with configurable
+        //    buffer-time (200 ms) and latency-time (10 ms), which gives click-free playback
+        //    on external USB converters (e.g. Focusrite Scarlett Solo).
+        // 2. pipewiresink: direct fallback for native PipeWire.
+        // 3. autoaudiosink: GStreamer's generic system fallback.
         let sink = if let Ok(pulse) = gst::ElementFactory::make("pulsesink")
             .name("sink")
             .property("client-name", "Auralune")
@@ -161,7 +161,7 @@ impl AudioEngine {
                 .field("media.role", "music")
                 .build();
             pulse.set_property("stream-properties", &stream_props);
-            info!("Zainicjalizowano wyjście PulseAudio / PipeWire-Pulse (200ms buffer-time, 10ms latency)");
+            info!("Initialised the PulseAudio / PipeWire-Pulse output (200ms buffer-time, 10ms latency)");
             pulse
         } else {
             let pw_stream_props = gst::Structure::builder("pipewire-stream-properties")
@@ -179,11 +179,11 @@ impl AudioEngine {
                 .build()
             {
                 Ok(pw_sink) => {
-                    info!("Zainicjalizowano wyjście PipeWire (role: Music)");
+                    info!("Initialised the PipeWire output (role: Music)");
                     pw_sink
                 }
                 Err(_) => {
-                    warn!("Brak pulsesink i pipewiresink, używam fallbacku autoaudiosink");
+                    warn!("Neither pulsesink nor pipewiresink is available; falling back to autoaudiosink");
                     gst::ElementFactory::make("autoaudiosink")
                         .name("sink")
                         .build()
@@ -202,12 +202,12 @@ impl AudioEngine {
         {
             Ok(fv) => Some(fv),
             Err(e) => {
-                warn!("Brak elementu freeverb (gst-plugins-bad): {:?}", e);
+                warn!("freeverb element missing (gst-plugins-bad): {:?}", e);
                 None
             }
         };
 
-        // Dodanie statycznych elementów do potoku wejściowego i DSP
+        // Add the static elements to the input and DSP pipeline
         pipeline.add_many([
             &queue_in,
             &audioconvert_in,
@@ -235,7 +235,7 @@ impl AudioEngine {
             .and_then(|bin| bin.by_name("rgvolume-volume"))
             .and_then(|elem| elem.dynamic_cast::<gst_base::BaseTransform>().ok());
 
-        // Domyślnie ReplayGain jest wyłączony (Off) - ustawiamy passthrough, aby strumień audio przechodził bez żadnych modyfikacji
+        // ReplayGain is off by default, so set passthrough to let the audio stream through unmodified
         if let Some(ref child) = rgvolume_child {
             child.set_passthrough(true);
         }
@@ -251,7 +251,7 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
 
-        // Element Bauer stereophonic-to-binaural (Crossfeed bs2b) dla odsłuchu słuchawkowego
+        // Bauer stereophonic-to-binaural element (crossfeed, bs2b) for headphone listening
         let bs2b = match gst::ElementFactory::make("bs2b")
             .name("bs2b_crossfeed")
             .property("fcut", 700i32)
@@ -260,12 +260,12 @@ impl AudioEngine {
         {
             Ok(el) => {
                 if let Ok(transform) = el.clone().dynamic_cast::<gst_base::BaseTransform>() {
-                    transform.set_passthrough(true); // Domyślnie tryb bypass
+                    transform.set_passthrough(true); // Bypass by default
                 }
                 Some(el)
             }
             Err(e) => {
-                warn!("Brak elementu bs2b (gst-plugins-bad): {:?}", e);
+                warn!("bs2b element missing (gst-plugins-bad): {:?}", e);
                 None
             }
         };
@@ -292,7 +292,7 @@ impl AudioEngine {
             pipeline.add(bs)?;
         }
 
-        // Połączenie elementów przetwarzania audio:
+        // Link the audio processing elements:
         // queue_in -> audioconvert_in -> audioresample -> capsfilter_dsp -> dsp
         gst::Element::link_many([
             &queue_in,
@@ -301,63 +301,63 @@ impl AudioEngine {
             &capsfilter_dsp,
             dsp.upcast_ref(),
         ])
-        .map_err(|_| AudioEngineError::ElementLink("Nie udało się połączyć wejścia DSP".into()))?;
+        .map_err(|_| AudioEngineError::ElementLink("Failed to link the DSP input".into()))?;
 
         // DSP -> (freeverb) -> equalizer
         if let Some(ref fv) = freeverb {
             dsp.upcast_ref::<gst::Element>().link(fv).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania DSP z freeverb".into())
+                AudioEngineError::ElementLink("Failed to link DSP to freeverb".into())
             })?;
             fv.link(&equalizer).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania freeverb z equalizer".into())
+                AudioEngineError::ElementLink("Failed to link freeverb to equalizer".into())
             })?;
         } else {
             dsp.upcast_ref::<gst::Element>()
                 .link(&equalizer)
                 .map_err(|_| {
-                    AudioEngineError::ElementLink("Błąd linkowania DSP z equalizer".into())
+                    AudioEngineError::ElementLink("Failed to link DSP to equalizer".into())
                 })?;
         }
 
         // equalizer -> peq_preamp -> peq_equalizer
         equalizer.link(&peq_preamp).map_err(|_| {
-            AudioEngineError::ElementLink("Błąd linkowania equalizer z peq_preamp".into())
+            AudioEngineError::ElementLink("Failed to link equalizer to peq_preamp".into())
         })?;
         peq_preamp.link(&peq_equalizer).map_err(|_| {
-            AudioEngineError::ElementLink("Błąd linkowania peq_preamp z peq_equalizer".into())
+            AudioEngineError::ElementLink("Failed to link peq_preamp to peq_equalizer".into())
         })?;
 
         // peq_equalizer -> compressor -> compressor_makeup -> saturator
         peq_equalizer.link(&compressor).map_err(|_| {
-            AudioEngineError::ElementLink("Błąd linkowania peq_equalizer z compressor".into())
+            AudioEngineError::ElementLink("Failed to link peq_equalizer to compressor".into())
         })?;
         compressor.link(&compressor_makeup).map_err(|_| {
-            AudioEngineError::ElementLink("Błąd linkowania compressor z compressor_makeup".into())
+            AudioEngineError::ElementLink("Failed to link compressor to compressor_makeup".into())
         })?;
         compressor_makeup.link(&saturator).map_err(|_| {
-            AudioEngineError::ElementLink("Błąd linkowania compressor_makeup z saturator".into())
+            AudioEngineError::ElementLink("Failed to link compressor_makeup to saturator".into())
         })?;
         saturator.link(&stereo_widener).map_err(|_| {
-            AudioEngineError::ElementLink("Błąd linkowania saturator ze stereo_widener".into())
+            AudioEngineError::ElementLink("Failed to link saturator to stereo_widener".into())
         })?;
 
         // stereo_widener -> (bs2b) -> rgvolume
         if let Some(ref bs) = bs2b {
             stereo_widener.link(bs).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania stereo_widener z bs2b".into())
+                AudioEngineError::ElementLink("Failed to link stereo_widener to bs2b".into())
             })?;
             bs.link(&rgvolume).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania bs2b z rgvolume".into())
+                AudioEngineError::ElementLink("Failed to link bs2b to rgvolume".into())
             })?;
         } else {
             stereo_widener.link(&rgvolume).map_err(|_| {
-                AudioEngineError::ElementLink("Błąd linkowania stereo_widener z rgvolume".into())
+                AudioEngineError::ElementLink("Failed to link stereo_widener to rgvolume".into())
             })?;
         }
 
         // rgvolume -> rglimiter -> spectrum -> audioconvert_sink -> audioresample_sink -> queue_sink -> volume -> sink
-        // Umieszczenie volume bezpośrednio przed zlewem (po queue_sink) gwarantuje zerowe opóźnienie
-        // bufora przy zmianie głośności suwakiem (natychmiastowa reakcja sprzętowa bez opóźnienia bufora kolejki).
+        // Placing volume right before the sink (after queue_sink) means a volume slider change
+        // takes effect immediately, without waiting for the queue buffer.
         gst::Element::link_many([
             &rgvolume,
             &rglimiter,
@@ -370,7 +370,7 @@ impl AudioEngine {
         ])
         .map_err(|_| {
             AudioEngineError::ElementLink(
-                "Nie udało się połączyć wyjściowego łańcucha audio ze spectrum, kolejką, volume i zlewem".into(),
+                "Failed to link the audio output chain to spectrum, queue, volume and sink".into(),
             )
         })?;
 

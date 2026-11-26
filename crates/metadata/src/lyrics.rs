@@ -1,9 +1,9 @@
-//! Obsługa tekstów piosenek (LRC i serwis LRCLIB).
+//! Song lyrics (LRC and the LRCLIB service).
 //!
-//! Zapewnia:
-//! - Wczytywanie lokalnych plików .lrc znajdujących się obok utworu,
-//! - Pobieranie synchronizowanych i statycznych tekstów z otwartego API LRCLIB,
-//! - Parsowanie znaczników czasu [mm:ss.xx] do milisekund.
+//! Provides:
+//! - loading local .lrc files next to the track,
+//! - fetching synced and plain lyrics from the open LRCLIB API,
+//! - parsing [mm:ss.xx] timestamps into milliseconds.
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -33,7 +33,7 @@ struct LrclibResponse {
     instrumental: Option<bool>,
 }
 
-/// Parsuje zawartość pliku LRC lub tekstu synchronizowanego do listy linii z milisekundami.
+/// Parses the contents of an LRC file or synced lyrics into a list of lines with milliseconds.
 pub fn parse_lrc_content(content: &str) -> Vec<LyricLineDto> {
     let mut lines = Vec::new();
 
@@ -73,7 +73,7 @@ pub fn parse_lrc_content(content: &str) -> Vec<LyricLineDto> {
 }
 
 fn parse_timestamp_tag(tag: &str) -> Option<u64> {
-    // Format mm:ss.xx lub mm:ss.xxx lub mm:ss:xx
+    // Format mm:ss.xx or mm:ss.xxx or mm:ss:xx
     let parts: Vec<&str> = tag.split(':').collect();
     if parts.len() < 2 {
         return None;
@@ -102,7 +102,7 @@ fn parse_timestamp_tag(tag: &str) -> Option<u64> {
     Some(minutes * 60_000 + seconds * 1_000 + millis)
 }
 
-/// Próbuje znaleźć lokalny plik .lrc obok utworu audio.
+/// Tries to find a local .lrc file next to the audio track.
 pub fn find_local_lrc(track_path: &str) -> Option<LyricsDto> {
     let path = Path::new(track_path);
     let lrc_path = path.with_extension("lrc");
@@ -111,7 +111,7 @@ pub fn find_local_lrc(track_path: &str) -> Option<LyricsDto> {
         if let Ok(content) = fs::read_to_string(&lrc_path) {
             let lines = parse_lrc_content(&content);
             if !lines.is_empty() {
-                info!("Wczytano lokalny plik tekstów LRC: {:?}", lrc_path);
+                info!("Loaded local LRC lyrics file: {:?}", lrc_path);
                 return Some(LyricsDto {
                     is_synced: true,
                     lines,
@@ -125,7 +125,7 @@ pub fn find_local_lrc(track_path: &str) -> Option<LyricsDto> {
     None
 }
 
-/// Pobiera teksty piosenek (najpierw szuka lokalnego pliku .lrc, potem z LRCLIB API).
+/// Fetches song lyrics (looks for a local .lrc file first, then the LRCLIB API).
 pub async fn fetch_lyrics_online_or_local(
     track_path: Option<&str>,
     title: &str,
@@ -133,7 +133,7 @@ pub async fn fetch_lyrics_online_or_local(
     album: Option<&str>,
     duration_sec: Option<f64>,
 ) -> Option<LyricsDto> {
-    // 1. Sprawdź lokalny plik .lrc jeśli podano ścieżkę
+    // 1. Check the local .lrc file if a path was given
     if let Some(path) = track_path {
         let clean_path = path.strip_prefix("file://").unwrap_or(path);
         if let Some(local_lrc) = find_local_lrc(clean_path) {
@@ -141,8 +141,8 @@ pub async fn fetch_lyrics_online_or_local(
         }
     }
 
-    // 2. Pobierz z darmowego i otwartego API LRCLIB
-    // Jeden klient na cały proces (pula połączeń), zamiast nowego przy każdym utworze.
+    // 2. Fetch from the free and open LRCLIB API
+    // One client for the whole process (connection pool) instead of a new one per track.
     static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
     let client =
         CLIENT.get_or_init(|| crate::http::build_client(std::time::Duration::from_secs(4)));
@@ -184,7 +184,7 @@ pub async fn fetch_lyrics_online_or_local(
         return Some(LyricsDto {
             is_synced: false,
             lines: Vec::new(),
-            plain_lyrics: Some("♪ Utwór instrumentalny (brak tekstu) ♪".to_string()),
+            plain_lyrics: Some("♪ Instrumental (no lyrics) ♪".to_string()),
             source: "lrclib".to_string(),
         });
     }

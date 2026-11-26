@@ -1,14 +1,14 @@
-//! Kolejka odtwarzania: modyfikacje oraz przejścia między utworami (następny/poprzedni/indeks).
+//! Playback queue: edits and track transitions (next/previous/index).
 
 use super::*;
 
 impl AudioEngine {
-    /// Zwraca kopię bieżącego stanu kolejki odtwarzania.
+    /// Returns a copy of the current playback queue state.
     pub fn queue(&self) -> PlaybackQueue {
         self.queue.lock_safe().clone()
     }
 
-    /// Ustawia nową zawartość kolejki i opcjonalnie rozpoczyna odtwarzanie od wskazanego indeksu.
+    /// Replaces the queue contents and optionally starts playing from the given index.
     pub fn set_queue(
         &self,
         items: Vec<QueueItem>,
@@ -29,58 +29,58 @@ impl AudioEngine {
         Ok(active_item)
     }
 
-    /// Przywraca elementy i indeks kolejki bez natychmiastowego ładowania i odtwarzania przez GStreamer (bezpieczny start aplikacji).
+    /// Restores the queue items and index without loading or playing anything in GStreamer (safe app start).
     pub fn restore_queue(&self, items: Vec<QueueItem>, current_index: Option<usize>) {
         let mut q = self.queue.lock_safe();
         q.set_items(items, current_index);
     }
 
-    /// Ustawia lub dodaje bieżący aktywny utwór do kolejki.
+    /// Sets or adds the current active track to the queue.
     pub fn set_active_item(&self, item: QueueItem) {
         let mut q = self.queue.lock_safe();
         q.set_active_item(item);
     }
 
-    /// Dodaje utwór na koniec bieżącej kolejki.
+    /// Appends a track to the end of the current queue.
     pub fn add_to_queue(&self, item: QueueItem) {
         let mut q = self.queue.lock_safe();
         q.add_item(item);
     }
 
-    /// Wstawia utwór jako następny po bieżącym.
+    /// Inserts a track to play next, after the current one.
     pub fn add_next_to_queue(&self, item: QueueItem) {
         let mut q = self.queue.lock_safe();
         q.add_next(item);
     }
 
-    /// Usuwa utwór z kolejki po unikalnym identyfikatorze.
+    /// Removes a track from the queue by its unique ID.
     pub fn remove_from_queue(&self, id: &str) -> Option<QueueItem> {
         let mut q = self.queue.lock_safe();
         q.remove_item(id)
     }
 
-    /// Zmienia kolejność utworu w kolejce.
+    /// Moves a track within the queue.
     pub fn move_in_queue(&self, from: usize, to: usize) -> bool {
         let mut q = self.queue.lock_safe();
         q.move_item(from, to)
     }
 
-    /// Czyści całą kolejkę odtwarzania.
+    /// Clears the whole playback queue.
     pub fn clear_queue(&self) {
         let mut q = self.queue.lock_safe();
         q.clear();
     }
 
-    /// Pobiera kopię aktualnego utworu w kolejce odtwarzania.
+    /// Returns a copy of the current track in the playback queue.
     pub fn current_queue_item(&self) -> Option<QueueItem> {
         let q = self.queue.lock_safe();
         q.current_item().cloned()
     }
 
-    /// Odtwarza utwór ze wskazanego indeksu w kolejce.
+    /// Plays the track at the given queue index.
     pub fn play_index(&self, index: usize) -> Result<Option<QueueItem>, AudioEngineError> {
-        // Kolejność blokad: `inner` może być trzymany podczas pobierania `queue`, ale nigdy odwrotnie.
-        // Najpierw migawka stanu silnika (blokada zwalniana), dopiero potem modyfikacja kolejki.
+        // Lock order: `inner` may be held while taking `queue`, but never the reverse.
+        // Take a snapshot of the engine state first (lock released), then modify the queue.
         let (user_vol, is_playing, volume, current_uri) = {
             let inner = self.inner.lock_safe();
             (
@@ -113,15 +113,15 @@ impl AudioEngine {
         if let Some(item) = &item {
             if is_same_track {
                 if is_playing {
-                    // Ten sam utwór i już gra — przewijamy do początku i upewniamy się, że głośność jest nominalna
+                    // Same track and already playing: seek to the start and make sure the volume is nominal
                     self.seek(Duration::ZERO)?;
                     volume.set_property("volume", user_vol);
                 } else {
                     self.play_with_fade(true)?;
                 }
             } else {
-                // Szybki anti-pop ramp przy bezpośrednim kliknięciu utworu w kolejce:
-                // eliminuje trzaski DAC bez wprowadzania opóźnień ani zamrażania UI.
+                // Quick anti-pop ramp when a queue track is clicked directly:
+                // removes DAC clicks without adding latency or freezing the UI.
                 self.fade_out_before_switch(
                     &SwitchContext {
                         crossfade_ms: 0,
@@ -138,8 +138,8 @@ impl AudioEngine {
         Ok(item)
     }
 
-    /// Przechodzi do następnego utworu w kolejce według trybów Loop i Shuffle,
-    /// stosując płynne przejście z krzywą equal-power, jeśli włączony jest crossfade.
+    /// Moves to the next track in the queue according to the loop and shuffle modes,
+    /// with an equal-power transition when crossfade is enabled.
     pub fn play_next(&self) -> Result<Option<QueueItem>, AudioEngineError> {
         let ctx = self.switch_context();
         if ctx.crossfade_ms > 0 {
@@ -164,7 +164,7 @@ impl AudioEngine {
         }
     }
 
-    /// Przechodzi do poprzedniego utworu w kolejce (lub resetuje bieżący, jeśli grał > 3s).
+    /// Moves to the previous track in the queue (or restarts the current one if it played > 3 s).
     pub fn play_previous(&self) -> Result<Option<QueueItem>, AudioEngineError> {
         if let Some(pos) = self.position() {
             if pos.as_secs() >= 3 {
@@ -194,41 +194,41 @@ impl AudioEngine {
         }
     }
 
-    /// Ustawia tryb powtarzania (None, Track, Queue).
+    /// Sets the repeat mode (None, Track, Queue).
     pub fn set_loop_mode(&self, mode: LoopMode) {
         let mut q = self.queue.lock_safe();
         q.set_loop_mode(mode);
     }
 
-    /// Pobiera aktualny tryb powtarzania.
+    /// Returns the current repeat mode.
     pub fn loop_mode(&self) -> LoopMode {
         let q = self.queue.lock_safe();
         q.loop_mode
     }
 
-    /// Włącza lub wyłącza tryb odtwarzania losowego (Shuffle).
+    /// Enables or disables shuffle.
     pub fn set_shuffle(&self, enabled: bool) {
         let mut q = self.queue.lock_safe();
         q.set_shuffle(enabled);
     }
 
-    /// Pobiera stan trybu odtwarzania losowego (Shuffle).
+    /// Returns the shuffle state.
     pub fn shuffle(&self) -> bool {
         let q = self.queue.lock_safe();
         q.shuffle
     }
 
-    /// Włącza lub wyłącza tryb "Stop After Current Track" (zatrzymanie po zakończeniu bieżącego utworu).
+    /// Enables or disables "Stop After Current Track" (stop when the current track ends).
     pub fn set_stop_after_current(&self, enabled: bool) {
         self.stop_after_current.store(enabled, Ordering::SeqCst);
     }
 
-    /// Pobiera aktualny stan flagi "Stop After Current Track".
+    /// Returns the current state of the "Stop After Current Track" flag.
     pub fn stop_after_current(&self) -> bool {
         self.stop_after_current.load(Ordering::SeqCst)
     }
 
-    /// Migawka stanu potrzebna do płynnego przełączenia utworu (pobierana przed blokadą kolejki).
+    /// State snapshot needed for a smooth track switch (taken before the queue lock).
     fn switch_context(&self) -> SwitchContext {
         let inner = self.inner.lock_safe();
         SwitchContext {
@@ -239,7 +239,7 @@ impl AudioEngine {
         }
     }
 
-    /// Wycisza grający utwór krzywą equal-power przed przełączeniem (anuluje poprzednie fade'y).
+    /// Fades out the playing track on an equal-power curve before switching (cancels earlier fades).
     fn fade_out_before_switch(&self, ctx: &SwitchContext, duration: Duration) {
         if !ctx.is_playing || ctx.user_vol <= 0.001 {
             return;
@@ -254,8 +254,8 @@ impl AudioEngine {
         );
     }
 
-    /// Ładuje nowy utwór i startuje go: z narastaniem crossfade (połowa czasu), jeśli włączony,
-    /// w przeciwnym razie z mikro-fade-in.
+    /// Loads a new track and starts it: with a crossfade ramp-in (half the duration) if enabled,
+    /// otherwise with a micro fade-in.
     fn start_switched_track(&self, ctx: &SwitchContext, uri: &str) -> Result<(), AudioEngineError> {
         self.load_uri(uri)?;
         if ctx.crossfade_ms > 0 && ctx.user_vol > 0.001 {
@@ -266,10 +266,10 @@ impl AudioEngine {
     }
 }
 
-/// Czas krótkiego wyciszenia przy bezpośrednim przełączeniu utworu (bez trzasków DAC).
+/// Duration of the short fade on a direct track switch (avoids DAC clicks).
 const ANTI_POP_FADE: Duration = Duration::from_millis(20);
 
-/// Stan silnika potrzebny do płynnego przełączenia utworu.
+/// Engine state needed for a smooth track switch.
 struct SwitchContext {
     crossfade_ms: u64,
     user_vol: f64,

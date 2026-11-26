@@ -40,14 +40,14 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
     return 'bars';
   });
 
-  // Stan animacji trzymany w refach (bez renderów Reacta na klatkę)
+  // Animation state kept in refs (no React renders per frame)
   const bandStateRef = useRef<BandState>({ smoothed: [], peaks: [] });
   const foldedRef = useRef<number[]>([]);
   const rotationRef = useRef(0);
   const timeRef = useRef(0);
   const [gradients] = useState(() => new GradientCache());
 
-  // Najnowsze wartości dla pętli rysowania (bez jej restartu przy zmianie propsów)
+  // The latest values for the drawing loop (without restarting it when props change)
   const propsRef = useRef({ spectrum, isPlaying, mode });
   useEffect(() => {
     propsRef.current = { spectrum, isPlaying, mode };
@@ -57,13 +57,13 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
     ({ ctx, width, height, dt }) => {
       const { spectrum: spectrumProp, isPlaying: playing, mode: currentMode } = propsRef.current;
 
-      // Widmo prosto ze store'u (prop tylko jako zapas przed pierwszym statusem)
+      // Spectrum straight from the store (the prop is only a fallback before the first status)
       const live = livePlayback.getSnapshot();
       const source = live.ready && live.spectrum.length > 0 ? live.spectrum : spectrumProp;
       const count = foldBands(source, foldedRef.current);
       const moving = updateBands(bandStateRef.current, foldedRef.current, count, playing, dt);
 
-      // Obrót i „czas” oscyloskopu postępują tylko podczas odtwarzania (po pauzie wizualizacja zastyga i śpi)
+      // Rotation and the oscilloscope "time" advance only during playback (after a pause the visualisation freezes and sleeps)
       if (playing) {
         rotationRef.current += (ROTATION_RAD_PER_SEC[currentMode] ?? 0) * dt;
         timeRef.current += OSCILLOSCOPE_TIME_PER_SEC * dt;
@@ -82,7 +82,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
         gradients,
       });
 
-      // Pętla śpi, gdy nic się już nie rusza (pauza + wygaszone pasma); budzi ją `invalidate()`
+      // The loop sleeps when nothing moves any more (paused + faded bands); `invalidate()` wakes it
       return playing || moving;
     },
     {
@@ -91,7 +91,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
     },
   );
 
-  // Zmiana odtwarzania/trybu budzi pętlę
+  // A playback/mode change wakes the loop
   useEffect(() => {
     invalidate();
   }, [isPlaying, mode, invalidate]);

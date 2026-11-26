@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from '../../../components/ui/icons';
 import { SpectrumVisualizer } from '../../../components/player/SpectrumVisualizer';
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
@@ -8,7 +8,12 @@ import { formatTime } from '../../../utils/timeFormat';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
-import { cssVars } from '../../../utils/cssVars';
+import { Badge, Button, IconButton, RangeSlider, SegmentedControl } from '../../../components/ui';
+
+/** Keys the volume slider hands back to the global shortcuts (seek, volume, play/pause). */
+const SHORTCUT_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
+/** Round transport button (previous, next). */
+const transportClass = 'size-11.5 rounded-full border-transparent bg-white/8 text-fg';
 
 export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlaying' | 'durationMs' | 'currentLang' | 'onSeek' | 'onSeekPreview' | 'onSeekCommit' | 'tempoRatio' | 'onPrev' | 'onPlayPause' | 'onNext' | 'onVolumeChange' | 'onToggleVolumeUnit' | 'volumeUnit'> & {
   showHud: boolean;
@@ -51,28 +56,19 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         showHud ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
       )}
     >
-      {/* Neonowy wizualizator widma lub analogowy VU-Meter */}
+      {/* Neon spectrum visualizer or analog VU meter */}
       <div className="relative w-full">
-        <div className="absolute -top-7 right-0 z-10 flex gap-1.5">
-          <button
-            onClick={() => setBottomVisualMode('spectrum')}
-            className={cn(
-              'rounded-md border border-line px-2 py-0.5 text-xxs font-bold',
-              bottomVisualMode === 'spectrum' ? 'bg-accent-pink text-fg' : 'bg-black/50 text-fg-muted',
-            )}
-          >
-            Spectrum
-          </button>
-          <button
-            onClick={() => setBottomVisualMode('vumeter')}
-            className={cn(
-              'rounded-md border border-line px-2 py-0.5 text-xxs font-bold',
-              bottomVisualMode === 'vumeter' ? 'bg-accent-pink text-fg' : 'bg-black/50 text-fg-muted',
-            )}
-          >
-            VU-Meter
-          </button>
-        </div>
+        <SegmentedControl
+          label={t.player.displayModeLabel}
+          size="sm"
+          value={bottomVisualMode}
+          onChange={setBottomVisualMode}
+          items={[
+            { value: 'spectrum', label: 'Spectrum' },
+            { value: 'vumeter', label: 'VU-Meter' },
+          ]}
+          className="absolute top-1.5 left-1.5 z-10"
+        />
 
         {bottomVisualMode === 'vumeter' ? (
           <VuMeterWidget
@@ -92,7 +88,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         )}
       </div>
 
-      {/* Seeker z wizualizacją fali (Waveform) i wskaźnikiem DSP */}
+      {/* Seeker with the waveform and the DSP indicator */}
       <div className="flex flex-col gap-1.5">
         {/* Waveform bars */}
         <WaveformCanvas
@@ -131,12 +127,9 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
               {formatTime(positionMs)}
             </span>
             {(tempoRatio !== 1.0) && (
-              <span
-                className="rounded-sm border border-accent-purple/50 bg-accent-purple/30 px-1.5 py-px text-xxs font-bold text-accent-purple"
-                title={`${t.dsp.tempo}: ${tempoRatio.toFixed(2)}x`}
-              >
+              <Badge tone="purple" size="xs" title={`${t.dsp.tempo}: ${tempoRatio.toFixed(2)}x`}>
                 DSP {tempoRatio.toFixed(2)}x
-              </span>
+              </Badge>
             )}
           </div>
           <div
@@ -159,71 +152,53 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         </div>
       </div>
 
-      {/* Przyciski sterowania */}
+      {/* Control buttons */}
       <div className="flex items-center justify-center gap-5">
-        <button
-          onClick={onPrev}
-          title={t.player.previous}
-          className="flex h-11.5 w-11.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
-        >
+        <IconButton label={t.player.previous} onClick={onPrev} className={transportClass}>
           <SkipBack size={22} />
-        </button>
-
-        <button
+        </IconButton>
+        <Button
+          variant="primary"
           onClick={onPlayPause}
+          aria-label={isPlaying ? t.player.pause : t.player.play}
           title={isPlaying ? t.player.pause : t.player.play}
-          className="flex h-16 w-16 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent shadow-halo-xl shadow-accent-pink/55"
+          className="size-16 rounded-full p-0 shadow-halo-xl shadow-accent-pink/55"
         >
           {isPlaying ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
-        </button>
-
-        <button
-          onClick={onNext}
-          title={t.player.next}
-          className="flex h-11.5 w-11.5 items-center justify-center rounded-full border-0 bg-white/8 text-fg"
-        >
+        </Button>
+        <IconButton label={t.player.next} onClick={onNext} className={transportClass}>
           <SkipForward size={22} />
-        </button>
+        </IconButton>
 
         <div className="absolute right-12 flex items-center gap-2">
-          <button
-            onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)}
-            title={volume === 0 ? t.player.unmute : t.player.mute}
-            className="flex border-0 bg-transparent text-fg-muted"
-          >
+          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)}>
             {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-          <input
-            type="range"
+          </IconButton>
+          <RangeSlider
+            aria-label={t.player.volume}
             min={0}
             max={1}
             step={0.01}
             value={volume}
-            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            onChange={onVolumeChange}
             onPointerUp={(e) => e.currentTarget.blur()}
-            onMouseUp={(e) => e.currentTarget.blur()}
             onKeyDown={(e) => {
-              if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-                e.currentTarget.blur();
-              }
+              // Hand the arrow keys and Space back to the global shortcuts.
+              if (SHORTCUT_KEYS.includes(e.key)) e.currentTarget.blur();
             }}
-            className="w-20 range-fill"
-            style={cssVars({ '--fill': `${Math.min(100, Math.max(0, volume * 100))}%` })}
+            className="w-20"
           />
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={onToggleVolumeUnit}
-            title={volumeUnit === 'db' ? 'Volume in dB (Click to toggle %)' : 'Volume in % (Click to toggle dB)'}
-            className={cn(
-              'min-w-11.5 rounded-md border border-line bg-white/8 px-1.5 py-0.5 text-center font-mono text-xs font-bold',
-              volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink',
-              onToggleVolumeUnit ? 'cursor-pointer' : 'cursor-default',
-            )}
+            disabled={!onToggleVolumeUnit}
+            title={t.player.volumeToggleUnitTooltip}
+            className={cn('min-w-11.5 rounded-md px-1.5 py-0.5 font-mono', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
           >
             {volumeUnit === 'db'
               ? (volume <= 0.0001 ? '-∞ dB' : `${(20 * Math.log10(volume)).toFixed(1)} dB`)
               : `${Math.round(volume * 100)}%`}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

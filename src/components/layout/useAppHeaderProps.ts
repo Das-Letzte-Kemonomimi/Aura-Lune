@@ -6,6 +6,8 @@ import type { Translations, Language } from '../../i18n';
 import type { PlaybackQueue } from '../../types/queue';
 import type { TrackRecord } from '../../types/library';
 import type { MainTabType } from './AppNavbar';
+import type { Playlist } from '../../types/playlist';
+import type { AmbienceMode } from '../player/AnimeAmbienceFX';
 import { soundscapeEngine } from '../../utils/soundscapeAudio';
 
 export interface UseAppHeaderPropsOptions {
@@ -18,7 +20,7 @@ export interface UseAppHeaderPropsOptions {
   activeTab: MainTabType;
   setActiveTab: (tab: MainTabType) => void;
   tracks: TrackRecord[];
-  playlists: any[];
+  playlists: Playlist[];
   queue: PlaybackQueue;
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -30,7 +32,7 @@ export interface UseAppHeaderPropsOptions {
   setShowLyrics: React.Dispatch<React.SetStateAction<boolean>>;
   showDesktopLyrics: boolean;
   toggleDesktopLyrics: () => void;
-  ambienceMode: any;
+  ambienceMode: AmbienceMode;
   cycleAmbienceMode: () => void;
   setIsBigScreen: (big: boolean) => void;
   toggleMiniPlayer: () => void;

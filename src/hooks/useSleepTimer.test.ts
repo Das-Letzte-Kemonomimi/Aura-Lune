@@ -199,8 +199,8 @@ describe('useSleepTimer hook', () => {
   });
 
   it('keeps counting down when the host re-renders with a new showMessage every 100 ms', () => {
-    // Regresja: podczas odtwarzania App renderuje się ~10×/s, a `showMessage` było nową funkcją
-    // w każdym renderze. Interwał 1 s był restartowany, zanim zdążył się wykonać.
+    // Regression: during playback App renders ~10×/s, and `showMessage` was a new function
+    // on every render. The 1 s interval was restarted before it could run.
     const { result, rerender } = renderHook(
       ({ notify }) =>
         useSleepTimer({

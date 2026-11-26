@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronsUpDown, Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronsUpDown, Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from '../../ui/icons';
 import { errorMessage, invoke } from '../../../api/ipc';
 import type { TrackTranscriptionData } from '../../../types/analysis';
 import { getTranslations, type Language } from '../../../i18n';
@@ -17,6 +17,7 @@ import {
   clampRowHeight,
 } from './pianoRollModel';
 import { cn } from '../../../utils/cn';
+import { Button, Callout, Card, Chip, IconButton } from '../../ui';
 
 export interface PianoRollViewProps {
   currentLang?: Language;
@@ -25,12 +26,12 @@ export interface PianoRollViewProps {
   trackTitle?: string;
   durationMs?: number;
   isPlaying: boolean;
-  /** Prędkość czasu źródła względem rzeczywistego (tempo × rate przy aktywnym DSP). */
+  /** Speed of the source time relative to real time (tempo × rate with active DSP). */
   speed?: number;
-  /** Pozycja do czasu pierwszego statusu na żywo; sama pozycja nie wymusza renderu widoku. */
+  /** Position until the first live status; the position alone does not force the view to render. */
   currentTimeMs: number;
   onSeek: (positionMs: number) => void;
-  /** Komunikaty (toasty) dla eksportu MIDI. */
+  /** Messages (toasts) for the MIDI export. */
   onNotify?: (message: string, isError?: boolean) => void;
   onClose?: () => void;
 }
@@ -41,7 +42,7 @@ const parsePxPerSec = (raw: string): number | undefined => {
   const v = Number(raw);
   return Number.isFinite(v) ? clamp(v, MIN_PX_PER_SEC, MAX_PX_PER_SEC) : undefined;
 };
-/** `null` = automatyczna wysokość wiersza. */
+/** `null` = automatic row height. */
 const parseRowHeight = (raw: string): number | null | undefined => {
   if (raw === 'auto') return null;
   const v = Number(raw);
@@ -49,8 +50,6 @@ const parseRowHeight = (raw: string): number | null | undefined => {
 };
 
 /** Borderless toolbar icon button. */
-const ICON_BUTTON = 'flex border-0 bg-transparent p-1 text-fg-secondary hover:text-fg';
-
 function safeFileStem(title: string): string {
   const stem = title.replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '');
   return stem || 'track';
@@ -75,7 +74,7 @@ export const PianoRollView = React.memo(function PianoRollView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  // Szerokość (zoom czasu) i wysokość wierszy zapamiętujemy między sesjami.
+  // The width (time zoom) and row height are remembered between sessions.
   const [pxPerSec, setPxPerSec] = usePersistedState('auralune_piano_roll_px_per_sec', DEFAULT_PX_PER_SEC, {
     parse: parsePxPerSec,
     serialize: (v) => String(Math.round(v * 10) / 10),
@@ -126,7 +125,7 @@ export const PianoRollView = React.memo(function PianoRollView({
 
   const index = useMemo(() => buildNoteIndex(data?.notes ?? []), [data]);
   const noteCount = data?.notes.length ?? 0;
-  // Nuty mogą wykraczać poza deklarowany czas trwania (np. brak metadanych) — oś obejmuje je w całości.
+  // Notes can extend past the declared duration (e.g. missing metadata); the axis covers them fully.
   const effectiveDurationMs = useMemo(() => {
     const last = index.notes.reduce((end, n) => Math.max(end, n.onset_ms + n.duration_ms), 0);
     return Math.max(durationMs, last);
@@ -171,144 +170,98 @@ export const PianoRollView = React.memo(function PianoRollView({
 
   return (
     <div className="flex h-full w-full flex-col gap-4">
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
-      >
+      <Card padding="none" className="flex flex-wrap items-center justify-between gap-3 px-4.5 py-3">
         <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-purple-400/35 bg-purple-400/20 text-purple-400"
-          >
+          <div className="flex size-9 items-center justify-center rounded-lg bg-accent-purple/15 text-accent-purple">
             <Piano size={18} />
           </div>
           <div>
             <span className="text-sm font-extrabold text-fg">{t.analysis.pianoRollTitle}</span>
-            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
+            <p className="mt-0.5 text-xs text-fg-secondary">
               {data ? fmt(t.analysis.detectedNotes, String(noteCount), data.bpm.toFixed(1)) : t.analysis.analyzingNotes}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setMode((m) => (m === 'follow' ? 'free' : 'follow'))}
-            aria-pressed={mode === 'follow'}
-            title={t.analysis.followModeTooltip}
-            className={cn(
-              'border',
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold',
-              mode === 'follow' ? 'bg-pink-500/15 text-pink-400' : 'bg-white/5 text-fg-secondary',
-              mode === 'follow' ? 'border-pink-500/40' : 'border-white/10',
-            )}
-          >
+          <Chip pressed={mode === 'follow'} onClick={() => setMode((m) => (m === 'follow' ? 'free' : 'follow'))} title={t.analysis.followModeTooltip}>
             <Crosshair size={14} />
-            <span>{t.analysis.followMode}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowLabels((v) => !v)}
-            aria-pressed={showLabels}
-            title={t.analysis.noteLabelsTooltip}
-            className={cn(
-              'border',
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold',
-              showLabels ? 'bg-purple-400/15 text-purple-400' : 'bg-white/5 text-fg-secondary',
-              showLabels ? 'border-purple-400/40' : 'border-white/10',
-            )}
-          >
+            {t.analysis.followMode}
+          </Chip>
+          <Chip tone="purple" pressed={showLabels} onClick={() => setShowLabels((v) => !v)} title={t.analysis.noteLabelsTooltip}>
             <Type size={14} />
-            <span>{t.analysis.noteLabels}</span>
-          </button>
+            {t.analysis.noteLabels}
+          </Chip>
 
-          <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
-            <button
-              type="button"
+          <div className="flex items-center rounded-lg border border-line bg-white/5 p-0.5">
+            <IconButton
+              size="sm"
+              label={t.analysis.zoomOut}
               onClick={() => setPxPerSec((p) => clamp(Math.round(p / ZOOM_STEP), MIN_PX_PER_SEC, MAX_PX_PER_SEC))}
-              className={ICON_BUTTON}
-              title={t.analysis.zoomOut}
             >
               <ZoomOut size={14} />
-            </button>
-            <span className="px-1.5 py-0 font-mono text-xs text-slate-300">
-              {Math.round(pxPerSec)}px/s
-            </span>
-            <button
-              type="button"
+            </IconButton>
+            <span className="px-1.5 font-mono text-xs text-fg-secondary">{Math.round(pxPerSec)}px/s</span>
+            <IconButton
+              size="sm"
+              label={t.analysis.zoomIn}
               onClick={() => setPxPerSec((p) => clamp(Math.round(p * ZOOM_STEP), MIN_PX_PER_SEC, MAX_PX_PER_SEC))}
-              className={ICON_BUTTON}
-              title={t.analysis.zoomIn}
             >
               <ZoomIn size={14} />
-            </button>
+            </IconButton>
           </div>
 
-          <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
-            <button type="button" onClick={() => stepRowHeight(-1)} className={ICON_BUTTON} title={t.analysis.rowHeightLess}>
+          <div className="flex items-center rounded-lg border border-line bg-white/5 p-0.5">
+            <IconButton size="sm" label={t.analysis.rowHeightLess} onClick={() => stepRowHeight(-1)}>
               <ChevronsUpDown size={14} className="scale-y-70" />
-            </button>
-            <button
-              type="button"
+            </IconButton>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setRowHeight(null)}
               title={t.analysis.rowHeightReset}
-              className={cn(ICON_BUTTON, 'min-w-11 justify-center px-1.5 py-0 font-mono text-xs', rowHeight !== null && 'text-slate-300')}
+              className={cn('min-w-11 px-1.5 font-mono', rowHeight !== null && 'text-fg-secondary')}
             >
               {rowHeight === null ? t.analysis.rowHeightAuto : `${Math.round(rowHeight)}px`}
-            </button>
-            <button type="button" onClick={() => stepRowHeight(1)} className={ICON_BUTTON} title={t.analysis.rowHeightMore}>
+            </Button>
+            <IconButton size="sm" label={t.analysis.rowHeightMore} onClick={() => stepRowHeight(1)}>
               <ChevronsUpDown size={14} className="scale-y-130" />
-            </button>
+            </IconButton>
           </div>
 
-          <button
-            type="button"
-            onClick={handleExportMidi}
-            disabled={!canExport}
-            className={cn(
-              'flex items-center gap-1.5 rounded-xl border border-pink-500/40 bg-pink-500/20 px-3.5 py-2 text-ui font-semibold text-pink-400',
-              canExport ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-50',
-            )}
-            title={t.analysis.exportMidiTooltip}
-          >
+          <Button variant="tinted" tone="pink" onClick={handleExportMidi} disabled={!canExport} title={t.analysis.exportMidiTooltip}>
             <Download size={14} />
-            <span>{t.analysis.downloadMidi}</span>
-          </button>
+            {t.analysis.downloadMidi}
+          </Button>
 
           {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
-            >
+            <IconButton variant="secondary" label={t.common.close} onClick={onClose}>
               <X size={16} />
-            </button>
+            </IconButton>
           )}
         </div>
-      </div>
+      </Card>
 
       {exportError && !onNotify && (
-        <div role="alert" className="text-ui text-red-300">
+        <div role="alert" className="text-ui text-accent-red">
           {exportError}
         </div>
       )}
 
-      <div className="relative min-h-80 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-deep">
+      <div className="relative min-h-80 flex-1 overflow-hidden rounded-2xl border border-line bg-deep">
         {loading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-deep/85">
-            <Sparkles size={28} className="animate-spin text-purple-400" />
-            <p className="m-0 text-sm text-slate-300">{t.analysis.transcribingNotes}</p>
+            <Sparkles size={28} className="text-accent-purple motion-safe:animate-spin" />
+            <p className="text-sm text-fg-secondary">{t.analysis.transcribingNotes}</p>
           </div>
         )}
         {error && (
-          <div
-            role="alert"
-            className="m-5 rounded-xl border border-accent-red/30 bg-accent-red/15 px-4.5 py-3.5 text-sm text-red-300"
-          >
+          <Callout tone="red" role="alert" className="m-5">
             {error}
-          </div>
+          </Callout>
         )}
         {!error && data && noteCount === 0 && (
-          <p className="absolute inset-0 m-0 flex items-center justify-center text-sm text-fg-secondary">
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-fg-secondary">
             {t.analysis.noNotesDetected}
           </p>
         )}

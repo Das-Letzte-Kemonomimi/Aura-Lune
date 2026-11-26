@@ -1,18 +1,18 @@
 /**
- * Szybkozmienne pola statusu odtwarzania (pozycja, spektrum) poza stanem Reacta `App`.
+ * Fast-changing playback status fields (position, spectrum) outside the `App` React state.
  *
- * Backend wysyła status ~10×/s. Gdyby każda klatka trafiała do `useState` w `App`, cała
- * aplikacja renderowałaby się 10×/s. Zamiast tego:
- * - `App` dostaje status tylko przy zmianach istotnych (stan, utwór, głośność, DSP…) oraz
- *   z pozycją odświeżaną najwyżej raz na sekundę (wystarcza dla zakładek, zapisu sesji itd.),
- * - komponenty rysujące postęp / wizualizacje subskrybują ten store przez `useLiveStatus`,
- *   `useLivePositionMs` lub `useLiveSpectrum` i renderują się tylko one.
+ * The backend sends the status ~10×/s. If every frame went into `useState` in `App`, the whole
+ * app would render 10×/s. Instead:
+ * - `App` gets the status only on meaningful changes (state, track, volume, DSP…) and
+ *   with the position refreshed at most once a second (enough for bookmarks, session saving etc.),
+ * - components drawing progress / visualisations subscribe to this store through `useLiveStatus`,
+ *   `useLivePositionMs` or `useLiveSpectrum`, and only they render.
  */
 import { useSyncExternalStore } from 'react';
 import type { PlaybackStatus } from '../types/playback';
 
 export interface LivePlaybackSnapshot {
-  /** `false`, dopóki nie dotarł pierwszy status — wtedy hooki zwracają wartości z propsów. */
+  /** `false` until the first status arrives; until then the hooks return the prop values. */
   ready: boolean;
   positionMs: number;
   spectrum: number[];
@@ -37,7 +37,7 @@ export const livePlayback = {
     return () => listeners.delete(listener);
   },
 
-  /** Publikuje nową pozycję i/lub spektrum. Brak zmian → brak powiadomień. */
+  /** Publishes a new position and/or spectrum. No change → no notifications. */
   publish(update: { positionMs?: number; spectrum?: number[] }) {
     const positionMs = update.positionMs ?? snapshot.positionMs;
     const spectrum = update.spectrum ?? snapshot.spectrum;
@@ -46,7 +46,7 @@ export const livePlayback = {
     emit();
   },
 
-  /** Tylko dla testów: przywraca stan początkowy. */
+  /** Tests only: restores the initial state. */
   reset() {
     snapshot = { ready: false, positionMs: 0, spectrum: [] };
     emit();
@@ -57,21 +57,21 @@ function useSnapshot(): LivePlaybackSnapshot {
   return useSyncExternalStore(livePlayback.subscribe, livePlayback.getSnapshot, livePlayback.getSnapshot);
 }
 
-/** Bieżąca pozycja odtwarzania (ms); `fallback` przed pierwszym statusem z backendu. */
+/** Current playback position (ms); `fallback` before the first backend status. */
 export function useLivePositionMs(fallback: number): number {
   const s = useSnapshot();
   return s.ready ? s.positionMs : fallback;
 }
 
-/** Bieżące spektrum; `fallback` przed pierwszym statusem z backendu. */
+/** Current spectrum; `fallback` before the first backend status. */
 export function useLiveSpectrum(fallback: number[]): number[] {
   const s = useSnapshot();
   return s.ready && s.spectrum.length > 0 ? s.spectrum : fallback;
 }
 
 /**
- * Zwraca `status` z aktualnymi `position_ms` i `spectrum`. Komponent wywołujący ten hook
- * renderuje się przy każdej klatce statusu — używaj go tylko w komponentach rysujących postęp.
+ * Returns `status` with the current `position_ms` and `spectrum`. The component calling this hook
+ * renders on every status frame: use it only in components that draw progress.
  */
 export function useLiveStatus<T extends Pick<PlaybackStatus, 'position_ms' | 'spectrum'>>(status: T): T {
   const s = useSnapshot();
@@ -82,8 +82,8 @@ export function useLiveStatus<T extends Pick<PlaybackStatus, 'position_ms' | 'sp
 }
 
 /**
- * Wartość pochodna ze store'u (np. pozycja zaokrąglona do sekundy). Komponent renderuje się tylko wtedy,
- * gdy wynik selektora się zmieni — selektor MUSI zwracać wartość prostą (liczba/tekst/bool).
+ * A value derived from the store (e.g. the position rounded to a second). The component renders only
+ * when the selector result changes: the selector MUST return a primitive (number/string/bool).
  */
 export function useLiveSelector<T extends string | number | boolean | null | undefined>(
   selector: (snapshot: LivePlaybackSnapshot) => T,
@@ -95,7 +95,7 @@ export function useLiveSelector<T extends string | number | boolean | null | und
   );
 }
 
-/** Dokładna pozycja w chwili wywołania (poza renderem, np. w handlerze kliknięcia). */
+/** The exact position at call time (outside render, e.g. in a click handler). */
 export function currentPositionMs(fallback: number): number {
   const s = livePlayback.getSnapshot();
   return s.ready ? s.positionMs : fallback;

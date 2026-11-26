@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { FileAudio, ShieldCheck, Music, FolderOpen, Save, ArrowRight, ListPlus } from '../../components/ui/icons';
 import {
-  FileAudio,
-  ShieldCheck,
-  Music,
-  FolderOpen,
-  Save,
-  Loader2,
-  ArrowRight,
-} from 'lucide-react';
+  Button,
+  Callout,
+  Card,
+  FieldLabel,
+  ProgressBar,
+  SectionHeader,
+  SegmentedControl,
+  SliderRow,
+  Spinner,
+  TextField,
+  ToggleCard,
+} from '../../components/ui';
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type TrackBookmarkDto } from '../../types/player';
 import { formatTimeMs, parseTimeToMs } from '../../utils/timeFormat';
@@ -16,6 +21,7 @@ import { TranscodeRangeOption } from './transcode/TranscodeRangeOption';
 import { TranscodeDspOption } from './transcode/TranscodeDspOption';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
+import { SettingsPage } from './SettingsPage';
 
 export interface TranscodeSettingsViewProps {
   language: Language;
@@ -100,6 +106,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
     lastExportedTrack,
     onShowMessage,
   } = props;
+  const id = useId();
   const handleApplyLoopFromPlayer = () => {
     const strA = loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000';
     const strB = loopPointB !== null ? formatTimeMs(loopPointB) : '';
@@ -126,238 +133,144 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
   const parsedA = parseTimeToMs(transcodeRangeA) ?? 0;
   const parsedB = parseTimeToMs(transcodeRangeB);
   const isOrderInvalid = parsedB !== null && parsedB <= parsedA;
+  const percent = transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0;
+  const formatLabels = { Opus: 'Ogg Opus', Flac: loc.settings.losslessFlac, Wav: loc.settings.wavPcm } as const;
 
   return (
-    <div className="glass-panel mx-auto my-0 max-w-200 p-7">
-      <h2 className="mb-3.5 flex items-center gap-2 text-xl">
-        <FileAudio size={20} className="text-accent-pink" /> {loc.settings.exportOpus}
-      </h2>
+    <SettingsPage title={loc.settings.exportOpus} icon={<FileAudio size={18} />} tone="pink">
+      {/* Safety banner */}
+      <Callout tone="green" icon={<ShieldCheck size={20} />}>
+        <strong className="text-sm text-accent-green">{loc.settings.transcodeIntegrity}</strong>
+        <p className="text-ui text-fg-secondary">{loc.settings.transcodeIntegrityDesc}</p>
+      </Callout>
 
-      {/* Baner bezpieczeństwa */}
-      <div
-        className="mb-6 flex items-center gap-3 rounded-xl border border-accent-green/30 bg-accent-green/10 px-4.5 py-3.5"
-      >
-        <ShieldCheck size={24} className="text-accent-green" />
-        <div>
-          <strong className="text-sm text-accent-green">{loc.settings.transcodeIntegrity}</strong>
-          <p className="text-ui text-fg-secondary">
-            {loc.settings.transcodeIntegrityDesc}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4">
+      <Card className="flex flex-col gap-4">
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label className="text-sm text-fg-secondary">
+            <FieldLabel htmlFor={`${id}-source`} className="mb-0">
               {loc.settings.sourceFile}
-            </label>
+            </FieldLabel>
             {(currentPlayingTrack?.path || status.current_track?.uri) && (
-              <button
-                type="button"
-                onClick={onUseCurrentTrackAsSource}
-                className="flex items-center gap-1.5 rounded-md border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-xs font-semibold text-accent-pink transition-all duration-200"
-              >
+              <Button variant="tinted" tone="pink" size="sm" onClick={onUseCurrentTrackAsSource}>
                 <Music size={12} />
                 {loc.settings.useCurrentTrack}
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={filePath}
-              onChange={(e) => onFilePathChange(e.target.value)}
-              className="flex-1 rounded-xl border border-line bg-black/30 px-3.5 py-2.5 font-mono text-sm text-fg"
-            />
-            <button
-              type="button"
-              disabled={isPickingSource}
-              onClick={onPickTranscodeSource}
-              className={cn(
-                'flex items-center gap-1.5 rounded-xl border border-sky-400/40 bg-linear-135 from-sky-400/25 to-accent-purple/25 px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg',
-                isPickingSource ? 'cursor-not-allowed' : 'cursor-pointer',
-                isPickingSource ? 'opacity-70' : 'opacity-100',
-              )}
-              title={loc.settings.chooseSource}
-            >
-              {isPickingSource ? (
-                <Loader2 size={16} className="animate-spin text-accent-cyan" />
-              ) : (
-                <FolderOpen size={16} className="text-accent-cyan" />
-              )}
+            <TextField id={`${id}-source`} mono value={filePath} onChange={(e) => onFilePathChange(e.target.value)} />
+            <Button disabled={isPickingSource} onClick={onPickTranscodeSource} title={loc.settings.chooseSource}>
+              {isPickingSource ? <Spinner size="sm" tone="cyan" /> : <FolderOpen size={16} className="text-accent-cyan" />}
               {loc.settings.chooseFile}
-            </button>
+            </Button>
           </div>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm text-fg-secondary">
-            {loc.settings.outputFile}
-          </label>
+          <FieldLabel htmlFor={`${id}-output`}>{loc.settings.outputFile}</FieldLabel>
           <div className="flex gap-2">
-            <input
-              type="text"
+            <TextField
+              id={`${id}-output`}
+              mono
               value={transcodeOutput}
               onChange={(e) => onTranscodeOutputChange(e.target.value)}
-              className="flex-1 rounded-xl border border-line bg-black/30 px-3.5 py-2.5 font-mono text-sm text-fg"
             />
-            <button
-              type="button"
+            <Button
               disabled={isPickingDestination}
               onClick={onPickTranscodeDestination}
-              className={cn(
-                'flex items-center gap-1.5 rounded-xl border border-line bg-white/8 px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg',
-                isPickingDestination ? 'cursor-not-allowed' : 'cursor-pointer',
-                isPickingDestination ? 'opacity-70' : 'opacity-100',
-              )}
               title={loc.settings.chooseDestination}
             >
-              {isPickingDestination ? (
-                <Loader2 size={16} className="animate-spin text-accent-pink" />
-              ) : (
-                <Save size={16} className="text-accent-pink" />
-              )}
+              {isPickingDestination ? <Spinner size="sm" /> : <Save size={16} className="text-accent-pink" />}
               {loc.settings.chooseDestination}
-            </button>
+            </Button>
           </div>
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-fg-secondary">
-            {loc.settings.targetFormat}
-          </label>
-          <div className="flex gap-2.5">
-            {(['Opus', 'Flac', 'Wav'] as const).map((fmt) => (
-              <button
-                key={fmt}
-                onClick={() => onTranscodeFormatChange(fmt)}
-                className={cn(
-                  'rounded-xl px-5 py-2.5 text-sm font-semibold text-fg',
-                  transcodeFormat === fmt ? 'bg-accent-purple' : 'bg-white/6',
-                )}
-              >
-                {fmt === 'Opus' ? 'Ogg Opus' : fmt === 'Flac' ? loc.settings.losslessFlac : loc.settings.wavPcm}
-              </button>
-            ))}
-          </div>
+          <FieldLabel>{loc.settings.targetFormat}</FieldLabel>
+          <SegmentedControl
+            label={loc.settings.targetFormat}
+            tone="purple"
+            items={(['Opus', 'Flac', 'Wav'] as const).map((f) => ({ value: f, label: formatLabels[f] }))}
+            value={transcodeFormat}
+            onChange={onTranscodeFormatChange}
+          />
         </div>
 
         {transcodeFormat === 'Opus' && (
-          <div>
-            <label className="mb-1.5 block text-sm text-fg-secondary">
-              {loc.settings.opusBitrate} <strong className="text-accent-cyan">{transcodeBitrate} kbps</strong>
-            </label>
-            <input
-              type="range"
-              min={64}
-              max={320}
-              step={32}
-              value={transcodeBitrate}
-              onChange={(e) => onTranscodeBitrateChange(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-        )}
-
-        {/* Opcja nałożenia DSP: Nightcore / Slowed / Pitch / Reverb / EQ */}
-        <TranscodeDspOption {...props} />
-
-        {/* Opcja przycięcia do markerów A i B */}
-        <TranscodeRangeOption {...props} handleApplyLoopFromPlayer={handleApplyLoopFromPlayer} handleApplyBookmarksRange={handleApplyBookmarksRange} parsedA={parsedA} parsedB={parsedB} isOrderInvalid={isOrderInvalid} />
-
-        {/* Opcja automatycznego dodania do kolejki */}
-        <label
-          className={cn(
-            'mt-2.5 flex cursor-pointer select-none items-center gap-2.5 text-ui font-semibold',
-            transcodeAutoEnqueue ? 'text-accent-cyan' : 'text-fg-secondary',
-          )}
-        >
-          <input
-            type="checkbox"
-            checked={transcodeAutoEnqueue}
-            onChange={(e) => onTranscodeAutoEnqueueChange(e.target.checked)}
-            className="h-4 w-4 accent-accent-cyan"
+          <SliderRow
+            label={loc.settings.opusBitrate}
+            tone="cyan"
+            min={64}
+            max={320}
+            step={32}
+            value={transcodeBitrate}
+            format={(v) => `${v} kbps`}
+            onChange={onTranscodeBitrateChange}
           />
-          <span>{loc.settings.transcodeAutoEnqueue}</span>
-        </label>
+        )}
+      </Card>
 
-        {/* Aktywny panel postępu renderowania w tle */}
-        {isTranscoding && (
-          <div
-            className="glass-card mt-4 flex flex-col gap-3 rounded-xl border border-accent-pink bg-linear-135 from-accent-purple/15 to-pink-500/10 px-5 py-4 shadow-xl shadow-pink-500/20 motion-safe:animate-fade-in"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Loader2 size={18} className="animate-spin text-accent-pink" />
-                <span className="text-md font-bold text-fg">
-                  {loc.settings.transcodeRendering}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
+      {/* DSP option: Nightcore / Slowed / Pitch / Reverb / EQ */}
+      <TranscodeDspOption {...props} />
+
+      {/* Trim to the A and B markers */}
+      <TranscodeRangeOption
+        {...props}
+        handleApplyLoopFromPlayer={handleApplyLoopFromPlayer}
+        handleApplyBookmarksRange={handleApplyBookmarksRange}
+        parsedA={parsedA}
+        parsedB={parsedB}
+        isOrderInvalid={isOrderInvalid}
+      />
+
+      {/* Add the rendered file to the queue automatically */}
+      <ToggleCard
+        icon={<ListPlus size={18} />}
+        tone="cyan"
+        title={loc.settings.transcodeAutoEnqueue}
+        checked={transcodeAutoEnqueue}
+        onChange={onTranscodeAutoEnqueueChange}
+      />
+
+      {/* Background rendering progress */}
+      {isTranscoding && (
+        <Card highlight="pink" className="flex flex-col gap-3 motion-safe:animate-fade-in">
+          <SectionHeader
+            icon={<Spinner />}
+            tone="pink"
+            title={loc.settings.transcodeRendering}
+            description={loc.settings.transcodeGstreamerBgDesc}
+            actions={
+              <>
                 <span className="font-mono text-ui text-fg-muted">
                   {Math.floor(transcodeElapsedSeconds / 60)}:{(transcodeElapsedSeconds % 60).toString().padStart(2, '0')}
                 </span>
-                <span className="font-mono text-md font-extrabold text-accent-pink">
-                  {transcodeProgress && transcodeProgress.percent > 0 ? `${Math.round(transcodeProgress.percent)}%` : '0%'}
-                </span>
-              </div>
-            </div>
-
-            {/* Pasek postępu */}
-            <div className="h-1.5 w-full overflow-hidden rounded-sm bg-white/10">
-              <div
-                className={cn(
-                  'h-full rounded-sm bg-linear-to-r from-accent-pink to-accent-purple shadow-halo-sm shadow-pink-500/50 transition-[width] duration-200',
-                  !transcodeProgress || transcodeProgress.percent === 0 && 'motion-safe:animate-pulse',
-                )}
-                style={{
-                  width: transcodeProgress && transcodeProgress.percent > 0
-                    ? `${Math.min(100, Math.max(3, transcodeProgress.percent))}%`
-                    : '12%',
-                }}
-              />
-            </div>
-
-            <p className="m-0 text-ui leading-snug text-fg-secondary">
-              {loc.settings.transcodeGstreamerBgDesc}
-            </p>
-
-            <div className="mt-0.5 flex justify-end">
-              <button
-                type="button"
-                onClick={onMinimizeToBackground}
-                className="glass-card flex items-center gap-1.5 rounded-lg border border-accent-cyan/30 bg-accent-cyan/8 px-3 py-1.5 text-xs font-semibold text-accent-cyan"
-              >
-                <ArrowRight size={13} />
-                {loc.settings.transcodeRunInBackground}
-              </button>
-            </div>
+                <span className="font-mono text-md font-extrabold text-accent-pink">{percent}%</span>
+              </>
+            }
+          />
+          <ProgressBar
+            value={percent > 0 ? Math.max(3, percent) : 12}
+            label={loc.settings.transcodeRendering}
+            className={cn(percent === 0 && 'motion-safe:animate-pulse')}
+          />
+          <div className="flex justify-end">
+            <Button variant="tinted" tone="cyan" size="sm" onClick={onMinimizeToBackground}>
+              <ArrowRight size={13} />
+              {loc.settings.transcodeRunInBackground}
+            </Button>
           </div>
-        )}
+        </Card>
+      )}
 
-        <button
-          onClick={onTranscode}
-          disabled={isTranscoding}
-          className={cn(
-            'mt-3.5 flex items-center justify-center gap-2 rounded-xl p-3.5 text-md font-bold text-fg transition-all duration-200',
-            isTranscoding ? 'bg-accent-purple/35' : 'bg-accent-gradient',
-            isTranscoding ? 'shadow-none' : 'shadow-accent-glow',
-            isTranscoding ? 'cursor-not-allowed' : 'cursor-pointer',
-            isTranscoding ? 'opacity-75' : 'opacity-100',
-          )}
-        >
-          {isTranscoding && <Loader2 size={18} className="animate-spin" />}
-          {isTranscoding
-            ? fmt(loc.settings.transcodeRenderingProgress, String(transcodeProgress && transcodeProgress.percent > 0 ? Math.round(transcodeProgress.percent) : 0))
-            : loc.settings.exportOpus}
-        </button>
+      <Button variant="primary" size="lg" onClick={onTranscode} disabled={isTranscoding} className="w-full py-3.5">
+        {isTranscoding && <Spinner size="md" tone="neutral" className="text-on-accent" />}
+        {isTranscoding ? fmt(loc.settings.transcodeRenderingProgress, String(percent)) : loc.settings.exportOpus}
+      </Button>
 
-        {/* Panel akcji po pomyślnym wyrenderowaniu */}
-        {lastExportedTrack && (
-          <TranscodeResultPanel {...props} lastExportedTrack={lastExportedTrack} />
-        )}
-      </div>
-    </div>
+      {/* Actions after a successful render */}
+      {lastExportedTrack && <TranscodeResultPanel {...props} lastExportedTrack={lastExportedTrack} />}
+    </SettingsPage>
   );
 };

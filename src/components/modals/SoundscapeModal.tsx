@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Waves,
   CloudRain,
@@ -8,10 +8,9 @@ import {
   Coffee,
   Volume2,
   VolumeX,
-  X,
   Sparkles,
   RotateCcw,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import {
   soundscapeEngine,
@@ -20,7 +19,9 @@ import {
   type SoundscapePreset,
 } from '../../utils/soundscapeAudio';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { ToggleSwitch } from '../common/ToggleSwitch';
+import { Button, Card, IconButton, ModalBody, ModalHeader, ModalShell, RangeSlider, SettingRow, type Tone } from '../ui';
+import { iconTileTones, textTones, tintedTones } from '../ui/tones';
 
 interface SoundscapeModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
   currentLang = 'pl',
 }) => {
   const loc = getTranslations(currentLang);
+  const titleId = useId();
   const [volumes, setVolumes] = useState<SoundscapeVolumes>(() => soundscapeEngine.getVolumes());
   const [isMuted, setIsMuted] = useState<boolean>(() => soundscapeEngine.getIsMuted());
   const [autoSync, setAutoSync] = useState<boolean>(() => soundscapeEngine.isAutoSyncEnabled());
@@ -47,17 +49,6 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
     });
     return () => cancelAnimationFrame(anim);
   }, [isOpen]);
-
-  // Obsługa zamykania klawiszem Esc
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -102,101 +93,73 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
     label: string;
     sublabel: string;
     icon: React.ReactNode;
-    color: string;
-    bgAccent: string;
+    tone: Tone;
   }> = [
     {
       key: 'rain',
       label: loc.soundscape.channelRain,
       sublabel: loc.soundscape.channelRainDesc,
       icon: <CloudRain size={18} />,
-      color: '#38bdf8',
-      bgAccent: 'rgba(56, 189, 248, 0.15)',
+      tone: 'cyan',
     },
     {
       key: 'vinyl',
       label: loc.soundscape.channelVinyl,
       sublabel: loc.soundscape.channelVinylDesc,
       icon: <Disc size={18} />,
-      color: '#f59e0b',
-      bgAccent: 'rgba(245, 158, 11, 0.15)',
+      tone: 'amber',
     },
     {
       key: 'campfire',
       label: loc.soundscape.channelCampfire,
       sublabel: loc.soundscape.channelCampfireDesc,
       icon: <Flame size={18} />,
-      color: '#f43f5e',
-      bgAccent: 'rgba(244, 63, 94, 0.15)',
+      tone: 'red',
     },
     {
       key: 'wind_chimes',
       label: loc.soundscape.channelWind,
       sublabel: loc.soundscape.channelWindDesc,
       icon: <Wind size={18} />,
-      color: '#ec4899',
-      bgAccent: 'rgba(236, 72, 153, 0.15)',
+      tone: 'pink',
     },
     {
       key: 'cafe_brown',
       label: loc.soundscape.channelCafe,
       sublabel: loc.soundscape.channelCafeDesc,
       icon: <Coffee size={18} />,
-      color: '#a855f7',
-      bgAccent: 'rgba(168, 85, 247, 0.15)',
+      tone: 'purple',
     },
   ];
 
   const isAnyActive = soundscapeEngine.isSoundscapeActive();
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="studio"
-      className="flex max-h-[90vh] max-w-145 flex-col gap-5 overflow-y-auto rounded-3xl border border-accent-purple/35 p-7 text-fg"
-    >
-      {/* Zamknięcie */}
-      <button
-        onClick={onClose}
-        className="absolute top-5 right-5 flex size-9 items-center justify-center rounded-full border-0 bg-white/8 text-fg transition-colors duration-200 hover:bg-white/20"
-        title={loc.common.close}
-      >
-        <X size={18} />
-      </button>
+    <ModalShell onClose={onClose} layer="studio" size="md" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={loc.soundscape.title}
+        subtitle={loc.soundscape.subtitle}
+        icon={<Waves size={20} />}
+        tone="purple"
+        onClose={onClose}
+        closeLabel={loc.common.close}
+      />
 
-      {/* Nagłówek */}
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-135 from-accent-purple/40 to-pink-500/30 text-pink-400 shadow-halo-lg shadow-pink-500/35"
-        >
-          <Waves size={24} />
-        </div>
-        <div>
-          <h2 className="m-0 text-xl font-bold tracking-tight">
-            {loc.soundscape.title}
-          </h2>
-          <div className="mt-0.5 text-sm text-fg-secondary">
-            {loc.soundscape.subtitle}
-          </div>
-        </div>
-      </div>
-
-      {/* Główna głośność i stan Master */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-4">
+      <ModalBody className="flex flex-col gap-5">
+      {/* Master volume and state */}
+      <Card padding="none" className="flex flex-col gap-3 px-4.5 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button
+            <IconButton
+              variant="secondary"
+              label={isMuted ? loc.soundscape.unmute : loc.soundscape.mute}
+              aria-pressed={isMuted}
               onClick={handleToggleMute}
-              className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-xl border',
-                isMuted ? 'bg-accent-red/25' : 'bg-accent-purple/20',
-                isMuted ? 'border-accent-red' : 'border-accent-purple',
-                isMuted ? 'text-red-400' : 'text-purple-400',
-              )}
-              title={isMuted ? loc.soundscape.unmute : loc.soundscape.mute}
+              className={tintedTones[isMuted ? 'red' : 'purple']}
             >
               {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
+            </IconButton>
             <div>
               <span className="text-md font-semibold">
                 {loc.soundscape.masterVolume}
@@ -215,48 +178,38 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
             <span className="min-w-10 text-right text-sm font-bold">
               {isMuted ? '0%' : `${Math.round(volumes.master * 100)}%`}
             </span>
-            <button
-              onClick={handleResetAll}
-              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/6 px-2.5 py-1.5 text-ui text-fg-secondary"
-              title={loc.soundscape.resetZero}
-            >
-              <RotateCcw size={12} />
-              <span>{loc.soundscape.resetZero}</span>
-            </button>
+            <Button size="sm" onClick={handleResetAll}>
+              <RotateCcw size={12} /> {loc.soundscape.resetZero}
+            </Button>
           </div>
         </div>
 
-        <input
-          type="range"
+        <RangeSlider
           min={0}
           max={1}
           step={0.01}
           value={isMuted ? 0 : volumes.master}
-          onChange={(e) => handleMasterChange(parseFloat(e.target.value))}
-          className="h-1.5 w-full cursor-pointer accent-purple-400"
+          onChange={handleMasterChange}
+          aria-label={loc.soundscape.masterVolume}
         />
-      </div>
+      </Card>
 
-      {/* Gotowe presety */}
+      {/* Ready-made presets */}
       <div>
         <div className="mb-2 text-ui font-semibold text-fg-secondary">
           {loc.soundscape.quickPresets}
         </div>
         <div className="flex flex-wrap gap-2">
           {SOUNDSCAPE_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              onClick={() => handleApplyPreset(preset)}
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-ui font-semibold text-slate-200 transition-all duration-200 hover:border-accent-purple/40 hover:bg-accent-purple/20"
-            >
+            <Button key={preset.id} onClick={() => handleApplyPreset(preset)}>
               <span>{preset.icon}</span>
               <span>{preset.name[currentLang] || preset.name.en}</span>
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
-      {/* Lista kanałów ambientowych */}
+      {/* Ambient channel list */}
       <div className="flex flex-col gap-2.5">
         <div className="text-ui font-semibold text-fg-secondary">
           {loc.soundscape.individualLayers}
@@ -267,24 +220,19 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
           const isActive = vol > 0.01 && !isMuted;
 
           return (
-            <div
+            <Card
               key={chan.key}
-              className="flex flex-col gap-2 rounded-2xl px-3.5 py-3 transition-all duration-200"
-              style={{
-                background: isActive ? chan.bgAccent : 'rgba(255, 255, 255, 0.03)',
-                border: isActive ? `1px solid ${chan.color}60` : '1px solid rgba(255, 255, 255, 0.06)',
-              }}
+              padding="none"
+              highlight={isActive && chan.tone}
+              className="flex flex-col gap-2 rounded-2xl px-3.5 py-3"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div
-                    className="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-white/6"
-                    style={{ color: chan.color }}
-                  >
+                  <div className={cn('flex size-7.5 items-center justify-center rounded-lg', iconTileTones[chan.tone])}>
                     {chan.icon}
                   </div>
                   <div>
-                    <div className={cn('text-sm font-semibold', isActive ? 'text-fg' : 'text-slate-300')}>
+                    <div className={cn('text-sm font-semibold', isActive ? 'text-fg' : 'text-fg-secondary')}>
                       {chan.label}
                     </div>
                     <div className="text-xs text-fg-secondary">
@@ -294,66 +242,40 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span
-                    className="min-w-9.5 text-right text-ui font-bold"
-                    style={{ color: isActive ? chan.color : '#64748b' }}
-                  >
+                  <span className={cn('min-w-9.5 text-right text-ui font-bold', isActive ? textTones[chan.tone] : 'text-fg-muted')}>
                     {Math.round(vol * 100)}%
                   </span>
-                  <button
-                    onClick={() => handleChannelChange(chan.key, vol > 0 ? 0 : 0.6)}
-                    className="rounded-md border border-white/8 bg-white/6 px-2 py-1 text-xs text-fg-secondary"
-                  >
+                  <Button size="sm" onClick={() => handleChannelChange(chan.key, vol > 0 ? 0 : 0.6)}>
                     {vol > 0 ? loc.soundscape.mute : loc.soundscape.unmute}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <input
-                type="range"
+              <RangeSlider
                 min={0}
                 max={1}
                 step={0.01}
                 value={vol}
-                onChange={(e) => handleChannelChange(chan.key, parseFloat(e.target.value))}
-                className="h-1.5 w-full cursor-pointer"
-                style={{ accentColor: chan.color }}
+                onChange={(v) => handleChannelChange(chan.key, v)}
+                aria-label={chan.label}
               />
-            </div>
+            </Card>
           );
         })}
       </div>
 
-      {/* Opcja synchronizacji z cząsteczkami anime */}
-      <div
-        onClick={handleAutoSyncToggle}
-        className="flex cursor-pointer items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3.5 py-3 transition-colors duration-200"
-      >
-        <div className="flex items-center gap-2.5">
-          <Sparkles size={16} className="text-pink-400" />
-          <div>
-            <div className="text-ui font-semibold">
-              {loc.soundscape.autoSyncTitle}
-            </div>
-            <div className="text-xs text-fg-secondary">
-              {loc.soundscape.autoSyncDesc}
-            </div>
-          </div>
-        </div>
-        <div
-          className={cn(
-            'relative h-5 w-9.5 rounded-3xl transition-colors duration-200',
-            autoSync ? 'bg-purple-400' : 'bg-white/15',
-          )}
-        >
-          <div
-            className={cn(
-              'absolute top-0.5 h-4 w-4 rounded-full bg-white transition-[left] duration-200',
-              autoSync ? 'left-5' : 'left-0.5',
-            )}
+        {/* Sync with the anime particles option */}
+        <Card padding="none" className="px-4">
+          <SettingRow
+            icon={<Sparkles size={16} className="text-accent-pink" />}
+            title={loc.soundscape.autoSyncTitle}
+            description={loc.soundscape.autoSyncDesc}
+            control={
+              <ToggleSwitch checked={autoSync} onChange={handleAutoSyncToggle} label={loc.soundscape.autoSyncTitle} />
+            }
           />
-        </div>
-      </div>
+        </Card>
+      </ModalBody>
     </ModalShell>
   );
 };

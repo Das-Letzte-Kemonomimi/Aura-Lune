@@ -12,6 +12,6 @@ describe('fmt', () => {
     expect(fmt('{0} {2}', 'x')).toBe('x {2}');
   });
   it('treats $ in arguments literally', () => {
-    expect(fmt('Cena: {0}', '$& $1')).toBe('Cena: $& $1');
+    expect(fmt('Price: {0}', '$& $1')).toBe('Price: $& $1');
   });
 });

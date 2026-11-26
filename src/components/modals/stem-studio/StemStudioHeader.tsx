@@ -1,10 +1,15 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { RotateCcw, Download, Save, Sparkles, X, Sliders, Music } from 'lucide-react';
+import { RotateCcw, Download, Save, X, Sliders, Music } from '../../ui/icons';
+import { Badge, Button, Card, IconButton, SegmentedControl, Select, Spinner } from '../../ui';
+import { iconTileTones } from '../../ui/tones';
 import type { StemProject, StemChannel, StemProjectMix } from '../../../types/analysis';
 import type { Dispatch, SetStateAction } from 'react';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
+
+/** Value of the built-in unity mix in the mix selector. */
+const DEFAULT_MIX = 'Default (0 dB)';
 
 export type StemStudioHeaderProps = {} & {
   project: StemProject | null;
@@ -41,118 +46,79 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
   setIsSavingMix,
   t,
 }) => (
-    <div className="mb-3 flex items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-5 py-3">
-      <div className="flex items-center gap-3.5">
-        <div
-          className="flex h-10.5 w-10.5 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-violet-500 shadow-lift shadow-pink-500/40"
-        >
-          <Sliders size={22} className="text-fg" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="m-0 text-xl font-extrabold text-fg">
-              {project ? project.title : loc.stems.loadingProject}
-            </h2>
-            {project?.status === 'separating' && (
-              <span
-                className="flex items-center gap-1 rounded-xl border border-accent-amber/40 bg-accent-amber/20 px-2 py-0.5 text-xs text-accent-amber"
-              >
-                <Sparkles size={12} className="animate-spin" />
-                {fmt(loc.stems.statusSeparating, String(Math.round(project.progress * 100)))}
-              </span>
-            )}
-          </div>
-          <p className="m-0 text-ui text-fg-secondary">
-            {project?.artist} • {project?.album} • {fmt(loc.stems.instrumentTracksCount, String(channels.length))}
-          </p>
-        </div>
+  <Card padding="none" className="mb-3 flex items-center justify-between px-5 py-3">
+    <div className="flex items-center gap-3.5">
+      <div className={cn('flex size-10.5 items-center justify-center rounded-xl', iconTileTones.pink)}>
+        <Sliders size={22} />
       </div>
-
-      {/* Zarządzanie miksami, odsłuch na żywo A/B i powrót do utworu */}
-      <div className="flex items-center gap-2.5">
-        {/* Przełącznik odsłuchu na żywo (A/B Live Comparison) */}
-        <div className="flex items-center rounded-xl border border-white/15 bg-black/45 p-1">
-          <button
-            onClick={handleSwitchToOriginal}
-            title={t.stems.originalMaster}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-1.5 text-ui font-bold transition-all duration-150',
-              isOriginalMode ? 'bg-linear-135 from-accent-cyan to-blue-500' : 'bg-transparent',
-              isOriginalMode ? 'text-fg' : 'text-fg-secondary',
-              isOriginalMode ? 'shadow-md shadow-accent-cyan/40' : 'shadow-none',
-            )}
-          >
-            <Music size={13} />
-            {t.stems.originalMaster}
-          </button>
-          <button
-            onClick={() => handleSwitchToStems()}
-            title={t.stems.switchToStemsTooltip}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-1.5 text-ui font-bold transition-all duration-150',
-              !isOriginalMode ? 'bg-linear-135 from-pink-500 to-violet-500' : 'bg-transparent',
-              !isOriginalMode ? 'text-fg' : 'text-fg-secondary',
-              !isOriginalMode ? 'shadow-md shadow-pink-500/40' : 'shadow-none',
-            )}
-          >
-            <Sliders size={13} />
-            {t.stems.liveStemMix}
-          </button>
+      <div>
+        <div className="flex items-center gap-2.5">
+          <h2 className="m-0 text-xl font-extrabold text-fg">
+            {project ? project.title : loc.stems.loadingProject}
+          </h2>
+          {project?.status === 'separating' && (
+            <Badge tone="amber">
+              <Spinner size="sm" tone="amber" />
+              {fmt(loc.stems.statusSeparating, String(Math.round(project.progress * 100)))}
+            </Badge>
+          )}
         </div>
-
-        {/* Przycisk powrotu do oryginalnego utworu i zamknięcia studia */}
-        <button
-          onClick={handleReturnToOriginalAndClose}
-          title={t.stems.returnToOriginalCloseTooltip}
-          className="flex items-center gap-1.5 rounded-xl border border-accent-cyan/40 bg-accent-cyan/15 px-3.5 py-2 text-ui font-bold text-accent-cyan transition-all duration-150"
-        >
-          <RotateCcw size={14} />
-          {t.stems.returnToTrack}
-        </button>
-
-        {/* Selektor miksu */}
-        <select
-          value={activeMixName}
-          onChange={(e) => {
-            const selected = mixes.find((m) => m.name === e.target.value);
-            if (selected) handleLoadMix(selected);
-            else if (e.target.value === 'Default (0 dB)') handleResetAllToUnity();
-          }}
-          className="cursor-pointer rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-ui text-fg outline-none"
-        >
-          <option value="Default (0 dB)">{t.stems.defaultMix}</option>
-          {mixes.map((m) => (
-            <option key={m.name} value={m.name}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-
-        <button
-          onClick={() => setIsSavingMix(true)}
-          title={t.stems.saveMixTooltip}
-          className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-ui text-slate-300"
-        >
-          <Save size={14} />
-          {t.stems.saveMix}
-        </button>
-
-        <button
-          onClick={handleExportZip}
-          title={t.stems.exportZipTooltip}
-          className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-ui text-slate-300"
-        >
-          <Download size={14} />
-          {t.stems.exportZip}
-        </button>
-
-        <button
-          onClick={handleClose}
-          title={t.stems.closeStudio}
-          className="flex rounded-full border-0 bg-transparent p-2 text-fg-secondary"
-        >
-          <X size={20} />
-        </button>
+        <p className="m-0 text-ui text-fg-secondary">
+          {project?.artist} • {project?.album} • {fmt(loc.stems.instrumentTracksCount, String(channels.length))}
+        </p>
       </div>
     </div>
+
+    {/* Mix management, live A/B listening and return to the track */}
+    <div className="flex items-center gap-2.5">
+      {/* Live A/B comparison: the original master or the stem mix */}
+      <SegmentedControl
+        label={t.stems.listenSourceLabel}
+        value={isOriginalMode ? 'original' : 'stems'}
+        onChange={(v) => (v === 'original' ? handleSwitchToOriginal() : handleSwitchToStems())}
+        items={[
+          { value: 'original', icon: <Music size={13} />, label: t.stems.originalMaster },
+          { value: 'stems', icon: <Sliders size={13} />, label: t.stems.liveStemMix, ariaLabel: t.stems.switchToStemsTooltip },
+        ]}
+      />
+
+      {/* Return to the original track and close the studio */}
+      <Button variant="tinted" tone="cyan" onClick={handleReturnToOriginalAndClose} title={t.stems.returnToOriginalCloseTooltip}>
+        <RotateCcw size={14} />
+        {t.stems.returnToTrack}
+      </Button>
+
+      <Select
+        aria-label={t.stems.mixSelectLabel}
+        value={activeMixName}
+        onChange={(e) => {
+          const selected = mixes.find((m) => m.name === e.target.value);
+          if (selected) handleLoadMix(selected);
+          else if (e.target.value === DEFAULT_MIX) handleResetAllToUnity();
+        }}
+        className="w-auto"
+      >
+        <option value={DEFAULT_MIX}>{t.stems.defaultMix}</option>
+        {mixes.map((m) => (
+          <option key={m.name} value={m.name}>
+            {m.name}
+          </option>
+        ))}
+      </Select>
+
+      <Button onClick={() => setIsSavingMix(true)} title={t.stems.saveMixTooltip}>
+        <Save size={14} />
+        {t.stems.saveMix}
+      </Button>
+
+      <Button onClick={handleExportZip} title={t.stems.exportZipTooltip}>
+        <Download size={14} />
+        {t.stems.exportZip}
+      </Button>
+
+      <IconButton label={t.stems.closeStudio} onClick={handleClose}>
+        <X size={20} />
+      </IconButton>
+    </div>
+  </Card>
 );

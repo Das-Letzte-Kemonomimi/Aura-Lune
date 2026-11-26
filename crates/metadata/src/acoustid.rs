@@ -1,8 +1,8 @@
-//! Integracja z bazą AcoustID oraz narzędziem Chromaprint (`fpcalc`).
+//! AcoustID and Chromaprint (`fpcalc`) integration.
 //!
-//! Pozwala na akustyczną identyfikację nieotagowanych plików audio
-//! na podstawie ich fali dźwiękowej (audio fingerprinting) i automatyczne
-//! powiązanie z nagraniami i wydaniami MusicBrainz.
+//! Identifies untagged audio files acoustically from their waveform
+//! (audio fingerprinting) and links them automatically
+//! to MusicBrainz recordings and releases.
 
 use crate::MetadataError;
 use serde::{Deserialize, Serialize};
@@ -10,11 +10,11 @@ use std::path::Path;
 use std::time::Duration;
 use tracing::debug;
 
-/// Domyślny publiczny klucz klienta AcoustID dla odtwarzaczy open-source.
+/// Default public AcoustID client key for open-source players.
 pub const DEFAULT_ACOUSTID_CLIENT_KEY: &str = "v8pQ6oyB";
 pub const ACOUSTID_API_URL: &str = "https://api.acoustid.org/v2/lookup";
 
-/// Pojedyncze dopasowanie metadanych z bazy AcoustID / MusicBrainz.
+/// A single metadata match from the AcoustID / MusicBrainz database.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackFingerprintMatchDto {
     pub acoustid: String,
@@ -31,15 +31,15 @@ pub struct TrackFingerprintMatchDto {
     pub score: u32,
 }
 
-/// Najdłuższy czas działania `fpcalc` dla jednego pliku.
+/// Maximum `fpcalc` run time for a single file.
 pub const FPCALC_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Klient AcoustID do generowania fingerprintu i wyszukiwania metadanych.
+/// AcoustID client for generating fingerprints and searching metadata.
 #[derive(Clone, Debug)]
 pub struct AcoustidClient {
     http: reqwest::Client,
     client_key: String,
-    /// AcoustID: najwyżej 3 zapytania na sekundę (wspólne dla klonów klienta).
+    /// AcoustID: at most 3 requests per second (shared by client clones).
     limiter: std::sync::Arc<crate::http::RateLimiter>,
 }
 
@@ -62,7 +62,7 @@ impl AcoustidClient {
         }
     }
 
-    /// Sprawdza, czy w systemie dostępne jest narzędzie `fpcalc`.
+    /// Checks whether the `fpcalc` tool is available on the system.
     pub async fn is_fpcalc_available() -> bool {
         match tokio::process::Command::new("fpcalc")
             .arg("-v")
@@ -74,17 +74,17 @@ impl AcoustidClient {
         }
     }
 
-    /// Generuje fingerprint Chromaprint i czas trwania za pomocą narzędzia `fpcalc`.
+    /// Generates a Chromaprint fingerprint and the duration with the `fpcalc` tool.
     pub async fn generate_fingerprint(path: &Path) -> Result<(f64, String), MetadataError> {
         if !path.exists() {
             return Err(MetadataError::AcoustId(format!(
-                "Plik audio nie istnieje: {}",
+                "Audio file does not exist: {}",
                 path.display()
             )));
         }
 
-        // Limit czasu: zawieszony fpcalc (np. uszkodzony plik) nie blokuje identyfikacji na zawsze.
-        // Ścieżka zaczynająca się od `-` zostałaby odczytana przez fpcalc jako opcja.
+        // Timeout: a hung fpcalc (e.g. a damaged file) does not block identification forever.
+        // A path starting with `-` would be read by fpcalc as an option.
         let path_arg = if path.as_os_str().to_string_lossy().starts_with('-') {
             Path::new(".").join(path)
         } else {
@@ -99,13 +99,13 @@ impl AcoustidClient {
             .await
             .map_err(|_| {
                 MetadataError::AcoustId(format!(
-                    "fpcalc nie zakończył się w {} s",
+                    "fpcalc did not finish within {} s",
                     FPCALC_TIMEOUT.as_secs()
                 ))
             })?
             .map_err(|e| {
                 MetadataError::AcoustId(format!(
-                    "Nie udało się uruchomić 'fpcalc' (zainstaluj pakiet chromaprint): {}",
+                    "Failed to run 'fpcalc' (install the chromaprint package): {}",
                     e
                 ))
             })?;
@@ -113,32 +113,32 @@ impl AcoustidClient {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(MetadataError::AcoustId(format!(
-                "Błąd 'fpcalc': {}",
+                "'fpcalc' error: {}",
                 stderr.trim()
             )));
         }
 
         let parsed: serde_json::Value = serde_json::from_slice(&output.stdout).map_err(|e| {
-            MetadataError::AcoustId(format!("Błąd parsowania wyniku fpcalc: {}", e))
+            MetadataError::AcoustId(format!("Failed to parse the fpcalc output: {}", e))
         })?;
 
         let duration = parsed
             .get("duration")
             .and_then(|d| d.as_f64())
             .ok_or_else(|| {
-                MetadataError::AcoustId("fpcalc nie zwrócił pola 'duration'".to_string())
+                MetadataError::AcoustId("fpcalc returned no 'duration' field".to_string())
             })?;
 
         let fingerprint = parsed
             .get("fingerprint")
             .and_then(|f| f.as_str())
             .ok_or_else(|| {
-                MetadataError::AcoustId("fpcalc nie zwrócił pola 'fingerprint'".to_string())
+                MetadataError::AcoustId("fpcalc returned no 'fingerprint' field".to_string())
             })?
             .to_string();
 
         debug!(
-            "Wygenerowano fingerprint Chromaprint dla {}: czas={:.1}s, fp_len={}",
+            "Generated a Chromaprint fingerprint for {}: duration={:.1}s, fp_len={}",
             path.display(),
             duration,
             fingerprint.len()
@@ -147,7 +147,7 @@ impl AcoustidClient {
         Ok((duration, fingerprint))
     }
 
-    /// Odpytuje web service AcoustID o metadane na podstawie fingerprintu i czasu trwania.
+    /// Queries the AcoustID web service for metadata from a fingerprint and duration.
     pub async fn lookup(
         &self,
         duration: f64,
@@ -169,7 +169,7 @@ impl AcoustidClient {
 
         if !resp.status().is_success() {
             return Err(MetadataError::AcoustId(format!(
-                "Serwer AcoustID zwrócił kod HTTP: {}",
+                "AcoustID server returned HTTP status: {}",
                 resp.status()
             )));
         }
@@ -180,14 +180,14 @@ impl AcoustidClient {
             let msg = err_obj
                 .get("message")
                 .and_then(|m| m.as_str())
-                .unwrap_or("Nieznany błąd AcoustID");
+                .unwrap_or("Unknown AcoustID error");
             return Err(MetadataError::AcoustId(msg.to_string()));
         }
 
         Ok(Self::parse_acoustid_response(&body))
     }
 
-    /// Parsuje odpowiedź JSON z AcoustID do listy kandydatów posortowanych wg zgodności.
+    /// Parses the AcoustID JSON response into a list of candidates sorted by match score.
     pub fn parse_acoustid_response(json: &serde_json::Value) -> Vec<TrackFingerprintMatchDto> {
         let mut results = Vec::new();
 
@@ -228,9 +228,9 @@ impl AcoustidClient {
                                 .join(", ")
                         })
                         .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| "Nieznany wykonawca".to_string());
+                        .unwrap_or_else(|| "Unknown Artist".to_string());
 
-                    // Szukamy wydań (releases)
+                    // Look for releases
                     if let Some(releases) = rec.get("releases").and_then(|rel| rel.as_array()) {
                         for rel in releases {
                             let release_mbid = rel
@@ -301,7 +301,7 @@ impl AcoustidClient {
                             });
                         }
                     } else {
-                        // Jeśli brak release, dodajemy chociaż samo recording
+                        // Without a release, add at least the recording itself
                         results.push(TrackFingerprintMatchDto {
                             acoustid: acoustid.clone(),
                             recording_mbid,
@@ -321,7 +321,7 @@ impl AcoustidClient {
             }
         }
 
-        // Deduplikacja i sortowanie według score malejąco
+        // Deduplicate and sort by score, descending
         results.sort_by_key(|r| std::cmp::Reverse(r.score));
         results.dedup_by(|a, b| {
             a.title.to_lowercase() == b.title.to_lowercase()

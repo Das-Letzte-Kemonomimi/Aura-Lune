@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
-  X,
   Flame,
   Clock,
   Music,
@@ -8,12 +7,12 @@ import {
   Sparkles,
   Trophy,
   Play,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Badge, Button, ModalBody, ModalFooter, ModalHeader, ModalShell, SegmentedControl } from '../ui';
 
 interface TopTrackDto {
   id: number;
@@ -38,7 +37,8 @@ interface RecapSummaryDto {
   total_tracks_played?: number;
   tracks_played_count?: number;
   top_tracks: TopTrackDto[];
-  top_artists: TopArtistDto[] | [string, number][];
+  /** Older builds sent `[artist, total_ms]` pairs; both shapes are accepted. */
+  top_artists: Array<TopArtistDto | [string, number]>;
 }
 
 interface AuraluneRecapModalProps {
@@ -49,6 +49,7 @@ interface AuraluneRecapModalProps {
 }
 
 type Period = 'week' | 'month' | 'year' | 'all';
+const PERIODS: readonly Period[] = ['week', 'month', 'year', 'all'];
 
 export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
   isOpen,
@@ -56,6 +57,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
   onPlayTrackId,
   currentLang,
 }) => {
+  const titleId = useId();
   const [period, setPeriod] = useState<Period>('month');
   const [loading, setLoading] = useState<boolean>(true);
   const [recapData, setRecapData] = useState<RecapSummaryDto | null>(null);
@@ -76,7 +78,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         }
       })
       .catch((err) => {
-        console.error('Błąd pobierania Auralune Recap:', err);
+        console.error('Failed to fetch Auralune Recap:', err);
         if (isMounted) {
           setLoading(false);
         }
@@ -118,68 +120,32 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
   };
 
   return (
-    <ModalShell
-      onClose={onClose}
-      layer="top"
-      className="flex max-h-[90vh] max-w-180 flex-col gap-5 overflow-y-auto rounded-3xl border border-accent-pink/35 p-7 text-fg"
-    >
-      {/* Nagłówek i przełącznik okresów */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10.5 w-10.5 items-center justify-center rounded-xl border border-accent-pink/50 bg-linear-135 from-accent-pink/30 to-accent-purple/30"
-          >
-            <Flame size={24} className="text-accent-pink" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="m-0 text-2xl font-extrabold tracking-tight">
-                Auralune Recap
-              </h2>
-              <span
-                className="rounded-xl border border-accent-pink/40 bg-accent-pink/20 px-2 py-0.5 text-xxs font-bold text-accent-pink"
-              >
-                WRAPPED
-              </span>
-            </div>
-            <p className="mx-0 mt-0.5 mb-0 text-ui text-fg-muted">
-              {loc.recapModal.subtitle}
-            </p>
-          </div>
-        </div>
+    <ModalShell onClose={onClose} layer="top" size="lg" labelledBy={titleId}>
+      <ModalHeader
+        titleId={titleId}
+        title={
+          <span className="flex items-center gap-2">
+            Auralune Recap
+            <Badge tone="pink">WRAPPED</Badge>
+          </span>
+        }
+        subtitle={loc.recapModal.subtitle}
+        icon={<Flame size={20} />}
+        onClose={onClose}
+        closeLabel={loc.common.close}
+        actions={
+          <SegmentedControl
+            label="Period"
+            size="sm"
+            items={PERIODS.map((p) => ({ value: p, label: periodLabels[p] }))}
+            value={period}
+            onChange={setPeriod}
+          />
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          {/* Przyciski filtrów okresów */}
-          <div className="flex rounded-xl border border-line bg-white/5 p-1">
-            {(['week', 'month', 'year', 'all'] as Period[]).map((p) => {
-              const isSelected = period === p;
-              return (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={cn(
-                    'rounded-lg border-0 px-2.5 py-1.5 text-xs transition-all duration-150',
-                    isSelected ? 'font-bold' : 'font-medium',
-                    isSelected ? 'bg-accent-pink' : 'bg-transparent',
-                    isSelected ? 'text-fg' : 'text-fg-secondary',
-                  )}
-                >
-                  {periodLabels[p]}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            onClick={onClose}
-            className="flex rounded-xl border border-line bg-white/6 p-2 text-fg-muted"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Obliczone i znormalizowane statystyki */}
+      <ModalBody className="flex flex-col gap-5">
+      {/* Computed and normalised statistics */}
       {(() => {
         const totalSeconds =
           recapData?.total_listening_seconds ??
@@ -190,7 +156,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
           recapData?.tracks_played_count ??
           0;
 
-        const normalizedTracks: TopTrackDto[] = (recapData?.top_tracks || []).map((t: any) => ({
+        const normalizedTracks: TopTrackDto[] = (recapData?.top_tracks || []).map((t) => ({
           id: t.id,
           title: t.title || 'Unknown Title',
           artist: t.artist || 'Unknown Artist',
@@ -200,7 +166,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         }));
 
         const normalizedArtists: TopArtistDto[] = (recapData?.top_artists || [])
-          .map((item: any) => {
+          .map((item) => {
             if (Array.isArray(item)) {
               return {
                 artist: String(item[0] || ''),
@@ -247,9 +213,9 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
 
         return (
           <>
-            {/* Główne kafelki liczników */}
+            {/* Main counter tiles */}
             <div className="grid grid-cols-2 gap-3.5">
-              {/* Łączny czas */}
+              {/* Total time */}
               <div
                 className="flex items-center gap-4 rounded-2xl border border-accent-pink/35 bg-linear-135 from-accent-pink/15 to-accent-purple/10 p-5"
               >
@@ -266,7 +232,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                 </div>
               </div>
 
-              {/* Odsłuchane utwory */}
+              {/* Tracks listened to */}
               <div
                 className="flex items-center gap-4 rounded-2xl border border-accent-cyan/35 bg-linear-135 from-accent-cyan/15 to-blue-500/10 p-5"
               >
@@ -284,7 +250,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
               </div>
             </div>
 
-            {/* Ranking Top Utworów */}
+            {/* Top tracks ranking */}
             {normalizedTracks.length > 0 && (
               <div className="rounded-2xl border border-line bg-white/3 p-4.5">
                 <div className="mb-3.5 flex items-center gap-2">
@@ -354,7 +320,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
               </div>
             )}
 
-            {/* Ranking Top Wykonawców */}
+            {/* Top artists ranking */}
             {normalizedArtists.length > 0 && (
               <div className="rounded-2xl border border-line bg-white/3 p-4.5">
                 <div className="mb-3 flex items-center gap-2">
@@ -390,15 +356,11 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         );
       })()}
 
-      {/* Stopka */}
-      <div className="mt-1 flex justify-end">
-        <button
-          onClick={onClose}
-          className="rounded-xl border border-line bg-white/8 px-5.5 py-2.5 text-sm font-bold text-fg"
-        >
-          {loc.common?.close || 'Zamknij'}
-        </button>
-      </div>
+      </ModalBody>
+
+      <ModalFooter>
+        <Button onClick={onClose}>{loc.common.close}</Button>
+      </ModalFooter>
     </ModalShell>
   );
 };

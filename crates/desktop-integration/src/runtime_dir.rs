@@ -1,29 +1,29 @@
-//! Prywatny katalog uruchomieniowy Auraluny dla plików IPC (status Waybara, FIFO, socket).
+//! Auralune's private runtime directory for IPC files (Waybar status, FIFO, socket).
 //!
-//! Pliki IPC nie mogą leżeć bezpośrednio we wspólnym `/tmp`: inny użytkownik systemu mógłby
-//! wcześniej utworzyć `/tmp/auralune.json` lub socket i przejąć albo zablokować kanał.
-//! Dlatego wszystkie trafiają do `$XDG_RUNTIME_DIR/auralune/` (zwykle `/run/user/<uid>/auralune`),
-//! a gdy `XDG_RUNTIME_DIR` nie jest ustawione — do `/tmp/auralune-<uid>/`. Katalog ma tryb `0700`
-//! i jest weryfikowany (właściciel, brak dowiązania, brak dostępu dla innych) przed każdym użyciem.
+//! IPC files must not live directly in the shared `/tmp`: another system user could
+//! create `/tmp/auralune.json` or the socket first and hijack or block the channel.
+//! So they all go to `$XDG_RUNTIME_DIR/auralune/` (usually `/run/user/<uid>/auralune`),
+//! or to `/tmp/auralune-<uid>/` when `XDG_RUNTIME_DIR` is not set. The directory has mode `0700`
+//! and is verified (owner, not a link, no access for others) before every use.
 
 use std::fs;
 use std::io;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-/// Nazwa pliku statusu Waybara w katalogu uruchomieniowym.
+/// File name of the Waybar status in the runtime directory.
 pub const WAYBAR_STATUS_FILE: &str = "auralune.json";
-/// Nazwa kolejki FIFO sterowania w katalogu uruchomieniowym.
+/// Name of the control FIFO in the runtime directory.
 pub const CONTROL_FIFO_FILE: &str = "ctl";
-/// Nazwa gniazda Unix sterowania w katalogu uruchomieniowym.
+/// Name of the control Unix socket in the runtime directory.
 pub const CONTROL_SOCKET_FILE: &str = "auralune.sock";
 
-/// UID bieżącego procesu (właściciel `/proc/self`), bez `unsafe` i zależności od libc.
+/// UID of the current process (the owner of `/proc/self`), without `unsafe` or a libc dependency.
 pub fn current_uid() -> Option<u32> {
     fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
-/// Ścieżka katalogu uruchomieniowego (bez tworzenia go).
+/// Path of the runtime directory (without creating it).
 pub fn runtime_dir_path() -> PathBuf {
     match std::env::var_os("XDG_RUNTIME_DIR") {
         Some(dir) if !dir.is_empty() && Path::new(&dir).is_absolute() => {
@@ -36,14 +36,14 @@ pub fn runtime_dir_path() -> PathBuf {
     }
 }
 
-/// Tworzy (w razie potrzeby) i weryfikuje prywatny katalog uruchomieniowy.
+/// Creates (if needed) and verifies the private runtime directory.
 pub fn ensure_runtime_dir() -> io::Result<PathBuf> {
     let dir = runtime_dir_path();
     ensure_private_dir(&dir)?;
     Ok(dir)
 }
 
-/// Tworzy katalog `0700` i sprawdza, że jest prywatnym katalogiem bieżącego użytkownika.
+/// Creates the `0700` directory and checks that it is a private directory of the current user.
 pub fn ensure_private_dir(dir: &Path) -> io::Result<()> {
     match fs::DirBuilder::new().mode(0o700).create(dir) {
         Ok(()) => {}
@@ -69,17 +69,17 @@ pub fn ensure_private_dir(dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Pełna ścieżka pliku statusu Waybara.
+/// Full path of the Waybar status file.
 pub fn waybar_status_path() -> PathBuf {
     runtime_dir_path().join(WAYBAR_STATUS_FILE)
 }
 
-/// Pełna ścieżka kolejki FIFO sterowania.
+/// Full path of the control FIFO.
 pub fn control_fifo_path() -> PathBuf {
     runtime_dir_path().join(CONTROL_FIFO_FILE)
 }
 
-/// Pełna ścieżka gniazda Unix sterowania.
+/// Full path of the control Unix socket.
 pub fn control_socket_path() -> PathBuf {
     runtime_dir_path().join(CONTROL_SOCKET_FILE)
 }

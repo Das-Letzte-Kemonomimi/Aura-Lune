@@ -1,13 +1,13 @@
 /**
- * Jedyny punkt wejścia frontendu do komend backendu Tauri.
+ * The frontend's only entry point to the Tauri backend commands.
  *
- * - `invoke` przyjmuje wyłącznie nazwy komend zarejestrowanych w backendzie (`CommandName`,
- *   generowane z `src-tauri/src/lib.rs`) — literówka lub usunięta komenda to błąd kompilacji.
- * - Każdy błąd backendu jest normalizowany do `IpcError` z polami `code` i `message`,
- *   niezależnie od tego, czy komenda zwraca `CommandError` (`{ code, message }`) czy zwykły tekst.
- *   `String(err)` / `${err}` zwracają sam komunikat, więc istniejące komunikaty UI się nie zmieniają.
+ * - `invoke` accepts only command names registered in the backend (`CommandName`,
+ *   generated from `src-tauri/src/lib.rs`): a typo or a removed command is a compile error.
+ * - Every backend error is normalised to an `IpcError` with `code` and `message` fields,
+ *   whether the command returns a `CommandError` (`{ code, message }`) or plain text.
+ *   `String(err)` / `${err}` return the message alone, so existing UI messages do not change.
  *
- * Bezpośredni import `@tauri-apps/api/core` poza katalogiem `src/api/` jest blokowany przez oxlint.
+ * oxlint blocks direct imports of `@tauri-apps/api/core` outside `src/api/`.
  */
 import { invoke as tauriInvoke, type InvokeArgs } from '@tauri-apps/api/core';
 import type { CommandName } from './commands.generated';
@@ -15,7 +15,7 @@ import type { CommandName } from './commands.generated';
 export type { CommandName } from './commands.generated';
 export { COMMAND_NAMES } from './commands.generated';
 
-/** Kategorie błędów zwracanych przez `CommandError` w backendzie (`commands/error.rs`). */
+/** Error categories returned by `CommandError` in the backend (`commands/error.rs`). */
 export type IpcErrorCode =
   | 'storage'
   | 'engine'
@@ -24,7 +24,7 @@ export type IpcErrorCode =
   | 'validation'
   | 'network'
   | 'internal'
-  /** Backend zwrócił zwykły tekst lub nieznany kształt błędu. */
+  /** The backend returned plain text or an unknown error shape. */
   | 'unknown';
 
 const KNOWN_CODES: ReadonlySet<string> = new Set<IpcErrorCode>([
@@ -49,13 +49,13 @@ export class IpcError extends Error {
     this.command = command;
   }
 
-  /** Zachowuje dotychczasowe zachowanie `String(err)`, gdy backend zwracał zwykły tekst. */
+  /** Keeps the old `String(err)` behaviour when the backend returned plain text. */
   override toString(): string {
     return this.message;
   }
 }
 
-/** Zamienia dowolny błąd odrzucony przez `invoke` na `IpcError`. */
+/** Turns any error rejected by `invoke` into an `IpcError`. */
 export function toIpcError(command: string, raw: unknown): IpcError {
   if (raw instanceof IpcError) return raw;
   if (typeof raw === 'string') return new IpcError(command, 'unknown', raw);
@@ -70,17 +70,17 @@ export function toIpcError(command: string, raw: unknown): IpcError {
   return new IpcError(command, 'unknown', String(raw));
 }
 
-/** Wywołuje komendę backendu. Odrzuca wyłącznie `IpcError`. */
+/** Calls a backend command. Rejects only with `IpcError`. */
 export async function invoke<T = unknown>(command: CommandName, args?: InvokeArgs): Promise<T> {
   try {
-    // Argumenty przekazywane dokładnie tak, jak podał je wywołujący (bez jawnego `undefined`).
+    // Arguments are passed exactly as the caller gave them (no explicit `undefined`).
     return await (args === undefined ? tauriInvoke<T>(command) : tauriInvoke<T>(command, args));
   } catch (raw) {
     throw toIpcError(command, raw);
   }
 }
 
-/** Czytelny komunikat z dowolnego złapanego błędu (do `catch (e: unknown)`). */
+/** A readable message from any caught error (for `catch (e: unknown)`). */
 export function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -90,7 +90,7 @@ export function errorMessage(error: unknown): string {
   return String(error);
 }
 
-/** Czy błąd pochodzi z backendu i ma podaną kategorię. */
+/** Whether the error comes from the backend and has the given category. */
 export function isIpcError(error: unknown, code?: IpcErrorCode): error is IpcError {
   return error instanceof IpcError && (code === undefined || error.code === code);
 }

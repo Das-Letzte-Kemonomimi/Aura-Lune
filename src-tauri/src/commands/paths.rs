@@ -1,21 +1,21 @@
-//! Walidacja ścieżek przekazywanych z interfejsu przed zapisem lub odczytem plików.
+//! Validation of paths passed from the UI before files are written or read.
 //!
-//! Reguły (bez I/O) są w `domain::paths`; tutaj dochodzi rozwiązanie dowiązań symbolicznych,
-//! aby np. `cover.png` wskazujący na `~/.ssh/id_rsa` nie ominął sprawdzenia.
+//! The rules (without I/O) live in `domain::paths`; this adds symlink resolution,
+//! so that e.g. a `cover.png` pointing at `~/.ssh/id_rsa` does not bypass the check.
 
 use super::error::CommandError;
 use std::path::{Path, PathBuf};
 
-/// Identyfikator aplikacji z `tauri.conf.json` — katalogi danych i cache aplikacji.
+/// App identifier from `tauri.conf.json`: the app's data and cache directories.
 const APP_IDENTIFIER: &str = "com.auralune.player";
-/// Katalog używany przez silnik audio dla modeli AI i cache stemów.
+/// Directory the audio engine uses for AI models and the stem cache.
 const APP_DIR_NAME: &str = "auralune";
 
 fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
 }
 
-/// Katalogi aplikacji, w których zapis jest zawsze dozwolony (dane, cache, modele).
+/// App directories where writing is always allowed (data, cache, models).
 pub fn app_dirs() -> Vec<PathBuf> {
     let home = home_dir();
     let xdg = |var: &str, fallback: &str| {
@@ -30,13 +30,13 @@ pub fn app_dirs() -> Vec<PathBuf> {
     ]
     .into_iter()
     .flatten()
-    // `auralune` — modele AI i cache stemów (audio_engine::model_manager).
+    // `auralune`: AI models and the stem cache (audio_engine::model_manager).
     .flat_map(|base| [base.join(APP_IDENTIFIER), base.join(APP_DIR_NAME)])
     .collect()
 }
 
-/// Rozwiązuje dowiązania symboliczne najbliższego istniejącego przodka (plik docelowy
-/// zwykle jeszcze nie istnieje) i dokleja pozostałe składniki.
+/// Resolves the symlinks of the nearest existing ancestor (the target file usually
+/// does not exist yet) and appends the remaining components.
 fn resolve_for_write(path: &Path) -> PathBuf {
     let mut existing = path;
     let mut rest = Vec::new();
@@ -58,8 +58,8 @@ fn resolve_for_write(path: &Path) -> PathBuf {
     resolved
 }
 
-/// Sprawdza cel zapisu wskazany przez interfejs (eksporty, renderowanie, pobieranie).
-#[must_use = "zapisuj pod zwróconą (rozwiązaną) ścieżką"]
+/// Checks a write target chosen by the UI (exports, rendering, downloads).
+#[must_use = "write to the returned (resolved) path"]
 pub fn ensure_writable(path: &Path) -> Result<PathBuf, CommandError> {
     let resolved = resolve_for_write(path);
     let roots = app_dirs();
@@ -68,22 +68,22 @@ pub fn ensure_writable(path: &Path) -> Result<PathBuf, CommandError> {
     Ok(resolved)
 }
 
-/// Sprawdza plik, którego zawartość zostanie odczytana na żądanie interfejsu: musi istnieć,
-/// być zwykłym plikiem i (po rozwiązaniu dowiązań) mieć jedno z `extensions`.
-#[must_use = "czytaj spod zwróconej (rozwiązanej) ścieżki"]
+/// Checks a file whose contents will be read at the UI's request: it must exist,
+/// be a regular file and (after resolving links) have one of the `extensions`.
+#[must_use = "read from the returned (resolved) path"]
 pub fn ensure_readable(path: &Path, extensions: &[&str]) -> Result<PathBuf, CommandError> {
     let resolved = path
         .canonicalize()
-        .map_err(|_| CommandError::not_found(format!("Plik nie istnieje: {}", path.display())))?;
+        .map_err(|_| CommandError::not_found(format!("File does not exist: {}", path.display())))?;
     if !resolved.is_file() {
         return Err(CommandError::validation(format!(
-            "To nie jest plik: {}",
+            "Not a file: {}",
             path.display()
         )));
     }
     if !domain::paths::has_allowed_extension(&resolved, extensions) {
         return Err(CommandError::validation(format!(
-            "Nieobsługiwany typ pliku: {} (dozwolone: {})",
+            "Unsupported file type: {} (allowed: {})",
             path.display(),
             extensions.join(", ")
         )));
@@ -91,8 +91,8 @@ pub fn ensure_readable(path: &Path, extensions: &[&str]) -> Result<PathBuf, Comm
     Ok(resolved)
 }
 
-/// Rozszerzenia plików audio (wspólna lista z `domain::paths`).
+/// Audio file extensions (the list shared with `domain::paths`).
 pub use domain::paths::AUDIO_EXTENSIONS;
 
-/// Rozszerzenia obrazów okładek i tapet.
+/// Image extensions for covers and wallpapers.
 pub const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "gif"];

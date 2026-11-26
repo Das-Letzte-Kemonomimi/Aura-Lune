@@ -1,36 +1,36 @@
 /**
- * Zegar odtwarzania do płynnego rysowania paska postępu.
+ * Playback clock for smoothly drawing the progress bar.
  *
- * Backend wysyła pozycję ~10×/s. Bez interpolacji głowica „skacze” co 100 ms. Tu pozycję ekstrapolujemy między
- * tickami (`pozycja + czas_od_ticka × prędkość`) i wygładzamy rozbieżności po nadejściu nowego ticka.
+ * The backend sends the position ~10×/s. Without interpolation the playhead "jumps" every 100 ms. Here the position is
+ * extrapolated between ticks (`position + time_since_tick × speed`) and drift is smoothed when a new tick arrives.
  */
 import { smoothTo } from './smoothing';
 
 export interface ClockAnchor {
-  /** Ostatnia znana pozycja (ms, czas źródła). */
+  /** The last known position (ms, source time). */
   positionMs: number;
-  /** Moment (`performance.now()`), w którym ta pozycja nadeszła. */
+  /** The moment (`performance.now()`) this position arrived. */
   at: number;
 }
 
 export interface ExtrapolateOptions {
-  /** Prędkość czasu źródła względem rzeczywistego (1 w Bypass, tempo*rate przy DSP). */
+  /** Speed of the source time relative to real time (1 in Bypass, tempo*rate with DSP). */
   speed: number;
   playing: boolean;
   durationMs?: number | null;
-  /** Koniec pętli A-B (ms): w trakcie pętli nie wychodzimy poza niego; powrót do A to skok z backendu. */
+  /** End of the A-B loop (ms): during the loop we never go past it; the return to A is a jump from the backend. */
   loopB?: number | null;
-  /** Maksymalny czas (ms rzeczywiste) ekstrapolacji bez nowego ticka — zabezpieczenie przed zawieszeniem statusów. */
+  /** Maximum time (real ms) of extrapolation without a new tick: a guard against stalled statuses. */
   maxAheadMs?: number;
 }
 
 export const DEFAULT_MAX_AHEAD_MS = 400;
-/** Rozbieżność (ms), od której wyświetlana pozycja skacze do celu zamiast się wygładzać (seek, pętla A-B). */
+/** Drift (ms) above which the displayed position jumps to the target instead of smoothing (seek, A-B loop). */
 export const SNAP_THRESHOLD_MS = 300;
-/** Stała czasowa wygładzania rozbieżności (s). */
+/** Drift smoothing time constant (s). */
 export const EASE_TAU_SEC = 0.08;
 
-/** Ekstrapolowana pozycja w chwili `now`. Bez odtwarzania zwraca ostatnią znaną pozycję. */
+/** Extrapolated position at `now`. Without playback, returns the last known position. */
 export function extrapolatePositionMs(anchor: ClockAnchor, now: number, options: ExtrapolateOptions): number {
   const { speed, playing, durationMs, loopB, maxAheadMs = DEFAULT_MAX_AHEAD_MS } = options;
   if (!playing) return anchor.positionMs;
@@ -38,21 +38,21 @@ export function extrapolatePositionMs(anchor: ClockAnchor, now: number, options:
   const elapsed = Math.min(maxAheadMs, Math.max(0, now - anchor.at));
   let pos = anchor.positionMs + elapsed * (Number.isFinite(speed) && speed > 0 ? speed : 1);
 
-  // Nie wychodzimy poza koniec pętli A-B (jeśli odtwarzanie jest przed jej końcem) ani poza koniec utworu
+  // Never go past the end of the A-B loop (if playback is before its end) or the end of the track
   if (loopB != null && loopB > 0 && anchor.positionMs <= loopB) pos = Math.min(pos, loopB);
   if (durationMs != null && durationMs > 0) pos = Math.min(pos, durationMs);
   return pos;
 }
 
 /**
- * Pozycja wyświetlana: wygładza drobne rozbieżności między ekstrapolacją a nowym tickiem, nigdy nie cofa się
- * podczas odtwarzania, a duże zmiany (seek, zapętlenie) przyjmuje natychmiast.
+ * Displayed position: smooths small drift between the extrapolation and a new tick, never moves back
+ * during playback, and accepts large changes (seek, loop) immediately.
  */
 export function easeDisplayPosition(prev: number | null, target: number, dtSec: number, playing: boolean): number {
   if (prev === null) return target;
   const error = target - prev;
   if (Math.abs(error) > SNAP_THRESHOLD_MS) return target;
-  // Ekstrapolacja wyprzedziła rzeczywisty tick — czekamy, zamiast cofać głowicę
+  // The extrapolation got ahead of the real tick: wait instead of moving the playhead back
   if (playing && error < 0) return prev;
   return smoothTo(prev, target, dtSec, EASE_TAU_SEC);
 }

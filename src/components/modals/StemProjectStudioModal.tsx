@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Play,
   Pause,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type {
   StemProject,
   StemChannel,
   StemProjectMix,
+  ChannelMixSetting,
   StemProjectProgressPayload,
 } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
@@ -16,6 +17,7 @@ import { useLivePositionMs } from '../../state/livePlayback';
 import { StemStudioWorkspace } from './stem-studio/StemStudioWorkspace';
 import { StemStudioHeader } from './stem-studio/StemStudioHeader';
 import { fmt } from '../../utils/fmt';
+import { Button, Callout, Card, IconButton, ModalShell, TextField } from '../ui';
 
 export interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -45,7 +47,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     onSetLoop: _onSetLoop,
     currentLang = 'en',
   } = props;
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const loc = t;
@@ -63,7 +65,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
   const [isOriginalMode, setIsOriginalMode] = useState<boolean>(false);
   const hasAutoLoadedRef = useRef(false);
 
-  // Pobranie danych projektu
+  // Fetch the project data
   const fetchProjectData = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -100,7 +102,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     };
   }, [isOpen, projectId, fetchProjectData]);
 
-  // Nasłuchiwanie na postęp separacji projektu
+  // Listen for the project separation progress
   useTauriEvent<StemProjectProgressPayload>(
     'auralune://stem-project-progress',
     (payload) => {
@@ -114,7 +116,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     isOpen && !!projectId,
   );
 
-  // Synchronizacja miksu do potoku audio
+  // Sync the mix to the audio pipeline
   const applyMixToEngine = useCallback(
     async (updatedChannels: StemChannel[], masterVol: number) => {
       try {
@@ -123,13 +125,13 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
           masterVolume: masterVol,
         });
       } catch (err: unknown) {
-        console.error('Błąd synchronizacji miksu:', err);
+        console.error('Failed to sync the mix:', err);
       }
     },
     []
   );
 
-  // Przełączanie w czasie rzeczywistym na miks stemów
+  // Switch to the stem mix in real time
   const handleSwitchToStems = useCallback(
     async (startPlaying?: boolean) => {
       if (!projectId) return;
@@ -148,7 +150,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     [projectId, masterVolume, currentTimeMs, isPlaying, loc]
   );
 
-  // Przełączanie w czasie rzeczywistym na oryginalny utwór (A/B)
+  // Switch to the original track in real time (A/B)
   const handleSwitchToOriginal = useCallback(async () => {
     try {
       await invoke('restore_original_track');
@@ -158,17 +160,17 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     }
   }, [loc]);
 
-  // Wróć do oryginalnego utworu i zamknij okno studia
+  // Return to the original track and close the studio window
   const handleReturnToOriginalAndClose = async () => {
     try {
       await invoke('restore_original_track');
     } catch (err: unknown) {
-      console.warn('Błąd przywracania oryginalnego utworu:', err);
+      console.warn('Failed to restore the original track:', err);
     }
     onClose();
   };
 
-  // Zamknięcie okna studia (z bezpiecznym powrotem do oryginału)
+  // Close the studio window (with a safe return to the original)
   const handleClose = async () => {
     if (!isOriginalMode) {
       try {
@@ -178,7 +180,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     onClose();
   };
 
-  // Automatyczny załadunek stemów na żywo (IRL) po otwarciu gotowego projektu
+  // Load the stems live automatically when a finished project is opened
   useEffect(() => {
     if (isOpen && projectId && project?.status === 'ready' && !hasAutoLoadedRef.current) {
       hasAutoLoadedRef.current = true;
@@ -189,7 +191,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     }
   }, [isOpen, projectId, project?.status, handleSwitchToStems, isPlaying]);
 
-  // Modyfikacja suwaka głośności pojedynczego kanału
+  // Change a single channel's volume slider
   const handleVolumeChange = (channelId: string, newVolume: number) => {
     setChannels((prev) => {
       const updated = prev.map((ch) =>
@@ -200,7 +202,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     });
   };
 
-  // Modyfikacja panoramy
+  // Change the pan
   const handlePanChange = (channelId: string, newPan: number) => {
     setChannels((prev) => {
       const updated = prev.map((ch) =>
@@ -211,7 +213,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     });
   };
 
-  // Przełączenie Solo
+  // Toggle Solo
   const handleToggleSolo = (channelId: string) => {
     setChannels((prev) => {
       const updated = prev.map((ch) =>
@@ -222,7 +224,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     });
   };
 
-  // Przełączenie Mute
+  // Toggle Mute
   const handleToggleMute = (channelId: string) => {
     setChannels((prev) => {
       const updated = prev.map((ch) =>
@@ -248,7 +250,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     });
   };
 
-  // Szybkie presety (Quick Presets)
+  // Quick presets
   const handleApplyPreset = (presetType: string) => {
     setChannels((prev) => {
       const updated = prev.map((ch) => {
@@ -305,11 +307,11 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     });
   };
 
-  // Zapis miksu jako preset
+  // Save the mix as a preset
   const handleSaveMix = async () => {
     if (!projectId || !newMixName.trim()) return;
     try {
-      const channelSettings: Record<string, any> = {};
+      const channelSettings: Record<string, ChannelMixSetting> = {};
       for (const ch of channels) {
         channelSettings[ch.id] = {
           volume: ch.volume,
@@ -338,7 +340,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     }
   };
 
-  // Załadowanie zapisanego miksu
+  // Load a saved mix
   const handleLoadMix = (mix: StemProjectMix) => {
     setActiveMixName(mix.name);
     setMasterVolume(mix.master_volume || 1.0);
@@ -361,7 +363,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     });
   };
 
-  // Eksport całego projektu do ZIP
+  // Export the whole project to ZIP
   const handleExportZip = async () => {
     if (!projectId || !project) return;
     try {
@@ -388,7 +390,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
     handlersRef.current = { handleToggleMute, handleToggleSolo, handleVolumeChange };
   });
 
-  // Skróty klawiszowe (Mute, Solo, 0 dla resetu)
+  // Keyboard shortcuts (Mute, Solo, 0 to reset)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -416,16 +418,21 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
   const anySoloActive = channels.some((c) => c.solo);
 
   return (
-    <div className="fixed inset-0 z-90 flex flex-col bg-deep/90 p-4 backdrop-blur-lg motion-safe:animate-fade-in-scale">
-      {/* 1. GÓRNY PASEK NARZĘDZIOWY (STUDIO HEADER) */}
+    <ModalShell
+      onClose={handleClose}
+      layer="studio"
+      size="full"
+      closeOnBackdrop={false}
+      label={project ? project.title : loc.stems.loadingProject}
+      className="p-4"
+    >
+      {/* 1. TOP TOOLBAR (STUDIO HEADER) */}
       <StemStudioHeader {...props} project={project} loc={loc} channels={channels} handleSwitchToOriginal={handleSwitchToOriginal} t={t} isOriginalMode={isOriginalMode} handleSwitchToStems={handleSwitchToStems} handleReturnToOriginalAndClose={handleReturnToOriginalAndClose} activeMixName={activeMixName} mixes={mixes} handleLoadMix={handleLoadMix} handleResetAllToUnity={handleResetAllToUnity} setIsSavingMix={setIsSavingMix} handleExportZip={handleExportZip} handleClose={handleClose} />
 
       {exportNotice && (
-        <div
-          className="mb-2.5 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm text-emerald-400"
-        >
+        <Callout tone="green" className="mb-2.5 py-2 text-sm text-accent-green">
           {exportNotice}
-        </div>
+        </Callout>
       )}
 
       {error && (
@@ -434,13 +441,14 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         </div>
       )}
 
-      {/* 2. GŁÓWNY OBSZAR ROBOCZY: KANAŁY STEMÓW + PANEL MASTER */}
+      {/* 2. MAIN WORKSPACE: STEM CHANNELS + MASTER PANEL */}
       <StemStudioWorkspace {...props} channels={channels} anySoloActive={anySoloActive} setHoveredChannelId={setHoveredChannelId} hoveredChannelId={hoveredChannelId} handleToggleSolo={handleToggleSolo} t={t} handleToggleMute={handleToggleMute} handlePanChange={handlePanChange} handleVolumeChange={handleVolumeChange} masterVolume={masterVolume} setMasterVolume={setMasterVolume} applyMixToEngine={applyMixToEngine} handleResetAllToUnity={handleResetAllToUnity} handleApplyPreset={handleApplyPreset} />
 
-      {/* 3. DOLNA KONSOLA STEROWANIA ODTWARZANIEM (TRANSPORT BAR) */}
-      <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-5 py-3">
+      {/* 3. BOTTOM PLAYBACK CONTROL CONSOLE (TRANSPORT BAR) */}
+      <Card padding="none" className="mt-3 flex items-center justify-between rounded-2xl px-5 py-3">
         <div className="flex items-center gap-3.5">
-          <button
+          <IconButton
+            label={isPlaying ? loc.player.pause : loc.player.play}
             onClick={async () => {
               if (isOriginalMode) {
                 onPlayPause?.();
@@ -453,10 +461,10 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
                 }
               }
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full border-0 bg-linear-135 from-pink-500 to-violet-500 text-fg shadow-lift shadow-pink-500/40"
+            className="size-10 rounded-full bg-accent-gradient text-on-accent shadow-lift shadow-accent-pink/30 hover:text-on-accent"
           >
-            {isPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" className="ml-0.5" />}
-          </button>
+            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+          </IconButton>
 
           <span className="font-mono text-sm font-bold text-fg">
             {Math.floor(currentTimeMs / 60000)}:
@@ -471,7 +479,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
           </span>
         </div>
 
-        {/* Pasek postępu */}
+        {/* Progress bar */}
         <div className="mx-6 my-0 flex-1">
           <input
             type="range"
@@ -486,40 +494,32 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         <div className="flex items-center gap-3 text-xs text-fg-secondary">
           <span>{t.stems.shortcutsHint}</span>
         </div>
-      </div>
+      </Card>
 
-      {/* Modal zapisu miksu */}
+      {/* Save mix modal */}
       {isSavingMix && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/65">
-          <div className="w-90 rounded-2xl border border-white/15 bg-slate-900 p-5 shadow-2xl shadow-black/80">
-            <h3 className="mx-0 mt-0 mb-3 text-base text-fg">
-              {t.stems.saveMixTitle}
-            </h3>
-            <input
-              type="text"
+          <Card variant="panel" padding="md" className="w-90">
+            <h3 className="mb-3 text-base font-bold text-fg">{t.stems.saveMixTitle}</h3>
+            <TextField
+              autoFocus
+              aria-label={t.stems.saveMixTitle}
               placeholder={t.stems.mixNamePlaceholder}
               value={newMixName}
               onChange={(e) => setNewMixName(e.target.value)}
-              className="mb-3.5 w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2 text-fg outline-none"
+              className="mb-3.5"
             />
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsSavingMix(false)}
-                className="rounded-md border border-white/10 bg-transparent px-3 py-1.5 text-slate-300"
-              >
+              <Button variant="ghost" onClick={() => setIsSavingMix(false)}>
                 {t.common.cancel}
-              </button>
-              <button
-                onClick={handleSaveMix}
-                disabled={!newMixName.trim()}
-                className="rounded-md border-0 bg-accent-pink px-3.5 py-1.5 font-bold text-on-accent"
-              >
+              </Button>
+              <Button variant="primary" onClick={handleSaveMix} disabled={!newMixName.trim()}>
                 {t.common.save}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </ModalShell>
   );
 };

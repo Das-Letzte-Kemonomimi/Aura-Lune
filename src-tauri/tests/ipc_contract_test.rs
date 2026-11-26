@@ -1,8 +1,8 @@
-//! Kontrakt IPC: każda komenda wywoływana z frontendu przez `invoke('…')` musi być
-//! zarejestrowana w `tauri::generate_handler![…]` w `src/lib.rs`.
+//! IPC contract: every command the frontend calls through `invoke('…')` must be
+//! registered in `tauri::generate_handler![…]` in `src/lib.rs`.
 //!
-//! Test statycznie skanuje źródła — chroni przed literówkami i komendami usuniętymi z backendu
-//! (np. wywołania `set_shuffle` / `set_active_track`, które kiedyś trafiały w próżnię).
+//! The test scans the sources statically: it guards against typos and commands removed from the backend
+//! (e.g. `set_shuffle` / `set_active_track` calls that once went nowhere).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -12,17 +12,17 @@ fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// Wyciąga nazwy komend z bloku `generate_handler![ ... ]`.
+/// Extracts the command names from the `generate_handler![ ... ]` block.
 fn registered_commands() -> BTreeSet<String> {
     let lib_rs = fs::read_to_string(manifest_dir().join("src/lib.rs")).unwrap();
     let start = lib_rs
         .find("generate_handler![")
-        .expect("lib.rs musi zawierać generate_handler!")
+        .expect("lib.rs must contain generate_handler!")
         + "generate_handler![".len();
     let end = start
         + lib_rs[start..]
             .find(']')
-            .expect("zamknięcie generate_handler!");
+            .expect("closing of generate_handler!");
     lib_rs[start..end]
         .split(',')
         .map(|s| s.trim())
@@ -47,8 +47,8 @@ fn collect_frontend_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Znajduje literały nazw komend w wywołaniach `invoke('name'…)` oraz `invoke<T>('name'…)`
-/// (także rozbitych na kilka linii). Wywołania z nazwą w zmiennej są pomijane.
+/// Finds command name literals in `invoke('name'…)` and `invoke<T>('name'…)` calls
+/// (also split across lines). Calls with the name in a variable are skipped.
 fn invoked_commands_in(source: &str) -> Vec<String> {
     let bytes = source.as_bytes();
     let mut found = Vec::new();
@@ -56,7 +56,7 @@ fn invoked_commands_in(source: &str) -> Vec<String> {
     while let Some(rel) = source[search_from..].find("invoke") {
         let start = search_from + rel;
         search_from = start + "invoke".len();
-        // Tylko samodzielny identyfikator `invoke` (nie np. `safeInvoke` / `invokeAll`).
+        // Only a standalone `invoke` identifier (not e.g. `safeInvoke` / `invokeAll`).
         if start > 0 && (bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'_') {
             continue;
         }
@@ -129,13 +129,13 @@ fn test_every_frontend_invoke_targets_a_registered_command() {
     let registered = registered_commands();
     assert!(
         registered.len() > 100,
-        "Parser generate_handler! zwrócił podejrzanie mało komend: {}",
+        "The generate_handler! parser returned suspiciously few commands: {}",
         registered.len()
     );
 
     let mut files = Vec::new();
     collect_frontend_sources(&manifest_dir().join("../src"), &mut files);
-    assert!(!files.is_empty(), "Nie znaleziono źródeł frontendu");
+    assert!(!files.is_empty(), "No frontend sources found");
 
     let mut missing = BTreeSet::new();
     for file in &files {
@@ -149,13 +149,13 @@ fn test_every_frontend_invoke_targets_a_registered_command() {
     }
     assert!(
         missing.is_empty(),
-        "Frontend wywołuje niezarejestrowane komendy Tauri:\n  {}",
+        "The frontend calls unregistered Tauri commands:\n  {}",
         missing.into_iter().collect::<Vec<_>>().join("\n  ")
     );
 }
 
-/// `src/api/commands.generated.ts` (typ `CommandName` używany przez `invoke` we frontendzie)
-/// musi zawierać dokładnie zarejestrowane komendy. Po zmianie listy uruchom `npm run gen:commands`.
+/// `src/api/commands.generated.ts` (the `CommandName` type used by `invoke` in the frontend)
+/// must contain exactly the registered commands. After changing the list, run `npm run gen:commands`.
 #[test]
 fn test_generated_frontend_command_names_match_registered_commands() {
     let generated =
@@ -172,6 +172,6 @@ fn test_generated_frontend_command_names_match_registered_commands() {
     let stale: Vec<_> = in_ts.difference(&registered).collect();
     assert!(
         missing.is_empty() && stale.is_empty(),
-        "src/api/commands.generated.ts jest nieaktualny — uruchom `npm run gen:commands` w katalogu głównym repozytorium.\n  brakujące: {missing:?}\n  nadmiarowe: {stale:?}"
+        "src/api/commands.generated.ts is out of date: run `npm run gen:commands` in the repository root.\n  missing: {missing:?}\n  stale: {stale:?}"
     );
 }

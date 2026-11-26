@@ -1,5 +1,5 @@
-//! Instalacja pobranej aktualizacji: pobranie z weryfikacją SHA-256 (logika `crates/downloads`),
-//! atomowa podmiana pliku AppImage i ponowne uruchomienie przez launcher.
+//! Installing a downloaded update: download with SHA-256 verification (logic in `crates/downloads`),
+//! atomic replacement of the AppImage file and a restart through the launcher.
 
 use super::{UpdateAsset, UPDATE_PROGRESS_EVENT};
 use crate::commands::error::CommandError;
@@ -9,26 +9,26 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
-/// Najrzadziej emitujemy postęp (ms), żeby nie zalewać WebView zdarzeniami.
+/// Minimum interval between progress events (ms), so the WebView is not flooded.
 const PROGRESS_EMIT_INTERVAL_MS: u64 = 200;
 
-/// Dozwolone są tylko adresy https należące do GitHuba (strona wydań i CDN z assetami).
+/// Only https URLs belonging to GitHub are allowed (the releases page and the asset CDN).
 pub fn validate_asset_url(url: &str) -> Result<(), CommandError> {
-    let parsed = url::Url::parse(url)
-        .map_err(|_| CommandError::validation("Nieprawidłowy adres pliku aktualizacji"))?;
+    let parsed =
+        url::Url::parse(url).map_err(|_| CommandError::validation("Invalid update file URL"))?;
     let host = parsed.host_str().unwrap_or("");
     let allowed = ["github.com", "githubusercontent.com"]
         .iter()
         .any(|d| host == *d || host.ends_with(&format!(".{d}")));
     if parsed.scheme() != "https" || !allowed {
         return Err(CommandError::validation(
-            "Adres pliku aktualizacji musi wskazywać na GitHub przez https",
+            "The update file URL must point to GitHub over https",
         ));
     }
     Ok(())
 }
 
-/// Ścieżka pliku roboczego obok docelowego AppImage (ten sam system plików → atomowy `rename`).
+/// Path of the work file next to the target AppImage (same file system → atomic `rename`).
 pub fn staging_path(target: &Path) -> PathBuf {
     let name = target
         .file_name()
@@ -37,7 +37,7 @@ pub fn staging_path(target: &Path) -> PathBuf {
     target.with_file_name(format!("{name}.update"))
 }
 
-/// Czy plik zaczyna się od sygnatury ELF (AppImage typu 2 jest plikiem ELF).
+/// Whether the file starts with the ELF signature (a type 2 AppImage is an ELF file).
 pub fn looks_like_appimage(path: &Path) -> bool {
     use std::io::Read;
     let mut magic = [0u8; 4];
@@ -47,8 +47,8 @@ pub fn looks_like_appimage(path: &Path) -> bool {
         && magic == *b"\x7fELF"
 }
 
-/// Pobiera `asset` z weryfikacją sumy i podmienia `target`. Plik roboczy jest usuwany przy
-/// każdym błędzie; działający proces nadal używa starego pliku (podmiana to `rename`).
+/// Downloads `asset` with checksum verification and replaces `target`. The work file is removed on
+/// every error; the running process keeps using the old file (the replacement is a `rename`).
 pub async fn download_and_replace(
     app: &AppHandle,
     asset: &UpdateAsset,
@@ -98,18 +98,18 @@ async fn finalize(staging: &Path, target: &Path) -> Result<(), CommandError> {
     let valid = tokio::task::spawn_blocking(move || looks_like_appimage(&check_path)).await?;
     if !valid {
         return Err(CommandError::validation(
-            "Pobrany plik nie jest prawidłowym AppImage",
+            "The downloaded file is not a valid AppImage",
         ));
     }
     use std::os::unix::fs::PermissionsExt;
     tokio::fs::set_permissions(staging, std::fs::Permissions::from_mode(0o755)).await?;
     tokio::fs::rename(staging, target)
         .await
-        .map_err(|e| CommandError::from(e).context("Nie udało się podmienić pliku AppImage"))
+        .map_err(|e| CommandError::from(e).context("Failed to replace the AppImage file"))
 }
 
-/// Czym uruchomić nową wersję: launcher `~/.local/bin/auralune{,-dev}` (ustawia kanał i
-/// obsługuje brak FUSE), a w ostateczności sam AppImage.
+/// What to start the new version with: the `~/.local/bin/auralune{,-dev}` launcher (sets the channel and
+/// handles missing FUSE), or as a last resort the AppImage itself.
 pub fn restart_target(
     home: Option<&Path>,
     is_dev: bool,
@@ -124,9 +124,9 @@ pub fn restart_target(
     launcher.or_else(|| appimage.filter(|p| !p.is_empty()).map(PathBuf::from))
 }
 
-/// Uruchamia w tle (osobna grupa procesów) nową instancję po krótkim opóźnieniu — dopiero po
-/// zamknięciu bieżącej zwalnia się blokada `single-instance`, inaczej nowy proces trafiłby do
-/// jeszcze działającego starego i od razu się zakończył.
+/// Starts a new instance in the background (in its own process group) after a short delay: only
+/// after the current one quits is the `single-instance` lock released, otherwise the new process would reach
+/// the still running old one and exit at once.
 pub fn spawn_detached_restart(target: &Path, is_dev: bool) -> Result<(), CommandError> {
     use std::os::unix::process::CommandExt;
     let mut cmd = std::process::Command::new("sh");
@@ -134,7 +134,7 @@ pub fn spawn_detached_restart(target: &Path, is_dev: bool) -> Result<(), Command
         .arg("sleep 2; exec \"$0\"")
         .arg(target)
         .env("AURALUNE_CHANNEL", if is_dev { "dev" } else { "stable" })
-        // Zmienne środowiska bieżącego AppImage nie mogą trafić do nowego.
+        // The current AppImage's environment variables must not leak into the new one.
         .env_remove("APPDIR")
         .env_remove("APPIMAGE")
         .env_remove("ARGV0")
@@ -145,5 +145,5 @@ pub fn spawn_detached_restart(target: &Path, is_dev: bool) -> Result<(), Command
         .process_group(0);
     cmd.spawn()
         .map(|_| ())
-        .map_err(|e| CommandError::from(e).context("Nie udało się uruchomić nowej wersji"))
+        .map_err(|e| CommandError::from(e).context("Failed to start the new version"))
 }

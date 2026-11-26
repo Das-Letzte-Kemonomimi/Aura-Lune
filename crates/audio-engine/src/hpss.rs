@@ -1,10 +1,10 @@
-//! Zaawansowany silnik separacji spektralnej Harmonic-Percussive (HPSS)
-//! oraz dekompozycji panoramy stereo (Stereo Azimuth / Pan-based Separation).
+//! Spectral Harmonic-Percussive source separation (HPSS)
+//! combined with stereo panorama decomposition (stereo azimuth / pan-based separation).
 //!
-//! Zastępuje prymitywne filtry korektora (Biquad EQ Crossover) profesjonalną
-//! analizą w dziedzinie częstotliwości i czasu (Short-Time Fourier Transform).
-//! Gwarantuje zachowanie transjentów perkusyjnych (stopa, werbel, talerze)
-//! w pełnym paśmie częstotliwości oraz matematyczną sumę 100% z sygnałem wejściowym.
+//! Replaces simple crossover filters (biquad EQ crossover) with analysis
+//! in the time-frequency domain (short-time Fourier transform).
+//! Keeps percussive transients (kick, snare, cymbals) across the full
+//! frequency range, and the stems always sum to exactly 100% of the input.
 
 use std::f32::consts::PI;
 
@@ -15,12 +15,12 @@ pub struct StereoStems {
     pub other: (Vec<f32>, Vec<f32>),
 }
 
-/// Szybka transformata Fouriera Radix-2 (in-place Cooley-Tukey FFT / IFFT).
+/// Radix-2 fast Fourier transform (in-place Cooley-Tukey FFT / IFFT).
 pub fn fft_radix2(real: &mut [f32], imag: &mut [f32], inverse: bool) {
     let n = real.len();
     assert!(n.is_power_of_two());
 
-    // Permutacja bit-reversal
+    // Bit-reversal permutation
     let mut j = 0;
     for i in 0..n {
         if i < j {
@@ -35,7 +35,7 @@ pub fn fft_radix2(real: &mut [f32], imag: &mut [f32], inverse: bool) {
         j ^= bit;
     }
 
-    // Motylki Cooley-Tukey
+    // Cooley-Tukey butterflies
     let sign = if inverse { 1.0 } else { -1.0 };
     let mut len = 2;
     while len <= n {
@@ -78,7 +78,7 @@ pub fn fft_radix2(real: &mut [f32], imag: &mut [f32], inverse: bool) {
     }
 }
 
-/// Szybkie wyliczenie mediany dla małych wycinków.
+/// Fast median for small slices.
 #[inline]
 fn quick_median(values: &mut [f32]) -> f32 {
     let len = values.len();
@@ -95,7 +95,7 @@ fn quick_median(values: &mut [f32]) -> f32 {
     values[mid]
 }
 
-/// Widmo jednej ramki STFT obu kanałów (amplituda i faza dla `num_bins` binów).
+/// Spectrum of one STFT frame for both channels (magnitude and phase for `num_bins` bins).
 struct StftFrame {
     mag_l: Vec<f32>,
     phase_l: Vec<f32>,
@@ -114,13 +114,13 @@ impl StftFrame {
     }
 }
 
-/// Wielokrotnie używane bufory FFT (bez alokacji na ramkę).
+/// Reusable FFT buffers (no per-frame allocation).
 struct FftScratch {
     re: Vec<f32>,
     im: Vec<f32>,
 }
 
-/// Amplituda i faza okienkowanego fragmentu `signal[offset..offset + fft_size]`.
+/// Magnitude and phase of the windowed slice `signal[offset..offset + fft_size]`.
 fn analyze_channel(
     signal: &[f32],
     offset: usize,
@@ -141,12 +141,12 @@ fn analyze_channel(
     }
 }
 
-/// Wykonuje zaawansowaną separację spektralną HPSS i panoramy stereo na parze próbek L/R.
+/// Runs the HPSS and stereo-panorama separation on a pair of L/R sample buffers.
 ///
-/// Mediana harmoniczna potrzebuje tylko ±`R_TIME` sąsiednich ramek, więc widmo jest liczone
-/// w buforze pierścieniowym `2·R_TIME + 1` ramek, a każda ramka jest od razu maskowana i
-/// syntetyzowana (overlap-add). Pamięć poza sygnałami wyjściowymi jest stała — wcześniej
-/// 16 pełnych macierzy spektrogramu zajmowało ok. 1,7 GB dla 5-minutowego utworu.
+/// The harmonic median needs only ±`R_TIME` neighbouring frames, so the spectrum is computed
+/// into a ring buffer of `2·R_TIME + 1` frames, and every frame is masked and
+/// resynthesised right away (overlap-add). Memory beyond the output signals is constant; previously
+/// 16 full spectrogram matrices took about 1.7 GB for a 5-minute track.
 pub fn separate_stereo_hpss<F>(
     left: &[f32],
     right: &[f32],
@@ -157,17 +157,17 @@ where
     F: FnMut(f32, &str) + ?Sized,
 {
     const FFT_SIZE: usize = 2048;
-    const HOP_SIZE: usize = 512; // 75% overlap dla Hann window
-                                 // Promień w czasie (harmoniczne): 7 ramek ≈ ±81 ms przy hop 512 i 44,1 kHz.
+    const HOP_SIZE: usize = 512; // 75% overlap for the Hann window
+                                 // Time radius (harmonics): 7 frames ≈ ±81 ms at hop 512 and 44.1 kHz.
     const R_TIME: usize = 7;
-    // Promień w częstotliwości (perkusja): 7 binów ≈ ±151 Hz przy 21,5 Hz/bin.
+    // Frequency radius (percussion): 7 bins ≈ ±151 Hz at 21.5 Hz/bin.
     const R_FREQ: usize = 7;
     const RING: usize = 2 * R_TIME + 1;
     const EPS: f32 = 1e-6;
 
     let n_samples = left.len().min(right.len());
     if n_samples < FFT_SIZE {
-        // Fallback dla bardzo krótkich sygnałów
+        // Fallback for very short signals
         return StereoStems {
             vocals: (left.to_vec(), right.to_vec()),
             drums: (vec![0.0; n_samples], vec![0.0; n_samples]),
@@ -181,10 +181,7 @@ where
             cb(p, msg);
         }
     };
-    report(
-        0.35,
-        "STFT: Analiza czasowo-częstotliwościowa (Hann 2048/512)...",
-    );
+    report(0.35, "STFT: time-frequency analysis (Hann 2048/512)...");
 
     let window: Vec<f32> = (0..FFT_SIZE)
         .map(|i| 0.5 * (1.0 - (2.0 * PI * (i as f32) / (FFT_SIZE as f32)).cos()))
@@ -204,17 +201,17 @@ where
         re: vec![0.0; FFT_SIZE],
         im: vec![0.0; FFT_SIZE],
     };
-    let mut computed = 0usize; // liczba ramek już przeanalizowanych
+    let mut computed = 0usize; // number of frames already analysed
     let mut scratch = Vec::with_capacity(2 * R_TIME.max(R_FREQ) + 1);
 
-    // Widma stemów bieżącej ramki: [vocals, drums, bass, other] × [L, R].
+    // Stem spectra of the current frame: [vocals, drums, bass, other] × [L, R].
     let mut stem_spec = vec![vec![0.0f32; num_bins]; 8];
     let mut rec: Vec<Vec<f32>> = (0..8).map(|_| vec![0.0f32; n_samples]).collect();
-    let norm_factor = 1.5f32; // Suma kwadratów okna Hanna przy 75% overlap
+    let norm_factor = 1.5f32; // Sum of squares of the Hann window at 75% overlap
 
     let mut next_report = 1usize;
     for f in 0..num_frames {
-        // Doanalizuj ramki do f + R_TIME (nadpisuje sloty ramek < f - R_TIME, już niepotrzebne).
+        // Analyse frames up to f + R_TIME (overwrites the slots of frames < f - R_TIME, no longer needed).
         let f_end = (f + R_TIME + 1).min(num_frames);
         while computed < f_end {
             let slot = &mut ring[computed % RING];
@@ -241,7 +238,7 @@ where
         let cur = &ring[f % RING];
 
         for k in 0..num_bins {
-            // Mediany: harmoniczna w czasie (poziomo), perkusyjna w częstotliwości (pionowo).
+            // Medians: harmonic along time (horizontal), percussive along frequency (vertical).
             let k_start = k.saturating_sub(R_FREQ);
             let k_end = (k + R_FREQ + 1).min(num_bins);
             scratch.clear();
@@ -260,25 +257,25 @@ where
             let m_l = cur.mag_l[k];
             let m_r = cur.mag_r[k];
 
-            // Maski Wienera HPSS (kwadraty dla wyrazistej separacji)
+            // HPSS Wiener masks (squared for a crisper separation)
             let mask_perc_l = (p_l * p_l) / (p_l * p_l + h_l * h_l + EPS);
             let mask_harm_l = 1.0 - mask_perc_l;
             let mask_perc_r = (p_r * p_r) / (p_r * p_r + h_r * h_r + EPS);
             let mask_harm_r = 1.0 - mask_perc_r;
 
-            // Panorama: 0.0 = idealny środek, 1.0 = skrajna panorama
+            // Panorama: 0.0 = dead centre, 1.0 = hard-panned
             let diff = (m_l - m_r).abs();
             let sum = m_l + m_r + EPS;
             let pan_side = (diff / sum).min(1.0);
             let pan_center = (1.0 - 1.6 * pan_side).clamp(0.0, 1.0);
 
-            // 1. DRUMS — wszystkie składowe perkusyjne w całym paśmie
+            // 1. DRUMS: every percussive component across the full range
             let drums_l = m_l * mask_perc_l;
             let drums_r = m_r * mask_perc_r;
             let rem_h_l = m_l * mask_harm_l;
             let rem_h_r = m_r * mask_harm_r;
 
-            // 2. BASS — harmoniczne w centrum poniżej 220 Hz
+            // 2. BASS: centred harmonics below 220 Hz
             let (bass_l, bass_r) = if k <= bass_cutoff_bin {
                 let bass_weight = (1.0 - (k as f32 / bass_cutoff_bin as f32).powi(2)).max(0.0);
                 let bass_mask = bass_weight * (0.3 + 0.7 * pan_center);
@@ -287,7 +284,7 @@ where
                 (0.0, 0.0)
             };
 
-            // 3. VOCALS — harmoniczne w centrum w paśmie 160 Hz – 7,5 kHz
+            // 3. VOCALS: centred harmonics in the 160 Hz – 7.5 kHz band
             let (vocals_l, vocals_r) = if k >= vocal_low_bin && k <= vocal_high_bin {
                 let vocal_mask = pan_center.powf(1.2);
                 (
@@ -298,7 +295,7 @@ where
                 (0.0, 0.0)
             };
 
-            // 4. OTHER — reszta (gitary, klawisze, syntezatory, pogłosy, chórki w panoramie)
+            // 4. OTHER: the rest (guitars, keys, synths, reverb, panned backing vocals)
             let other_l = (m_l - (drums_l + bass_l + vocals_l)).max(0.0);
             let other_r = (m_r - (drums_r + bass_r + vocals_r)).max(0.0);
 
@@ -309,7 +306,7 @@ where
             }
         }
 
-        // Rekonstrukcja ramki (ISTFT + overlap-add) dla wszystkich stemów.
+        // Frame reconstruction (ISTFT + overlap-add) for every stem.
         let offset = f * HOP_SIZE;
         for (i, (spec, out)) in stem_spec.iter().zip(rec.iter_mut()).enumerate() {
             let phase = if i % 2 == 0 {
@@ -327,17 +324,14 @@ where
             );
         }
 
-        // Postęp w tych samych etapach co wcześniej (mediany → maski → rekonstrukcja).
+        // Progress uses the same stages as before (medians → masks → reconstruction).
         if next_report <= 2 && f + 1 >= num_frames * next_report / 3 {
             if next_report == 1 {
-                report(
-                    0.50,
-                    "HPSS: Filtracja medianowa (Harmoniczne vs Transjenty)...",
-                );
+                report(0.50, "HPSS: median filtering (harmonics vs transients)...");
             } else {
                 report(
                     0.65,
-                    "Separacja źródeł: Dekompozycja panoramy stereo i masek...",
+                    "Source separation: stereo panorama and mask decomposition...",
                 );
             }
             next_report += 1;
@@ -346,7 +340,7 @@ where
 
     report(
         0.80,
-        "ISTFT: Rekonstrukcja Overlap-Add sygnału w pełnym stereo...",
+        "ISTFT: overlap-add reconstruction of the full stereo signal...",
     );
 
     let mut rec = rec.into_iter();
@@ -356,7 +350,7 @@ where
     let (bass_l, bass_r) = (take(), take());
     let (mut other_l, mut other_r) = (take(), take());
 
-    // 5. Dokładna korekta residualna: suma stemów musi być równa oryginałowi
+    // 5. Exact residual correction: the stems must sum to the original
     for i in 0..n_samples {
         let sum_l = vocals_l[i] + drums_l[i] + bass_l[i] + other_l[i];
         other_l[i] = (other_l[i] + (left[i] - sum_l)).clamp(-1.0, 1.0);
@@ -372,7 +366,7 @@ where
     }
 }
 
-/// Rekonstruuje pojedynczą ramkę FFT do dziedziny czasu z oknem syntezy (overlap-add do `out`).
+/// Reconstructs one FFT frame into the time domain with a synthesis window (overlap-add into `out`).
 #[inline]
 fn synth_frame(
     mag: &[f32],

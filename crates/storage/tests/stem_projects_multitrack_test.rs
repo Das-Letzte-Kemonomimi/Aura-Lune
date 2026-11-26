@@ -207,6 +207,6 @@ async fn test_interrupted_separations_are_marked_failed_on_startup() {
     assert_eq!(
         db.fail_interrupted_stem_projects().await.unwrap(),
         0,
-        "idempotentne"
+        "idempotent"
     );
 }

@@ -57,9 +57,9 @@ export function useSleepTimer({
 
   const hasActiveTimer = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
 
-  // Najnowsze wartości dla interwału. Interwał nie może zależeć od nich bezpośrednio —
-  // `showMessage`/`filePath` zmieniały się przy renderach (10×/s podczas odtwarzania),
-  // co restartowało interwał, zanim zdążył odliczyć choćby sekundę.
+  // The latest values for the interval. The interval must not depend on them directly:
+  // `showMessage`/`filePath` changed on renders (10×/s during playback),
+  // which restarted the interval before it could count down even one second.
   const remainingRef = useRef(sleepTimerRemainingSec);
   const latestRef = useRef({ filePath, showMessage, loc, sleepTimerFadeOut });
   useEffect(() => {

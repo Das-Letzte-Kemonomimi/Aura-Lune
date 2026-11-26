@@ -1,13 +1,13 @@
-//! Komunikat o błędzie krytycznym przy starcie (zanim powstanie okno aplikacji).
+//! Fatal start-up error message (before the app window exists).
 
 use tracing::error;
 
-/// Loguje błąd i próbuje pokazać systemowe okno dialogowe (zenity / kdialog).
-/// Bez tych narzędzi pozostaje wpis w logu i komunikat na stderr.
+/// Logs the error and tries to show a system dialog (zenity / kdialog).
+/// Without these tools, a log entry and a message on stderr remain.
 pub fn report_fatal_startup_error(message: &str) {
-    error!("Błąd krytyczny przy starcie Auralune: {}", message);
+    error!("Fatal error while starting Auralune: {}", message);
     eprintln!("Auralune: {message}");
-    let text = format!("Auralune nie może się uruchomić:\n\n{message}");
+    let text = format!("Auralune cannot start:\n\n{message}");
     let shown = std::process::Command::new("zenity")
         .args(["--error", "--title=Auralune", "--no-wrap", "--text"])
         .arg(&text)

@@ -36,7 +36,7 @@ describe('arePlayerVisualColumnPropsEqual', () => {
 
   it('re-renders when any other prop changes identity', () => {
     const a = base();
-    expect(arePlayerVisualColumnPropsEqual(a, base({ status: a.status, tracks: a.tracks, loc: a.loc }))).toBe(false); // nowy handler
+    expect(arePlayerVisualColumnPropsEqual(a, base({ status: a.status, tracks: a.tracks, loc: a.loc }))).toBe(false); // new handler
     expect(arePlayerVisualColumnPropsEqual(a, base({ status: a.status, tracks: [], loc: a.loc, handlePlayPause: a.handlePlayPause }))).toBe(false);
   });
 });

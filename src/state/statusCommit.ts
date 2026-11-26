@@ -1,9 +1,9 @@
 import type { PlaybackStatus } from '../types/playback';
 
-/** Co ile ms pozycji odtwarzania warto odświeżyć stan Reacta `App` przy samym upływie czasu. */
+/** How many ms of playback position justify refreshing the `App` React state when only time passes. */
 export const COARSE_POSITION_STEP_MS = 1_000;
 
-/** Pola zmieniające się w każdej klatce — trafiają do `livePlayback`, nie wymuszają commitu. */
+/** Fields that change every frame: they go to `livePlayback` and do not force a commit. */
 const LIVE_FIELDS = new Set<keyof PlaybackStatus>(['position_ms', 'spectrum']);
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -13,11 +13,11 @@ function sameValue(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Czy nowa klatka statusu powinna zaktualizować stan Reacta.
+ * Whether a new status frame should update the React state.
  *
- * `true`, gdy zmieniło się cokolwiek poza polami „na żywo” (stan, utwór, głośność, DSP, EQ…),
- * gdy pozycja cofnęła się (seek, zapętlenie) albo przesunęła o co najmniej
- * [`COARSE_POSITION_STEP_MS`]. Dzięki temu `App` renderuje się ~1×/s zamiast ~10×/s.
+ * `true` when anything other than the "live" fields changed (state, track, volume, DSP, EQ…),
+ * when the position went back (seek, loop) or moved by at least
+ * [`COARSE_POSITION_STEP_MS`]. This way `App` renders ~1×/s instead of ~10×/s.
  */
 export function shouldCommitStatus(prev: PlaybackStatus, next: PlaybackStatus): boolean {
   const keys = new Set([...Object.keys(prev), ...Object.keys(next)]) as Set<keyof PlaybackStatus>;

@@ -1,25 +1,25 @@
-//! Pomocnicze narzędzia dla kodu wykonywanego w wątku strumieniowym GStreamera
-//! (funkcja `chain` elementu DSP, sondy padów saturatora i stereo widenera).
+//! Helpers for code that runs on the GStreamer streaming thread
+//! (the DSP element's `chain` function, the saturator and stereo widener pad probes).
 //!
-//! Zasady (crates/AGENTS.md, „Real-Time Audio Safety”): brak alokacji na stercie, brak I/O i brak długo trzymanych blokad
-//! w gorącej ścieżce. Rzutowanie bajtów bufora na `f32` jest sprawdzane pod kątem wyrównania
-//! (`bytemuck`) zamiast niezabezpieczonego `slice::from_raw_parts`.
+//! Rules (crates/AGENTS.md, "Real-Time Audio Safety"): no heap allocation, no I/O and no long-held locks
+//! on the hot path. Buffer bytes are cast to `f32` with an alignment check
+//! (`bytemuck`) instead of an unchecked `slice::from_raw_parts`.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Widok bajtów bufora jako próbek `f32`. `None`, gdy bufor nie jest wyrównany do 4 bajtów
-/// lub jego długość nie jest wielokrotnością 4.
+/// View of buffer bytes as `f32` samples. `None` when the buffer is not 4-byte aligned
+/// or its length is not a multiple of 4.
 pub fn f32_samples(bytes: &[u8]) -> Option<&[f32]> {
     bytemuck::try_cast_slice(bytes).ok()
 }
 
-/// Mutowalny widok bajtów bufora jako próbek `f32` (zob. [`f32_samples`]).
+/// Mutable view of buffer bytes as `f32` samples (see [`f32_samples`]).
 pub fn f32_samples_mut(bytes: &mut [u8]) -> Option<&mut [f32]> {
     bytemuck::try_cast_slice_mut(bytes).ok()
 }
 
-/// Dopisuje próbki `f32` z bajtów bufora do `out`. Działa także dla niewyrównanych buforów
-/// (kopiowanie bajt po bajcie), a nadmiarowe bajty na końcu (< 4) są pomijane.
+/// Appends `f32` samples from buffer bytes to `out`. Also works for unaligned buffers
+/// (byte-by-byte copy); trailing excess bytes (< 4) are skipped.
 pub fn extend_f32_samples(bytes: &[u8], out: &mut Vec<f32>) {
     if let Some(samples) = f32_samples(bytes) {
         out.extend_from_slice(samples);
@@ -34,7 +34,7 @@ pub fn extend_f32_samples(bytes: &[u8], out: &mut Vec<f32>) {
     );
 }
 
-/// Stosuje `f` do każdej próbki `f32` w buforze w miejscu, również gdy bufor jest niewyrównany.
+/// Applies `f` to every `f32` sample in the buffer in place, even when the buffer is unaligned.
 pub fn map_f32_samples_in_place(bytes: &mut [u8], mut f: impl FnMut(f32) -> f32) {
     if let Some(samples) = f32_samples_mut(bytes) {
         for s in samples.iter_mut() {
@@ -47,7 +47,7 @@ pub fn map_f32_samples_in_place(bytes: &mut [u8], mut f: impl FnMut(f32) -> f32)
     }
 }
 
-/// Stosuje `f` do każdej ramki stereo (L, R) w miejscu, również gdy bufor jest niewyrównany.
+/// Applies `f` to every stereo frame (L, R) in place, even when the buffer is unaligned.
 pub fn map_stereo_frames_in_place(bytes: &mut [u8], mut f: impl FnMut(f32, f32) -> (f32, f32)) {
     if let Some(samples) = f32_samples_mut(bytes) {
         for frame in samples.as_chunks_mut::<2>().0 {
@@ -66,8 +66,8 @@ pub fn map_stereo_frames_in_place(bytes: &mut [u8], mut f: impl FnMut(f32, f32) 
     }
 }
 
-/// Ograniczenie częstotliwości ostrzeżeń w gorącej ścieżce: loguj pierwsze wystąpienie
-/// i następnie co `every`-te (błąd DSP w każdym buforze nie zaleje logów).
+/// Rate-limits warnings on the hot path: log the first occurrence
+/// and then every `every`-th one (a DSP error on every buffer won't flood the logs).
 #[derive(Debug, Default)]
 pub struct RateLimiter {
     count: AtomicU64,
@@ -80,7 +80,7 @@ impl RateLimiter {
         }
     }
 
-    /// Zwraca `true`, gdy bieżące zdarzenie należy zalogować.
+    /// Returns `true` when the current event should be logged.
     pub fn should_log(&self, every: u64) -> bool {
         let n = self.count.fetch_add(1, Ordering::Relaxed);
         every == 0 || n.is_multiple_of(every)

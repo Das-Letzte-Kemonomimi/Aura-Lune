@@ -45,7 +45,7 @@ export function useScrobblerManager({
     setIsEditingDiscordClientId(false);
     try {
       await invoke('set_discord_rpc_client_id', { clientId: finalId });
-      showMessage('Zaktualizowano identyfikator Discord Application ID');
+      showMessage('Updated the Discord Application ID');
     } catch (e: unknown) {
       console.warn('Error in set_discord_rpc_client_id:', e);
     }
@@ -144,7 +144,7 @@ export function useScrobblerManager({
       setListenbrainzUser(userName);
       setListenbrainzStatusMsg(`${loc.settings.listenbrainzValid}: @${userName}`);
       await setSetting('listenbrainz_token', listenbrainzToken.trim());
-      showMessage(`ListenBrainz: Zalogowano jako @${userName}`);
+      showMessage(`ListenBrainz: logged in as @${userName}`);
     } catch (err: unknown) {
       setListenbrainzUser(null);
       setListenbrainzStatusMsg(`${loc.settings.listenbrainzInvalid}: ${String(err)}`);

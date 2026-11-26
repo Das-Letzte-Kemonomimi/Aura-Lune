@@ -4,7 +4,7 @@ import { usePlaybackQueue } from './usePlaybackQueue';
 import { DEFAULT_QUEUE_COLUMNS } from '../types/queue';
 import { invokeMock } from '../test/ipcMock';
 
-// Domyślne odpowiedzi backendu dla testów kolejki.
+// Default backend responses for the queue tests.
 beforeEach(() => {
   invokeMock.mockImplementation(async (cmd: string, args?: unknown) => {
     if (cmd === 'get_queue') {

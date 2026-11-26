@@ -40,9 +40,9 @@ export interface UseHotkeysManagerProps {
 }
 
 export function useHotkeysManager(props: UseHotkeysManagerProps) {
-  // Nasłuch klawiatury rejestrowany jest raz; handler czyta najnowsze propsy z ref.
-  // Wcześniej efekt z pustą listą zależności zamrażał wartości z pierwszego renderu
-  // (np. tłumaczenia po zmianie języka i format jednostki głośności).
+  // The keyboard listener is registered once; the handler reads the latest props from a ref.
+  // The effect used to have an empty dependency list, which froze the values from the first render
+  // (e.g. the translations after a language change and the volume unit format).
   const propsRef = useRef(props);
   useEffect(() => {
     propsRef.current = props;
@@ -89,7 +89,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       const isRangeInput = activeTag === 'input' && (activeEl as HTMLInputElement)?.type === 'range';
       const isTextInput = (activeTag === 'input' && !isRangeInput) || activeTag === 'textarea' || activeEl?.isContentEditable;
 
-      // Klawisz Escape zamyka okna modalne, szufladę kolejki, tryb pełnoekranowy lub usuwa focus z pól tekstowych
+      // Escape closes modals, the queue drawer and full-screen mode, or removes focus from text fields
       if (e.key === 'Escape') {
         setIsBigScreen(false);
         if (activeEl) {
@@ -104,14 +104,14 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Jeśli użytkownik wprowadza tekst, nie przechwytujemy skrótów odtwarzacza
+      // While the user is typing, player shortcuts are not intercepted
       if (isTextInput) {
         return;
       }
 
-      // Jeśli aktywny jest suwak (input range, np. suwak głośności, seek lub parametrów DSP),
-      // klawisze strzałek w górę/dół normalnie zmieniają wartość natywnie o 1%.
-      // Usuwamy natychmiast focus z suwaka i blokujemy domyślny event, aby zadziałał globalny skrót odtwarzacza (np. głośność ±5%, seek ±5s, spacja).
+      // When a slider is focused (a range input, e.g. the volume, seek or DSP parameter slider),
+      // the up/down arrow keys natively change its value by 1%.
+      // Focus is removed from the slider right away and the default event is blocked, so the global player shortcut runs (e.g. volume ±5%, seek ±5s, space).
       if (isRangeInput) {
         const isPlayerControlKey = [
           'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space',
@@ -126,14 +126,14 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         }
       }
 
-      // Spacja: Odtwarzaj / Wstrzymaj (Play / Pause)
+      // Space: play / pause
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
         handlePlayPause();
         return;
       }
 
-      // Strzałka w prawo: przewijanie do przodu o 5s (lub Następny przy Ctrl)
+      // Right arrow: seek forward 5 s (or Next with Ctrl)
       if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
         e.preventDefault();
         if (e.ctrlKey || e.metaKey) {
@@ -148,7 +148,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Strzałka w lewo: przewijanie w tył o 5s (lub Poprzedni przy Ctrl)
+      // Left arrow: seek back 5 s (or Previous with Ctrl)
       if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
         e.preventDefault();
         if (e.ctrlKey || e.metaKey) {
@@ -162,7 +162,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Strzałka w górę: Głośność +5%
+      // Up arrow: volume +5%
       if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
         e.preventDefault();
         const newVol = Math.min(1.0, Math.round((statusRef.current.volume + 0.05) * 100) / 100);
@@ -172,7 +172,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Strzałka w dół: Głośność -5%
+      // Down arrow: volume -5%
       if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
         e.preventDefault();
         const newVol = Math.max(0, Math.round((statusRef.current.volume - 0.05) * 100) / 100);
@@ -182,21 +182,21 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Klawisz F2 lub Shift + M: Przełącznik Mini-Player
+      // F2 or Shift + M: toggle the mini-player
       if (e.code === 'F2' || (e.code === 'KeyM' && e.shiftKey) || (e.key === 'M' && e.shiftKey)) {
         e.preventDefault();
         toggleMiniPlayer();
         return;
       }
 
-      // Klawisz F11: Pełny ekran Kiosk / Big Screen
+      // F11: Kiosk / Big Screen full screen
       if (e.code === 'F11') {
         e.preventDefault();
         setIsBigScreen((prev) => !prev);
         return;
       }
 
-      // Klawisz M: Mute / Unmute
+      // M: mute / unmute
       if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         const currentVol = statusRef.current.volume;
@@ -206,7 +206,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Klawisze [ i ]: Zmiana wysokości dźwięku (Pitch Shift -1 / +1 półton)
+      // [ and ]: pitch shift -1 / +1 semitone
       if (e.key === '[' || e.code === 'BracketLeft') {
         e.preventDefault();
         handlePitchChange(Math.max(-12, (statusRef.current.pitch_semitones ?? 0) - 1.0));
@@ -218,7 +218,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Klawisze - i +: Zmiana tempa (Tempo Stretch -5% / +5%)
+      // - and +: tempo change (tempo stretch -5% / +5%)
       if (e.key === '-' || e.key === '_' || e.code === 'Minus') {
         e.preventDefault();
         handleTempoChange(Math.max(0.25, Math.round(((statusRef.current.tempo_ratio ?? 1.0) - 0.05) * 100) / 100));
@@ -230,28 +230,28 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Klawisz 0: Reset parametrów DSP do stanu neutralnego
+      // 0: reset the DSP parameters to neutral
       if (e.key === '0' || e.code === 'Digit0') {
         e.preventDefault();
         handleResetDsp();
         return;
       }
 
-      // Klawisz S: Przełącznik odtwarzania losowego (Shuffle)
+      // S: toggle shuffle
       if (e.code === 'KeyS' || e.key === 's' || e.key === 'S') {
         e.preventDefault();
         handleToggleShuffle();
         return;
       }
 
-      // Klawisz L: Cykliczne przełączanie trybu pętli (Loop Off -> Track -> Queue)
+      // L: cycle the loop mode (Off -> Track -> Queue)
       if (e.code === 'KeyL' || e.key === 'l' || e.key === 'L') {
         e.preventDefault();
         handleCycleLoopMode();
         return;
       }
 
-      // Klawisze A, B, C: Punkty pętli A-B oraz wyczyszczenie
+      // A, B, C: A-B loop points and clearing them
       if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         setLoopPointA(statusRef.current.position_ms);
@@ -269,70 +269,70 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Klawisz ?: Okno skrótów klawiszowych
+      // ?: keyboard shortcuts window
       if (e.key === '?' || (e.key === '/' && e.shiftKey) || (e.code === 'Slash' && e.shiftKey)) {
         e.preventDefault();
         setIsShortcutsModalOpen((prev) => !prev);
         return;
       }
 
-      // Klawisz T: Przełącznik tekstów piosenek (Lyrics)
+      // T: toggle lyrics
       if (e.code === 'KeyT' || e.key === 't' || e.key === 'T') {
         e.preventDefault();
         setShowLyrics((prev) => !prev);
         return;
       }
 
-      // Klawisz N: Następny utwór
+      // N: next track
       if (e.code === 'KeyN' || e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         handleNext();
         return;
       }
 
-      // Klawisz P: Poprzedni utwór
+      // P: previous track
       if (e.code === 'KeyP' || e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         handlePrevious();
         return;
       }
 
-      // Klawisz Q: Przełącznik szuflady kolejki
+      // Q: toggle the queue drawer
       if (e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q') {
         e.preventDefault();
         setIsQueueOpen((prev) => !prev);
         return;
       }
 
-      // Ctrl+K lub Cmd+K: Paleta komend / Spotlight
+      // Ctrl+K or Cmd+K: command palette / Spotlight
       if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyK' || e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
         return;
       }
 
-      // Ctrl/Cmd + Plus / NumpadAdd: Zwiększ skalę interfejsu (Zoom in)
+      // Ctrl/Cmd + Plus / NumpadAdd: increase the UI scale (zoom in)
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal')) {
         e.preventDefault();
         handleIncreaseScale();
         return;
       }
 
-      // Ctrl/Cmd + Minus / NumpadSubtract: Zmniejsz skalę interfejsu (Zoom out)
+      // Ctrl/Cmd + Minus / NumpadSubtract: decrease the UI scale (zoom out)
       if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract')) {
         e.preventDefault();
         handleDecreaseScale();
         return;
       }
 
-      // Ctrl/Cmd + 0 / Numpad0: Resetuj skalę interfejsu do 100% (Reset zoom)
+      // Ctrl/Cmd + 0 / Numpad0: reset the UI scale to 100% (reset zoom)
       if ((e.ctrlKey || e.metaKey) && (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0')) {
         e.preventDefault();
         handleResetScale();
         return;
       }
 
-      // Klawisz F lub Ctrl+F: Skocz do wyszukiwarki w Bibliotece
+      // F or Ctrl+F: jump to the Library search
       if (((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F'))) {
         e.preventDefault();
         setActiveTab('library');
@@ -342,7 +342,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         return;
       }
 
-      // Cyfry 1-4: Szybkie przełączanie widoków aplikacji
+      // Digits 1-4: quickly switch app views
       if (e.key === '1') {
         setActiveTab('player');
       } else if (e.key === '2') {

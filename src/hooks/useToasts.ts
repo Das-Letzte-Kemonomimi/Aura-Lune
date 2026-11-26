@@ -9,9 +9,9 @@ export interface Toast {
 }
 
 export interface UseToastsOptions {
-  /** Czy pokazywać komunikaty informacyjne (domyślnie tylko błędy). */
+  /** Whether to show info messages (errors only by default). */
   showInfo?: boolean;
-  /** Maksymalna liczba jednocześnie widocznych komunikatów. */
+  /** Maximum number of messages visible at once. */
   maxVisible?: number;
   durationMs?: Partial<Record<ToastLevel, number>>;
 }
@@ -19,9 +19,9 @@ export interface UseToastsOptions {
 const DEFAULT_DURATION: Record<ToastLevel, number> = { info: 2500, error: 5000 };
 
 /**
- * Kolejka powiadomień w aplikacji. Każdy komunikat ma własny licznik czasu (czyszczony przy
- * odmontowaniu), nowe komunikaty nie nadpisują poprzednich, a identyczny tekst nie jest dublowany.
- * `showMessage` ma stabilną referencję — bezpieczną w zależnościach efektów.
+ * In-app notification queue. Each message has its own timer (cleared on
+ * unmount), new messages do not overwrite earlier ones, and identical text is not duplicated.
+ * `showMessage` has a stable reference, so it is safe in effect dependencies.
  */
 export function useToasts({ showInfo = false, maxVisible = 3, durationMs }: UseToastsOptions = {}) {
   const [toasts, setToasts] = useState<Toast[]>([]);

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-/// Formaty docelowe do eksportu / transkodowania utworów.
+/// Target formats for exporting / transcoding tracks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExportFormat {
-    /// Ogg Opus z konfigurowalnym bitrate (kbps, np. 128, 192, 256, 320).
+    /// Ogg Opus with a configurable bitrate (kbps, e.g. 128, 192, 256, 320).
     Opus { bitrate_kbps: u32 },
-    /// Bezstratny FLAC z poziomem kompresji (0-8, domyślnie 5).
+    /// Lossless FLAC with a compression level (0-8, default 5).
     Flac { compression_level: u32 },
-    /// Nieskompresowany PCM WAV (16-bit lub 24-bit).
+    /// Uncompressed PCM WAV (16-bit or 24-bit).
     Wav,
 }
 
@@ -18,7 +18,7 @@ impl Default for ExportFormat {
 }
 
 impl ExportFormat {
-    /// Zwraca standardowe rozszerzenie pliku dla danego formatu.
+    /// Returns the standard file extension of the format.
     pub fn extension(&self) -> &'static str {
         match self {
             Self::Opus { .. } => "opus",
@@ -27,35 +27,35 @@ impl ExportFormat {
         }
     }
 
-    /// Czytelna nazwa formatu.
+    /// Readable format name.
     pub fn display_name(&self) -> String {
         match self {
             Self::Opus { bitrate_kbps } => format!("Opus ({} kbps)", bitrate_kbps),
-            Self::Flac { compression_level } => format!("FLAC (kompresja {})", compression_level),
+            Self::Flac { compression_level } => format!("FLAC (compression {})", compression_level),
             Self::Wav => "WAV (PCM)".to_string(),
         }
     }
 }
 
-/// Opcjonalne parametry DSP aplikowane podczas eksportu / transkodowania utworu.
+/// Optional DSP parameters applied while exporting / transcoding a track.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DspExportSettings {
-    /// Przesunięcie wysokości dźwięku w półtonach (-12.0 do +12.0).
+    /// Pitch shift in semitones (-12.0 to +12.0).
     #[serde(alias = "pitchSemitones")]
     pub pitch_semitones: f64,
-    /// Mnożnik tempa (0.25 do 4.0).
+    /// Tempo multiplier (0.25 to 4.0).
     #[serde(alias = "tempoRatio")]
     pub tempo_ratio: f64,
-    /// Mnożnik szybkości odtwarzania (0.25 do 4.0).
+    /// Playback rate multiplier (0.25 to 4.0).
     #[serde(alias = "rateRatio")]
     pub rate_ratio: f64,
-    /// Wybór silnika DSP: "RubberBand" lub "SoundTouch" (domyślnie "RubberBand").
+    /// DSP engine choice: "RubberBand" or "SoundTouch" (default "RubberBand").
     #[serde(default)]
     pub engine: Option<String>,
-    /// Poziom pogłosu (0.0 do 1.0).
+    /// Reverb level (0.0 to 1.0).
     #[serde(alias = "reverbLevel")]
     pub reverb_level: f32,
-    /// 10 pasm korektora graficznego (-24.0 do +12.0 dB).
+    /// The 10 graphic equaliser bands (-24.0 to +12.0 dB).
     #[serde(alias = "eqBands")]
     pub eq_bands: Option<Vec<f64>>,
 }
@@ -74,7 +74,7 @@ impl Default for DspExportSettings {
 }
 
 impl DspExportSettings {
-    /// Sprawdza, czy jakiekolwiek parametry DSP odbiegają od domyślnych (Bypass).
+    /// Checks whether any DSP parameter differs from the defaults (Bypass).
     pub fn is_active(&self) -> bool {
         self.pitch_semitones.abs() > 0.001
             || (self.tempo_ratio - 1.0).abs() > 0.001
@@ -87,36 +87,34 @@ impl DspExportSettings {
     }
 }
 
-/// Zakres czasowy do eksportu / transkodowania fragmentu utworu (np. wycięcie pętli A-B).
+/// Time range for exporting / transcoding part of a track (e.g. cutting out an A-B loop).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeRange {
     /// Czas startu w milisekundach (Marker A).
     #[serde(alias = "startMs")]
     pub start_ms: u64,
-    /// Czas końca w milisekundach (Marker B). Jeśli `None`, eksport trwa do końca utworu.
+    /// End time in milliseconds (marker B). If `None`, the export runs to the end of the track.
     #[serde(alias = "endMs")]
     pub end_ms: Option<u64>,
 }
 
 impl TimeRange {
-    /// Tworzy nowy zakres czasowy A-B z walidacją poprawności kolejności znaczników.
+    /// Creates a new A-B time range, validating the marker order.
     pub fn new(start_ms: u64, end_ms: Option<u64>) -> Result<Self, &'static str> {
         if let Some(end) = end_ms {
             if end <= start_ms {
-                return Err(
-                    "Czas końcowy (Punkt B) musi być większy niż czas początkowy (Punkt A)",
-                );
+                return Err("The end time (point B) must be later than the start time (point A)");
             }
         }
         Ok(Self { start_ms, end_ms })
     }
 
-    /// Sprawdza, czy zakres jest aktywny (ogranicza czas utworu).
+    /// Checks whether the range is active (limits the track time).
     pub fn is_active(&self) -> bool {
         self.start_ms > 0 || self.end_ms.is_some()
     }
 
-    /// Zwraca długość trwania fragmentu w milisekundach, jeśli zdefiniowano Punkt B.
+    /// Returns the segment length in milliseconds if point B is set.
     pub fn duration_ms(&self) -> Option<u64> {
         self.end_ms.map(|end| end.saturating_sub(self.start_ms))
     }
