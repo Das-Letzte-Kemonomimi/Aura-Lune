@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, act, fireEvent } from '@testing-library/react';
+import { render, cleanup, act, fireEvent, within } from '@testing-library/react';
 import { SpectrumVisualizer } from './SpectrumVisualizer';
 import { livePlayback } from '../../state/livePlayback';
 import { installCanvasMock, installFakeRaf, type CanvasMock, type FakeRaf } from '../../test/canvasMock';
@@ -85,5 +85,23 @@ describe('SpectrumVisualizer', () => {
     mount({ isPlaying: true, spectrum: Array(32).fill(0.4) }, { width: 0, height: 0 });
     raf.step();
     expect(raf.pending()).toBe(0);
+  });
+});
+
+describe('SpectrumVisualizer shared mode', () => {
+  it('keeps every mounted visualizer on the same mode (player, BigScreen, DSP studio)', () => {
+    raf = installFakeRaf();
+    canvas = installCanvasMock({ width: 321, height: 89 });
+    const player = render(<SpectrumVisualizer isPlaying={false} spectrum={[]} />);
+    const bigScreen = render(<SpectrumVisualizer isPlaying={false} spectrum={[]} />);
+
+    fireEvent.click(player.container.firstElementChild as HTMLElement);
+
+    expect(within(player.container).getByText('retro_bars')).toBeTruthy();
+    expect(within(bigScreen.container).getByText('retro_bars')).toBeTruthy();
+
+    // ...and the other way round
+    fireEvent.click(bigScreen.container.firstElementChild as HTMLElement);
+    expect(within(player.container).getByText('anime_circle')).toBeTruthy();
   });
 });

@@ -1,16 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import type { AmbienceMode } from './ambienceModes';
 
-export type AmbienceMode =
-  | 'sakura'
-  | 'neon_rain'
-  | 'fireflies'
-  | 'snow'
-  | 'meteor_shower'
-  | 'matrix_rain'
-  | 'momiji'
-  | 'embers'
-  | 'off';
-
+export type { AmbienceMode };
 interface AnimeAmbienceFXProps {
   mode: AmbienceMode;
   opacity?: number;

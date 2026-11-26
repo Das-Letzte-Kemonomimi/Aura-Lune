@@ -18,7 +18,15 @@ import {
 } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
+import { parseBoolean, usePersistedState } from '../../hooks/usePersistedState';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
+import {
+  DEFAULT_ROMAJI_MODE,
+  nextRomajiMode,
+  parseRomajiMode,
+  ROMAJI_MODE_STORAGE_KEY,
+  type RomajiMode,
+} from './lyricsModel';
 import { cn } from '../../utils/cn';
 import { Badge, Button, Chip, IconButton, Spinner } from '../ui';
 
@@ -61,29 +69,13 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   const [lyrics, setLyrics] = useState<LyricsDto | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [romajiMode, setRomajiMode] = useState<'original' | 'romaji' | 'dual'>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_lyrics_romaji_mode');
-      if (saved === 'original' || saved === 'romaji' || saved === 'dual') return saved;
-    } catch {}
-    return 'dual';
+  // Both are shared with every other lyrics view on screen (player, BigScreen, desktop overlay).
+  const [romajiMode, setRomajiMode] = usePersistedState<RomajiMode>(ROMAJI_MODE_STORAGE_KEY, DEFAULT_ROMAJI_MODE, {
+    parse: parseRomajiMode,
   });
-  const [autoScroll, setAutoScroll] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_lyrics_autoscroll');
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
+  const [autoScroll, setAutoScroll] = usePersistedState('auralune_lyrics_autoscroll', true, { parse: parseBoolean });
 
-  const handleToggleAutoScroll = () => {
-    const next = !autoScroll;
-    setAutoScroll(next);
-    try {
-      localStorage.setItem('auralune_lyrics_autoscroll', String(next));
-    } catch {}
-  };
+  const handleToggleAutoScroll = () => setAutoScroll(!autoScroll);
   const [offsetMs, setOffsetMs] = useState<number>(0);
   const [isSyncMode, setIsSyncMode] = useState<boolean>(false);
   const [syncTargetIndex, setSyncTargetIndex] = useState<number>(0);
@@ -322,13 +314,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <Chip
             tone="cyan"
             pressed={romajiMode !== 'original'}
-            onClick={() => {
-              const next = romajiMode === 'original' ? 'dual' : romajiMode === 'dual' ? 'romaji' : 'original';
-              setRomajiMode(next);
-              try {
-                localStorage.setItem('auralune_lyrics_romaji_mode', next);
-              } catch {}
-            }}
+            onClick={() => setRomajiMode(nextRomajiMode(romajiMode))}
             title={`${loc.lyricsView.romajiModeTooltip}: ${
               romajiMode === 'original'
                 ? loc.lyricsView.romajiModeKana

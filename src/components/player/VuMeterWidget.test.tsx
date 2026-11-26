@@ -1,11 +1,13 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup, act } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { render, cleanup, act, fireEvent, within } from '@testing-library/react';
 import { VuMeterWidget } from './VuMeterWidget';
 import { livePlayback } from '../../state/livePlayback';
 import { installCanvasMock, installFakeRaf, type CanvasMock, type FakeRaf } from '../../test/canvasMock';
 
 let raf: FakeRaf;
 let canvas: CanvasMock;
+
+beforeEach(() => localStorage.clear());
 
 afterEach(() => {
   cleanup();
@@ -55,5 +57,31 @@ describe('VuMeterWidget', () => {
 
     view.rerender(<VuMeterWidget isPlaying spectrum={Array(32).fill(0.6)} />);
     expect(raf.pending()).toBe(1);
+  });
+});
+
+describe('VuMeterWidget shared theme', () => {
+  const pressed = (view: ReturnType<typeof render>, title: string) =>
+    within(view.container).getByTitle(title).getAttribute('aria-pressed');
+
+  it('keeps the player and BigScreen meters on the same theme', () => {
+    raf = installFakeRaf();
+    canvas = installCanvasMock({ width: 237, height: 101 });
+    const player = render(<VuMeterWidget isPlaying={false} />);
+    const bigScreen = render(<VuMeterWidget isPlaying={false} />);
+    expect(pressed(bigScreen, 'Sakura Glow')).toBe('true');
+
+    fireEvent.click(within(player.container).getByTitle('Cyber Neon'));
+
+    expect(pressed(bigScreen, 'Cyber Neon')).toBe('true');
+    expect(pressed(bigScreen, 'Sakura Glow')).toBe('false');
+    expect(localStorage.getItem('auralune_vumeter_theme')).toBe('cyber');
+  });
+
+  it('uses the theme prop only as the default when nothing is saved', () => {
+    raf = installFakeRaf();
+    canvas = installCanvasMock({ width: 237, height: 101 });
+    const view = render(<VuMeterWidget isPlaying={false} theme="amber" />);
+    expect(pressed(view, 'Amber 70s')).toBe('true');
   });
 });

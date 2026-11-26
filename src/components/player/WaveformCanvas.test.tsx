@@ -1,8 +1,10 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { WaveformCanvas } from './WaveformCanvas';
 
 describe('WaveformCanvas Component', () => {
+  // A style picked in one test is saved, so every test starts from empty storage.
+  beforeEach(() => localStorage.clear());
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
@@ -210,5 +212,36 @@ describe('WaveformCanvas Component', () => {
       fireEvent.pointerMove(el, { clientX: 300, pointerId: 1 });
       expect(screen.getByText('1:40')).toBeTruthy();
     });
+  });
+});
+
+describe('WaveformCanvas shared style', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => cleanup());
+
+  const props = { peaks: [10, 30, 60, 90], progress: 25, durationMs: 180000, positionMs: 45000, currentLang: 'en' as const };
+
+  it('keeps the player and BigScreen waveforms on the same style', () => {
+    const player = render(<WaveformCanvas {...props} />);
+    const bigScreen = render(<WaveformCanvas {...props} />);
+    const pressed = (view: ReturnType<typeof render>, title: string) =>
+      within(view.container).getByTitle(title).getAttribute('aria-pressed');
+    expect(pressed(bigScreen, 'Smooth Wave')).toBe('true');
+
+    fireEvent.click(within(player.container).getByTitle('Cyber Bars'));
+
+    expect(pressed(bigScreen, 'Cyber Bars')).toBe('true');
+    expect(pressed(bigScreen, 'Smooth Wave')).toBe('false');
+    expect(localStorage.getItem('auralune_waveform_style')).toBe('bars');
+  });
+
+  it('uses initialStyle only as the default when nothing is saved', () => {
+    const empty = render(<WaveformCanvas {...props} initialStyle="mirror" />);
+    expect(within(empty.container).getByTitle('Mirror Spectrum').getAttribute('aria-pressed')).toBe('true');
+    cleanup();
+
+    localStorage.setItem('auralune_waveform_style', 'bars');
+    const saved = render(<WaveformCanvas {...props} initialStyle="mirror" />);
+    expect(within(saved.container).getByTitle('Cyber Bars').getAttribute('aria-pressed')).toBe('true');
   });
 });

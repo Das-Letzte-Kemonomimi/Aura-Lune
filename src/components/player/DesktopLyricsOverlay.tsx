@@ -17,8 +17,20 @@ import {
 } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
+import { parseBoolean, parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
 import type { LyricsDto } from './LyricsView';
+import {
+  DEFAULT_ROMAJI_MODE,
+  defaultOverlayPosition,
+  nextRomajiMode,
+  OVERLAY_POSITION_STORAGE_KEY,
+  parseOverlayPosition,
+  parseRomajiMode,
+  ROMAJI_MODE_STORAGE_KEY,
+  type OverlayPosition,
+  type RomajiMode,
+} from './lyricsModel';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
 import { Button, Chip, IconButton, SegmentedControl } from '../ui';
@@ -68,61 +80,32 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   const positionMs = useLivePositionMs(positionMsProp);
   const loc = getTranslations(currentLang);
 
-  // Widget position on the screen
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_desktop_lyrics_pos');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          return parsed;
-        }
-      }
-    } catch {}
-    // Default: bottom centre of the window
-    return { x: Math.max(20, Math.floor((window.innerWidth - 640) / 2)), y: Math.max(40, window.innerHeight - 200) };
-  });
+  // Widget position on the screen. While dragging, the live position stays in local state and is saved on release.
+  const [savedPos, setSavedPos] = usePersistedState<OverlayPosition>(
+    OVERLAY_POSITION_STORAGE_KEY,
+    defaultOverlayPosition(window.innerWidth, window.innerHeight),
+    { parse: parseOverlayPosition, serialize: JSON.stringify },
+  );
+  const [dragPos, setDragPos] = useState<OverlayPosition | null>(null);
+  const pos = dragPos ?? savedPos;
 
-  const [isLocked, setIsLocked] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('auralune_desktop_lyrics_locked') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('auralune_desktop_lyrics_collapsed') === 'true';
-    } catch {
-      return false;
-    }
+  const [isLocked, setIsLocked] = usePersistedState('auralune_desktop_lyrics_locked', false, { parse: parseBoolean });
+  const [isCollapsed, setIsCollapsed] = usePersistedState('auralune_desktop_lyrics_collapsed', false, {
+    parse: parseBoolean,
   });
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  const [fontSize, setFontSize] = useState<FontSize>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_desktop_lyrics_font_size');
-      if (saved === 'sm' || saved === 'md' || saved === 'lg') return saved;
-    } catch {}
-    return 'md';
+  const [fontSize, setFontSize] = usePersistedState<FontSize>('auralune_desktop_lyrics_font_size', 'md', {
+    parse: parseOneOf(FONT_SIZES),
+  });
+  const [opacityLevel, setOpacityLevel] = usePersistedState<OpacityLevel>('auralune_desktop_lyrics_opacity', 'med', {
+    parse: parseOneOf(OPACITY_LEVELS),
   });
 
-  const [opacityLevel, setOpacityLevel] = useState<OpacityLevel>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_desktop_lyrics_opacity');
-      if (saved === 'low' || saved === 'med' || saved === 'high') return saved;
-    } catch {}
-    return 'med';
-  });
-
-  const [romajiMode, setRomajiMode] = useState<'original' | 'romaji' | 'dual'>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_lyrics_romaji_mode');
-      if (saved === 'original' || saved === 'romaji' || saved === 'dual') return saved;
-    } catch {}
-    return 'dual';
+  // Shared with the lyrics panel in the player: cycling it there changes it here at once.
+  const [romajiMode, setRomajiMode] = usePersistedState<RomajiMode>(ROMAJI_MODE_STORAGE_KEY, DEFAULT_ROMAJI_MODE, {
+    parse: parseRomajiMode,
   });
 
   // Lyrics state
@@ -131,6 +114,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
   // Mouse dragging (drag & drop)
   const isDraggingRef = useRef<boolean>(false);
+  const lastDragPosRef = useRef<OverlayPosition | null>(null);
   const dragStartRef = useRef<{ mouseX: number; mouseY: number; initialX: number; initialY: number }>({
     mouseX: 0,
     mouseY: 0,
@@ -225,15 +209,17 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
       const newX = Math.max(10, Math.min(maxX, dragStartRef.current.initialX + dx));
       const newY = Math.max(10, Math.min(maxY, dragStartRef.current.initialY + dy));
 
-      setPos({ x: newX, y: newY });
+      lastDragPosRef.current = { x: newX, y: newY };
+      setDragPos(lastDragPosRef.current);
     };
 
     const handleMouseUp = () => {
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
-        try {
-          localStorage.setItem('auralune_desktop_lyrics_pos', JSON.stringify(pos));
-        } catch {}
+        // Save where the widget was dropped (a moved-by-nothing click saves nothing).
+        if (lastDragPosRef.current) setSavedPos(lastDragPosRef.current);
+        lastDragPosRef.current = null;
+        setDragPos(null);
       }
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -243,43 +229,15 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleToggleLock = () => {
-    const next = !isLocked;
-    setIsLocked(next);
-    try {
-      localStorage.setItem('auralune_desktop_lyrics_locked', String(next));
-    } catch {}
-  };
+  const handleToggleLock = () => setIsLocked(!isLocked);
 
-  const handleToggleCollapse = () => {
-    const next = !isCollapsed;
-    setIsCollapsed(next);
-    try {
-      localStorage.setItem('auralune_desktop_lyrics_collapsed', String(next));
-    } catch {}
-  };
+  const handleToggleCollapse = () => setIsCollapsed(!isCollapsed);
 
-  const handleCycleRomaji = () => {
-    const next = romajiMode === 'original' ? 'dual' : romajiMode === 'dual' ? 'romaji' : 'original';
-    setRomajiMode(next);
-    try {
-      localStorage.setItem('auralune_lyrics_romaji_mode', next);
-    } catch {}
-  };
+  const handleCycleRomaji = () => setRomajiMode(nextRomajiMode(romajiMode));
 
-  const handleSelectFontSize = (size: FontSize) => {
-    setFontSize(size);
-    try {
-      localStorage.setItem('auralune_desktop_lyrics_font_size', size);
-    } catch {}
-  };
+  const handleSelectFontSize = (size: FontSize) => setFontSize(size);
 
-  const handleSelectOpacity = (op: OpacityLevel) => {
-    setOpacityLevel(op);
-    try {
-      localStorage.setItem('auralune_desktop_lyrics_opacity', op);
-    } catch {}
-  };
+  const handleSelectOpacity = (op: OpacityLevel) => setOpacityLevel(op);
 
   if (!isOpen) return null;
 

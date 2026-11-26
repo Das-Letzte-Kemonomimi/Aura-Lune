@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Gauge } from '../ui/icons';
 import { cn } from '../../utils/cn';
 import { Chip, type Tone } from '../ui';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
+import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { livePlayback } from '../../state/livePlayback';
 import { drawVuDynamic, renderVuFaceLayer } from './vuFace';
 import {
@@ -38,20 +39,10 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
   className,
   theme: initialTheme = 'sakura',
 }) => {
-  const [theme, setTheme] = useState<VuTheme>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_vumeter_theme');
-      if (saved === 'amber' || saved === 'sakura' || saved === 'cyber') return saved;
-    } catch {}
-    return initialTheme;
+  // Shared by the main player and BigScreen; `initialTheme` is only the default when nothing is saved.
+  const [theme, handleSelectTheme] = usePersistedState<VuTheme>('auralune_vumeter_theme', initialTheme, {
+    parse: parseOneOf(['amber', 'sakura', 'cyber'] as const),
   });
-
-  const handleSelectTheme = (newTheme: VuTheme) => {
-    setTheme(newTheme);
-    try {
-      localStorage.setItem('auralune_vumeter_theme', newTheme);
-    } catch {}
-  };
 
   // The latest values for the drawing loop (without restarting it on every 100 ms spectrum tick)
   const propsRef = useRef({ spectrum, volume, isPlaying });

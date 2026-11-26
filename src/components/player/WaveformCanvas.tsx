@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 're
 import { BarChart2, Waves, Activity, Sliders } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
+import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { cn } from '../../utils/cn';
 import { Chip } from '../ui';
 
@@ -101,25 +102,16 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   const scrollDragStartProgressRef = useRef(0);
   const scrollDragMovedRef = useRef(false);
 
-  // Wave style (remembered in localStorage)
-  const [activeStyle, setActiveStyle] = useState<WaveformStyle>(() => {
-    if (initialStyle) return initialStyle;
-    try {
-      const saved = localStorage.getItem('auralune_waveform_style');
-      if (saved === 'bars' || saved === 'smooth' || saved === 'scrolling' || saved === 'mirror') {
-        return saved as WaveformStyle;
-      }
-    } catch {
-      // Ignore localStorage errors
-    }
-    return 'smooth';
-  });
+  // Wave style (remembered in localStorage, shared by the main player and BigScreen).
+  // `initialStyle` is only the default when nothing is saved: no caller passes it in the app.
+  const [activeStyle, setActiveStyle] = usePersistedState<WaveformStyle>(
+    'auralune_waveform_style',
+    initialStyle ?? 'smooth',
+    { parse: parseOneOf(['bars', 'smooth', 'scrolling', 'mirror'] as const) },
+  );
 
   const handleStyleSelect = (newStyle: WaveformStyle) => {
     setActiveStyle(newStyle);
-    try {
-      localStorage.setItem('auralune_waveform_style', newStyle);
-    } catch {}
     if (onStyleChange) onStyleChange(newStyle);
   };
 

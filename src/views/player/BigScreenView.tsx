@@ -10,12 +10,16 @@ import {
 import { LyricsView } from '../../components/player/LyricsView';
 import { type Language, getTranslations } from '../../i18n';
 import { useLivePositionMs, useLiveSpectrum } from '../../state/livePlayback';
+import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { BigScreenControls } from './bigscreen/BigScreenControls';
 import { BigScreenTapeDeck } from './bigscreen/BigScreenTapeDeck';
 import { BigScreenVinyl } from './bigscreen/BigScreenVinyl';
 import { BigScreenHud } from './bigscreen/BigScreenHud';
 import { cn } from '../../utils/cn';
 import { Button, SegmentedControl } from '../../components/ui';
+
+const BIG_SCREEN_VISUAL_MODES = ['cover', 'vinyl', 'cassette'] as const;
+type BigScreenVisualMode = (typeof BIG_SCREEN_VISUAL_MODES)[number];
 
 export interface BigScreenViewProps {
   title: string;
@@ -74,20 +78,11 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
   const [showHud, setShowHud] = useState(true);
   const [showLyrics, setShowLyrics] = useState(true);
   const [bottomVisualMode, setBottomVisualMode] = useState<'spectrum' | 'vumeter'>('spectrum');
-  const [visualMode, setVisualMode] = useState<'cover' | 'vinyl' | 'cassette'>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_bigscreen_visual_mode');
-      if (saved === 'cover' || saved === 'vinyl' || saved === 'cassette') return saved;
-    } catch {}
-    return 'vinyl';
-  });
-
-  const handleSetVisualMode = (mode: 'cover' | 'vinyl' | 'cassette') => {
-    setVisualMode(mode);
-    try {
-      localStorage.setItem('auralune_bigscreen_visual_mode', mode);
-    } catch {}
-  };
+  const [visualMode, handleSetVisualMode] = usePersistedState<BigScreenVisualMode>(
+    'auralune_bigscreen_visual_mode',
+    'vinyl',
+    { parse: parseOneOf(BIG_SCREEN_VISUAL_MODES) },
+  );
   const hideTimerRef = useRef<number | null>(null);
 
   const resetHideTimer = useCallback(() => {

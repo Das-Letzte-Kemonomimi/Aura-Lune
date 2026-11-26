@@ -47,7 +47,7 @@ Reference for the React 19 + TypeScript frontend in `src/`. Rules agents must fo
 - **`useTauriEvent`**: Subscribe to a backend event (`useTauriEvent(name, handler, enabled?)`). Always use it instead of raw `listen()` in components/hooks — it keeps the latest handler and unsubscribes even when unmounted before `listen()` resolves.
 - **`usePlaybackErrorToasts`**: Shows `auralune://playback-error` events from the playback ticker as error toasts (mounted once in `App`).
 - **`useToasts`**: In-app notification queue (`showMessage(text, isError)` is stable; per-toast timers, max 3 visible, duplicates collapsed; info messages hidden unless `showInfo`).
-- **`usePersistedState`**: `localStorage`-backed state where read and write share one key (`parse` validator, `legacyKeys` migration). Use it for new UI preferences instead of hand-written `getItem`/`setItem` pairs.
+- **`usePersistedState`**: `localStorage`-backed state where read and write share one key (`parse` validator, `legacyKeys` migration). Every mounted instance on a key stays in sync (a module-level subscriber registry plus the `storage` event), so a setting shown in several places, such as the lyrics romaji mode or the visualizer mode, changes everywhere at once. `parseBoolean` and `parseOneOf` cover the common parsers. Use it for new UI preferences instead of hand-written `getItem`/`setItem` pairs.
 - **`useSleepTimer`**: Sleep timer countdown/fade-out; interval reads latest values via refs so frequent host re-renders do not reset it.
 - **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for ultra-large track libraries.
 
