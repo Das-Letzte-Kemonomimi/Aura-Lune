@@ -166,22 +166,17 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onToggleSeekFade: audioDevices.handleToggleSeekFade,
     instantVolume: audioDevices.instantVolume,
     onToggleInstantVolume: () => {
-      const next = !audioDevices.instantVolume;
-      audioDevices.setInstantVolume(next);
-      try { localStorage.setItem('auralune_instant_volume', String(next)); } catch {}
+      audioDevices.setInstantVolume(!audioDevices.instantVolume);
     },
     volumeUnit: audioDevices.volumeUnit,
     onSetVolumeUnit: audioDevices.handleSetVolumeUnit,
     volumeOsdPosition: audioDevices.volumeOsdPosition,
     onSetVolumeOsdPosition: (pos) => {
       audioDevices.setVolumeOsdPosition(pos);
-      try { localStorage.setItem('auralune_volume_osd_position', pos); } catch {}
     },
     recapOptIn: audioDevices.recapOptIn,
     onToggleRecapOptIn: () => {
-      const next = !audioDevices.recapOptIn;
-      audioDevices.setRecapOptIn(next);
-      try { localStorage.setItem('auralune_recap_opt_in', String(next)); } catch {}
+      audioDevices.setRecapOptIn(!audioDevices.recapOptIn);
     },
     restoreSessionOnStartup: audioDevices.restoreSessionOnStartup,
     onToggleRestoreSessionOnStartup: audioDevices.handleToggleRestoreSessionOnStartup,
@@ -201,7 +196,6 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     albumPlaybackMode: audioDevices.albumPlaybackMode,
     onSetAlbumPlaybackMode: (mode) => {
       audioDevices.setAlbumPlaybackMode(mode);
-      try { localStorage.setItem('auralune_album_playback_mode', mode); } catch {}
     },
     replaygainMode: audioDevices.replaygainMode,
     replaygainPreAmp: audioDevices.replaygainPreAmp,

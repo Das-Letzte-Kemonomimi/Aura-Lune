@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { getTranslations, supportedLanguages } from '../i18n';
 import { CUSTOM_EQ_PRESET_ID, presetDescription, presetLabel } from './dspPresetLabels';

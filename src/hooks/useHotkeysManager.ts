@@ -167,8 +167,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         e.preventDefault();
         const newVol = Math.min(1.0, Math.round((statusRef.current.volume + 0.05) * 100) / 100);
         handleVolumeChange(newVol);
-        const formatted = formatVolumeValue(newVol);
-        showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));
+        showMessage(fmt(t.notifications.volumeMsg, formatVolumeValue(newVol)));
         return;
       }
 
@@ -177,8 +176,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         e.preventDefault();
         const newVol = Math.max(0, Math.round((statusRef.current.volume - 0.05) * 100) / 100);
         handleVolumeChange(newVol);
-        const formatted = formatVolumeValue(newVol);
-        showMessage(fmt(t.notifications.volumeMsg.replace('{0}%', formatted), formatted));
+        showMessage(fmt(t.notifications.volumeMsg, formatVolumeValue(newVol)));
         return;
       }
 

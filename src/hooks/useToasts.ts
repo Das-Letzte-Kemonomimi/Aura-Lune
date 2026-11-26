@@ -28,7 +28,9 @@ export function useToasts({ showInfo = false, maxVisible = 3, durationMs }: UseT
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const nextId = useRef(1);
   const config = useRef({ showInfo, maxVisible, durationMs });
-  config.current = { showInfo, maxVisible, durationMs };
+  useEffect(() => {
+    config.current = { showInfo, maxVisible, durationMs };
+  });
 
   const dismiss = useCallback((id: number) => {
     const timer = timers.current.get(id);

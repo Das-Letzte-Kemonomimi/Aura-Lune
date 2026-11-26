@@ -1068,7 +1068,7 @@
     "proAudioDisabledMsg": "Wyłączono Pro Audio. Przywrócono bezpieczny profil stereo: {0}",
     "noCurrentTrackForCover": "Brak aktualnie odtwarzanego utworu do wyszukania okładki.",
     "transcodeSuccessMsg": "Pomyślnie przekonwertowano do {0}! Oryginał pozostał nienaruszony.",
-    "volumeMsg": "Głośność: {0}%",
+    "volumeMsg": "Głośność: {0}",
     "mutedMsg": "Wyciszono dźwięk",
     "unmutedMsg": "Przywrócono dźwięk",
     "openedFolder": "Otwarto folder w menedżerze plików: {0}",

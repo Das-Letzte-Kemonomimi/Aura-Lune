@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { clampDpr, computeBackingSize, GradientCache, roundRectPath } from './canvasDraw';
 

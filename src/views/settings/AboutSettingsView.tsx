@@ -1,5 +1,5 @@
 import React from 'react';
-import { invoke } from '../../api/ipc';
+import { openExternalUrl } from '../../api/ipc';
 import { Activity, AlertTriangle, History, Music, HeartHandshake, ExternalLink, Keyboard } from '../../components/ui/icons';
 import { Badge, Button, Callout, Card, Kbd, SectionHeader, SettingRow, type ToneOrNeutral } from '../../components/ui';
 import { textTones } from '../../components/ui/tones';
@@ -31,7 +31,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
 }) => {
   const handleOpenExternalUrl = async (url: string) => {
     try {
-      await invoke('open_external_url', { url });
+      await openExternalUrl(url);
     } catch {
       window.open(url, '_blank');
     }

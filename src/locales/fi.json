@@ -1068,7 +1068,7 @@
     "proAudioDisabledMsg": "Pro Audio pois käytöstä. Stereotila palautettu: {0}",
     "noCurrentTrackForCover": "Ei toistettavaa kappaletta kannen hakemista varten.",
     "transcodeSuccessMsg": "Muunnettu onnistuneesti muotoon {0}! Alkuperäinen säilytetty.",
-    "volumeMsg": "Äänenvoimakkuus: {0}%",
+    "volumeMsg": "Äänenvoimakkuus: {0}",
     "mutedMsg": "Ääni mykistetty",
     "unmutedMsg": "Ääni palautettu",
     "openedFolder": "Kansio avattu tiedostonhallinnassa: {0}",

@@ -94,3 +94,8 @@ export function errorMessage(error: unknown): string {
 export function isIpcError(error: unknown, code?: IpcErrorCode): error is IpcError {
   return error instanceof IpcError && (code === undefined || error.code === code);
 }
+
+/** Opens an HTTPS URL in the host browser via the backend allowlist command. */
+export async function openExternalUrl(url: string): Promise<void> {
+  await invoke('open_external_url', { url });
+}

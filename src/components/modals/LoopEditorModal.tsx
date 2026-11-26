@@ -7,7 +7,6 @@ import { useLivePositionMs } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
 import { Button, Callout, Card, ModalBody, ModalFooter, ModalHeader, ModalShell, NudgeButtons, TextField } from '../ui';
 import { textTones } from '../ui/tones';
-export { parseTimeToMs, formatTimeMs };
 
 export interface LoopEditorModalProps {
   isOpen: boolean;

@@ -109,8 +109,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
         loopPointB={loopPointB}
         isPlaying={status.state === 'Playing'}
         height={66}
-        colorPlayedStart="#f43f5e"
-        colorPlayedEnd="#a855f7"
+        colorPlayedStart="var(--accent-pink)"
+        colorPlayedEnd="var(--accent-purple)"
         currentLang={language}
         onSeek={(pct) => {
           if (status.duration_ms && status.duration_ms > 0) {

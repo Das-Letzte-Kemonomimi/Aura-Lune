@@ -1068,7 +1068,7 @@
     "proAudioDisabledMsg": "Disabled Pro Audio. Restored safe stereo profile: {0}",
     "noCurrentTrackForCover": "No currently playing track to search cover for.",
     "transcodeSuccessMsg": "Successfully converted to {0}! Original file preserved.",
-    "volumeMsg": "Volume: {0}%",
+    "volumeMsg": "Volume: {0}",
     "mutedMsg": "Sound muted",
     "unmutedMsg": "Sound unmuted",
     "openedFolder": "Opened folder in file manager: {0}",

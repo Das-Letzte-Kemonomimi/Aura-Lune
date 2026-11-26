@@ -10,7 +10,7 @@ import {
   RotateCw,
 } from '../../components/ui/icons';
 import { Badge, Button, Callout, Card, ProgressBar, SectionHeader, SettingRow, StatusDot } from '../../components/ui';
-import { errorMessage, invoke } from '../../api/ipc';
+import { errorMessage, openExternalUrl } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo, InstallKind, UpdateInfo, UpdateProgress } from '../../types/updates';
 import { fmt } from '../../utils/fmt';
@@ -101,7 +101,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
   const openLink = async (url: string) => {
     setLinkError(null);
     try {
-      await invoke('open_external_url', { url });
+      await openExternalUrl(url);
     } catch (e: unknown) {
       setLinkError(errorMessage(e));
     }

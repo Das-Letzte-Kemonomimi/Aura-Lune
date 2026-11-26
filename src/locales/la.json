@@ -1068,7 +1068,7 @@
     "proAudioDisabledMsg": "Pro Audio deactivatum. Modus stereophonicus restitutus: {0}",
     "noCurrentTrackForCover": "Nullus cantus nunc canitur ad tegumentum quaerendum.",
     "transcodeSuccessMsg": "Prospere transmutatum ad {0}! Fasciculus primus integer mansit.",
-    "volumeMsg": "Volumen: {0}%",
+    "volumeMsg": "Volumen: {0}",
     "mutedMsg": "Sonus mutatus",
     "unmutedMsg": "Sonus restitutus",
     "openedFolder": "Capsa aperta in procuratore: {0}",

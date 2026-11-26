@@ -17,14 +17,14 @@ export interface PlaybackClockOptions {
  */
 export function usePlaybackClock(options: PlaybackClockOptions): (dtSec: number) => number {
   const optionsRef = useRef(options);
-  const anchorRef = useRef<ClockAnchor>({ positionMs: options.positionMs, at: performance.now() });
+  const anchorRef = useRef<ClockAnchor | null>(null);
   const displayRef = useRef<number | null>(null);
   const lastPlayingRef = useRef(options.playing);
 
   // Anchor with the position's arrival time; a playback change resets the smoothing
   useEffect(() => {
     optionsRef.current = options;
-    if (options.positionMs !== anchorRef.current.positionMs) {
+    if (anchorRef.current === null || options.positionMs !== anchorRef.current.positionMs) {
       anchorRef.current = { positionMs: options.positionMs, at: performance.now() };
     }
     if (options.playing !== lastPlayingRef.current) {
@@ -36,7 +36,11 @@ export function usePlaybackClock(options: PlaybackClockOptions): (dtSec: number)
 
   return useCallback((dtSec: number) => {
     const o = optionsRef.current;
-    const target = extrapolatePositionMs(anchorRef.current, performance.now(), {
+    const now = performance.now();
+    if (anchorRef.current === null) {
+      anchorRef.current = { positionMs: o.positionMs, at: now };
+    }
+    const target = extrapolatePositionMs(anchorRef.current, now, {
       speed: o.speed,
       playing: o.playing,
       durationMs: o.durationMs,

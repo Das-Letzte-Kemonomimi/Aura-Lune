@@ -57,7 +57,9 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
   // IPC throttling to the backend (smooth 60/120 FPS without flooding GStreamer)
   const throttleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestStateRef = useRef<ParametricEqStateDto>(state);
-  latestStateRef.current = state;
+  useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
 
   const sendToBackend = (st: ParametricEqStateDto) => {
     invoke('set_parametric_eq_state', { eqState: st }).catch((e) =>

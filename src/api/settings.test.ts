@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { invokeMock } from '../test/ipcMock';
 import { getSetting, setSetting, SETTING_KEYS } from './settings';

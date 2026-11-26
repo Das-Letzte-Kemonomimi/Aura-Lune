@@ -17,14 +17,16 @@ function setup(draw: (f: CanvasFrame) => boolean | void, css = { width: 201, hei
   raf = installFakeRaf();
   canvas = installCanvasMock(css);
   canvas.setDpr(dpr);
-  let invalidate: () => void = () => {};
+  const invalidateRef: { current: () => void } = { current: () => {} };
   const Probe: React.FC = () => {
-    const loop = useCanvasLoop(draw);
-    invalidate = loop.invalidate;
-    return <canvas ref={loop.canvasRef} />;
+    const { canvasRef, invalidate } = useCanvasLoop(draw);
+    React.useEffect(() => {
+      invalidateRef.current = invalidate;
+    }, [invalidate]);
+    return <canvas ref={canvasRef} />;
   };
   const view = render(<Probe />);
-  return { view, invalidate: () => invalidate() };
+  return { view, invalidate: () => invalidateRef.current() };
 }
 
 describe('useCanvasLoop', () => {

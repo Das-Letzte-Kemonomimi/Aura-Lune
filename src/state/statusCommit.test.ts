@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { shouldCommitStatus, COARSE_POSITION_STEP_MS } from './statusCommit';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';

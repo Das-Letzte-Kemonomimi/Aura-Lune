@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { invokeMock } from '../test/ipcMock';
 import { invoke, IpcError, toIpcError, errorMessage, isIpcError, COMMAND_NAMES } from './ipc';

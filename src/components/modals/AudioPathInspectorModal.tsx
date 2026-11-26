@@ -85,7 +85,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
       <ModalBody className="flex flex-col gap-4">
           {/* Signal Chain Flow Visualization */}
           <div
-            className="flex items-center justify-between rounded-xl border border-line bg-black/35 px-4 py-3 text-xs text-slate-300"
+            className="flex items-center justify-between rounded-xl border border-line bg-black/35 px-4 py-3 text-xs text-fg-secondary"
           >
             <div className="flex items-center gap-1.5">
               <Layers size={14} className="text-accent-cyan" />
@@ -98,7 +98,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
             <ArrowRight size={13} className="text-fg-muted" />
             <div className="flex items-center gap-1.5">
-              <Sliders size={14} color={isBitPerfect ? '#10b981' : '#ec4899'} />
+              <Sliders size={14} className={isBitPerfect ? 'text-accent-green' : 'text-accent-pink'} />
               <strong>{isBypass ? loc.audioPath.directBypass : status.engine}</strong>
             </div>
             <ArrowRight size={13} className="text-fg-muted" />
@@ -155,7 +155,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                 <span>{loc.audioPath.dspProcessing}</span>
               </div>
               <span
-                className={cn('text-xs font-semibold', isBitPerfect ? 'text-emerald-400' : 'text-purple-300')}
+                className={cn('text-xs font-semibold', isBitPerfect ? 'text-accent-green' : 'text-accent-purple')}
               >
                 {isBypass ? loc.audioPath.directBypassZeroCpu : `${status.engine} Engine`}
               </span>
@@ -163,26 +163,26 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             <div className="grid grid-cols-4 gap-2.5 text-ui">
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.tempo}</span>
-                <strong className={cn(isDefaultTempo ? 'text-fg' : 'text-pink-500')}>
+                <strong className={cn(isDefaultTempo ? 'text-fg' : 'text-accent-pink')}>
                   {(status.tempo_ratio ?? 1.0).toFixed(2)}x
                 </strong>
               </div>
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.pitch}</span>
-                <strong className={cn(isDefaultPitch ? 'text-fg' : 'text-pink-500')}>
+                <strong className={cn(isDefaultPitch ? 'text-fg' : 'text-accent-pink')}>
                   {(status.pitch_semitones ?? 0.0) >= 0 ? '+' : ''}
                   {(status.pitch_semitones ?? 0.0).toFixed(1)} st
                 </strong>
               </div>
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.equalizer}</span>
-                <strong className={cn(status.equalizer_enabled ? 'text-pink-500' : 'text-fg-secondary')}>
+                <strong className={cn(status.equalizer_enabled ? 'text-accent-pink' : 'text-fg-secondary')}>
                   {status.equalizer_enabled ? loc.audioPath.activeBands : loc.audioPath.offFlat}
                 </strong>
               </div>
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.dspLatency}</span>
-                <strong className={cn(isBitPerfect ? 'text-emerald-400' : 'text-fg')}>
+                <strong className={cn(isBitPerfect ? 'text-accent-green' : 'text-fg')}>
                   {isBitPerfect ? '0.0 ms (Direct)' : '~12 ms (Vocoder)'}
                 </strong>
               </div>
@@ -196,7 +196,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                 <Speaker size={16} />
                 <span>{loc.audioPath.pipewireSink}</span>
               </div>
-              <span className="text-xs font-semibold text-emerald-400">
+              <span className="text-xs font-semibold text-accent-green">
                 PipeWire Pro Audio Low-Latency
               </span>
             </div>

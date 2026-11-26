@@ -237,7 +237,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
           <div>
             <h1
               className={cn(
-                'mx-0 mt-0 mb-2 font-extrabold tracking-tight [text-shadow:0_0_1.25rem_rgb(255_255_255/0.2)]',
+                'mx-0 mt-0 mb-2 font-extrabold tracking-tight text-shadow-bigscreen',
                 showLyrics ? 'text-3xl' : 'text-4xl',
               )}
             >

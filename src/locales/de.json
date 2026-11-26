@@ -1068,7 +1068,7 @@
     "proAudioDisabledMsg": "Pro Audio deaktiviert. Stereoprofil wiederhergestellt: {0}",
     "noCurrentTrackForCover": "Kein aktiver Titel für Cover-Suche vorhanden.",
     "transcodeSuccessMsg": "Erfolgreich nach {0} konvertiert! Originaldatei erhalten.",
-    "volumeMsg": "Lautstärke: {0}%",
+    "volumeMsg": "Lautstärke: {0}",
     "mutedMsg": "Ton stummgeschaltet",
     "unmutedMsg": "Ton wiederhergestellt",
     "openedFolder": "Ordner im Dateimanager geöffnet: {0}",

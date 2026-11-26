@@ -34,7 +34,6 @@ import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { invoke } from './api/ipc';
 import { setSetting } from './api/settings';
 import {
   type TapeType,
@@ -58,6 +57,8 @@ import type {
 import { formatTime, formatTimeMs } from './utils/timeFormat';
 import { BackgroundExportBadge } from './components/layout/BackgroundExportBadge';
 import { useSleepTimer } from './hooks/useSleepTimer';
+import { useProfileBackup } from './hooks/useProfileBackup';
+import { useMiniPlayer } from './hooks/useMiniPlayer';
 import { cn } from './utils/cn';
 import { fmt } from './utils/fmt';
 import { parseBoolean, parseOneOf, usePersistedState } from './hooks/usePersistedState';
@@ -221,15 +222,11 @@ export default function App() {
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
 
   // Album and playlist playback behaviour (autoplay and queue)
-  const [albumPlaybackMode, setAlbumPlaybackMode] = useState<AlbumPlaybackBehavior>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_album_playback_mode') as AlbumPlaybackBehavior;
-      if (saved === 'replace' || saved === 'append' || saved === 'single') {
-        return saved;
-      }
-    } catch { }
-    return 'replace'; // Default: replace the queue and play the whole album with autoplay & skip
-  });
+  const [albumPlaybackMode, setAlbumPlaybackMode] = usePersistedState<AlbumPlaybackBehavior>(
+    'auralune_album_playback_mode',
+    'replace',
+    { parse: parseOneOf(['replace', 'append', 'single']) },
+  );
 
   // Smooth crossfade and advanced DSP / mastering effects (useAudioMasteringEffects)
   const masteringEffects = useAudioMasteringEffects({
@@ -251,43 +248,25 @@ export default function App() {
   } = masteringEffects;
 
   // First run (onboarding) & Recap & OSD & key/BPM
-  const [recapOptIn, setRecapOptIn] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('auralune_recap_opt_in') !== 'false';
-    } catch {
-      return true;
-    }
+  const [recapOptIn, setRecapOptIn] = usePersistedState('auralune_recap_opt_in', true, {
+    parse: parseBoolean,
   });
-  const [volumeOsdPosition, setVolumeOsdPosition] = useState<VolumeOsdPosition>(() => {
-    try {
-      return (localStorage.getItem('auralune_volume_osd_position') as VolumeOsdPosition) || 'bottom-center';
-    } catch {
-      return 'bottom-center';
-    }
-  });
-  const [instantVolume, setInstantVolume] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('auralune_instant_volume') !== 'false';
-    } catch {
-      return true;
-    }
+  const [volumeOsdPosition, setVolumeOsdPosition] = usePersistedState<VolumeOsdPosition>(
+    'auralune_volume_osd_position',
+    'bottom-center',
+    { parse: parseOneOf(['center', 'top-right', 'top-left', 'bottom-center', 'bottom-right', 'bottom-left', 'off']) },
+  );
+  const [instantVolume, setInstantVolume] = usePersistedState('auralune_instant_volume', true, {
+    parse: parseBoolean,
   });
 
   // Button hover glow option
-  const [buttonGlowEnabled, setButtonGlowEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_button_glow_enabled');
-      return saved !== 'false';
-    } catch {
-      return true;
-    }
+  const [buttonGlowEnabled, setButtonGlowEnabled] = usePersistedState('auralune_button_glow_enabled', true, {
+    parse: parseBoolean,
   });
 
   useEffect(() => {
     document.body.classList.toggle('disable-button-glow', !buttonGlowEnabled);
-    try {
-      localStorage.setItem('auralune_button_glow_enabled', String(buttonGlowEnabled));
-    } catch { }
   }, [buttonGlowEnabled]);
 
 
@@ -473,18 +452,8 @@ export default function App() {
     setShowDesktopLyrics((prev) => !prev);
   };
 
-  // Stan Mini-Player (Floating PiP Widget)
-  const [isMiniPlayer, setIsMiniPlayer] = useState(false);
-
-  const toggleMiniPlayer = async () => {
-    const next = !isMiniPlayer;
-    try {
-      await invoke('set_mini_player_mode', { mini: next });
-      setIsMiniPlayer(next);
-    } catch (e) {
-      console.error('Failed to toggle the mini-player mode:', e);
-    }
-  };
+  // Mini-player state (Floating PiP Widget)
+  const { isMiniPlayer, toggleMiniPlayer } = useMiniPlayer();
 
   // Anime ambient effects (Sakura Petals / Cyberpunk Rain / Meteors / Matrix / Momiji)
   const { ambienceMode, setAmbienceMode, cycleAmbienceMode } = useAmbienceMode({
@@ -713,43 +682,13 @@ export default function App() {
 
 
 
-  // ===================================
-  const handleExportProfileBackup = async () => {
-    try {
-      const dateStr = new Date().toISOString().slice(0, 10);
-      const dest = await invoke<string | null>('pick_save_destination', {
-        defaultName: `auralune-profile-backup-${dateStr}.json`,
-        extension: 'json',
-      });
-      if (!dest) return;
-
-      const msg = await invoke<string>('export_profile_backup', {
-        destinationPath: dest,
-      });
-      showMessage(msg);
-    } catch (err: unknown) {
-      showMessage(`${t.common.errorPrefix} ${err}`, true);
-    }
-  };
-
-  const handleImportProfileBackup = async () => {
-    try {
-      const filePath = await invoke<string | null>('pick_custom_file', {
-        title: loc.settings.importBackupBtn,
-        filter: '*.json|Auralune backup (*.json)',
-      });
-      if (!filePath) return;
-
-      const msg = await invoke<string>('import_profile_backup', {
-        filePathOrJson: filePath,
-      });
-      await refreshPlaylists();
-      await loadLibrary();
-      showMessage(msg);
-    } catch (err: unknown) {
-      showMessage(`${t.common.errorPrefix} ${err}`, true);
-    }
-  };
+  const { handleExportProfileBackup, handleImportProfileBackup } = useProfileBackup({
+    importTitle: loc.settings.importBackupBtn,
+    errorPrefix: t.common.errorPrefix,
+    refreshPlaylists,
+    loadLibrary,
+    showMessage,
+  });
 
   const handleToggleCloseToTray = async (enabled: boolean) => {
     setCloseToTray(enabled);

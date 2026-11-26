@@ -159,7 +159,6 @@ describe('useHotkeysManager', () => {
 
     expect(firstNotify).not.toHaveBeenCalled();
     expect(latestVolumeChange).toHaveBeenCalledWith(0.95);
-    const expected = pl.notifications.volumeMsg.replace('{0}%', '-0.4 dB').replace('{0}', '-0.4 dB');
-    expect(latestNotify).toHaveBeenCalledWith(expected);
+    expect(latestNotify).toHaveBeenCalledWith(pl.notifications.volumeMsg.replace('{0}', '-0.4 dB'));
   });
 });
