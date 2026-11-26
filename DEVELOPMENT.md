@@ -307,11 +307,11 @@ Two kinds of skills are deliberately **not** shared: ones that depend on one too
 
 | Command | Needs network | What it does |
 |---|---|---|
-| `npm run skills:check` | no | Verifies every expected skill resolves for **both** agents and that authored skills have matching names. Exit code 1 plus the list of missing entries otherwise. |
+| `npm run skills:check` | no | Verifies every expected skill resolves for **both** agents and that authored skills have matching names (`scripts/skills.test.mjs` also runs under `npm test`). Exit code 1 plus the list of missing entries otherwise. |
 | `npm run skills:install` | yes | **Repair.** Restores third-party skills from `skills-lock.json` (hash-verified), recreates the Claude links and the authored-skill links, then runs the check. Run it when the check fails or after switching branches that changed skills. |
 | `npm run skills:update` | yes | Moves every locked skill to the newest upstream commit, rewrites `skills-lock.json`, relinks and checks. Review the diff before committing. |
 
-Raw `npx` equivalents (the scripts pin `skills@1.9.0`; any recent version works by hand): `npx skills list` (shows `modified`, `untracked` and `missing` skills), `npx skills check` (available updates and local changes), `npx skills experimental_install -a claude-code antigravity` (restore), `npx skills update -p -y` (update).
+Raw `npx` equivalents (the scripts pin `skills@1.9.0`; any recent version works by hand): `npx skills list` (shows `modified`, `untracked` and `missing` skills), `npx skills check` (available updates and local changes), `npx skills experimental_install -a claude-code -a antigravity` (restore), `npx skills update -p -y` (update).
 
 ### Adding, removing and updating skills
 
@@ -339,7 +339,7 @@ Then add a row to the table in [`AGENTS.md`](AGENTS.md#skills--agents) and commi
 |---|---|
 | `skills:check` lists missing entries | `npm run skills:install`. |
 | `The skills CLI needs Node >= 22.20` | `nvm install 22` (the latest 22.x satisfies it), then `nvm use`. |
-| `npx skills list` shows a skill as `modified` | Someone edited a vendored file. Restore it with `npx skills experimental_install --force -a claude-code antigravity`, or run `npm run skills:update` if upstream changed. |
+| `npx skills list` shows a skill as `modified` | Someone edited a vendored file. Restore it with `npx skills experimental_install --force -a claude-code -a antigravity`, or run `npm run skills:update` if upstream changed. |
 | A new skill does not show up in Antigravity or Claude | Start a new conversation. In the Antigravity CLI run `/skills reload`. |
 | Links are broken after cloning on a filesystem without symlinks | Enable symlinks (Windows: Developer Mode and `git config core.symlinks true`), re-clone, then `npm run skills:install`. |
 | `.claude/settings.json` or `.claude/worktrees/` shows up in `git status` | It should not: only `.claude/skills/` is tracked. Check that `.gitignore` still has `.claude/*` followed by `!.claude/skills/`. |
@@ -464,9 +464,9 @@ target/release/auralune-desktop
 ```
 
 ### Release Artifact Outputs
-After running `npm run tauri build`, the distribution artifacts are placed in:
+After running `npm run tauri build`, the distribution artifacts are placed in the workspace `target/` directory:
 ```
-src-tauri/target/release/bundle/
+target/release/bundle/
 ├── appimage/
 │   └── Auralune_1.1.5_amd64.AppImage
 └── deb/
@@ -475,8 +475,8 @@ src-tauri/target/release/bundle/
 
 To test the generated AppImage:
 ```bash
-chmod +x src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
-./src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
+chmod +x target/release/bundle/appimage/Auralune_*.AppImage
+./target/release/bundle/appimage/Auralune_*.AppImage
 ```
 
 ### Universal Linux Installer (`install.sh`)
@@ -516,8 +516,10 @@ The installer automatically determines the target channel based on the following
 ## 10. Troubleshooting & FAQs
 
 ### Missing GStreamer Plugins at Runtime
-**Symptom**: Audio files fail to play or decode with errors like `no element "playbin"`, `flacparse missing`, or `pulsesink missing`.  
+**Symptom**: Audio files fail to play or decode with errors like `no element "uridecodebin"`, `audiodynamic missing`, `flacparse missing`, or `pulsesink missing`.  
 **Fix**: Ensure all plugin packages (`gst-plugins-good`, `gst-plugins-bad`, `gst-plugins-ugly`, `gst-libav`) are installed. Aura-Lune's AppImage setup automatically scans `/usr/lib/gstreamer-1.0` and `/usr/lib64/gstreamer-1.0` and populates `GST_PLUGIN_SYSTEM_PATH_1_0`.
+
+> **Headless / sandbox note**: Running the full GStreamer playback tests (`audio-engine`) and `desktop_smoke_test` requires a running PulseAudio/PipeWire session (CI starts `pulseaudio` with `module-null-sink`), and `crates/metadata`'s online Cover Art Archive test currently requires outbound internet access.
 
 ### WebKit2GTK ABI Mismatches
 **Symptom**: Compilation errors referring to `webkit2gtk-4.0` vs `webkit2gtk-4.1`.  
