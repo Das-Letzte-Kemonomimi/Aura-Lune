@@ -31,79 +31,25 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            padding: '32px',
-            background: 'rgba(15, 10, 25, 0.96)',
-            color: '#fff',
-            fontFamily: 'monospace',
-            minHeight: '100vh',
-            boxSizing: 'border-box',
-            overflowY: 'auto',
-            zIndex: 999999,
-            position: 'relative',
-          }}
-        >
-          <h2 style={{ color: '#f43f5e', fontSize: '1.4rem', marginBottom: '12px' }}>
-            Auralune UI Runtime Error
-          </h2>
-          <div
-            style={{
-              background: 'rgba(244, 63, 94, 0.1)',
-              border: '1px solid rgba(244, 63, 94, 0.4)',
-              padding: '16px',
-              borderRadius: '10px',
-              marginBottom: '16px',
-              color: '#fda4af',
-              fontSize: '0.95rem',
-            }}
-          >
+        <div className="relative z-140 min-h-screen overflow-y-auto bg-deep/95 p-8 font-mono text-fg">
+          <h2 className="mb-3 text-2xl text-accent-pink">Auralune UI Runtime Error</h2>
+          <div className="mb-4 rounded-xl border border-accent-pink/40 bg-accent-pink/10 p-4 text-md text-rose-300">
             <strong>{this.state.error?.name}: </strong>
             {this.state.error?.message}
           </div>
           {this.state.error?.stack && (
-            <pre
-              style={{
-                background: 'rgba(0, 0, 0, 0.6)',
-                padding: '14px',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                color: '#94a3b8',
-                overflowX: 'auto',
-                whiteSpace: 'pre-wrap',
-                marginBottom: '16px',
-              }}
-            >
+            <pre className="mb-4 overflow-x-auto rounded-lg bg-black/60 p-3.5 text-ui whitespace-pre-wrap text-fg-secondary">
               {this.state.error.stack}
             </pre>
           )}
           {this.state.errorInfo?.componentStack && (
-            <pre
-              style={{
-                background: 'rgba(0, 0, 0, 0.6)',
-                padding: '14px',
-                borderRadius: '8px',
-                fontSize: '0.75rem',
-                color: '#64748b',
-                overflowX: 'auto',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
+            <pre className="overflow-x-auto rounded-lg bg-black/60 p-3.5 text-xs whitespace-pre-wrap text-fg-muted">
               {this.state.errorInfo.componentStack}
             </pre>
           )}
           <button
             onClick={() => window.location.reload()}
-            style={{
-              marginTop: '16px',
-              padding: '10px 20px',
-              background: '#a855f7',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
+            className="mt-4 bg-accent-purple px-5 py-2.5 font-semibold text-on-accent"
           >
             Reload UI
           </button>

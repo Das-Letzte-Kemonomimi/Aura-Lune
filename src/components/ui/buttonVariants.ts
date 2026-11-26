@@ -10,7 +10,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         /** Brand gradient call to action. */
-        primary: 'bg-accent-gradient border-transparent font-bold text-on-accent shadow-brand',
+        primary: 'bg-accent-gradient border-transparent font-bold text-on-accent shadow-lift shadow-accent-pink/35',
         /** Quiet glass button. */
         secondary: 'border-line bg-white/5 text-fg-secondary hover:text-fg',
         /** Borderless, text-only. */
@@ -23,7 +23,7 @@ export const buttonVariants = cva(
          */
         chip: [
           'border-line bg-white/5 text-fg-secondary',
-          'aria-pressed:bg-accent-gradient aria-pressed:border-accent-pink aria-pressed:text-on-accent aria-pressed:shadow-brand-glow',
+          'aria-pressed:bg-accent-gradient aria-pressed:border-accent-pink aria-pressed:text-on-accent aria-pressed:shadow-halo aria-pressed:shadow-accent-pink/35',
         ],
       },
       size: {

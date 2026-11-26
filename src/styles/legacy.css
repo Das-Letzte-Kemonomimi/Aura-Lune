@@ -3,19 +3,6 @@
  * the phase that migrates its component; this file is removed at the end of the migration.
  */
 
-/* AppHeader / AppNavbar (phase 2). */
-@media (max-width: 113.75rem) {
-  .header-action-text {
-    display: none !important;
-  }
-}
-
-@media (max-width: 84.375rem) {
-  .header-nav-label {
-    display: none !important;
-  }
-}
-
 /* LibraryTracksView (phase 4): fixed row height keeps virtual scrolling hitboxes exact. */
 .library-track-table {
   width: 100%;

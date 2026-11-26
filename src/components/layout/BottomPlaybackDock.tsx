@@ -22,6 +22,8 @@ import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type DspEngineType } from '../../types/player';
 import { type PlaybackQueue } from '../../types/queue';
 import { useLiveStatus } from '../../state/livePlayback';
+import { cn } from '../../utils/cn';
+import { cssVars } from '../../utils/cssVars';
 
 export interface BottomPlaybackDockProps {
   isVisible: boolean;
@@ -54,6 +56,39 @@ export interface BottomPlaybackDockProps {
   onVolumeChange: (val: number) => void;
   onToggleMiniPlayer: () => void;
 }
+
+/** Round transport toggle; the pressed look comes from `aria-pressed`. */
+const ROUND_TOGGLE =
+  'flex items-center justify-center rounded-full border border-transparent bg-transparent p-1.5 text-fg-muted transition-all duration-200 hover:text-fg aria-pressed:shadow-halo-sm';
+
+const PRESSED_TONES = {
+  cyan: 'aria-pressed:border-accent-cyan aria-pressed:bg-accent-cyan/20 aria-pressed:text-accent-cyan aria-pressed:shadow-accent-cyan/40',
+  pink: 'aria-pressed:border-accent-pink aria-pressed:bg-accent-pink/20 aria-pressed:text-accent-pink aria-pressed:shadow-accent-pink/40',
+  yellow: 'aria-pressed:border-yellow-500 aria-pressed:bg-yellow-500/20 aria-pressed:text-yellow-500 aria-pressed:shadow-yellow-500/40',
+} as const;
+
+const TRANSPORT_BUTTON = 'flex items-center bg-transparent p-1 text-fg-secondary hover:text-fg';
+
+const DOCK_GLASS_BUTTON = 'glass-card flex items-center gap-1 px-2 py-1.5 text-xs text-fg-secondary';
+
+/** DSP engine pill: border, tint, text and glow per engine. */
+const ENGINE_TONES: Record<DspEngineType, string> = {
+  Bypass: 'border-accent-green/45 bg-accent-green/15 text-accent-green shadow-accent-green/20',
+  RubberBand: 'border-accent-pink/45 bg-accent-pink/15 text-accent-pink shadow-accent-pink/30',
+  SoundTouch: 'border-accent-cyan/45 bg-accent-cyan/15 text-accent-cyan shadow-accent-cyan/30',
+};
+
+const ENGINE_TEXT: Record<DspEngineType, string> = {
+  Bypass: 'text-accent-green',
+  RubberBand: 'text-accent-pink',
+  SoundTouch: 'text-accent-cyan',
+};
+
+const ENGINE_MENU_PRESSED: Record<DspEngineType, string> = {
+  Bypass: 'aria-pressed:border-accent-green aria-pressed:text-accent-green',
+  RubberBand: 'aria-pressed:border-accent-pink aria-pressed:text-accent-pink',
+  SoundTouch: 'aria-pressed:border-accent-cyan aria-pressed:text-accent-cyan',
+};
 
 export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(({
   isVisible,
@@ -99,102 +134,30 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   const t = loc;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: '76px',
-        background: 'rgba(15, 12, 28, 0.96)',
-        borderTop: '1px solid var(--border-accent)',
-        boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.65)',
-        zIndex: 900,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        gap: '16px',
-        animation: 'fadeIn 0.2s ease',
-      }}
-    >
+    <div className="fixed inset-x-0 bottom-0 z-40 flex h-19 items-center justify-between gap-4 border-t border-line-accent bg-ink/95 px-6 shadow-dock motion-safe:animate-fade-in">
       {/* Lewa strona: Mini okładka, Tytuł, Wykonawca */}
       <div
         onClick={onScrollToTopOrSwitchTab}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          minWidth: '220px',
-          maxWidth: '30%',
-          cursor: 'pointer',
-        }}
+        className="flex max-w-3/10 min-w-55 cursor-pointer items-center gap-3.5"
         title={activeTab === 'player' ? loc.bottomDock.scrollToTop : loc.bottomDock.openFullPlayer}
       >
         <div
-          style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '10px',
-            overflow: 'hidden',
-            flexShrink: 0,
-            background: currentCover
-              ? `url("${currentCover}") center/cover no-repeat`
-              : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
+          className={cn(
+            'flex size-11.5 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 shadow-lift shadow-black/40',
+            !currentCover && 'bg-accent-gradient',
+          )}
+          style={currentCover ? { background: `url("${currentCover}") center/cover no-repeat` } : undefined}
         >
           {!currentCover && (
-            <Disc
-              size={24}
-              color="#fff"
-              style={{
-                animation: status.state === 'Playing' ? 'spin 4s linear infinite' : 'none',
-              }}
-            />
+            <Disc size={24} className={cn('text-on-accent', status.state === 'Playing' && 'motion-safe:animate-spin-slow')} />
           )}
         </div>
-        <div style={{ minWidth: 0, overflow: 'hidden' }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              color: '#fff',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {effectiveDisplayTitle}
-          </p>
-          <p
-            style={{
-              margin: '2px 0 0 0',
-              fontSize: '0.76rem',
-              color: 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+        <div className="min-w-0 overflow-hidden">
+          <p className="truncate text-sm font-bold text-fg">{effectiveDisplayTitle}</p>
+          <p className="mt-0.5 truncate text-xs text-fg-secondary">
             {effectiveDisplayArtist}
             {currentPlayingTrack?.format && (
-              <span
-                style={{
-                  marginLeft: '6px',
-                  fontSize: '0.68rem',
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  color: 'var(--accent-cyan)',
-                  fontFamily: 'var(--font-mono)',
-                }}
-              >
+              <span className="ml-1.5 rounded-sm bg-accent-cyan/15 px-1.5 py-px font-mono text-xxs text-accent-cyan">
                 {currentPlayingTrack.format}
               </span>
             )}
@@ -207,17 +170,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                   )
                 }
                 title={loc.queue.openContainingFolder}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  marginLeft: '6px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  verticalAlign: 'middle',
-                }}
+                className="ml-1.5 inline-flex items-center bg-transparent px-1 py-0.5 align-middle text-fg-muted hover:text-fg"
               >
                 <FolderOpen size={13} />
               </button>
@@ -227,118 +180,46 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
       </div>
 
       {/* Środek: Sterowanie odtwarzaniem i pasek pozycji */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '6px',
-          flex: 1,
-          maxWidth: '560px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div className="flex max-w-140 flex-1 flex-col items-center gap-1.5">
+        <div className="flex items-center gap-3.5">
           {/* Shuffle */}
           <button
             onClick={onToggleShuffle}
-            style={{
-              background: queue.shuffle ? 'rgba(6, 182, 212, 0.22)' : 'transparent',
-              border: queue.shuffle ? '1px solid var(--accent-cyan)' : '1px solid transparent',
-              color: queue.shuffle ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.18s ease',
-              boxShadow: queue.shuffle ? '0 0 10px rgba(6, 182, 212, 0.4)' : 'none',
-            }}
-            title={
-              queue.shuffle
-                ? loc.player.shuffleOn
-                : loc.player.shuffleOff
-            }
+            aria-pressed={queue.shuffle}
+            className={cn(ROUND_TOGGLE, PRESSED_TONES.cyan)}
+            title={queue.shuffle ? loc.player.shuffleOn : loc.player.shuffleOff}
           >
             <Shuffle size={16} />
           </button>
 
           {/* Previous */}
-          <button
-            onClick={onPrevious}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-            title={t.bottomDock.prevTooltip}
-          >
+          <button onClick={onPrevious} className={TRANSPORT_BUTTON} title={t.bottomDock.prevTooltip}>
             <SkipBack size={18} />
           </button>
 
           {/* Play / Pause */}
           <button
             onClick={onPlayPause}
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-              border: 'none',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 0 16px rgba(255, 77, 148, 0.45)',
-            }}
+            className="bg-accent-gradient flex size-9.5 items-center justify-center rounded-full text-on-accent shadow-halo-lg shadow-accent-pink/45"
             title={status.state === 'Playing' ? t.bottomDock.pauseTooltip : t.bottomDock.playTooltip}
           >
             {status.state === 'Playing' ? (
-              <Pause size={18} fill="#fff" />
+              <Pause size={18} fill="currentColor" />
             ) : (
-              <Play size={18} fill="#fff" style={{ marginLeft: '2px' }} />
+              <Play size={18} fill="currentColor" className="ml-0.5" />
             )}
           </button>
 
           {/* Next */}
-          <button
-            onClick={onNext}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-            title={t.bottomDock.nextTooltip}
-          >
+          <button onClick={onNext} className={TRANSPORT_BUTTON} title={t.bottomDock.nextTooltip}>
             <SkipForward size={18} />
           </button>
 
           {/* Loop Mode */}
           <button
             onClick={onCycleLoopMode}
-            style={{
-              background: queue.loop_mode !== 'None' ? 'rgba(255, 77, 148, 0.22)' : 'transparent',
-              border: queue.loop_mode !== 'None' ? '1px solid var(--accent-pink)' : '1px solid transparent',
-              color: queue.loop_mode !== 'None' ? 'var(--accent-pink)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              transition: 'all 0.18s ease',
-              boxShadow: queue.loop_mode !== 'None' ? '0 0 10px rgba(255, 77, 148, 0.4)' : 'none',
-            }}
+            aria-pressed={queue.loop_mode !== 'None'}
+            className={cn(ROUND_TOGGLE, PRESSED_TONES.pink)}
             title={
               queue.loop_mode === 'Track'
                 ? loc.player.loopTrack
@@ -353,43 +234,21 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
           {/* Stop After Current */}
           <button
             onClick={onToggleStopAfterCurrent}
-            style={{
-              background: status.stop_after_current ? 'rgba(234, 179, 8, 0.22)' : 'transparent',
-              border: status.stop_after_current ? '1px solid #eab308' : '1px solid transparent',
-              color: status.stop_after_current ? '#eab308' : 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              transition: 'all 0.18s ease',
-              boxShadow: status.stop_after_current ? '0 0 10px rgba(234, 179, 8, 0.4)' : 'none',
-            }}
+            aria-pressed={Boolean(status.stop_after_current)}
+            className={cn(ROUND_TOGGLE, PRESSED_TONES.yellow)}
             title={
               status.stop_after_current
                 ? loc.bottomDock.stopAfterCurrentOn
                 : loc.bottomDock.stopAfterCurrentOff
             }
           >
-            <Square size={13} style={{ fill: status.stop_after_current ? '#eab308' : 'none' }} />
+            <Square size={13} fill={status.stop_after_current ? 'currentColor' : 'none'} />
           </button>
         </div>
 
         {/* Position Slider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-          <span
-            style={{
-              fontSize: '0.72rem',
-              color: 'var(--text-muted)',
-              fontFamily: 'var(--font-mono)',
-              minWidth: '36px',
-              textAlign: 'right',
-            }}
-          >
-            {formatTime(status.position_ms)}
-          </span>
+        <div className="flex w-full items-center gap-2.5">
+          <span className="min-w-9 text-right font-mono text-xs text-fg-muted">{formatTime(status.position_ms)}</span>
           <input
             type="range"
             min={0}
@@ -408,84 +267,25 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                 onSeekCommit?.(Number(e.currentTarget.value));
               }
             }}
-            style={{
-              flex: 1,
-              height: '4px',
-              accentColor: 'var(--accent-pink)',
-              cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-            }}
+            className="range-fill h-1 flex-1"
+            style={cssVars({ '--fill': `${seekProgressPercent}%` })}
           />
-          <span
-            style={{
-              fontSize: '0.72rem',
-              color: 'var(--text-muted)',
-              fontFamily: 'var(--font-mono)',
-              minWidth: '36px',
-            }}
-          >
-            {formatTime(status.duration_ms || 0)}
-          </span>
+          <span className="min-w-9 font-mono text-xs text-fg-muted">{formatTime(status.duration_ms || 0)}</span>
         </div>
       </div>
 
       {/* Prawa strona: DSP, Głośność, Maksymalizacja */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          minWidth: '240px',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div className="flex min-w-60 items-center justify-end gap-3">
+        <div className="flex items-center gap-1.5">
           <div
-            style={{
-              position: 'relative',
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: '16px',
-              background:
-                status.engine === 'Bypass'
-                  ? 'rgba(16, 185, 129, 0.14)'
-                  : status.engine === 'RubberBand'
-                    ? 'rgba(236, 72, 153, 0.16)'
-                    : 'rgba(6, 182, 212, 0.16)',
-              border:
-                status.engine === 'Bypass'
-                  ? '1px solid rgba(16, 185, 129, 0.45)'
-                  : status.engine === 'RubberBand'
-                    ? '1px solid rgba(236, 72, 153, 0.45)'
-                    : '1px solid rgba(6, 182, 212, 0.45)',
-              boxShadow:
-                status.engine === 'Bypass'
-                  ? '0 0 10px rgba(16, 185, 129, 0.22)'
-                  : status.engine === 'RubberBand'
-                    ? '0 0 10px rgba(236, 72, 153, 0.28)'
-                    : '0 0 10px rgba(6, 182, 212, 0.28)',
-              transition: 'all 0.18s ease',
-            }}
+            className={cn(
+              'relative inline-flex items-center rounded-2xl border shadow-halo-sm transition-all duration-200',
+              ENGINE_TONES[status.engine],
+            )}
           >
             <button
               onClick={onCycleDspEngine}
-              style={{
-                padding: '4px 7px 4px 10px',
-                background: 'transparent',
-                border: 'none',
-                color:
-                  status.engine === 'Bypass'
-                    ? 'var(--accent-green)'
-                    : status.engine === 'RubberBand'
-                      ? 'var(--accent-pink)'
-                      : 'var(--accent-cyan)',
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
+              className="flex items-center gap-1.5 bg-transparent py-1 pr-2 pl-2.5 text-xs font-bold"
               title={loc.bottomDock.dspEngineCycleTooltip.replace(
                 '{0}',
                 status.engine === 'Bypass'
@@ -504,74 +304,23 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                 e.stopPropagation();
                 setIsDspQuickMenuOpen(!isDspQuickMenuOpen);
               }}
-              style={{
-                padding: '4px 6px 4px 2px',
-                background: 'transparent',
-                border: 'none',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-                color:
-                  status.engine === 'Bypass'
-                    ? 'var(--accent-green)'
-                    : status.engine === 'RubberBand'
-                      ? 'var(--accent-pink)'
-                      : 'var(--accent-cyan)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-              }}
+              aria-expanded={isDspQuickMenuOpen}
+              className="flex items-center border-l border-white/10 bg-transparent py-1 pr-1.5 pl-0.5"
               title={loc.bottomDock.selectDspEngineList}
             >
-              <ChevronUp
-                size={12}
-                style={{
-                  transform: isDspQuickMenuOpen ? 'rotate(180deg)' : 'none',
-                  transition: 'transform 0.18s ease',
-                }}
-              />
+              <ChevronUp size={12} className={cn('transition-transform duration-200', isDspQuickMenuOpen && 'rotate-180')} />
             </button>
 
             {isDspQuickMenuOpen && (
               <div
-                style={{
-                  position: 'absolute',
-                  bottom: 'calc(100% + 8px)',
-                  right: 0,
-                  background: 'rgba(20, 20, 32, 0.96)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px',
-                  padding: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 0, 0, 0.4)',
-                  zIndex: 1000,
-                  minWidth: '205px',
-                }}
+                className="absolute right-0 bottom-full z-10 mb-2 flex min-w-51 flex-col gap-1 rounded-xl border border-line bg-ink/95 p-1.5 shadow-panel backdrop-blur-lg"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 600 }}>
-                  {loc.bottomDock.selectDspEngine}
-                </div>
+                <div className="px-2 py-1 text-xxs font-semibold text-fg-muted">{loc.bottomDock.selectDspEngine}</div>
                 {[
-                  {
-                    id: 'Bypass' as DspEngineType,
-                    name: 'Direct Bypass',
-                    desc: loc.bottomDock.cleanAudio,
-                    color: 'var(--accent-green)',
-                  },
-                  {
-                    id: 'RubberBand' as DspEngineType,
-                    name: 'Rubber Band',
-                    desc: 'Hi-Fi R3',
-                    color: 'var(--accent-pink)',
-                  },
-                  {
-                    id: 'SoundTouch' as DspEngineType,
-                    name: 'SoundTouch',
-                    desc: loc.bottomDock.fastEngine,
-                    color: 'var(--accent-cyan)',
-                  },
+                  { id: 'Bypass' as DspEngineType, name: 'Direct Bypass', desc: loc.bottomDock.cleanAudio },
+                  { id: 'RubberBand' as DspEngineType, name: 'Rubber Band', desc: 'Hi-Fi R3' },
+                  { id: 'SoundTouch' as DspEngineType, name: 'SoundTouch', desc: loc.bottomDock.fastEngine },
                 ].map((eng) => (
                   <button
                     key={eng.id}
@@ -579,28 +328,17 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                       onSelectDspEngine(eng.id);
                       setIsDspQuickMenuOpen(false);
                     }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      background: status.engine === eng.id ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                      border: status.engine === eng.id ? `1px solid ${eng.color}` : '1px solid transparent',
-                      color: status.engine === eng.id ? eng.color : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontSize: '0.75rem',
-                      fontWeight: status.engine === eng.id ? 700 : 500,
-                      textAlign: 'left',
-                      gap: '8px',
-                      transition: 'all 0.15s ease',
-                    }}
+                    aria-pressed={status.engine === eng.id}
+                    className={cn(
+                      'flex items-center justify-between gap-2 border border-transparent bg-transparent px-2.5 py-2 text-left text-xs font-medium text-fg-secondary aria-pressed:bg-white/10 aria-pressed:font-bold',
+                      ENGINE_MENU_PRESSED[eng.id],
+                    )}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Zap size={12} color={eng.color} fill={eng.id !== 'Bypass' ? eng.color : 'none'} />
+                    <span className="flex items-center gap-1.5">
+                      <Zap size={12} className={ENGINE_TEXT[eng.id]} fill={eng.id !== 'Bypass' ? 'currentColor' : 'none'} />
                       {eng.name}
                     </span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{eng.desc}</span>
+                    <span className="text-xxs font-normal text-fg-muted">{eng.desc}</span>
                   </button>
                 ))}
               </div>
@@ -609,14 +347,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
 
           {status.pitch_semitones !== 0 && (
             <span
-              style={{
-                fontSize: '0.70rem',
-                padding: '2px 7px',
-                borderRadius: '6px',
-                background: 'rgba(255, 77, 148, 0.18)',
-                color: 'var(--accent-pink)',
-                fontWeight: 600,
-              }}
+              className="rounded-md bg-accent-pink/20 px-2 py-0.5 text-xxs font-semibold text-accent-pink"
               title={t.bottomDock.pitchTooltip}
             >
               {status.pitch_semitones > 0 ? `+${status.pitch_semitones}` : status.pitch_semitones} st
@@ -624,14 +355,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
           )}
           {status.tempo_ratio !== 1.0 && (
             <span
-              style={{
-                fontSize: '0.70rem',
-                padding: '2px 7px',
-                borderRadius: '6px',
-                background: 'rgba(6, 182, 212, 0.18)',
-                color: 'var(--accent-cyan)',
-                fontWeight: 600,
-              }}
+              className="rounded-md bg-accent-cyan/20 px-2 py-0.5 text-xxs font-semibold text-accent-cyan"
               title={t.bottomDock.tempoTooltip}
             >
               {status.tempo_ratio.toFixed(2)}x
@@ -640,10 +364,10 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
         </div>
 
         {/* Volume Slider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={onToggleMute}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+            className="bg-transparent p-0 text-fg-muted hover:text-fg"
             title={status.volume === 0 ? t.bottomDock.mutedTooltip : t.bottomDock.volumeTooltip}
           >
             {status.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -656,50 +380,22 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             value={status.volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
             title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
-            style={{
-              width: '95px',
-              height: '4px',
-              cursor: 'pointer',
-              background: `linear-gradient(to right, var(--accent-purple) 0%, var(--accent-pink) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) ${volumeProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-            }}
+            className="range-fill h-1 w-24"
+            style={cssVars({ '--fill': `${volumeProgressPercent}%` })}
           />
         </div>
 
         {/* Scroll to Top / Expand to Player View */}
         <button
           onClick={onScrollToTopOrSwitchTab}
-          className="glass-card"
-          style={{
-            padding: '6px 8px',
-            borderRadius: '8px',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.75rem',
-          }}
+          className={DOCK_GLASS_BUTTON}
           title={activeTab === 'player' ? t.bottomDock.scrollToTop : t.bottomDock.openFullPlayer}
         >
           {activeTab === 'player' ? <ChevronUp size={15} /> : <Maximize2 size={14} />}
         </button>
 
         {/* Mini Player Toggle */}
-        <button
-          onClick={onToggleMiniPlayer}
-          className="glass-card"
-          style={{
-            padding: '6px 8px',
-            borderRadius: '8px',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.75rem',
-          }}
-          title={t.bottomDock.maximizeTooltip}
-        >
+        <button onClick={onToggleMiniPlayer} className={DOCK_GLASS_BUTTON} title={t.bottomDock.maximizeTooltip}>
           <Minimize2 size={14} />
         </button>
       </div>

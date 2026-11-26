@@ -7,18 +7,29 @@ import { Button } from './Button';
 import { iconTileTones, type Tone } from './tones';
 
 /*
- * Stacking scale for overlays (bare z-index numbers, not arbitrary values):
- *   z-30 dock · z-40 drawer · z-50 overlay · z-60 modal · z-70 nested modal ·
- *   z-80 command palette · z-90 toast · z-100 fatal error
+ * Stacking scale (bare z-index numbers, see the tailwind-v4 skill):
+ *   30 header · 40 dock · 50 drawer · 60 modal · 70 nested · 80 system · 90 studio ·
+ *   100 tool · 110 tool dialog · 120 top (palette, recap) · 130 OSD · 140 fatal
  */
 const backdropVariants = cva(
   'fixed inset-0 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in',
   {
     variants: {
       layer: {
+        /** Ordinary modal. */
         modal: 'z-60',
+        /** Opened on top of another modal (settings → sleep timer, playlist picker…). */
         nested: 'z-70',
-        palette: 'z-80',
+        /** Onboarding and system checks. */
+        system: 'z-80',
+        /** Large studio workspaces (tag editor, stem studio, mixers). */
+        studio: 'z-90',
+        /** Tools opened over a studio (parametric EQ, AutoEQ, harmonic suggester). */
+        tool: 'z-100',
+        /** Dialog opened from a tool. */
+        toolDialog: 'z-110',
+        /** Always on top: command palette, recap, key/BPM. */
+        top: 'z-120',
       },
     },
     defaultVariants: { layer: 'modal' },

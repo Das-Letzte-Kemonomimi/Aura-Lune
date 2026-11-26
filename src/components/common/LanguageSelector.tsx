@@ -1,17 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Globe, ChevronDown, Check } from 'lucide-react';
 import { type Language, supportedLanguages, getTranslations } from '../../i18n';
+import { cn } from '../../utils/cn';
 
 interface LanguageSelectorProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
-  style?: React.CSSProperties;
+  className?: string;
 }
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   currentLang,
   onLanguageChange,
-  style,
+  className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -31,86 +32,39 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'relative',
-        display: 'inline-block',
-        ...style,
-      }}
-    >
+    <div ref={containerRef} className={cn('relative inline-block', className)}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="glass-card"
-        style={{
-          padding: '6px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          color: 'var(--text-secondary)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '10px',
-          background: 'rgba(255, 255, 255, 0.04)',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-        }}
+        aria-expanded={isOpen}
+        className="flex items-center gap-1.5 rounded-xl border border-line bg-white/4 px-2.5 py-1.5 text-sm font-semibold text-fg-secondary"
         title={`${loc.settings.language}: ${activeOption.label} (${activeOption.code})`}
       >
-        <Globe size={14} color="var(--accent-cyan)" />
-        <span style={{ fontSize: '1rem', lineHeight: 1 }}>{activeOption.flag}</span>
-        <ChevronDown size={12} style={{ opacity: 0.6 }} />
+        <Globe size={14} className="text-accent-cyan" />
+        <span className="text-base leading-none">{activeOption.flag}</span>
+        <ChevronDown size={12} className="opacity-60" />
       </button>
 
       {isOpen && (
-        <div
-          className="glass-panel"
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
-            right: 0,
-            zIndex: 1000,
-            background: 'rgba(15, 20, 32, 0.96)',
-            borderRadius: '12px',
-            border: '1px solid var(--border-accent)',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
-            padding: '6px',
-            minWidth: '150px',
-            animation: 'fadeIn 0.15s ease-out',
-          }}
-        >
+        <div className="absolute top-full right-0 z-10 mt-1.5 min-w-37.5 rounded-xl border border-line-accent bg-deep/95 p-1.5 shadow-panel motion-safe:animate-fade-in">
           {supportedLanguages.map((lang) => {
             const isSelected = lang.code === currentLang;
             return (
               <button
                 key={lang.code}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => {
                   onLanguageChange(lang.code);
                   setIsOpen(false);
                 }}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: isSelected ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
-                  color: isSelected ? 'var(--accent-cyan)' : '#fff',
-                  fontSize: '0.82rem',
-                  fontWeight: isSelected ? 700 : 500,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'background 0.15s ease',
-                }}
+                className="flex w-full items-center justify-between bg-transparent px-3 py-2 text-left text-ui font-medium text-fg aria-pressed:bg-accent-cyan/15 aria-pressed:font-bold aria-pressed:text-accent-cyan"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="flex items-center gap-2">
                   <span>{lang.flag}</span>
                   <span>{lang.label}</span>
                 </div>
-                {isSelected && <Check size={14} color="var(--accent-cyan)" />}
+                {isSelected && <Check size={14} />}
               </button>
             );
           })}

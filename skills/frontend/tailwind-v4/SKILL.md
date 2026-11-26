@@ -30,7 +30,9 @@ The theme engine (`useThemeManager`) rewrites `--bg-*`, `--accent-*`, `--text-*`
 - Borders: `border-line` (subtle) `border-line-accent`
 - Text: `text-fg` `text-fg-secondary` `text-fg-muted`
 - Accents: `{bg,text,border,…}-accent-{pink,purple,cyan,green,amber}`; fixed `accent-red`, `on-accent` (white on fills)
-- Shadows: `shadow-panel` `shadow-accent-glow` `shadow-brand` `shadow-brand-glow` `shadow-modal`
+- Surfaces (fixed): `bg-ink` (deep violet behind dock, drawers, menus), `bg-modal` (dialog gradient), `bg-accent-gradient`
+- Shadows: `shadow-panel` `shadow-accent-glow` `shadow-modal` `shadow-drawer` `shadow-dock`, plus a tintable glow scale `shadow-halo-sm|halo|halo-md|halo-lg|halo-xl|halo-2xl` (0.625–2.25rem blur) and `shadow-lift`. Tint by pairing with a shadow colour: `shadow-halo shadow-accent-cyan/40`. Never write `0 0 12px rgba(…)`.
+- Text shadow: `text-shadow-deep`
 - Fonts: `font-sans` (Outfit, the default) `font-mono` (JetBrains Mono)
 
 Tints use slash opacity: `bg-accent-pink/15`, `border-accent-cyan/35`. This compiles to `color-mix()` on the live theme colour, so **never** write `rgba(244,63,94,0.15)`: that freezes the default theme. Opacity steps are multiples of 5.
@@ -50,12 +52,29 @@ Colours outside the theme come from Tailwind's default palette (`text-slate-300`
 - **Line height**: inherited `normal` unless set; use `leading-tight|snug|normal|relaxed` (unitless).
 - **Letter spacing**: `tracking-wide` (0.025em), `tracking-wider` (0.05em), `tracking-label` (0.08em), `tracking-widest` (0.1em).
 - **Radius**: Tailwind defaults: `rounded-sm` 4px, `md` 6px, `lg` 8px, `xl` 12px, `2xl` 16px, `3xl` 24px, `full`. 10px → `xl`; 14px → `2xl`.
-- **z-index** (bare numbers): `z-30` dock, `z-40` drawer, `z-50` overlay, `z-60` modal, `z-70` nested modal, `z-80` command palette, `z-90` toast, `z-100` fatal.
+- **z-index** (bare numbers). Inside one component use `z-1`…`z-20`. App layers:
+
+  | z | layer | `ModalShell layer` |
+  |---|---|---|
+  | 30 | header and its dropdowns | |
+  | 40 | bottom dock | |
+  | 50 | queue drawer, dock popovers | |
+  | 60 | modal | `modal` |
+  | 70 | modal over a modal, export badge | `nested` |
+  | 80 | onboarding, health check | `system` |
+  | 90 | studio workspaces, big screen | `studio` |
+  | 100 | tools over a studio | `tool` |
+  | 110 | dialog from a tool | `toolDialog` |
+  | 120 | command palette, recap, key/BPM, drag-drop, desktop lyrics | `top` |
+  | 130 | volume OSD | |
+  | 140 | fatal error screen | |
+
 - **Breakpoints**: header collapse points `max-nav:` (84.375rem), `max-brand:` (105rem), `max-actions:` (113.75rem).
 - `px` only where nothing else makes sense: 1–2px borders/hairlines, shadow and blur offsets inside tokens, canvas maths in TS.
 
 ## Class composition
 
+- Runtime values that classes read go through `cssVars()` (`utils/cssVars.ts`), which types `--*` names for `style`.
 - Merge with `cn(...)` whenever classes are conditional or a component accepts `className` (the caller's classes go last and win).
 - **Never build class names from strings** (`` `bg-accent-${tone}` ``): Tailwind only generates classes it finds as complete literals. Use a lookup map of full class strings (see `components/ui/tones.ts`).
 - Order inside a class string: layout/position → display/flex/grid → box/size/spacing → typography → visuals (bg/border/shadow) → effects/transitions → state variants → responsive variants.
@@ -74,7 +93,7 @@ Colours outside the theme come from Tailwind's default palette (`text-slate-300`
 - Selected/toggled: put the state in an attribute and style it: `aria-pressed:` `aria-selected:` `aria-expanded:` `data-[active=true]:`. One source of truth for screen readers and visuals.
 - Parent-driven: `group` + `group-hover:`.
 - Disabled: `disabled:`; the base layer already dims disabled buttons.
-- Entrance animations: `motion-safe:animate-fade-in|fade-in-scale|modal-in|osd-pop`.
+- Entrance animations: `motion-safe:animate-fade-in|fade-in-scale|modal-in|osd-pop`; loops: `animate-spin`, `motion-safe:animate-spin-slow|pulse|pulse-drop|bounce-drop|update-dot`.
 
 ## Primitives
 

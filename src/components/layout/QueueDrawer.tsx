@@ -45,61 +45,25 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: '420px',
-        maxWidth: '90vw',
-        background: 'rgba(15, 12, 28, 0.98)',
-        borderLeft: '1px solid var(--border-accent)',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
-      }}
-    >
+    <div className="bg-modal fixed inset-y-0 right-0 z-50 flex w-105 max-w-[90vw] flex-col border-l border-line-accent shadow-drawer">
       {/* Nagłówek szuflady */}
-      <div
-        style={{
-          padding: '20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ListMusic size={22} color="var(--accent-pink)" />
+      <div className="flex items-center justify-between border-b border-line p-5">
+        <div className="flex items-center gap-2.5">
+          <ListMusic size={22} className="text-accent-pink" />
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{loc.queue.title}</h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <h3 className="text-lg font-bold">{loc.queue.title}</h3>
+            <span className="text-xs text-fg-muted">
               {queue.items.length} {loc.library.tracks} •{' '}
               {queue.loop_mode !== 'None' ? `${loc.shortcuts.loop}: ${queue.loop_mode}` : loc.player.loopOff}
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={onToggleInfinityQueue}
             title={loc.queue.autoDjHint}
-            className="glass-card"
-            style={{
-              padding: '6px 10px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              background: infinityQueue ? 'rgba(236, 72, 153, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${infinityQueue ? 'var(--accent-pink)' : 'var(--border-subtle)'}`,
-              color: infinityQueue ? 'var(--accent-pink)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              borderRadius: '8px',
-            }}
+            aria-pressed={infinityQueue}
+            className="flex items-center gap-1.5 rounded-lg border border-line bg-white/5 px-2.5 py-1.5 text-xs font-bold text-fg-muted aria-pressed:border-accent-pink aria-pressed:bg-accent-pink/25 aria-pressed:text-accent-pink"
           >
             <InfinityIcon size={14} />
             <span>{loc.queue.autoDj}</span>
@@ -109,53 +73,24 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
             <button
               onClick={onClearQueue}
               title={loc.queue.clear}
-              className="glass-card"
-              style={{
-                padding: '6px 10px',
-                fontSize: '0.75rem',
-                color: '#ff6b81',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
+              className="glass-card flex items-center gap-1 px-2.5 py-1.5 text-xs text-rose-400"
             >
               <Trash2 size={14} /> {loc.queue.clear}
             </button>
           )}
-          <button
-            onClick={onClose}
-            title={loc.common.close}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '6px',
-            }}
-          >
+          <button onClick={onClose} title={loc.common.close} className="bg-transparent p-1.5 text-fg-muted hover:text-fg">
             <X size={20} />
           </button>
         </div>
       </div>
 
       {/* Lista pozycji w kolejce */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-        }}
-      >
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
         {queue.items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-            <Music size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-            <p style={{ fontSize: '0.9rem', margin: 0 }}>{loc.queue.empty}</p>
-            <p style={{ fontSize: '0.8rem', marginTop: '6px', opacity: 0.7 }}>
-              {loc.queue.emptyHint}
-            </p>
+          <div className="px-5 py-15 text-center text-fg-muted">
+            <Music size={40} className="mb-3 opacity-30" />
+            <p className="text-sm">{loc.queue.empty}</p>
+            <p className="mt-1.5 text-ui opacity-70">{loc.queue.emptyHint}</p>
           </div>
         ) : (
           queue.items.map((item, idx) => {
@@ -164,88 +99,28 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
               <div
                 key={item.id}
                 onClick={() => onPlayQueueIndex(idx, item)}
-                className="glass-card"
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  cursor: 'pointer',
-                  background: isCurrent ? 'rgba(255, 77, 148, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isCurrent
-                    ? '1px solid var(--accent-pink)'
-                    : '1px solid rgba(255, 255, 255, 0.06)',
-                  boxShadow: isCurrent ? '0 0 16px rgba(255, 77, 148, 0.25)' : 'none',
-                  transition: 'all 0.2s ease',
-                }}
+                aria-current={isCurrent ? 'true' : undefined}
+                className="group flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-white/5 px-3.5 py-3 transition-[border-color,background-color,box-shadow] duration-200 not-aria-[current=true]:hover:border-line-accent aria-[current=true]:border-accent-pink aria-[current=true]:bg-accent-pink/15 aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25"
               >
-                <div
-                  style={{
-                    width: '24px',
-                    textAlign: 'center',
-                    color: isCurrent ? 'var(--accent-pink)' : 'var(--text-muted)',
-                    fontSize: '0.8rem',
-                    fontWeight: isCurrent ? 700 : 400,
-                  }}
-                >
-                  {isCurrent && status.state === 'Playing' ? (
-                    <Zap size={16} color="var(--accent-pink)" />
-                  ) : (
-                    idx + 1
-                  )}
+                <div className="w-6 text-center text-ui text-fg-muted group-aria-[current=true]:font-bold group-aria-[current=true]:text-accent-pink">
+                  {isCurrent && status.state === 'Playing' ? <Zap size={16} /> : idx + 1}
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: isCurrent ? '#fff' : 'var(--text-primary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {item.title}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '0.75rem',
-                      color: isCurrent ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-fg">{item.title}</p>
+                  <p className="truncate text-xs text-fg-muted group-aria-[current=true]:text-accent-cyan">
                     {item.artist} {item.album ? `• ${item.album}` : ''}
                   </p>
                 </div>
 
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {formatTime(item.duration_ms || 0)}
-                </span>
+                <span className="font-mono text-xs text-fg-muted">{formatTime(item.duration_ms || 0)}</span>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="flex items-center gap-1">
                   <button
                     disabled={idx === 0}
                     onClick={(e) => onMoveQueueItem(idx, idx - 1, e)}
                     title={loc.queue.moveUp}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: idx === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-muted)',
-                      cursor: idx === 0 ? 'default' : 'pointer',
-                      padding: '4px',
-                    }}
+                    className="bg-transparent p-1 text-fg-muted hover:text-fg disabled:text-white/10"
                   >
                     <ChevronUp size={16} />
                   </button>
@@ -253,29 +128,14 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                     disabled={idx === queue.items.length - 1}
                     onClick={(e) => onMoveQueueItem(idx, idx + 1, e)}
                     title={loc.queue.moveDown}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color:
-                        idx === queue.items.length - 1
-                          ? 'rgba(255,255,255,0.1)'
-                          : 'var(--text-muted)',
-                      cursor: idx === queue.items.length - 1 ? 'default' : 'pointer',
-                      padding: '4px',
-                    }}
+                    className="bg-transparent p-1 text-fg-muted hover:text-fg disabled:text-white/10"
                   >
                     <ChevronDown size={16} />
                   </button>
                   <button
                     onClick={(e) => onRemoveFromQueue(item.id, e)}
                     title={loc.queue.remove}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '4px',
-                    }}
+                    className="bg-transparent p-1 text-fg-muted hover:text-accent-pink"
                   >
                     <Trash2 size={15} />
                   </button>

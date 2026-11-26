@@ -8,19 +8,13 @@ export interface ToggleSwitchProps {
   disabled?: boolean;
 }
 
-/** Przełącznik-suwak (pigułka z białą gałką) oparty na natywnym checkboxie — działa z klawiatury. */
+/**
+ * Przełącznik-suwak (pigułka z białą gałką) oparty na natywnym checkboxie — działa z klawiatury.
+ * The track and knob are styled from the checkbox state (`peer-checked:`), so they can never
+ * disagree with what assistive tech reads.
+ */
 export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, label, disabled }) => (
-  <label
-    style={{
-      position: 'relative',
-      display: 'inline-block',
-      width: '48px',
-      height: '26px',
-      flexShrink: 0,
-      opacity: disabled ? 0.5 : 1,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-    }}
-  >
+  <label className="relative inline-block h-6.5 w-12 shrink-0 cursor-pointer has-disabled:cursor-not-allowed has-disabled:opacity-50">
     <input
       type="checkbox"
       role="switch"
@@ -28,33 +22,15 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, l
       checked={checked}
       disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
-      style={{ position: 'absolute', inset: 0, opacity: 0, margin: 0, cursor: 'inherit' }}
+      className="peer absolute inset-0 m-0 cursor-[inherit] opacity-0"
     />
     <span
       aria-hidden="true"
-      style={{
-        position: 'absolute',
-        inset: 0,
-        borderRadius: '26px',
-        background: checked ? 'linear-gradient(135deg, #5b5bf0, #6d5df5)' : 'rgba(255,255,255,0.2)',
-        boxShadow: checked ? '0 0 10px rgba(99, 102, 241, 0.45)' : 'none',
-        transition: 'background 0.25s, box-shadow 0.25s',
-        pointerEvents: 'none',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: '3px',
-          left: checked ? '25px' : '3px',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: '#fff',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
-          transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      />
-    </span>
+      className="pointer-events-none absolute inset-0 rounded-full bg-white/20 transition-[background-color,box-shadow] duration-250 peer-checked:bg-accent-gradient peer-checked:shadow-halo-sm peer-checked:shadow-accent-purple/45 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-purple"
+    />
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute top-0.75 left-0.75 size-5 rounded-full bg-white shadow-md transition-[translate] duration-250 ease-in-out peer-checked:translate-x-5.5"
+    />
   </label>
 );

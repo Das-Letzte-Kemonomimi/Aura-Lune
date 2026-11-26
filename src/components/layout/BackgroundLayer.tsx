@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '../../utils/cn';
 
 export interface BackgroundLayerProps {
   themeBgImage: string | null;
@@ -21,41 +22,24 @@ export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     <>
       {isVideo ? (
         <video
-          className="anime-bg-layer"
+          className="pointer-events-none fixed inset-0 -z-2 size-full scale-105 object-cover transition-[filter] duration-250"
           src={themeBgImage!}
           autoPlay
           loop
           muted
           playsInline
-          style={{
-            position: 'fixed',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: -2,
-            filter: `blur(${themeBlur || 0}px)`,
-            transform: 'scale(1.05)',
-            pointerEvents: 'none',
-          }}
+          style={{ filter: `blur(${themeBlur || 0}px)` }}
         />
       ) : (
         <div
-          className="anime-bg-layer"
+          className={cn('anime-bg-layer', !themeBgImage && 'hidden')}
           style={{
             backgroundImage: themeBgImage ? `url("${themeBgImage}")` : undefined,
-            display: themeBgImage ? 'block' : 'none',
             filter: `blur(${themeBlur || 0}px)`,
           }}
         />
       )}
-      <div
-        className="anime-overlay-layer"
-        style={{
-          display: themeBgImage ? 'block' : 'none',
-          opacity: themeOverlay,
-        }}
-      />
+      <div className={cn('anime-overlay-layer', !themeBgImage && 'hidden')} style={{ opacity: themeOverlay }} />
     </>
   );
 };

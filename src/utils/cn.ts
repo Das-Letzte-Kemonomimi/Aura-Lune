@@ -10,7 +10,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       text: ['2xs', 'xxs', 'ui', 'md'],
-      shadow: ['accent-glow', 'panel', 'brand', 'brand-glow', 'modal'],
+      shadow: ['accent-glow', 'panel', 'modal', 'halo-sm', 'halo', 'halo-md', 'halo-lg', 'halo-xl', 'halo-2xl', 'lift', 'drawer', 'dock'],
       tracking: ['label'],
     },
   },

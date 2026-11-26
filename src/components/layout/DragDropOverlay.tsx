@@ -20,25 +20,7 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
   return (
     <div
       onClick={onDismiss}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        backgroundColor: 'rgba(9, 10, 18, 0.88)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '24px',
-        border: '3px dashed var(--accent-pink)',
-        borderRadius: '24px',
-        margin: '16px',
-        pointerEvents: 'auto',
-        animation: 'pulse-drop 2s infinite ease-in-out',
-        cursor: 'pointer',
-      }}
+      className="pointer-events-auto fixed inset-0 z-120 m-4 flex cursor-pointer flex-col items-center justify-center gap-6 rounded-3xl border-3 border-dashed border-accent-pink bg-deep/90 backdrop-blur-lg motion-safe:animate-pulse-drop"
     >
       {/* Przycisk zamknięcia / anulowania w prawym górnym rogu */}
       <button
@@ -47,92 +29,24 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
           onDismiss();
         }}
         title={loc.common?.cancel || 'Anuluj (Esc)'}
-        style={{
-          position: 'absolute',
-          top: '24px',
-          right: '24px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '50%',
-          width: '42px',
-          height: '42px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#fff',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-        }}
+        className="absolute top-6 right-6 flex size-10.5 items-center justify-center rounded-full border border-white/20 bg-white/10 text-on-accent"
       >
         <X size={20} />
       </button>
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100px',
-          height: '100px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 0 35px rgba(244, 63, 94, 0.6)',
-          animation: 'bounce-drop 1.5s infinite ease-in-out',
-        }}
+        className="bg-accent-gradient flex size-25 items-center justify-center rounded-full shadow-halo-2xl shadow-accent-pink/60 motion-safe:animate-bounce-drop"
       >
-        <UploadCloud size={52} color="#fff" />
+        <UploadCloud size={52} className="text-on-accent" />
       </div>
 
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ textAlign: 'center', maxWidth: '600px', padding: '0 20px' }}
-      >
-        <h2
-          style={{
-            fontSize: '2rem',
-            fontWeight: 800,
-            color: '#fff',
-            margin: '0 0 10px 0',
-            letterSpacing: '-0.02em',
-            textShadow: '0 4px 20px rgba(0,0,0,0.6)',
-          }}
-        >
-          {loc.dragDrop.title}
-        </h2>
-        <p
-          style={{
-            fontSize: '1.05rem',
-            color: 'var(--accent-cyan)',
-            margin: '0 0 12px 0',
-            fontWeight: 600,
-          }}
-        >
-          {loc.dragDrop.subtitle}
-        </p>
-        <div
-          style={{
-            display: 'inline-flex',
-            gap: '8px',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            background: 'rgba(255, 255, 255, 0.05)',
-            padding: '8px 16px',
-            borderRadius: '12px',
-            border: '1px solid var(--border-subtle)',
-            marginBottom: '16px',
-          }}
-        >
+      <div onClick={(e) => e.stopPropagation()} className="max-w-150 px-5 text-center">
+        <h2 className="mb-2.5 text-3xl font-extrabold tracking-tight text-fg text-shadow-deep">{loc.dragDrop.title}</h2>
+        <p className="mb-3 text-base font-semibold text-accent-cyan">{loc.dragDrop.subtitle}</p>
+        <div className="mb-4 inline-flex flex-wrap justify-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2">
           {SUPPORTED_FORMATS.map((fmt) => (
-            <span
-              key={fmt}
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--text-secondary)',
-              }}
-            >
+            <span key={fmt} className="font-mono text-xs font-bold text-fg-secondary">
               {fmt}
             </span>
           ))}
@@ -143,19 +57,7 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
               e.stopPropagation();
               onDismiss();
             }}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '10px',
-              padding: '8px 20px',
-              color: 'var(--text-secondary)',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white/10 px-5 py-2 text-sm font-semibold text-fg-secondary"
           >
             <X size={16} />
             {loc.common?.cancel || 'Anuluj'} (Esc)

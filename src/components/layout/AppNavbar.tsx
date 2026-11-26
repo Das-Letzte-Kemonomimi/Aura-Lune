@@ -81,41 +81,19 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   ];
 
   return (
-    <nav
-      style={{
-        display: 'flex',
-        gap: '4px',
-        background: 'rgba(0,0,0,0.3)',
-        padding: '4px',
-        borderRadius: '12px',
-        border: '1px solid var(--border-subtle)',
-        flexShrink: 0,
-      }}
-    >
+    <nav className="flex shrink-0 gap-1 rounded-xl border border-line bg-black/30 p-1">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
           <button
             key={tab.id}
             onClick={() => onSelectTab(tab.id)}
-            style={{
-              padding: '7px 12px',
-              borderRadius: '8px',
-              background: isActive ? 'var(--accent-purple)' : 'transparent',
-              color: '#fff',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              border: 'none',
-              transition: 'background 0.15s ease',
-            }}
+            aria-current={isActive ? 'page' : undefined}
+            className="flex items-center gap-1.5 bg-transparent px-3 py-2 text-ui font-semibold text-fg aria-[current=page]:bg-accent-purple"
             title={tab.title}
           >
             {tab.icon}
-            <span className="header-nav-label">{tab.label}</span>
+            <span className="max-nav:hidden">{tab.label}</span>
           </button>
         );
       })}

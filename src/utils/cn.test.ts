@@ -26,6 +26,7 @@ describe('cn', () => {
 
   it('treats custom shadows as shadows, not shadow colours', () => {
     expect(cn('shadow-panel', 'shadow-accent-glow')).toBe('shadow-accent-glow');
+    expect(cn('shadow-halo shadow-accent-cyan/50', 'shadow-lift')).toBe('shadow-accent-cyan/50 shadow-lift');
     expect(cn('shadow-panel', 'shadow-accent-pink/30')).toBe('shadow-panel shadow-accent-pink/30');
   });
 
