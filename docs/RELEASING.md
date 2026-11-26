@@ -12,7 +12,7 @@ How a stable Auralune release is cut. Stable releases are built and published by
 | **stable** | two manual workflows (below) | release `vX.Y.Z` with the AppImage and `SHA256SUMS` |
 
 ```
-dev ──(content step: CHANGELOG.md, changelog.json, README badges, reset CHANGELOG_PENDING.md)──▶ push
+dev ──(content step: promote changelog.json, README badges)──▶ push
   │
   ▼  Actions ▸ "Prepare release" ▸ Run workflow            (manual, on dev)
 release/vX.Y.Z  =  dev + "chore(release): bump version to X.Y.Z (Codename)"
@@ -42,12 +42,10 @@ Do this once in the GitHub repository settings.
 
 ### 3.1 Content step (on `dev`)
 
-The 5-language changelog cannot be generated mechanically, so it is written **before** the workflows run (ask the agent: `/release`, or do it by hand):
+The 5-language changelog is curated during development in `src/data/changelog.json` (`isDev: true`). Before running the workflows (ask the agent: `/release`, or run by hand):
 
-- add `## [X.Y.Z] — „Codename” - YYYY-MM-DD` to `CHANGELOG.md` (keep the `---` separator after the block, the release notes are cut from there);
-- add the entry to the start of `src/data/changelog.json` with `isLatest: true` (and remove it from the previous entry) with every language: `pl`, `en`, `de`, `fi`, `la`;
+- promote the active `isDev` entry to stable release `X.Y.Z` (`npm run changelog:promote -- X.Y.Z "Codename"`), making sure all items are listener-friendly and translated across all five languages (`en`, `pl`, `de`, `fi`, `la`) with `isLatest: true`;
 - update the version badges and `releases/tag/vX.Y.Z` links in `README.md` and `README.pl.md`;
-- reset `CHANGELOG_PENDING.md` to the empty template;
 - run `./tests/run_all_tests.sh --fix`, commit and push `dev`.
 
 You can check the result without CI: `packaging/check-release-content.sh X.Y.Z`.
@@ -116,8 +114,8 @@ The run summary shows the checksums and the remaining manual steps.
 | Script | Purpose |
 |---|---|
 | `packaging/bump-version.sh <X.Y.Z\|X.Y.Z-dev>` | Rewrites the version in all files (Cargo, Tauri, npm + lockfile, `install.sh`, PKGBUILDs, `.SRCINFO`, docs). A stable bump also checks that README badges were updated; a `-dev` bump touches only the app files. |
-| `packaging/check-release-content.sh <X.Y.Z>` | Verifies changelog, 5-language `changelog.json`, empty `CHANGELOG_PENDING.md` and README badges. |
-| `packaging/release-notes.sh <X.Y.Z> <codename\|date\|notes>` | Extracts the codename, date or notes of a version from `CHANGELOG.md`. |
+| `packaging/check-release-content.sh <X.Y.Z>` | Validates 5-language `changelog.json`, verifies `X.Y.Z` is promoted (`isLatest=true`, not `isDev`), non-empty release notes, and README badges. |
+| `packaging/release-notes.sh <X.Y.Z> <codename\|date\|notes>` | Extracts the codename, date or Markdown release notes for a version from `src/data/changelog.json` via `scripts/changelog.mjs`. |
 | `packaging/archlinux/update-aur-checksum.sh <X.Y.Z>` | Writes the published AppImage checksum into `PKGBUILD-bin` and `.SRCINFO`. |
 | `packaging/archlinux/publish-to-aur.sh` | Pushes `auralune-bin` to the AUR. |
 
@@ -127,7 +125,7 @@ Workflows: `.github/workflows/ci.yml` (quality + rolling dev release, also calla
 
 | Symptom | Cause / fix |
 |---|---|
-| Prepare fails with "CHANGELOG.md: no heading…" or "changelog.json…" | The content step (3.1) is missing or incomplete. Run `packaging/check-release-content.sh X.Y.Z` locally. |
+| Prepare fails with "changelog.json: failed validation…" or "not promoted…" | The content step (3.1) is missing or incomplete. Run `npm run changelog:promote` / `packaging/check-release-content.sh X.Y.Z` locally. |
 | Prepare fails with "leftovers of the previous release" | A file still shows the old version, usually a README badge. Fix it on `dev` and run again. |
 | The release PR has no checks | `RELEASE_TOKEN` is missing (PRs opened by `GITHUB_TOKEN` do not start CI). Publish runs the full CI anyway. |
 | Publish: "version is not stable" | The release PR was not merged into `main` yet. |

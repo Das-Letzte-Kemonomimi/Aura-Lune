@@ -7,9 +7,16 @@ describe('ChangelogView component', () => {
     cleanup();
   });
 
-  it('renders changelog header and latest version badge', () => {
-    render(<ChangelogView currentLang="en" />);
+  it('renders stable releases and hides dev entries on stable channel', () => {
+    render(<ChangelogView currentLang="en" channel="stable" />);
     expect(screen.getByText('Changelog & Release Notes')).toBeTruthy();
+    expect(screen.getAllByText(/v1\.1\.5/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/-dev/)).toBeNull();
+  });
+
+  it('renders the dev entry with dev badge when channel is dev', () => {
+    render(<ChangelogView currentLang="en" channel="dev" />);
+    expect(screen.getByText('DEV BUILD')).toBeTruthy();
     expect(screen.getAllByText(/v1\.1\.5/i).length).toBeGreaterThan(0);
   });
 

@@ -12,7 +12,7 @@ Jak powstaje stabilne wydanie Auralune. Wydania stabilne buduje i publikuje GitH
 | **stable** | dwa ręczne workflow (poniżej) | wydanie `vX.Y.Z` z AppImage i `SHA256SUMS` |
 
 ```
-dev ──(krok contentowy: CHANGELOG.md, changelog.json, plakietki README, wyczyszczenie CHANGELOG_PENDING.md)──▶ push
+dev ──(krok contentowy: promocja changelog.json, plakietki README)──▶ push
   │
   ▼  Actions ▸ "Prepare release" ▸ Run workflow            (ręcznie, na dev)
 release/vX.Y.Z  =  dev + "chore(release): bump version to X.Y.Z (Kryptonim)"
@@ -42,12 +42,10 @@ Wykonaj raz w ustawieniach repozytorium GitHub.
 
 ### 3.1 Krok contentowy (na `dev`)
 
-Pięciojęzycznego changeloga nie da się wygenerować mechanicznie, więc powstaje **przed** uruchomieniem workflow (poproś agenta: `/release`, albo zrób to ręcznie):
+Pięciojęzyczny dziennik zmian powstaje na bieżąco w `src/data/changelog.json` (wpis `isDev: true`). Przed uruchomieniem workflow (poproś agenta: `/release`, albo zrób to ręcznie):
 
-- dodaj `## [X.Y.Z] — „Kryptonim” - RRRR-MM-DD` do `CHANGELOG.md` (zostaw separator `---` po bloku, stąd wycinane są notatki wydania);
-- dodaj wpis na początku `src/data/changelog.json` z `isLatest: true` (i zdejmij go z poprzedniego wpisu), z wszystkimi językami: `pl`, `en`, `de`, `fi`, `la`;
+- wypromuj aktywny wpis `isDev` do stabilnego wydania `X.Y.Z` poleceniem `npm run changelog:promote -- X.Y.Z "Kryptonim"`, upewniając się, że wszystkie punkty są napisane przystępnym językiem w pięciu językach (`pl`, `en`, `de`, `fi`, `la`) oraz mają `isLatest: true`;
 - zaktualizuj plakietki wersji i linki `releases/tag/vX.Y.Z` w `README.md` i `README.pl.md`;
-- wyczyść `CHANGELOG_PENDING.md` do pustego szablonu;
 - uruchom `./tests/run_all_tests.sh --fix`, zrób commit i wypchnij `dev`.
 
 Wynik możesz sprawdzić bez CI: `packaging/check-release-content.sh X.Y.Z`.
@@ -116,8 +114,8 @@ Podsumowanie przebiegu pokazuje sumy kontrolne i pozostałe kroki ręczne.
 | Skrypt | Do czego służy |
 |---|---|
 | `packaging/bump-version.sh <X.Y.Z\|X.Y.Z-dev>` | Podmienia wersję we wszystkich plikach (Cargo, Tauri, npm + lockfile, `install.sh`, PKGBUILD, `.SRCINFO`, dokumentacja). Podbicie stabilne sprawdza też, czy plakietki README zostały zaktualizowane; podbicie `-dev` zmienia tylko pliki aplikacji. |
-| `packaging/check-release-content.sh <X.Y.Z>` | Sprawdza changelog, pięciojęzyczny `changelog.json`, pusty `CHANGELOG_PENDING.md` i plakietki README. |
-| `packaging/release-notes.sh <X.Y.Z> <codename\|date\|notes>` | Wyciąga z `CHANGELOG.md` kryptonim, datę lub notatki wersji. |
+| `packaging/check-release-content.sh <X.Y.Z>` | Waliduje pięciojęzyczny `changelog.json`, promocję `X.Y.Z` (`isLatest=true`, brak `isDev`), niepuste notatki wydania i plakietki README. |
+| `packaging/release-notes.sh <X.Y.Z> <codename\|date\|notes>` | Wyciąga z `src/data/changelog.json` (przez `scripts/changelog.mjs`) kryptonim, datę lub notatki wydania w Markdown. |
 | `packaging/archlinux/update-aur-checksum.sh <X.Y.Z>` | Wpisuje sumę opublikowanego AppImage do `PKGBUILD-bin` i `.SRCINFO`. |
 | `packaging/archlinux/publish-to-aur.sh` | Wypycha `auralune-bin` na AUR. |
 
@@ -127,7 +125,7 @@ Workflow: `.github/workflows/ci.yml` (jakość + ruchome wydanie dev, wywoływal
 
 | Objaw | Przyczyna / rozwiązanie |
 |---|---|
-| Prepare kończy się błędem „CHANGELOG.md: brak nagłówka…” lub „changelog.json…” | Brakuje kroku contentowego (3.1) albo jest niekompletny. Uruchom lokalnie `packaging/check-release-content.sh X.Y.Z`. |
+| Prepare kończy się błędem „changelog.json: failed validation…” lub „not promoted…” | Brakuje kroku contentowego (3.1) albo jest niekompletny. Uruchom lokalnie `npm run changelog:promote` / `packaging/check-release-content.sh X.Y.Z`. |
 | Prepare: „Pozostałości poprzedniego wydania” | Któryś plik nadal ma starą wersję, zwykle plakietka w README. Popraw na `dev` i uruchom ponownie. |
 | PR wydania nie ma sprawdzeń | Brakuje `RELEASE_TOKEN` (PR otwarty przez `GITHUB_TOKEN` nie uruchamia CI). Publish i tak uruchamia pełne CI. |
 | Publish: „wersja nie jest stabilna” | PR wydania nie został jeszcze zmergowany do `main`. |

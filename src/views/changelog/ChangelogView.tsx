@@ -10,39 +10,36 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Layers,
+  RefreshCw,
 } from '../../components/ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import rawReleases from '../../data/changelog.json';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
 import { Badge, Button, Card, Chip, IconButton, SectionHeader } from '../../components/ui';
-import { pageItems } from './changelogModel';
+import {
+  headerRelease,
+  pageItems,
+  visibleReleases,
+  type ChangelogItem,
+  type ChangelogRelease,
+} from './changelogModel';
 
-export interface ChangelogItem {
-  pl: string;
-  en: string;
-  de: string;
-  fi: string;
-  la: string;
-}
-
-export interface ChangelogRelease {
-  version: string;
-  codename: string;
-  date: string;
-  author: string;
-  isLatest?: boolean;
-  added: ChangelogItem[];
-  fixed: ChangelogItem[];
-}
+export type { ChangelogItem, ChangelogRelease };
 
 export interface ChangelogViewProps {
   currentLang: Language;
+  /** Build channel (`"dev"` or `"stable"`). Defaults from `__APP_VERSION__`. */
+  channel?: string;
 }
 
-const RELEASES: ChangelogRelease[] = rawReleases as ChangelogRelease[];
-const LATEST_RELEASE = RELEASES.find((r) => r.isLatest) || RELEASES[0];
+const ALL_RELEASES: ChangelogRelease[] = rawReleases as ChangelogRelease[];
 const PAGE_SIZE_OPTIONS = [3, 5, 10];
+
+function resolveChannel(channel?: string): string {
+  if (channel) return channel;
+  return typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__.includes('-dev') ? 'dev' : 'stable';
+}
 
 /** The "Added" or "Fixed" list of one release. */
 function ReleaseSection({ icon, title, className, items, text }: {
@@ -70,14 +67,24 @@ function ReleaseSection({ icon, title, className, items, text }: {
   );
 }
 
-export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang }) => {
+export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang, channel }) => {
   const loc = getTranslations(currentLang);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5);
 
-  const totalReleases = RELEASES.length;
+  const effectiveChannel = resolveChannel(channel);
+  const releases = useMemo(
+    () => visibleReleases(ALL_RELEASES, effectiveChannel),
+    [effectiveChannel],
+  );
+  const highlightedRelease = useMemo(
+    () => headerRelease(ALL_RELEASES, effectiveChannel),
+    [effectiveChannel],
+  );
+
+  const totalReleases = releases.length;
   const totalPages = Math.max(1, Math.ceil(totalReleases / pageSize));
   const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
   const onFirstPage = clampedPage === 1;
@@ -85,8 +92,8 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang }) => 
 
   const paginatedReleases = useMemo(() => {
     const startIndex = (clampedPage - 1) * pageSize;
-    return RELEASES.slice(startIndex, startIndex + pageSize);
-  }, [clampedPage, pageSize]);
+    return releases.slice(startIndex, startIndex + pageSize);
+  }, [clampedPage, pageSize, releases]);
 
   const getLocText = (obj: ChangelogItem) => obj[currentLang] || obj.en || obj.pl;
 
@@ -111,9 +118,11 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang }) => 
           title={loc.changelog.title}
           description={loc.changelog.subtitle}
           actions={
-            <Badge tone="purple" size="sm" mono className="font-bold">
-              <Tag size={12} /> v{LATEST_RELEASE.version} • {LATEST_RELEASE.codename}
-            </Badge>
+            highlightedRelease ? (
+              <Badge tone={highlightedRelease.isDev ? 'cyan' : 'purple'} size="sm" mono className="font-bold">
+                <Tag size={12} /> v{highlightedRelease.version} • {highlightedRelease.codename}
+              </Badge>
+            ) : undefined
           }
         />
       </Card>
@@ -147,15 +156,25 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang }) => 
 
       {/* Releases on the current page */}
       {paginatedReleases.map((rel) => (
-        <Card key={rel.version} padding="lg" className="flex flex-col gap-4.5">
+        <Card
+          key={rel.version}
+          padding="lg"
+          highlight={rel.isDev ? 'cyan' : undefined}
+          className="flex flex-col gap-4.5"
+        >
           {/* Version and metadata bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
-            <div className="flex items-center gap-3">
-              <Badge tone="pink" className="text-base font-extrabold">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge tone={rel.isDev ? 'cyan' : 'pink'} className="text-base font-extrabold">
                 <Tag size={15} /> v{rel.version}
               </Badge>
               <h4 className="text-lg font-bold text-fg">„{rel.codename}”</h4>
-              {rel.isLatest && (
+              {rel.isDev && (
+                <Badge tone="cyan" size="xs" className="font-extrabold tracking-wider">
+                  {loc.changelog.devBadge}
+                </Badge>
+              )}
+              {!rel.isDev && rel.isLatest && (
                 <Badge tone="green" size="xs" className="font-extrabold tracking-wider">
                   {loc.changelog.latestBadge}
                 </Badge>
@@ -179,6 +198,13 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang }) => 
             title={loc.changelog.added}
             className="text-accent-cyan"
             items={rel.added}
+            text={getLocText}
+          />
+          <ReleaseSection
+            icon={<RefreshCw size={15} />}
+            title={loc.changelog.changed}
+            className="text-accent-purple"
+            items={rel.changed}
             text={getLocText}
           />
           <ReleaseSection

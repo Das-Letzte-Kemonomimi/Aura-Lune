@@ -219,7 +219,7 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
       )}
 
       <h3 className="mt-2 text-lg font-bold text-fg">{loc.settings.changelog}</h3>
-      <ChangelogView currentLang={language} />
+      <ChangelogView currentLang={language} channel={buildInfo?.channel} />
     </SettingsPage>
   );
 };

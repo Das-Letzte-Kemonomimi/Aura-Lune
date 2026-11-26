@@ -23,6 +23,8 @@ This file holds the rules for the whole repository. Each area has its own `AGENT
 | `src-tauri/` | [`src-tauri/AGENTS.md`](src-tauri/AGENTS.md) | Tauri host: commands and their error, path and blocking contracts; setup; updater |
 | `crates/` | [`crates/AGENTS.md`](crates/AGENTS.md) | Core crates: real-time audio safety, storage migrations, HTTP and path rules |
 | deep reference | [`docs/developer/README.md`](docs/developer/README.md) | Module maps, hook lists, test matrix, updater design |
+| agent pipelines | [`docs/developer/agent-pipelines.md`](docs/developer/agent-pipelines.md) | End-to-end automated pipelines (skills, IPC codegen, changelog, quality gates, releases) |
+| changelog rules | [`CHANGELOG.md`](CHANGELOG.md) | Humanization guide, `src/data/changelog.json` rules, and `npm run changelog:*` commands |
 | setup, pipeline, skills | [`DEVELOPMENT.md`](DEVELOPMENT.md) | System packages, toolchain, the development pipeline, installing and updating the agent skills ([Agent skills](DEVELOPMENT.md#6-agent-skills-claude-code-and-antigravity)) |
 
 `CLAUDE.md` and `GEMINI.md` files only point back to these `AGENTS.md` files. Put instructions in `AGENTS.md`, never in the pointer files.
@@ -86,8 +88,11 @@ npx vitest run src/hooks/useToasts.test.ts
 cargo test -p storage --test schema_migrations_test
 cargo test -p auralune-desktop --test ipc_contract_test
 
-# Code generation
+# Code generation & changelog
 npm run gen:commands           # Refresh src/api/commands.generated.ts after adding/removing a command
+npm run changelog:add          # Append a humanized 5-language entry to the active dev entry in changelog.json
+npm run changelog:validate     # Check changelog.json schema, dev/latest flags, and 5-language parity
+npm run changelog:promote      # Promote the active dev entry to a stable X.Y.Z release
 
 # Agent skills (Claude Code and Antigravity share one set)
 npm run skills:check           # Offline: every skill in the table below exists for both agents
@@ -109,7 +114,7 @@ packaging/bump-version.sh X.Y.Z
 - **Formatting**: `rustfmt` defaults for Rust. TypeScript has no auto-formatter: match the surrounding style.
 - **Errors**: crates return their own `thiserror` enums, and Tauri commands return `Result<T, CommandError>`. Never `Result<_, String>` in new code. In TypeScript use `catch (e: unknown)` with `errorMessage(e)`.
 - **Tests outside production sources**: no inline `#[cfg(test)] mod tests` blocks. Use the crate's `tests/` dir, or a companion `_test.rs` referenced with `#[cfg(test)] #[path = "…"]`.
-- **Language**: everything is in English: code, identifiers, code comments, docs, error contexts and commit messages. When you edit a file that still has Polish comments, translate the ones you touch. The single exception is `CHANGELOG_PENDING.md`, which is written in Polish (see Commits & Pull Requests).
+- **Language**: everything is in English: code, identifiers, code comments, docs, error contexts and commit messages. When you edit a file that still has Polish comments, translate the ones you touch. In [`src/data/changelog.json`](src/data/changelog.json), every entry ships in all 5 UI locales (`en`, `pl`, `de`, `fi`, `la`).
 - **Toolchain**: Node.js 22 LTS (`.nvmrc`), npm ≥ 10; Rust stable from `rust-toolchain.toml` (edition 2021) with `rustfmt` and `clippy`.
 
 ## Testing
@@ -133,14 +138,14 @@ packaging/bump-version.sh X.Y.Z
 
 - **Conventional Commits** with a scope, as in the history: `feat(updates): …`, `fix(player): …`, `refactor(storage): …`, `ci(release): …`, `docs(agents): …`. Imperative, lowercase summary; bullets in the body for details.
 - **Branches**: integrate on `dev`. Large changes go on a topic branch merged into `dev`. `main` only receives release PRs (`release/vX.Y.Z` → `main`, merge commit).
-- **Changelog**: record every user-facing change in `CHANGELOG_PENDING.md`, in Polish, under the headings `Dodano`, `Poprawiono`, `Zmieniono`. It is the only Polish file agents write.
+- **Changelog**: read [`CHANGELOG.md`](CHANGELOG.md) and follow [`docs/developer/agent-pipelines.md`](docs/developer/agent-pipelines.md). For user-facing changes on `dev`, rewrite notes in plain, non-technical language for listeners and add them directly to [`src/data/changelog.json`](src/data/changelog.json) (`"isDev": true`) via `npm run changelog:add` (five languages: `en`, `pl`, `de`, `fi`, `la`), then verify with `npm run changelog:validate`. Do not add entries for internal-only refactors, tests, CI, or docs.
 - **Never** force-push `main`, push tags by hand, skip hooks (`--no-verify`) or add a second release path.
 
 ## Releases: DO NOT tag or publish manually
 
 Stable releases run only through the manual GitHub Actions workflows. Merging never publishes. Full guide: [`docs/RELEASING.md`](docs/RELEASING.md) ([Polish](docs/RELEASING.pl.md)); the `release` skill automates the content step.
 
-1. On `dev`: release content (`CHANGELOG.md` block, 5-language `src/data/changelog.json`, README badges, reset `CHANGELOG_PENDING.md`), checked with `packaging/check-release-content.sh X.Y.Z`.
+1. On `dev`: promote the active dev changelog (`npm run changelog:promote -- X.Y.Z "Codename"`), update README badges, and check with `packaging/check-release-content.sh X.Y.Z`.
 2. Actions → **Prepare release** (on `dev`): validates, runs `packaging/bump-version.sh`, opens the `release/vX.Y.Z` → `main` PR.
 3. Review and merge the PR with a merge commit.
 4. Actions → **Publish release** (on `main`): CI + AppImage build, draft with every asset and `SHA256SUMS`, then publish.

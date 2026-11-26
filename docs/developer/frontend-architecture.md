@@ -148,32 +148,34 @@ Standalone JSON translation dictionaries in `src/locales/`:
 
 ## Changelog entries
 
-1. **During Active Development**:
-   - Record every user-facing change, fix, and refactor in [`CHANGELOG_PENDING.md`](../../CHANGELOG_PENDING.md) under Polish headings (`Dodano`, `Poprawiono`, `Zmieniono`).
-2. **On Release (Version Bump)** (the CI flow is described in [`docs/RELEASING.md`](../RELEASING.md)):
-   - Move entries from `CHANGELOG_PENDING.md` into [`CHANGELOG.md`](../../CHANGELOG.md) under a new version heading (`## [X.Y.Z] — „Kryptonim” - YYYY-MM-DD`).
-   - Add the structured release object at the beginning of the array in [`src/data/changelog.json`](../../src/data/changelog.json).
-   - Ensure the structure matches `ChangelogRelease`:
+Rules for tone and humanization live in [`CHANGELOG.md`](../../CHANGELOG.md); full workflow commands live in [`agent-pipelines.md`](agent-pipelines.md).
+
+1. **During Active Development (on `dev`)**:
+   - Rewrite user-facing changes in plain, non-technical language for listeners and append them to the active `"isDev": true` block in [`src/data/changelog.json`](../../src/data/changelog.json) using `npm run changelog:add`.
+   - `ChangelogView.tsx` reads `buildInfo?.channel` (or `-dev` version fallback) so `dev` builds show the active `"isDev": true` entry with a `DEV BUILD` badge, while `stable` builds filter it out.
+2. **On Release (`npm run changelog:promote`)** (see [`docs/RELEASING.md`](../RELEASING.md)):
+   - Promote the active `isDev` block via `npm run changelog:promote -- X.Y.Z "Codename"` (clears `isDev`, sets `isLatest: true`, clears `isLatest` from older versions).
+   - Ensure every item matches `ChangelogRelease` / `ChangelogItem`:
      ```json
      {
        "version": "1.1.6",
        "codename": "Release Codename",
        "date": "YYYY-MM-DD",
        "author": "Author Name",
+       "isLatest": true,
        "added": [
          {
-           "title": { "en": "Feature title", "pl": "Tytuł funkcji" },
-           "desc": { "en": "Description", "pl": "Opis" }
+           "en": "Feature description",
+           "pl": "Opis funkcji",
+           "de": "Funktionsbeschreibung",
+           "fi": "Ominaisuuden kuvaus",
+           "la": "Descriptio facultatis"
          }
        ],
-       "fixed": [
-         {
-           "title": { "en": "Fix title", "pl": "Tytuł poprawki" },
-           "desc": { "en": "Description", "pl": "Opis" }
-         }
-       ]
+       "changed": [],
+       "fixed": []
      }
      ```
-   - **Never hardcode entries into `ChangelogView.tsx`**: `ChangelogView.tsx` automatically consumes `changelog.json`, manages pagination, and provides multi-language support.
-   - Run `vitest run src/views/changelog/ChangelogView.test.tsx` and `vitest run src/i18n.test.ts`.
+   - **Never hardcode entries into `ChangelogView.tsx`**: `ChangelogView.tsx` consumes `changelog.json`, filters by channel, paginates, and localizes automatically.
+   - Run `npm run changelog:validate`, `vitest run src/views/changelog/ChangelogView.test.tsx`, `vitest run scripts/changelog.test.mjs`, and `vitest run src/i18n.test.ts`.
 

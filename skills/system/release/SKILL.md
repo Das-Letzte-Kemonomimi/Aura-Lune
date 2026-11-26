@@ -1,6 +1,6 @@
 ---
 name: release
-description: 'Cut an Aura-Lune release: write the release content (CHANGELOG.md, changelog.json, README badges, reset CHANGELOG_PENDING.md) on dev, then drive the manual Prepare release and Publish release GitHub workflows and the AUR checksum. Use when the user asks to release, bump the version, prepare vX.Y.Z, update the AUR package or publish to the public repo. Don''t use for ordinary feature commits or for recording a change in CHANGELOG_PENDING.md.'
+description: 'Cut an Aura-Lune release: promote the active dev changelog (src/data/changelog.json), update README badges on dev, then drive the manual Prepare release and Publish release GitHub workflows and the AUR checksum. Use when the user asks to release, bump the version, prepare vX.Y.Z, update the AUR package or publish to the public repo. Don''t use for ordinary feature commits or for recording a dev change (use npm run changelog:add).'
 metadata:
     namespace: system
 ---
@@ -25,15 +25,9 @@ workflow) and `chore(aur): update AppImage sha256 checksum for vX.Y.Z`.
     empty, so the content commit stays reviewable. Note unrelated changes
     (for example `skills-lock.json`) and ask the user whether to
     commit or stash them; do not sweep them into the release commit.
-2.  Ask for anything you cannot derive: the **new version** (X.Y.Z; SemVer rules
-    are at the top of `CHANGELOG.md`: MAJOR = architecture, MINOR = new
-    modules/features, PATCH = fixes and polish) and the **codename**
-    (`„Kryptonim”`, an English phrase like `Player Dock Harmony & Waveform
-    Precision`). The date is today's date, `YYYY-MM-DD`.
-3.  Run `./tests/run_all_tests.sh --fix` first. A release is never cut from a red
-    tree. Add `--bundle` when the AppImage build changed. Report failures
-    verbatim and stop.
-4.  `CHANGELOG_PENDING.md` must have real entries. If it is empty, stop and ask.
+2.  Ask for anything you cannot derive: the **new version** (X.Y.Z; SemVer rules are in `AGENTS.md`: MAJOR = architecture/breaking, MINOR = new features, PATCH = fixes and polish) and the **codename** (`„Kryptonim”`, an English phrase like `Player Dock Harmony & Waveform Precision`). The date is today's date, `YYYY-MM-DD`.
+3.  Run `./tests/run_all_tests.sh --fix` first. A release is never cut from a red tree. Add `--bundle` when the AppImage build changed. Report failures verbatim and stop.
+4.  `src/data/changelog.json` must have a non-empty `isDev: true` entry at index `0` (already promoted if re-running checks). If there are no unreleased entries to release, stop and ask.
 
 ## 1. Version bump (done by CI, check locally if you like)
 
@@ -49,43 +43,24 @@ write, and you must: the README badges (below) and all changelog content.
 `PKGBUILD-git` is never touched (its `pkgver` is generated). `Cargo.lock` is
 gitignored.
 
-## 2. Changelog
+## 2. Changelog & Badges
 
-The source of the wording is `CHANGELOG_PENDING.md` (Polish headings `Dodano`,
-`Poprawiono`, `Zmieniono`). Read the "Changelog entries" section of
-`docs/developer/frontend-architecture.md` before editing.
+Rules and tone live in `CHANGELOG.md`; automation commands live in `docs/developer/agent-pipelines.md`. Read the "Changelog entries" section of `docs/developer/frontend-architecture.md` before editing.
 
-1.  **`CHANGELOG.md`**: add `## [X.Y.Z] — „Codename” - YYYY-MM-DD` and
-    `**Autorka**: Das Letzte Kemonomimi` above the previous release. Match the
-    `[1.1.5]` block exactly: ✨ Dodano, 🛠️ Poprawiono, 🔄 Zmieniono. Keep the
-    `---` separator after the block: `packaging/release-notes.sh` extracts the GitHub
-    release notes from this heading up to the first `---`, and the codename from
-    the heading text between `„` and `”`. A missing separator or a
-    changed heading format breaks the release notes.
-2.  **`src/data/changelog.json`**: add the new object at the
-    **start** of the array, set `isLatest: true` on it and remove `isLatest` from
-    the previous one. Do not edit `ChangelogView.tsx` for data. Copy the entry
-    shape from the newest existing entries and the `ChangelogRelease` type in
-    the frontend (`grep -rn ChangelogRelease src`), because
-    the docs and the file have shown different shapes. Provide every
-    language the UI ships (currently `pl`, `en`, `de`, `fi`, `la`); the i18n
-    parity tests fail on gaps, so also use the `i18n-sync` skill if it applies.
+1.  **Promote `src/data/changelog.json`**:
+    Run `npm run changelog:promote -- X.Y.Z "Codename"`.
+    Review every item in `added`, `changed`, and `fixed`: ensure non-technical, listener-friendly wording (humanized), verify no internal filenames/symbols leaked, and verify every item ships in all 5 locales (`en`, `pl`, `de`, `fi`, `la`). Never edit `ChangelogView.tsx` for release data.
+2.  **`CHANGELOG.md`**: keep it as the changelog rules guide (do **not** paste release markdown blocks back into it; `packaging/release-notes.sh` reads directly from `src/data/changelog.json`).
 3.  **README badges**: in `README.md` and `README.pl.md` update the version
     badge, the translated codename in its text and the `releases/tag/vX.Y.Z`
     link. The bump script cannot translate the codename, so it only checks that
     the new tag link exists.
-4.  **`CHANGELOG_PENDING.md`**: reset to the empty template. Keep the header
-    instructions, the `Oczekujące zmiany…` heading and the three empty section
-    headings, and drop the old `> Zakres:` note.
 
 ## 3. Verify, then commit
 
 1.  `./tests/run_all_tests.sh --fast` (or the full run if code changed).
-2.  `packaging/check-release-content.sh X.Y.Z`: the same check the workflows
-    run (changelog heading and `---`, 5-language `changelog.json`, empty
-    `CHANGELOG_PENDING.md`, README links). Fix everything it prints.
-3.  `git diff --stat` and read it: only changelog files, README badges and
-    `CHANGELOG_PENDING.md` should differ.
+2.  `packaging/check-release-content.sh X.Y.Z`: validates `src/data/changelog.json`, promoted `isLatest=true` / non-`isDev` state, non-empty Markdown release notes, and README links. Fix everything it prints.
+3.  `git diff --stat` and read it: only `src/data/changelog.json` and README badges should differ.
 4.  Commit once the user agrees, for example
     `docs(release): changelog and README for X.Y.Z (Codename)`, and ask before
     pushing `dev`.

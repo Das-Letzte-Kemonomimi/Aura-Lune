@@ -1,5 +1,180 @@
 [
   {
+    "version": "1.1.6-dev",
+    "codename": "Development Channel",
+    "date": "2026-11-26",
+    "author": "Das Letzte Kemonomimi",
+    "isDev": true,
+    "isLatest": false,
+    "added": [
+      {
+        "pl": "Przewijanie przeciąganiem na wszystkich czterech stylach falogramu — działa myszą i dotykiem, z podglądem czasu na żywo oraz płynnym skokiem po puszczeniu.",
+        "en": "Drag scrubbing across all four waveform styles with mouse and touch support, live time preview, and smooth click-free seeking on release.",
+        "de": "Ziehen zum Spulen in allen vier Wellenform-Stilen per Maus und Touch mit Live-Zeitvorschau und weichem Sprung beim Loslassen.",
+        "fi": "Vetokelaus kaikissa neljässä aaltomuototyylissä hiirellä ja kosketuksella, reaaliaikaisella aikaesikatselulla ja napsahduksettomalla hypyllä.",
+        "la": "Tractio temporis per omnes quattuor modos undarum cum praevisione viva et saltu leni."
+      },
+      {
+        "pl": "Dwuetapowe przewijanie na wszystkich suwakach pozycji — podczas przeciągania płynnie zmienia się podgląd, a dźwięk przeskakuje dopiero po puszczeniu.",
+        "en": "Two-stage seeking on every progress bar: smooth live time preview while dragging, followed by a clean jump once you let go.",
+        "de": "Zweistufiges Spulen auf allen Fortschrittsbalken: flüssige Zeitvorschau beim Ziehen und sauberer Sprung beim Loslassen.",
+        "fi": "Kaksivaiheinen kelaus kaikissa edistymispalkeissa: sulava aikaesikatselu vedettäessä ja siisti siirtymä irrotettaessa.",
+        "la": "Quaestio duplex in omnibus indicibus progressus cum praevisione fluida."
+      },
+      {
+        "pl": "Dwa tryby regulacji głośności w ustawieniach: natychmiastowy (bez zauważalnego opóźnienia) oraz płynny (łagodne przejście bez trzasków), wraz z zapamiętywaniem ostatniej głośności po restarcie.",
+        "en": "Two volume response modes in Settings: Instant (near-zero delay) and Smooth (gentle pop-free fade curve), plus automatic saving of your last volume across restarts.",
+        "de": "Zwei Lautstärkemodi in den Einstellungen: Sofort (nahezu verzögerungsfrei) und Sanft (weicher Übergang ohne Knacken), inklusive Speicherung der letzten Lautstärke.",
+        "fi": "Kaksi äänenvoimakkuustilaa asetuksissa: Välitön (lähes viiveetön) ja Sulava (pehmeä siirtymä ilman naksahduksia), sekä äänenvoimakkuuden automaattinen muistaminen.",
+        "la": "Duo modi voluminis in optionibus: Statim et Lenis sine strepitu, cum memoria voluminis."
+      },
+      {
+        "pl": "Odświeżony widok Piano-Rolla: ostry obraz na każdym ekranie, tryb podążania za muzyką i tryb swobodny, przybliżanie czasu i wysokości nut, siatka taktów, podgląd podpisów nut oraz klikalna minimapa utworu.",
+        "en": "Rebuilt crisp Piano-Roll view with follow and free navigation modes, time/row zoom, beat grid, live key highlights, optional note labels, and an interactive song overview minimap.",
+        "de": "Überarbeitete Piano-Roll-Ansicht mit scharfer Darstellung, Folge- und Freimodus, Zeit-/Zeilenzoom, Taktraster, aktiven Tasten und interaktiver Übersichts-Minimap.",
+        "fi": "Uudistettu terävä Piano-Roll-näkymä seuranta- ja vapaatilalla, aika- ja rivizoomilla, tahtiruudukolla, nuotinimillä ja vuorovaikutteisella yleiskartalla.",
+        "la": "Aspectus Piano-Roll renovatus cum modo sequendi, scala temporis, notis et tabula parva."
+      },
+      {
+        "pl": "Automatyczne aktualizacje w aplikacji dla zarządzanych instalacji AppImage — z osobnym kanałem stabilnym i testowym (dev), podglądem opisu zmian, pomijaniem wersji oraz weryfikacją sumy SHA-256.",
+        "en": "In-app updates for managed AppImage installs, keeping stable and development channels strictly separate, with expandable release notes, version skipping, and SHA-256 verification.",
+        "de": "In-App-Updates für verwaltete AppImage-Installationen mit getrennten Stable- und Dev-Kanälen, ausklappbaren Versionshinweisen, Überspringen von Versionen und SHA-256-Prüfung.",
+        "fi": "Sovelluksen sisäiset päivitykset hallituille AppImage-asennuksille, erillisillä vakaa- ja dev-kanavilla, julkaisutiedoilla, ohituksella ja SHA-256-tarkistuksella.",
+        "la": "Renovationes intra programmam pro AppImage cum canalibus separatis, notis et verificatione SHA-256."
+      },
+      {
+        "pl": "Kanał testowy (dev) w instalatorze — wersję rozwojową można zainstalować obok stabilnej z własną ikoną, profilem ustawień oraz funkcją czystego odinstalowania.",
+        "en": "Side-by-side development installer channel with its own app icon, separate profile/settings, rolling updates, and built-in uninstall support.",
+        "de": "Paralleler Entwicklungskanal im Installer mit eigenem Symbol, getrenntem Profil, laufenden Updates und eingebauter Deinstallationsfunktion.",
+        "fi": "Rinnakkainen kehityskanava asennusohjelmassa omalla kuvakkeella, erillisellä profiililla, jatkuvilla päivityksillä ja sisäänrakennetulla poistolla.",
+        "la": "Canalis evolutionis iuxta stabilem cum proprio signo, configuratione et remotione."
+      },
+      {
+        "pl": "Paginowana historia zmian bezpośrednio w Ustawieniach → Aktualizacje i zmiany (3, 5 lub 10 wydań na stronę) oraz podgląd zmian wersji testowej na kanale dev.",
+        "en": "Paginated changelog integrated directly into Settings → Updates & Changelog (3, 5, or 10 releases per page), including unreleased dev notes on development builds.",
+        "de": "Seitliche Versionshistorie direkt unter Einstellungen → Updates & Änderungsprotokoll (3, 5 oder 10 pro Seite), inklusive Vorschau auf Dev-Änderungen.",
+        "fi": "Sivutettu muutosloki suoraan Asetukset → Päivitykset ja muutosloki -näkymässä (3, 5 tai 10 sivulla), sisältäen dev-muutokset testiversioissa.",
+        "la": "Historia editionum cum paginis in Optionibus, etiam notas editionis dev monstrans."
+      },
+      {
+        "pl": "Okno systemowe z czytelnym komunikatem w razie problemu ze startem, stos do 3 niezależnych powiadomień naraz oraz skrót do podsumowania Recap w statystykach.",
+        "en": "Clear system startup error dialogs if initialization fails, up to 3 stacked toast notifications, and a quick Recap summary button in Statistics.",
+        "de": "Klare Systemmeldungen bei Startproblemen, bis zu 3 gestapelte Benachrichtigungen und ein Recap-Schnellbutton in den Statistiken.",
+        "fi": "Selkeä järjestelmän virheikkuna käynnistysongelmissa, enintään 3 päällekkäistä ilmoitusta ja Recap-painike tilastonäkymässä.",
+        "la": "Dialogus erroris initii, usque ad tres nuntios simul, et compendium Recap in statisticis."
+      }
+    ],
+    "changed": [
+      {
+        "pl": "Ujednolicony wygląd całej aplikacji — okna dialogowe, ustawienia, odtwarzacz, biblioteka, radio, playlisty, projekty stemów i studio DSP korzystają z jednego systemu kart, przycisków i ikon.",
+        "en": "Unified look and feel across dialogs, settings, Player, Library, Radio, Playlists, Stem Projects, and DSP Studio with shared controls, theme-aware accents, and consistent Tabler icons.",
+        "de": "Einheitliches Design über Dialoge, Einstellungen, Player, Bibliothek, Radio, Playlists, Stem-Projekte und DSP-Studio mit abgestimmten Bedienelementen und Icons.",
+        "fi": "Yhtenäinen ulkoasu kaikissa ikkunoissa, asetuksissa, soittimessa, kirjastossa, radiossa, soittolistoissa, stem-projekteissa ja DSP-studiossa.",
+        "la": "Species unita per dialogos, optiones, psalten, bibliothecam, radiophonum et studio DSP."
+      },
+      {
+        "pl": "Przeprojektowana oś akordów „Harmonia i akordy”: przejrzysta siatka taktów, scalone powtórzenia, podgląd całego utworu, kolory rodzin akordów i szybka edycja po najechaniu.",
+        "en": "Redesigned Harmony & Chords timeline with a clean measure grid, merged repeats, full-track overview bar, chord family colors, and hover editing.",
+        "de": "Neu gestaltete Harmonie- & Akkord-Zeitleiste mit sauberem Taktraster, zusammengefassten Wiederholungen, Gesamtübersicht und Farbcodierung.",
+        "fi": "Uudistettu sointuaikajana selkeällä tahtiruudukolla, yhdistetyillä toistoilla, yleiskatsauspalkilla ja värikoodeilla.",
+        "la": "Ordo chordarum renovatus cum mensuris claris, coloribus et editione facili."
+      },
+      {
+        "pl": "Pełna lokalizacja wszystkich komunikatów, podpowiedzi, presetów DSP, asystenta harmonicznego, menu zasobnika i okien dialogowych w 5 językach (PL, EN, DE, FI, LA).",
+        "en": "Complete 5-language localization across dialogs, tooltips, DSP preset descriptions, harmonic matching hints, tray controls, and status messages.",
+        "de": "Vollständige 5-Sprachen-Lokalisierung für Dialoge, Hinweise, DSP-Presets, harmonischen Assistenten, Tray-Menü und Statusmeldungen.",
+        "fi": "Täydellinen 5 kielen lokalisointi ikkunoissa, vihjeissä, DSP-esiasetuksissa, harmonisessa avustajassa ja tilaviesteissä.",
+        "la": "Plena conversio in quinque linguis per omnes dialogos, praedefinitiones et nuntios."
+      },
+      {
+        "pl": "Szybsze uruchamianie aplikacji, płynniejsze wyszukiwanie i sortowanie w dużej bibliotece oraz wstrzymywanie wizualizacji przy ukrytym oknie.",
+        "en": "Faster app startup, smoother search and sorting in large libraries, and paused animations when the window is hidden or minimized.",
+        "de": "Schnellerer App-Start, flüssigere Suche und Sortierung in großen Bibliotheken sowie pausierte Visualisierungen im minimierten Fenster.",
+        "fi": "Nopeampi käynnistys, sulavampi haku ja lajittelu suurissa kirjastoissa sekä keskeytetyt visualisoinnit piilotetussa ikkunassa.",
+        "la": "Initium celerius, quaestio lenis in magnis bibliothecis et pausa effectuum cum fenestra celatur."
+      },
+      {
+        "pl": "Mniejsze zużycie pamięci podczas separacji stemów, wykrywania ciszy i analizy długich nagrań oraz bardziej niezawodny silnik dźwięku bez trzasków przy zmianie efektów.",
+        "en": "Significantly lower memory usage during stem separation and long-track analysis, plus click-free real-time DSP parameter switching.",
+        "de": "Deutlich geringerer Speicherbedarf bei Stem-Trennung und Analyse langer Titel sowie knackfreie DSP-Parameterwechsel in Echtzeit.",
+        "fi": "Huomattavasti pienempi muistinkäyttö stem-erottelussa ja pitkien kappaleiden analyysissä sekä naksahduksettomat DSP-muutokset.",
+        "la": "Minor usus memoriae in separatione stematum et mutationes effectuum sine strepitu."
+      },
+      {
+        "pl": "Statystyki czasu słuchania (Recap) zliczają odsłuchy niezależnie od widoczności okna i nie doliczają czasu uśpienia komputera.",
+        "en": "Listening time statistics (Recap) stay accurate even when the window is minimized and ignore system sleep time.",
+        "de": "Hörzeit-Statistiken (Recap) zählen auch bei minimiertem Fenster genau und rechnen Ruhezustände nicht mit.",
+        "fi": "Kuunteluajan tilastot (Recap) pysyvät tarkkoina myös ikkunan ollessa pienennettynä eivätkä laske lepotilaa mukaan.",
+        "la": "Statisticae audiendi accuratae manent etiam fenestra celata sine tempore somni."
+      }
+    ],
+    "fixed": [
+      {
+        "pl": "Znacznie celniejsze rozpoznawanie akordów i siatki rytmicznej dla całego utworu — akordy reagują w 1–2 uderzenia, a pamięć podręczna automatycznie przelicza starsze wpisy.",
+        "en": "Much more accurate chord recognition and beat grid alignment across whole tracks (up to 15 minutes), responding smoothly within 1–2 beats.",
+        "de": "Deutlich präzisere Akkorderkennung und Taktausrichtung über ganze Stücke bis 15 Minuten mit schneller Reaktion innerhalb von 1–2 Schlägen.",
+        "fi": "Paljon tarkempi sointutunnistus ja tahtiruudukon kohdistus koko kappaleille (jopa 15 min) reagoiden 1–2 iskussa.",
+        "la": "Recognitio chordarum et mensurarum multo accuratior per totos cantus."
+      },
+      {
+        "pl": "Poprawiono klikanie w Piano-Rollu, pełny zakres wysokości nut, dryfowanie czasu w długich utworach oraz bezpieczny eksport do pliku MIDI.",
+        "en": "Fixed Piano-Roll click-to-seek alignment, full detected note range display, long-track timing drift, and native MIDI file export.",
+        "de": "Klick-Positionierung, voller Tonhöhenbereich, Zeitdrift bei langen Titeln und nativer MIDI-Export im Piano-Roll behoben.",
+        "fi": "Korjattu Piano-Rollin napsautussiirtymä, täysi sävelalue, pitkien kappaleiden ajastusryömintä ja natiivi MIDI-vienti.",
+        "la": "Emendata sunt loca clicci, ambitus notarum, tempus in longis cantibus et exportatio MIDI."
+      },
+      {
+        "pl": "Otwieranie projektów stemów i przełączanie profili DSP (np. Nightcore, Slowed) odbywa się jednym płynnym przejściem bez resetowania pozycji utworu i bez psucia losowej kolejki.",
+        "en": "Opening stem projects and switching DSP profiles (like Nightcore or Slowed) now transitions cleanly in one step without losing playback position or shuffle order.",
+        "de": "Das Öffnen von Stem-Projekten und Wechseln von DSP-Profilen erfolgt nahtlos ohne Positionsverlust oder kaputte Shuffle-Reihenfolge.",
+        "fi": "Stem-projektien avaaminen ja DSP-profiilien vaihto tapahtuvat nyt saumattomasti ilman kohdan tai satunnaistoiston katoamista.",
+        "la": "Apertio stematum et mutatio profilorum DSP sine interruptione nec ordine perdito."
+      },
+      {
+        "pl": "Naprawiono automatyczne przechodzenie do kolejnych utworów przy zminimalizowanym oknie, odliczanie wyłącznika czasowego, pętlę A-B oraz sterowanie z zasobnika systemowego i klawiszy multimedialnych.",
+        "en": "Fixed automatic track advancement when minimized, sleep timer countdown, A-B loop precision, system tray actions, and media key responsiveness.",
+        "de": "Automatischer Titelwechsel im minimierten Zustand, Sleep-Timer, A-B-Schleife, Tray-Aktionen und Medientasten behoben.",
+        "fi": "Korjattu automaattinen kappaleen vaihto pienennettynä, uniajastin, A-B-silmukka, ilmoitusalueen toiminnot ja medianäppäimet.",
+        "la": "Correcta sunt transitio cantuum, horologium somni, ansa A-B et claves multimediae."
+      },
+      {
+        "pl": "Przywrócono prawdziwy tryb bit-perfect przy wyłączonym korektorze, podłączono suwaki Crossfeed, poprawiono startowy tryb ReplayGain, pełne falogramy długich utworów oraz pomijanie ciszy.",
+        "en": "Restored true bit-perfect passthrough when EQ is off, wired up Crossfeed sliders, fixed Auto ReplayGain behavior, full-length waveforms, and Silence Trimming.",
+        "de": "Echter Bit-Perfect-Durchgang bei ausgeschaltetem EQ, funktionierende Crossfeed-Regler, Auto-ReplayGain, vollständige Wellenformen und Stille-Schnitt wiederhergestellt.",
+        "fi": "Palautettu aito bit-perfect-tila ilman EQ:ta, kytketty Crossfeed-säätimet, korjattu Auto ReplayGain, koko kappaleen aaltomuodot ja hiljaisuuden poisto.",
+        "la": "Modus bit-perfect restitutus, Crossfeed et ReplayGain emendati, undae plenae et silentium resectum."
+      },
+      {
+        "pl": "Poprawiono obsługę ścieżek ze spacjami i znakami spoza ASCII (np. japońskich tytułów) w analizie i stemach oraz zapobieżono zawieszaniu na uszkodzonych plikach.",
+        "en": "Fixed non-ASCII and space-containing file paths (such as Japanese titles) in stems and analysis, and prevented hangs on corrupted audio files.",
+        "de": "Dateipfade mit Leerzeichen und Nicht-ASCII-Zeichen (z. B. japanische Titel) bei Stems und Analyse sowie Hänger bei defekten Dateien behoben.",
+        "fi": "Korjattu välilyönnit ja erikoismerkit tiedostopoluissa stem- ja analyysitoiminnoissa sekä estetty jumiutuminen vioittuneissa tiedostoissa.",
+        "la": "Viae cum spatiis et characteribus externis emendatae et mora in fasciculis corruptis prohibita."
+      },
+      {
+        "pl": "Naprawiono zapisywanie kolejki, grupowanie albumów kompilacyjnych (tag wykonawcy albumu), czyszczenie brakujących plików przy skanowaniu, kolumny playlist oraz obsługę okien klawiaturą i klawiszem Esc.",
+        "en": "Fixed reliable queue saving, compilation album grouping (Album Artist), cleanup of removed tracks on rescan, playlist metadata columns, and keyboard/Escape focus across dialogs.",
+        "de": "Zuverlässige Warteschlangen-Speicherung, Sampler-Gruppierung (Album-Interpret), Bereinigung gelöschter Titel, Playlist-Spalten und Tastatur-/Escape-Steuerung behoben.",
+        "fi": "Korjattu jonon tallennus, kokoelma-albumien ryhmittely, poistettujen kappaleiden siivous, soittolistan sarakkeet ja näppäimistö-/Escape-ohjaus.",
+        "la": "Servatio ordinis, albumina compilationum, purgatio bibliothecae et gubernatio claviaturae emendatae."
+      },
+      {
+        "pl": "Naprawiono przewijanie widoku pełnoekranowego, podświetlenie mini-odtwarzacza, zacięte animacje ładowania i głośności, odskakiwanie suwaków podczas przeciągania oraz wyświetlanie prawdziwej wersji w sekcji O programie.",
+        "en": "Fixed fullscreen layout scrolling, Mini Player highlight, missing loading/OSD animations, slider snap-back during drags, and real version display in About.",
+        "de": "Scrollen im Vollbildmodus, Mini-Player-Glow, fehlende Lade-/OSD-Animationen, Zurückspringen von Reglern und echte Versionsanzeige unter Info behoben.",
+        "fi": "Korjattu koko näytön vieritys, minisoittimen korostus, puuttuvat lataus-/OSD-animaatiot, liukusäätimien takaisinhyppy ja todellisen version näyttö.",
+        "la": "Volutio plenae fenestrae, lux minipsaltis, animationes et vera editio in sectione De programmata restitutae."
+      },
+      {
+        "pl": "Wzmocniono bezpieczeństwo ścieżek plików, pobierania okładek i prywatnego katalogu sterowania oraz dodano automatyczne ponawianie zapytań do MusicBrainz i AcoustID.",
+        "en": "Hardened file path and cover art safety, moved local control files to a private per-user runtime directory, and added automatic retries for MusicBrainz and AcoustID lookups.",
+        "de": "Pfad- und Cover-Sicherheit gehärtet, lokale Steuerdateien in einen privaten Laufzeitordner verschoben und automatische Wiederholungen für MusicBrainz/AcoustID ergänzt.",
+        "fi": "Vahvistettu polku- ja kansikuvaturvaa, siirretty ohjaustiedostot yksityiseen kansioon ja lisätty uudelleenyritykset MusicBrainz/AcoustID-hauille.",
+        "la": "Securitas viarum et imaginum firmata et repetitiones automaticae pro MusicBrainz/AcoustID additae."
+      }
+    ]
+  },
+  {
     "version": "1.1.5",
     "codename": "Player Dock Harmony & Waveform Precision",
     "date": "2026-11-15",

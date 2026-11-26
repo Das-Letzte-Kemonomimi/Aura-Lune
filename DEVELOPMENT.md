@@ -252,9 +252,9 @@ This is the path every change takes, from a clean checkout to a published releas
 | 1 | **Prepare** | `git status`, then work on `dev` (large changes: a topic branch merged into `dev`). Read the nearest `AGENTS.md` for the area you touch. Run `npm run skills:check`. |
 | 2 | **Change** | Follow the patterns in the area's `AGENTS.md` and `docs/developer/`. Write tests with the change: Rust tests in the crate's `tests/` dir (or a `_test.rs` companion), frontend tests next to the source as `*.test.ts(x)`. Everything is in English. After adding or removing a Tauri command run `npm run gen:commands`. |
 | 3 | **Quality gates** | Run them **after your last edit**; CI fails on a single unformatted line. See the table below, or run everything with `./tests/run_all_tests.sh --fix`. |
-| 4 | **Changelog** | Record every user-facing change in `CHANGELOG_PENDING.md` (written in Polish, under `Dodano`, `Poprawiono` or `Zmieniono`). Developer tooling and docs do not need an entry. |
+| 4 | **Changelog** | Humanize user-facing changes and append them directly to the active `isDev` entry in `src/data/changelog.json` via `npm run changelog:add` (5 locales; rules in [`CHANGELOG.md`](CHANGELOG.md), automation in [`docs/developer/agent-pipelines.md`](docs/developer/agent-pipelines.md)). Developer tooling and pure refactors do not need an entry. |
 | 5 | **Commit** | [Conventional Commits](https://www.conventionalcommits.org/) with a scope: `feat(updates): …`, `fix(player): …`, `refactor(storage): …`, `docs(agents): …`. Imperative, lowercase summary, bullets in the body. Never skip hooks (`--no-verify`) and never force-push `main`. |
-| 6 | **CI** | Pushes and pull requests to `main`, `dev` or `develop` run the two jobs described in [section 11](#11-continuous-integration-cicd). A push to `dev` also publishes the rolling dev AppImage. |
+| 6 | **CI** | Pushes and pull requests to `main`, `dev` or `develop` run the two jobs described in [section 11](#11-continuous-integration-cicd). A push to `dev` also publishes the rolling dev AppImage with unreleased dev notes from `changelog.json`. |
 | 7 | **Release** | Never tag or publish by hand. See below. |
 
 Quality gates by language:
@@ -263,13 +263,14 @@ Quality gates by language:
 |---|---|
 | Rust (`.rs`, including tests) | `cargo fmt --all`, then `cargo fmt --all --check`, then `cargo clippy --workspace --all-targets --all-features -- -D warnings`, then `cargo test --workspace -- --test-threads=1` |
 | Frontend (`src/`, `scripts/`, frontend config) | `npm run lint`, `npm run typecheck`, `npm test` (there is no JS/TS auto-formatter: match the surrounding style) |
+| Changelog (`src/data/changelog.json`) | `npm run changelog:validate` (also covered by `npm test`) |
 | Shell scripts (`.sh`) | `bash -n <file>` |
 | Skills (`skills/`, `skills-lock.json`) | `npm run skills:check` |
 | Everything | `./tests/run_all_tests.sh --fix` (formats Rust first, then runs the CI-parity suite) |
 
 **Releasing** runs only through the manual GitHub Actions workflows; merging never publishes:
 
-1. On `dev`, write the release content (`CHANGELOG.md` block, the five-language `src/data/changelog.json`, README badges, reset `CHANGELOG_PENDING.md`) and check it with `packaging/check-release-content.sh X.Y.Z`. The project `release` skill automates this step.
+1. On `dev`, finalize the release content (`npm run changelog:promote -- X.Y.Z "Codename"` to turn the active `isDev` entry into a finalized 5-language release in `src/data/changelog.json`, update README badges) and verify with `packaging/check-release-content.sh X.Y.Z`. The project `release` skill automates this step.
 2. Actions → **Prepare release** (on `dev`): validates, bumps the version, opens a `release/vX.Y.Z` → `main` pull request.
 3. Review and merge that pull request with a **merge commit**.
 4. Actions → **Publish release** (on `main`): CI plus the AppImage build, a draft with every asset and `SHA256SUMS`, then publish.

@@ -62,7 +62,7 @@ if [[ "$PREV_RELEASE" != "$NEW" ]]; then
     stale=$(grep -rnF --exclude-dir=node_modules --exclude-dir=target --exclude-dir=target-fedora \
         --exclude-dir=.git --exclude-dir=worktrees --exclude-dir=skills \
         --exclude=package-lock.json --exclude=Cargo.lock --exclude=skills-lock.json \
-        --exclude=CHANGELOG.md --exclude=changelog.json --exclude=CHANGELOG_PENDING.md \
+        --exclude=CHANGELOG.md --exclude=changelog.json \
         --exclude=PKGBUILD-git --exclude-dir=locales \
         -e "$PREV_RELEASE" \
         install.sh README.md README.pl.md docs/FEATURE_MATRIX.md DEVELOPMENT.md packaging/archlinux \

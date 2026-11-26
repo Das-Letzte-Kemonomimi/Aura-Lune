@@ -176,6 +176,27 @@ jobs:
           cp "$APPIMAGE_PATH" "$RELEASE_DIR/$(basename "$APPIMAGE_PATH")"
           cp "$APPIMAGE_PATH" "$RELEASE_DIR/Auralune-dev-x86_64.AppImage"
           (cd "$RELEASE_DIR" && sha256sum -- *.AppImage > SHA256SUMS && cat SHA256SUMS)
+          DEV_NOTES="$(node scripts/changelog.mjs dev-notes || true)"
+
+          {
+            echo "### 🌸 Auralune — Rolling Development Build"
+            echo
+            echo "Automated development build compiled from commit [\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) on branch \`dev\`."
+            echo
+            echo "- **Tag**: \`dev-build\`"
+            echo "- **Commit**: \`${{ github.sha }}\`"
+            echo "- **Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- **Channel**: \`dev\` (Installs side-by-side with stable Auralune as \`auralune-dev\`)"
+            echo
+            echo "#### Quick One-Liner Install:"
+            echo "\`\`\`bash"
+            echo "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/dev/install.sh | bash -s -- --dev"
+            echo "\`\`\`"
+            if [ -n "$DEV_NOTES" ]; then
+              echo
+              echo "$DEV_NOTES"
+            fi
+          } > "$RELEASE_DIR/DEV_NOTES.md"
 
           echo "Updating rolling 'dev-build' pre-release on GitHub..."
           gh release delete dev-build --yes --cleanup-tag || true
@@ -184,18 +205,6 @@ jobs:
             "$RELEASE_DIR"/*.AppImage "$RELEASE_DIR/SHA256SUMS" \
             --target "${{ github.sha }}" \
             --title "Auralune (Development Build)" \
-            --notes "### 🌸 Auralune — Rolling Development Build
-
-          Automated development build compiled from commit [\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) on branch \`dev\`.
-          
-          - **Tag**: \`dev-build\`
-          - **Commit**: \`${{ github.sha }}\`
-          - **Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          - **Channel**: \`dev\` (Installs side-by-side with stable Auralune as \`auralune-dev\`)
-          
-          #### Quick One-Liner Install:
-          \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/dev/install.sh | bash -s -- --dev
-          \`\`\`" \
+            --notes-file "$RELEASE_DIR/DEV_NOTES.md" \
             --prerelease
 

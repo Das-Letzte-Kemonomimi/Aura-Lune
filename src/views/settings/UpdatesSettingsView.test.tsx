@@ -125,5 +125,11 @@ describe('UpdatesSettingsView layout', () => {
     fireEvent.click(screen.getByRole('switch', { name: loc.updates.autoCheck }));
     expect(p.onToggleAutoCheck).toHaveBeenCalledWith(false);
     expect(screen.getByText(loc.settings.changelog)).toBeTruthy();
+    expect(screen.queryByText(loc.changelog.devBadge)).toBeNull();
+  });
+
+  it('shows dev changelog entries when running on the dev channel', () => {
+    render(<UpdatesSettingsView {...props({ buildInfo: { ...build, channel: 'dev' } })} />);
+    expect(screen.getByText(loc.changelog.devBadge)).toBeTruthy();
   });
 });

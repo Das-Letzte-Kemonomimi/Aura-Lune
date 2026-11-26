@@ -107,4 +107,4 @@ The backend playback ticker is the clock. The frontend never polls; a watchdog f
 
 ## Changelog data
 
-`data/changelog.json` drives the in-app changelog (Settings → Updates & Changelog). New releases are prepended as `ChangelogRelease` objects with texts in all five languages; the `release` skill and `packaging/check-release-content.sh` handle this during a release. **Never hardcode entries in `ChangelogView.tsx`.** During normal development, record changes in the root `CHANGELOG_PENDING.md`, not here.
+[`data/changelog.json`](data/changelog.json) is the Single Source of Truth for the in-app changelog (`Settings → Updates & Changelog`). Read [`../CHANGELOG.md`](../CHANGELOG.md) for humanization rules and [`../docs/developer/agent-pipelines.md`](../docs/developer/agent-pipelines.md) for the CLI pipeline (`npm run changelog:add`, `changelog:validate`, `changelog:promote`). **Never hardcode entries in `ChangelogView.tsx`.** On `dev`, append listener-friendly 5-language entries directly into the active `"isDev": true` block (`dev` builds display it automatically, `stable` builds hide it).
