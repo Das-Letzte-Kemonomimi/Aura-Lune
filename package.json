@@ -1,7 +1,7 @@
 {
   "name": "auralune",
   "private": true,
-  "version": "1.1.6-dev",
+  "version": "2.0.0-dev",
   "author": "Das Letzte Kemonomimi",
   "type": "module",
   "scripts": {
