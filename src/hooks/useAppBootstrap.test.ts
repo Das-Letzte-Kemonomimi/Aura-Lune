@@ -85,6 +85,30 @@ describe('useAppBootstrap', () => {
     expect(options.refreshQueue).toHaveBeenCalled();
   });
 
+  it('calls reveal_main_window via double requestAnimationFrame on mount', async () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = vi
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    renderHook(() => useAppBootstrap(makeOptions()));
+
+    // First rAF fires → enqueues second rAF
+    expect(rafCallbacks.length).toBeGreaterThanOrEqual(1);
+    act(() => rafCallbacks[0]!(0));
+    expect(rafCallbacks.length).toBeGreaterThanOrEqual(2);
+    // Second rAF fires → invoke('reveal_main_window')
+    act(() => rafCallbacks[1]!(0));
+
+    await act(async () => { await Promise.resolve(); });
+    expect(invokeMock).toHaveBeenCalledWith('reveal_main_window');
+
+    rafSpy.mockRestore();
+  });
+
   it('manages isDraggingOver state', () => {
     const { result } = renderHook(() => useAppBootstrap(makeOptions()));
 

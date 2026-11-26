@@ -127,6 +127,7 @@ export const COMMAND_NAMES = [
   'reset_track_plays',
   'restart_after_update',
   'restore_original_track',
+  'reveal_main_window',
   'save_bookmark',
   'save_chord_overrides',
   'save_dsp_preset',

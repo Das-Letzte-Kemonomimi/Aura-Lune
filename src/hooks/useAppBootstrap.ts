@@ -59,6 +59,21 @@ const BOOT_STAGE_ORDER: Exclude<BootStage, 'ready'>[] = [
   'library',
 ];
 
+/**
+ * Asks the Rust host to map the main window to the Wayland compositor for the first time.
+ * Uses a double requestAnimationFrame so WebKitGTK has committed at least one full-size
+ * composited frame before GTK calls gtk_widget_show.  Never awaited — fire-and-forget.
+ */
+function triggerWindowReveal(): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      invoke('reveal_main_window').catch((e: unknown) => {
+        console.warn('reveal_main_window failed:', e);
+      });
+    });
+  });
+}
+
 export function useAppBootstrap({
   refreshDevices,
   loadLibrary,
@@ -244,6 +259,10 @@ export function useAppBootstrap({
       console.warn('Startup bootstrap exceeded safety timeout; revealing UI.');
       beginBootExit();
     }, BOOT_SAFETY_TIMEOUT_MS);
+
+    // Ask the Rust host to show the main window once WebKitGTK has committed a full frame.
+    // Double rAF ensures layout and style are flushed before gtk_widget_show maps the surface.
+    triggerWindowReveal();
 
     // DSP presets and playlists are loaded by their own hooks (useDspManager / usePlaylistManager).
     Promise.allSettled([

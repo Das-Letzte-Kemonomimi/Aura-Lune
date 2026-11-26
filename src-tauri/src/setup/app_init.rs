@@ -430,6 +430,7 @@ pub fn init_app(
                 .map(|v| v != "false")
                 .unwrap_or(true),
         )),
+        window_revealed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
     };
 
     let state_for_cli = app_state.clone();
@@ -456,6 +457,18 @@ pub fn init_app(
     });
 
     setup_tray_and_window_events(app)?;
+
+    // Safety reveal: if the frontend never calls `reveal_main_window` (e.g., WebView stalls),
+    // show the window after 1200 ms so the user is never left with an invisible window.
+    {
+        let safety_handle = app.handle().clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(1200));
+            if let Some(state) = safety_handle.try_state::<crate::AppState>() {
+                crate::commands::system::reveal_main_window_internal(&safety_handle, state.inner());
+            }
+        });
+    }
 
     Ok(())
 }

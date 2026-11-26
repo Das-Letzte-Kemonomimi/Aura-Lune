@@ -1,6 +1,7 @@
 //! System tray setup and main window event handling.
 
 use crate::AppState;
+use std::sync::atomic::Ordering;
 use tauri::Manager;
 
 /// Sets up the system tray icon and menu, and minimising to the tray when the window closes.
@@ -36,6 +37,9 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                         let _ = window.unminimize();
                         let _ = window.set_focus();
                     }
+                    // Mark window as revealed so the safety timer does not fight a tray hide.
+                    let state = app.state::<AppState>();
+                    state.window_revealed.store(true, Ordering::SeqCst);
                 }
                 "tray_play_pause" => {
                     // The same paths as the UI commands: MPRIS, Discord and the queue save stay consistent,
@@ -83,6 +87,9 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                             let _ = window.show();
                             let _ = window.unminimize();
                             let _ = window.set_focus();
+                            // Mark revealed so the safety timer does not fight a subsequent hide.
+                            let state = app.state::<AppState>();
+                            state.window_revealed.store(true, Ordering::SeqCst);
                         }
                     }
                 }

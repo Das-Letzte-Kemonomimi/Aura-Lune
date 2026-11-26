@@ -7,9 +7,10 @@ use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use gstreamer as gst;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
-use tauri::{Emitter, State};
-use tracing::{error, info};
+use tauri::{Emitter, Manager, State};
+use tracing::{debug, error, info};
 
 /// Maximum yt-dlp download time (large playlists); a hung process is killed.
 const YTDLP_TIMEOUT: Duration = Duration::from_secs(60 * 60);
@@ -287,6 +288,31 @@ pub async fn get_audio_system_health(
         waybar_ipc_path: waybar_path.display().to_string(),
         fifo_ipc_path: fifo_path.display().to_string(),
     })
+}
+
+/// Shows the main window for the first time, after WebKitGTK has committed its first full-size
+/// frame. Idempotent: subsequent calls from the frontend or the safety timer are no-ops.
+pub fn reveal_main_window_internal(app: &tauri::AppHandle, state: &AppState) {
+    if state
+        .window_revealed
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_ok()
+    {
+        debug!("reveal_main_window: showing main window for the first time");
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
+#[tauri::command]
+pub fn reveal_main_window(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    reveal_main_window_internal(&app, &state);
+    Ok(())
 }
 
 #[tauri::command]

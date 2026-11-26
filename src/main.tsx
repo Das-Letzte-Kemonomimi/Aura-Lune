@@ -3,6 +3,27 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
 
+/**
+ * Applies the user's saved UI scale to the document root *before* React mounts,
+ * so frame 1 paints at the correct zoom level with no post-mount rescale jump.
+ */
+function applyStoredUiScale(): void {
+  try {
+    const saved = localStorage.getItem('auralune_ui_scale');
+    if (saved) {
+      const parsed = parseFloat(saved);
+      if (!isNaN(parsed) && parsed >= 0.85 && parsed <= 1.45) {
+        document.documentElement.style.zoom = String(parsed);
+        document.documentElement.style.setProperty('--ui-scale', String(parsed));
+      }
+    }
+  } catch {
+    // localStorage unavailable — useThemeManager will apply the default on mount.
+  }
+}
+
+applyStoredUiScale();
+
 interface ErrorBoundaryProps {
   children: ReactNode;
 }

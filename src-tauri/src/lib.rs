@@ -8,6 +8,7 @@ use audio_engine::AudioEngine;
 use downloads::DownloadManager;
 use library::LibraryScanner;
 use metadata::{CoverArtArchiveClient, LastFmClient, ListenBrainzClient, MusicBrainzClient};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use storage::Database;
 use tauri::Manager;
@@ -58,6 +59,9 @@ pub struct AppState {
     pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
     /// Cache of the `close_to_tray` setting (read when handling window close, without blocking).
     pub close_to_tray: Arc<std::sync::atomic::AtomicBool>,
+    /// Whether the main window has already been revealed to the Wayland compositor.
+    /// Set to `true` on first `reveal_main_window` call or by the safety timer.
+    pub window_revealed: Arc<std::sync::atomic::AtomicBool>,
     /// The only writer of the queue state (see `persist_queue_state`).
     pub queue_saver: commands::queue::QueueSaver,
 }
@@ -95,6 +99,10 @@ pub fn run() {
                 let _ = window.show();
                 let _ = window.unminimize();
                 let _ = window.set_focus();
+            }
+
+            if let Some(state) = app.try_state::<AppState>() {
+                state.window_revealed.store(true, Ordering::SeqCst);
             }
 
             let files = extract_audio_paths_from_args(&argv, Some(&cwd));
@@ -306,6 +314,7 @@ pub fn run() {
             check_for_update,
             install_update,
             restart_after_update,
+            reveal_main_window,
         ])
         .build(tauri::generate_context!())
         .expect("Error while running the Tauri application")

@@ -19,7 +19,9 @@
         "minHeight": 560,
         "resizable": true,
         "fullscreen": false,
-        "windowClassname": "auralune"
+        "windowClassname": "auralune",
+        "visible": false,
+        "backgroundColor": "#090a12"
       }
     ],
     "security": {

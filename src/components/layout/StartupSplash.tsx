@@ -54,14 +54,15 @@ export const StartupSplash: React.FC<StartupSplashProps> = ({
         bootState.isExiting ? 'pointer-events-none opacity-0' : 'opacity-100',
       )}
     >
-      {/* Ambient theme-aware glow orbs */}
+      {/* Ambient theme-aware glow — pure radial-gradient, zero offscreen Gaussian passes */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-24 left-1/2 size-96 -translate-x-1/2 rounded-full bg-accent-purple/15 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-1/4 left-1/3 size-72 rounded-full bg-accent-cyan/10 blur-3xl"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 72% 55% at 50% 42%, color-mix(in srgb, var(--accent-purple) 15%, transparent), transparent),' +
+            ' radial-gradient(ellipse 55% 45% at 30% 75%, color-mix(in srgb, var(--accent-cyan) 10%, transparent), transparent)',
+        }}
       />
 
       <div className="relative flex flex-col items-center gap-6">
@@ -71,7 +72,7 @@ export const StartupSplash: React.FC<StartupSplashProps> = ({
             aria-hidden="true"
             className="absolute inset-0 rounded-full border border-line-accent/60 shadow-halo-2xl shadow-accent-purple/30 motion-safe:animate-spin-slow"
           />
-          <div className="relative flex size-22 items-center justify-center rounded-full border border-line bg-surface/80 backdrop-blur-md">
+          <div className="relative flex size-22 items-center justify-center rounded-full border border-line bg-surface/95 shadow-halo-2xl shadow-accent-purple/30">
             <img
               src="/icon_lineout.svg"
               alt=""
