@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { X, Sliders, Power, RotateCcw, Upload } from 'lucide-react';
+import { X, Sliders, Power, RotateCcw, Upload } from '../../ui/icons';
 import { type ParametricEqStateDto } from '../../../utils/parametricEqMath';
 import type { ParametricEqModalProps } from '../ParametricEqModal';
 import type { Dispatch, SetStateAction } from 'react';

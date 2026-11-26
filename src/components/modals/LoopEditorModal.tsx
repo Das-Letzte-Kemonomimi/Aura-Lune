@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } from 'lucide-react';
+import { X, Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 
 import { parseTimeToMs, formatTimeMs } from '../../utils/timeFormat';

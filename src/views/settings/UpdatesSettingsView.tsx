@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Download, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, ExternalLink, RefreshCw, RotateCw } from '../../components/ui/icons';
 import { errorMessage, invoke } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo, InstallKind, UpdateInfo, UpdateProgress } from '../../types/updates';

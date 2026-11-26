@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookmarkPlus, X, Check, ListMusic } from 'lucide-react';
+import { BookmarkPlus, X, Check, ListMusic } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';

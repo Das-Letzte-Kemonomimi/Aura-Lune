@@ -64,6 +64,7 @@ import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
 import { useToasts } from './hooks/useToasts';
 import { useUpdateManager } from './hooks/useUpdateManager';
 import { usePlaybackErrorToasts } from './hooks/usePlaybackErrorToasts';
+import { AlertTriangle } from './components/ui/icons';
 
 export type { AlbumPlaybackBehavior };
 
@@ -1221,7 +1222,8 @@ export default function App() {
             onClick={() => dismissToast(toast.id)}
             className="mb-2 cursor-pointer rounded-xl border border-accent-purple bg-accent-purple/20 px-4 py-2.5 text-sm text-fg"
           >
-            {toast.level === 'error' ? `⚠️ ${toast.text}` : toast.text}
+            {toast.level === 'error' && <AlertTriangle size={14} className="icon-inline mr-1.5" />}
+            {toast.text}
           </div>
         ))}
 

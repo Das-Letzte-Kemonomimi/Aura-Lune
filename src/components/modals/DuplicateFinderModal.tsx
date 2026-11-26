@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../../api/ipc';
-import { Copy, Trash2, FolderOpen, Play, X, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Copy, Trash2, FolderOpen, Play, X, RefreshCw, AlertTriangle, CheckCircle2 } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';

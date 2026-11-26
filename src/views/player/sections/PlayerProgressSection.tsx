@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Repeat, X } from '../../../components/ui/icons';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
@@ -62,7 +62,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
                 )}
                 title={loc.player.editLoopTooltip}
               >
-                <span>🔁 {loc.player.loopAB}:</span>
+                <span className="inline-flex items-center gap-1"><Repeat size={12} />{loc.player.loopAB}:</span>
                 <span className="text-accent-cyan">{loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000'}</span>
                 <span>→</span>
                 <span className="text-accent-pink">{loopPointB !== null ? formatTimeMs(loopPointB) : '—'}</span>
@@ -80,8 +80,9 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
                 }}
                 className="rounded-sm border border-accent-pink/45 bg-accent-pink/20 px-1.5 py-px text-xxs text-rose-400"
                 title={loc.player.clearLoop}
+                aria-label={loc.player.clearLoop}
               >
-                ✕
+                <X size={11} />
               </button>
             </div>
           )}

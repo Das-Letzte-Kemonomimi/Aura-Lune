@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookmarkPlus, Check, ChevronDown, ChevronUp, Disc, FolderOpen, Image as ImageIcon, Infinity as InfinityIcon, ListMusic, Music, Play, Plus, Repeat, Repeat1, RotateCcw, Search, Settings, Shuffle, SlidersHorizontal, Square, Trash2, X, Zap } from 'lucide-react';
+import { BookmarkPlus, Check, ChevronDown, ChevronUp, Disc, FolderOpen, Image as ImageIcon, Infinity as InfinityIcon, ListMusic, Music, Play, Plus, Repeat, Repeat1, RotateCcw, Search, Settings, Shuffle, SlidersHorizontal, Square, Trash2, X, Zap } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import { type QueueItem, type QueueColumnConfig, getQueueGridTemplate } from '../../../types/queue';
 import type { PlayerViewProps } from '../PlayerView';

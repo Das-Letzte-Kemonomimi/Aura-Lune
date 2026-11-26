@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Layers, Search, X } from 'lucide-react';
+import { Layers, Search, X } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';

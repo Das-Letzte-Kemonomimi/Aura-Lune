@@ -27,7 +27,7 @@ export default defineConfig({
             if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
               return 'react-vendor'
             }
-            if (id.includes('lucide-react')) {
+            if (id.includes('@tabler/icons-react')) {
               return 'icons-vendor'
             }
             if (id.includes('@tauri-apps')) {

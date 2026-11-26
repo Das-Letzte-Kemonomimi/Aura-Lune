@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Play,
   Pause,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type {
   StemProject,

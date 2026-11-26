@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Keyboard } from 'lucide-react';
+import { X, Keyboard } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { ModalShell } from '../ui';
 

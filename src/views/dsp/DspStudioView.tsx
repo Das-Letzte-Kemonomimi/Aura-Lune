@@ -5,7 +5,7 @@ import {
   RotateCcw,
   Save,
   Sliders,
-} from "lucide-react";
+} from "../../components/ui/icons";
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
 import {  type EqualizerPreset } from '../../types/equalizer';
 import type { DspPresetRecord, PlaybackStatus } from '../../types/player';
@@ -21,6 +21,7 @@ import { DspPitchSlider } from './sections/DspPitchSlider';
 import { DspEngineSelector } from './sections/DspEngineSelector';
 import { cn } from '../../utils/cn';
 import { Callout } from '../../components/ui';
+import { Check, Point } from '../../components/ui/icons';
 
 export interface DspCombinationInfo {
   pitchSt: number;
@@ -172,7 +173,8 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                       dspAutoStartup ? 'text-accent-green' : 'text-fg-muted',
                     )}
                   >
-                    {dspAutoStartup ? `✓ ${loc.dsp.dspAutostartOn}` : `○ ${loc.dsp.dspAutostartOff}`}
+                    {dspAutoStartup ? <Check size={13} /> : <Point size={13} />}
+                    {dspAutoStartup ? loc.dsp.dspAutostartOn : loc.dsp.dspAutostartOff}
                   </button>
 
                   {/* Save the current settings as the start-up default */}

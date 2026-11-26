@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, CheckCircle, X, Play, Plus, ListPlus } from 'lucide-react';
+import { FolderOpen, CheckCircle, X, Play, Plus, ListPlus } from '../../../components/ui/icons';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
 
 export type TranscodeResultPanelProps = Pick<TranscodeSettingsViewProps, 'loc' | 'onDismissLastExported' | 'onPlayLibraryTrack' | 'onAddTrackToQueue' | 'onAddToPlaylist' | 'onOpenContainingFolder'> & {

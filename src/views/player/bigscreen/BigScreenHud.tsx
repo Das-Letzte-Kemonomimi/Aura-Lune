@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { Minimize2, Radio, Zap, Mic2, Music, Layers } from 'lucide-react';
+import { Minimize2, Radio, Zap, Mic2, Music, Layers } from '../../../components/ui/icons';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';

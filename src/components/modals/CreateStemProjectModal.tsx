@@ -10,7 +10,7 @@ import {
   X,
   Play,
   Music,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type { ModelPackInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';

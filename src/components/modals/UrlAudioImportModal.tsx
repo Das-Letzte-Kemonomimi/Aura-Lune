@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Download,
   X,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { UrlImportResultView } from './url-import/UrlImportResultView';

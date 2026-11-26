@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CassetteTape, Disc, Disc3, Gauge, Sparkles, Upload } from 'lucide-react';
+import { CassetteTape, Disc, Disc3, Gauge, Sparkles, Upload } from '../../../components/ui/icons';
 import { TapeDeckWidget } from '../../../components/player/TapeDeckWidget';
 import { VinylTurntable } from '../../../components/player/VinylTurntable';
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';

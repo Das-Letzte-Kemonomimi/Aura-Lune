@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from '../../../components/ui/icons';
 import { SpectrumVisualizer } from '../../../components/player/SpectrumVisualizer';
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';

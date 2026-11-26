@@ -9,7 +9,7 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-} from 'lucide-react';
+} from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';

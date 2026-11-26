@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpDown, Copy, Disc, Mic2, Music, Search, X } from 'lucide-react';
+import { ArrowUpDown, Copy, Disc, Mic2, Music, Search, X } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import { cn } from '../../../utils/cn';
 

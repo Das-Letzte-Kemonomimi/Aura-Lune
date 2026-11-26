@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Clock, VolumeX, X, Check, BellOff, Sliders } from 'lucide-react';
+import { Moon, Clock, VolumeX, X, Check, BellOff, Sliders } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';

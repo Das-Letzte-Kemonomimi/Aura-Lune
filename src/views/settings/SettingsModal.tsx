@@ -8,7 +8,7 @@ import {
   Info,
   Save,
   Download,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { type Translations } from '../../i18n';
 
 export type { SettingsTab } from '../../types/navigation';

@@ -11,7 +11,7 @@ import {
   X,
   Sparkles,
   RotateCcw,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import {
   soundscapeEngine,

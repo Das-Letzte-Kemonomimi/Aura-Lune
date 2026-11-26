@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
 import type { FormEvent } from 'react';
-import { Download, FolderOpen, AlertCircle, Loader2, Clipboard, Sparkles, ListMusic, SlidersHorizontal } from 'lucide-react';
+import { Download, FolderOpen, AlertCircle, Loader2, Clipboard, Sparkles, ListMusic, SlidersHorizontal } from '../../ui/icons';
 import type { UrlAudioImportModalProps } from '../UrlAudioImportModal';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';

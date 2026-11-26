@@ -9,7 +9,7 @@ import {
   Sparkles,
   Sliders,
   Check,
-} from 'lucide-react';
+} from '../ui/icons';
 import { getTranslations, type Language } from '../../i18n';
 import { cn } from '../../utils/cn';
 import { ModalShell } from '../ui';

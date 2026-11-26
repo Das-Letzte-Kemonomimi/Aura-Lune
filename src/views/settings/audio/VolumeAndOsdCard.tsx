@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2 } from 'lucide-react';
+import { Volume2 } from '../../../components/ui/icons';
 import { type VolumeOsdPosition } from '../../../components/player/VolumeOsd';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
 import { cn } from '../../../utils/cn';

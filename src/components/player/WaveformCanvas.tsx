@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { BarChart2, Waves, Activity, Sliders } from 'lucide-react';
+import { BarChart2, Waves, Activity, Sliders } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
 import { cn } from '../../utils/cn';

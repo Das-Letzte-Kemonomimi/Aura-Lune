@@ -8,7 +8,7 @@ import {
   Sparkles,
   Trophy,
   Play,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';

@@ -1,6 +1,6 @@
 import type { AppTab } from '../../types/navigation';
 import React, { useCallback } from "react";
-import { BarChart3,     FolderOpen,  Heart,                  } from "lucide-react";
+import { BarChart3,     FolderOpen,  Heart,                  } from "../../components/ui/icons";
 import { LyricsView } from '../../components/player/LyricsView';
 import {  type TapeType } from '../../components/player/TapeDeckWidget';
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';

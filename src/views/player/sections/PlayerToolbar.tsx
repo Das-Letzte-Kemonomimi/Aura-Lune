@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, Radio, X } from 'lucide-react';
+import { FolderOpen, Radio, X } from '../../../components/ui/icons';
 import { invoke } from '../../../api/ipc';
 import type { PlaybackStatus, SampleTrackDto } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';

@@ -15,7 +15,7 @@ import {
   Check,
   Wand2,
   Languages,
-} from 'lucide-react';
+} from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';

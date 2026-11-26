@@ -3,6 +3,7 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
+import { Target } from '../../../components/ui/icons';
 
 export type DspPitchSliderProps = Pick<DspStudioViewProps, 'loc' | 'handlePitchChange' | 'dspCombination'> & {
   status: PlaybackStatus;
@@ -133,7 +134,7 @@ export const DspPitchSlider: React.FC<DspPitchSliderProps> = ({
           <div className="flex flex-wrap items-center justify-end gap-1 text-xs font-semibold text-accent-pink">
             {dspCombination.totalKey ? (
               <span>
-                🎯 {loc.dsp.keyLabel}: <strong className="text-fg">{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
+                <Target size={12} className="icon-inline mr-1" />{loc.dsp.keyLabel}: <strong className="text-fg">{dspCombination.totalKey.camelot}</strong> ({dspCombination.totalKey.keyName})
                 {dspCombination.totalKey.centsOffset !== 0 ? ` ${dspCombination.totalKey.centsOffset > 0 ? '+' : ''}${dspCombination.totalKey.centsOffset}¢` : ''}
                 {dspCombination.hasRate && (
                   <span className="ml-1 text-xxs text-accent-amber">
@@ -143,7 +144,7 @@ export const DspPitchSlider: React.FC<DspPitchSliderProps> = ({
               </span>
             ) : (
               <span className="text-fg-muted">
-                🎯 {loc.dsp.keyLabel}: {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st
+                <Target size={12} className="icon-inline mr-1" />{loc.dsp.keyLabel}: {dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)} st
                 {dspCombination.hasRate && ` (${(status.pitch_semitones ?? 0).toFixed(2)} st + rate ${(dspCombination.rateSemitones > 0 ? '+' : '') + dspCombination.rateSemitones.toFixed(2)} st)`}
                 {loc.dsp.noBaseKey}
               </span>

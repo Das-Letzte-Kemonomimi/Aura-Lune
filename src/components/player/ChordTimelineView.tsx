@@ -6,7 +6,7 @@ import {
   X,
   Repeat,
   Sparkles,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type { TrackChordsData } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';

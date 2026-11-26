@@ -7,7 +7,7 @@ import {
   Sparkles,
   Zap,
   Download,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import type { AiModelInfo, AnalysisCapabilities } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, Sparkles } from 'lucide-react';
+import { Save, Sparkles } from '../../../components/ui/icons';
 import type { DspStudioViewProps } from '../DspStudioView';
 import { cn } from '../../../utils/cn';
 

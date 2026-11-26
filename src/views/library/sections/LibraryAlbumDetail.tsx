@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Clock, Disc, FolderOpen, Heart, Music, Play, Plus, Shuffle, Sliders, Sparkles, Tag as TagIcon, Zap } from 'lucide-react';
+import { ArrowLeft, Clock, Disc, FolderOpen, Heart, Music, Play, Plus, Shuffle, Sliders, Sparkles, Tag as TagIcon, Zap } from '../../../components/ui/icons';
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Headphones } from 'lucide-react';
+import { Zap, Headphones, Check, X } from '../../../components/ui/icons';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
 import { cn } from '../../../utils/cn';
 
@@ -43,14 +43,14 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
                   onClick={() => onDisableProAudio(card.name)}
                   className="flex items-center gap-1.5 rounded-lg border border-accent-pink/50 bg-accent-pink/25 px-3.5 py-2 text-ui font-bold text-accent-pink"
                 >
-                  ✕ Pro Audio OFF (Stereo)
+                  <X size={14} /> Pro Audio OFF (Stereo)
                 </button>
               ) : (
                 <button
                   onClick={() => onEnableProAudio(card.name)}
                   className="rounded-lg border border-line bg-white/8 px-3 py-1.5 text-xs font-semibold text-fg"
                 >
-                  ✓ Pro Audio ON (Bit-Perfect Direct ALSA)
+                  <Check size={13} className="icon-inline mr-1" />Pro Audio ON (Bit-Perfect Direct ALSA)
                 </button>
               )}
             </div>
@@ -79,7 +79,7 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
                         )}
                         title={p.description || p.name}
                       >
-                        {isCurrent ? '✓ ' : ''}{p.description || p.name}
+                        {isCurrent && <Check size={12} className="icon-inline mr-1" />}{p.description || p.name}
                       </button>
                     );
                   })}

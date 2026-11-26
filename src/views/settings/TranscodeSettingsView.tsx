@@ -7,7 +7,7 @@ import {
   Save,
   Loader2,
   ArrowRight,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type TrackBookmarkDto } from '../../types/player';
 import { formatTimeMs, parseTimeToMs } from '../../utils/timeFormat';

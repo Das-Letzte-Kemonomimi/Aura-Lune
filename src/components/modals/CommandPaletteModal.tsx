@@ -19,7 +19,7 @@ import {
   Waves,
   Disc3,
   Headphones,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
 

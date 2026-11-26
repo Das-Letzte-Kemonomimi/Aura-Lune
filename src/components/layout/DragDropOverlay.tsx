@@ -1,5 +1,5 @@
 import React from 'react';
-import { UploadCloud, X } from 'lucide-react';
+import { UploadCloud, X } from '../ui/icons';
 import { type Translations } from '../../i18n';
 
 export interface DragDropOverlayProps {

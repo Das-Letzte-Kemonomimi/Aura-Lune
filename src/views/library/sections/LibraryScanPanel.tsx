@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, RefreshCw, X } from 'lucide-react';
+import { FolderOpen, RefreshCw, X, Check } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
@@ -57,7 +57,8 @@ export const LibraryScanPanel: React.FC<LibraryScanPanelProps> = ({
       </div>
       {scanResult && (
         <p className="mx-0 mt-2.5 mb-0 text-ui text-accent-green">
-          ✓ {fmt(loc.library.scanSummary, String(scanResult.total_files_found), String(scanResult.new_or_updated_tracks), String(scanResult.skipped_unchanged))}
+          <Check size={13} className="icon-inline mr-1" />
+          {fmt(loc.library.scanSummary, String(scanResult.total_files_found), String(scanResult.new_or_updated_tracks), String(scanResult.skipped_unchanged))}
         </p>
       )}
     </div>

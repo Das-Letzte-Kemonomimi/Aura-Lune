@@ -1,5 +1,5 @@
 import React from 'react';
-import { Headphones } from 'lucide-react';
+import { Headphones } from '../../../components/ui/icons';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
 import { cn } from '../../../utils/cn';
 

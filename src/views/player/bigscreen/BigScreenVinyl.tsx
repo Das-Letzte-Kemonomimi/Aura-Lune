@@ -1,5 +1,5 @@
 import React from 'react';
-import { Disc } from 'lucide-react';
+import { Disc } from '../../../components/ui/icons';
 import type { BigScreenViewProps } from '../BigScreenView';
 import { cn } from '../../../utils/cn';
 

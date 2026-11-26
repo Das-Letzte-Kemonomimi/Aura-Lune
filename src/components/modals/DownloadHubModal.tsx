@@ -9,7 +9,7 @@ import {
   RefreshCw,
   FileAudio,
   Play,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { formatBytes } from '../../utils/fileSizeFormat';

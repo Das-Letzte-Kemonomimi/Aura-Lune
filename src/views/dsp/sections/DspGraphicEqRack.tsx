@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Check, ChevronDown, Headphones, Sliders } from 'lucide-react';
+import { Activity, Check, ChevronDown, Headphones, Sliders, Point, PointFilled } from '../../../components/ui/icons';
 import { EQUALIZER_BANDS } from '../../../types/equalizer';
 import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
@@ -174,13 +174,14 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <button
             onClick={handleEqToggle}
             className={cn(
-              'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
+              'inline-flex items-center gap-1 rounded-lg border px-3.5 py-1.5 text-xs font-bold',
               status.equalizer_enabled ? 'bg-accent-pink/25' : 'bg-white/6',
               status.equalizer_enabled ? 'border-accent-pink' : 'border-line',
               status.equalizer_enabled ? 'text-accent-pink' : 'text-fg-muted',
             )}
           >
-            {status.equalizer_enabled ? `● ${loc.dsp.eqEnabled}` : `○ ${loc.dsp.eqBypass}`}
+            {status.equalizer_enabled ? <PointFilled size={12} /> : <Point size={12} />}
+            {status.equalizer_enabled ? loc.dsp.eqEnabled : loc.dsp.eqBypass}
           </button>
 
           {/* EQ autostart toggle */}
@@ -188,13 +189,14 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             onClick={handleToggleEqAutoStartup}
             title={loc.dsp.eqAutostart}
             className={cn(
-              'rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold',
               eqAutoStartup ? 'bg-accent-green/20' : 'bg-white/5',
               eqAutoStartup ? 'border-accent-green' : 'border-line',
               eqAutoStartup ? 'text-accent-green' : 'text-fg-muted',
             )}
           >
-            {eqAutoStartup ? `✓ ${loc.dsp.eqAutostartOn}` : `○ ${loc.dsp.eqAutostartOff}`}
+            {eqAutoStartup ? <Check size={12} /> : <Point size={12} />}
+            {eqAutoStartup ? loc.dsp.eqAutostartOn : loc.dsp.eqAutostartOff}
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, ListMusic, Mic2, Play, Plus } from 'lucide-react';
+import { Flame, ListMusic, Mic2, Play, Plus } from '../../../components/ui/icons';
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';

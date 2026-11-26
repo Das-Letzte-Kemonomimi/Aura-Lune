@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '../../api/ipc';
-import { X, Search, Image as ImageIcon, Check, Loader2, Sparkles, Upload, FolderOpen } from 'lucide-react';
+import { X, Search, Image as ImageIcon, Check, Loader2, Sparkles, Upload, FolderOpen } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
 import { ModalShell } from '../ui';

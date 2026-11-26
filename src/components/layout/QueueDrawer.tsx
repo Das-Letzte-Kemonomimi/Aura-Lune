@@ -8,7 +8,7 @@ import {
   Zap,
   ChevronUp,
   ChevronDown,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Translations } from '../../i18n';
 import { type PlaybackQueue, type QueueItem } from '../../types/queue';
 import { type PlaybackStatus } from '../../types/player';

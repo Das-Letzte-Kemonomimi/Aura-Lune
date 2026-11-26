@@ -1,15 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Save,
-  Download,
-  Upload,
-  Headphones,
-  Zap,
-  Radio,
-  Flame,
-  ExternalLink,
-  CheckCircle,
-} from 'lucide-react';
+import { Save, Download, Upload, Headphones, Zap, Radio, Flame, ExternalLink, CheckCircle, BrandDiscord, ChevronDown, ChevronRight, PointFilled } from '../../components/ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
@@ -176,9 +166,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
             <div
               className="flex h-9.5 w-9.5 items-center justify-center rounded-xl border border-discord/40 bg-discord/25"
             >
-              <svg width="22" height="22" viewBox="0 0 20 19" fill="#5865F2">
-                <path d="M16.224 3.768a14.5 14.5 0 0 0-3.67-1.153c-.158.286-.343.67-.47.976a13.5 13.5 0 0 0-4.067 0c-.128-.306-.317-.69-.476-.976A14.4 14.4 0 0 0 3.868 3.77C1.546 7.28.916 10.703 1.231 14.077a14.7 14.7 0 0 0 4.5 2.306q.545-.748.965-1.587a9.5 9.5 0 0 1-1.518-.74q.191-.14.372-.293c2.927 1.369 6.107 1.369 8.999 0q.183.152.372.294-.723.437-1.52.74.418.838.963 1.588a14.6 14.6 0 0 0 4.504-2.308c.37-3.911-.63-7.302-2.644-10.309m-9.13 8.234c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.894 0 1.614.82 1.599 1.82.001 1-.705 1.82-1.6 1.82m5.91 0c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.893 0 1.614.82 1.599 1.82 0 1-.706 1.82-1.6 1.82" />
-              </svg>
+              <BrandDiscord size={22} className="text-discord" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -447,7 +435,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
                 </span>
                 {lastfmUsername && (
                   <span className="rounded-sm bg-green-500/20 px-1.5 py-0.5 text-xxs font-bold text-green-400">
-                    ● ONLINE
+                    <PointFilled size={10} className="icon-inline" /> ONLINE
                   </span>
                 )}
               </h3>
@@ -567,7 +555,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
               onClick={() => setLastfmShowAdvanced(!lastfmShowAdvanced)}
               className="flex items-center gap-1 border-0 bg-transparent p-0 text-xs text-fg-muted"
             >
-              {lastfmShowAdvanced ? '▼' : '▶'} {loc.settings.lastfmAdvancedKeys}
+              {lastfmShowAdvanced ? <ChevronDown size={13} /> : <ChevronRight size={13} />} {loc.settings.lastfmAdvancedKeys}
             </button>
 
             {lastfmShowAdvanced && (

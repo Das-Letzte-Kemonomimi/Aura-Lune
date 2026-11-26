@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
 import type { PointerEvent } from 'react';
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check } from '../../ui/icons';
 import { freqToNormX, gainToNormY, PEQ_BAND_COLORS, type ParametricEqStateDto } from '../../../utils/parametricEqMath';
 import type { RefObject } from 'react';
 import { cn } from '../../../utils/cn';

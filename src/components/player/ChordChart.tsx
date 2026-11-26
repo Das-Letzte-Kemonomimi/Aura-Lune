@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Check, Edit3 } from 'lucide-react';
+import { Check, Edit3 } from '../ui/icons';
 import { TONE_COLORS, chordTone, type ChordBar, type ChordCell } from '../../utils/chordChart';
 import { formatTime } from '../../utils/timeFormat';
 import { cn } from '../../utils/cn';

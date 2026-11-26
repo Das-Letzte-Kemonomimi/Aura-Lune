@@ -6,7 +6,7 @@ import {
   Edit3,
   HardDrive,
   Sparkles,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { invoke } from '../../api/ipc';
 import type { StemProject, StemProjectProgressPayload } from '../../types/analysis';
 import { formatBytes } from '../../utils/fileSizeFormat';

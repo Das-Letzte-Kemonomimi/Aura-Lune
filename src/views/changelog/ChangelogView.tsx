@@ -10,7 +10,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Layers,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import rawReleases from '../../data/changelog.json';
 import { fmt } from '../../utils/fmt';

@@ -3,6 +3,7 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { DspStudioViewProps } from '../DspStudioView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
+import { Zap } from '../../../components/ui/icons';
 
 export type DspTempoSliderProps = Pick<DspStudioViewProps, 'loc' | 'handleTempoChange' | 'dspCombination' | 'activeTrackKeyBpm'> & {
   status: PlaybackStatus;
@@ -128,7 +129,7 @@ export const DspTempoSlider: React.FC<DspTempoSliderProps> = ({
           <div className="flex flex-wrap items-center justify-end gap-1 text-xs font-semibold text-accent-cyan">
             {dspCombination.totalBpm ? (
               <span>
-                ⚡ Tempo: <strong className="text-fg">{dspCombination.totalBpm.toFixed(1)} BPM</strong>
+                <Zap size={12} className="icon-inline mr-1" />Tempo: <strong className="text-fg">{dspCombination.totalBpm.toFixed(1)} BPM</strong>
                 {activeTrackKeyBpm?.bpm ? ` (${loc.dsp.fromBpm} ${activeTrackKeyBpm.bpm.toFixed(1)})` : ''}
                 {dspCombination.hasRate && (
                   <span className="ml-1 text-xxs text-accent-amber">
@@ -138,7 +139,7 @@ export const DspTempoSlider: React.FC<DspTempoSliderProps> = ({
               </span>
             ) : (
               <span className="text-fg-muted">
-                ⚡ Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
+                <Zap size={12} className="icon-inline mr-1" />Tempo: {dspCombination.totalSpeedRatio.toFixed(2)}x
                 {dspCombination.hasRate && ` (${(status.tempo_ratio ?? 1).toFixed(2)}x × rate ${(status.rate_ratio ?? 1).toFixed(2)}x)`}
                 {loc.dsp.noBaseBpm}
               </span>

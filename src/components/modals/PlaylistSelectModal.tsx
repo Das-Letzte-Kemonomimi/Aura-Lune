@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderPlus, X } from 'lucide-react';
+import { FolderPlus, X } from '../ui/icons';
 import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
 import { ModalShell } from '../ui';

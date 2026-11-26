@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Globe, Search, X } from 'lucide-react';
+import { CheckCircle, Globe, Search, X } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import { cn } from '../../../utils/cn';
 

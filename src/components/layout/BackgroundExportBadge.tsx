@@ -1,6 +1,6 @@
 import type { AppTab } from '../../types/navigation';
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '../ui/icons';
 import { cn } from '../../utils/cn';
 import type { Translations } from '../../i18n';
 

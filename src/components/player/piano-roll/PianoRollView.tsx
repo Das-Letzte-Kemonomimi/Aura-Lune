@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronsUpDown, Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronsUpDown, Crosshair, Download, Type, Piano, Sparkles, X, ZoomIn, ZoomOut } from '../../ui/icons';
 import { errorMessage, invoke } from '../../../api/ipc';
 import type { TrackTranscriptionData } from '../../../types/analysis';
 import { getTranslations, type Language } from '../../../i18n';

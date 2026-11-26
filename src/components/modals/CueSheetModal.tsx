@@ -6,7 +6,7 @@ import {
   Play,
   ListPlus,
   AlertCircle,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatTime } from '../../utils/timeFormat';

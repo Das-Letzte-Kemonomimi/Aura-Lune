@@ -14,7 +14,7 @@ import {
   Minimize2,
   ListMusic,
   Settings,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import { AppNavbar, type MainTabType } from './AppNavbar';
 import { LanguageSelector } from '../common/LanguageSelector';

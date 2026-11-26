@@ -12,7 +12,7 @@ import {
   RotateCcw,
   Sliders,
   ShieldCheck,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
 

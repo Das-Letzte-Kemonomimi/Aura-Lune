@@ -7,7 +7,7 @@ import {
   X,
   BarChart2,
   Sliders,
-} from 'lucide-react';
+} from '../ui/icons';
 import { ChordTimelineView } from '../player/ChordTimelineView';
 import { PianoRollView } from '../player/piano-roll/PianoRollView';
 import { StemMixerModal } from './StemMixerModal';

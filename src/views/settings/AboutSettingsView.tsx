@@ -7,7 +7,7 @@ import {
   HeartHandshake,
   ExternalLink,
   Keyboard,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo } from '../../types/updates';
 import { cn } from '../../utils/cn';

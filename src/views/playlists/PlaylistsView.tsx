@@ -10,7 +10,7 @@ import {
   Download,
   Trash2,
   FolderOpen,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
 import { fmt } from '../../utils/fmt';

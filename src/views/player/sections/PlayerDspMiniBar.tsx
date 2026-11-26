@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Sliders } from 'lucide-react';
+import { RotateCcw, Sliders, PointFilled } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { cn } from '../../../utils/cn';
@@ -36,7 +36,8 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
           )}
           title={status.engine === 'Bypass' ? loc.dsp.enableDspTooltip : loc.dsp.disableDspTooltip}
         >
-          {status.engine === 'Bypass' ? '● BYPASS' : `● ${status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}`}
+          <PointFilled size={12} />
+          {status.engine === 'Bypass' ? 'BYPASS' : status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}
         </button>
 
         {/* Indicator and button to return from stems (when stems are active) */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { RotateCcw, Music, Piano } from 'lucide-react';
+import { RotateCcw, Music, Piano } from '../../ui/icons';
 import type { StemChannel } from '../../../types/analysis';
 import { sliderToDb } from '../../../types/analysis';
 import type { StemProjectStudioModalProps } from '../StemProjectStudioModal';

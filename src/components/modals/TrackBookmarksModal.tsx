@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '../../api/ipc';
-import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from 'lucide-react';
+import { Bookmark, Plus, Trash2, Edit2, Play, Check, X, Clock, Scissors } from '../ui/icons';
 import { formatTimeMs } from '../../utils/timeFormat';
 import { type Language, getTranslations } from '../../i18n';
 import { type TrackBookmarkDto } from '../../types/player';

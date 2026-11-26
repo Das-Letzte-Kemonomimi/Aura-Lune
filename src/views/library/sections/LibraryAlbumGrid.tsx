@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpDown, Clock, Disc, LayoutGrid, List, Play, Plus, Search, Sparkles } from 'lucide-react';
+import { ArrowUpDown, Clock, Disc, LayoutGrid, List, Play, Plus, Search, Sparkles } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';

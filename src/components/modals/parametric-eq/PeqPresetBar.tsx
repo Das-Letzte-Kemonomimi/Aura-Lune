@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle } from '../../ui/icons';
 import { type ParametricEqPresetDto, type ParametricEqStateDto } from '../../../utils/parametricEqMath';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';

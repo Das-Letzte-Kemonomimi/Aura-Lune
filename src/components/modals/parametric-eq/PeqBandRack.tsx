@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from '../../ui/icons';
 import { normalizeFilterType, PEQ_BAND_COLORS, type ParametricBandDto, type ParametricEqStateDto, type ParametricFilterType } from '../../../utils/parametricEqMath';
 import type { Dispatch, SetStateAction } from 'react';
 import { fmt } from '../../../utils/fmt';

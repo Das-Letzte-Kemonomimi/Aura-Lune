@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Clock, BarChart3, RefreshCw, X, RotateCcw } from 'lucide-react';
+import { Flame, Clock, BarChart3, RefreshCw, X, RotateCcw } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { formatTime, formatRelativeTime as formatRelativeTimeBase } from '../../utils/timeFormat';

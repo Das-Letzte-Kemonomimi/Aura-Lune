@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, RotateCcw } from 'lucide-react';
+import { Layers, RotateCcw } from '../../../components/ui/icons';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
 import { cn } from '../../../utils/cn';
 

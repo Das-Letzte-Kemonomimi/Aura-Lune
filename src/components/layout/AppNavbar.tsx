@@ -7,7 +7,7 @@ import {
   Radio,
   SlidersHorizontal,
   BarChart3,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, type Translations } from '../../i18n';
 
 export type { MainTabType } from '../../types/navigation';

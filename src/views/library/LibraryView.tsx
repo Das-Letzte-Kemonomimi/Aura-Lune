@@ -4,7 +4,7 @@ import {
   Clock,
   Disc,
   Music,
-} from "lucide-react";
+} from "../../components/ui/icons";
 import { FacetsFilterPane } from '../../components/library/FacetsFilterPane';
 import type { AlbumRecord, TrackRecord, PlaybackStatus, ReleaseCandidateDto } from '../../types/player';
 import { type Language, getTranslations } from '../../i18n';

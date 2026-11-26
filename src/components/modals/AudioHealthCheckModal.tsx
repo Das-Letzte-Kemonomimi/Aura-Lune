@@ -12,7 +12,7 @@ import {
   Radio,
   Volume2,
   X,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';

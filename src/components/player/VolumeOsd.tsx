@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Volume2, Volume1, VolumeX } from 'lucide-react';
+import { Volume2, Volume1, VolumeX } from '../ui/icons';
 import { cn } from '../../utils/cn';
 
 export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'off';

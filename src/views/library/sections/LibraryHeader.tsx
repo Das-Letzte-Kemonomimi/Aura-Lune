@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Download, FileEdit, FilePlus, FolderOpen, FolderPlus, Globe, Layers, Music, RefreshCw, Shuffle } from 'lucide-react';
+import { Copy, Download, FileEdit, FilePlus, FolderOpen, FolderPlus, Globe, Layers, Music, RefreshCw, Shuffle } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import { cn } from '../../../utils/cn';
 

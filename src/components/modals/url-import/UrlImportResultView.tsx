@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { Play, ListPlus, FolderOpen, CheckCircle2, Music } from 'lucide-react';
+import { Play, ListPlus, FolderOpen, CheckCircle2, Music } from '../../ui/icons';
 import type { UrlAudioImportModalProps, ImportedItem, UrlImportResult } from '../UrlAudioImportModal';
 import { fmt } from '../../../utils/fmt';
 

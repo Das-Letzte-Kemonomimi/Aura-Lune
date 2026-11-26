@@ -8,7 +8,7 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import {
   AUTO_EQ_PROFILES,

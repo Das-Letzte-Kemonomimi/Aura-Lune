@@ -8,7 +8,7 @@ import {
   VolumeX,
   Disc,
   Zap,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { formatTime } from '../../utils/timeFormat';
 import { useLivePositionMs } from '../../state/livePlayback';

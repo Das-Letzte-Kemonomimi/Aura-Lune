@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Point, PointFilled } from '../../../components/ui/icons';
 import type { DspStudioViewProps } from '../DspStudioView';
 import { cn } from '../../../utils/cn';
 
@@ -40,13 +40,14 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
         <button
           onClick={() => handleUpdateReverb(!reverbEnabled)}
           className={cn(
-            'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
+            'inline-flex items-center gap-1 rounded-lg border px-3.5 py-1.5 text-xs font-bold',
             reverbEnabled ? 'bg-accent-purple/30' : 'bg-white/6',
             reverbEnabled ? 'border-accent-purple' : 'border-line',
             reverbEnabled ? 'text-accent-purple' : 'text-fg-muted',
           )}
         >
-          {reverbEnabled ? '● REVERB ON' : '○ REVERB BYPASS'}
+          {reverbEnabled ? <PointFilled size={12} /> : <Point size={12} />}
+          {reverbEnabled ? 'REVERB ON' : 'REVERB BYPASS'}
         </button>
       </div>
 

@@ -17,7 +17,7 @@ import {
   ChevronUp,
   Maximize2,
   Minimize2,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type DspEngineType } from '../../types/player';
 import { type PlaybackQueue } from '../../types/queue';

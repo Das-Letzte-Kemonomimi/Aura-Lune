@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useId, useRef } from 'react';
-import { CassetteTape, Sparkles } from 'lucide-react';
+import { CassetteTape, Sparkles } from '../ui/icons';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { getTranslations, type Language } from '../../i18n';
 import { useInertialSpin } from '../../hooks/useInertialSpin';

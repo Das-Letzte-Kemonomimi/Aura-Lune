@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Globe, ChevronDown, Check } from 'lucide-react';
+import { Globe, ChevronDown, Check } from '../ui/icons';
 import { type Language, supportedLanguages, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
 

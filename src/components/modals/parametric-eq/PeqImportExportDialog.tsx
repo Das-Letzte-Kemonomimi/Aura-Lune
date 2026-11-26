@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { X, Upload, AlertTriangle, Copy, Check } from 'lucide-react';
+import { X, Upload, AlertTriangle, Copy, Check } from '../../ui/icons';
 import type { Dispatch, SetStateAction } from 'react';
 import { ModalShell } from '../../ui';
 

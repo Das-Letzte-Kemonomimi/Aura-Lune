@@ -9,7 +9,7 @@ import {
   X,
   Play,
   RotateCcw,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { listen } from '@tauri-apps/api/event';
 import type { StemSeparationData, StemMixerState } from '../../types/analysis';

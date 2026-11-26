@@ -35,6 +35,10 @@
               "invoke"
             ],
             "message": "Use `invoke` from src/api/ipc — it type-checks command names and normalizes backend errors to IpcError."
+          },
+          {
+            "name": "@tabler/icons-react",
+            "message": "Import icons from src/components/ui/icons — the single barrel that maps Tabler icons to app names."
           }
         ]
       }
@@ -46,6 +50,7 @@
     {
       "files": [
         "src/api/**",
+        "src/components/ui/icons.ts",
         "src/test/**",
         "**/*.test.ts",
         "**/*.test.tsx"

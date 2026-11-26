@@ -10,7 +10,7 @@ import {
   Check,
   Music2,
   Loader2,
-} from 'lucide-react';
+} from '../ui/icons';
 import { invoke } from '../../api/ipc';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';

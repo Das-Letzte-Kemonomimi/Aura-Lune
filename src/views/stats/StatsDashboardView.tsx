@@ -1,15 +1,6 @@
 import type { AlbumRecord, TrackRecord } from '../../types/library';
 import React, { useMemo } from 'react';
-import {
-  BarChart3,
-  Flame,
-  Clock,
-  Music,
-  Disc,
-  Mic2,
-  Sparkles,
-  Play,
-} from 'lucide-react';
+import { BarChart3, Flame, Clock, Music, Disc, Mic2, Sparkles, Play, Medal } from '../../components/ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { formatRelativeTime as formatRelativeTimeBase } from '../../utils/timeFormat';
@@ -134,7 +125,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
     return loc.stats.tracksInLibraryMany.replace('{n}', String(count));
   };
 
-  const medalEmojis = ['🥇', '🥈', '🥉', '4.', '5.'];
+  const medalTones = ['text-accent-amber', 'text-fg-secondary', 'text-accent-amber/55'];
 
   return (
     <div className="mx-auto flex max-w-[min(100rem,98vw)] flex-col gap-5.5">
@@ -265,8 +256,8 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
                   className="glass-card flex items-center justify-between gap-2.5 rounded-xl border border-white/5 bg-white/3 px-3.5 py-2.5"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="w-6 text-center text-base">
-                      {medalEmojis[idx]}
+                    <span className="flex w-6 justify-center text-base text-fg-muted">
+                      {idx < medalTones.length ? <Medal size={18} className={medalTones[idx]} aria-label={`#${idx + 1}`} /> : `${idx + 1}.`}
                     </span>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-bold text-fg">

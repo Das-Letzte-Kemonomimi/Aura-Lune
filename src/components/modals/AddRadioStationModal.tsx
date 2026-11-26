@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Radio, X, Check, Link, Tag } from 'lucide-react';
+import { Radio, X, Check, Link, Tag } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';

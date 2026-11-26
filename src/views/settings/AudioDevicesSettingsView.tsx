@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Radio,
-  Activity,
-  RefreshCw,
-  VolumeX,
-  History,
-  ListMusic,
-} from 'lucide-react';
+import { Radio, Activity, RefreshCw, VolumeX, History, ListMusic, Check } from '../../components/ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import {
   type AudioCard,
@@ -320,7 +313,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                   isActive ? 'text-fg' : 'text-fg-muted',
                 )}
               >
-                {isActive ? '✓ ' : ''}{item.label}
+                {isActive && <Check size={12} className="icon-inline mr-1" />}{item.label}
               </button>
             );
           })}

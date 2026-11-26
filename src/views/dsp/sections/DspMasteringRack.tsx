@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Flame, Headphones, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { CheckCircle, Flame, Headphones, ShieldCheck, SlidersHorizontal, Point, PointFilled } from '../../../components/ui/icons';
 import type { DspStudioViewProps } from '../DspStudioView';
 import { cn } from '../../../utils/cn';
 
@@ -42,13 +42,14 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
           <button
             onClick={() => handleBassBoostChange(bassBoost > 0 ? 0 : (lastBassBoostRef?.current || 6))}
             className={cn(
-              'rounded-lg border px-2.5 py-1 text-xs font-bold',
+              'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold',
               bassBoost > 0 ? 'bg-accent-pink/25' : 'bg-white/6',
               bassBoost > 0 ? 'border-accent-pink' : 'border-line',
               bassBoost > 0 ? 'text-accent-pink' : 'text-fg-muted',
             )}
           >
-            {bassBoost > 0 ? `● BASS +${bassBoost.toFixed(1)} dB` : '○ BYPASS'}
+            {bassBoost > 0 ? <PointFilled size={12} /> : <Point size={12} />}
+            {bassBoost > 0 ? `BASS +${bassBoost.toFixed(1)} dB` : 'BYPASS'}
           </button>
         </div>
 
@@ -97,13 +98,14 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
           <button
             onClick={() => handleToggleStereoWidener(!stereoWidenerActive)}
             className={cn(
-              'rounded-lg border px-2.5 py-1 text-xs font-bold',
+              'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold',
               stereoWidenerActive ? 'bg-sky-400/25' : 'bg-white/6',
               stereoWidenerActive ? 'border-accent-cyan' : 'border-line',
               stereoWidenerActive ? 'text-accent-cyan' : 'text-fg-muted',
             )}
           >
-            {stereoWidenerActive ? '● WIDENER ON' : '○ BYPASS'}
+            {stereoWidenerActive ? <PointFilled size={12} /> : <Point size={12} />}
+            {stereoWidenerActive ? 'WIDENER ON' : 'BYPASS'}
           </button>
         </div>
 
@@ -144,13 +146,14 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
             <button
               onClick={() => handleToggleLimiter(!limiterEnabled)}
               className={cn(
-                'rounded-lg border px-2.5 py-1 text-xs font-bold',
+                'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold',
                 limiterEnabled ? 'bg-green-500/25' : 'bg-white/6',
                 limiterEnabled ? 'border-accent-green' : 'border-line',
                 limiterEnabled ? 'text-accent-green' : 'text-fg-muted',
               )}
             >
-              {limiterEnabled ? '● LIMITER ON' : '○ BYPASS'}
+              {limiterEnabled ? <PointFilled size={12} /> : <Point size={12} />}
+              {limiterEnabled ? 'LIMITER ON' : 'BYPASS'}
             </button>
           </div>
         </div>
@@ -187,13 +190,14 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
           <button
             onClick={() => handleSetCrossfeed(!crossfeedEnabled, crossfeedPreset)}
             className={cn(
-              'rounded-lg border px-2.5 py-1 text-xs font-bold',
+              'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold',
               crossfeedEnabled ? 'bg-accent-purple/25' : 'bg-white/6',
               crossfeedEnabled ? 'border-accent-purple' : 'border-line',
               crossfeedEnabled ? 'text-accent-purple' : 'text-fg-muted',
             )}
           >
-            {crossfeedEnabled ? '● CROSSFEED ON' : '○ BYPASS'}
+            {crossfeedEnabled ? <PointFilled size={12} /> : <Point size={12} />}
+            {crossfeedEnabled ? 'CROSSFEED ON' : 'BYPASS'}
           </button>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Disc, CassetteTape, Volume2, Check, Radio } from 'lucide-react';
+import { X, Sparkles, Disc, CassetteTape, Volume2, Check, Radio } from '../ui/icons';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
@@ -163,7 +163,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                 </div>
                 {config.mode === 'vinyl' && (
                   <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-accent-pink text-on-accent">
-                    <Check size={12} strokeWidth={3} />
+                    <Check size={12} stroke={3} />
                   </span>
                 )}
               </div>
@@ -191,7 +191,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
                 </div>
                 {config.mode === 'tape' && (
                   <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-accent-cyan text-black">
-                    <Check size={12} strokeWidth={3} />
+                    <Check size={12} stroke={3} />
                   </span>
                 )}
               </div>

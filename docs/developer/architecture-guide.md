@@ -27,7 +27,7 @@ Aura-Lune is a Linux-first, Poweramp & foobar2000-inspired music player built wi
 └──────────────────────────────────┘
 ```
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Lucide icons, `React.lazy` code-splitting.
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Tabler icons (through `src/components/ui/icons.ts`), `React.lazy` code-splitting.
 - **IPC Layer**: Tauri 2.0 with asynchronous `pub async fn` commands in Tokio threadpools.
 - **Audio Processing**: GStreamer 0.25 pipeline with bit-perfect bypass, 10-band graphic EQ, biquad parametric EQ, RubberBand/SoundTouch time-stretch/pitch-shift, and multi-track stem playback.
 - **Persistence**: SQLite with versioned schema migrations (`PRAGMA user_version`), 64 MB cache, memory temp store, and memory-mapped I/O (`mmap`).

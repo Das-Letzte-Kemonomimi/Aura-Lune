@@ -1,19 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Globe,
-  Sparkles,
-  Maximize2,
-  Palette,
-  Image as ImageIcon,
-  UploadCloud,
-  FolderOpen,
-  Upload,
-  Trash2,
-  Save,
-  Download,
-  Check,
-  Copy,
-} from 'lucide-react';
+import { Globe, Sparkles, Maximize2, Palette, Image as ImageIcon, UploadCloud, FolderOpen, Upload, Trash2, Save, Download, Check, Copy } from '../../components/ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
 import { type Theme } from '../../types/theme';
@@ -202,7 +188,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               >
                 <div className="flex w-full items-center justify-between">
                   <span className="text-sm font-bold">{item.label}</span>
-                  {isSelected && <span className="text-xs font-extrabold">✓</span>}
+                  {isSelected && <Check size={14} stroke={3} />}
                 </div>
                 <span className={cn('text-xs', isSelected ? 'text-fg' : 'text-fg-muted')}>
                   {item.desc}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scissors, Repeat, Bookmark } from 'lucide-react';
+import { Scissors, Repeat, Bookmark, AlertTriangle } from '../../../components/ui/icons';
 import { formatTimeMs } from '../../../utils/timeFormat';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
 import { fmt } from '../../../utils/fmt';
@@ -206,15 +206,18 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
           {/* Range summary and validation */}
           {isOrderInvalid ? (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-accent-pink">
-              <span>⚠️ {loc.settings.transcodeEndMustBeGreater}</span>
+              <AlertTriangle size={13} />
+              <span>{loc.settings.transcodeEndMustBeGreater}</span>
             </div>
           ) : parsedB !== null ? (
             <div className="flex items-center gap-1.5 font-mono text-xs text-accent-cyan">
-              <span>✂️ {fmt(loc.settings.transcodeRangeDuration, `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`)}</span>
+              <Scissors size={13} />
+              <span>{fmt(loc.settings.transcodeRangeDuration, `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`)}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 font-mono text-xs text-fg-muted">
-              <span>✂️ {fmt(loc.settings.transcodeExportRangeText, formatTimeMs(parsedA))}</span>
+              <Scissors size={13} />
+              <span>{fmt(loc.settings.transcodeExportRangeText, formatTimeMs(parsedA))}</span>
             </div>
           )}
         </div>

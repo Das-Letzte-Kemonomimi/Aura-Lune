@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Sliders, Zap, ShieldCheck, Loader2 } from 'lucide-react';
+import { Activity, Sliders, Zap, ShieldCheck, Loader2 } from '../../../components/ui/icons';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
 import { cn } from '../../../utils/cn';
 

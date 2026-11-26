@@ -6,7 +6,7 @@ import {
   CassetteTape,
   Disc3,
   Image,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { LyricsView } from '../../components/player/LyricsView';
 import { type Language, getTranslations } from '../../i18n';
 import { useLivePositionMs, useLiveSpectrum } from '../../state/livePlayback';

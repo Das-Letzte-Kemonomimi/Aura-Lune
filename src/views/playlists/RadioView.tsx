@@ -11,7 +11,7 @@ import {
   Music2,
   Headphones,
   Sliders,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';

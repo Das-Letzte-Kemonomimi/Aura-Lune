@@ -8,7 +8,7 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-} from 'lucide-react';
+} from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';

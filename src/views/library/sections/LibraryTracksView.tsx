@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, BarChart3, Clock, FileCode, FilePlus, Flame, FolderOpen, FolderPlus, Heart, ListPlus, Moon, Music, Play, Plus, Sliders, Sparkles, Star, Tag as TagIcon, Zap } from 'lucide-react';
+import { Activity, BarChart3, Clock, FileCode, FilePlus, Flame, FolderOpen, FolderPlus, Heart, ListPlus, Moon, Music, Play, Plus, Sliders, Sparkles, Star, Tag as TagIcon, Zap } from '../../../components/ui/icons';
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Gauge } from 'lucide-react';
+import { Gauge } from '../ui/icons';
 import { cn } from '../../utils/cn';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { livePlayback } from '../../state/livePlayback';

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Translations } from '../../../i18n';
-import { RotateCcw, Download, Save, Sparkles, X, Sliders, Music } from 'lucide-react';
+import { RotateCcw, Download, Save, Sparkles, X, Sliders, Music } from '../../ui/icons';
 import type { StemProject, StemChannel, StemProjectMix } from '../../../types/analysis';
 import type { Dispatch, SetStateAction } from 'react';
 import { fmt } from '../../../utils/fmt';
