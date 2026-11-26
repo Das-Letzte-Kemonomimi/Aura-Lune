@@ -117,6 +117,8 @@ export {
   IconShield as Shield,
   IconShieldCheck as ShieldCheck,
   IconShieldExclamation as ShieldAlert,
+  IconSortAscending as SortAscending,
+  IconSortDescending as SortDescending,
   IconSparkles as Sparkles,
   IconStack2 as Layers,
   IconStar as Star,

@@ -16,6 +16,7 @@ import { LibraryTracksView } from './sections/LibraryTracksView';
 import { LibraryToolbar } from './sections/LibraryToolbar';
 import { LibraryScanPanel } from './sections/LibraryScanPanel';
 import { LibraryHeader } from './sections/LibraryHeader';
+import { Card } from '../../components/ui';
 
 /** The library setter and state types come straight from the `useLibraryManager` hook. */
 type LibraryManager = ReturnType<typeof useLibraryManager>;
@@ -49,7 +50,7 @@ export interface LibraryViewProps {
   librarySearch: string;
   setLibrarySearch: (v: string) => void;
   librarySearchInputRef: React.RefObject<HTMLInputElement | null>;
-  libraryFormatFilter: string;
+  libraryFormatFilter: LibraryManager['libraryFormatFilter'];
   setLibraryFormatFilter: LibraryManager['setLibraryFormatFilter'];
   isFacetsFilterEnabled: boolean;
   setIsFacetsFilterEnabled: (v: boolean | ((p: boolean) => boolean)) => void;
@@ -59,22 +60,22 @@ export interface LibraryViewProps {
   setFacetSelectedAlbumId: (v: number | null) => void;
   facetSelectedFormat: string | null;
   setFacetSelectedFormat: (v: string | null) => void;
-  smartPlaylistFilter: string | null;
+  smartPlaylistFilter: LibraryManager['smartPlaylistFilter'];
   setSmartPlaylistFilter: LibraryManager['setSmartPlaylistFilter'];
   hideDuplicates: boolean;
   setHideDuplicates: (v: boolean) => void;
-  sortField: "default" | "title" | "artist" | "duration" | "format" | "date" | "plays";
+  sortField: LibraryManager['sortField'];
   setSortField: LibraryManager['setSortField'];
   sortOrder: "asc" | "desc";
   setSortOrder: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
   handleSort: LibraryManager['handleSort'];
-  albumSortField: "tracks" | "title" | "artist" | "year" | "duration";
+  albumSortField: LibraryManager['albumSortField'];
   setAlbumSortField: LibraryManager['setAlbumSortField'];
   albumSortOrder: "asc" | "desc";
   setAlbumSortOrder: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
-  albumGridSize: "compact" | "medium" | "large";
+  albumGridSize: LibraryManager['albumGridSize'];
   setAlbumGridSize: LibraryManager['setAlbumGridSize'];
-  albumViewMode: "grid" | "list";
+  albumViewMode: LibraryManager['albumViewMode'];
   setAlbumViewMode: LibraryManager['setAlbumViewMode'];
   albumCoverFilter: "all" | "with-cover" | "missing-cover";
   setAlbumCoverFilter: LibraryManager['setAlbumCoverFilter'];
@@ -137,6 +138,19 @@ export interface LibraryViewProps {
   formatTime: (ms: number) => string;
 }
 
+/** One figure of the stats row under the library header. */
+function LibraryStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+  return (
+    <Card padding="none" className="flex items-center gap-3 px-4 py-3">
+      {icon}
+      <div>
+        <span className="text-xs text-fg-muted">{label}</span>
+        <p className="text-base font-bold">{value}</p>
+      </div>
+    </Card>
+  );
+}
+
 export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   const {
     layoutMaxWidth,
@@ -173,7 +187,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   }, []);
 
   return (
-            <div className="glass-panel mx-auto my-0 p-7" style={{ maxWidth: layoutMaxWidth }}>
+            <Card variant="panel" padding="none" className="mx-auto p-7" style={{ maxWidth: layoutMaxWidth }}>
               {/* Library header: title, stats and action buttons */}
               <LibraryHeader {...props} />
 
@@ -184,37 +198,20 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
 
               {/* Compact library stats */}
               <div className="mb-4.5 grid grid-cols-3 gap-3">
-                <div className="glass-card flex items-center gap-3 px-4 py-3">
-                  <Music size={22} className="text-accent-pink" />
-                  <div>
-                    <span className="text-xs text-fg-muted">{loc.library.tracks}</span>
-                    <p className="m-0 text-base font-bold">{tracks.length}</p>
-                  </div>
-                </div>
-
-                <div className="glass-card flex items-center gap-3 px-4 py-3">
-                  <Disc size={22} className="text-accent-purple" />
-                  <div>
-                    <span className="text-xs text-fg-muted">{loc.library.albums}</span>
-                    <p className="m-0 text-base font-bold">{albums.length}</p>
-                  </div>
-                </div>
-
-                <div className="glass-card flex items-center gap-3 px-4 py-3">
-                  <Clock size={22} className="text-accent-cyan" />
-                  <div>
-                    <span className="text-xs text-fg-muted">{loc.library.totalDuration}</span>
-                    <p className="m-0 text-base font-bold">
-                      {formatTime(tracks.reduce((acc, t) => acc + t.duration_ms, 0))}
-                    </p>
-                  </div>
-                </div>
+                <LibraryStat icon={<Music size={22} className="text-accent-pink" />} label={loc.library.tracks} value={tracks.length} />
+                <LibraryStat icon={<Disc size={22} className="text-accent-purple" />} label={loc.library.albums} value={albums.length} />
+                <LibraryStat
+                  icon={<Clock size={22} className="text-accent-cyan" />}
+                  label={loc.library.totalDuration}
+                  value={formatTime(tracks.reduce((acc, track) => acc + track.duration_ms, 0))}
+                />
               </div>
 
               {/* 3-column faceted filter panel (foobar2000 Facets) */}
               {isFacetsFilterEnabled && (
                 <div className="mb-4.5">
                   <FacetsFilterPane
+                    loc={loc}
                     tracks={tracks}
                     albums={albums}
                     selectedFormat={facetSelectedFormat}
@@ -258,6 +255,6 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
               {selectedAlbumForMb && (
                 <LibraryMusicBrainzMatchPanel {...props} />
               )}
-            </div>
+            </Card>
   );
 });

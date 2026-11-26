@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Layers, Search, X } from '../ui/icons';
-import { type Language, getTranslations } from '../../i18n';
+import type { Translations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
+import { Badge, Button, Card, TextField } from '../ui';
 
 export interface FacetTrack {
   id: number;
@@ -31,7 +32,79 @@ interface FacetsFilterPaneProps {
   onSelectArtist: (artist: string | null) => void;
   onSelectAlbumId: (albumId: number | null) => void;
   onResetAll: () => void;
-  currentLang?: Language;
+  loc: Translations;
+}
+
+interface FacetEntry<K> {
+  key: K;
+  label: string;
+  count: number;
+}
+
+interface FacetColumnProps<K> {
+  heading: string;
+  /** Number of distinct values before the search narrows them. */
+  total: number;
+  searchPlaceholder: string;
+  search: string;
+  onSearch: (q: string) => void;
+  allLabel: string;
+  allCount: number;
+  entries: FacetEntry<K>[];
+  selected: K | null;
+  onSelect: (key: K | null) => void;
+}
+
+const facetRow = 'flex w-full justify-between gap-1.5 rounded-sm px-2 py-1 text-left text-xs font-normal text-fg-secondary hover:bg-white/5 hover:text-fg aria-pressed:bg-accent-pink aria-pressed:font-bold aria-pressed:text-fg';
+
+/** One facet column: heading with the value count, a search field and the selectable values. */
+function FacetColumn<K extends string | number>({
+  heading,
+  total,
+  searchPlaceholder,
+  search,
+  onSearch,
+  allLabel,
+  allCount,
+  entries,
+  selected,
+  onSelect,
+}: FacetColumnProps<K>) {
+  return (
+    <Card padding="none" className="flex flex-col overflow-hidden rounded-lg">
+      <div className="border-b border-line bg-black/20 px-2.5 py-1.5 text-xs font-bold text-fg-secondary">
+        {heading} ({total})
+      </div>
+      <div className="border-b border-line p-1.5">
+        <TextField
+          size="sm"
+          icon={<Search size={12} />}
+          aria-label={searchPlaceholder}
+          placeholder={searchPlaceholder}
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+        />
+      </div>
+      <div role="group" aria-label={heading} className="flex-1 overflow-y-auto p-1">
+        <button type="button" aria-pressed={selected === null} onClick={() => onSelect(null)} className={facetRow}>
+          <span>{allLabel}</span>
+          <span className="font-mono opacity-70">{allCount}</span>
+        </button>
+        {entries.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            aria-pressed={selected === entry.key}
+            onClick={() => onSelect(entry.key === selected ? null : entry.key)}
+            className={cn(facetRow, 'text-fg')}
+          >
+            <span className="truncate">{entry.label}</span>
+            <span className="font-mono opacity-70">{entry.count}</span>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
@@ -44,9 +117,8 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
   onSelectArtist,
   onSelectAlbumId,
   onResetAll,
-  currentLang = 'pl',
+  loc,
 }) => {
-  const loc = getTranslations(currentLang);
   const [formatSearch, setFormatSearch] = useState('');
   const [artistSearch, setArtistSearch] = useState('');
   const [albumSearch, setAlbumSearch] = useState('');
@@ -135,188 +207,63 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
   const hasActiveFilter = selectedFormat !== null || selectedArtist !== null || selectedAlbumId !== null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-line bg-black/25 p-3">
-      {/* Faceted filter toolbar */}
+    <Card variant="inset" padding="none" className="flex flex-col gap-2 p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers size={16} className="text-accent-pink" />
-          <span className="text-ui font-bold text-fg">
-            {loc.facetsFilter.title}
-          </span>
+          <span className="text-ui font-bold text-fg">{loc.facetsFilter.title}</span>
           {hasActiveFilter && (
-            <span className="rounded-md bg-accent-cyan/15 px-2 py-0.5 font-mono text-xs text-accent-cyan">
+            <Badge tone="cyan" mono>
               {fmt(loc.facetsFilter.activeFilter, String(tracksInArtist.length))}
-            </span>
+            </Badge>
           )}
         </div>
-
         {hasActiveFilter && (
-          <button
-            onClick={onResetAll}
-            className="flex items-center gap-1 rounded-md border border-accent-red/30 bg-accent-red/15 px-2 py-1 text-xs text-red-400"
-          >
+          <Button variant="danger" size="sm" onClick={onResetAll}>
             <X size={12} />
             {loc.facetsFilter.clearFilters}
-          </button>
+          </Button>
         )}
       </div>
 
-      {/* 3 column panels */}
       <div className="grid h-52.5 grid-cols-[minmax(--spacing(35),--spacing(45))_1fr_1fr] gap-2.5">
-        {/* Column 1: format */}
-        <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
-          <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
-            <span className="text-xs font-bold text-fg-secondary">
-              FORMAT ({formatCounts.length})
-            </span>
-          </div>
-          <div className="border-b border-white/4 px-1.5 py-1">
-            <div className="flex items-center rounded-sm bg-black/30 px-1.5 py-0.5">
-              <Search size={12} className="text-fg-muted" />
-              <input
-                type="text"
-                placeholder={loc.facetsFilter.search}
-                value={formatSearch}
-                onChange={(e) => setFormatSearch(e.target.value)}
-                className="ml-1 w-full border-0 bg-transparent text-xs text-fg outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-1">
-            <div
-              onClick={() => onSelectFormat(null)}
-              className={cn(
-                'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs',
-                selectedFormat === null ? 'bg-accent-pink' : 'bg-transparent',
-                selectedFormat === null ? 'text-fg' : 'text-fg-secondary',
-                selectedFormat === null ? 'font-bold' : 'font-normal',
-              )}
-            >
-              <span>{loc.facetsFilter.all}</span>
-              <span className="font-mono opacity-70">{tracks.length}</span>
-            </div>
-            {filteredFormats.map((f) => (
-              <div
-                key={f.format}
-                onClick={() => onSelectFormat(f.format === selectedFormat ? null : f.format)}
-                className={cn(
-                  'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs text-fg',
-                  selectedFormat === f.format ? 'bg-accent-pink' : 'bg-transparent',
-                  selectedFormat === f.format && '',
-                  selectedFormat === f.format ? 'font-bold' : 'font-normal',
-                )}
-              >
-                <span>{f.format}</span>
-                <span className="font-mono opacity-70">{f.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Column 2: artist */}
-        <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
-          <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
-            <span className="text-xs font-bold text-fg-secondary">
-              {loc.facetsFilter.artistHeader} ({artistCounts.length})
-            </span>
-          </div>
-          <div className="border-b border-white/4 px-1.5 py-1">
-            <div className="flex items-center rounded-sm bg-black/30 px-1.5 py-0.5">
-              <Search size={12} className="text-fg-muted" />
-              <input
-                type="text"
-                placeholder={loc.facetsFilter.searchArtist}
-                value={artistSearch}
-                onChange={(e) => setArtistSearch(e.target.value)}
-                className="ml-1 w-full border-0 bg-transparent text-xs text-fg outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-1">
-            <div
-              onClick={() => onSelectArtist(null)}
-              className={cn(
-                'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs',
-                selectedArtist === null ? 'bg-accent-pink' : 'bg-transparent',
-                selectedArtist === null ? 'text-fg' : 'text-fg-secondary',
-                selectedArtist === null ? 'font-bold' : 'font-normal',
-              )}
-            >
-              <span>{loc.facetsFilter.allArtists}</span>
-              <span className="font-mono opacity-70">{tracksInFormat.length}</span>
-            </div>
-            {filteredArtists.map((a) => (
-              <div
-                key={a.artist}
-                onClick={() => onSelectArtist(a.artist === selectedArtist ? null : a.artist)}
-                className={cn(
-                  'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs text-fg',
-                  selectedArtist === a.artist ? 'bg-accent-pink' : 'bg-transparent',
-                  selectedArtist === a.artist && '',
-                  selectedArtist === a.artist ? 'font-bold' : 'font-normal',
-                )}
-              >
-                <span className="mr-1.5 truncate">
-                  {a.artist}
-                </span>
-                <span className="font-mono opacity-70">{a.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Column 3: album */}
-        <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
-          <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
-            <span className="text-xs font-bold text-fg-secondary">
-              ALBUM ({albumCounts.length})
-            </span>
-          </div>
-          <div className="border-b border-white/4 px-1.5 py-1">
-            <div className="flex items-center rounded-sm bg-black/30 px-1.5 py-0.5">
-              <Search size={12} className="text-fg-muted" />
-              <input
-                type="text"
-                placeholder={loc.facetsFilter.searchAlbum}
-                value={albumSearch}
-                onChange={(e) => setAlbumSearch(e.target.value)}
-                className="ml-1 w-full border-0 bg-transparent text-xs text-fg outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-1">
-            <div
-              onClick={() => onSelectAlbumId(null)}
-              className={cn(
-                'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs',
-                selectedAlbumId === null ? 'bg-accent-pink' : 'bg-transparent',
-                selectedAlbumId === null ? 'text-fg' : 'text-fg-secondary',
-                selectedAlbumId === null ? 'font-bold' : 'font-normal',
-              )}
-            >
-              <span>{loc.facetsFilter.all}</span>
-              <span className="font-mono opacity-70">{tracksInArtist.length}</span>
-            </div>
-            {filteredAlbums.map((alb) => (
-              <div
-                key={alb.albumId}
-                onClick={() => onSelectAlbumId(alb.albumId === selectedAlbumId ? null : alb.albumId)}
-                className={cn(
-                  'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs text-fg',
-                  selectedAlbumId === alb.albumId ? 'bg-accent-pink' : 'bg-transparent',
-                  selectedAlbumId === alb.albumId && '',
-                  selectedAlbumId === alb.albumId ? 'font-bold' : 'font-normal',
-                )}
-              >
-                <span className="mr-1.5 truncate">
-                  {alb.title} {alb.year ? `(${alb.year})` : ''}
-                </span>
-                <span className="font-mono opacity-70">{alb.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <FacetColumn
+          heading={loc.facetsFilter.formatHeader}
+          total={formatCounts.length}
+          searchPlaceholder={loc.facetsFilter.search}
+          search={formatSearch}
+          onSearch={setFormatSearch}
+          allLabel={loc.facetsFilter.all}
+          allCount={tracks.length}
+          entries={filteredFormats.map((f) => ({ key: f.format, label: f.format, count: f.count }))}
+          selected={selectedFormat}
+          onSelect={onSelectFormat}
+        />
+        <FacetColumn
+          heading={loc.facetsFilter.artistHeader}
+          total={artistCounts.length}
+          searchPlaceholder={loc.facetsFilter.searchArtist}
+          search={artistSearch}
+          onSearch={setArtistSearch}
+          allLabel={loc.facetsFilter.allArtists}
+          allCount={tracksInFormat.length}
+          entries={filteredArtists.map((a) => ({ key: a.artist, label: a.artist, count: a.count }))}
+          selected={selectedArtist}
+          onSelect={onSelectArtist}
+        />
+        <FacetColumn
+          heading={loc.facetsFilter.albumHeader}
+          total={albumCounts.length}
+          searchPlaceholder={loc.facetsFilter.searchAlbum}
+          search={albumSearch}
+          onSearch={setAlbumSearch}
+          allLabel={loc.facetsFilter.all}
+          allCount={tracksInArtist.length}
+          entries={filteredAlbums.map((a) => ({ key: a.albumId, label: a.year ? `${a.title} (${a.year})` : a.title, count: a.count }))}
+          selected={selectedAlbumId}
+          onSelect={onSelectAlbumId}
+        />
       </div>
-    </div>
+    </Card>
   );
 };

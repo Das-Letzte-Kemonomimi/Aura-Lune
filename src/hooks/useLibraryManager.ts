@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect, useDeferredValue } from 'react';
+import { useState, useMemo, useRef, useCallback, useLayoutEffect, useDeferredValue } from 'react';
 import { invoke } from '../api/ipc';
 import type { TrackRecord, AlbumRecord, ScanSummaryDto, SampleTrackDto } from '../types/library';
 import type { PlaybackStatus } from '../types/playback';
@@ -6,6 +6,18 @@ import type { Translations } from '../i18n';
 import { normalizeStr } from '../utils/textNormalize';
 import { useVirtualScroll } from './useVirtualScroll';
 import { fmt } from '../utils/fmt';
+import { parseBoolean, usePersistedState } from './usePersistedState';
+
+export type LibrarySortField = 'default' | 'title' | 'artist' | 'duration' | 'format' | 'date' | 'plays';
+export type AlbumSortField = 'title' | 'artist' | 'year' | 'tracks' | 'duration';
+export type AlbumViewMode = 'grid' | 'list';
+export type AlbumGridSize = 'compact' | 'medium' | 'large';
+export type SmartPlaylistFilter = 'all' | 'favorites' | 'history' | 'top_played' | 'hires' | 'forgotten' | 'high_bpm' | 'top_rated';
+
+const parseAlbumViewMode = (raw: string): AlbumViewMode | undefined =>
+  raw === 'grid' || raw === 'list' ? raw : undefined;
+const parseAlbumGridSize = (raw: string): AlbumGridSize | undefined =>
+  raw === 'compact' || raw === 'medium' || raw === 'large' ? raw : undefined;
 
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
@@ -39,45 +51,19 @@ export function useLibraryManager({
   const [facetSelectedArtist, setFacetSelectedArtist] = useState<string | null>(null);
   const [facetSelectedAlbumId, setFacetSelectedAlbumId] = useState<number | null>(null);
   const [facetSelectedFormat, setFacetSelectedFormat] = useState<string | null>(null);
-  const [smartPlaylistFilter, setSmartPlaylistFilter] = useState<'all' | 'favorites' | 'history' | 'top_played' | 'hires' | 'forgotten' | 'high_bpm' | 'top_rated'>('all');
-  const [hideDuplicates, setHideDuplicates] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('auralune_hide_duplicates') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('auralune_hide_duplicates', String(hideDuplicates));
-    } catch { }
-  }, [hideDuplicates]);
+  const [smartPlaylistFilter, setSmartPlaylistFilter] = useState<SmartPlaylistFilter>('all');
+  const [hideDuplicates, setHideDuplicates] = usePersistedState('auralune_hide_duplicates', false, { parse: parseBoolean });
 
   // 3. Sorting state
-  const [sortField, setSortField] = useState<'default' | 'title' | 'artist' | 'duration' | 'format' | 'date' | 'plays'>('default');
+  const [sortField, setSortField] = useState<LibrarySortField>('default');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [albumSortField, setAlbumSortField] = useState<'title' | 'artist' | 'year' | 'tracks' | 'duration'>('title');
+  const [albumSortField, setAlbumSortField] = useState<AlbumSortField>('title');
   const [albumSortOrder, setAlbumSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [albumViewMode, setAlbumViewMode] = useState<'grid' | 'list'>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_album_view_mode');
-      return saved === 'list' || saved === 'grid' ? saved : 'grid';
-    } catch {
-      return 'grid';
-    }
-  });
-  const [albumGridSize, setAlbumGridSize] = useState<'compact' | 'medium' | 'large'>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_album_grid_size');
-      return saved === 'compact' || saved === 'medium' || saved === 'large' ? saved : 'medium';
-    } catch {
-      return 'medium';
-    }
-  });
+  const [albumViewMode, setAlbumViewMode] = usePersistedState<AlbumViewMode>('auralune_album_view_mode', 'grid', { parse: parseAlbumViewMode });
+  const [albumGridSize, setAlbumGridSize] = usePersistedState<AlbumGridSize>('auralune_album_grid_size', 'medium', { parse: parseAlbumGridSize });
   const [albumCoverFilter, setAlbumCoverFilter] = useState<'all' | 'with-cover' | 'missing-cover'>('all');
 
-  const handleSort = useCallback((field: 'default' | 'title' | 'artist' | 'duration' | 'format' | 'date' | 'plays') => {
+  const handleSort = useCallback((field: LibrarySortField) => {
     if (sortField === field) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
