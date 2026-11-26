@@ -5,18 +5,18 @@ use domain::dynamics::{
 
 #[test]
 fn test_audio_engine_dynamics_lifecycle() {
-    let engine = AudioEngine::new().expect("Nie udało się utworzyć AudioEngine");
+    let engine = AudioEngine::new().expect("Failed to create AudioEngine");
 
-    // 1. Domyślny stan Studia Dynamiki
+    // 1. Default Dynamics Studio state
     let initial_state = engine.get_dynamics_state();
     assert!(!initial_state.compressor.enabled);
     assert!(!initial_state.saturator.enabled);
-    assert!(initial_state.limiter.enabled); // Ochrona słuchu włączona domyślnie
+    assert!(initial_state.limiter.enabled); // Hearing protection on by default
     assert!(!engine.is_compressor_enabled());
     assert!(!engine.is_saturator_enabled());
     assert!(engine.is_limiter_enabled());
 
-    // 2. Aplikowanie konfiguracji Studia Dynamiki (np. Vintage Tube)
+    // 2. Apply a Dynamics Studio configuration (e.g. Vintage Tube)
     let test_state = DynamicsState {
         compressor: CompressorConfig {
             enabled: true,
@@ -40,7 +40,7 @@ fn test_audio_engine_dynamics_lifecycle() {
 
     engine
         .set_dynamics_state(&test_state)
-        .expect("Błąd set_dynamics_state");
+        .expect("set_dynamics_state failed");
 
     let current = engine.get_dynamics_state();
     assert!(current.compressor.enabled);
@@ -51,16 +51,16 @@ fn test_audio_engine_dynamics_lifecycle() {
     assert_eq!(current.saturator.drive, 2.0);
     assert!(current.limiter.enabled);
 
-    // 3. Test niezależnych przełączników
+    // 3. Independent toggles
     engine
         .set_compressor_enabled(false)
-        .expect("Błąd set_compressor_enabled");
+        .expect("set_compressor_enabled failed");
     assert!(!engine.is_compressor_enabled());
     assert!(engine.is_saturator_enabled());
 
     engine
         .set_saturator_enabled(false)
-        .expect("Błąd set_saturator_enabled");
+        .expect("set_saturator_enabled failed");
     assert!(!engine.is_saturator_enabled());
 
     engine.set_limiter_enabled(false);
@@ -69,11 +69,11 @@ fn test_audio_engine_dynamics_lifecycle() {
     engine.set_limiter_enabled(true);
     assert!(engine.is_limiter_enabled());
 
-    // 4. Test aplikacji wszystkich presetów fabrycznych
+    // 4. Apply every factory preset
     for preset in DynamicsPreset::default_presets() {
         engine
             .set_dynamics_state(&preset.state)
-            .unwrap_or_else(|_| panic!("Błąd aplikacji presetu: {}", preset.name));
+            .unwrap_or_else(|_| panic!("Failed to apply preset: {}", preset.name));
         let applied = engine.get_dynamics_state();
         assert_eq!(applied.compressor.enabled, preset.state.compressor.enabled);
         assert_eq!(applied.saturator.enabled, preset.state.saturator.enabled);
@@ -83,44 +83,44 @@ fn test_audio_engine_dynamics_lifecycle() {
 
 #[test]
 fn test_audio_engine_stereo_widener_lifecycle_and_playback() {
-    let engine = AudioEngine::new().expect("Nie udało się utworzyć AudioEngine");
+    let engine = AudioEngine::new().expect("Failed to create AudioEngine");
 
-    // 1. Domyślny stan Stereo Widenera
+    // 1. Default stereo widener state
     let (active, amount) = engine.stereo_widener_params();
-    assert!(!active, "Domyślnie Stereo Widener powinien być wyłączony");
+    assert!(!active, "The stereo widener should be off by default");
     assert!((amount - 0.15).abs() < 1e-4);
 
-    // 2. Aktywacja i zmiana szerokości
+    // 2. Enable it and change the width
     engine.set_stereo_widener_active(true);
     engine.set_stereo_widener_amount(0.5);
 
     let (active, amount) = engine.stereo_widener_params();
-    assert!(active, "Stereo Widener powinien być aktywny");
-    assert!((amount - 0.5).abs() < 1e-4, "Szerokość powinna wynosić 0.5");
+    assert!(active, "The stereo widener should be active");
+    assert!((amount - 0.5).abs() < 1e-4, "The width should be 0.5");
 
-    // 3. Załadowanie pliku testowego i odtworzenie z aktywnym poszerzaniem stereo
+    // 3. Load the test file and play it with stereo widening on
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root = manifest_dir.parent().unwrap().parent().unwrap();
     let wav_path = root.join("tests/fixtures/test_sine_440hz.wav");
 
     if wav_path.exists() {
         let uri = format!("file://{}", wav_path.canonicalize().unwrap().display());
-        engine.load_uri(&uri).expect("Ładowanie pliku WAV");
-        engine.play().expect("Start odtwarzania");
+        engine.load_uri(&uri).expect("Loading the WAV file");
+        engine.play().expect("Starting playback");
 
         std::thread::sleep(std::time::Duration::from_millis(150));
 
-        // Płynna modulacja w trakcie odtwarzania (od 0% do 100%)
+        // Smooth modulation during playback (0% to 100%)
         engine.set_stereo_widener_amount(0.85);
         std::thread::sleep(std::time::Duration::from_millis(150));
         engine.set_stereo_widener_amount(0.20);
         std::thread::sleep(std::time::Duration::from_millis(150));
 
-        // Przełączenie w tryb bypass w locie
+        // Switch to bypass on the fly
         engine.set_stereo_widener_active(false);
         std::thread::sleep(std::time::Duration::from_millis(100));
 
-        engine.stop().expect("Zatrzymanie odtwarzania");
+        engine.stop().expect("Stopping playback");
     }
 
     assert!(!engine.stereo_widener_params().0);

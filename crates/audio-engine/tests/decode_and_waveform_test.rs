@@ -1,4 +1,4 @@
-//! Dekodowanie do analizy (`DecodeSession`) i strumieniowy falogram.
+//! Decoding for analysis (`DecodeSession`) and the streaming waveform.
 
 use audio_engine::{
     decode_snippet_for_analysis, decode_stereo_for_stems, extract_track_waveform_peaks,
@@ -10,8 +10,8 @@ fn temp_path(name: &str, ext: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(format!("auralune_{}_{}.{}", name, std::process::id(), ext))
 }
 
-/// 1 s ciszy, potem 1 s tonu 440 Hz (44.1 kHz stereo). Przy `inverted_right` prawy kanał ma
-/// odwróconą fazę (sprawdzenie rozdziału kanałów; w miksie mono taki sygnał się znosi).
+/// 1 s of silence, then 1 s of a 440 Hz tone (44.1 kHz stereo). With `inverted_right` the right channel has
+/// inverted phase (checks channel separation; in a mono mix such a signal cancels out).
 fn tone_wav(name: &str, inverted_right: bool) -> std::path::PathBuf {
     let sr = 44_100u32;
     let mut interleaved = vec![0.0f32; sr as usize * 2];
@@ -20,20 +20,20 @@ fn tone_wav(name: &str, inverted_right: bool) -> std::path::PathBuf {
         interleaved.extend([s, if inverted_right { -s } else { s }]);
     }
     let path = temp_path(name, "wav");
-    write_wav_file(&path, &interleaved, sr, 2).expect("zapis WAV");
+    write_wav_file(&path, &interleaved, sr, 2).expect("writing the WAV");
     path
 }
 
 #[test]
 fn test_corrupt_file_fails_fast_instead_of_hanging() {
     let path = temp_path("corrupt", "flac");
-    std::fs::write(&path, b"to nie jest plik audio, tylko tekst").unwrap();
+    std::fs::write(&path, b"this is not an audio file, just text").unwrap();
     let start = Instant::now();
     let result = decode_snippet_for_analysis(path.to_str().unwrap(), 10.0);
-    assert!(result.is_err(), "uszkodzony plik musi zwrócić błąd");
+    assert!(result.is_err(), "a corrupt file must return an error");
     assert!(
         start.elapsed() < Duration::from_secs(5),
-        "dekodowanie nie może wisieć: {:?}",
+        "decoding must not hang: {:?}",
         start.elapsed()
     );
     assert!(extract_track_waveform_peaks(path.to_str().unwrap(), 32).is_err());
@@ -50,7 +50,7 @@ fn test_missing_file_is_an_error() {
 fn test_mono_snippet_respects_requested_length() {
     let path = tone_wav("snippet_len", false);
     let samples = decode_snippet_for_analysis(path.to_str().unwrap(), 0.5).unwrap();
-    assert_eq!(samples.len(), 11_025, "0,5 s przy 22 050 Hz");
+    assert_eq!(samples.len(), 11_025, "0.5 s at 22 050 Hz");
     let _ = std::fs::remove_file(path);
 }
 
@@ -61,14 +61,14 @@ fn test_stereo_decode_keeps_channels_separate() {
     assert_eq!(rate, 44_100);
     assert_eq!(left.len(), right.len());
     assert!((left.len() as i64 - 88_200).abs() < 2_000, "{}", left.len());
-    // Kanał prawy jest odwróconą fazą lewego w części z tonem.
+    // The right channel is the inverted phase of the left in the tone part.
     let tail = left.len() - 10_000;
     let corr: f32 = left[tail..]
         .iter()
         .zip(&right[tail..])
         .map(|(l, r)| l * r)
         .sum();
-    assert!(corr < 0.0, "kanały zamienione lub zmieszane");
+    assert!(corr < 0.0, "channels swapped or mixed");
     let _ = std::fs::remove_file(path);
 }
 
@@ -84,7 +84,7 @@ fn test_waveform_of_real_file_shows_quiet_start_and_loud_end() {
 
 #[test]
 fn test_accumulator_covers_inputs_longer_than_the_old_20m_sample_cap() {
-    // Ok. 40 min przy 11 025 Hz (26,5 mln próbek): cisza, a w ostatniej ćwiartce sygnał.
+    // About 40 min at 11 025 Hz (26.5 M samples): silence, with signal in the last quarter.
     let total = 26_460_000usize;
     let mut acc = WaveformAccumulator::new();
     let quiet = vec![0.0f32; 1_000_000];
@@ -105,7 +105,7 @@ fn test_accumulator_covers_inputs_longer_than_the_old_20m_sample_cap() {
     assert!(peaks[..5].iter().all(|&p| p <= 0.06), "{peaks:?}");
     assert_eq!(
         peaks[7], 1.0,
-        "koniec utworu nie może zostać obcięty: {peaks:?}"
+        "the end of the track must not be cut off: {peaks:?}"
     );
 }
 

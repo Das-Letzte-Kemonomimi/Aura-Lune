@@ -1,21 +1,21 @@
-//! Korektor graficzny (10 pasm) i parametryczny.
+//! Graphic (10-band) and parametric equalizers.
 
 use super::*;
 
 impl AudioEngine {
-    /// Zwraca aktualne wzmocnienia 10 pasm korektora graficznego (w dB).
+    /// Returns the current gains of the 10 graphic equalizer bands (in dB).
     pub fn get_equalizer_bands(&self) -> [f64; 10] {
         let inner = self.inner.lock_safe();
         inner.equalizer_state.bands
     }
 
-    /// Sprawdza, czy korektor graficzny jest włączony.
+    /// Whether the graphic equalizer is enabled.
     pub fn is_equalizer_enabled(&self) -> bool {
         let inner = self.inner.lock_safe();
         inner.equalizer_state.enabled
     }
 
-    /// Włącza lub wyłącza korektor graficzny (bypass bez usuwania z potoku).
+    /// Enables or disables the graphic equalizer (bypass, without removing it from the pipeline).
     pub fn set_equalizer_enabled(&self, enabled: bool) {
         let mut inner = self.inner.lock_safe();
         inner.equalizer_state.enabled = enabled;
@@ -37,8 +37,8 @@ impl AudioEngine {
         inner.update_preamp_volume();
     }
 
-    /// Ustawia wzmocnienie pojedynczego pasma korektora graficznego (w dB: -24.0 do +12.0).
-    /// Automatycznie aktywuje korektor, zapewniając natychmiastową reakcję dźwięku na ruch suwaka.
+    /// Sets the gain of one graphic equalizer band (in dB: -24.0 to +12.0).
+    /// Enables the equalizer automatically, so the sound reacts to the slider immediately.
     pub fn set_equalizer_band(&self, band: usize, gain_db: f64) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         inner.equalizer_state.enabled = true;
@@ -59,8 +59,8 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Ustawia wzmocnienia wszystkich 10 pasm korektora graficznego jednocześnie.
-    /// Automatycznie aktywuje korektor, aplikując wszystkie pasma bezpośrednio do potoku GStreamera.
+    /// Sets the gains of all 10 graphic equalizer bands at once.
+    /// Enables the equalizer automatically and applies every band straight to the GStreamer pipeline.
     pub fn set_equalizer_bands(&self, bands: &[f64; 10]) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         inner.equalizer_state.enabled = true;
@@ -81,36 +81,36 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Ustawia wzmocnienie przedwzmacniacza (preamp) dla korektora graficznego w dB.
+    /// Sets the graphic equalizer preamp gain in dB.
     pub fn set_equalizer_preamp(&self, preamp_db: f64) {
         let mut inner = self.inner.lock_safe();
         inner.eq_preamp_db = preamp_db.clamp(-24.0, 12.0);
         inner.update_preamp_volume();
     }
 
-    /// Zwraca aktualne wzmocnienie przedwzmacniacza korektora graficznego w dB.
+    /// Returns the current graphic equalizer preamp gain in dB.
     pub fn get_equalizer_preamp(&self) -> f64 {
         let inner = self.inner.lock_safe();
         inner.eq_preamp_db
     }
 
     // ==========================================
-    // METODY OBSŁUGI KOREKTORA PARAMETRYCZNEGO (PEQ)
+    // PARAMETRIC EQUALIZER (PEQ)
     // ==========================================
 
-    /// Zwraca aktualny stan korektora parametrycznego.
+    /// Returns the current parametric equalizer state.
     pub fn get_parametric_eq_state(&self) -> ParametricEqState {
         let inner = self.inner.lock_safe();
         inner.parametric_eq_state.clone()
     }
 
-    /// Sprawdza, czy korektor parametryczny jest włączony.
+    /// Whether the parametric equalizer is enabled.
     pub fn is_parametric_eq_enabled(&self) -> bool {
         let inner = self.inner.lock_safe();
         inner.parametric_eq_state.enabled
     }
 
-    /// Ustawia i aplikuje kompletny stan korektora parametrycznego (pasma, preamp, bypass).
+    /// Sets and applies the complete parametric equalizer state (bands, preamp, bypass).
     pub fn set_parametric_eq_state(
         &self,
         state: &ParametricEqState,
@@ -120,10 +120,10 @@ impl AudioEngine {
 
         let enabled = state.enabled;
 
-        // 1. Zsynchronizowany Preamp (EQ + PEQ)
+        // 1. Synchronised preamp (EQ + PEQ)
         inner.update_preamp_volume();
 
-        // 2. Pasma korektora parametrycznego
+        // 2. Parametric equalizer bands
         let num_bands = (state.bands.len().max(1) as u32).min(64);
         let current_num_bands: u32 = inner.peq_equalizer.property("num-bands");
         if current_num_bands != num_bands {
@@ -178,7 +178,7 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Włącza lub wyłącza korektor parametryczny (bypass).
+    /// Enables or disables the parametric equalizer (bypass).
     pub fn set_parametric_eq_enabled(&self, enabled: bool) -> Result<(), AudioEngineError> {
         let mut state = {
             let inner = self.inner.lock_safe();
@@ -188,7 +188,7 @@ impl AudioEngine {
         self.set_parametric_eq_state(&state)
     }
 
-    /// Ustawia wzmocnienie przedwzmacniacza PEQ (preamp) w dB.
+    /// Sets the PEQ preamp gain in dB.
     pub fn set_parametric_eq_preamp(&self, preamp_db: f64) -> Result<(), AudioEngineError> {
         let mut state = {
             let inner = self.inner.lock_safe();
@@ -199,6 +199,6 @@ impl AudioEngine {
     }
 
     // ==========================================
-    // METODY OBSŁUGI STUDIA DYNAMIKI (COMPRESSOR, SATURATOR, LIMITER)
+    // DYNAMICS STUDIO (COMPRESSOR, SATURATOR, LIMITER)
     // ==========================================
 }

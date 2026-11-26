@@ -1,18 +1,18 @@
-//! Transkrypcja nut i eksport do MIDI/JSON.
+//! Note transcription and export to MIDI/JSON.
 
 use super::*;
 use crate::AnalysisError;
 use std::f64::consts::PI;
 
-/// Wersja algorytmu transkrypcji. Zmiana unieważnia zapisane wyniki (cache jest wersjonowany).
+/// Transcription algorithm version. Changing it invalidates stored results (the cache is versioned).
 pub const TRANSCRIPTION_ANALYZER_VERSION: &str = "1.2.0-salience-f64";
 
-/// Czas (ms) początku ramki o danym indeksie, liczony w `f64` (bez kumulowania obciętego kroku).
+/// Start time (ms) of the frame with the given index, computed in `f64` (no accumulated truncated step).
 fn frame_to_ms(frame: u64, hop_ms: f64) -> u64 {
     (frame as f64 * hop_ms).round() as u64
 }
 
-/// Konwertuje numer nuty MIDI (0 .. 127) na czytelną nazwę wysokości (np. 60 -> "C4", 69 -> "A4").
+/// Converts a MIDI note number (0 .. 127) to a readable pitch name (e.g. 60 -> "C4", 69 -> "A4").
 pub fn midi_pitch_to_name(pitch: u8) -> String {
     let note_names = [
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -22,7 +22,7 @@ pub fn midi_pitch_to_name(pitch: u8) -> String {
     format!("{}{}", note, octave)
 }
 
-/// Wykrywa nuty z bufora próbek audio PCM (algorytm śledzenia pików spektralnych i salience wysokości).
+/// Detects notes in a PCM sample buffer (spectral peak tracking with pitch salience).
 pub fn detect_notes_from_samples(
     samples: &[f32],
     sample_rate: f64,
@@ -34,7 +34,7 @@ pub fn detect_notes_from_samples(
 
     let window_size = 2048;
     let hop_size = 1024;
-    // Ułamkowy krok ramki (ms): obcięcie do liczby całkowitej (46,44 → 46) przesuwało nuty o ~1% wcześniej.
+    // Fractional frame step (ms): truncating to an integer (46.44 → 46) moved notes ~1% earlier.
     let hop_ms = hop_size as f64 / sample_rate * 1000.0;
     let num_frames = if samples.len() > window_size {
         (samples.len() - window_size) / hop_size
@@ -46,12 +46,12 @@ pub fn detect_notes_from_samples(
         return Vec::new();
     }
 
-    // Zakres MIDI: E1 (28) do C7 (96)
+    // MIDI range: E1 (28) to C7 (96)
     let min_midi = 28u8;
     let max_midi = 96u8;
     let num_pitches = (max_midi - min_midi + 1) as usize;
 
-    // Prekalkulacja częstotliwości dla każdej nuty MIDI
+    // Precompute the frequency of every MIDI note
     let mut pitch_freqs = Vec::with_capacity(num_pitches);
     for m in min_midi..=max_midi {
         let freq = 440.0 * 2.0f64.powf((m as f64 - 69.0) / 12.0);
@@ -184,7 +184,7 @@ fn finalize_active_notes(
     }
 }
 
-/// Eksportuje zbiór wykrytych nut do standardowego pliku MIDI (.mid, SMF Type 0/1).
+/// Exports the detected notes to a standard MIDI file (.mid, SMF Type 0/1).
 pub fn export_transcription_to_midi(notes: &[DetectedNote], bpm: f64) -> Vec<u8> {
     let safe_bpm = if (20.0..=400.0).contains(&bpm) {
         bpm
@@ -224,7 +224,7 @@ pub fn export_transcription_to_midi(notes: &[DetectedNote], bpm: f64) -> Vec<u8>
     file_bytes.extend_from_slice(&num_tracks.to_be_bytes());
     file_bytes.extend_from_slice(&ppq.to_be_bytes());
 
-    // 2. MTrk dla każdej ścieżki
+    // 2. One MTrk per track
     for (stem_name, track_notes) in stem_groups {
         let mut track_events: Vec<(u32, u8, u8, u8)> = Vec::new();
 
@@ -317,20 +317,20 @@ fn write_midi_vlq(mut value: u32, out: &mut Vec<u8>) {
     }
 }
 
-/// Eksportuje dane transkrypcji do formatu JSON.
+/// Exports transcription data to JSON.
 pub fn export_transcription_to_json(
     data: &TrackTranscriptionData,
 ) -> Result<String, serde_json::Error> {
     serde_json::to_string_pretty(data)
 }
 
-/// Dokonuje pełnej transkrypcji nutowej dla wskazanego utworu.
+/// Runs a full note transcription of the given track.
 pub fn analyze_track_transcription(
     uri_or_path: &str,
     track_id: i64,
 ) -> Result<TrackTranscriptionData, AnalysisError> {
     let samples = decode_snippet_for_analysis(uri_or_path, 300.0)
-        .map_err(|e| format!("Błąd dekodowania audio dla transkrypcji: {}", e))?;
+        .map_err(|e| format!("Failed to decode audio for transcription: {}", e))?;
     let sample_rate = 22050.0;
 
     let bpm = detect_bpm_from_samples(&samples, sample_rate);

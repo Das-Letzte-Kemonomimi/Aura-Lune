@@ -3,71 +3,71 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AudioEngineError {
-    #[error("Błąd GStreamera: {0}")]
+    #[error("GStreamer error: {0}")]
     Gst(#[from] glib::Error),
 
-    #[error("Błąd zmiany stanu GStreamera: {0}")]
+    #[error("GStreamer state change error: {0}")]
     StateChange(#[from] gst::StateChangeError),
 
-    #[error("Operacja GStreamera nie powiodła się: {0}")]
+    #[error("GStreamer operation failed: {0}")]
     Bool(#[from] glib::BoolError),
 
-    #[error("Błąd elementu GStreamera: brak elementu '{0}' w systemie")]
+    #[error("GStreamer element error: element '{0}' is not installed")]
     MissingElement(&'static str),
 
-    #[error("Błąd padu GStreamera: {0}")]
+    #[error("GStreamer pad error: {0}")]
     PadLink(#[from] gst::PadLinkError),
 
-    #[error("Nie udało się połączyć elementów potoku: {0}")]
+    #[error("Failed to link pipeline elements: {0}")]
     ElementLink(String),
 
-    #[error("Błąd DSP: {0}")]
+    #[error("DSP error: {0}")]
     Dsp(#[from] dsp_api::DspError),
 
-    #[error("Nieprawidłowy stan odtwarzacza: oczekiwano {expected:?}, otrzymano {actual:?}")]
+    #[error("Invalid player state: expected {expected:?}, got {actual:?}")]
     InvalidState {
         expected: &'static str,
         actual: domain::PlaybackState,
     },
 
-    #[error("Błąd wejścia/wyjścia: {0}")]
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("Plik nie istnieje lub jest nieosiągalny: {0}")]
+    #[error("File does not exist or is unreachable: {0}")]
     FileNotFound(String),
 
-    /// Nieprawidłowe dane wejściowe od wywołującego (np. odwrócony zakres A-B, wyjście = wejście).
-    #[error("Nieprawidłowe parametry: {0}")]
+    /// Invalid input from the caller (e.g. a reversed A-B range, output = input).
+    #[error("Invalid parameters: {0}")]
     Validation(String),
 
-    /// Błąd w trakcie działania potoku (komunikat z magistrali, timeout, brak magistrali).
+    /// Error while the pipeline runs (bus message, timeout, missing bus).
     #[error("{0}")]
     Pipeline(String),
 
-    /// Brak zasobu systemowego, np. karty dźwiękowej o podanej nazwie.
-    #[error("Nie znaleziono: {0}")]
+    /// Missing system resource, e.g. no sound card with the given name.
+    #[error("Not found: {0}")]
     NotFound(String),
 
-    /// Błąd zewnętrznego narzędzia systemowego (pactl, pw-cli).
+    /// Error from an external system tool (pactl, pw-cli).
     #[error("{0}")]
     External(String),
 }
 
-/// Błędy analizy muzycznej (BPM/tonacja, akordy, transkrypcja, ReplayGain, fala dźwiękowa).
+/// Music analysis errors (BPM/key, chords, transcription, ReplayGain, waveform).
 #[derive(Debug, Error)]
 pub enum AnalysisError {
-    #[error("Plik nie istnieje: {0}")]
+    #[error("File does not exist: {0}")]
     FileNotFound(String),
 
-    /// Budowa lub działanie potoku dekodującego GStreamera, brak próbek, timeout.
+    /// Building or running the GStreamer decode pipeline, no samples, timeout.
     #[error("{0}")]
     Pipeline(String),
 
-    /// Odczyt lub zapis tagów (lofty).
+    /// Reading or writing tags (lofty).
     #[error("{0}")]
     Tags(String),
 
-    #[error("Błąd wejścia/wyjścia: {0}")]
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
 
@@ -81,8 +81,8 @@ impl From<AudioEngineError> for AnalysisError {
     }
 }
 
-/// Komunikaty kontekstowe budowy potoku (`format!("Brak uridecodebin: {e}")`) traktowane są
-/// jako błędy potoku.
+/// Contextual pipeline-building messages (`format!("Missing uridecodebin: {e}")`) are treated
+/// as pipeline errors.
 impl From<String> for AnalysisError {
     fn from(msg: String) -> Self {
         Self::Pipeline(msg)
@@ -95,18 +95,18 @@ impl From<&str> for AnalysisError {
     }
 }
 
-/// Błędy odczytu i zapisu tagów (`metadata_editor`).
+/// Tag read and write errors (`metadata_editor`).
 #[derive(Debug, Error)]
 pub enum TagError {
-    #[error("Błąd otwarcia pliku {path}: {message}")]
+    #[error("Failed to open file {path}: {message}")]
     Open { path: String, message: String },
 
-    #[error("Błąd odczytu tagów: {0}")]
+    #[error("Failed to read tags: {0}")]
     Read(String),
 
-    #[error("Brak obsługiwanego kontenera tagów w pliku audio")]
+    #[error("The audio file has no supported tag container")]
     NoTagContainer,
 
-    #[error("Błąd zapisu tagów do pliku {path}: {message}")]
+    #[error("Failed to write tags to {path}: {message}")]
     Write { path: String, message: String },
 }

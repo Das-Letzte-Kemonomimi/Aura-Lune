@@ -1,22 +1,22 @@
-//! Przetwarzanie danych analizatora widma GStreamera (`spectrum`) na pasma wizualizacji.
+//! Turns GStreamer spectrum analyser (`spectrum`) data into visualisation bands.
 //!
-//! Czyste funkcje (bez GStreamera) — testowane w `tests/spectrum_test.rs`.
+//! Pure functions (no GStreamer), tested in `tests/spectrum_test.rs`.
 
-/// Dolna granica zakresu dynamiki wizualizacji (dBFS).
+/// Lower bound of the visualisation's dynamic range (dBFS).
 pub const SPECTRUM_FLOOR_DB: f32 = -75.0;
-/// Liczba pasm na kanał emitowanych do interfejsu.
+/// Number of bands per channel emitted to the UI.
 pub const DISPLAY_BANDS: usize = 16;
 
-/// Normalizuje poziomy w dBFS (`SPECTRUM_FLOOR_DB..=0`) do zakresu `0.0..=1.0`.
+/// Normalises dBFS levels (`SPECTRUM_FLOOR_DB..=0`) to `0.0..=1.0`.
 pub fn normalize_db(db: &[f32]) -> Vec<f32> {
     db.iter()
         .map(|&v| ((v - SPECTRUM_FLOOR_DB) / -SPECTRUM_FLOOR_DB).clamp(0.0, 1.0))
         .collect()
 }
 
-/// Logarytmiczne grupowanie 64 liniowych pasm FFT na 16 percepcyjnych pasm widma.
-/// Zapewnia równomierną i czułą dynamikę od sub-basu (30-60 Hz) do najwyższych tonów (16-20 kHz).
-/// Krótsze wejście (< 16 pasm) jest zwracane bez zmian.
+/// Logarithmic grouping of 64 linear FFT bands into 16 perceptual spectrum bands.
+/// Gives even, responsive dynamics from the sub-bass (30-60 Hz) to the highest treble (16-20 kHz).
+/// Shorter input (< 16 bands) is returned unchanged.
 pub fn log_pool_to_16_bands(raw: &[f32]) -> Vec<f32> {
     if raw.len() < DISPLAY_BANDS {
         return raw.to_vec();
@@ -43,7 +43,7 @@ pub fn log_pool_to_16_bands(raw: &[f32]) -> Vec<f32> {
     bin_ranges
         .iter()
         .map(|&(start, end)| {
-            // Dla wejścia krótszego niż 64 pasma zakresy są przycinane do jego długości.
+            // For input shorter than 64 bands the ranges are clipped to its length.
             let s = start.min(raw.len() - 1);
             let e = end.min(raw.len()).max(s + 1);
             let slice = &raw[s..e];
@@ -54,8 +54,8 @@ pub fn log_pool_to_16_bands(raw: &[f32]) -> Vec<f32> {
         .collect()
 }
 
-/// Pasma jednego kanału gotowe do wyświetlenia: normalizacja dB, a dla pełnego
-/// 64-pasmowego FFT — grupowanie do [`DISPLAY_BANDS`].
+/// One channel's bands ready for display: dB normalisation, and for a full
+/// 64-band FFT, grouping into [`DISPLAY_BANDS`].
 pub fn channel_display_bands(db: &[f32]) -> Vec<f32> {
     let normalized = normalize_db(db);
     if normalized.len() >= 64 {
@@ -65,11 +65,11 @@ pub fn channel_display_bands(db: &[f32]) -> Vec<f32> {
     }
 }
 
-/// Buduje widmo stereo (pasma lewego kanału, następnie prawego) z magnitud analizatora.
+/// Builds a stereo spectrum (left channel bands, then right) from the analyser magnitudes.
 ///
-/// - co najmniej dwa kanały → prawdziwe stereo (L + R),
-/// - jeden kanał lub płaska lista → mono powielone na oba kanały,
-/// - brak danych → `None`.
+/// - two or more channels → true stereo (L + R),
+/// - one channel or a flat list → mono duplicated to both channels,
+/// - no data → `None`.
 pub fn stereo_display_spectrum(channel_mags: &[Vec<f32>], flat_db: &[f32]) -> Option<Vec<f32>> {
     if let [left, right, ..] = channel_mags {
         let mut spectrum = channel_display_bands(left);

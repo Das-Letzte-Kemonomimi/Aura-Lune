@@ -1,8 +1,8 @@
-//! Nieniszczący transkoder formatów audio oparty o GStreamer z obsługą efektów DSP.
+//! Non-destructive GStreamer-based audio format transcoder with DSP effects.
 //!
-//! ZGODNIE Z ZASADĄ BEZPIECZEŃSTWA:
-//! Plik wejściowy jest ZAWSZE tylko odczytywany. Aplikacja nigdy nie modyfikuje
-//! ani nie usuwa pliku źródłowego.
+//! SAFETY RULE:
+//! The input file is ALWAYS read-only. The app never modifies
+//! or deletes the source file.
 
 use crate::error::AudioEngineError;
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
@@ -11,13 +11,13 @@ use gstreamer as gst;
 use std::path::Path;
 use tracing::{debug, error, info, warn};
 
-/// Transkoder formatów audio.
+/// Audio format transcoder.
 pub struct Transcoder;
 
 impl Transcoder {
-    /// Konwertuje plik wejściowy do wybranego formatu docelowego (bez modyfikacji DSP i całego utworu).
+    /// Converts an input file to the chosen target format (no DSP changes, whole track).
     ///
-    /// Plik źródłowy (`input_path`) pozostaje nienaruszony na dysku.
+    /// The source file (`input_path`) stays untouched on disk.
     pub fn transcode(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
@@ -26,7 +26,7 @@ impl Transcoder {
         Self::transcode_with_dsp(input_path, output_path, format, None, None)
     }
 
-    /// Konwertuje wycinek czasowy (markery A-B) pliku wejściowego do formatu docelowego.
+    /// Converts a time slice (A-B markers) of an input file to the target format.
     pub fn transcode_range(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
@@ -36,11 +36,11 @@ impl Transcoder {
         Self::transcode_with_dsp(input_path, output_path, format, None, Some(time_range))
     }
 
-    /// Konwertuje plik wejściowy do wybranego formatu docelowego z opcjonalnym nałożeniem parametrów DSP
-    /// (pitch shift, time stretch/tempo, rate/varispeed, equalizer, reverb) oraz opcjonalnym wycięciem
-    /// fragmentu czasowego (markery A i B).
+    /// Converts an input file to the chosen target format, optionally applying DSP parameters
+    /// (pitch shift, time stretch/tempo, rate/varispeed, equalizer, reverb) and optionally cutting
+    /// a time slice (markers A and B).
     ///
-    /// Plik źródłowy (`input_path`) pozostaje ZAWSZE nienaruszony na dysku.
+    /// The source file (`input_path`) ALWAYS stays untouched on disk.
     pub fn transcode_with_dsp(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
@@ -58,10 +58,10 @@ impl Transcoder {
         )
     }
 
-    /// Wersja z raportowaniem postępu transkodowania w czasie rzeczywistym (wywołanie callbacku co ~150 ms).
+    /// Variant that reports transcoding progress in real time (callback every ~150 ms).
     ///
-    /// Wynik powstaje w `<cel>.partial` i dopiero po EOS zastępuje plik docelowy — przerwany
-    /// lub nieudany eksport nie zostawia połowicznego pliku ani nie niszczy istniejącego.
+    /// The output is written to `<target>.partial` and replaces the target file only after EOS, so an
+    /// interrupted or failed export never leaves a half-written file or destroys an existing one.
     pub fn transcode_with_dsp_and_progress<F>(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
@@ -154,7 +154,7 @@ impl Transcoder {
             if let Some(end) = range.end_ms {
                 if end <= range.start_ms {
                     return Err(AudioEngineError::Validation(
-                        "Czas końcowy (Marker B) musi być większy niż czas początkowy (Marker A)"
+                        "The end time (marker B) must be greater than the start time (marker A)"
                             .into(),
                     ));
                 }
@@ -165,7 +165,7 @@ impl Transcoder {
         if let Ok(output_canonical) = output.canonicalize() {
             if input_canonical == output_canonical {
                 return Err(AudioEngineError::Validation(
-                    "Ścieżka pliku wyjściowego nie może być tożsama z plikiem wejściowym".into(),
+                    "The output file path must not be the same as the input file".into(),
                 ));
             }
         }
@@ -175,7 +175,7 @@ impl Transcoder {
         let dsp_active = dsp_settings.is_some_and(|s| s.is_active());
         let range_active = time_range.is_some_and(|r| r.is_active());
         info!(
-            "Rozpoczynanie transkodowania: {} -> {} ({}) [DSP aktywne: {}, Zakres A-B aktywny: {}]",
+            "Starting transcoding: {} -> {} ({}) [DSP active: {}, A-B range active: {}]",
             input.display(),
             output.display(),
             format.display_name(),
@@ -216,7 +216,7 @@ impl Transcoder {
         ])?;
         filesrc.link(&decodebin)?;
 
-        // Połączenie wyjścia decodebin -> audioconvert po wykryciu padu audio
+        // Link the decodebin output to audioconvert once an audio pad appears
         let convert_sink_pad = audioconvert
             .static_pad("sink")
             .ok_or_else(|| AudioEngineError::MissingElement("audioconvert.sink"))?;
@@ -237,7 +237,7 @@ impl Transcoder {
 
         audioconvert.link(&audioresample)?;
 
-        // Opcjonalny tor przetwarzania DSP (Pitch, Tempo, Rate, Reverb, EQ)
+        // Optional DSP processing chain (pitch, tempo, rate, reverb, EQ)
         let source_for_encoder = if let Some(dsp) = dsp_settings.filter(|s| s.is_active()) {
             let caps_f32 = gst::Caps::builder("audio/x-raw")
                 .field("format", "F32LE")
@@ -255,7 +255,7 @@ impl Transcoder {
             };
 
             info!(
-                "Transkoder: Inicjalizacja procesora DSP {:?} (tempo={}, pitch={}, rate={})",
+                "Transcoder: initialising the DSP processor {:?} (tempo={}, pitch={}, rate={})",
                 selected_engine, dsp.tempo_ratio, dsp.pitch_semitones, dsp.rate_ratio
             );
 
@@ -267,7 +267,7 @@ impl Transcoder {
                 engine: selected_engine,
             };
             if let Err(e) = dsp_elem.set_params(dsp_params) {
-                warn!("Błąd set_params w transkoderze: {:?}", e);
+                warn!("set_params failed in the transcoder: {:?}", e);
             }
             dsp_elem.set_engine(selected_engine);
 
@@ -316,10 +316,10 @@ impl Transcoder {
             audioresample.clone()
         };
 
-        // Gwarantujemy uniwersalną konwersję formatu próbek (audioconvert + audioresample) tuż przed enkoderem.
-        // Jest to krytyczne, gdyż enkodery (zwłaszcza flacenc) akceptują wyłącznie całkowitoliczbowe
-        // próbki PCM (S16LE, S24LE, S32LE) i bez audioconvert potok zawiesza się na negocjacji capsów
-        // (tworząc pusty plik 0 bajtów bez wygenerowania EOS).
+        // Always convert the sample format (audioconvert + audioresample) right before the encoder.
+        // This is critical: encoders (flacenc in particular) accept only integer
+        // PCM samples (S16LE, S24LE, S32LE), and without audioconvert the pipeline hangs in caps negotiation
+        // (producing an empty 0-byte file without ever reaching EOS).
         let audioconvert_enc = gst::ElementFactory::make("audioconvert")
             .name("transcoder_audioconvert_enc")
             .build()
@@ -342,7 +342,7 @@ impl Transcoder {
         audioresample_enc.link(&queue_enc)?;
         let final_source = queue_enc;
 
-        // W zależności od formatu docelowego dodajemy odpowiedni encoder i opcjonalny muxer
+        // Add the encoder and optional muxer for the target format
         match format {
             ExportFormat::Opus { bitrate_kbps } => {
                 let opusenc = gst::ElementFactory::make("opusenc")
@@ -380,15 +380,15 @@ impl Transcoder {
             }
         }
 
-        // Jeśli zdefiniowano zakres czasowy A-B, wpierw inicjalizujemy stan Paused (preroll),
-        // po czym wykonujemy dokładny seek do punktu A z warunkiem stop w punkcie B.
+        // If an A-B time range is set, first go to Paused (preroll),
+        // then do an accurate seek to point A with a stop condition at point B.
         if let Some(range) = time_range.filter(|r| r.is_active()) {
             pipeline.set_state(gst::State::Paused)?;
             let (state_change, cur_state, _) = pipeline.state(gst::ClockTime::from_seconds(5));
             if state_change.is_err() || cur_state != gst::State::Paused {
                 let _ = pipeline.set_state(gst::State::Null);
                 return Err(AudioEngineError::Pipeline(
-                    "Nie udało się zainicjalizować potoku do stanu Paused przed seekiem A-B".into(),
+                    "Failed to bring the pipeline to Paused before the A-B seek".into(),
                 ));
             }
 
@@ -398,9 +398,9 @@ impl Transcoder {
                 None => (gst::SeekType::None, gst::ClockTime::NONE),
             };
 
-            // Wykonujemy seek bezpośrednio na elemencie audioresample (przed procesorem DSP 'pitch').
-            // Dzięki temu wartości punktów A i B są interpretowane w bezwzględnej osi czasu pliku
-            // źródłowego i nie ulegają zniekształceniu/przeskalowaniu przez tempo i rate efektu DSP.
+            // Seek directly on the audioresample element (before the 'pitch' DSP processor).
+            // That way the A and B points are read on the source file's absolute timeline
+            // and are not distorted or rescaled by the DSP effect's tempo and rate.
             let seek_res = audioresample.seek(
                 1.0,
                 gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
@@ -411,7 +411,7 @@ impl Transcoder {
             );
             if let Err(e) = seek_res {
                 debug!(
-                    "Dokładny seek (ACCURATE) A-B nie powiódł się ({}), próba ze standardowym FLUSH",
+                    "Accurate (ACCURATE) A-B seek failed ({}); retrying with a standard FLUSH",
                     e
                 );
                 audioresample.seek(
@@ -425,16 +425,16 @@ impl Transcoder {
             }
         }
 
-        // Uruchomienie potoku i oczekiwanie na zakończenie (EOS) lub błąd
+        // Start the pipeline and wait for the end (EOS) or an error
         pipeline.set_state(gst::State::Playing)?;
 
         let bus = pipeline.bus().ok_or_else(|| {
-            AudioEngineError::Pipeline("Brak magistrali potoku transkodera".into())
+            AudioEngineError::Pipeline("The transcoder pipeline has no bus".into())
         })?;
 
         let mut got_eos = false;
-        // Limit dotyczy zastoju, nie całego eksportu: długie utwory (i wolny RubberBand) mogą
-        // trwać dowolnie długo, dopóki pozycja potoku rośnie.
+        // The limit applies to stalls, not the whole export: long tracks (and a slow RubberBand) may
+        // take as long as they need while the pipeline position keeps advancing.
         let stall_timeout = std::time::Duration::from_secs(60);
         let mut last_advance = std::time::Instant::now();
         let mut last_position: Option<u64> = None;
@@ -459,23 +459,19 @@ impl Transcoder {
                 use gst::MessageView;
                 match msg.view() {
                     MessageView::Eos(..) => {
-                        debug!("Transkodowanie ukończone pomyślnie (EOS)");
+                        debug!("Transcoding finished (EOS)");
                         got_eos = true;
                         break;
                     }
                     MessageView::Error(err) => {
                         let err_msg =
-                            format!("Błąd transkodowania: {} ({:?})", err.error(), err.debug());
+                            format!("Transcoding error: {} ({:?})", err.error(), err.debug());
                         error!("{}", err_msg);
                         let _ = pipeline.set_state(gst::State::Null);
                         return Err(AudioEngineError::Pipeline(err_msg));
                     }
                     MessageView::Warning(warn) => {
-                        warn!(
-                            "Ostrzeżenie transkodera: {} ({:?})",
-                            warn.error(),
-                            warn.debug()
-                        );
+                        warn!("Transcoder warning: {} ({:?})", warn.error(), warn.debug());
                     }
                     _ => {}
                 }
@@ -533,7 +529,7 @@ impl Transcoder {
         if !got_eos {
             let _ = pipeline.set_state(gst::State::Null);
             return Err(AudioEngineError::Pipeline(
-                "Transkodowanie stoi w miejscu od 60 s (brak postępu i EOS)".into(),
+                "Transcoding has stalled for 60 s (no progress and no EOS)".into(),
             ));
         }
 
@@ -542,7 +538,7 @@ impl Transcoder {
         }
 
         pipeline.set_state(gst::State::Null)?;
-        info!("Plik przekonwertowany i zapisany: {}", output.display());
+        info!("File converted and saved: {}", output.display());
         Ok(())
     }
 }

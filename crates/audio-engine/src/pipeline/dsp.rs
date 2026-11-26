@@ -1,14 +1,14 @@
-//! Parametry DSP (tonacja, tempo, prędkość, silnik), pogłos i rozmiary buforów.
+//! DSP parameters (pitch, tempo, rate, engine), reverb and buffer sizes.
 
 use super::*;
 
 impl AudioEngine {
-    /// Aktualizuje parametry DSP w locie.
+    /// Updates the DSP parameters on the fly.
     pub fn set_dsp_params(&self, params: DspParams) -> Result<(), AudioEngineError> {
         params.validate()?;
         let mut inner = self.inner.lock_safe();
 
-        // Jeśli parametry dotyczą silnika z przetwarzaniem, zapamiętujemy je
+        // If the parameters belong to a processing engine, remember them
         if params.engine != DspEngine::Bypass {
             inner.last_active_dsp = Some(params);
         } else if let Some(ref mut last) = inner.last_active_dsp {
@@ -17,8 +17,8 @@ impl AudioEngine {
             last.rate_ratio = params.rate_ratio;
         }
 
-        // Przed zmianą parametrów prędkości (tempo/rate) synchronizujemy punkt bazowy osi czasu.
-        // Zapobiega to jakimkolwiek skokom pozycji podczas przesuwania suwaków w czasie odtwarzania.
+        // Before changing speed parameters (tempo/rate), sync the timeline's base point.
+        // This prevents any position jumps while sliders move during playback.
         let old_speed = if inner.dsp_params.is_bypass() {
             1.0
         } else {
@@ -41,13 +41,13 @@ impl AudioEngine {
         inner.dsp.set_params(params)?;
         inner.dsp_params = params;
         debug!(
-            "Zaktualizowano DSP: engine={:?}, pitch={:.2} st, tempo={:.2}x, rate={:.2}x",
+            "DSP updated: engine={:?}, pitch={:.2} st, tempo={:.2}x, rate={:.2}x",
             params.engine, params.pitch_semitones, params.tempo_ratio, params.rate_ratio
         );
         Ok(())
     }
 
-    /// Ustawia parametry pogłosu (Reverb).
+    /// Sets the reverb parameters.
     pub fn set_reverb_params(
         &self,
         enabled: bool,
@@ -76,7 +76,7 @@ impl AudioEngine {
         }
     }
 
-    /// Pobiera aktualne parametry pogłosu (enabled, room_size, damping, width, level).
+    /// Returns the current reverb parameters (enabled, room_size, damping, width, level).
     pub fn reverb_params(&self) -> (bool, f64, f64, f64, f64) {
         let inner = self.inner.lock_safe();
         (
@@ -88,7 +88,7 @@ impl AudioEngine {
         )
     }
 
-    /// Ustawia wysokość dźwięku w półtonach w locie.
+    /// Sets the pitch in semitones on the fly.
     pub fn set_pitch_semitones(&self, semitones: f64) -> Result<(), AudioEngineError> {
         let current = self.dsp_params();
         let updated = DspParams::new(
@@ -100,7 +100,7 @@ impl AudioEngine {
         self.set_dsp_params(updated)
     }
 
-    /// Ustawia mnożnik tempa w locie.
+    /// Sets the tempo multiplier on the fly.
     pub fn set_tempo_ratio(&self, tempo_ratio: f64) -> Result<(), AudioEngineError> {
         let current = self.dsp_params();
         let updated = DspParams::new(
@@ -112,7 +112,7 @@ impl AudioEngine {
         self.set_dsp_params(updated)
     }
 
-    /// Ustawia mnożnik szybkości w locie.
+    /// Sets the rate multiplier on the fly.
     pub fn set_rate_ratio(&self, rate_ratio: f64) -> Result<(), AudioEngineError> {
         let current = self.dsp_params();
         let updated = DspParams::new(
@@ -124,14 +124,14 @@ impl AudioEngine {
         self.set_dsp_params(updated)
     }
 
-    /// Zwraca aktualne parametry DSP.
+    /// Returns the current DSP parameters.
     pub fn dsp_params(&self) -> DspParams {
         let inner = self.inner.lock_safe();
         inner.dsp_params
     }
 
-    /// Ustawia rozmiar bufora wyjściowego audio w milisekundach (długość kolejki przed zlewem).
-    /// Domyślnie: 600 ms (dostępne wartości: 50 ms - 4000 ms).
+    /// Sets the audio output buffer size in milliseconds (queue length before the sink).
+    /// Default: 600 ms (allowed values: 50 ms - 4000 ms).
     pub fn set_audio_buffer_duration_ms(&self, buffer_ms: u64) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         let clamped = buffer_ms.clamp(50, 4000);
@@ -147,41 +147,41 @@ impl AudioEngine {
             inner.sink.set_property("processing-deadline", deadline_ns);
         }
         info!(
-            "Zaktualizowano bufor wyjściowy audio na {} ms (queue: {} ms, buffer-time)",
+            "Audio output buffer updated to {} ms (queue: {} ms, buffer-time)",
             clamped, clamped
         );
         Ok(())
     }
 
-    /// Pobiera aktualny rozmiar bufora wyjściowego audio w milisekundach (domyślnie 600 ms).
+    /// Returns the current audio output buffer size in milliseconds (default 600 ms).
     pub fn audio_buffer_duration_ms(&self) -> u64 {
         let inner = self.inner.lock_safe();
         inner.audio_buffer_ms
     }
 
-    /// Ustawia rozmiar bloku bufora przetwarzania DSP w ramkach.
-    /// Domyślnie: 2048 ramek (~46 ms). Dostępne wartości: 512 do 16384 ramek.
+    /// Sets the DSP processing block size in frames.
+    /// Default: 2048 frames (~46 ms). Allowed values: 512 to 16384 frames.
     pub fn set_dsp_block_size(&self, block_size: usize) -> Result<(), AudioEngineError> {
         let clamped = block_size.clamp(512, 16384);
-        // `set_block_size` przygotowuje oba procesory od nowa (kosztowne) — poza blokadą
-        // `inner`, aby `position()`, MPRIS i komendy nie czekały.
+        // `set_block_size` prepares both processors again (expensive), outside the
+        // `inner` lock, so `position()`, MPRIS and commands don't wait.
         let dsp = {
             let mut inner = self.inner.lock_safe();
             inner.dsp_block_size = clamped;
             inner.dsp.clone()
         };
         dsp.set_block_size(clamped);
-        info!("Zaktualizowano rozmiar bloku DSP na {} ramek", clamped);
+        info!("DSP block size updated to {} frames", clamped);
         Ok(())
     }
 
-    /// Pobiera aktualny rozmiar bloku bufora DSP w ramkach (domyślnie 2048 ramek).
+    /// Returns the current DSP block size in frames (default 2048 frames).
     pub fn dsp_block_size(&self) -> usize {
         let inner = self.inner.lock_safe();
         inner.dsp_block_size
     }
 
-    /// Przełącza silnik DSP (SoundTouch, Rubber Band lub Bypass).
+    /// Switches the DSP engine (SoundTouch, Rubber Band or Bypass).
     pub fn set_dsp_engine(&self, engine: DspEngine) -> Result<(), AudioEngineError> {
         let current = self.dsp_params();
         if current.engine == engine {
@@ -193,22 +193,22 @@ impl AudioEngine {
             inner.state == PlaybackState::Playing || inner.state == PlaybackState::Paused
         };
 
-        // Obliczamy bieżącą pozycję w utworze źródłowym przed zmianą silnika
+        // Compute the current position in the source track before switching engines
         let current_pos = self.position().unwrap_or(Duration::ZERO);
 
         let mut inner = self.inner.lock_safe();
 
-        // Wejście z Bypass w przetwarzanie nie wymaga seeku: w Bypass bufory przechodzą bez zmian
-        // (czas strumienia == czas nośnika), więc silnik startuje z PTS kolejnego bufora, a oś czasu
-        // wystarczy przebazować (tak jak przy zmianie tempa w locie). Pozostałe przejścia
-        // (do Bypass, Rubber Band <-> SoundTouch) niosą narosły dryf PTS i nadal robią seek.
+        // Going from Bypass into processing needs no seek: in Bypass buffers pass unchanged
+        // (stream time == media time), so the engine starts from the next buffer's PTS and the
+        // timeline only needs rebasing (as with an on-the-fly tempo change). Other transitions
+        // (to Bypass, Rubber Band <-> SoundTouch) carry accumulated PTS drift and still seek.
         let entering_from_bypass = is_active_playback
             && current.engine == DspEngine::Bypass
             && engine != DspEngine::Bypass;
         let rebase_media = Self::calculate_media_position(&inner).unwrap_or(current_pos);
         let rebase_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
 
-        // Jeśli opuszczamy aktywny silnik DSP (RubberBand / SoundTouch), zapamiętujemy parametry
+        // When leaving an active DSP engine (RubberBand / SoundTouch), remember its parameters
         if current.engine != DspEngine::Bypass {
             inner.last_active_dsp = Some(current);
         }
@@ -216,8 +216,8 @@ impl AudioEngine {
         let caps = engine.capabilities();
         let target_params = match engine {
             DspEngine::Bypass => {
-                // Przechodzimy w Bypass: zachowujemy bieżące parametry użytkowniczki w statusie,
-                // by nie zostały zresetowane po powrocie do silnika przetwarzania
+                // Going to Bypass: keep the user's current parameters in the status
+                // so they aren't reset when a processing engine comes back
                 DspParams {
                     engine: DspEngine::Bypass,
                     pitch_semitones: current.pitch_semitones,
@@ -226,8 +226,8 @@ impl AudioEngine {
                 }
             }
             target_engine => {
-                // Wracamy do RubberBand lub SoundTouch:
-                // Przywracamy zapamiętane wartości parametrów sprzed przejścia w tryb Bypass!
+                // Back to RubberBand or SoundTouch:
+                // restore the parameter values saved before switching to Bypass.
                 let remembered = inner.last_active_dsp.unwrap_or(current);
                 DspParams {
                     engine: target_engine,
@@ -254,24 +254,21 @@ impl AudioEngine {
         }
         drop(inner);
 
-        // Jeśli odtwarzanie jest aktywne, wykonaj natychmiastowy seek do bieżącej pozycji.
-        // Oczyszcza to zbuforowane w kolejkach zdezsynchronizowane próbki i gwarantuje,
-        // że nowy silnik (lub czysty strumień Bypass) startuje od dokładnie tej samej sekundy
-        // z idealnie wyrównanymi znacznikami czasu PTS w GStreamerze (brak efektu flangera i szarpnięć).
+        // If playback is active, seek to the current position right away.
+        // That flushes desynchronised samples buffered in the queues and makes sure
+        // the new engine (or the clean Bypass stream) starts at exactly the same second
+        // with perfectly aligned GStreamer PTS timestamps (no flanging or stutter).
         if is_active_playback && !entering_from_bypass {
             if let Err(e) = self.seek(current_pos) {
-                warn!(
-                    "Błąd resynchronizacji seek przy zmianie silnika DSP: {:?}",
-                    e
-                );
+                warn!("Resync seek failed after the DSP engine change: {:?}", e);
             }
         }
 
-        info!("Przełączono silnik DSP na {}", caps.name);
+        info!("Switched the DSP engine to {}", caps.name);
         Ok(())
     }
 
-    /// Zwraca właściwości i ograniczenia aktualnego silnika DSP.
+    /// Returns the properties and limits of the current DSP engine.
     pub fn dsp_capabilities(&self) -> DspCapabilities {
         self.dsp_params().engine.capabilities()
     }

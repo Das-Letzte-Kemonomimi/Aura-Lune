@@ -1,9 +1,9 @@
-//! Efekty dynamiki, ReplayGain, crossfeed, pomijanie ciszy, stereo widener i limiter.
+//! Dynamics effects, ReplayGain, crossfeed, silence trimming, stereo widener and limiter.
 
 use super::*;
 
 impl AudioEngine {
-    /// Pobiera bieżący stan Studia Dynamiki (kompresor, saturator, limiter).
+    /// Returns the current Dynamics Studio state (compressor, saturator, limiter).
     pub fn get_dynamics_state(&self) -> domain::dynamics::DynamicsState {
         let inner = self.inner.lock_safe();
         inner.dynamics_state
@@ -19,7 +19,7 @@ impl AudioEngine {
         inner.dynamics_state.saturator.enabled
     }
 
-    /// Aplikuje kompletny stan Studia Dynamiki w locie bez trzasków i przerw.
+    /// Applies a complete Dynamics Studio state on the fly, without clicks or gaps.
     pub fn set_dynamics_state(
         &self,
         state: &domain::dynamics::DynamicsState,
@@ -27,7 +27,7 @@ impl AudioEngine {
         let mut inner = self.inner.lock_safe();
         inner.dynamics_state = *state;
 
-        // 1. Kompresor dynamiki
+        // 1. Dynamics compressor
         let comp = state.compressor.clamped();
         inner.compressor.set_property("ratio", comp.ratio);
         inner
@@ -57,10 +57,10 @@ impl AudioEngine {
         };
         inner.compressor_makeup.set_property("volume", makeup_vol);
 
-        // 2. Saturator analogowy
+        // 2. Analog saturator
         inner.saturator_config.store(state.saturator.clamped());
 
-        // 3. Limiter słuchawkowy (rglimiter)
+        // 3. Headphone limiter (rglimiter)
         inner
             .rglimiter
             .set_property("enabled", state.limiter.enabled);
@@ -81,10 +81,10 @@ impl AudioEngine {
     }
 
     // ==========================================
-    // METODY OBSŁUGI KOLEJKI ODTWARZANIA (QUEUE)
+    // REPLAYGAIN, CROSSFEED AND STEREO EFFECTS
     // ==========================================
 
-    /// Konfiguruje normalizację głośności ReplayGain (EBU R128 / ReplayGain 2.0).
+    /// Configures ReplayGain loudness normalisation (EBU R128 / ReplayGain 2.0).
     pub fn set_replaygain(&self, config: ReplayGainConfig) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         inner.replaygain_config = config;
@@ -101,8 +101,8 @@ impl AudioEngine {
                 if let Some(ref child) = inner.rgvolume_child {
                     child.set_passthrough(false);
                 }
-                // Auto startuje od Track Gain (bezpieczne dla shuffle i mieszanych kolejek);
-                // `apply_auto_replaygain` przełącza na Album Gain przy odtwarzaniu całego albumu.
+                // Auto starts with Track Gain (safe for shuffle and mixed queues);
+                // `apply_auto_replaygain` switches to Album Gain when a whole album plays.
                 let album_mode = config.mode == ReplayGainMode::Album;
                 inner.rgvolume.set_property("album-mode", album_mode);
                 inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
@@ -115,26 +115,26 @@ impl AudioEngine {
             }
         }
         debug!(
-            "Zaktualizowano ReplayGain: mode={:?}, pre_amp={:.1} dB, fallback={:.1} dB, limiter={}",
+            "ReplayGain updated: mode={:?}, pre_amp={:.1} dB, fallback={:.1} dB, limiter={}",
             config.mode, config.pre_amp_db, config.fallback_gain_db, config.prevent_clipping
         );
         Ok(())
     }
 
-    /// Dynamicznie dostosowuje tryb ReplayGain w trybie Auto (Track vs Album Gain).
+    /// Adjusts the ReplayGain mode dynamically in Auto mode (Track vs Album Gain).
     pub fn apply_auto_replaygain(&self, is_same_album: bool, is_shuffle: bool) {
         let inner = self.inner.lock_safe();
         if inner.replaygain_config.mode == ReplayGainMode::Auto {
             let use_album_gain = is_same_album && !is_shuffle;
             inner.rgvolume.set_property("album-mode", use_album_gain);
             debug!(
-                "ReplayGain Auto: ustawiono album-mode na {} (same_album={}, shuffle={})",
+                "ReplayGain Auto: album mode set to {} (same_album={}, shuffle={})",
                 use_album_gain, is_same_album, is_shuffle
             );
         }
     }
 
-    /// Czy element rgvolume używa obecnie Album Gain (true) czy Track Gain (false).
+    /// Whether rgvolume currently uses Album Gain (true) or Track Gain (false).
     pub fn replaygain_album_mode(&self) -> bool {
         self.inner
             .lock_safe()
@@ -142,12 +142,12 @@ impl AudioEngine {
             .property::<bool>("album-mode")
     }
 
-    /// Pobiera bieżącą konfigurację ReplayGain.
+    /// Returns the current ReplayGain configuration.
     pub fn replaygain_config(&self) -> ReplayGainConfig {
         self.inner.lock_safe().replaygain_config
     }
 
-    /// Zwraca bieżący status normalizacji ReplayGain: (target_gain_db, result_gain_db, limiter_enabled).
+    /// Returns the current ReplayGain status: (target_gain_db, result_gain_db, limiter_enabled).
     pub fn replaygain_status(&self) -> (f64, f64, bool) {
         let inner = self.inner.lock_safe();
         if inner.replaygain_config.mode == ReplayGainMode::Off {
@@ -159,7 +159,7 @@ impl AudioEngine {
         (target, result, limiter)
     }
 
-    /// Konfiguruje filtr Bauer stereophonic-to-binaural (Crossfeed bs2b) dla odsłuchu słuchawkowego.
+    /// Configures the Bauer stereophonic-to-binaural filter (crossfeed, bs2b) for headphone listening.
     pub fn set_crossfeed(&self, config: CrossfeedConfig) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         inner.crossfeed_config = config;
@@ -171,7 +171,7 @@ impl AudioEngine {
             }
         }
         debug!(
-            "Zaktualizowano Crossfeed: enabled={}, fcut={}Hz, feed={:.1}dB",
+            "Crossfeed updated: enabled={}, fcut={}Hz, feed={:.1}dB",
             config.enabled,
             config.fcut_hz,
             config.feed_db()
@@ -179,14 +179,14 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Pobiera bieżącą konfigurację Crossfeed.
+    /// Returns the current crossfeed configuration.
     pub fn crossfeed_config(&self) -> CrossfeedConfig {
         self.inner.lock_safe().crossfeed_config
     }
 
-    /// Konfiguruje automatyczne pomijanie ciszy (Silence Trimming / Auto-skip silence).
-    /// Silnik tylko przechowuje konfigurację — ciszę wykrywa `detect_silence_bounds`, a pomija
-    /// ją backendowa pętla statusu odtwarzania (przewinięcie początku, wcześniejsze zakończenie).
+    /// Configures automatic silence trimming (auto-skip silence).
+    /// The engine only stores the configuration: `detect_silence_bounds` finds the silence, and the
+    /// backend playback status loop skips it (seeking past the start, ending early).
     pub fn set_silence_trimming(
         &self,
         config: SilenceTrimmingConfig,
@@ -195,20 +195,20 @@ impl AudioEngine {
         let mut inner = self.inner.lock_safe();
         inner.silence_trimming_config = clamped;
         debug!(
-            "Zaktualizowano Silence Trimming: enabled={}, threshold={:.1}dB",
+            "Silence trimming updated: enabled={}, threshold={:.1}dB",
             clamped.enabled, clamped.threshold_db
         );
         Ok(())
     }
 
-    /// Pobiera bieżącą konfigurację pomijania ciszy.
+    /// Returns the current silence-trimming configuration.
     pub fn silence_trimming_config(&self) -> SilenceTrimmingConfig {
         self.inner.lock_safe().silence_trimming_config
     }
 
-    /// Włącza lub wyłącza rozszerzanie bazy stereo (Stereo Widener).
+    /// Enables or disables stereo widening.
     pub fn set_stereo_widener_active(&self, active: bool) {
-        // Odczyt-modyfikacja-zapis pod blokadą `inner`, aby równoległe zmiany nie nadpisywały się.
+        // Read-modify-write under the `inner` lock so concurrent changes don't overwrite each other.
         let inner = self.inner.lock_safe();
         let config = &inner.stereo_widener_config;
         config.store(domain::dynamics::StereoWidenerConfig {
@@ -217,7 +217,7 @@ impl AudioEngine {
         });
     }
 
-    /// Ustawia intensywność rozszerzania stereo w zakresie 0.0 - 1.0.
+    /// Sets the stereo widening amount in the 0.0 - 1.0 range.
     pub fn set_stereo_widener_amount(&self, amount: f64) {
         let clamped = amount.clamp(0.0, 1.0) as f32;
         let inner = self.inner.lock_safe();
@@ -228,7 +228,7 @@ impl AudioEngine {
         });
     }
 
-    /// Zwraca parametry rozszerzania stereo: (active, amount).
+    /// Returns the stereo widening parameters: (active, amount).
     pub fn stereo_widener_params(&self) -> (bool, f64) {
         let config = {
             let inner = self.inner.lock_safe();
@@ -238,14 +238,14 @@ impl AudioEngine {
         (cfg.enabled, cfg.width as f64)
     }
 
-    /// Włącza lub wyłącza True-Peak Limiter (rglimiter) oraz synchronizuje stan Studia Dynamiki.
+    /// Enables or disables the true-peak limiter (rglimiter) and syncs the Dynamics Studio state.
     pub fn set_limiter_enabled(&self, enabled: bool) {
         let mut inner = self.inner.lock_safe();
         inner.dynamics_state.limiter.enabled = enabled;
         inner.rglimiter.set_property("enabled", enabled);
     }
 
-    /// Sprawdza, czy True-Peak Limiter (rglimiter) jest włączony.
+    /// Whether the true-peak limiter (rglimiter) is enabled.
     pub fn is_limiter_enabled(&self) -> bool {
         let inner = self.inner.lock_safe();
         inner.dynamics_state.limiter.enabled

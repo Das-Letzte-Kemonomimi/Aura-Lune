@@ -5,15 +5,15 @@ use domain::parametric_eq::{
 
 #[test]
 fn test_audio_engine_parametric_eq_lifecycle() {
-    let engine = AudioEngine::new().expect("Nie udało się utworzyć AudioEngine");
+    let engine = AudioEngine::new().expect("Failed to create AudioEngine");
 
-    // 1. Domyślny stan
+    // 1. Default state
     let initial_state = engine.get_parametric_eq_state();
     assert!(!initial_state.enabled);
     assert_eq!(initial_state.preamp_db, 0.0);
     assert!(!engine.is_parametric_eq_enabled());
 
-    // 2. Aplikowanie konfiguracji z 4 pasmami
+    // 2. Apply a configuration with 4 bands
     let test_state = ParametricEqState {
         enabled: true,
         preamp_db: -5.0,
@@ -28,7 +28,7 @@ fn test_audio_engine_parametric_eq_lifecycle() {
 
     engine
         .set_parametric_eq_state(&test_state)
-        .expect("Błąd set_parametric_eq_state");
+        .expect("set_parametric_eq_state failed");
 
     let current = engine.get_parametric_eq_state();
     assert!(current.enabled);
@@ -38,25 +38,25 @@ fn test_audio_engine_parametric_eq_lifecycle() {
     assert_eq!(current.bands[0].freq, 80.0);
     assert_eq!(current.bands[0].gain_db, 4.0);
 
-    // 3. Test wyłączania (Bypass)
+    // 3. Disabling (bypass)
     engine
         .set_parametric_eq_enabled(false)
-        .expect("Błąd set_parametric_eq_enabled");
+        .expect("set_parametric_eq_enabled failed");
     assert!(!engine.is_parametric_eq_enabled());
 
-    // 4. Test ponownego włączenia
+    // 4. Enabling again
     engine
         .set_parametric_eq_enabled(true)
-        .expect("Błąd włączenia PEQ");
+        .expect("Enabling PEQ failed");
     assert!(engine.is_parametric_eq_enabled());
 
-    // 5. Test zmiany samego preamp
+    // 5. Change only the preamp
     engine
         .set_parametric_eq_preamp(-6.8)
-        .expect("Błąd set_parametric_eq_preamp");
+        .expect("set_parametric_eq_preamp failed");
     assert_eq!(engine.get_parametric_eq_state().preamp_db, -6.8);
 
-    // 6. Test fabrycznego presetu Harmana
+    // 6. Harman factory preset
     let harman = ParametricEqPreset::default_presets()
         .into_iter()
         .find(|p| p.name.contains("Harman"))
@@ -64,7 +64,7 @@ fn test_audio_engine_parametric_eq_lifecycle() {
 
     engine
         .set_parametric_eq_state(&harman.state)
-        .expect("Błąd aplikacji presetu Harmana");
+        .expect("Applying the Harman preset failed");
     let current_harman = engine.get_parametric_eq_state();
     assert_eq!(current_harman.bands.len(), 5);
 }

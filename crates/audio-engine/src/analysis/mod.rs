@@ -1,10 +1,10 @@
-//! Moduł automatycznej detekcji tonacji muzycznej (Musical Key) oraz tempa (BPM).
+//! Automatic musical key and tempo (BPM) detection.
 //!
-//! Wykorzystuje:
-//! 1. Krumhansl-Schmuckler Key-Finding Algorithm z profilem chromagramu (12 klas wysokości dźwięku)
-//!    do precyzyjnego wykrywania tonacji (Major/Minor) oraz kodu Camelot (np. 8A, 8B).
-//! 2. Algorytm autokorelacji obwiedni transjentów energii (onset detection) do wykrywania BPM.
-//! 3. Opcjonalne odczytywanie metadanych tagów ID3/Vorbis (BPM, TKEY/INITIALKEY) jeśli są dostępne.
+//! Uses:
+//! 1. The Krumhansl-Schmuckler key-finding algorithm on a chromagram profile (12 pitch classes)
+//!    to detect the key (Major/Minor) and its Camelot code (e.g. 8A, 8B).
+//! 2. Autocorrelation of the energy transient envelope (onset detection) to detect the BPM.
+//! 3. Optional ID3/Vorbis tag metadata (BPM, TKEY/INITIALKEY) when available.
 
 mod beat_grid;
 mod chords;
@@ -67,7 +67,7 @@ pub const CAMELOT_MAJOR: [&str; 12] = [
     "1B",  // B
 ];
 
-// Profile Krumhansla-Schmucklera (wagi dla skali durowej i molowej)
+// Krumhansl-Schmuckler profiles (weights for the major and minor scales)
 const KRUMHANSL_MAJOR: [f64; 12] = [
     6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
 ];
@@ -75,7 +75,7 @@ const KRUMHANSL_MINOR: [f64; 12] = [
     6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
 ];
 
-/// Wynik detekcji klucza i tempa utworu.
+/// Key and tempo detection result for a track.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackKeyBpm {
     pub bpm: f64,
@@ -83,10 +83,10 @@ pub struct TrackKeyBpm {
     pub camelot: String,       // np. "8A", "8B"
     pub base_key_index: usize, // 0 = C, 1 = C#, ..., 9 = A, 11 = B
     pub is_minor: bool,
-    pub source: String, // "tag" lub "acoustic"
+    pub source: String, // "tag" or "acoustic"
 }
 
-/// Parsuje ciąg tekstowy reprezentujący klucz muzyczny (Camelot lub notacja literowa).
+/// Parses a string holding a musical key (Camelot or letter notation).
 pub fn parse_musical_key(raw: &str) -> Option<(usize, bool)> {
     let s = raw.trim();
     if s.is_empty() {
@@ -95,7 +95,7 @@ pub fn parse_musical_key(raw: &str) -> Option<(usize, bool)> {
 
     let upper = s.to_uppercase();
 
-    // Sprawdzenie koła Camelot (np. "8A", "8B", "11A", "4B")
+    // Check the Camelot wheel (e.g. "8A", "8B", "11A", "4B")
     if let Some(c) = upper.strip_suffix('A') {
         if let Ok(num) = c.parse::<usize>() {
             let target = format!("{}A", num);
@@ -117,7 +117,7 @@ pub fn parse_musical_key(raw: &str) -> Option<(usize, bool)> {
         }
     }
 
-    // Sprawdzenie standardowej notacji (Am, C#m, C Maj, G#, F# minor, itp.)
+    // Check the standard notation (Am, C#m, C Maj, G#, F# minor, etc.)
     let is_minor = upper.contains("MIN") || (upper.contains('M') && !upper.contains("MAJ"));
 
     let note_part = s

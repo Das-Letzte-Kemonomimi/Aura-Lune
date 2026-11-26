@@ -1,17 +1,17 @@
-//! Detekcja tempa (autokorelacja obwiedni onsetów) i tonacji (Krumhansl-Schmuckler).
+//! Tempo detection (onset-envelope autocorrelation) and key detection (Krumhansl-Schmuckler).
 
 use super::*;
 use crate::AnalysisError;
 use lofty::file::TaggedFileExt;
 use std::f64::consts::PI;
 
-/// Wykrywa BPM na podstawie autokorelacji obwiedni onsetów energii w sygnale audio.
+/// Detects the BPM from the autocorrelation of the energy onset envelope of an audio signal.
 pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
     if samples.len() < 2048 {
         return 128.0;
     }
 
-    // Pomijamy intro (pierwsze 20s jeśli próbki >= 45s, w przeciwnym razie 15%)
+    // Skip the intro (the first 20 s if there are >= 45 s of samples, otherwise 15%)
     let skip_samples = if samples.len() >= (45.0 * sample_rate) as usize {
         (20.0 * sample_rate) as usize
     } else {
@@ -29,7 +29,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
         return 128.0;
     }
 
-    // 1. Oblicz obwiednię energii RMS dla każdego okna hop
+    // 1. RMS energy envelope for every hop window
     let mut energy = Vec::with_capacity(num_hops);
     for h in 0..num_hops {
         let chunk = &analysis_samples[h * hop_size..(h + 1) * hop_size];
@@ -37,7 +37,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
         energy.push((sum_sq / hop_size as f64).sqrt());
     }
 
-    // 2. Wyznacz onset (dodatnia różnica energii)
+    // 2. Onsets (positive energy difference)
     let mut onset = Vec::with_capacity(num_hops);
     onset.push(0.0);
     for h in 1..num_hops {
@@ -45,7 +45,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
         onset.push(if diff > 0.0 { diff } else { 0.0 });
     }
 
-    // Usunięcie stałej składowej (lokalna średnia ruchoma)
+    // Remove the DC component (local moving average)
     let win = 15;
     let mut onset_filtered = Vec::with_capacity(num_hops);
     for i in 0..num_hops {
@@ -56,7 +56,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
         onset_filtered.push(val);
     }
 
-    // 3. Autokorelacja dla zakresu BPM od 65 do 185
+    // 3. Autocorrelation over the 65–185 BPM range
     let min_bpm = 65.0;
     let max_bpm = 185.0;
     let lag_min = ((60.0 / max_bpm) * hops_per_sec).round() as usize;
@@ -86,7 +86,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
         return 128.0;
     }
 
-    // 4. Paraboliczna interpolacja wokół szczytu
+    // 4. Parabolic interpolation around the peak
     let y1 = corr_values[best_lag - 1];
     let y2 = corr_values[best_lag];
     let y3 = corr_values[best_lag + 1];
@@ -101,7 +101,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
     let fine_lag = (best_lag as f64 + delta).max(1.0);
     let mut bpm = (60.0 * hops_per_sec) / fine_lag;
 
-    // Sprawdzenie podwojonego tempa (harmonika w połowie opóźnienia half_lag)
+    // Check the doubled tempo (harmonic at half the lag, half_lag)
     let half_lag = best_lag / 2;
     if half_lag >= lag_min && corr_values[half_lag] >= 0.70 * corr_values[best_lag] {
         let y1_h = corr_values[half_lag - 1];
@@ -119,7 +119,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
         bpm *= 2.0;
     }
 
-    // Korekta oktawowa: standardowy zakres tempa utworu [75 .. 185]
+    // Octave correction: the standard track tempo range [75 .. 185]
     while bpm < 75.0 {
         bpm *= 2.0;
     }
@@ -130,7 +130,7 @@ pub fn detect_bpm_from_samples(samples: &[f32], sample_rate: f64) -> f64 {
     (bpm * 10.0).round() / 10.0
 }
 
-/// Wykrywa klucz muzyczny (Musical Key) za pomocą algorytmu Krumhansla-Schmucklera.
+/// Detects the musical key with the Krumhansl-Schmuckler algorithm.
 pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, bool) {
     if samples.is_empty() {
         return (0, false); // C Maj
@@ -138,11 +138,11 @@ pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, boo
 
     let mut chroma = [0.0f64; 12];
 
-    // Rozmiar okna STFT: 4096 próbek (~185 ms), przesunięcie: 2048 próbek (50% nakładania)
+    // STFT window: 4096 samples (~185 ms), hop: 2048 samples (50% overlap)
     let frame_size = 4096usize;
     let hop_size = 2048usize;
 
-    // Pomijamy intro (pierwsze 20s jeśli plik ma >= 45s, lub 15% na początku)
+    // Skip the intro (the first 20 s if the file is >= 45 s long, otherwise the first 15%)
     let skip_samples = if samples.len() >= (45.0 * sample_rate) as usize {
         (20.0 * sample_rate) as usize
     } else {
@@ -157,13 +157,13 @@ pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, boo
         return (0, false);
     }
 
-    // Okno Hanninga
+    // Hann window
     let hanning: Vec<f64> = (0..frame_size)
         .map(|n| 0.5 * (1.0 - (2.0 * PI * n as f64 / (frame_size - 1) as f64).cos()))
         .collect();
 
-    // Akumulacja modułów (magnitud) energii w każdej ramce — zapobiega destrukcyjnej interferencji fazy.
-    // Analizujemy oktawy 2 do 5 (100 Hz do 1350 Hz), aby uniknąć zakłóceń sub-basu (stopy) < 100 Hz.
+    // Accumulate magnitudes per frame, which avoids destructive phase interference.
+    // Analyse octaves 2 to 5 (100 Hz to 1350 Hz) to avoid sub-bass (kick) interference < 100 Hz.
     for f_idx in 0..num_frames {
         let frame_start = f_idx * hop_size;
         let frame = &analysis_samples[frame_start..frame_start + frame_size];
@@ -193,7 +193,7 @@ pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, boo
         }
     }
 
-    // Normalizacja wektora chromagramu
+    // Normalise the chroma vector
     let chroma_norm: f64 = chroma.iter().map(|&x| x * x).sum::<f64>().sqrt();
     if chroma_norm > 1e-6 {
         for val in chroma.iter_mut() {
@@ -201,7 +201,7 @@ pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, boo
         }
     }
 
-    // Obliczenie korelacji Pearsona ze wzorcami dur/moll dla wszystkich 12 rotacji
+    // Pearson correlation with the major/minor profiles for all 12 rotations
     let mut best_score = -2.0;
     let mut best_key = 0;
     let mut best_is_minor = false;
@@ -254,7 +254,7 @@ fn pearson_correlation(x: &[f64; 12], y: &[f64; 12]) -> f64 {
     }
 }
 
-/// Odczytuje wiarygodne tempo (40–280 BPM) z tagów pliku lokalnego.
+/// Reads a trustworthy tempo (40–280 BPM) from a local file's tags.
 pub fn read_bpm_tag(uri_or_path: &str) -> Option<f64> {
     let local = crate::uri::local_path(uri_or_path);
     let tagged = lofty::probe::Probe::open(local.as_path())
@@ -270,9 +270,9 @@ pub fn read_bpm_tag(uri_or_path: &str) -> Option<f64> {
     (40.0..=280.0).contains(&bpm).then_some(bpm)
 }
 
-/// Główna funkcja analityczna: bada plik i zwraca kompleksowy wynik BPM oraz tonacji.
+/// Main analysis entry point: inspects a file and returns a full BPM and key result.
 pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisError> {
-    // 1. Próba odczytu tagów z pliku za pomocą lofty (jeśli to plik lokalny)
+    // 1. Try reading the file's tags with lofty (if it is a local file)
     let local = crate::uri::local_path(uri_or_path);
     let file_path = local.as_path();
 
@@ -285,7 +285,7 @@ pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisE
                 .primary_tag()
                 .or_else(|| tagged_file.first_tag())
             {
-                // Odczyt BPM z tagów
+                // BPM from tags
                 if let Some(bpm_str) = tag.get_string(lofty::tag::ItemKey::Bpm) {
                     if let Ok(b) = bpm_str.parse::<f64>() {
                         if (40.0..=280.0).contains(&b) {
@@ -293,7 +293,7 @@ pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisE
                         }
                     }
                 }
-                // Odczyt tonacji z tagów
+                // Key from tags
                 if let Some(key_str) = tag.get_string(lofty::tag::ItemKey::InitialKey) {
                     if let Some(parsed) = parse_musical_key(key_str) {
                         detected_key = Some(parsed);
@@ -303,7 +303,7 @@ pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisE
         }
     }
 
-    // Jeśli znaleziono oba parametry w metadanych, zwracamy wynik natychmiast
+    // If both values are in the metadata, return immediately
     if let (Some(bpm), Some((base_key_index, is_minor))) = (detected_bpm, detected_key) {
         let key_name = format!(
             "{} {}",
@@ -325,7 +325,7 @@ pub fn analyze_track_key_bpm(uri_or_path: &str) -> Result<TrackKeyBpm, AnalysisE
         });
     }
 
-    // 2. Akustyczna analiza próbek audio (jeśli brak tagów lub są niepełne)
+    // 2. Acoustic analysis of the audio samples (when tags are missing or incomplete)
     let samples = decode_snippet_for_analysis(uri_or_path, 70.0)?;
 
     let final_bpm = match detected_bpm {

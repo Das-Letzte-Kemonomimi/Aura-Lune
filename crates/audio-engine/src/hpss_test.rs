@@ -31,28 +31,28 @@ fn test_hpss_stereo_sum_reconstruction() {
 
     let stems = separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
 
-    // Weryfikacja dokładności sumy: Suma wszystkich stemów musi idealnie pokrywać wejście
+    // Check the sum: all stems together must reproduce the input exactly
     for i in 2048..6144 {
         let sum_l = stems.vocals.0[i] + stems.drums.0[i] + stems.bass.0[i] + stems.other.0[i];
         let sum_r = stems.vocals.1[i] + stems.drums.1[i] + stems.bass.1[i] + stems.other.1[i];
         assert!(
             (sum_l - left[i]).abs() < 1e-3,
-            "Błąd rekonstrukcji L na próbce {}",
+            "L reconstruction error at sample {}",
             i
         );
         assert!(
             (sum_r - right[i]).abs() < 1e-3,
-            "Błąd rekonstrukcji R na próbce {}",
+            "R reconstruction error at sample {}",
             i
         );
     }
 }
 
 // ---------------------------------------------------------------------------
-// Pierwotna implementacja (pełne macierze spektrogramu) — wzorzec dla testu równoważności.
+// Original implementation (full spectrogram matrices), the reference for the equivalence test.
 // ---------------------------------------------------------------------------
 
-/// Pierwotna wersja `separate_stereo_hpss` sprzed przejścia na bufor pierścieniowy.
+/// The original `separate_stereo_hpss` from before the switch to a ring buffer.
 fn reference_separate_stereo_hpss<F>(
     left: &[f32],
     right: &[f32],
@@ -64,10 +64,10 @@ where
 {
     let n_samples = left.len().min(right.len());
     let fft_size = 2048;
-    let hop_size = 512; // 75% overlap dla Hann window
+    let hop_size = 512; // 75% overlap for the Hann window
 
     if n_samples < fft_size {
-        // Fallback dla bardzo krótkich sygnałów
+        // Fallback for very short signals
         return StereoStems {
             vocals: (left.to_vec(), right.to_vec()),
             drums: (vec![0.0; n_samples], vec![0.0; n_samples]),
@@ -77,13 +77,10 @@ where
     }
 
     if let Some(ref mut cb) = progress_cb {
-        cb(
-            0.35,
-            "STFT: Analiza czasowo-częstotliwościowa (Hann 2048/512)...",
-        );
+        cb(0.35, "STFT: time-frequency analysis (Hann 2048/512)...");
     }
 
-    // 1. Okno Hanna
+    // 1. Hann window
     let mut window = vec![0.0f32; fft_size];
     for (i, w) in window.iter_mut().enumerate() {
         *w = 0.5 * (1.0 - (2.0 * PI * (i as f32) / (fft_size as f32)).cos());
@@ -92,7 +89,7 @@ where
     let num_frames = (n_samples - fft_size) / hop_size + 1;
     let num_bins = fft_size / 2 + 1;
 
-    // Bufory STFT (magnitude i phase)
+    // STFT buffers (magnitude and phase)
     let mut mag_left = vec![vec![0.0f32; num_bins]; num_frames];
     let mut phase_left = vec![vec![0.0f32; num_bins]; num_frames];
     let mut mag_right = vec![vec![0.0f32; num_bins]; num_frames];
@@ -104,7 +101,7 @@ where
     for frame in 0..num_frames {
         let offset = frame * hop_size;
 
-        // Kanał lewy
+        // Left channel
         for i in 0..fft_size {
             temp_re[i] = left[offset + i] * window[i];
             temp_im[i] = 0.0;
@@ -117,7 +114,7 @@ where
             phase_left[frame][k] = im.atan2(re);
         }
 
-        // Kanał prawy
+        // Right channel
         for i in 0..fft_size {
             temp_re[i] = right[offset + i] * window[i];
             temp_im[i] = 0.0;
@@ -132,15 +129,12 @@ where
     }
 
     if let Some(ref mut cb) = progress_cb {
-        cb(
-            0.50,
-            "HPSS: Filtracja medianowa (Harmoniczne vs Transjenty)...",
-        );
+        cb(0.50, "HPSS: median filtering (harmonics vs transients)...");
     }
 
-    // 2. Filtracja medianowa dla HPSS
-    // Promień w czasie (harmoniczne): ~15 ramek (~174 ms przy hop 512, 44.1 kHz)
-    // Promień w częstotliwości (perkusja): ~15 binów (~322 Hz przy 21.5 Hz/bin)
+    // 2. Median filtering for HPSS
+    // Time radius (harmonics): ~15 frames (~174 ms at hop 512, 44.1 kHz)
+    // Frequency radius (percussion): ~15 bins (~322 Hz at 21.5 Hz/bin)
     let r_time = 7usize;
     let r_freq = 7usize;
 
@@ -153,7 +147,7 @@ where
 
     for f in 0..num_frames {
         for k in 0..num_bins {
-            // Harmoniczna lewa: mediana w czasie (poziomo)
+            // Left harmonic: median along time (horizontal)
             let f_start = f.saturating_sub(r_time);
             let f_end = (f + r_time + 1).min(num_frames);
             scratch.clear();
@@ -162,21 +156,21 @@ where
             }
             harm_left[f][k] = quick_median(&mut scratch);
 
-            // Percussive lewa: mediana w częstotliwości (pionowo)
+            // Left percussive: median along frequency (vertical)
             let k_start = k.saturating_sub(r_freq);
             let k_end = (k + r_freq + 1).min(num_bins);
             scratch.clear();
             scratch.extend_from_slice(&mag_left[f][k_start..k_end]);
             perc_left[f][k] = quick_median(&mut scratch);
 
-            // Harmoniczna prawa
+            // Right harmonic
             scratch.clear();
             for row in mag_right.iter().take(f_end).skip(f_start) {
                 scratch.push(row[k]);
             }
             harm_right[f][k] = quick_median(&mut scratch);
 
-            // Percussive prawa
+            // Right percussive
             scratch.clear();
             scratch.extend_from_slice(&mag_right[f][k_start..k_end]);
             perc_right[f][k] = quick_median(&mut scratch);
@@ -186,18 +180,18 @@ where
     if let Some(ref mut cb) = progress_cb {
         cb(
             0.65,
-            "Separacja źródeł: Dekompozycja panoramy stereo i masek...",
+            "Source separation: stereo panorama and mask decomposition...",
         );
     }
 
-    // 3. Rozdzielenie na 4 maski: Drums, Bass, Vocals, Other
-    // Częstotliwości graniczne
+    // 3. Split into 4 masks: Drums, Bass, Vocals, Other
+    // Crossover frequencies
     let hz_per_bin = (sample_rate as f32) / (fft_size as f32);
     let bass_cutoff_bin = ((220.0 / hz_per_bin).round() as usize).min(num_bins - 1);
     let vocal_low_bin = ((160.0 / hz_per_bin).round() as usize).min(num_bins - 1);
     let vocal_high_bin = ((7500.0 / hz_per_bin).round() as usize).min(num_bins - 1);
 
-    // Bufory wyjściowe w dziedzinie częstotliwości
+    // Output buffers in the frequency domain
     let mut out_vocals_l = vec![vec![0.0f32; num_bins]; num_frames];
     let mut out_vocals_r = vec![vec![0.0f32; num_bins]; num_frames];
     let mut out_drums_l = vec![vec![0.0f32; num_bins]; num_frames];
@@ -217,7 +211,7 @@ where
             let h_r = harm_right[f][k];
             let p_r = perc_right[f][k];
 
-            // Maski Wienera HPSS (kwadraty dla wyrazistej separacji)
+            // HPSS Wiener masks (squared for a crisper separation)
             let eps = 1e-6f32;
             let mask_perc_l = (p_l * p_l) / (p_l * p_l + h_l * h_l + eps);
             let mask_harm_l = 1.0 - mask_perc_l;
@@ -228,19 +222,19 @@ where
             // Pan-based Center vs Side extraction
             let diff = (m_l - m_r).abs();
             let sum = m_l + m_r + eps;
-            let pan_side = (diff / sum).min(1.0); // 0.0 = idealny środek, 1.0 = skrajna panorama
+            let pan_side = (diff / sum).min(1.0); // 0.0 = dead centre, 1.0 = hard-panned
             let pan_center = (1.0 - 1.6 * pan_side).clamp(0.0, 1.0);
 
-            // 1. DRUMS (Wszystkie transjenty i składowe perkusyjne w całym paśmie)
-            // Stopa (<120Hz), werbel (200-2000Hz), hi-haty (>4000Hz)
+            // 1. DRUMS (every transient and percussive component across the full range)
+            // Kick (<120Hz), snare (200-2000Hz), hi-hats (>4000Hz)
             out_drums_l[f][k] = m_l * mask_perc_l;
             out_drums_r[f][k] = m_r * mask_perc_r;
 
-            // Pozostała energia harmoniczna
+            // Remaining harmonic energy
             let rem_h_l = m_l * mask_harm_l;
             let rem_h_r = m_r * mask_harm_r;
 
-            // 2. BASS (Harmoniczne w centrum poniżej 220 Hz)
+            // 2. BASS (centred harmonics below 220 Hz)
             if k <= bass_cutoff_bin {
                 let bass_weight = (1.0 - (k as f32 / bass_cutoff_bin as f32).powi(2)).max(0.0);
                 let bass_mask = bass_weight * (0.3 + 0.7 * pan_center);
@@ -248,18 +242,18 @@ where
                 out_bass_r[f][k] = rem_h_r * bass_mask;
             }
 
-            // 3. VOCALS (Harmoniczne w centrum w paśmie wokalnym 160 Hz - 7.5 kHz)
+            // 3. VOCALS (centred harmonics in the 160 Hz - 7.5 kHz vocal band)
             let voc_candidate_l = rem_h_l - out_bass_l[f][k];
             let voc_candidate_r = rem_h_r - out_bass_r[f][k];
 
             if k >= vocal_low_bin && k <= vocal_high_bin {
-                // Wokal prowadzący dominuje w centrum panoramy
+                // The lead vocal dominates the centre of the panorama
                 let vocal_mask = pan_center.powf(1.2);
                 out_vocals_l[f][k] = voc_candidate_l * vocal_mask;
                 out_vocals_r[f][k] = voc_candidate_r * vocal_mask;
             }
 
-            // 4. OTHER / RESIDUAL (Gitary, instrumenty klawiszowe, syntezatory, pogłosy, chórki w panoramie)
+            // 4. OTHER / RESIDUAL (guitars, keys, synths, reverb, panned backing vocals)
             out_other_l[f][k] =
                 (m_l - (out_drums_l[f][k] + out_bass_l[f][k] + out_vocals_l[f][k])).max(0.0);
             out_other_r[f][k] =
@@ -270,11 +264,11 @@ where
     if let Some(ref mut cb) = progress_cb {
         cb(
             0.80,
-            "ISTFT: Rekonstrukcja Overlap-Add sygnału w pełnym stereo...",
+            "ISTFT: overlap-add reconstruction of the full stereo signal...",
         );
     }
 
-    // 4. Rekonstrukcja sygnałów czasowych (ISTFT + Overlap-Add)
+    // 4. Reconstruct the time-domain signals (ISTFT + overlap-add)
     let mut rec_vocals_l = vec![0.0f32; n_samples];
     let mut rec_vocals_r = vec![0.0f32; n_samples];
     let mut rec_drums_l = vec![0.0f32; n_samples];
@@ -284,7 +278,7 @@ where
     let mut rec_other_l = vec![0.0f32; n_samples];
     let mut rec_other_r = vec![0.0f32; n_samples];
 
-    let norm_factor = 1.5f32; // Suma kwadratów okna Hanna przy 75% overlap
+    let norm_factor = 1.5f32; // Sum of squares of the Hann window at 75% overlap
 
     for frame in 0..num_frames {
         let offset = frame * hop_size;
@@ -358,7 +352,7 @@ where
         );
     }
 
-    // 5. Dokładna korekta residualna: Suma stemów musi być w 100% równa oryginałowi
+    // 5. Exact residual correction: the stems must sum to 100% of the original
     for i in 0..n_samples {
         let sum_l = rec_vocals_l[i] + rec_drums_l[i] + rec_bass_l[i] + rec_other_l[i];
         let diff_l = left[i] - sum_l;
@@ -377,7 +371,7 @@ where
     }
 }
 
-/// Rekonstruuje pojedynczą ramkę FFT do dziedziny czasu z oknem syntezy.
+/// Reconstructs one FFT frame into the time domain with a synthesis window.
 #[inline]
 fn reference_synth_frame(
     mag: &[f32],
@@ -411,7 +405,7 @@ fn reference_synth_frame(
     }
 }
 
-/// Deterministyczny sygnał z tonami, transjentami i różną panoramą.
+/// Deterministic signal with tones, transients and varied panning.
 fn mixed_test_signal(n: usize) -> (Vec<f32>, Vec<f32>) {
     let mut seed = 0x1234_5678u32;
     let mut noise = move || {
@@ -436,7 +430,7 @@ fn mixed_test_signal(n: usize) -> (Vec<f32>, Vec<f32>) {
 
 #[test]
 fn test_streaming_hpss_matches_full_matrix_reference_exactly() {
-    // 1,5 s: dużo więcej ramek niż bufor pierścieniowy (15), plus niepełne krawędzie.
+    // 1.5 s: far more frames than the ring buffer (15), plus partial edges.
     let (left, right) = mixed_test_signal(66_150);
     let new = separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
     let old = reference_separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
@@ -446,8 +440,8 @@ fn test_streaming_hpss_matches_full_matrix_reference_exactly() {
         ("bass", &new.bass, &old.bass),
         ("other", &new.other, &old.other),
     ] {
-        assert_eq!(a.0, b.0, "{name} L różni się od wzorca");
-        assert_eq!(a.1, b.1, "{name} R różni się od wzorca");
+        assert_eq!(a.0, b.0, "{name} L differs from the reference");
+        assert_eq!(a.1, b.1, "{name} R differs from the reference");
     }
 }
 

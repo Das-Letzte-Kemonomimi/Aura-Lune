@@ -1,9 +1,9 @@
-//! Moduł separacji stemów (ścieżek instrumentalnych i wokalnych).
+//! Stem separation (instrumental and vocal tracks).
 //!
-//! ZGODNIE Z ZASADĄ ARCHITEKTONICZNĄ:
-//! Separacja jest zadaniem asynchronicznym, wykonywanym w tle poza wątkiem audio.
-//! Ścieżki wynikowe (WAV/FLAC) zapisywane są w katalogu cache `~/.cache/auralune/stems/<hash>/`.
-//! Plik źródłowy utworu NIGDY nie jest modyfikowany.
+//! ARCHITECTURE RULE:
+//! Separation is an asynchronous job that runs in the background, off the audio thread.
+//! The output tracks (WAV/FLAC) are written to the cache directory `~/.cache/auralune/stems/<hash>/`.
+//! The source track file is NEVER modified.
 
 use crate::analysis::decode_stereo_for_stems;
 use crate::error::AudioEngineError;
@@ -24,10 +24,10 @@ pub type ProgressCallback = Box<dyn FnMut(f32, &str) + Send>;
 pub struct StemSeparator;
 
 impl StemSeparator {
-    /// Rozdziela utwór na 4 stemy: vocals, drums, bass, other.
+    /// Splits a track into 4 stems: vocals, drums, bass, other.
     ///
-    /// Jeżeli rozdzielone pliki istnieją już w pamięci podręcznej dla danego hasha pliku,
-    /// natychmiast zwraca istniejące metadane (zerowy narzut).
+    /// If separated files already exist in the cache for this file hash,
+    /// the existing metadata is returned right away (no overhead).
     pub fn separate_track(
         input_path: impl AsRef<Path>,
         track_id: i64,
@@ -50,11 +50,11 @@ impl StemSeparator {
         let bass_path = stems_dir.join("bass.wav");
         let other_path = stems_dir.join("other.wav");
 
-        // 1. Sprawdź, czy stem zostały już wcześniej wygenerowane (cache hit)
+        // 1. Check whether the stems were generated before (cache hit)
         if vocals_path.exists() && drums_path.exists() && bass_path.exists() && other_path.exists()
         {
             debug!(
-                "Stemy dla hasha {} znalezione w cache: {}",
+                "Stems for hash {} found in the cache: {}",
                 file_hash,
                 stems_dir.display()
             );
@@ -72,32 +72,29 @@ impl StemSeparator {
             });
         }
 
-        // 2. Dekodowanie próbek wejściowych do 360 sekund w pełnym stereo 44.1 kHz
+        // 2. Decode up to 360 seconds of input in full 44.1 kHz stereo
         if let Some(ref mut cb) = progress_cb {
-            cb(0.10, "Dekodowanie utworu źródłowego (Stereo 44.1 kHz)...");
+            cb(0.10, "Decoding the source track (stereo 44.1 kHz)...");
         }
 
         let uri = crate::uri::media_uri(&input_path.to_string_lossy());
-        // Bez zapasowego dekodowania mono z krótkim limitem czasu: obcięty wynik trafiłby
-        // do cache stemów na stałe.
+        // No fallback to a mono decode with a short timeout: a truncated result would end up
+        // in the stem cache permanently.
         let (left, right, sample_rate) = decode_stereo_for_stems(&uri, 360.0)
-            .map_err(|e| AudioEngineError::Pipeline(format!("Błąd dekodowania: {e}")))?;
+            .map_err(|e| AudioEngineError::Pipeline(format!("Decoding failed: {e}")))?;
 
         if let Some(ref mut cb) = progress_cb {
-            cb(
-                0.30,
-                "Zaawansowana separacja spektralna HPSS i panoramy stereo...",
-            );
+            cb(0.30, "Spectral HPSS and stereo panorama separation...");
         }
 
-        // 3. Zaawansowana separacja spektralna HPSS (Harmonic-Percussive Source Separation)
-        // Wyodrębnia transjenty perkusyjne w całym paśmie oraz harmoniczne wokalne i basowe
+        // 3. Spectral HPSS (harmonic-percussive source separation)
+        // Extracts percussive transients across the full range plus vocal and bass harmonics
         let stems = separate_stereo_hpss(&left, &right, sample_rate, progress_cb.as_deref_mut());
 
         if let Some(ref mut cb) = progress_cb {
             cb(
                 0.88,
-                "Zapis bezstratnych ścieżek WAV (Stereo 44.1 kHz) do pamięci podręcznej...",
+                "Writing lossless WAV tracks (stereo 44.1 kHz) to the cache...",
             );
         }
 
@@ -109,11 +106,11 @@ impl StemSeparator {
         let _ = write_wav_file_stereo(&other_path, &stems.other.0, &stems.other.1, sample_rate)?;
 
         if let Some(ref mut cb) = progress_cb {
-            cb(1.00, "Zakończono zaawansowaną separację stemów.");
+            cb(1.00, "Stem separation finished.");
         }
 
         info!(
-            "Pomyślnie rozdzielono utwór {} na 4 stemy w {}",
+            "Split track {} into 4 stems in {}",
             track_id,
             stems_dir.display()
         );
@@ -132,11 +129,11 @@ impl StemSeparator {
         })
     }
 
-    /// Przeprowadza wieloetapową, hierarchiczną separację kaskadową (Cascaded Separation)
-    /// dla Moises-style Stem Project.
+    /// Runs a multi-stage, hierarchical cascaded separation
+    /// for a Moises-style stem project.
     ///
-    /// Każdy etap zachowuje resztę spektralną (residual), gwarantując, że suma
-    /// wszystkich wygenerowanych kanałów liściowych idealnie rekonstruuje sygnał pierwotny.
+    /// Every stage keeps the spectral residual, so the sum of
+    /// all generated leaf channels reconstructs the original signal exactly.
     pub fn separate_stem_project(
         input_path: impl AsRef<Path>,
         project_id: i64,
@@ -155,14 +152,14 @@ impl StemSeparator {
         fs::create_dir_all(&proj_dir)?;
 
         if let Some(ref mut cb) = progress_cb {
-            cb(0.05, "Dekodowanie utworu źródłowego (Stereo 44.1 kHz)...");
+            cb(0.05, "Decoding the source track (stereo 44.1 kHz)...");
         }
 
         let uri = crate::uri::media_uri(&input_path.to_string_lossy());
-        // Bez zapasowego dekodowania mono z krótkim limitem czasu: obcięty wynik trafiłby
-        // do cache stemów na stałe.
+        // No fallback to a mono decode with a short timeout: a truncated result would end up
+        // in the stem cache permanently.
         let (left, right, sample_rate) = decode_stereo_for_stems(&uri, 360.0)
-            .map_err(|e| AudioEngineError::Pipeline(format!("Błąd dekodowania: {e}")))?;
+            .map_err(|e| AudioEngineError::Pipeline(format!("Decoding failed: {e}")))?;
 
         let n = left.len().min(right.len());
 
@@ -182,12 +179,12 @@ impl StemSeparator {
         if let Some(ref mut cb) = progress_cb {
             cb(
                 0.20,
-                "Etap 1: Zaawansowana dekompozycja spektralna HPSS (Base Separation)...",
+                "Stage 1: spectral HPSS decomposition (base separation)...",
             );
         }
 
         // =========================================================================
-        // ETAP 1: BAZOWY PODZIAŁ HPSS (Stage 1 Base)
+        // STAGE 1: BASE HPSS SPLIT
         // =========================================================================
         let stems = separate_stereo_hpss(&left, &right, sample_rate, progress_cb.as_deref_mut());
         let (vocals_l, vocals_r) = stems.vocals;
@@ -196,19 +193,16 @@ impl StemSeparator {
         let (other_l, other_r) = stems.other;
 
         if let Some(ref mut cb) = progress_cb {
-            cb(
-                0.50,
-                "Etap 2: Kaskadowa dekompozycja specjalistyczna (Cascaded Stage 2)...",
-            );
+            cb(0.50, "Stage 2: cascaded specialist decomposition...");
         }
 
         let mut channels = Vec::new();
 
         // =========================================================================
-        // ETAP 2: KASKADOWE PODZIAŁY INSTRUMENTÓW
+        // STAGE 2: CASCADED INSTRUMENT SPLITS
         // =========================================================================
 
-        // 1. Wokale (Vocals -> Lead Vocal + Backing Vocals)
+        // 1. Vocals (Vocals -> Lead Vocal + Backing Vocals)
         if has_vocal_harmonies {
             let lead_t_l = apply_biquad_hpf(&vocals_l, sample_rate as f64, 800.0, 0.707);
             let lead_l = apply_biquad_lpf(&lead_t_l, sample_rate as f64, 3800.0, 0.707);
@@ -231,7 +225,7 @@ impl StemSeparator {
                 file_path: lead_p.to_string_lossy().to_string(),
                 color_hex: default_stem_color("lead_vocal").to_string(),
                 quality_tier: StemQualityTier::HighQuality,
-                volume: 0.75, // 0 dB domyślnie
+                volume: 0.75, // 0 dB by default
                 pan: 0.0,
                 mute: false,
                 solo: false,
@@ -268,7 +262,7 @@ impl StemSeparator {
             });
         }
 
-        // 2. Perkusja (Drums -> Kick + Snare + Hi-Hat + Toms + Cymbals + Percussion)
+        // 2. Drums (Drums -> Kick + Snare + Hi-Hat + Toms + Cymbals + Percussion)
         if has_drum_pieces {
             let kick_l = apply_biquad_lpf(&drums_l, sample_rate as f64, 110.0, 0.707);
             let kick_r = apply_biquad_lpf(&drums_r, sample_rate as f64, 110.0, 0.707);
@@ -356,7 +350,7 @@ impl StemSeparator {
             solo: false,
         });
 
-        // 4. Gitary i Instrumenty Klawiszowe (Guitars + Piano + Synth)
+        // 4. Guitars and keys (guitars + piano + synth)
         if has_extended_6stem {
             let ac_g_l = apply_biquad_hpf(&other_l, sample_rate as f64, 2500.0, 0.707)
                 .iter()
@@ -408,7 +402,7 @@ impl StemSeparator {
                 });
             }
 
-            // Fortepian / Klawisze (Piano & Synth)
+            // Piano / keys (Piano & Synth)
             let piano_l = apply_biquad_lpf(&other_l, sample_rate as f64, 3200.0, 0.707)
                 .iter()
                 .map(|&s| s * 0.4)
@@ -456,7 +450,7 @@ impl StemSeparator {
             });
         }
 
-        // 5. Sekcja Orkiestrowa & Inne (Strings + Brass + Woodwinds + Other)
+        // 5. Orchestral section and others (strings + brass + woodwinds + other)
         if has_orchestral {
             let str_t_l = apply_biquad_hpf(&other_l, sample_rate as f64, 1200.0, 0.707);
             let strings_l = apply_biquad_lpf(&str_t_l, sample_rate as f64, 5000.0, 0.707)
@@ -541,14 +535,14 @@ impl StemSeparator {
         }
 
         if let Some(ref mut cb) = progress_cb {
-            cb(1.00, "Projekt stemów został pomyślnie utworzony.");
+            cb(1.00, "Stem project created.");
         }
 
         Ok(channels)
     }
 }
 
-/// Zapisuje bufor próbek audio do formatu RIFF WAV (16-bit PCM).
+/// Writes a buffer of audio samples as RIFF WAV (16-bit PCM).
 pub fn write_wav_file(
     path: &Path,
     samples: &[f32],
@@ -559,8 +553,8 @@ pub fn write_wav_file(
         fs::create_dir_all(parent)?;
     }
 
-    // Zapis do pliku tymczasowego i `rename`: przerwany zapis nigdy nie zostawia obciętego
-    // pliku pod docelową nazwą (cache stemów uznałby go za gotowy).
+    // Write to a temp file and `rename`: an interrupted write never leaves a truncated
+    // file under the target name (the stem cache would treat it as complete).
     let mut partial_name = path.as_os_str().to_owned();
     partial_name.push(".partial");
     let partial = std::path::PathBuf::from(partial_name);
@@ -618,7 +612,7 @@ fn write_wav_contents(
     Ok(())
 }
 
-/// Zapisuje stereofoniczne próbki L i R do 16-bitowego pliku RIFF WAV (Stereo, 2 kanały).
+/// Writes stereo L and R samples to a 16-bit RIFF WAV file (stereo, 2 channels).
 pub fn write_wav_file_stereo(
     path: &Path,
     left: &[f32],
@@ -634,7 +628,7 @@ pub fn write_wav_file_stereo(
     write_wav_file(path, &interleaved, sample_rate, 2)
 }
 
-/// Filtr Biquad dolnoprzepustowy (Low-Pass Filter) 2. rzędu.
+/// Second-order biquad low-pass filter.
 fn apply_biquad_lpf(samples: &[f32], sample_rate: f64, cutoff: f64, q: f64) -> Vec<f32> {
     let omega = 2.0 * PI * (cutoff / sample_rate);
     let alpha = omega.sin() / (2.0 * q);
@@ -650,7 +644,7 @@ fn apply_biquad_lpf(samples: &[f32], sample_rate: f64, cutoff: f64, q: f64) -> V
     run_biquad_filter(samples, b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
 }
 
-/// Filtr Biquad górnoprzepustowy (High-Pass Filter) 2. rzędu.
+/// Second-order biquad high-pass filter.
 fn apply_biquad_hpf(samples: &[f32], sample_rate: f64, cutoff: f64, q: f64) -> Vec<f32> {
     let omega = 2.0 * PI * (cutoff / sample_rate);
     let alpha = omega.sin() / (2.0 * q);

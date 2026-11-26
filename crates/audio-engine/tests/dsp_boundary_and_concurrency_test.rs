@@ -47,8 +47,8 @@ fn test_dsp_boundary_clamping_and_rapid_seeks() {
     engine.stop().expect("stop");
 }
 
-/// Regresja: `play_index` (queue → inner) i `play()` (inner → queue) wywoływane z różnych wątków
-/// nie mogą się zakleszczyć. Test kończy się porażką, jeśli wątki nie zakończą pracy w limicie czasu.
+/// Regression: `play_index` (queue → inner) and `play()` (inner → queue) called from different threads
+/// must not deadlock. The test fails if the threads don't finish within the timeout.
 #[test]
 fn test_concurrent_play_and_play_index_do_not_deadlock() {
     use domain::queue::QueueItem;

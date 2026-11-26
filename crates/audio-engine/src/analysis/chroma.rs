@@ -1,45 +1,45 @@
-//! Chromagram: okienkowane FFT, szczyty widma z interpolacją paraboliczną, globalny strój,
-//! kompresja logarytmiczna i lekkie tłumienie alikwotów.
+//! Chromagram: windowed FFT, spectral peaks with parabolic interpolation, global tuning,
+//! logarithmic compression and light overtone suppression.
 //!
-//! Wejściem są próbki mono; wyjściem wektory 12 klas wysokości dźwięku na ramkę STFT. Wektory
-//! ramek są później agregowane medianą w obrębie uderzenia (zob. [`StftChroma::beat_chroma`]).
+//! Input is mono samples; output is a 12-pitch-class vector per STFT frame. Frame vectors
+//! are later aggregated by median within a beat (see [`StftChroma::beat_chroma`]).
 
 use crate::hpss::fft_radix2;
 use std::f64::consts::PI;
 
-/// Rozmiar okna STFT (≈186 ms przy 22,05 kHz).
+/// STFT window size (≈186 ms at 22.05 kHz).
 pub const CHROMA_FFT_SIZE: usize = 4096;
-/// Przesunięcie okna STFT (50% nakładania).
+/// STFT hop (50% overlap).
 pub const CHROMA_HOP: usize = 2048;
-/// Najniższy uwzględniany dźwięk (MIDI 38 = D2); niżej rozdzielczość FFT jest za mała.
+/// Lowest note considered (MIDI 38 = D2); below it the FFT resolution is too coarse.
 const MIDI_LOW: f64 = 38.0;
-/// Najwyższy uwzględniany dźwięk (MIDI 96 = C7).
+/// Highest note considered (MIDI 96 = C7).
 const MIDI_HIGH: f64 = 96.0;
-/// Szczyt musi mieć co najmniej taki ułamek największego szczytu ramki (≈ −30 dB).
+/// A peak must reach at least this fraction of the frame's largest peak (≈ −30 dB).
 const PEAK_REL_THRESHOLD: f32 = 0.03;
-/// Siła kompresji logarytmicznej `ln(1 + γ·mag/max)`.
+/// Strength of the logarithmic compression `ln(1 + γ·mag/max)`.
 const LOG_COMPRESSION_GAMMA: f64 = 50.0;
-/// Ułamek energii podstawy odejmowany od 3. i 5. alikwotu.
+/// Fraction of the fundamental's energy subtracted from the 3rd and 5th overtones.
 const PARTIAL3_SUPPRESSION: f64 = 0.25;
 const PARTIAL5_SUPPRESSION: f64 = 0.12;
-/// Poniżej tej wysokości (MIDI) waga basu rośnie liniowo od 0,15 do 1.
+/// Below this pitch (MIDI) the bass weight rises linearly from 0.15 to 1.
 const BASS_FULL_WEIGHT_MIDI: f64 = 55.0;
-/// Powyżej tej wysokości (MIDI) waga maleje do 0,5 przy `MIDI_HIGH`.
+/// Above this pitch (MIDI) the weight falls to 0.5 at `MIDI_HIGH`.
 const TREBLE_ROLLOFF_MIDI: f64 = 84.0;
-/// Minimalna energia (po zsumowaniu), poniżej której wektor chromatyczny uznajemy za zerowy.
+/// Minimum (summed) energy below which a chroma vector is treated as zero.
 const MIN_CHROMA_NORM: f64 = 1e-5;
 
-/// Szczyt widma: wysokość w półtonach MIDI (ułamkowa) i waga.
+/// Spectral peak: pitch in (fractional) MIDI semitones and weight.
 type Peak = (f64, f64);
 
-/// Szczyty jednej ramki wraz z jej energią (RMS) sprzed okienkowania.
+/// Peaks of one frame together with its pre-window energy (RMS).
 #[derive(Debug, Clone, Default)]
 pub(super) struct FramePeaks {
     pub rms: f64,
     pub peaks: Vec<Peak>,
 }
 
-/// Analizator pojedynczych ramek z powtórnie używanymi buforami FFT.
+/// Single-frame analyser that reuses its FFT buffers.
 pub(super) struct PeakAnalyzer {
     size: usize,
     window: Vec<f32>,
@@ -49,7 +49,7 @@ pub(super) struct PeakAnalyzer {
 }
 
 impl PeakAnalyzer {
-    /// `size` – rozmiar FFT (potęga dwójki), `win_len` – długość okna Hanninga (≤ `size`).
+    /// `size`: FFT size (power of two), `win_len`: Hann window length (≤ `size`).
     pub(super) fn new(size: usize, win_len: usize) -> Self {
         let win_len = win_len.clamp(2, size);
         let window = (0..win_len)
@@ -146,7 +146,7 @@ fn hz_to_midi(hz: f64) -> f64 {
     69.0 + 12.0 * (hz / 440.0).log2()
 }
 
-/// Atenuacja basu (słabo rozdzielany przez FFT i zdominowany przez podstawy) oraz wysokich tonów.
+/// Attenuates the bass (poorly resolved by the FFT and dominated by fundamentals) and the highs.
 fn register_weight(midi: f64) -> f64 {
     if midi < BASS_FULL_WEIGHT_MIDI {
         let t = ((midi - MIDI_LOW) / (BASS_FULL_WEIGHT_MIDI - MIDI_LOW)).clamp(0.0, 1.0);
@@ -159,10 +159,10 @@ fn register_weight(midi: f64) -> f64 {
     1.0
 }
 
-/// Odejmuje część energii podstawy od jej 3. i 5. alikwotu (szczyty są posortowane rosnąco).
+/// Subtracts part of a fundamental's energy from its 3rd and 5th overtones (peaks are sorted ascending).
 fn suppress_harmonics(peaks: &mut [Peak]) {
     const TOLERANCE: f64 = 0.4;
-    // 12·log2(3) i 12·log2(5) półtonów ponad podstawą.
+    // 12·log2(3) and 12·log2(5) semitones above the fundamental.
     const PARTIALS: [(f64, f64); 2] = [
         (19.019_550_008_653_875, PARTIAL3_SUPPRESSION),
         (27.863_137_138_648_348, PARTIAL5_SUPPRESSION),
@@ -186,8 +186,8 @@ fn suppress_harmonics(peaks: &mut [Peak]) {
     }
 }
 
-/// Globalne odstrojenie (w półtonach, `[-0.5, 0.5]`) jako ważona średnia kołowa odchyleń
-/// szczytów od najbliższego półtonu.
+/// Global detuning (in semitones, `[-0.5, 0.5]`) as a weighted circular mean of the peaks'
+/// deviations from the nearest semitone.
 pub(super) fn estimate_tuning<'a>(frames: impl IntoIterator<Item = &'a FramePeaks>) -> f64 {
     let (mut sin_sum, mut cos_sum) = (0.0f64, 0.0f64);
     for frame in frames {
@@ -206,7 +206,7 @@ pub(super) fn estimate_tuning<'a>(frames: impl IntoIterator<Item = &'a FramePeak
     sin_sum.atan2(cos_sum) / (2.0 * PI)
 }
 
-/// Składa nieznormalizowany wektor chromatyczny ze szczytów po korekcie strojenia.
+/// Builds an unnormalised chroma vector from the peaks after tuning correction.
 pub(super) fn chroma_from_peaks(peaks: &[Peak], tuning: f64) -> [f64; 12] {
     let mut chroma = [0.0f64; 12];
     for &(midi, weight) in peaks {
@@ -216,7 +216,7 @@ pub(super) fn chroma_from_peaks(peaks: &[Peak], tuning: f64) -> [f64; 12] {
     chroma
 }
 
-/// Normalizacja L2; zwraca `false` (i zeruje wektor), gdy energia jest znikoma.
+/// L2 normalisation; returns `false` (and zeroes the vector) when the energy is negligible.
 pub(super) fn normalize_chroma(chroma: &mut [f64; 12]) -> bool {
     let norm = chroma.iter().map(|&v| v * v).sum::<f64>().sqrt();
     if norm <= MIN_CHROMA_NORM {
@@ -229,9 +229,9 @@ pub(super) fn normalize_chroma(chroma: &mut [f64; 12]) -> bool {
     true
 }
 
-/// Ekstrahuje wektor chromagramu (12 klas wysokości dźwięku, norma L2) dla pojedynczej ramki PCM:
-/// okno Hanninga, FFT, szczyty widma z kompresją logarytmiczną, tłumienie alikwotów i strój
-/// estymowany z samej ramki.
+/// Extracts a chroma vector (12 pitch classes, L2 norm) for a single PCM frame:
+/// Hann window, FFT, spectral peaks with logarithmic compression, overtone suppression and tuning
+/// estimated from the frame itself.
 pub fn extract_chroma_frame(frame: &[f32], sample_rate: f64) -> [f64; 12] {
     if frame.len() < 128 {
         return [0.0; 12];
@@ -245,13 +245,13 @@ pub fn extract_chroma_frame(frame: &[f32], sample_rate: f64) -> [f64; 12] {
     chroma
 }
 
-/// Chromagram całego utworu: ramki STFT (znormalizowane L2) z czasem środka i energią RMS.
+/// Chromagram of a whole track: STFT frames (L2-normalised) with centre time and RMS energy.
 pub(super) struct StftChroma {
-    /// Czas środka ramki w ms.
+    /// Frame centre time in ms.
     pub times_ms: Vec<f64>,
     pub chroma: Vec<[f64; 12]>,
     pub rms: Vec<f64>,
-    /// Globalne odstrojenie użyte do złożenia chromagramu (półtony).
+    /// Global detuning used to build the chromagram (semitones).
     pub tuning: f64,
 }
 
@@ -285,8 +285,8 @@ impl StftChroma {
         out
     }
 
-    /// Mediana wektorów chromatycznych ramek, których środek leży w `[start_ms, end_ms)`
-    /// (gdy brak takich ramek – najbliższa ramka), znormalizowana L2, oraz mediana RMS.
+    /// Median of the chroma vectors of frames whose centre lies in `[start_ms, end_ms)`
+    /// (the nearest frame when there are none), L2-normalised, plus the median RMS.
     pub(super) fn beat_chroma(&self, start_ms: f64, end_ms: f64) -> ([f64; 12], f64) {
         if self.times_ms.is_empty() {
             return ([0.0; 12], 0.0);
@@ -314,7 +314,7 @@ impl StftChroma {
     }
 }
 
-/// Mediana (modyfikuje kolejność elementów); 0 dla pustego wejścia.
+/// Median (reorders the elements); 0 for empty input.
 pub(super) fn median(values: &mut [f64]) -> f64 {
     if values.is_empty() {
         return 0.0;

@@ -1,4 +1,4 @@
-//! Menedżer modeli uczenia maszynowego (Model Manager) oraz wykrywanie akceleracji sprzętowej.
+//! Machine-learning model manager and hardware acceleration detection.
 
 use domain::analysis::{AiModelInfo, AiTaskType, AnalysisCapabilities};
 use hex;
@@ -7,7 +7,7 @@ use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-/// Zwraca katalog przechowywania modeli AI zgodny ze standardem XDG Base Directory.
+/// Returns the AI model storage directory, following the XDG Base Directory spec.
 pub fn get_models_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
         if !xdg.trim().is_empty() {
@@ -24,7 +24,7 @@ pub fn get_models_dir() -> PathBuf {
     PathBuf::from("/tmp/auralune/models")
 }
 
-/// Zwraca katalog pamięci podręcznej dla rozdzielonych ścieżek audio (Stems).
+/// Returns the cache directory for separated audio tracks (stems).
 pub fn get_stems_cache_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
         if !xdg.trim().is_empty() {
@@ -40,7 +40,7 @@ pub fn get_stems_cache_dir() -> PathBuf {
     PathBuf::from("/tmp/auralune/stems")
 }
 
-/// Zwraca katalog pamięci podręcznej dla projektów stemów (Moises-like Stem Projects).
+/// Returns the cache directory for stem projects (Moises-like stem projects).
 pub fn get_stem_projects_cache_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
         if !xdg.trim().is_empty() {
@@ -56,7 +56,7 @@ pub fn get_stem_projects_cache_dir() -> PathBuf {
     PathBuf::from("/tmp/auralune/stem_projects")
 }
 
-/// Oblicza sumę kontrolną SHA-256 dla zadanego pliku.
+/// Computes the SHA-256 checksum of a file.
 pub fn calculate_file_sha256(path: &Path) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
@@ -73,7 +73,7 @@ pub fn calculate_file_sha256(path: &Path) -> io::Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-/// Weryfikuje czy plik istnieje oraz czy jego suma SHA-256 zgadza się ze spodziewaną wartością.
+/// Checks that a file exists and that its SHA-256 matches the expected value.
 pub fn verify_file_sha256(path: &Path, expected_hex: &str) -> bool {
     if !path.exists() {
         return false;
@@ -87,7 +87,7 @@ pub fn verify_file_sha256(path: &Path, expected_hex: &str) -> bool {
     }
 }
 
-/// Zwraca domyślny katalog oficjalnie wspieranych modeli AI dla Auralune.
+/// Returns the default catalogue of AI models officially supported by Auralune.
 pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
     let models_dir = get_models_dir();
 
@@ -155,7 +155,7 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
     ]
 }
 
-/// Zwraca listę zarejestrowanych modeli z dynamicznie sprawdzonym stanem instalacji.
+/// Returns the registered models with their installation state checked live.
 pub fn list_available_models() -> Vec<AiModelInfo> {
     let mut catalog = get_default_model_catalog();
     for model in catalog.iter_mut() {
@@ -165,7 +165,7 @@ pub fn list_available_models() -> Vec<AiModelInfo> {
     catalog
 }
 
-/// Zwraca oficjalny katalog pakietów modeli (Model Packs) dla Moises-style Stem Projects.
+/// Returns the official catalogue of model packs for Moises-style stem projects.
 pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
     let _models_dir = get_models_dir();
 
@@ -316,7 +316,7 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
     ]
 }
 
-/// Zwraca listę pakietów modeli z dynamicznie sprawdzonym stanem instalacji na dysku.
+/// Returns the model packs with their on-disk installation state checked live.
 pub fn list_available_model_packs() -> Vec<domain::ModelPackInfo> {
     let models_dir = get_models_dir();
     let mut catalog = get_model_packs_catalog();
@@ -338,19 +338,19 @@ pub fn list_available_model_packs() -> Vec<domain::ModelPackInfo> {
     catalog
 }
 
-/// Wykrywa dostępnego dostawcę akceleracji sprzętowej (GPU) na systemie Linux.
+/// Detects an available hardware (GPU) acceleration provider on Linux.
 pub fn detect_acceleration_provider() -> (bool, String) {
-    // 1. Sprawdzenie AMD ROCm / HIP (CachyOS / Arch)
+    // 1. Check for AMD ROCm / HIP (CachyOS / Arch)
     if Path::new("/dev/kfd").exists() {
         return (true, "ROCm (AMD ROCm / HIP Acceleration)".to_string());
     }
 
-    // 2. Sprawdzenie NVIDIA CUDA
+    // 2. Check for NVIDIA CUDA
     if Path::new("/proc/driver/nvidia/version").exists() || Path::new("/dev/nvidia0").exists() {
         return (true, "CUDA (NVIDIA TensorRT / CUDA)".to_string());
     }
 
-    // 3. Sprawdzenie Vulkan / Direct Rendering
+    // 3. Check for Vulkan / Direct Rendering
     if Path::new("/dev/dri/renderD128").exists() {
         return (true, "Vulkan / Direct Rendering (DRI)".to_string());
     }
@@ -361,7 +361,7 @@ pub fn detect_acceleration_provider() -> (bool, String) {
     )
 }
 
-/// Pobiera możliwości systemu w zakresie analizy muzycznej raportowane do UI.
+/// Returns the system's music-analysis capabilities as reported to the UI.
 pub fn get_analysis_capabilities() -> AnalysisCapabilities {
     let ml_enabled = cfg!(feature = "analysis-ml");
     let (gpu_available, provider) = detect_acceleration_provider();
@@ -376,7 +376,7 @@ pub fn get_analysis_capabilities() -> AnalysisCapabilities {
     }
 }
 
-/// Bezpiecznie usuwa plik modelu z dysku.
+/// Safely deletes a model file from disk.
 pub fn remove_model_file(model_id: &str) -> io::Result<bool> {
     let catalog = get_default_model_catalog();
     if let Some(target) = catalog.iter().find(|m| m.id == model_id) {

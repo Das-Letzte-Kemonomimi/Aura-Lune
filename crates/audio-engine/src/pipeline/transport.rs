@@ -1,9 +1,9 @@
-//! Sterowanie odtwarzaniem: play/pauza/stop, przewijanie i pozycja.
+//! Playback control: play/pause/stop, seeking and position.
 
 use super::*;
 
 impl AudioEngine {
-    /// Rozpoczyna lub wznawia odtwarzanie.
+    /// Starts or resumes playback.
     pub fn play(&self) -> Result<(), AudioEngineError> {
         let uri_to_load = {
             let inner = self.inner.lock_safe();
@@ -24,7 +24,7 @@ impl AudioEngine {
         let (pipeline, volume, user_vol) = {
             let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
-                debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play");
+                debug!("No file loaded and no active track in the queue; skipping play");
                 return Ok(());
             }
             inner.state = PlaybackState::Playing;
@@ -34,13 +34,13 @@ impl AudioEngine {
         pipeline.set_state(gst::State::Playing)?;
         volume.set_property("volume", user_vol);
         debug!(
-            "Stan potoku zmieniony na Playing (głośność: {:.2})",
+            "Pipeline state changed to Playing (volume: {:.2})",
             user_vol
         );
         Ok(())
     }
 
-    /// Wznawia odtwarzanie z opcjonalnym mikro-fade-in (ok. 30ms).
+    /// Resumes playback with an optional micro fade-in (about 30 ms).
     pub fn play_with_fade(&self, fade: bool) -> Result<(), AudioEngineError> {
         if !fade {
             return self.play();
@@ -65,7 +65,7 @@ impl AudioEngine {
         let (pipeline, volume, target_vol) = {
             let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
-                debug!("Brak załadowanego pliku lub aktywnego utworu w kolejce — pomijam play_with_fade");
+                debug!("No file loaded and no active track in the queue; skipping play_with_fade");
                 return Ok(());
             }
             inner.volume.set_property("volume", 0.0f64);
@@ -73,7 +73,7 @@ impl AudioEngine {
             (inner.pipeline.clone(), inner.volume.clone(), self.volume())
         };
 
-        // Wykonanie zmiany stanu potoku poza blokadą mutexu inner
+        // Change the pipeline state outside the `inner` mutex
         pipeline.set_state(gst::State::Playing)?;
 
         let steps = 4;
@@ -84,11 +84,11 @@ impl AudioEngine {
         }
         volume.set_property("volume", target_vol);
 
-        debug!("Stan potoku zmieniony na Playing z mikro-fade-in");
+        debug!("Pipeline state changed to Playing with a micro fade-in");
         Ok(())
     }
 
-    /// Wstrzymuje odtwarzanie (pauza).
+    /// Pauses playback.
     pub fn pause(&self) -> Result<(), AudioEngineError> {
         let pipeline = {
             let mut inner = self.inner.lock_safe();
@@ -96,11 +96,11 @@ impl AudioEngine {
             inner.pipeline.clone()
         };
         pipeline.set_state(gst::State::Paused)?;
-        debug!("Stan potoku zmieniony na Paused");
+        debug!("Pipeline state changed to Paused");
         Ok(())
     }
 
-    /// Wstrzymuje odtwarzanie (pauza) z opcjonalnym mikro-fade-out (ok. 30ms).
+    /// Pauses playback with an optional micro fade-out (about 30 ms).
     pub fn pause_with_fade(&self, fade: bool) -> Result<(), AudioEngineError> {
         if !fade {
             return self.pause();
@@ -124,11 +124,11 @@ impl AudioEngine {
             let mut inner = self.inner.lock_safe();
             inner.state = PlaybackState::Paused;
         }
-        debug!("Stan potoku zmieniony na Paused z mikro-fade-out");
+        debug!("Pipeline state changed to Paused with a micro fade-out");
         Ok(())
     }
 
-    /// Zwraca surową pozycję ze zlewu odtwarzania (zegar urządzenia audio).
+    /// Returns the raw position from the playback sink (the audio device clock).
     pub(super) fn query_raw_sink_position(inner: &PipelineInner) -> Option<Duration> {
         let mut q = gst::query::Position::new(gst::Format::Time);
         if inner.pipeline.query(&mut q) {
@@ -143,7 +143,7 @@ impl AudioEngine {
         }
     }
 
-    /// Zwraca całkowity czas trwania załadowanego pliku (z demuxera/dekodera).
+    /// Returns the total duration of the loaded file (from the demuxer/decoder).
     pub(super) fn query_raw_duration(inner: &PipelineInner) -> Option<Duration> {
         let mut q = gst::query::Duration::new(gst::Format::Time);
         if inner.pipeline.query(&mut q) {
@@ -158,11 +158,11 @@ impl AudioEngine {
         }
     }
 
-    /// Oblicza rzeczywistą pozycję w pliku źródłowym, synchronizując oś czasu z potokiem i silnikiem DSP.
+    /// Computes the real position in the source file, syncing the timeline with the pipeline and the DSP engine.
     pub(super) fn calculate_media_position(inner: &PipelineInner) -> Option<Duration> {
         let sink_pos = Self::query_raw_sink_position(inner).unwrap_or(inner.base_sink_pts);
 
-        // Jeśli podczas prerollu/seeku zapytanie do sinka zwraca 0, a pozycja bazowa jest > 0, zachowaj pozycję bazową
+        // If the sink query returns 0 during preroll/seek and the base position is > 0, keep the base position
         if sink_pos == Duration::ZERO && inner.base_media_pos > Duration::ZERO {
             return if let Some(dur) = Self::query_raw_duration(inner) {
                 Some(inner.base_media_pos.min(dur))
@@ -193,7 +193,7 @@ impl AudioEngine {
         }
     }
 
-    /// Zatrzymuje odtwarzanie i resetuje pozycję.
+    /// Stops playback and resets the position.
     pub fn stop(&self) -> Result<(), AudioEngineError> {
         let pipeline = {
             let mut inner = self.inner.lock_safe();
@@ -203,20 +203,20 @@ impl AudioEngine {
             inner.pipeline.clone()
         };
         pipeline.set_state(gst::State::Null)?;
-        debug!("Stan potoku zmieniony na Stopped (Null)");
+        debug!("Pipeline state changed to Stopped (Null)");
         Ok(())
     }
 
-    /// Przewija do zadanej pozycji w czasie (natychmiastowy skok).
+    /// Seeks to the given position (an immediate jump).
     pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
-        // Jeśli nie załadowano jeszcze żadnego URI lub potok jest w stanie spoczynku (Null),
-        // po prostu zapamiętujemy pozycję jako punkt początkowy bez błędu BoolError
+        // If no URI is loaded yet or the pipeline is idle (Null),
+        // just remember the position as the starting point, without a BoolError
         if inner.current_uri.is_none() || inner.pipeline.current_state() == gst::State::Null {
             inner.base_media_pos = position;
             inner.base_sink_pts = position;
             debug!(
-                "Zapisano pozycję początkową seek w stanie oczekiwania: {:?}",
+                "Stored the initial seek position while idle: {:?}",
                 position
             );
             return Ok(());
@@ -228,17 +228,17 @@ impl AudioEngine {
             position_ns,
         ) {
             debug!(
-                "Ostrzeżenie seek_simple (np. brak gotowego prerollu): {:?}",
+                "seek_simple warning (e.g. preroll not ready yet): {:?}",
                 err
             );
         }
         inner.base_media_pos = position;
         inner.base_sink_pts = position;
-        debug!("Wykonano seek do {:?}", position);
+        debug!("Seeked to {:?}", position);
         Ok(())
     }
 
-    /// Przewija do zadanej pozycji z opcjonalnym miękkim wyciszeniem (mikro-fade out/in).
+    /// Seeks to the given position with an optional soft micro fade out/in.
     pub fn seek_with_fade(&self, position: Duration, fade: bool) -> Result<(), AudioEngineError> {
         if !fade {
             return self.seek(position);
@@ -257,11 +257,11 @@ impl AudioEngine {
 
         let step_delay = Duration::from_millis(8);
 
-        // 1. Łagodny, miękki mikro-fade-out (4 kroki po 8ms = 32ms)
+        // 1. Gentle micro fade-out (4 steps of 8 ms = 32 ms)
         let fade_out_steps = 4;
         for i in (0..fade_out_steps).rev() {
             let factor = (i as f64) / (fade_out_steps as f64);
-            let curve = factor * factor; // Naturalna kwadratowa krzywa wygaszania
+            let curve = factor * factor; // Natural quadratic fade curve
             {
                 let inner = self.inner.lock_safe();
                 if inner.seek_seq != current_seq {
@@ -280,17 +280,17 @@ impl AudioEngine {
             inner.volume.set_property("volume", 0.0f64);
         }
 
-        // 2. Właściwy skok czasowy w potoku GStreamer
+        // 2. The actual seek in the GStreamer pipeline
         self.seek(position)?;
 
-        // 3. Krótka stabilizacja bufora po skoku (10ms)
+        // 3. Short buffer settling after the seek (10 ms)
         std::thread::sleep(Duration::from_millis(10));
 
-        // 4. Płynny powrót głośności (6 kroków po 8ms = 48ms)
+        // 4. Smooth volume return (6 steps of 8 ms = 48 ms)
         let fade_in_steps = 6;
         for i in 1..=fade_in_steps {
             let factor = (i as f64) / (fade_in_steps as f64);
-            let curve = (factor * std::f64::consts::FRAC_PI_2).sin(); // Płynne wejście sinusa
+            let curve = (factor * std::f64::consts::FRAC_PI_2).sin(); // Smooth sine ramp-in
             {
                 let inner = self.inner.lock_safe();
                 if inner.seek_seq != current_seq {
@@ -301,7 +301,7 @@ impl AudioEngine {
             std::thread::sleep(step_delay);
         }
 
-        // 5. Ostateczne upewnienie się, że głośność powróciła do zadanej przez użytkownika
+        // 5. Finally make sure the volume is back at the user's setting
         {
             let inner = self.inner.lock_safe();
             if inner.seek_seq == current_seq {
@@ -312,19 +312,19 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Zwraca aktualną pozycję odtwarzania w osi czasu pliku źródłowego (z uwzględnieniem DSP).
+    /// Returns the current playback position on the source file's timeline (accounting for DSP).
     pub fn position(&self) -> Option<Duration> {
         let inner = self.inner.lock_safe();
         Self::calculate_media_position(&inner)
     }
 
-    /// Zwraca całkowity czas trwania załadowanego utworu.
+    /// Returns the total duration of the loaded track.
     pub fn duration(&self) -> Option<Duration> {
         let inner = self.inner.lock_safe();
         Self::query_raw_duration(&inner)
     }
 
-    /// Zwraca aktualny stan odtwarzacza.
+    /// Returns the current player state.
     pub fn state(&self) -> PlaybackState {
         let inner = self.inner.lock_safe();
         inner.state

@@ -1,9 +1,9 @@
-//! Źródła dźwięku: ładowanie plików/strumieni, stemy i projekty wielościeżkowe.
+//! Sound sources: loading files/streams, stems and multitrack projects.
 
 use super::*;
 
 impl AudioEngine {
-    /// Ładuje plik lokalny lub URI do odtwarzania z pełną obsługą znaków japońskich i spacji w URI.
+    /// Loads a local file or URI for playback, including Japanese characters and spaces in the URI.
     pub fn load_uri(&self, uri_or_path: &str) -> Result<(), AudioEngineError> {
         let uri = crate::uri::media_uri_checked(uri_or_path)?;
 
@@ -31,20 +31,20 @@ impl AudioEngine {
                     }
                     if let Err(err) = src_pad.link(&queue_pad_clone) {
                         error!(
-                            "Błąd linkowania strumienia audio decodebin do queue_in: {:?}",
+                            "Failed to link the decodebin audio stream to queue_in: {:?}",
                             err
                         );
                     } else {
-                        debug!("Pomyślnie podłączono dekodowany strumień audio do queue_in");
+                        debug!("Linked the decoded audio stream to queue_in");
                     }
                 }
             }
         });
 
-        // Bezpieczna synchronizacja stanu nowego elementu z potokiem
+        // Safely sync the new element's state with the pipeline
         if let Err(err) = uri_decoder.sync_state_with_parent() {
             debug!(
-                "sync_state_with_parent informacja (normalne przy State::Null): {:?}",
+                "sync_state_with_parent info (normal in State::Null): {:?}",
                 err
             );
         }
@@ -56,14 +56,14 @@ impl AudioEngine {
         }
         inner.state = PlaybackState::Stopped;
 
-        info!("Załadowano URI: {}", uri);
+        info!("Loaded URI: {}", uri);
         Ok(())
     }
 
-    /// Ładuje zestaw rozdzielonych stemów utworu do potoku z synchronicznym mikserem wielościeżkowym (audiomixer).
+    /// Loads a track's separated stems into the pipeline with a synchronous multitrack mixer (audiomixer).
     ///
-    /// Każdy stem (vocals, drums, bass, other) ma własny element regulacji głośności `volume`,
-    /// co pozwala na płynne, bezszelestne regulowanie balansu, solo oraz natychmiastowe wyciszenie wokalu (tryb Karaoke).
+    /// Each stem (vocals, drums, bass, other) has its own `volume` element,
+    /// which allows smooth, silent balance changes, solo and instant vocal muting (karaoke mode).
     pub fn load_stems(
         &self,
         stems: &StemSeparationData,
@@ -110,11 +110,11 @@ impl AudioEngine {
 
         Self::start_stem_source(&mut inner, self.volume(), seek_pos, start_playing);
 
-        info!("Załadowano stemy dla utworu {}", stems.track_id);
+        info!("Loaded stems for track {}", stems.track_id);
         Ok(())
     }
 
-    /// Aktualizuje wzmocnienie i wyciszenie poszczególnych ścieżek w mikserze stemów w czasie rzeczywistym.
+    /// Updates the gain and mute state of each track in the stem mixer in real time.
     pub fn set_stem_mixer_state(&self, state: StemMixerState) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         inner.stem_mixer_state = state.clone();
@@ -128,15 +128,15 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Pobiera bieżący stan miksera stemów.
+    /// Returns the current stem mixer state.
     pub fn get_stem_mixer_state(&self) -> StemMixerState {
         let inner = self.inner.lock_safe();
         inner.stem_mixer_state.clone()
     }
 
-    /// Ładuje multitrack dla projektu stemów (Moises-like Stem Project) z dowolną liczbą kanałów.
-    /// Wszystkie kanały miksowane są synchronicznie próbka w próbkę przez `audiomixer`
-    /// zintegrowany z głównym łańcuchem DSP (Rubber Band, SoundTouch, EQ, Limiter).
+    /// Loads the multitrack for a stem project (Moises-like stem project) with any number of channels.
+    /// All channels are mixed sample-accurately by an `audiomixer`
+    /// integrated with the main DSP chain (Rubber Band, SoundTouch, EQ, limiter).
     pub fn load_stem_project_channels(
         &self,
         project_id: i64,
@@ -178,14 +178,14 @@ impl AudioEngine {
         Self::start_stem_source(&mut inner, self.volume(), seek_pos, start_playing);
 
         info!(
-            "Załadowano projekt stemów {} (liczba kanałów: {})",
+            "Loaded stem project {} ({} channels)",
             project_id,
             channels.len()
         );
         Ok(())
     }
 
-    /// Aktualizuje wzmocnienia wszystkich kanałów projektu w czasie rzeczywistym.
+    /// Updates the gains of every project channel in real time.
     pub fn apply_stem_project_mix(
         &self,
         channels: &[StemChannel],
@@ -206,8 +206,8 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Przywraca odtwarzanie oryginalnego utworu (wyjście z trybu miksera stemów / Stem Project),
-    /// z zachowaniem bieżącej pozycji odtwarzania oraz stanu odtwarzania (Playing / Paused).
+    /// Restores playback of the original track (leaving the stem mixer / stem project),
+    /// keeping the current playback position and state (Playing / Paused).
     pub fn restore_original_track(&self) -> Result<(), AudioEngineError> {
         let (orig_uri, pos, was_playing) = {
             let inner = self.inner.lock_safe();
@@ -228,7 +228,7 @@ impl AudioEngine {
 
         if let Some(uri) = orig_uri {
             info!(
-                "Przywracanie oryginalnego utworu: {} (pozycja: {:?}, was_playing: {})",
+                "Restoring the original track: {} (position: {:?}, was_playing: {})",
                 uri, pos, was_playing
             );
             self.load_uri(&uri)?;
@@ -241,40 +241,40 @@ impl AudioEngine {
             Ok(())
         } else {
             Err(AudioEngineError::FileNotFound(
-                "Brak zapisanego oryginalnego utworu do przywrócenia".into(),
+                "No saved original track to restore".into(),
             ))
         }
     }
 
-    /// Czy w potoku audio aktywne są stemy (audiomixer).
+    /// Whether stems (audiomixer) are active in the audio pipeline.
     pub fn is_stems_active(&self) -> bool {
         let inner = self.inner.lock_safe();
         inner.stem_mixer_elements.is_some()
     }
 
-    /// ID aktywnego projektu stemów (jeśli jest załadowany).
+    /// ID of the active stem project (if one is loaded).
     pub fn active_stem_project_id(&self) -> Option<i64> {
         let inner = self.inner.lock_safe();
         inner.active_stem_project_id
     }
 
-    /// URI oryginalnego utworu skojarzonego ze stemami.
+    /// URI of the original track associated with the stems.
     pub fn original_track_uri(&self) -> Option<String> {
         let inner = self.inner.lock_safe();
         inner.original_track_uri.clone()
     }
 
-    /// Zwraca bieżące załadowane URI odtwarzacza (globalne).
+    /// Returns the player's current loaded URI (global).
     pub fn current_uri(&self) -> Option<String> {
         let inner = self.inner.lock_safe();
         inner.current_uri.clone()
     }
 
-    /// Zatrzymuje potok i usuwa bieżące źródło (dekoder lub mikser stemów), zostawiając
-    /// odłączony pad wejściowy `queue_in`, do którego można podłączyć nowe źródło.
+    /// Stops the pipeline and removes the current source (decoder or stem mixer), leaving
+    /// the `queue_in` input pad unlinked so a new source can be attached.
     ///
-    /// `State::Null` całkowicie resetuje EOS na zlewach audio PipeWire; reset DSP usuwa
-    /// zalegające próbki, aby uniknąć trzasków po zmianie utworu.
+    /// `State::Null` fully resets EOS on the PipeWire audio sinks; the DSP reset drops
+    /// pending samples to avoid clicks after a track change.
     fn teardown_source(inner: &mut PipelineInner) -> Result<gst::Pad, AudioEngineError> {
         let _ = inner.pipeline.set_state(gst::State::Null);
         inner.base_media_pos = Duration::ZERO;
@@ -304,7 +304,7 @@ impl AudioEngine {
         Ok(queue_sink_pad)
     }
 
-    /// Dodaje `audiomixer` połączony z wejściem `queue_in` (źródło stemów / projektu).
+    /// Adds an `audiomixer` linked to the `queue_in` input (the stem / project source).
     fn add_stem_mixer(
         inner: &PipelineInner,
         queue_sink_pad: &gst::Pad,
@@ -320,8 +320,8 @@ impl AudioEngine {
         Ok(audiomixer)
     }
 
-    /// Buduje gałąź jednego stemu: `uridecodebin → audioconvert → audioresample → volume → mikser`.
-    /// Zwraca element `volume` (do regulacji w mikserze) oraz wszystkie utworzone elementy.
+    /// Builds the branch of one stem: `uridecodebin → audioconvert → audioresample → volume → mixer`.
+    /// Returns the `volume` element (for the mixer controls) and every element created.
     fn add_stem_branch(
         inner: &PipelineInner,
         audiomixer: &gst::Element,
@@ -348,7 +348,7 @@ impl AudioEngine {
             .pipeline
             .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
         gst::Element::link_many([&audioconvert, &audioresample, &volume])
-            .map_err(|_| AudioEngineError::ElementLink("Błąd łączenia gałęzi stemu".into()))?;
+            .map_err(|_| AudioEngineError::ElementLink("Failed to link the stem branch".into()))?;
 
         let mixer_sink_pad = audiomixer
             .request_pad_simple("sink_%u")
@@ -382,8 +382,8 @@ impl AudioEngine {
         ))
     }
 
-    /// Wspólne zakończenie ładowania stemów / projektu: pozycja bazowa po przełączeniu
-    /// (zachowanie miejsca w utworze) i opcjonalny start odtwarzania z przewinięciem.
+    /// Shared tail of loading stems / a project: the base position after the switch
+    /// (keeping the place in the track) and an optional start of playback with a seek.
     fn start_stem_source(
         inner: &mut PipelineInner,
         user_volume: f64,

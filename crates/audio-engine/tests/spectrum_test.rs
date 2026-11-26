@@ -12,7 +12,7 @@ fn test_normalize_db_maps_floor_to_zero_and_full_scale_to_one() {
     assert_eq!(
         normalize_db(&[-200.0, 12.0]),
         vec![0.0, 1.0],
-        "wartości poza zakresem są przycinane"
+        "out-of-range values are clamped"
     );
 }
 
@@ -24,13 +24,13 @@ fn test_full_fft_is_pooled_to_16_bands_in_range() {
     assert!(bands.iter().all(|b| (0.0..=1.0).contains(b)));
     assert!(
         bands.windows(2).all(|w| w[1] >= w[0]),
-        "rosnące wejście → rosnące pasma"
+        "rising input → rising bands"
     );
 }
 
 #[test]
 fn test_pooling_partial_spectra_never_panics() {
-    // Wejście 16–63 pasm wychodziło wcześniej poza zakres przy grupowaniu.
+    // Input of 16–63 bands used to go out of range when grouped.
     for len in 16..64 {
         let raw = vec![0.5f32; len];
         assert_eq!(log_pool_to_16_bands(&raw).len(), DISPLAY_BANDS, "len={len}");
@@ -38,7 +38,7 @@ fn test_pooling_partial_spectra_never_panics() {
     assert_eq!(
         log_pool_to_16_bands(&[0.3; 4]),
         vec![0.3; 4],
-        "krótkie wejście bez zmian"
+        "short input unchanged"
     );
 }
 

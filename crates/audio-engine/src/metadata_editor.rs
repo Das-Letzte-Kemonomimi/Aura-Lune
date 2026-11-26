@@ -5,7 +5,7 @@ use lofty::probe::Probe;
 use lofty::tag::{Accessor, ItemKey, ItemValue, TagItem};
 use serde::{Deserialize, Serialize};
 
-/// Struktura DTO do odczytu i zapisu pełnych tagów audio utworu.
+/// DTO for reading and writing a track's full audio tags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct TrackMetadataFullDto {
     pub title: String,
@@ -21,7 +21,7 @@ pub struct TrackMetadataFullDto {
     pub comment: Option<String>,
 }
 
-/// Odczytuje pełne metadane pliku audio za pomocą biblioteki lofty.
+/// Reads a file's full metadata with lofty.
 pub fn read_track_metadata(path: &str) -> Result<TrackMetadataFullDto, TagError> {
     let tagged_file = Probe::open(path)
         .map_err(|e| TagError::Open {
@@ -71,7 +71,7 @@ pub fn read_track_metadata(path: &str) -> Result<TrackMetadataFullDto, TagError>
     })
 }
 
-/// Zapisuje zmodyfikowane tagi bezpośrednio do pliku audio.
+/// Writes the modified tags straight into the audio file.
 pub fn write_track_metadata(path: &str, meta: &TrackMetadataFullDto) -> Result<(), TagError> {
     let mut tagged_file = Probe::open(path)
         .map_err(|e| TagError::Open {

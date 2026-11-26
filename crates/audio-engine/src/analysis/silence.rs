@@ -1,13 +1,13 @@
-//! Wykrywanie ciszy na początku i końcu utworu.
+//! Detects silence at the start and end of a track.
 
 use super::*;
 use crate::AnalysisError;
 
-/// Wykrywa ciszę na początku i końcu utworu (do pomijania ciszy podczas odtwarzania).
+/// Detects silence at the start and end of a track (used to skip silence during playback).
 ///
-/// `expected_duration_ms` to długość utworu znana z tagów/biblioteki. Jeśli dekodowanie nie
-/// objęło całego utworu (limit czasu), granica końcowa jest odrzucana (`end_ms = None`),
-/// aby nigdy nie ucinać muzyki przed jej końcem.
+/// `expected_duration_ms` is the track length known from tags or the library. If decoding did not
+/// cover the whole track (timeout), the end bound is discarded (`end_ms = None`)
+/// so music is never cut off before it ends.
 pub fn detect_silence_bounds(
     uri_or_path: &str,
     threshold_db: f64,
@@ -16,8 +16,8 @@ pub fn detect_silence_bounds(
 ) -> Result<Option<domain::SilenceBounds>, AnalysisError> {
     let cancelled = || cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed));
     const MAX_DECODE_SEC: f64 = 2.0 * 60.0 * 60.0;
-    // Strumieniowo: próbki trafiają prosto do skanera RMS, więc pamięć jest stała
-    // (wcześniej cały utwór — do ~635 MB dla 2 h — był buforowany w Vec).
+    // Streaming: samples go straight into the RMS scanner, so memory stays constant
+    // (previously the whole track, up to ~635 MB for 2 h, was buffered in a Vec).
     let session = decode::DecodeSession::open(uri_or_path, ANALYSIS_SAMPLE_RATE, 1)?;
     let target = (MAX_DECODE_SEC * ANALYSIS_SAMPLE_RATE as f64) as usize;
     let mut scanner = domain::SilenceScanner::new(ANALYSIS_SAMPLE_RATE, threshold_db);
