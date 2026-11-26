@@ -102,7 +102,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     effectiveDisplayArtist: p.effectiveDisplayArtist,
     filePath: p.filePath,
     setFilePath: p.setFilePath,
-    volumeProgressPercent: p.volumeProgressPercent,
     volumeUnit: p.volumeUnit,
     formatVolumeValue: p.formatVolumeValue,
     handleToggleVolumeUnit: p.handleToggleVolumeUnit,

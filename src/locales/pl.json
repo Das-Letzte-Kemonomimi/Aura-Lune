@@ -24,6 +24,7 @@
     "analysisBtn": "Analiza",
     "desktopLrc": "Pulpit LRC",
     "stemProjectsTitle": "Projekty Stemów (Moises Studio)",
+    "stemProjects": "Projekty stemów",
     "uiScaleTooltip": "Skala interfejsu: {0}% (LPM: powiększ, PPM: pomniejsz, Skróty: Ctrl +/-, Ctrl 0)",
     "recap": "Podsumowanie",
     "harmonicDj": "DJ Harmoniczny"
@@ -74,9 +75,8 @@
     "matchCover": "Dopasuj okładkę",
     "dspActive": "Aktywne DSP",
     "estimatedTime": "Szacowany czas odsłuchu",
-    "seekFadeOn": "⚡ Płynny Fade: WŁ",
-    "seekFadeOff": "⚡ Płynny Fade: WYŁ",
     "seekFadeTitle": "Płynny Fade paska postępu",
+    "seekFadeShort": "Płynny Fade",
     "seekFadeDesc": "Miękkie mikrowyciszenie przy kliknięciu na pasek postępu, zapobiegające gwałtownym trzaskom.",
     "statePlaying": "Teraz odtwarzane",
     "statePaused": "Wstrzymano",
@@ -105,6 +105,7 @@
     "ambienceEmbers": "Iskry 🔥",
     "audioPathInspectorTooltip": "Kliknij, aby otworzyć Audio Path & Bit-Perfect Stream Inspector",
     "displayCover": "Okładka",
+    "displayModeLabel": "Widok odtwarzania",
     "displayVinyl": "Winyl",
     "displayTape": "Taśma",
     "vinylPlayingStatus": "Odtwarzanie • {0} RPM • Ramię opuszczone na płytę",
@@ -235,7 +236,8 @@
     "savedToPlaylist": "Zapisano kolejkę jako playlistę „{0}”!",
     "inCurrentQueue": "w bieżącej kolejce",
     "newPlaylistName": "Nazwa nowej playlisty:",
-    "autoDj": "Auto-DJ"
+    "autoDj": "Auto-DJ",
+    "stopAfterTrack": "Zatrzymaj po utworze"
   },
   "dsp": {
     "title": "Studio DSP & Wymienne Silniki",
@@ -910,6 +912,7 @@
   },
   "bottomDock": {
     "openFullPlayer": "Kliknij, aby otworzyć pełny ekran Odtwarzacza",
+    "seekLabel": "Pozycja utworu",
     "prevTooltip": "Poprzedni utwór",
     "nextTooltip": "Następny utwór",
     "playTooltip": "Odtwórz",
@@ -1116,6 +1119,8 @@
     "fontSize": "Rozmiar czcionki",
     "opacity": "Przezroczystość tła",
     "closeTooltip": "Zamknij widżet tekstu",
+    "expand": "Rozwiń",
+    "collapse": "Zwiń",
     "noLyrics": "♪ Brak zsynchronizowanego tekstu ♪",
     "upcoming": "Następny wers:"
   },

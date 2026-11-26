@@ -24,6 +24,7 @@
     "analysisBtn": "Analysis",
     "desktopLrc": "Desktop LRC",
     "stemProjectsTitle": "Stem Projects (Moises Studio)",
+    "stemProjects": "Stem Projects",
     "uiScaleTooltip": "UI Scale: {0}% (Left click: zoom in, Right click: zoom out, Shortcuts: Ctrl +/-, Ctrl 0)",
     "recap": "Recap",
     "harmonicDj": "Harmonic DJ"
@@ -74,9 +75,8 @@
     "matchCover": "Match Cover",
     "dspActive": "DSP Active",
     "estimatedTime": "Estimated playback duration",
-    "seekFadeOn": "⚡ Seek Fade: ON",
-    "seekFadeOff": "⚡ Seek Fade: OFF",
     "seekFadeTitle": "Smooth Seek Fade",
+    "seekFadeShort": "Seek Fade",
     "seekFadeDesc": "Soft micro-fade when clicking the progress bar to prevent abrupt audio pops.",
     "statePlaying": "Now Playing",
     "statePaused": "Paused",
@@ -105,6 +105,7 @@
     "ambienceEmbers": "Embers 🔥",
     "audioPathInspectorTooltip": "Click to inspect Bit-Perfect Audio Signal Path",
     "displayCover": "Cover",
+    "displayModeLabel": "Now playing display",
     "displayVinyl": "Vinyl",
     "displayTape": "Tape",
     "vinylPlayingStatus": "Playing • {0} RPM • Tonearm Engaged",
@@ -235,7 +236,8 @@
     "savedToPlaylist": "Saved queue as playlist \"{0}\"!",
     "inCurrentQueue": "in current queue",
     "newPlaylistName": "New playlist name:",
-    "autoDj": "Auto-DJ"
+    "autoDj": "Auto-DJ",
+    "stopAfterTrack": "Stop after track"
   },
   "dsp": {
     "title": "DSP Studio & Replaceable Engines",
@@ -910,6 +912,7 @@
   },
   "bottomDock": {
     "openFullPlayer": "Click to open full Player view",
+    "seekLabel": "Track position",
     "prevTooltip": "Previous track",
     "nextTooltip": "Next track",
     "playTooltip": "Play",
@@ -1116,6 +1119,8 @@
     "fontSize": "Text Size",
     "opacity": "Background Opacity",
     "closeTooltip": "Close Desktop Lyrics",
+    "expand": "Expand",
+    "collapse": "Collapse",
     "noLyrics": "♪ No synchronized lyrics ♪",
     "upcoming": "Upcoming:"
   },

@@ -2,7 +2,7 @@ import React from 'react';
 import { RotateCcw, Sliders, PointFilled } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
-import { cn } from '../../../utils/cn';
+import { Badge, Button, Card, IconButton } from '../../../components/ui';
 
 export type PlayerDspMiniBarProps = Pick<PlayerViewProps, 'handleEngineChange' | 'lastActiveDspEngineRef' | 'loc' | 'handleRestoreOriginalTrack' | 'handlePitchChange' | 'handleTempoChange' | 'setActiveTab'> & {
   status: PlaybackStatus;
@@ -18,88 +18,65 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
   loc,
   setActiveTab,
   status,
-}) => (
-    <div
-      className="glass-card flex items-center justify-between rounded-xl border border-line bg-black/30 px-4.5 py-2.5"
-    >
+}) => {
+  const bypass = status.engine === 'Bypass';
+  return (
+    <Card variant="inset" padding="none" className="flex items-center justify-between px-4 py-2.5">
       <div className="flex items-center gap-4">
-        <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
-          DSP:
-        </span>
+        <span className="label-caps text-fg-muted">DSP</span>
 
         {/* Quick Bypass / DSP toggle */}
-        <button
-          onClick={() => handleEngineChange(status.engine === 'Bypass' ? (lastActiveDspEngineRef.current || 'RubberBand') : 'Bypass')}
-          className={cn(
-            'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-bold',
-            status.engine === 'Bypass' ? 'border-accent-green/40 bg-accent-green/20 text-accent-green' : 'border-accent-pink/40 bg-accent-pink/20 text-accent-pink',
-          )}
-          title={status.engine === 'Bypass' ? loc.dsp.enableDspTooltip : loc.dsp.disableDspTooltip}
+        <Button
+          variant="tinted"
+          tone={bypass ? 'green' : 'pink'}
+          size="sm"
+          onClick={() => handleEngineChange(bypass ? (lastActiveDspEngineRef.current || 'RubberBand') : 'Bypass')}
+          title={bypass ? loc.dsp.enableDspTooltip : loc.dsp.disableDspTooltip}
         >
           <PointFilled size={12} />
-          {status.engine === 'Bypass' ? 'BYPASS' : status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}
-        </button>
+          {bypass ? 'Bypass' : status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}
+        </Button>
 
-        {/* Indicator and button to return from stems (when stems are active) */}
+        {/* Stem mix indicator with a way back to the original track */}
         {status.is_stems_active && (
-          <div
-            className="flex items-center gap-1.5 rounded-lg border border-pink-500/45 bg-pink-500/20 px-2 py-1 text-xs font-bold text-accent-pink"
-          >
+          <Badge tone="pink" className="gap-1.5 py-1">
             <Sliders size={12} />
-            <span>{loc.player.stemMix}</span>
-            <button
-              onClick={handleRestoreOriginalTrack}
-              title={loc.player.returnToOriginalTooltip}
-              className="flex items-center gap-1 rounded-md border border-white/30 bg-white/20 px-1.5 py-0.5 text-xxs font-bold text-fg"
-            >
+            {loc.player.stemMix}
+            <Button size="sm" onClick={handleRestoreOriginalTrack} title={loc.player.returnToOriginalTooltip} className="px-1.5 py-0.5 text-xxs">
               <RotateCcw size={11} />
               {loc.player.restoreOriginal}
-            </button>
-          </div>
+            </Button>
+          </Badge>
         )}
 
-        {/* Pitch Chip */}
         <div className="flex items-center gap-1.5 text-ui">
           <span className="text-fg-secondary">Pitch:</span>
           <span className="font-mono font-bold text-accent-pink">
             {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st
           </span>
           {status.pitch_semitones !== 0 && (
-            <button
-              onClick={() => handlePitchChange(0)}
-              title={loc.dsp.resetPitchTooltip}
-              className="flex bg-transparent p-0.5 text-fg-muted"
-            >
+            <IconButton size="sm" label={loc.dsp.resetPitchTooltip} onClick={() => handlePitchChange(0)} className="size-6">
               <RotateCcw size={12} />
-            </button>
+            </IconButton>
           )}
         </div>
 
-        {/* Tempo Chip */}
         <div className="flex items-center gap-1.5 text-ui">
           <span className="text-fg-secondary">Tempo:</span>
-          <span className="font-mono font-bold text-accent-cyan">
-            {status.tempo_ratio.toFixed(2)}x
-          </span>
+          <span className="font-mono font-bold text-accent-cyan">{status.tempo_ratio.toFixed(2)}x</span>
           {status.tempo_ratio !== 1 && (
-            <button
-              onClick={() => handleTempoChange(1.0)}
-              title={loc.dsp.resetTempoTooltip}
-              className="flex bg-transparent p-0.5 text-fg-muted"
-            >
+            <IconButton size="sm" label={loc.dsp.resetTempoTooltip} onClick={() => handleTempoChange(1.0)} className="size-6">
               <RotateCcw size={12} />
-            </button>
+            </IconButton>
           )}
         </div>
       </div>
 
-      {/* Quick jump to the full DSP equalizer */}
-      <button
-        onClick={() => setActiveTab('dsp')}
-        className="flex items-center gap-1.5 rounded-lg border border-accent-purple/35 bg-accent-purple/15 px-3 py-1.5 text-ui font-semibold text-accent-purple"
-      >
+      {/* Quick jump to the full DSP studio */}
+      <Button variant="tinted" tone="purple" size="sm" onClick={() => setActiveTab('dsp')}>
         <Sliders size={13} />
-        <span>{loc.nav.dsp} &rarr;</span>
-      </button>
-    </div>
-));
+        {loc.nav.dsp} &rarr;
+      </Button>
+    </Card>
+  );
+});

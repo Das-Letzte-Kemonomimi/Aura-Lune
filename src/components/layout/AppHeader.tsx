@@ -20,6 +20,7 @@ import { AppNavbar, type MainTabType } from './AppNavbar';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
 import { cn } from '../../utils/cn';
+import { Button, Chip, type Tone } from '../ui';
 import { fmt } from '../../utils/fmt';
 
 export interface AppHeaderProps {
@@ -65,48 +66,18 @@ export interface AppHeaderProps {
   onLanguageChange: (lang: Language) => void;
 }
 
-type HeaderTone = 'pink' | 'purple' | 'cyan' | 'sky';
-
-/** Always-tinted action (opens a tool). */
-const tintedTones: Record<HeaderTone, string> = {
-  pink: 'border-accent-pink/35 bg-accent-pink/15 text-accent-pink',
-  purple: 'border-accent-purple/35 bg-accent-purple/15 text-accent-purple',
-  cyan: 'border-accent-cyan/35 bg-accent-cyan/15 text-accent-cyan',
-  sky: 'border-sky-400/35 bg-sky-400/15 text-sky-400',
-};
-
-/** Pressed toggle (`aria-pressed`). */
-const pressedTones: Record<HeaderTone, string> = {
-  pink: 'aria-pressed:border-accent-pink aria-pressed:bg-accent-pink/25 aria-pressed:text-accent-pink',
-  purple:
-    'aria-pressed:border-accent-purple aria-pressed:bg-accent-purple/25 aria-pressed:text-accent-purple aria-pressed:shadow-halo aria-pressed:shadow-accent-purple/35',
-  cyan: 'aria-pressed:border-accent-cyan aria-pressed:bg-accent-cyan/20 aria-pressed:text-accent-cyan',
-  sky: 'aria-pressed:border-sky-400 aria-pressed:bg-sky-400/20 aria-pressed:text-sky-400',
-};
-
-interface HeaderButtonProps extends React.ComponentProps<'button'> {
+interface HeaderButtonProps extends Omit<React.ComponentProps<'button'>, 'aria-pressed'> {
   /** Tinted action, or with `pressed` the colour of the pressed state. */
-  tone?: HeaderTone;
+  tone?: Tone;
   /** Makes the button a toggle: idle until pressed. */
   pressed?: boolean;
 }
 
-/** Toolbar button: tinted action, toggle (idle → pressed tone) or plain. */
+/** Toolbar button: a toggle chip, a tinted action or a plain action, all at one size. */
 function HeaderButton({ tone, pressed, className, ...props }: HeaderButtonProps) {
-  const isToggle = pressed !== undefined;
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      className={cn(
-        'flex shrink-0 items-center gap-1.5 border px-2.5 py-2 text-ui font-semibold',
-        isToggle || !tone ? 'border-line bg-white/5 text-fg-secondary hover:text-fg' : tintedTones[tone],
-        isToggle && tone && pressedTones[tone],
-        className,
-      )}
-      {...props}
-    />
-  );
+  const cls = cn('shrink-0 px-2.5 py-2 text-ui', className);
+  if (pressed !== undefined) return <Chip pressed={pressed} tone={tone} className={cls} {...props} />;
+  return <Button variant={tone ? 'tinted' : 'secondary'} tone={tone} className={cls} {...props} />;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -162,7 +133,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
             alt="Auralune Logo"
             className={cn(
-              'size-9.5 shrink-0 rounded-xl border border-white/15 bg-black/25 object-contain shadow-halo-lg',
+              'size-9.5 shrink-0 rounded-xl border border-line-accent bg-black/25 object-contain shadow-halo-lg',
               appIconStyle === 'classic' ? 'shadow-accent-purple/45' : 'p-0.5 shadow-accent-pink/45',
             )}
           />
@@ -175,9 +146,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onClick={onOpenUpdates}
               title={updateTitle}
               aria-label={updateTitle}
-              className="inline-flex items-center gap-1 rounded-sm border border-green-500/45 bg-green-500/20 px-1.5 py-0.5 text-2xs leading-none font-bold text-green-400"
+              className="inline-flex items-center gap-1 rounded-md border border-accent-green/35 bg-accent-green/15 px-1.5 py-0.5 text-2xs leading-none font-bold text-accent-green"
             >
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-green-400 motion-safe:animate-update-dot" />
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-green motion-safe:animate-update-dot" />
               {loc.updates.badge}
             </button>
           )}
@@ -284,7 +255,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <HeaderButton
           onClick={onOpenSoundscape}
           pressed={isSoundscapeActive}
-          tone="sky"
+          tone="green"
           title={loc.nav.soundscape + ' (Lofi Ambience)'}
         >
           <Waves size={14} />

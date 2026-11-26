@@ -24,6 +24,7 @@
     "analysisBtn": "Analyse",
     "desktopLrc": "Desktop-LRC",
     "stemProjectsTitle": "Stem-Projekte (Moises Studio)",
+    "stemProjects": "Stem-Projekte",
     "uiScaleTooltip": "UI-Skalierung: {0}% (Linksklick: vergrößern, Rechtsklick: verkleinern, Kürzel: Strg +/-, Strg 0)",
     "recap": "Rückblick",
     "harmonicDj": "Harmonischer DJ"
@@ -74,9 +75,8 @@
     "matchCover": "Cover abgleichen",
     "dspActive": "DSP Aktiv",
     "estimatedTime": "Geschätzte Hördauer",
-    "seekFadeOn": "⚡ Seek Fade: EIN",
-    "seekFadeOff": "⚡ Seek Fade: AUS",
     "seekFadeTitle": "Sanftes Seek Fade",
+    "seekFadeShort": "Seek Fade",
     "seekFadeDesc": "Weiches Ausblenden beim Klicken auf die Fortschrittsleiste zur Vermeidung von Knacken.",
     "statePlaying": "Wiedergabe läuft",
     "statePaused": "Pausiert",
@@ -105,6 +105,7 @@
     "ambienceEmbers": "Funken 🔥",
     "audioPathInspectorTooltip": "Klicken zur Inspektion des Bit-Perfect-Audiosignalwegs",
     "displayCover": "Cover",
+    "displayModeLabel": "Wiedergabeanzeige",
     "displayVinyl": "Vinyl",
     "displayTape": "Kassette",
     "vinylPlayingStatus": "Wiedergabe • {0} RPM • Tonarm aufgesetzt",
@@ -235,7 +236,8 @@
     "savedToPlaylist": "Warteschlange als Playlist „{0}“ gespeichert!",
     "inCurrentQueue": "in der aktuellen Warteschlange",
     "newPlaylistName": "Neuer Playlist-Name:",
-    "autoDj": "Auto-DJ"
+    "autoDj": "Auto-DJ",
+    "stopAfterTrack": "Nach Titel stoppen"
   },
   "dsp": {
     "title": "DSP-Studio & Austauschbare Engines",
@@ -910,6 +912,7 @@
   },
   "bottomDock": {
     "openFullPlayer": "Klicken, um Vollansicht des Players zu öffnen",
+    "seekLabel": "Titelposition",
     "prevTooltip": "Vorheriger Titel",
     "nextTooltip": "Nächster Titel",
     "playTooltip": "Wiedergabe",
@@ -1116,6 +1119,8 @@
     "fontSize": "Schriftgröße",
     "opacity": "Deckkraft",
     "closeTooltip": "Songtext-Widget schließen",
+    "expand": "Ausklappen",
+    "collapse": "Einklappen",
     "noLyrics": "♪ Keine synchronisierten Songtexte ♪",
     "upcoming": "Nächste Zeile:"
   },

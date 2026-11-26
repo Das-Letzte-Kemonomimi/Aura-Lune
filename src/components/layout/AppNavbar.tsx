@@ -56,15 +56,15 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
     },
     {
       id: 'stem-projects',
-      label: 'Stem Projects',
+      label: loc.nav.stemProjects,
       icon: <Sliders size={14} />,
       title: loc.nav.stemProjectsTitle,
     },
     {
       id: 'radio',
-      label: loc.nav.radio || 'Radio',
+      label: loc.nav.radio,
       icon: <Radio size={14} />,
-      title: loc.nav.radio || 'Radio',
+      title: loc.nav.radio,
     },
     {
       id: 'dsp',

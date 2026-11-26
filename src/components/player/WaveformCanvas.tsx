@@ -3,6 +3,7 @@ import { BarChart2, Waves, Activity, Sliders } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
 import { cn } from '../../utils/cn';
+import { Chip } from '../ui';
 
 export type WaveformStyle = 'bars' | 'smooth' | 'scrolling' | 'mirror';
 
@@ -879,24 +880,23 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
             {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
               const isSelected = activeStyle === st;
               return (
-                <button
+                <Chip
                   key={st}
-                  type="button"
+                  size="xs"
+                  pressed={isSelected}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleStyleSelect(st);
                   }}
+                  aria-label={styleLabels[st].name}
                   title={styleLabels[st].name}
-                  className={cn(
-                    'flex items-center gap-1 rounded-md border px-2 py-1 text-xxs transition-all duration-150',
-                    isSelected ? 'border-accent-pink bg-accent-pink/20 font-bold text-accent-pink' : 'border-transparent bg-transparent font-medium text-fg-muted',
-                  )}
+                  className="gap-1 border-transparent bg-transparent py-1"
                 >
                   {styleLabels[st].icon}
                   <span className={cn('text-xxs', isSelected ? 'inline' : 'hidden')}>
                     {styleLabels[st].name}
                   </span>
-                </button>
+                </Chip>
               );
             })}
           </div>

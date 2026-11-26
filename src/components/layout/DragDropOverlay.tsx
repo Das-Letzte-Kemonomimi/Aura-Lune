@@ -1,6 +1,7 @@
 import React from 'react';
 import { UploadCloud, X } from '../ui/icons';
 import { type Translations } from '../../i18n';
+import { Button, IconButton } from '../ui';
 
 export interface DragDropOverlayProps {
   isDraggingOver: boolean;
@@ -23,16 +24,17 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
       className="pointer-events-auto fixed inset-0 z-120 m-4 flex cursor-pointer flex-col items-center justify-center gap-6 rounded-3xl border-3 border-dashed border-accent-pink bg-deep/90 backdrop-blur-lg motion-safe:animate-pulse-drop"
     >
       {/* Close / cancel button in the top right corner */}
-      <button
+      <IconButton
+        variant="secondary"
+        label={`${loc.common.cancel} (Esc)`}
         onClick={(e) => {
           e.stopPropagation();
           onDismiss();
         }}
-        title={loc.common?.cancel || 'Cancel (Esc)'}
-        className="absolute top-6 right-6 flex size-10.5 items-center justify-center rounded-full border border-white/20 bg-white/10 text-on-accent"
+        className="absolute top-6 right-6 size-10.5 rounded-full"
       >
         <X size={20} />
-      </button>
+      </IconButton>
 
       <div
         onClick={(e) => e.stopPropagation()}
@@ -52,16 +54,16 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
           ))}
         </div>
         <div>
-          <button
+          <Button
+            size="lg"
             onClick={(e) => {
               e.stopPropagation();
               onDismiss();
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white/10 px-5 py-2 text-sm font-semibold text-fg-secondary"
           >
             <X size={16} />
-            {loc.common?.cancel || 'Cancel'} (Esc)
-          </button>
+            {loc.common.cancel} (Esc)
+          </Button>
         </div>
       </div>
     </div>

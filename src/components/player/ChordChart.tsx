@@ -3,6 +3,7 @@ import { Check, Edit3 } from '../ui/icons';
 import { TONE_COLORS, chordTone, type ChordBar, type ChordCell } from '../../utils/chordChart';
 import { formatTime } from '../../utils/timeFormat';
 import { cn } from '../../utils/cn';
+import { IconButton } from '../ui';
 
 const LOW_CONFIDENCE = 0.55;
 
@@ -33,6 +34,8 @@ export interface ChordChartProps {
   barLabel: (bar: number) => string;
   lowConfidenceLabel: (percent: number) => string;
   editLabel: string;
+  /** Name of the button that confirms an edited chord. */
+  saveLabel: string;
 }
 
 export const ChordChart: React.FC<ChordChartProps> = ({
@@ -50,6 +53,7 @@ export const ChordChart: React.FC<ChordChartProps> = ({
   barLabel,
   lowConfidenceLabel,
   editLabel,
+  saveLabel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastManualScrollRef = useRef(0);
@@ -91,20 +95,20 @@ export const ChordChart: React.FC<ChordChartProps> = ({
             data-active-bar={isActiveBar ? 'true' : undefined}
             className={cn(
               'rounded-2xl border p-2 transition-[opacity,background,border-color] duration-200',
-              isActiveBar ? 'border-accent-pink/60 bg-accent-pink/10 shadow-halo-lg shadow-accent-pink/25' : 'border-white/7 bg-white/3 shadow-none',
+              isActiveBar ? 'border-accent-pink/60 bg-accent-pink/10 shadow-halo-lg shadow-accent-pink/25' : 'border-line bg-white/2 shadow-none',
               isPast ? 'opacity-50' : 'opacity-100',
             )}
           >
             <div
               className={cn(
                 'mb-1.5 flex justify-between text-xxs font-bold tracking-wide',
-                isActiveBar ? 'text-rose-300' : 'text-fg-secondary',
+                isActiveBar ? 'text-accent-pink' : 'text-fg-secondary',
               )}
             >
               <span>{barLabel(bar.bar)}</span>
               <span className="font-mono font-medium">
                 {formatTime(bar.start_ms)}
-                <span className={cn('ml-1.5', barLowConfidence ? 'text-amber-400' : 'text-fg-secondary')}>{barConfidencePct}%</span>
+                <span className={cn('ml-1.5', barLowConfidence ? 'text-accent-amber' : 'text-fg-secondary')}>{barConfidencePct}%</span>
               </span>
             </div>
 
@@ -180,12 +184,9 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                           className="w-13 rounded-md bg-deep px-1 py-0.5 text-center font-mono text-sm text-fg"
                           style={{ border: `1px solid ${color}` }}
                         />
-                        <button
-                          onClick={onCommitEdit}
-                          className="border-0 bg-transparent p-0.5 text-emerald-400"
-                        >
+                        <IconButton size="sm" label={saveLabel} onClick={onCommitEdit} className="size-6 text-accent-green hover:text-accent-green">
                           <Check size={15} />
-                        </button>
+                        </IconButton>
                       </div>
                     ) : (
                       <span
@@ -200,17 +201,17 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                     )}
 
                     {canEdit && !isEditing && (
-                      <button
-                        className="absolute top-1 right-1 flex rounded-md border-0 bg-black/45 p-1 text-slate-200 opacity-0 transition-opacity duration-100 group-focus-within:opacity-100 group-hover:opacity-100"
+                      <IconButton
+                        size="sm"
+                        label={editLabel}
                         onClick={(e) => {
                           e.stopPropagation();
                           onStartEdit(cell);
                         }}
-                        title={editLabel}
-                        aria-label={editLabel}
+                        className="absolute top-1 right-1 size-6 bg-black/45 text-fg-secondary opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                       >
                         <Edit3 size={11} />
-                      </button>
+                      </IconButton>
                     )}
                   </div>
                 );
@@ -253,7 +254,7 @@ export const ChordOverview: React.FC<ChordOverviewProps> = ({
         if (rect.width <= 0) return;
         onSeek(start + ((e.clientX - rect.left) / rect.width) * total);
       }}
-      className="relative flex h-4.5 cursor-pointer overflow-hidden rounded-md bg-white/4"
+      className="relative flex h-4.5 cursor-pointer overflow-hidden rounded-md bg-white/5"
     >
       {leadMs > 0 && <div style={{ flex: `${leadMs} 0 0` }} />}
       {cells.map((cell) => (

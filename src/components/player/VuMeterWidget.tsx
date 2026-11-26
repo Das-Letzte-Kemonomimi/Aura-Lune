@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Gauge } from '../ui/icons';
 import { cn } from '../../utils/cn';
+import { Chip, type Tone } from '../ui';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { livePlayback } from '../../state/livePlayback';
 import { drawVuDynamic, renderVuFaceLayer } from './vuFace';
@@ -12,7 +13,13 @@ import {
   type VuChannelState,
   type VuTheme,
 } from './vuMeterMath';
-import { cssVars } from '../../utils/cssVars';
+
+/** Backlight theme pills: label, tooltip and the tone of the pressed state. */
+const VU_THEME_CHIPS: readonly { id: VuTheme; label: string; title: string; tone: Tone }[] = [
+  { id: 'amber', label: 'Amber', title: 'Amber 70s', tone: 'amber' },
+  { id: 'sakura', label: 'Sakura', title: 'Sakura Glow', tone: 'pink' },
+  { id: 'cyber', label: 'Cyan', title: 'Cyber Neon', tone: 'cyan' },
+];
 
 interface VuMeterWidgetProps {
   spectrum?: number[];
@@ -117,21 +124,18 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
 
         {/* Meter backlight theme selector (compact pills) */}
         <div className="flex shrink-0 gap-1">
-          {[
-            { id: 'amber', label: 'Amber', color: '#f59e0b' },
-            { id: 'sakura', label: 'Sakura', color: '#ec4899' },
-            { id: 'cyber', label: 'Cyan', color: '#06b6d4' },
-          ].map((th) => (
-            <button
+          {VU_THEME_CHIPS.map((th) => (
+            <Chip
               key={th.id}
-              onClick={() => handleSelectTheme(th.id as VuTheme)}
-              title={th.id === 'amber' ? 'Amber 70s' : th.id === 'sakura' ? 'Sakura Glow' : 'Cyber Neon'}
-              aria-pressed={theme === th.id}
-              className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-2xs font-bold text-fg-muted transition-all duration-150 aria-pressed:border-(--vu) aria-pressed:bg-(--vu)/20 aria-pressed:text-(--vu)"
-              style={cssVars({ '--vu': th.color })}
+              size="xs"
+              tone={th.tone}
+              pressed={theme === th.id}
+              onClick={() => handleSelectTheme(th.id)}
+              title={th.title}
+              className="px-1.5 text-2xs"
             >
               {th.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>

@@ -24,6 +24,7 @@
     "analysisBtn": "Analyysi",
     "desktopLrc": "Työpöytä-LRC",
     "stemProjectsTitle": "Raitaprojektit (Moises Studio)",
+    "stemProjects": "Stem-projektit",
     "uiScaleTooltip": "Käyttöliittymän mittakaava: {0}% (Vasen: lähennä, Oikea: loitonna, Pikanäppäimet: Ctrl +/-, Ctrl 0)",
     "recap": "Katsaus",
     "harmonicDj": "Harmoninen DJ"
@@ -74,9 +75,8 @@
     "matchCover": "Sovita kansi",
     "dspActive": "DSP käytössä",
     "estimatedTime": "Arvioitu kuunteluaika",
-    "seekFadeOn": "⚡ Seek Fade: PÄÄLLÄ",
-    "seekFadeOff": "⚡ Seek Fade: POIS",
     "seekFadeTitle": "Pehmeä siirtymähäivytys",
+    "seekFadeShort": "Seek Fade",
     "seekFadeDesc": "Vaimentaa äänen lyhyesti edistymispalkkia napsautettaessa poksahdusten välttämiseksi.",
     "statePlaying": "Toistetaan",
     "statePaused": "Tauolla",
@@ -105,6 +105,7 @@
     "ambienceEmbers": "Hiillos 🔥",
     "audioPathInspectorTooltip": "Napsauta tarkastaaksesi Bit-Perfect-äänisignaalipolun",
     "displayCover": "Kansi",
+    "displayModeLabel": "Toistonäkymä",
     "displayVinyl": "Vinyyli",
     "displayTape": "Kasetti",
     "vinylPlayingStatus": "Toisto • {0} RPM • Äänivarsi laskettu",
@@ -235,7 +236,8 @@
     "savedToPlaylist": "Jono tallennettu soittolistaksi \"{0}\"!",
     "inCurrentQueue": "nykyisessä jonossa",
     "newPlaylistName": "Uuden soittolistan nimi:",
-    "autoDj": "Auto-DJ"
+    "autoDj": "Auto-DJ",
+    "stopAfterTrack": "Pysäytä kappaleen jälkeen"
   },
   "dsp": {
     "title": "DSP-Studio & Vaihdettavat Moottorit",
@@ -910,6 +912,7 @@
   },
   "bottomDock": {
     "openFullPlayer": "Avaa toistimen koko näkymä napsauttamalla",
+    "seekLabel": "Kappaleen kohta",
     "prevTooltip": "Edellinen kappale",
     "nextTooltip": "Seuraava kappale",
     "playTooltip": "Toista",
@@ -1116,6 +1119,8 @@
     "fontSize": "Tekstikoko",
     "opacity": "Taustan läpinäkyvyys",
     "closeTooltip": "Sulje sanoitusleiju",
+    "expand": "Laajenna",
+    "collapse": "Pienennä",
     "noLyrics": "♪ Ei tahdistettuja sanoituksia ♪",
     "upcoming": "Seuraava säe:"
   },

@@ -5,7 +5,7 @@ import { getTranslations, type Language } from '../../i18n';
 import { useInertialSpin } from '../../hooks/useInertialSpin';
 import { playbackSpeed } from '../../utils/playbackSpeed';
 import { tauFromFrameLerp } from '../../utils/smoothing';
-import { cn } from '../../utils/cn';
+import { Chip } from '../ui';
 
 // Former reel inertia: 0.09 (spin-up) / 0.05 (braking) per 60 Hz frame => ~0.18 s / ~0.33 s
 const REEL_TAU_UP = tauFromFrameLerp(0.09);
@@ -232,7 +232,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     >
       {/* Header Decka */}
       <div
-        className="flex items-center justify-between border-b border-white/8 pb-1.5 text-xxs font-bold text-slate-300"
+        className="flex items-center justify-between border-b border-line pb-1.5 text-xxs font-bold text-fg-secondary"
       >
         <div className="flex items-center gap-1.5">
           <CassetteTape size={14} style={{ color: currentTheme.accentColor }} />
@@ -356,89 +356,46 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
       <div className="z-20 flex items-center justify-between border-t border-white/8 pt-1.5 text-xxs font-bold">
         {/* Tape speed choice & Lo-Fi */}
         <div className="flex items-center gap-1 rounded-md bg-black/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setTapeSpeed('7.5')}
-            title={t.player.tapeSpeedStudio}
-            className={cn(
-              'rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
-              tapeSpeed === '7.5' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          <Chip size="xs" tone="purple" pressed={tapeSpeed === '7.5'} onClick={() => setTapeSpeed('7.5')} title={t.player.tapeSpeedStudio} className="px-1.5 text-2xs">
             7½ IPS
-          </button>
-          <button
-            type="button"
-            onClick={() => setTapeSpeed('3.75')}
-            title={t.player.tapeSpeedStandard}
-            className={cn(
-              'rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
-              tapeSpeed === '3.75' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          </Chip>
+          <Chip size="xs" tone="purple" pressed={tapeSpeed === '3.75'} onClick={() => setTapeSpeed('3.75')} title={t.player.tapeSpeedStandard} className="px-1.5 text-2xs">
             3¾ IPS
-          </button>
+          </Chip>
 
           {/* Lo-Fi Tape FX button: opens the full pop-up dialog */}
-          <button
-            type="button"
+          <Chip
+            size="xs"
+            pressed={simConfig.enabled}
             onClick={(e) => {
               e.stopPropagation();
               handleOpenLoFi();
             }}
             title={t.player.tapeLoFiTooltip}
-            className={cn(
-              'flex items-center gap-1 rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
-              simConfig.enabled ? 'text-fg' : 'text-fg-muted',
-              simConfig.enabled ? 'bg-linear-135 from-accent-purple/90 to-pink-500/90' : 'bg-white/8',
-            )}
+            className="gap-1 px-1.5 text-2xs"
           >
-            <Sparkles size={10} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
-            <span>{simConfig.enabled ? `${Math.round(simConfig.intensity * 100)}%` : 'FX'}</span>
-          </button>
+            <Sparkles size={10} />
+            {simConfig.enabled ? `${Math.round(simConfig.intensity * 100)}%` : 'FX'}
+          </Chip>
         </div>
 
         {/* Tape type selector (FE-I, CR-II, METAL) */}
         <div className="flex gap-0.5 rounded-md bg-black/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setTapeType('TYPE_I')}
-            title={t.player.tapeTypeFerric}
-            className={cn(
-              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
-              tapeType === 'TYPE_I' ? 'bg-accent-amber text-black' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          <Chip size="xs" tone="amber" pressed={tapeType === 'TYPE_I'} onClick={() => setTapeType('TYPE_I')} title={t.player.tapeTypeFerric} className="px-1.5 text-2xs">
             FE-I
-          </button>
-          <button
-            type="button"
-            onClick={() => setTapeType('TYPE_II')}
-            title={t.player.tapeTypeChrome}
-            className={cn(
-              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
-              tapeType === 'TYPE_II' ? 'bg-accent-cyan text-black' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          </Chip>
+          <Chip size="xs" tone="cyan" pressed={tapeType === 'TYPE_II'} onClick={() => setTapeType('TYPE_II')} title={t.player.tapeTypeChrome} className="px-1.5 text-2xs">
             CR-II
-          </button>
-          <button
-            type="button"
-            onClick={() => setTapeType('METAL')}
-            title={t.player.tapeTypeMetal}
-            className={cn(
-              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
-              tapeType === 'METAL' ? 'bg-yellow-500 text-black' : 'bg-transparent text-fg-muted',
-            )}
-          >
+          </Chip>
+          <Chip size="xs" tone="pink" pressed={tapeType === 'METAL'} onClick={() => setTapeType('METAL')} title={t.player.tapeTypeMetal} className="px-1.5 text-2xs">
             METAL
-          </button>
+          </Chip>
         </div>
 
         {/* Play / Rec state LED */}
         <div className="flex items-center gap-1">
           <span
-            className="h-1.5 w-1.5 rounded-full transition-all duration-200"
+            className="size-1.5 rounded-full"
             style={{
               background: isPlaying ? currentTheme.accentColor : '#64748b',
               boxShadow: isPlaying ? `0 0 6px ${currentTheme.accentColor}` : 'none',

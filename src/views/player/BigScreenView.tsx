@@ -15,6 +15,7 @@ import { BigScreenTapeDeck } from './bigscreen/BigScreenTapeDeck';
 import { BigScreenVinyl } from './bigscreen/BigScreenVinyl';
 import { BigScreenHud } from './bigscreen/BigScreenHud';
 import { cn } from '../../utils/cn';
+import { Button, SegmentedControl } from '../../components/ui';
 
 export interface BigScreenViewProps {
   title: string;
@@ -171,44 +172,23 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         {/* Left column: large spinning vinyl record / cover */}
         <div className="flex flex-col items-center gap-5 text-center">
           {/* Visual mode toggle: cover / vinyl / retro cassette */}
-          <div
-            className="flex items-center gap-1 rounded-3xl border border-white/10 bg-white/6 p-1 shadow-lift shadow-black/30"
-          >
-            <button
-              onClick={() => handleSetVisualMode('cover')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-2xl border-0 px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                visualMode === 'cover' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
-              )}
-            >
-              <Image size={13} /> {t.bigScreenModes.cover}
-            </button>
-            <button
-              onClick={() => handleSetVisualMode('vinyl')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-2xl border-0 px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                visualMode === 'vinyl' ? 'bg-accent-gradient text-fg shadow-halo-sm shadow-accent-pink/40' : 'bg-transparent text-fg-muted shadow-none',
-              )}
-            >
-              <Disc3 size={13} /> {t.bigScreenModes.vinyl}
-            </button>
-            <button
-              onClick={() => handleSetVisualMode('cassette')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-2xl border-0 px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                visualMode === 'cassette' ? 'text-fg shadow-halo-sm shadow-accent-cyan/40' : 'text-fg-muted shadow-none',
-                visualMode === 'cassette' ? 'bg-linear-135 from-accent-cyan to-sky-600' : 'bg-transparent',
-              )}
-            >
-              <CassetteTape size={13} /> {t.bigScreenModes.cassette}
-            </button>
-          </div>
+          <SegmentedControl
+            label={t.player.displayModeLabel}
+            tone="purple"
+            value={visualMode}
+            onChange={handleSetVisualMode}
+            items={[
+              { value: 'cover', label: t.bigScreenModes.cover, icon: <Image size={13} /> },
+              { value: 'vinyl', label: t.bigScreenModes.vinyl, icon: <Disc3 size={13} /> },
+              { value: 'cassette', label: t.bigScreenModes.cassette, icon: <CassetteTape size={13} /> },
+            ]}
+          />
 
           {/* MODE 1: classic album cover */}
           {visualMode === 'cover' && (
             <div
               className={cn(
-                'relative flex items-center justify-center overflow-hidden rounded-4xl border-2 border-white/15 transition-shadow duration-300 will-change-transform',
+                'relative flex items-center justify-center overflow-hidden rounded-4xl border-2 border-line-accent transition-shadow duration-300 will-change-transform',
                 isPlaying ? 'shadow-halo-2xl shadow-accent-purple/45' : 'shadow-2xl shadow-black/70',
               )}
               style={{
@@ -248,20 +228,14 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
           <div className="flex flex-wrap gap-2">
             {onFetchCover && (
-              <button
-                onClick={onFetchCover}
-                className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-3.5 py-1.5 text-ui font-semibold text-accent-cyan transition-all duration-200"
-              >
+              <Button variant="tinted" tone="cyan" onClick={onFetchCover}>
                 <Download size={13} /> {t.player.fetchCover}
-              </button>
+              </Button>
             )}
             {onUploadCover && (
-              <button
-                onClick={onUploadCover}
-                className="flex items-center gap-1.5 rounded-lg border border-pink-500/35 bg-pink-500/15 px-3.5 py-1.5 text-ui font-semibold text-accent-pink transition-all duration-200"
-              >
+              <Button variant="tinted" tone="pink" onClick={onUploadCover}>
                 <Upload size={13} /> {t.covers.uploadCustomCover}
-              </button>
+              </Button>
             )}
           </div>
 

@@ -20,6 +20,7 @@ import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
 import { cn } from '../../utils/cn';
+import { Badge, Button, Chip, IconButton, Spinner } from '../ui';
 
 export interface LyricLineDto {
   time_ms: number;
@@ -289,56 +290,38 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {lyrics && (
-            <span
-              className={cn(
-                'border',
-                'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold',
-                lyrics.is_synced ? 'bg-accent-cyan/15 text-accent-cyan' : 'bg-white/8 text-fg-secondary',
-                lyrics.is_synced ? 'border-accent-cyan/30' : 'border-line',
-              )}
-            >
+            <Badge tone={lyrics.is_synced ? 'cyan' : 'neutral'}>
               {lyrics.is_synced ? <Radio size={12} /> : <FileText size={12} />}
               {lyrics.source === 'local_lrc'
                 ? loc.lyricsView.localLrcBadge
                 : lyrics.source === 'auto_distributed'
                 ? loc.lyricsView.autoSyncBadge
                 : loc.lyricsView.lrcLibBadge}
-            </span>
+            </Badge>
           )}
 
           {/* Edit/sync mode button */}
-          <button
-            onClick={() => setIsSyncMode(!isSyncMode)}
-            title={loc.lyricsView.syncModeTitle}
-            className={cn(
-              'border',
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200',
-              isSyncMode ? 'bg-accent-pink/25 text-accent-pink' : 'bg-white/6 text-fg-secondary',
-              isSyncMode ? 'border-accent-pink' : 'border-line',
-            )}
-          >
+          <Chip pressed={isSyncMode} onClick={() => setIsSyncMode(!isSyncMode)} title={loc.lyricsView.syncModeTitle}>
             <Clock size={13} />
             {isSyncMode ? loc.lyricsView.syncToggleClose : loc.lyricsView.syncToggleOpen}
-          </button>
+          </Chip>
 
           {lyrics?.is_synced && (
-            <button
+            <Chip
+              tone="purple"
+              pressed={autoScroll}
               onClick={handleToggleAutoScroll}
               title={autoScroll ? loc.lyricsView.autoScrollOn : loc.lyricsView.autoScrollOff}
-              className={cn(
-                'border',
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs',
-                autoScroll ? 'bg-accent-purple/20 text-accent-purple' : 'bg-transparent text-fg-muted',
-                autoScroll ? 'border-line-accent' : 'border-line',
-              )}
             >
               {autoScroll ? <Lock size={13} /> : <Unlock size={13} />}
               {loc.lyricsView.autoScroll}
-            </button>
+            </Chip>
           )}
 
           {/* Romaji transliteration toggle (Kana / Romaji / two-line karaoke) */}
-          <button
+          <Chip
+            tone="cyan"
+            pressed={romajiMode !== 'original'}
             onClick={() => {
               const next = romajiMode === 'original' ? 'dual' : romajiMode === 'dual' ? 'romaji' : 'original';
               setRomajiMode(next);
@@ -353,32 +336,17 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 ? loc.lyricsView.romajiModeRomaji
                 : loc.lyricsView.romajiModeDual
             }`}
-            className={cn(
-              'border',
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200',
-              romajiMode !== 'original' ? 'bg-accent-cyan/20 text-accent-cyan' : 'bg-white/6 text-fg-secondary',
-              romajiMode !== 'original' ? 'border-accent-cyan' : 'border-line',
-            )}
           >
             <Languages size={13} />
             {romajiMode === 'original' ? 'あ Kana' : romajiMode === 'romaji' ? 'A Romaji' : 'あ/A Dual'}
-          </button>
+          </Chip>
 
-          <button
-            onClick={loadLyrics}
-            title={loc.lyricsView.refreshTooltip}
-            className="rounded-lg border border-line bg-transparent p-1.5 text-fg-secondary"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-
-          <button
-            onClick={onClose}
-            title={loc.lyricsView.closeTooltip}
-            className="rounded-lg border border-line bg-transparent p-1.5 text-fg-secondary"
-          >
+          <IconButton variant="secondary" size="sm" label={loc.lyricsView.refreshTooltip} onClick={loadLyrics}>
+            <RefreshCw size={14} className={cn(loading && 'motion-safe:animate-spin')} />
+          </IconButton>
+          <IconButton variant="secondary" size="sm" label={loc.lyricsView.closeTooltip} onClick={onClose}>
             <X size={15} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -388,67 +356,39 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       >
         {/* Offset correction */}
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-fg-muted">{loc.lyricsView.compensation}:</span>
-          <button
-            onClick={() => setOffsetMs((prev) => prev - 500)}
-            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
-          >
+          <span className="font-semibold text-fg-muted">{loc.lyricsView.compensation}</span>
+          <Button size="sm" onClick={() => setOffsetMs((prev) => prev - 500)} className="font-mono">
             -500ms
-          </button>
-          <button
-            onClick={() => setOffsetMs((prev) => prev - 100)}
-            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
-          >
+          </Button>
+          <Button size="sm" onClick={() => setOffsetMs((prev) => prev - 100)} className="font-mono">
             -100ms
-          </button>
-          <span
-            className={cn(
-              'rounded-md px-2 py-0.5 font-mono font-bold',
-              offsetMs !== 0 ? 'bg-accent-cyan/20 text-accent-cyan' : 'bg-white/4 text-fg-secondary',
-            )}
-          >
+          </Button>
+          <Badge mono tone={offsetMs !== 0 ? 'cyan' : 'neutral'}>
             {offsetMs > 0 ? `+${offsetMs}ms` : `${offsetMs}ms`}
-          </span>
-          <button
-            onClick={() => setOffsetMs((prev) => prev + 100)}
-            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
-          >
+          </Badge>
+          <Button size="sm" onClick={() => setOffsetMs((prev) => prev + 100)} className="font-mono">
             +100ms
-          </button>
-          <button
-            onClick={() => setOffsetMs((prev) => prev + 500)}
-            className="rounded-md border border-line bg-white/6 px-2 py-1 text-fg"
-          >
+          </Button>
+          <Button size="sm" onClick={() => setOffsetMs((prev) => prev + 500)} className="font-mono">
             +500ms
-          </button>
+          </Button>
           {offsetMs !== 0 && (
-            <button
-              onClick={() => setOffsetMs(0)}
-              className="rounded-md border border-accent-pink/30 bg-accent-pink/15 px-2 py-1 text-accent-pink"
-            >
+            <Button variant="tinted" tone="pink" size="sm" onClick={() => setOffsetMs(0)}>
               {loc.lyricsView.resetOffset}
-            </button>
+            </Button>
           )}
         </div>
 
         {/* Auto-Sync and save file actions */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleAutoDistribute}
-            title={loc.lyricsView.autoDistribute}
-            className="flex items-center gap-1 rounded-md border border-accent-purple/35 bg-accent-purple/15 px-2.5 py-1 font-semibold text-accent-purple"
-          >
+          <Button variant="tinted" tone="purple" size="sm" onClick={handleAutoDistribute}>
             <Wand2 size={13} /> {loc.lyricsView.autoDistribute}
-          </button>
+          </Button>
 
           {trackPath && (
-            <button
-              onClick={handleSaveLrc}
-              title={loc.lyricsView.saveLrc}
-              className="flex items-center gap-1 rounded-md border border-accent-green/35 bg-accent-green/15 px-2.5 py-1 font-semibold text-accent-green"
-            >
+            <Button variant="tinted" tone="green" size="sm" onClick={handleSaveLrc}>
               <Save size={13} /> {loc.lyricsView.saveLrc}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -476,12 +416,9 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={() => handleSetLineTime(syncTargetIndex, currentPositionMs)}
-            className="flex items-center gap-1.5 rounded-lg bg-accent-pink px-3.5 py-1.5 text-ui font-bold text-on-accent shadow-halo shadow-accent-pink/40"
-          >
+          <Button variant="primary" onClick={() => handleSetLineTime(syncTargetIndex, currentPositionMs)}>
             <Clock size={14} /> {loc.lyricsView.clickAtTime}: {formatTimeLrc(currentPositionMs)}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -492,7 +429,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
       >
         {loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3.5 text-fg-secondary">
-            <div className="size-10 animate-spin rounded-full border-3 border-line border-t-accent-purple" />
+            <Spinner size="lg" tone="purple" />
             <span className="text-sm">{loc.lyricsView.searching}</span>
           </div>
         )}
@@ -501,12 +438,9 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <div className="flex h-full flex-col items-center justify-center gap-3 text-fg-muted">
             <AlertCircle size={32} className="text-accent-pink" />
             <span className="text-sm">{loc.lyricsView.errorPrefix}: {error}</span>
-            <button
-              onClick={loadLyrics}
-              className="mt-2.5 rounded-lg border border-line bg-white/8 px-4 py-2 text-fg"
-            >
+            <Button onClick={loadLyrics} className="mt-2.5">
               {loc.lyricsView.retry}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -534,7 +468,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                   ref={isActive ? activeLineRef : null}
                   className={cn(
                     'border-l-4',
-                    'flex min-w-0 max-w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl px-4 py-2 leading-normal wrap-anywhere transition-all duration-200',
+                    'flex min-w-0 max-w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl px-4 py-2 leading-normal wrap-anywhere motion-safe:transition-[color,background-color,border-color,opacity,scale] motion-safe:duration-200',
                     isActive ? 'text-2xl font-bold' : 'text-base font-medium',
                     isActive ? 'text-fg' : isPast ? 'text-fg-secondary' : 'text-fg-muted',
                     isActive ? 'opacity-100' : isPast ? 'opacity-65' : 'opacity-45',
@@ -553,19 +487,20 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                   {/* Timestamp in sync mode */}
                   {isSyncMode && (
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-sm bg-white/6 px-1.5 py-0.5 font-mono text-xs text-fg-muted">
-                        {formatTimeLrc(Math.max(0, line.time_ms + offsetMs))}
-                      </span>
-                      <button
+                      <Badge mono>{formatTimeLrc(Math.max(0, line.time_ms + offsetMs))}</Badge>
+                      <Button
+                        variant="tinted"
+                        tone="pink"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSetLineTime(idx, currentPositionMs);
                         }}
                         title={loc.lyricsView.syncLineTooltip}
-                        className="rounded-md border border-accent-pink/40 bg-accent-pink/25 px-2 py-1 text-xxs font-bold text-accent-pink"
+                        className="text-xxs"
                       >
-                        ⏱ {loc.lyricsView.syncLineAction}
-                      </button>
+                        <Clock size={11} /> {loc.lyricsView.syncLineAction}
+                      </Button>
                     </div>
                   )}
 
@@ -604,12 +539,9 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
               <div className="text-left text-ui text-fg-secondary">
                 {loc.lyricsView.staticNotice}
               </div>
-              <button
-                onClick={handleAutoDistribute}
-                className="flex items-center gap-1.5 rounded-lg bg-accent-purple px-3 py-1.5 text-ui font-semibold text-on-accent"
-              >
+              <Button variant="primary" onClick={handleAutoDistribute}>
                 <Wand2 size={13} /> {loc.lyricsView.autoSyncAction}
-              </button>
+              </Button>
             </div>
 
             <div className="text-base leading-loose whitespace-pre-line wrap-anywhere text-fg opacity-90">

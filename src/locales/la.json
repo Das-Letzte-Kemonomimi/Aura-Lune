@@ -24,6 +24,7 @@
     "analysisBtn": "Analysis",
     "desktopLrc": "LRC Scrinium",
     "stemProjectsTitle": "Incepta Stem (Moises Studio)",
+    "stemProjects": "Opera stemmatum",
     "uiScaleTooltip": "Modus UI: {0}% (Sinister: ampliare, Dexter: minuere, Compendia: Ctrl +/-, Ctrl 0)",
     "recap": "Recapitulatio",
     "harmonicDj": "DJ Harmonicus"
@@ -74,9 +75,8 @@
     "matchCover": "Adapta Tegumentum",
     "dspActive": "DSP in actu",
     "estimatedTime": "Aestimatum tempus auditionis",
-    "seekFadeOn": "⚡ Lene Seek Fade: ITA",
-    "seekFadeOff": "⚡ Lene Seek Fade: NON",
     "seekFadeTitle": "Lene Seek Fade",
+    "seekFadeShort": "Lene Seek Fade",
     "seekFadeDesc": "Minutissima deminutio soni ad crepitus vitandos cum mutas locum.",
     "statePlaying": "Nunc canitur",
     "statePaused": "In mora",
@@ -105,6 +105,7 @@
     "ambienceEmbers": "Scintillae 🔥",
     "audioPathInspectorTooltip": "Preme ad inspiciendam viam soni Bit-Perfect",
     "displayCover": "Imago",
+    "displayModeLabel": "Species auditionis",
     "displayVinyl": "Vinylium",
     "displayTape": "Taenia",
     "vinylPlayingStatus": "Sonans • {0} RPM • Bracchium impositum",
@@ -235,7 +236,8 @@
     "savedToPlaylist": "Ordo ut index \"{0}\" servatus est!",
     "inCurrentQueue": "in linea currente",
     "newPlaylistName": "Nomen novi indicis:",
-    "autoDj": "Auto-DJ"
+    "autoDj": "Auto-DJ",
+    "stopAfterTrack": "Siste post cantum"
   },
   "dsp": {
     "title": "Officina DSP & Machinae Mutabiles",
@@ -910,6 +912,7 @@
   },
   "bottomDock": {
     "openFullPlayer": "Premito ad aperiendam plenam faciem Lusoris",
+    "seekLabel": "Locus cantus",
     "prevTooltip": "Praecedens cantus",
     "nextTooltip": "Sequens cantus",
     "playTooltip": "Canta",
@@ -1116,6 +1119,8 @@
     "fontSize": "Magnitudo litterarum",
     "opacity": "Obscuritas fundi",
     "closeTooltip": "Claude versuum instrumentum",
+    "expand": "Expande",
+    "collapse": "Contrahe",
     "noLyrics": "♪ Nulli versus synchronizati ♪",
     "upcoming": "Versus insequens:"
   },

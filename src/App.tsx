@@ -99,7 +99,6 @@ export default function App() {
   });
 
   // Volume percentage for the slider fill (progress is computed by components through `useLiveStatus`)
-  const volumeProgressPercent = Math.min(100, Math.max(0, (status.volume ?? 1) * 100));
 
   // UI language (English by default; pl, de, fi and la can be chosen)
   const [language, setLanguage] = useState<Language>('en');
@@ -990,7 +989,6 @@ export default function App() {
     effectiveDisplayArtist,
     filePath,
     setFilePath,
-    volumeProgressPercent,
     volumeUnit,
     formatVolumeValue,
     handleToggleVolumeUnit,
@@ -1148,7 +1146,6 @@ export default function App() {
     effectiveDisplayArtist,
     currentCover,
     queue,
-    volumeProgressPercent,
     formatTime,
     mainContentRef,
     setActiveTab,

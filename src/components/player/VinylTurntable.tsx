@@ -6,6 +6,7 @@ import { useInertialSpin } from '../../hooks/useInertialSpin';
 import { playbackSpeed } from '../../utils/playbackSpeed';
 import { tauFromFrameLerp } from '../../utils/smoothing';
 import { cn } from '../../utils/cn';
+import { Chip } from '../ui';
 
 // Former platter inertia: 0.08 (spin-up) / 0.04 (braking) per 60 Hz frame => ~0.2 s / ~0.41 s
 const PLATTER_TAU_UP = tauFromFrameLerp(0.08);
@@ -257,49 +258,46 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
       <div className="absolute bottom-2 left-2.5 right-2.5 z-20 flex items-center justify-between text-xxs font-bold">
         {/* 33 / 45 RPM switch & Lo-Fi Analog FX */}
         <div className="flex items-center gap-1 rounded-md bg-black/50 p-0.5">
-          <button
+          <Chip
+            size="xs"
+            pressed={rpm === 33}
             onClick={(e) => {
               e.stopPropagation();
               setRpm(33);
             }}
             title={t.player.vinylSpeed33}
-            className={cn(
-              'rounded-sm border-0 px-1.5 py-0.5 text-xxs font-bold transition-all duration-150',
-              rpm === 33 ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
-            )}
+            className="px-1.5"
           >
             33⅓
-          </button>
-          <button
+          </Chip>
+          <Chip
+            size="xs"
+            pressed={rpm === 45}
             onClick={(e) => {
               e.stopPropagation();
               setRpm(45);
             }}
             title={t.player.vinylSpeed45}
-            className={cn(
-              'rounded-sm border-0 px-1.5 py-0.5 text-xxs font-bold transition-all duration-150',
-              rpm === 45 ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
-            )}
+            className="px-1.5"
           >
             45
-          </button>
+          </Chip>
 
           {/* Lo-Fi Analog FX button: opens the full pop-up dialog */}
-          <button
+          <Chip
+            size="xs"
+            tone="purple"
+            pressed={simConfig.enabled}
             onClick={(e) => {
               e.stopPropagation();
               handleOpenLoFi();
             }}
             title={t.player.vinylLoFiTooltip}
-            className={cn(
-              'flex items-center gap-1 rounded-sm border-0 px-2 py-0.5 text-2xs font-bold transition-all duration-150',
-              simConfig.enabled ? 'text-fg shadow-halo-sm shadow-pink-500/40' : 'text-fg-muted shadow-none',
-              simConfig.enabled ? 'bg-linear-135 from-accent-purple/90 to-pink-500/90' : 'bg-white/8',
-            )}
+            className="gap-1 text-2xs"
           >
-            <Sparkles size={10} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
+            <Sparkles size={10} />
             <span>{simConfig.enabled ? `${simConfig.mode === 'vinyl' ? 'VINYL' : 'TAPE'} ${Math.round(simConfig.intensity * 100)}%` : 'LO-FI'}</span>
-          </button>
+          </Chip>
         </div>
 
         {/* Dynamic direct-drive speed indicator, DSP included */}
@@ -307,8 +305,8 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
           <span
             className={cn(
               'h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-300',
-              isPlaying ? rpm === 45 ? 'bg-pink-500' : 'bg-green-500' : 'bg-accent-red',
-              isPlaying ? rpm === 45 ? 'shadow-halo-sm shadow-pink-500' : 'shadow-halo-sm shadow-green-500' : 'shadow-none',
+              isPlaying ? rpm === 45 ? 'bg-accent-pink' : 'bg-accent-green' : 'bg-accent-red',
+              isPlaying ? rpm === 45 ? 'shadow-halo-sm shadow-accent-pink' : 'shadow-halo-sm shadow-accent-green' : 'shadow-none',
             )}
           />
           <span

@@ -695,7 +695,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       />
       <div
         ref={tooltipRef}
-        className="pointer-events-none absolute left-0 top-0 z-5 hidden rounded-md border border-fg-secondary/35 bg-slate-900/95 px-2 py-1 text-xs whitespace-nowrap text-slate-200"
+        className="pointer-events-none absolute left-0 top-0 z-5 hidden rounded-md border border-line-accent bg-modal px-2 py-1 text-xs whitespace-nowrap text-fg"
       />
     </div>
   );

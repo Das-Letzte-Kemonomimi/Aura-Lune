@@ -24,7 +24,7 @@ import {
 } from '../../utils/chordChart';
 import { ChordChart, ChordOverview } from './ChordChart';
 import { cn } from '../../utils/cn';
-import { Button, ModalBody, ModalFooter, ModalHeader, ModalShell, TextArea } from '../ui';
+import { Button, Callout, Card, Chip, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, TextArea } from '../ui';
 
 export interface ChordTimelineViewProps {
   trackId?: number;
@@ -207,20 +207,16 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   return (
     <div className="flex h-full w-full flex-col gap-4">
       {/* Sub-view top bar */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
-      >
+      <Card padding="none" className="flex flex-wrap items-center justify-between gap-3 px-4.5 py-3">
         <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-accent-pink/35 bg-accent-pink/20 text-accent-pink"
-          >
+          <div className="flex size-9 items-center justify-center rounded-lg bg-accent-pink/15 text-accent-pink">
             <Music size={18} />
           </div>
           <div>
             <span className="text-sm font-extrabold text-fg">
               {t.player.chordTimelineTitle}
             </span>
-            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
+            <p className="mt-0.5 text-xs text-fg-secondary">
               {data ? `${t.dsp.keyLabel}: ${data.key} (${data.camelot}) • ${data.bpm.toFixed(1)} BPM` : t.player.harmonicAnalysis}
             </p>
           </div>
@@ -228,48 +224,30 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
         <div className="flex items-center gap-2">
           {pitchSemitones !== 0 && (
-            <button
+            <Chip
+              tone="amber"
+              pressed={showTransposed}
               onClick={() => setShowTransposed(!showTransposed)}
-              className={cn(
-                'rounded-lg border px-3 py-1.5 text-ui font-semibold',
-                showTransposed ? 'border-accent-amber/40 bg-accent-amber/20 text-amber-400' : 'border-white/10 bg-white/4 text-fg-secondary',
-              )}
               title={t.player.transposeToggleTooltip}
+              className="px-3.5 py-2 text-ui"
             >
               {fmt(t.player.transposition, pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones), showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
-            </button>
+            </Chip>
           )}
 
-          <button
-            onClick={handleRecompute}
-            disabled={loading}
-            className={cn(
-              'flex items-center justify-center rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary',
-              loading ? 'cursor-not-allowed' : 'cursor-pointer',
-            )}
-            title={t.player.recomputeChordsTooltip}
-          >
-            <RotateCcw size={16} className={cn(loading && 'animate-spin')} />
-          </button>
-
-          <button
-            onClick={() => handleExport(exportFormat)}
-            className="flex items-center justify-center rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
-            title={fmt(t.player.exportChords, exportFormat.toUpperCase())}
-          >
+          <IconButton variant="secondary" label={t.player.recomputeChordsTooltip} onClick={handleRecompute} disabled={loading}>
+            <RotateCcw size={16} className={cn(loading && 'motion-safe:animate-spin')} />
+          </IconButton>
+          <IconButton variant="secondary" label={fmt(t.player.exportChords, exportFormat.toUpperCase())} onClick={() => handleExport(exportFormat)}>
             <Download size={16} />
-          </button>
-
+          </IconButton>
           {onClose && (
-            <button
-              onClick={onClose}
-              className="rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
-            >
+            <IconButton variant="secondary" label={t.common.close} onClick={onClose}>
               <X size={16} />
-            </button>
+            </IconButton>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Current and next chord */}
       <div
@@ -315,13 +293,10 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         </div>
 
         {activeChord && onSetLoop && (
-          <button
-            onClick={() => onSetLoop(activeChord.start_ms, activeChord.end_ms)}
-            className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/7 px-3.5 py-2 text-ui font-bold text-slate-200"
-          >
+          <Button onClick={() => onSetLoop(activeChord.start_ms, activeChord.end_ms)}>
             <Repeat size={14} />
-            <span>{t.player.loopChord}</span>
-          </button>
+            {t.player.loopChord}
+          </Button>
         )}
       </div>
 
@@ -330,14 +305,14 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-3 p-12">
             <Sparkles size={28} className="animate-spin text-accent-pink" />
-            <p className="m-0 text-sm text-slate-300">
+            <p className="text-sm text-fg-secondary">
               {t.player.detectingChords}
             </p>
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-accent-red/30 bg-accent-red/15 px-4.5 py-3.5 text-sm text-red-300">
+          <Callout tone="red" role="alert" className="text-sm">
             {error}
-          </div>
+          </Callout>
         ) : cells.length > 0 ? (
           <>
             <ChordOverview
@@ -373,6 +348,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               barLabel={(bar) => fmt(t.player.chordBarLabel, bar)}
               lowConfidenceLabel={(pct) => fmt(t.player.chordLowConfidence, pct)}
               editLabel={t.common.edit}
+              saveLabel={t.common.save}
             />
           </>
         ) : (

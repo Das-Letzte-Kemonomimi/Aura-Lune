@@ -21,6 +21,10 @@ import { toRomaji, hasJapaneseCharacters } from '../../utils/romaji';
 import type { LyricsDto } from './LyricsView';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
+import { Button, Chip, IconButton, SegmentedControl } from '../ui';
+
+const FONT_SIZES = ['sm', 'md', 'lg'] as const;
+const OPACITY_LEVELS = ['low', 'med', 'high'] as const;
 
 interface DesktopLyricsOverlayProps {
   isOpen: boolean;
@@ -343,97 +347,80 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
         <div className="flex shrink-0 items-center gap-1">
           {/* Romaji Switcher Button */}
-          <button
+          <Chip
+            size="xs"
+            tone="cyan"
+            pressed={romajiMode !== 'original'}
             onClick={handleCycleRomaji}
             title={`${loc.lyricsView.romajiModeTooltip}: ${romajiMode}`}
-            className={cn(
-              'border',
-              'flex items-center gap-1 rounded-md px-1.5 py-1 text-xxs font-semibold',
-              romajiMode !== 'original' ? 'bg-accent-cyan/20 text-accent-cyan' : 'bg-transparent text-fg-muted',
-              romajiMode !== 'original' ? 'border-accent-cyan' : 'border-transparent',
-            )}
           >
             <Languages size={11} />
             {romajiMode === 'original' ? 'Kana' : romajiMode === 'romaji' ? 'Romaji' : 'Dual'}
-          </button>
+          </Chip>
 
           {/* Appearance options */}
-          <button
+          <Chip
+            size="xs"
+            tone="purple"
+            pressed={showSettings}
             onClick={() => setShowSettings(!showSettings)}
+            aria-label={loc.desktopOverlay.title}
             title={loc.desktopOverlay.title}
-            className={cn(
-              'flex rounded-md border-0 p-1',
-              showSettings ? 'bg-accent-purple/20 text-accent-purple' : 'bg-transparent text-fg-muted',
-            )}
+            className="size-6 p-0"
           >
             <Sliders size={13} />
-          </button>
+          </Chip>
 
           {/* Position lock */}
-          <button
+          <Chip
+            size="xs"
+            pressed={isLocked}
             onClick={handleToggleLock}
+            aria-label={isLocked ? loc.desktopOverlay.unlockPosition : loc.desktopOverlay.lockPosition}
             title={isLocked ? loc.desktopOverlay.unlockPosition : loc.desktopOverlay.lockPosition}
-            className={cn(
-              'flex rounded-md border-0 bg-transparent p-1',
-              isLocked ? 'text-accent-pink' : 'text-fg-muted',
-            )}
+            className="size-6 p-0"
           >
             {isLocked ? <Lock size={13} /> : <Unlock size={13} />}
-          </button>
+          </Chip>
 
-          {/* Collapse / expand */}
-          <button
+          <IconButton
+            size="sm"
+            label={isCollapsed ? loc.desktopOverlay.expand : loc.desktopOverlay.collapse}
             onClick={handleToggleCollapse}
-            title={isCollapsed ? 'Expand' : 'Collapse'}
-            className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted"
+            className="size-6"
           >
             {isCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-          </button>
-
-          {/* Close the overlay */}
-          <button
-            onClick={onClose}
-            title={loc.desktopOverlay.closeTooltip}
-            className="flex rounded-md border-0 bg-transparent p-1 text-fg-muted"
-          >
+          </IconButton>
+          <IconButton size="sm" label={loc.desktopOverlay.closeTooltip} onClick={onClose} className="size-6">
             <X size={13} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
       {/* Appearance settings panel (font and opacity) */}
       {showSettings && (
-        <div className="flex items-center justify-between gap-3 border-b border-white/6 bg-black/40 px-4 py-2 text-xs">
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-black/40 px-4 py-2 text-xs">
           <div className="flex items-center gap-1.5">
             <span className="text-fg-muted">{loc.desktopOverlay.fontSize}:</span>
-            {(['sm', 'md', 'lg'] as FontSize[]).map((sz) => (
-              <button
-                key={sz}
-                onClick={() => handleSelectFontSize(sz)}
-                className={cn(
-                  'rounded-sm border-0 px-2 py-0.5 text-xxs font-semibold text-fg uppercase',
-                  fontSize === sz ? 'bg-accent-purple' : 'bg-white/6',
-                )}
-              >
-                {sz}
-              </button>
-            ))}
+            <SegmentedControl
+              label={loc.desktopOverlay.fontSize}
+              size="sm"
+              tone="purple"
+              value={fontSize}
+              onChange={handleSelectFontSize}
+              items={FONT_SIZES.map((sz) => ({ value: sz, label: sz.toUpperCase() }))}
+            />
           </div>
-
           <div className="flex items-center gap-1.5">
             <span className="text-fg-muted">{loc.desktopOverlay.opacity}:</span>
-            {(['low', 'med', 'high'] as OpacityLevel[]).map((op) => (
-              <button
-                key={op}
-                onClick={() => handleSelectOpacity(op)}
-                className={cn(
-                  'rounded-sm border-0 px-2 py-0.5 text-xxs font-semibold uppercase',
-                  opacityLevel === op ? 'bg-accent-cyan text-black' : 'bg-white/6 text-fg',
-                )}
-              >
-                {op}
-              </button>
-            ))}
+            <SegmentedControl
+              label={loc.desktopOverlay.opacity}
+              size="sm"
+              tone="cyan"
+              value={opacityLevel}
+              onChange={handleSelectOpacity}
+              items={OPACITY_LEVELS.map((op) => ({ value: op, label: op.toUpperCase() }))}
+            />
           </div>
         </div>
       )}
@@ -461,7 +448,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
           <div className="flex w-full flex-col items-center gap-1">
             {/* Main line with a neon karaoke gradient */}
             <div
-              className="leading-snug font-extrabold tracking-tight transition-all duration-200"
+              className="leading-snug font-extrabold tracking-tight"
               style={{
                 fontSize: fontSizeMain,
                 background: 'linear-gradient(135deg, #ffffff 10%, #f472b6 60%, #38bdf8 100%)',
@@ -501,29 +488,21 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
       {/* Bottom micro control bar (in the expanded mode) */}
       {!isCollapsed && (
         <div className="flex items-center justify-center gap-4 px-4 pt-1.5 pb-2.5">
-          <button
-            onClick={onPrev}
-            title={loc.player.previous}
-            className="flex items-center justify-center border-0 bg-transparent p-1 text-fg-muted transition-colors duration-200"
-          >
+          <IconButton size="sm" label={loc.player.previous} onClick={onPrev}>
             <SkipBack size={15} />
-          </button>
-
-          <button
+          </IconButton>
+          <Button
+            variant="primary"
             onClick={onPlayPause}
+            aria-label={isPlaying ? loc.player.pause : loc.player.play}
             title={isPlaying ? loc.player.pause : loc.player.play}
-            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent shadow-halo shadow-accent-pink/45"
+            className="size-7 rounded-full p-0 shadow-halo"
           >
             {isPlaying ? <Pause size={13} /> : <Play size={13} className="ml-px" />}
-          </button>
-
-          <button
-            onClick={onNext}
-            title={loc.player.next}
-            className="flex items-center justify-center border-0 bg-transparent p-1 text-fg-muted transition-colors duration-200"
-          >
+          </Button>
+          <IconButton size="sm" label={loc.player.next} onClick={onNext}>
             <SkipForward size={15} />
-          </button>
+          </IconButton>
         </div>
       )}
     </div>
