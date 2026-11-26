@@ -704,8 +704,8 @@ where
 {
     let mut header = [0u8; 8];
     reader.read_exact(&mut header).await?;
-    let opcode = u32::from_le_bytes(header[0..4].try_into().unwrap());
-    let length = u32::from_le_bytes(header[4..8].try_into().unwrap());
+    let opcode = u32::from_le_bytes([header[0], header[1], header[2], header[3]]);
+    let length = u32::from_le_bytes([header[4], header[5], header[6], header[7]]);
 
     if length > 1024 * 1024 {
         return Err(std::io::Error::new(

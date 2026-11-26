@@ -432,9 +432,10 @@ fn transpose_single_chord(chord: &str, semitones: i32) -> String {
 
     if let Some(c) = chars.next() {
         root.push(c);
-        if let Some(&next_c) = chars.peek() {
+        if let Some(next_c) = chars.peek().copied() {
             if next_c == '#' || next_c == 'b' {
-                root.push(chars.next().unwrap());
+                chars.next();
+                root.push(next_c);
             }
         }
     }

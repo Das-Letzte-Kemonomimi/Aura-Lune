@@ -1,18 +1,55 @@
+use audio_engine::uri::media_uri;
 use audio_engine::{AudioEngine, DeviceManager, Transcoder};
 use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
 
+static TEMP_SEQ: AtomicU64 = AtomicU64::new(1);
+
+struct TempTestDir(PathBuf);
+
+impl TempTestDir {
+    fn new(prefix: &str) -> Self {
+        let seq = TEMP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let dir =
+            std::env::temp_dir().join(format!("auralune_{prefix}_{}_{}", std::process::id(), seq));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("Creating temp test directory");
+        Self(dir)
+    }
+
+    fn child(&self, name: &str) -> PathBuf {
+        self.0.join(name)
+    }
+}
+
+impl Drop for TempTestDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+fn fixture_path(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures")
+        .join(name)
+}
+
+fn file_uri(path: &Path) -> String {
+    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    media_uri(&canonical.to_string_lossy())
+}
+
 #[test]
 fn test_opus_playback_and_pitch_shift() {
-    let fixture_opus = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join("tests/fixtures/test_sine_440hz.opus");
+    let fixture_opus = fixture_path("test_sine_440hz.opus");
 
     assert!(
         fixture_opus.exists(),
@@ -21,7 +58,7 @@ fn test_opus_playback_and_pitch_shift() {
     );
 
     let engine = AudioEngine::new().expect("AudioEngine should initialise");
-    let uri = format!("file://{}", fixture_opus.canonicalize().unwrap().display());
+    let uri = file_uri(&fixture_opus);
 
     engine
         .load_uri(&uri)
@@ -40,16 +77,10 @@ fn test_opus_playback_and_pitch_shift() {
 
 #[test]
 fn test_transcoding_preserves_source_file_and_creates_valid_target() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_transcoded_opus = root.join("tests/fixtures/test_converted_output.opus");
-    let output_transcoded_flac = root.join("tests/fixtures/test_converted_output.flac");
-
-    // Make sure the output files don't exist before the test
-    let _ = fs::remove_file(&output_transcoded_opus);
-    let _ = fs::remove_file(&output_transcoded_flac);
+    let temp = TempTestDir::new("transcode");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_transcoded_opus = temp.child("test_converted_output.opus");
+    let output_transcoded_flac = temp.child("test_converted_output.flac");
 
     let input_size_before = fs::metadata(&input_wav)
         .expect("The source WAV file must exist")
@@ -97,10 +128,7 @@ fn test_transcoding_preserves_source_file_and_creates_valid_target() {
 
     // 5. Check that the generated Opus file can be played by AudioEngine
     let engine = AudioEngine::new().unwrap();
-    let uri = format!(
-        "file://{}",
-        output_transcoded_opus.canonicalize().unwrap().display()
-    );
+    let uri = file_uri(&output_transcoded_opus);
     engine
         .load_uri(&uri)
         .expect("Loading the generated Opus should succeed");
@@ -109,10 +137,6 @@ fn test_transcoding_preserves_source_file_and_creates_valid_target() {
         .expect("Playing the generated Opus should succeed");
     sleep(Duration::from_millis(150));
     engine.stop().unwrap();
-
-    // Clean up the test's temp files
-    let _ = fs::remove_file(&output_transcoded_opus);
-    let _ = fs::remove_file(&output_transcoded_flac);
 }
 
 #[test]
@@ -148,13 +172,9 @@ fn test_device_manager_discovers_cards_and_codecs() {
 
 #[test]
 fn test_transcoding_with_dsp_nightcore_bounce() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_dsp_opus = root.join("tests/fixtures/test_nightcore_output.opus");
-
-    let _ = fs::remove_file(&output_dsp_opus);
+    let temp = TempTestDir::new("nightcore");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_dsp_opus = temp.child("test_nightcore_output.opus");
 
     let dsp_settings = DspExportSettings {
         pitch_semitones: 3.0,
@@ -185,26 +205,18 @@ fn test_transcoding_with_dsp_nightcore_bounce() {
 
     // Play the generated file with DSP
     let engine = AudioEngine::new().unwrap();
-    let uri = format!(
-        "file://{}",
-        output_dsp_opus.canonicalize().unwrap().display()
-    );
+    let uri = file_uri(&output_dsp_opus);
     engine.load_uri(&uri).unwrap();
     engine.play().unwrap();
     sleep(Duration::from_millis(150));
     engine.stop().unwrap();
-
-    let _ = fs::remove_file(&output_dsp_opus);
 }
 
 #[test]
 fn test_transcode_range_marker_a_to_b() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_range_wav = root.join("tests/fixtures/test_range_marker_ab.wav");
-    let _ = fs::remove_file(&output_range_wav);
+    let temp = TempTestDir::new("range_ab");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_range_wav = temp.child("test_range_marker_ab.wav");
 
     let range = TimeRange::new(500, Some(1500)).expect("Valid A-B range");
 
@@ -217,28 +229,20 @@ fn test_transcode_range_marker_a_to_b() {
 
     // Check playback of the slice through AudioEngine
     let engine = AudioEngine::new().unwrap();
-    let uri = format!(
-        "file://{}",
-        output_range_wav.canonicalize().unwrap().display()
-    );
+    let uri = file_uri(&output_range_wav);
     engine
         .load_uri(&uri)
         .expect("Loading the slice into the player");
     engine.play().expect("Playing the slice");
     sleep(Duration::from_millis(100));
     engine.stop().unwrap();
-
-    let _ = fs::remove_file(&output_range_wav);
 }
 
 #[test]
 fn test_transcode_range_with_dsp_nightcore() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_range_opus = root.join("tests/fixtures/test_range_dsp_ab.opus");
-    let _ = fs::remove_file(&output_range_opus);
+    let temp = TempTestDir::new("range_dsp");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_range_opus = temp.child("test_range_dsp_ab.opus");
 
     let dsp_settings = DspExportSettings {
         pitch_semitones: 4.0,
@@ -267,10 +271,7 @@ fn test_transcode_range_with_dsp_nightcore() {
     assert!(size > 100, "The slice file with DSP must not be empty");
 
     let engine = AudioEngine::new().unwrap();
-    let uri = format!(
-        "file://{}",
-        output_range_opus.canonicalize().unwrap().display()
-    );
+    let uri = file_uri(&output_range_opus);
     engine.load_uri(&uri).expect("Loading the slice with DSP");
     engine.play().expect("Playing the slice with DSP");
     sleep(Duration::from_millis(100));
@@ -285,17 +286,13 @@ fn test_transcode_range_with_dsp_nightcore() {
         dur
     );
     engine.stop().unwrap();
-
-    let _ = fs::remove_file(&output_range_opus);
 }
 
 #[test]
 fn test_transcode_range_invalid_order_rejected() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_wav = root.join("tests/fixtures/test_invalid_range.wav");
+    let temp = TempTestDir::new("invalid_range");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_wav = temp.child("test_invalid_range.wav");
 
     let invalid_range = TimeRange {
         start_ms: 1500,
@@ -313,34 +310,27 @@ fn test_transcode_range_invalid_order_rejected() {
 
 #[test]
 fn test_transcode_range_with_file_uri_prefix() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
+    let temp = TempTestDir::new("uri_range");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_wav = temp.child("test_uri_range.wav");
 
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_wav = root.join("tests/fixtures/test_uri_range.wav");
-    let _ = fs::remove_file(&output_wav);
-
-    let uri_string = format!("file://{}", input_wav.canonicalize().unwrap().display());
+    let uri_string = file_uri(&input_wav);
     let range = TimeRange::new(300, Some(900)).unwrap();
 
     Transcoder::transcode_range(uri_string, &output_wav, ExportFormat::Wav, &range)
         .expect("Transcoding from a file:// path should succeed");
 
     assert!(output_wav.exists());
-    let _ = fs::remove_file(&output_wav);
 }
 
 #[test]
 fn test_transcode_flac_range() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_flac = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    let input_flac = fixture_path("08. Omnia Sol Temperat.flac");
     if !input_flac.exists() {
         return;
     }
-    let output_opus = root.join("tests/fixtures/test_flac_range.opus");
-    let _ = fs::remove_file(&output_opus);
+    let temp = TempTestDir::new("flac_range");
+    let output_opus = temp.child("test_flac_range.opus");
 
     let range = TimeRange::new(1000, Some(4000)).unwrap();
     let res = Transcoder::transcode_with_dsp(
@@ -352,24 +342,20 @@ fn test_transcode_flac_range() {
     );
     assert!(res.is_ok());
     let engine = AudioEngine::new().unwrap();
-    let uri = format!("file://{}", output_opus.canonicalize().unwrap().display());
+    let uri = file_uri(&output_opus);
     engine.load_uri(&uri).expect("Loading the slice");
     engine.play().expect("Playing the slice");
     std::thread::sleep(Duration::from_millis(50));
     let dur = engine.duration();
     println!("Exported range duration: {:?}", dur);
     engine.stop().unwrap();
-    let _ = fs::remove_file(&output_opus);
 }
 
 #[test]
 fn test_transcode_slowed_rubberband() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_wav = root.join("tests/fixtures/test_sine_440hz.wav");
-    let output_slowed_wav = root.join("tests/fixtures/test_slowed_rubberband.wav");
-    let _ = fs::remove_file(&output_slowed_wav);
+    let temp = TempTestDir::new("slowed_rb");
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output_slowed_wav = temp.child("test_slowed_rubberband.wav");
 
     let dsp_settings = DspExportSettings {
         pitch_semitones: 2.0,
@@ -391,23 +377,18 @@ fn test_transcode_slowed_rubberband() {
 
     assert!(output_slowed_wav.exists());
     assert!(fs::metadata(&output_slowed_wav).unwrap().len() > 100);
-    let _ = fs::remove_file(&output_slowed_wav);
 }
 
 #[test]
 fn test_transcode_different_ranges_with_rubberband_slowed() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir.parent().unwrap().parent().unwrap();
-
-    let input_flac = root.join("tests/fixtures/08. Omnia Sol Temperat.flac");
+    let input_flac = fixture_path("08. Omnia Sol Temperat.flac");
     if !input_flac.exists() {
         return;
     }
 
-    let out1 = root.join("tests/fixtures/test_range1.opus");
-    let out2 = root.join("tests/fixtures/test_range2.opus");
-    let _ = fs::remove_file(&out1);
-    let _ = fs::remove_file(&out2);
+    let temp = TempTestDir::new("ranges_rb");
+    let out1 = temp.child("test_range1.opus");
+    let out2 = temp.child("test_range2.opus");
 
     let dsp_settings = DspExportSettings {
         pitch_semitones: -3.0,
@@ -454,7 +435,4 @@ fn test_transcode_different_ranges_with_rubberband_slowed() {
         size1,
         size2
     );
-
-    let _ = fs::remove_file(&out1);
-    let _ = fs::remove_file(&out2);
 }

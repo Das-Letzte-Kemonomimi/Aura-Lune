@@ -303,16 +303,32 @@ pub fn clean_artist_name(artist: &str) -> String {
 pub struct CoverArtArchiveClient {
     http: reqwest::Client,
     cache_dir: PathBuf,
+    deezer_base_url: String,
+    itunes_base_url: String,
     search_cache: Arc<Mutex<std::collections::HashMap<String, Vec<CoverCandidateDto>>>>,
 }
 
 impl CoverArtArchiveClient {
     pub fn new(cache_dir: impl AsRef<Path>) -> Self {
+        Self::with_search_base_urls(
+            cache_dir,
+            "https://api.deezer.com",
+            "https://itunes.apple.com",
+        )
+    }
+
+    pub fn with_search_base_urls(
+        cache_dir: impl AsRef<Path>,
+        deezer_base_url: impl Into<String>,
+        itunes_base_url: impl Into<String>,
+    ) -> Self {
         let http = http::build_client(Duration::from_secs(15));
 
         Self {
             http,
             cache_dir: cache_dir.as_ref().to_path_buf(),
+            deezer_base_url: deezer_base_url.into().trim_end_matches('/').to_string(),
+            itunes_base_url: itunes_base_url.into().trim_end_matches('/').to_string(),
             search_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
         }
     }
@@ -506,7 +522,8 @@ impl CoverArtArchiveClient {
         // 2. Prepare the parallel queries to Deezer and iTunes/Apple Music
         let deezer_adv_url = if !clean_artist.is_empty() && !clean_album.is_empty() {
             Some(format!(
-                "https://api.deezer.com/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
+                "{}/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
+                self.deezer_base_url,
                 urlencoding::encode(&clean_artist),
                 urlencoding::encode(&clean_album)
             ))
@@ -514,36 +531,33 @@ impl CoverArtArchiveClient {
             None
         };
 
-        let deezer_general_query = format!("{} {}", clean_artist, clean_album)
-            .trim()
-            .to_string();
+        let deezer_general_query = format!("{clean_artist} {clean_album}").trim().to_string();
         let deezer_gen_url = if !deezer_general_query.is_empty() {
             Some(format!(
-                "https://api.deezer.com/search/album?q={}&limit=10",
+                "{}/search/album?q={}&limit=10",
+                self.deezer_base_url,
                 urlencoding::encode(&deezer_general_query)
             ))
         } else {
             None
         };
 
-        let itunes_q1 = format!("{} {}", clean_album, clean_artist)
-            .trim()
-            .to_string();
+        let itunes_q1 = format!("{clean_album} {clean_artist}").trim().to_string();
         let itunes_url_1 = if !itunes_q1.is_empty() {
             Some(format!(
-                "https://itunes.apple.com/search?term={}&entity=album&limit=8",
+                "{}/search?term={}&entity=album&limit=8",
+                self.itunes_base_url,
                 urlencoding::encode(&itunes_q1)
             ))
         } else {
             None
         };
 
-        let itunes_q2 = format!("{} {}", clean_artist, clean_album)
-            .trim()
-            .to_string();
+        let itunes_q2 = format!("{clean_artist} {clean_album}").trim().to_string();
         let itunes_url_2 = if !itunes_q2.is_empty() && itunes_q2 != itunes_q1 {
             Some(format!(
-                "https://itunes.apple.com/search?term={}&entity=album&limit=8",
+                "{}/search?term={}&entity=album&limit=8",
+                self.itunes_base_url,
                 urlencoding::encode(&itunes_q2)
             ))
         } else {
@@ -600,7 +614,8 @@ impl CoverArtArchiveClient {
         let raw_album = album.trim();
         if candidates.len() < 3 && raw_album != clean_album && !raw_album.is_empty() {
             let fallback_url = format!(
-                "https://itunes.apple.com/search?term={}&entity=album&limit=6",
+                "{}/search?term={}&entity=album&limit=6",
+                self.itunes_base_url,
                 urlencoding::encode(raw_album)
             );
             let fallback_cands = self.query_itunes(&fallback_url, album, artist).await;

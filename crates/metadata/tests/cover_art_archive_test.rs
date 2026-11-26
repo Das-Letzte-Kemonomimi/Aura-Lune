@@ -113,12 +113,45 @@ fn test_clean_artist_name() {
 }
 
 #[tokio::test]
-async fn test_search_cover_candidates_online_in_extremo() {
+async fn test_search_cover_candidates_in_extremo_local_mock() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+
+    let handle = std::thread::spawn(move || {
+        // Up to 5 concurrent/fallback requests (Deezer adv/gen + iTunes q1/q2/fallback)
+        for _ in 0..5 {
+            let Ok((mut stream, _)) = listener.accept() else {
+                break;
+            };
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(500)));
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let req = String::from_utf8_lossy(&buf[..n]);
+            let first_line = req.lines().next().unwrap_or("");
+            let body = if first_line.contains("/search/album") {
+                r#"{"data":[{"title":"7","artist":{"name":"In Extremo"},"cover_xl":"https://cdn-images.dzcdn.net/images/cover/abc/1000x1000-000000-80-0-0.jpg","cover_medium":"https://cdn-images.dzcdn.net/images/cover/abc/250x250-000000-80-0-0.jpg"}]}"#
+            } else {
+                r#"{"results":[{"collectionName":"7","artistName":"In Extremo","artworkUrl100":"https://is1-ssl.mzstatic.com/image/thumb/Music/v4/100x100bb.jpg"}]}"#
+            };
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+
     let temp_dir = std::env::temp_dir().join("auralune_test_cover_candidates");
-    let client = CoverArtArchiveClient::new(&temp_dir);
+    let client = CoverArtArchiveClient::with_search_base_urls(&temp_dir, &base_url, &base_url);
     let candidates = client
         .search_cover_candidates("7 (2015 Remastered)", "In Extremo")
         .await;
+    drop(client);
+    let _ = handle.join();
+
     assert!(
         !candidates.is_empty(),
         "Cover candidates for '7' In Extremo should be found!"
