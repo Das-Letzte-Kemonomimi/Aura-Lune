@@ -363,7 +363,13 @@
     "defaultEngineStartup": "Machina DSP naturalis in initio onerata",
     "enterValuePitch": "Scribe valorem et preme Enter",
     "enterValueTempo": "Scribe rhythmum et preme Enter",
-    "enterValueSpeed": "Scribe velocitatem et preme Enter"
+    "enterValueSpeed": "Scribe velocitatem et preme Enter",
+    "preamp": "Praeamplificator",
+    "preampDesc": "(semper activus, etiam aequatore exstincto)",
+    "preampAuto": "Auto",
+    "preampAutoReadout": "Auto: {0}",
+    "preampAutoTooltip": "Aequatorem maxima bandae elevatione minuit, ne bandae elevatae distorqueantur",
+    "preampResetTooltip": "Bis preme ut ad 0 dB redeas. Rota vel sagittae: 0.5 dB, Shift: 0.1 dB"
   },
   "library": {
     "title": "Bibliotheca Musicae",
@@ -612,7 +618,6 @@
     "replaygainModeTrack": "Tractus",
     "replaygainModeAlbum": "Albi",
     "replaygainModeAuto": "Callidus (Auto Track/Album)",
-    "replaygainFallbackGain": "Amplificatio defectus cantuum",
     "replaygainPreventClipping": "Limitor True-Peak (Defensio resonantiae)",
     "crossfeedTitle": "Transmissio aurium Bauer (bs2b)",
     "crossfeedDesc": "Simulatio soni loquentis ad lassitudinem aurium minuendam in modis stereophonicis.",
@@ -627,7 +632,6 @@
     "silenceTrimmingDesc": "Statim praeterire silentia initio et fine cantuum.",
     "silenceTrimmingEnabled": "Praeteritio silentii activa",
     "silenceTrimmingThreshold": "Limes deprehensionis silentii",
-    "replaygainPreAmp": "Praeamplificator (Pre-Amp)",
     "replaygainLimiterActive": "Moderator culminum activus",
     "replaygainTargetAdjustment": "Accommodatio intentata",
     "scanReplayGainLibrary": "Metiri sonum bibliothecae (EBU R128)",
@@ -813,7 +817,9 @@
     "transcodeApplySavedBookmarks": "Applicare signa A-B servata ({0})",
     "transcodeSavedMarkers": "Signa servata vestigii:",
     "transcodeGstreamerBgDesc": "GStreamer audio in curriculo asynchronice reddit. Applicatio numquam haeret — libere musicam audi vel claude fenestram.",
-    "transcodeRenderingProgress": "Redditur in curriculo ({0}%)..."
+    "transcodeRenderingProgress": "Redditur in curriculo ({0}%)...",
+    "replaygainPreampTagged": "Praeamplificator: fasciculi cum notis RG",
+    "replaygainPreampUntagged": "Praeamplificator: fasciculi sine notis RG"
   },
   "shortcuts": {
     "title": "Compendia Claviaturae",
@@ -1492,7 +1498,8 @@
     "peqActiveMsg": "PEQ Actuosum — aequatio audio in tempore reali excitata",
     "peqBypassMsg": "PEQ in modo Bypass (sopitum) — iunge vel muta fasciam",
     "filterBandsSubtitle": "Preme nodum in diagrammate ad emendandum",
-    "importExportDesc": "Immitte configurationem EqualizerAPO / AutoEQ vel describe:"
+    "importExportDesc": "Immitte configurationem EqualizerAPO / AutoEQ vel describe:",
+    "preamp": "Praeamplificator"
   },
   "dynamicsStudio": {
     "title": "Studio Dynamicae & Caloris",

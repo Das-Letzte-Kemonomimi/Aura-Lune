@@ -363,7 +363,13 @@
     "defaultEngineStartup": "Oletusarvoinen DSP-moottori ladattu käynnistyksessä",
     "enterValuePitch": "Syötä arvo ja paina Enter (tai käytä nuolinäppäimiä)",
     "enterValueTempo": "Syötä tempo (esim. 1.25) ja paina Enter",
-    "enterValueSpeed": "Syötä nopeus (esim. 1.15) ja paina Enter"
+    "enterValueSpeed": "Syötä nopeus (esim. 1.15) ja paina Enter",
+    "preamp": "Esivahvistin",
+    "preampDesc": "(aina päällä, myös EQ:n ollessa pois)",
+    "preampAuto": "Auto",
+    "preampAutoReadout": "Auto: {0}",
+    "preampAutoTooltip": "Laskee EQ:ta suurimman kaistakorostuksen verran, jotta korostetut kaistat eivät säröydy",
+    "preampResetTooltip": "Kaksoisnapsauta palauttaaksesi 0 dB:iin. Rulla tai nuolinäppäimet: 0,5 dB, Shift: 0,1 dB"
   },
   "library": {
     "title": "Musiikkikirjasto",
@@ -612,7 +618,6 @@
     "replaygainModeTrack": "Kappale",
     "replaygainModeAlbum": "Albumi",
     "replaygainModeAuto": "Älykäs (Auto Track/Album)",
-    "replaygainFallbackGain": "Tunnisteettomien oletusvahvistus",
     "replaygainPreventClipping": "True-Peak-rajoitin (Leikkauksen esto)",
     "crossfeedTitle": "Bauer-kuulokeristisyöttö (bs2b)",
     "crossfeedDesc": "Virtuaalikaiutinsimulaatio vähentää korvien väsymistä jyrkissä stereomiksauksissa.",
@@ -627,7 +632,6 @@
     "silenceTrimmingDesc": "Ohittaa välittömästi hiljaiset alku- ja loppuosiot sekä pitkät tauot.",
     "silenceTrimmingEnabled": "Hiljaisuuden ohitus käytössä",
     "silenceTrimmingThreshold": "Hiljaisuuden tunnistuskynnys",
-    "replaygainPreAmp": "Esivahvistin (Pre-Amp)",
     "replaygainLimiterActive": "Huippurajoitin käytössä",
     "replaygainTargetAdjustment": "Tavoitekorjaus",
     "scanReplayGainLibrary": "Skannaa kirjaston äänenvoimakkuus (EBU R128)",
@@ -813,7 +817,9 @@
     "transcodeApplySavedBookmarks": "Ota tallennetut A-B-kirjanmerkit käyttöön ({0})",
     "transcodeSavedMarkers": "Kappaleen tallennetut merkit:",
     "transcodeGstreamerBgDesc": "GStreamer renderöi ääntä asynkronisesti taustalla. Sovellus ei lukitu — voit vapaasti kuunnella musiikkia tai sulkea tämän ikkunan.",
-    "transcodeRenderingProgress": "Renderöidään taustalla ({0}%)..."
+    "transcodeRenderingProgress": "Renderöidään taustalla ({0}%)...",
+    "replaygainPreampTagged": "Esivahvistin: tiedostot, joissa on RG-tunnisteet",
+    "replaygainPreampUntagged": "Esivahvistin: tiedostot ilman RG-tunnisteita"
   },
   "shortcuts": {
     "title": "Pikanäppäimet",
@@ -1492,7 +1498,8 @@
     "peqActiveMsg": "PEQ Aktiivinen — reaaliaikainen äänenkorjaus päällä",
     "peqBypassMsg": "PEQ Bypass-tilassa (pois) — napsauta Ota käyttöön tai säädä kaistaa",
     "filterBandsSubtitle": "Napsauta solmua kaaviossa tai valitse rivi muokattavaksi",
-    "importExportDesc": "Liitä EqualizerAPO / AutoEQ / Peace -määritys tai kopioi nykyiset:"
+    "importExportDesc": "Liitä EqualizerAPO / AutoEQ / Peace -määritys tai kopioi nykyiset:",
+    "preamp": "Esivahvistin"
   },
   "dynamicsStudio": {
     "title": "Dynamiikka- & Putkilämpö-studio",

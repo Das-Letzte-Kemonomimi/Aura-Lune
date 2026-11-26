@@ -363,7 +363,13 @@
     "defaultEngineStartup": "Standard-DSP-Engine beim Programmstart geladen",
     "enterValuePitch": "Wert eingeben und Enter drücken (oder Pfeiltasten oben/unten nutzen)",
     "enterValueTempo": "Tempo eingeben (z.B. 1.25) und Enter drücken",
-    "enterValueSpeed": "Geschwindigkeit eingeben (z.B. 1.15) und Enter drücken"
+    "enterValueSpeed": "Geschwindigkeit eingeben (z.B. 1.15) und Enter drücken",
+    "preamp": "Vorverstärker",
+    "preampDesc": "(immer aktiv, auch mit ausgeschaltetem EQ)",
+    "preampAuto": "Auto",
+    "preampAutoReadout": "Auto: {0}",
+    "preampAutoTooltip": "Senkt den EQ um die größte Bandanhebung, damit angehobene Bänder nicht übersteuern",
+    "preampResetTooltip": "Doppelklick setzt auf 0 dB zurück. Mausrad oder Pfeiltasten: 0,5 dB, Umschalt: 0,1 dB"
   },
   "library": {
     "title": "Musikbibliothek",
@@ -612,7 +618,6 @@
     "replaygainModeTrack": "Titel",
     "replaygainModeAlbum": "Album",
     "replaygainModeAuto": "Intelligent (Auto Track/Album)",
-    "replaygainFallbackGain": "Fallback-Verstärkung für untagged Titel",
     "replaygainPreventClipping": "True-Peak-Limiter (Übersteuerungsschutz)",
     "crossfeedTitle": "Bauer Kopfhörer-Crossfeed (bs2b)",
     "crossfeedDesc": "Binaurale Lautsprecher-Simulation zur Reduzierung von Hörermüdung bei Stereo-Aufnahmen.",
@@ -627,7 +632,6 @@
     "silenceTrimmingDesc": "Sofortiges Überspringen stummer Intros, Outros und langer Pausen.",
     "silenceTrimmingEnabled": "Stillekürzung aktiv",
     "silenceTrimmingThreshold": "Stille-Erkennungsschwelle",
-    "replaygainPreAmp": "Vorverstärkung (Pre-Amp)",
     "replaygainLimiterActive": "Spitzenbegrenzer aktiv",
     "replaygainTargetAdjustment": "Zielanpassung",
     "scanReplayGainLibrary": "Bibliothekslautstärke scannen (EBU R128)",
@@ -813,7 +817,9 @@
     "transcodeApplySavedBookmarks": "Gespeicherte A-B-Lesezeichen anwenden ({0})",
     "transcodeSavedMarkers": "Gespeicherte Marker des Titels:",
     "transcodeGstreamerBgDesc": "GStreamer rendert Audio asynchron im Hintergrund. Die App wird nicht blockiert — Sie können weiter Musik hören oder dieses Fenster schließen.",
-    "transcodeRenderingProgress": "Rendern im Hintergrund ({0}%)..."
+    "transcodeRenderingProgress": "Rendern im Hintergrund ({0}%)...",
+    "replaygainPreampTagged": "Vorverstärker: Dateien mit RG-Tags",
+    "replaygainPreampUntagged": "Vorverstärker: Dateien ohne RG-Tags"
   },
   "shortcuts": {
     "title": "Tastaturkürzel",
@@ -1492,7 +1498,8 @@
     "peqActiveMsg": "PEQ Aktiv — Echtzeit-Audioentzerrung eingeschaltet",
     "peqBypassMsg": "PEQ im Bypass-Modus (aus) — Aktivieren klicken oder Band anpassen",
     "filterBandsSubtitle": "Knoten im Diagramm anklicken oder Zeile zum Bearbeiten auswählen",
-    "importExportDesc": "EqualizerAPO / AutoEQ / Peace-Konfiguration einfügen oder kopieren:"
+    "importExportDesc": "EqualizerAPO / AutoEQ / Peace-Konfiguration einfügen oder kopieren:",
+    "preamp": "Vorverstärker"
   },
   "dynamicsStudio": {
     "title": "Dynamik- & Röhren-Studio",

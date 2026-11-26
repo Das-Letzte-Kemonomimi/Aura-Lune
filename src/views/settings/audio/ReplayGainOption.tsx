@@ -3,6 +3,7 @@ import { Activity, Sliders, Zap, ShieldCheck } from '../../../components/ui/icon
 import { Badge, Button, Card, SectionHeader, SegmentedControl, SettingRow, SliderRow, Spinner } from '../../../components/ui';
 import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import { formatSignedDb } from '../../../utils/preamp';
 
 export type ReplayGainOptionProps = Pick<
   AudioDevicesSettingsViewProps,
@@ -21,7 +22,11 @@ export type ReplayGainOptionProps = Pick<
 
 type ReplayGainMode = ReplayGainOptionProps['replaygainMode'];
 
-const signedDb = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)} dB`;
+/** Mirrors `domain::replaygain::{TAGGED,UNTAGGED}_PREAMP_*`. */
+const TAGGED_PREAMP_MIN_DB = -12;
+const TAGGED_PREAMP_MAX_DB = 12;
+const UNTAGGED_PREAMP_MIN_DB = -15;
+const UNTAGGED_PREAMP_MAX_DB = 15;
 
 export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
   isReplaygainScanning,
@@ -80,24 +85,24 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
       {/* ReplayGain sliders and options */}
       <div className="mt-4 flex flex-col gap-3">
         <SliderRow
-          label={loc.settings.replaygainPreAmp}
+          label={loc.settings.replaygainPreampTagged}
           tone="purple"
-          min={-6}
-          max={6}
+          min={TAGGED_PREAMP_MIN_DB}
+          max={TAGGED_PREAMP_MAX_DB}
           step={0.5}
           value={replaygainPreAmp}
-          format={signedDb}
+          format={formatSignedDb}
           disabled={!active}
           onChange={(v) => set(replaygainMode, v)}
         />
         <SliderRow
-          label={loc.settings.replaygainFallbackGain}
+          label={loc.settings.replaygainPreampUntagged}
           tone="purple"
-          min={-12}
-          max={0}
-          step={1}
+          min={UNTAGGED_PREAMP_MIN_DB}
+          max={UNTAGGED_PREAMP_MAX_DB}
+          step={0.5}
           value={replaygainFallbackGain}
-          format={signedDb}
+          format={formatSignedDb}
           disabled={!active}
           onChange={(v) => set(replaygainMode, replaygainPreAmp, v)}
         />
@@ -121,7 +126,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
         <Card variant="inset" padding="none" className="mt-3 flex items-center justify-between px-3 py-2 text-xs">
           <div className="flex items-center gap-1.5 text-fg-muted">
             <span>{loc.settings.replaygainTargetAdjustment}:</span>
-            <strong className="font-mono text-fg">{signedDb(replaygainStatus[0])}</strong>
+            <strong className="font-mono text-fg">{formatSignedDb(replaygainStatus[0])}</strong>
           </div>
           <div className="flex items-center gap-1 font-semibold text-accent-green">
             <ShieldCheck size={14} /> {loc.settings.replaygainLimiterActive}

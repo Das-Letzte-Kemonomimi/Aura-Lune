@@ -67,7 +67,7 @@
 - [x] **10-Pasmowy Korektor Graficzny (Graphic EQ)**:
   - 10 suwaków od 31 Hz do 16 kHz (-24 dB do +12 dB) z autostartem, dynamicznym bypassem i natychmiastową aktywacją w locie bez blokowania suwaków.
   - Presety fabryczne: *Flat*, *Anime OST / Clear Voice*, *Mocny Bass (Bass Boost)*, *Elektroniczna / Dance*, *Rock*, *Pop*, *Klasyczna / Akustyczna*.
-  - Zintegrowany przedwzmacniacz (Preamp Gain) chroniący przed przesterowaniem.
+  - Preamp (DSP Studio, -15..+15 dB): always applied, even with the EQ off. On the single `peq_preamp` element the engine applies `user preamp + (graphic EQ on ? EQ preamp) + (PEQ on ? PEQ preamp)`, clamped to -30..+15 dB (`domain::equalizer::combined_preamp_db`). The EQ preamp is written by AutoEQ profiles and by the "Auto" toggle, which sets it to `-max(0, largest band boost)` while the graphic EQ is on.
 - [x] **Wielopasmowy Korektor Parametryczny (PEQ Studio - `ParametricEqModal`)**:
   - Do 32 w pełni parametrycznych pasm (filtry Peak, Low Shelf, High Shelf z dobrocią $Q$).
   - Bezpieczny Headroom / Safe Preamp Protection chroniący przed przesterowaniem cyfrowym (clippingiem).
@@ -89,7 +89,7 @@
   - Wdrożona obsługa backendowa (`get_crossfeed_config` / `set_crossfeed_config`) redukująca zmęczenie odsłuchem na słuchawkach.
 - [x] **Zgodność z ReplayGain 2.0**:
   - Tryby: Track Gain, Album Gain, Off (natywny passthrough bez overheadu).
-  - Pre-amp (`rgvolume` `pre-amp`) and fallback gain (`fallback-gain`, for tracks without RG tags). Verified behaviour (`crates/audio-engine/tests/replaygain_semantics_test.rs`): the pre-amp applies to untagged tracks too, giving `fallback-gain + pre-amp`. Because those tracks carry no peak, a positive total is capped at `rgvolume` `headroom`, which the engine leaves at its default of 0 dB, so a boost on an untagged track is currently lost while a cut works.
+  - Two independent preamps, as in foobar2000: "files with RG tags" (-12..+12 dB, added to the tag gain) and "files without RG tags" (-15..+15 dB, the total gain of an untagged file). `rgvolume` adds `pre-amp` to untagged tracks too and caps their positive total at `headroom`, so `ReplayGainConfig::rgvolume_params` maps them as `pre-amp = tagged`, `fallback-gain = untagged - tagged`, `headroom = max(0, untagged)`. An untagged file therefore gets exactly the untagged preamp, boosts included; `rglimiter` still guards the peaks when "prevent clipping" is on. Verified in `crates/audio-engine/tests/replaygain_semantics_test.rs`.
   - Wbudowany skaner ReplayGain (`scan_track_replaygain`, `scan_library_replaygain`).
 
 ---

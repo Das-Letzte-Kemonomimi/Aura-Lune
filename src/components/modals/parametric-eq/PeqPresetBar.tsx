@@ -47,9 +47,9 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
       {/* Preamp with clipping protection */}
       <div className="flex items-center gap-3.5">
         <div className="flex items-center gap-2">
-          <span className="text-ui font-semibold text-fg-secondary">Preamp:</span>
+          <span className="text-ui font-semibold text-fg-secondary">{loc.parametricEq.preamp}:</span>
           <RangeSlider
-            aria-label="Preamp"
+            aria-label={loc.parametricEq.preamp}
             min={-20}
             max={10}
             step={0.5}

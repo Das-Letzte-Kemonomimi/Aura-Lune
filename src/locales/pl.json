@@ -363,7 +363,13 @@
     "defaultEngineStartup": "Domyślny silnik DSP ładowany przy starcie programu",
     "enterValuePitch": "Wpisz wartość i naciśnij Enter (lub użyj strzałek góra/dół)",
     "enterValueTempo": "Wpisz tempo (np. 1.25 lub 1,25) i naciśnij Enter (lub użyj strzałek góra/dół)",
-    "enterValueSpeed": "Wpisz prędkość (np. 1.15 lub 1,15) i naciśnij Enter (lub użyj strzałek góra/dół)"
+    "enterValueSpeed": "Wpisz prędkość (np. 1.15 lub 1,15) i naciśnij Enter (lub użyj strzałek góra/dół)",
+    "preamp": "Przedwzmacniacz",
+    "preampDesc": "(zawsze aktywny, także z wyłączonym EQ)",
+    "preampAuto": "Auto",
+    "preampAutoReadout": "Auto: {0}",
+    "preampAutoTooltip": "Obniża EQ o największe podbicie pasma, aby podbite pasma nie przesterowały",
+    "preampResetTooltip": "Kliknij dwukrotnie, aby wrócić do 0 dB. Kółko lub strzałki: 0,5 dB, Shift: 0,1 dB"
   },
   "library": {
     "title": "Biblioteka Muzyczna",
@@ -612,7 +618,6 @@
     "replaygainModeTrack": "Głośność utworu",
     "replaygainModeAlbum": "Głośność albumu",
     "replaygainModeAuto": "Inteligentny (Auto Track/Album)",
-    "replaygainFallbackGain": "Domyślna głośność dla nietagowanych (Fallback)",
     "replaygainPreventClipping": "Ochrona przed przesterem (Limiter True-Peak)",
     "crossfeedTitle": "Bauer Crossfeed dla słuchawek (bs2b)",
     "crossfeedDesc": "Wirtualizacja odsłuchu głośnikowego redukująca zmęczenie słuchu przy szerokich miksach stereo.",
@@ -627,7 +632,6 @@
     "silenceTrimmingDesc": "Natychmiastowe przeskakiwanie cichych przerw i intencji bezdźwięcznych na początku i końcu utworu.",
     "silenceTrimmingEnabled": "Pomijanie ciszy aktywne",
     "silenceTrimmingThreshold": "Próg detekcji ciszy",
-    "replaygainPreAmp": "Przedwzmacniacz (Pre-Amp)",
     "replaygainLimiterActive": "Limiter szczytowy aktywny",
     "replaygainTargetAdjustment": "Korekta docelowa",
     "scanReplayGainLibrary": "Skanuj głośność biblioteki (EBU R128)",
@@ -813,7 +817,9 @@
     "transcodeApplySavedBookmarks": "Zastosuj zapisane znaczniki A-B ({0})",
     "transcodeSavedMarkers": "Zapisane znaczniki utworu:",
     "transcodeGstreamerBgDesc": "Potok GStreamer przetwarza dźwięk asynchronicznie w tle. Aplikacja nie ulega zamrożeniu — możesz swobodnie słuchać muzyki lub zamknąć to okno.",
-    "transcodeRenderingProgress": "Renderowanie w tle ({0}%)..."
+    "transcodeRenderingProgress": "Renderowanie w tle ({0}%)...",
+    "replaygainPreampTagged": "Przedwzmacniacz: pliki z tagami RG",
+    "replaygainPreampUntagged": "Przedwzmacniacz: pliki bez tagów RG"
   },
   "shortcuts": {
     "title": "Skróty Klawiszowe",
@@ -1492,7 +1498,8 @@
     "peqActiveMsg": "PEQ Aktywny — korekcja audio włączona w czasie rzeczywistym",
     "peqBypassMsg": "PEQ w trybie Bypass (wyłączony) — kliknij Włącz lub przesuń pasmo",
     "filterBandsSubtitle": "Kliknij węzeł na wykresie lub wybierz wiersz, aby edytować",
-    "importExportDesc": "Wklej konfigurację EqualizerAPO / AutoEQ / Peace lub skopiuj aktualne ustawienia:"
+    "importExportDesc": "Wklej konfigurację EqualizerAPO / AutoEQ / Peace lub skopiuj aktualne ustawienia:",
+    "preamp": "Przedwzmacniacz"
   },
   "dynamicsStudio": {
     "title": "Studio Dynamiki & Lampy (Dynamics Studio)",

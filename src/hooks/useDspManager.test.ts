@@ -244,4 +244,63 @@ describe('useDspManager', () => {
       level: 0.3,
     });
   });
+
+  describe('preamp', () => {
+    function withSettings(settings: Record<string, string>) {
+      mockInvoke.mockImplementation(async (cmd: string, args?: { key?: string }) => {
+        if (cmd === 'get_app_setting') return settings[args?.key ?? ''] ?? null;
+        if (cmd === 'list_dsp_presets' || cmd === 'get_equalizer_presets') return [];
+        return null;
+      });
+    }
+
+    it('restores the saved preamp controls on mount', async () => {
+      withSettings({ preamp_db: '-3.5', preamp_auto: 'true' });
+      const { result } = setupHook();
+      await waitFor(() => expect(result.current.preampDb).toBe(-3.5));
+      expect(result.current.preampAuto).toBe(true);
+    });
+
+    it('sends the clamped preamp and saves it', async () => {
+      const { result } = setupHook();
+      // Let the mount-time settings read settle first.
+      await act(async () => {});
+      await act(async () => {
+        await result.current.handlePreampChange(20);
+      });
+      expect(result.current.preampDb).toBe(15);
+      expect(mockInvoke).toHaveBeenCalledWith('set_preamp', { preampDb: 15 });
+      await waitFor(() =>
+        expect(mockInvoke).toHaveBeenCalledWith('set_app_setting', { key: 'preamp_db', value: '15' })
+      );
+    });
+
+    it('Auto sends -max(band boost) as the EQ preamp while the EQ is on', async () => {
+      withSettings({ preamp_auto: 'true' });
+      mockStatus = { ...mockStatus, equalizer_enabled: true, equalizer_bands: [0, 6, -3, 2, 0, 0, 0, 0, 0, 0] };
+      const { result } = setupHook();
+      await waitFor(() => expect(result.current.preampAuto).toBe(true));
+      expect(result.current.autoPreampValue).toBe(-6);
+      await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_preamp', { preampDb: -6 }));
+    });
+
+    it('Auto does not touch the EQ preamp while Auto is off', async () => {
+      mockStatus = { ...mockStatus, equalizer_enabled: true, equalizer_bands: [0, 6, 0, 0, 0, 0, 0, 0, 0, 0] };
+      setupHook();
+      await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_app_setting', { key: 'preamp_auto' }));
+      expect(mockInvoke).not.toHaveBeenCalledWith('set_equalizer_preamp', expect.anything());
+    });
+
+    it('turning Auto off resets the EQ preamp to 0 dB', async () => {
+      withSettings({ preamp_auto: 'true' });
+      const { result } = setupHook();
+      await waitFor(() => expect(result.current.preampAuto).toBe(true));
+      await act(async () => {
+        await result.current.handleTogglePreampAuto();
+      });
+      expect(result.current.preampAuto).toBe(false);
+      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_preamp', { preampDb: 0 });
+      expect(mockInvoke).toHaveBeenCalledWith('set_app_setting', { key: 'preamp_auto', value: 'false' });
+    });
+  });
 });

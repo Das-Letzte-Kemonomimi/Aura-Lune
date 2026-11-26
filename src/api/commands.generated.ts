@@ -165,6 +165,7 @@ export const COMMAND_NAMES = [
   'set_mini_player_mode',
   'set_parametric_eq_state',
   'set_pitch',
+  'set_preamp',
   'set_queue',
   'set_rate',
   'set_replaygain_config',

@@ -69,6 +69,13 @@
         "de": "Bequemere Lautstärke: Mausrad über jedem Lautstärkeregler (mit Shift feine Schritte, mit Strg große), Doppelklick springt auf 70 % zurück, und Stummschalten mit M stellt die vorherige Lautstärke wieder her. Lautstärkeänderungen sind knackfrei, werden beim Hören gespeichert, und die Lautstärkeanzeige erscheint in der Ecke statt über den Tempo-Reglern.",
         "fi": "Helpompi äänenvoimakkuus: rullaa hiiren rullaa minkä tahansa äänenvoimakkuussäätimen päällä (Shift pienille askelille, Ctrl suurille), kaksoisnapsautus palauttaa 70 %:iin ja M-mykistys palauttaa edellisen tason. Muutokset ovat myös naksahduksettomia, tallentuvat kuunnellessa, ja äänenvoimakkuusilmoitus näkyy nyt kulmassa eikä peitä tempon säätimiä.",
         "la": "Volumen facilius: rotam muris super quamlibet regulam voluminis verte (Shift gradus parvos, Ctrl magnos dat), duplex ictus ad 70% redit, et silentium clave M volumen prius restituit. Mutationes voluminis sine strepitu fiunt, inter audiendum servantur, et fenestella voluminis nunc in angulo apparet, non super moderamina tempi."
+      },
+      {
+        "en": "A new Preamp slider in DSP Studio raises or lowers the overall level by up to 15 dB, even with the equalizer off. Its Auto switch lowers the equalizer just enough that boosted bands never distort.",
+        "pl": "Nowy suwak Przedwzmacniacza w DSP Studio podnosi lub obniża ogólną głośność nawet o 15 dB, również przy wyłączonym korektorze. Przełącznik Auto obniża korektor dokładnie tyle, by podbite pasma nigdy nie przesterowały.",
+        "de": "Ein neuer Vorverstärker-Regler im DSP Studio hebt oder senkt die Gesamtlautstärke um bis zu 15 dB, auch bei ausgeschaltetem Equalizer. Der Auto-Schalter senkt den Equalizer gerade so weit, dass angehobene Bänder nie verzerren.",
+        "fi": "DSP Studion uusi Esivahvistin-liukusäädin nostaa tai laskee kokonaisäänenvoimakkuutta jopa 15 dB, myös taajuuskorjaimen ollessa pois päältä. Auto-kytkin laskee taajuuskorjainta juuri sen verran, etteivät korostetut kaistat koskaan säröydy.",
+        "la": "Novus regulator Praeamplificatoris in DSP Studio volumen totum usque ad 15 dB auget vel minuit, etiam aequatore exstincto. Commutator Auto aequatorem tantum minuit ut bandae elevatae numquam distorqueantur."
       }
     ],
     "changed": [
@@ -199,6 +206,13 @@
         "de": "Überlaufende Cover-Schaltflächen behoben und die Breite der visuellen Spalte beim Wechsel zwischen Cover, Vinyl, Kassette und VU-Meter stabilisiert.",
         "fi": "Korjattiin kansikuvan painikkeiden valuminen kappaleen säätimien päälle ja pidettiin näkymäpalstan leveys vakaana vaihdettaessa Kansi-, Vinyyli-, Kasetti- ja VU-tilojen välillä.",
         "la": "Emendatae sunt tesserae tegumenti ne super cantum extendantur et latitudo columnae stabilita inter modos Imago, Vinylium, Taenia et VU."
+      },
+      {
+        "en": "ReplayGain now has two separate preamps, one for files with loudness tags and one for files without them. Boosting untagged files finally works, and a saved 0 dB setting is no longer reset to -6 dB.",
+        "pl": "ReplayGain ma teraz dwa osobne przedwzmacniacze: dla plików z tagami głośności i dla plików bez nich. Podbijanie plików bez tagów wreszcie działa, a zapisane ustawienie 0 dB nie wraca już do -6 dB.",
+        "de": "ReplayGain hat jetzt zwei getrennte Vorverstärker, einen für Dateien mit Lautheits-Tags und einen für Dateien ohne. Das Anheben von Dateien ohne Tags funktioniert endlich, und eine gespeicherte Einstellung von 0 dB springt nicht mehr auf -6 dB zurück.",
+        "fi": "ReplayGainissa on nyt kaksi erillistä esivahvistinta: toinen äänenvoimakkuustunnisteellisille tiedostoille ja toinen tiedostoille ilman niitä. Tunnisteettomien tiedostojen korostus toimii vihdoin, eikä tallennettu 0 dB:n asetus enää palaudu arvoon -6 dB.",
+        "la": "ReplayGain nunc duos praeamplificatores separatos habet, unum fasciculis cum notis sonoritatis, alterum sine eis. Fasciculi sine notis tandem augeri possunt, et 0 dB servatum non iam ad -6 dB redit."
       }
     ]
   },

@@ -6,6 +6,7 @@ import type { EqualizerPreset } from '../types/equalizer';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
 import { CUSTOM_EQ_PRESET_ID, FLAT_EQ_PRESET_ID, presetLabel } from '../utils/dspPresetLabels';
+import { autoPreampDb, clampPreampDb, parseFiniteSetting } from '../utils/preamp';
 
 export interface UseDspManagerOptions {
   status: PlaybackStatus;
@@ -42,6 +43,11 @@ export function useDspManager({
   const dspAutoStartupRef = useRef<boolean>(false);
   const lastActiveDspEngineRef = useRef<'RubberBand' | 'SoundTouch'>('RubberBand');
   const dspSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 2b. Always-on preamp (independent of the EQs) and the graphic EQ Auto preamp
+  const [preampDb, setPreampDb] = useState<number>(0);
+  const [preampAuto, setPreampAuto] = useState<boolean>(false);
+  const preampSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 3. DSP Vibes & Presets
   const [presets, setPresets] = useState<DspPresetRecord[]>([]);
@@ -107,6 +113,15 @@ export function useDspManager({
         }
       })
       .catch((e) => console.warn('Failed to read get_dsp_block_size:', e));
+
+    // The engine value is re-applied by useAppBootstrap; this only restores the controls.
+    getSetting('preamp_db')
+      .then((val) => setPreampDb(clampPreampDb(parseFiniteSetting(val, 0))))
+      .catch((e) => console.warn('Failed to read preamp_db:', e));
+
+    getSetting('preamp_auto')
+      .then((val) => setPreampAuto(val === 'true'))
+      .catch((e) => console.warn('Failed to read preamp_auto:', e));
   }, [loadPresets]);
 
   // Persist DSP settings debounced
@@ -535,6 +550,43 @@ export function useDspManager({
     }
   }, [setStatus, showMessage, loc]);
 
+  // Preamp Handlers
+  const handlePreampChange = useCallback(async (db: number) => {
+    const next = clampPreampDb(db);
+    setPreampDb(next);
+    try {
+      await invoke('set_preamp', { preampDb: next });
+    } catch (e: unknown) {
+      console.warn('Failed to set the preamp:', e);
+    }
+    // Slider drags send many values: save only the last one.
+    if (preampSaveTimeoutRef.current) clearTimeout(preampSaveTimeoutRef.current);
+    preampSaveTimeoutRef.current = setTimeout(() => {
+      setSetting('preamp_db', String(next)).catch((e) => console.warn('Failed to save preamp_db:', e));
+    }, 250);
+  }, []);
+
+  const handleTogglePreampAuto = useCallback(async () => {
+    const next = !preampAuto;
+    setPreampAuto(next);
+    setSetting('preamp_auto', next ? 'true' : 'false').catch((e) => console.warn('Failed to save preamp_auto:', e));
+    // Turning Auto off drops its cut; while on, the effect below keeps it in step with the bands.
+    if (!next) {
+      await invoke('set_equalizer_preamp', { preampDb: 0 }).catch((e) =>
+        console.warn('Failed to reset the EQ preamp:', e)
+      );
+    }
+  }, [preampAuto]);
+
+  const autoPreampValue = autoPreampDb(status.equalizer_bands ?? []);
+  // Only while Auto is on: otherwise a band change would overwrite an AutoEQ profile's preamp.
+  useEffect(() => {
+    if (!preampAuto || !status.equalizer_enabled) return;
+    invoke('set_equalizer_preamp', { preampDb: autoPreampValue }).catch((e) =>
+      console.warn('Failed to apply the Auto preamp:', e)
+    );
+  }, [preampAuto, status.equalizer_enabled, autoPreampValue]);
+
   // Reverb Handlers
   const handleUpdateReverb = useCallback(
     async (
@@ -618,6 +670,11 @@ export function useDspManager({
     handleEqToggle,
     handleApplyEqPreset,
     handleResetEq,
+    preampDb,
+    preampAuto,
+    autoPreampValue,
+    handlePreampChange,
+    handleTogglePreampAuto,
     handleUpdateReverb,
     lastActiveDspEngineRef,
   };

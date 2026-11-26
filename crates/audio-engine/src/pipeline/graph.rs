@@ -407,6 +407,7 @@ impl AudioEngine {
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
             eq_preamp_db: 0.0,
+            user_preamp_db: 0.0,
             parametric_eq_state: ParametricEqState::default(),
             dynamics_state: domain::dynamics::DynamicsState::default(),
             replaygain_config: ReplayGainConfig::default(),

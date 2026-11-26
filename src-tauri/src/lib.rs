@@ -137,6 +137,7 @@ pub fn run() {
             set_equalizer_enabled,
             set_equalizer_params,
             set_equalizer_preamp,
+            set_preamp,
             apply_auto_eq_profile,
             get_equalizer_presets,
             get_parametric_eq_state,

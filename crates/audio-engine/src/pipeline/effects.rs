@@ -95,6 +95,7 @@ impl AudioEngine {
                 }
                 inner.rgvolume.set_property("pre-amp", 0.0f64);
                 inner.rgvolume.set_property("fallback-gain", 0.0f64);
+                inner.rgvolume.set_property("headroom", 0.0f64);
                 inner.rglimiter.set_property("enabled", false);
             }
             ReplayGainMode::Track | ReplayGainMode::Album | ReplayGainMode::Auto => {
@@ -105,17 +106,20 @@ impl AudioEngine {
                 // `apply_auto_replaygain` switches to Album Gain when a whole album plays.
                 let album_mode = config.mode == ReplayGainMode::Album;
                 inner.rgvolume.set_property("album-mode", album_mode);
-                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
+                let params = config.rgvolume_params();
+                inner.rgvolume.set_property("pre-amp", params.pre_amp_db);
                 inner
                     .rgvolume
-                    .set_property("fallback-gain", config.fallback_gain_db);
+                    .set_property("fallback-gain", params.fallback_gain_db);
+                // Raised headroom lets untagged boosts through; rglimiter guards the peaks.
+                inner.rgvolume.set_property("headroom", params.headroom_db);
                 inner
                     .rglimiter
                     .set_property("enabled", config.prevent_clipping);
             }
         }
         debug!(
-            "ReplayGain updated: mode={:?}, pre_amp={:.1} dB, fallback={:.1} dB, limiter={}",
+            "ReplayGain updated: mode={:?}, tagged preamp={:.1} dB, untagged preamp={:.1} dB, limiter={}",
             config.mode, config.pre_amp_db, config.fallback_gain_db, config.prevent_clipping
         );
         Ok(())

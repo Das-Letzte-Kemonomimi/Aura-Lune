@@ -111,6 +111,16 @@ pub fn set_equalizer_preamp_internal(state: &AppState, preamp_db: f64) -> Result
     Ok(())
 }
 
+/// Sets the user preamp (always applied, independent of the equalizers), clamped to ±15 dB.
+pub fn set_preamp_internal(state: &AppState, preamp_db: f64) -> Result<(), CommandError> {
+    let clamped = preamp_db.clamp(
+        domain::equalizer::USER_PREAMP_MIN_DB,
+        domain::equalizer::USER_PREAMP_MAX_DB,
+    );
+    state.engine.set_user_preamp(clamped);
+    Ok(())
+}
+
 /// Applies an AutoEQ profile with pre-amp attenuation.
 pub fn apply_auto_eq_profile_internal(
     state: &AppState,
@@ -481,6 +491,15 @@ pub fn set_equalizer_preamp(
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
     set_equalizer_preamp_internal(&state, preamp_db)
+}
+
+#[tauri::command]
+pub async fn set_preamp(preamp_db: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        set_preamp_internal(&state, preamp_db)
+    })
+    .await?
 }
 
 #[tauri::command]

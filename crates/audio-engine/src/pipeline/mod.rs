@@ -86,6 +86,8 @@ struct PipelineInner {
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     eq_preamp_db: f64,
+    /// User preamp (dB), always applied regardless of the equalisers.
+    user_preamp_db: f64,
     parametric_eq_state: ParametricEqState,
     dynamics_state: DynamicsState,
     replaygain_config: ReplayGainConfig,
@@ -116,17 +118,13 @@ struct StemMixerHandles {
 
 impl PipelineInner {
     fn update_preamp_volume(&self) {
-        let eq_p = if self.equalizer_state.enabled {
-            self.eq_preamp_db
-        } else {
-            0.0
-        };
-        let peq_p = if self.parametric_eq_state.enabled {
-            self.parametric_eq_state.preamp_db
-        } else {
-            0.0
-        };
-        let total_db = (eq_p + peq_p).clamp(-24.0, 12.0);
+        let total_db = domain::equalizer::combined_preamp_db(
+            self.user_preamp_db,
+            self.equalizer_state.enabled,
+            self.eq_preamp_db,
+            self.parametric_eq_state.enabled,
+            self.parametric_eq_state.preamp_db,
+        );
         let linear = 10.0f64.powf(total_db / 20.0);
         self.peq_preamp.set_property("volume", linear);
     }

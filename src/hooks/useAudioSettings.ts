@@ -5,6 +5,7 @@ import type { AudioCard } from '../types/audioDevices';
 import type { TrackRecord } from '../types/library';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { parseFiniteSetting } from '../utils/preamp';
 
 export interface UseAudioSettingsOptions {
   showMessage: (msg: string, isError?: boolean) => void;
@@ -363,8 +364,9 @@ export function useAudioSettings({
   useEffect(() => {
     // 1. ReplayGain
     const savedRgMode = (localStorage.getItem('auralune_replaygain_mode') as 'Off' | 'Track' | 'Album' | 'Auto') || 'Off';
-    const savedRgPreAmp = parseFloat(localStorage.getItem('auralune_replaygain_preamp') || '0.0') || 0.0;
-    const savedRgFallback = parseFloat(localStorage.getItem('auralune_replaygain_fallback') || '-6.0') || -6.0;
+    const savedRgPreAmp = parseFiniteSetting(localStorage.getItem('auralune_replaygain_preamp'), 0.0);
+    // A saved 0 dB must stay 0 (not fall back to -6 dB).
+    const savedRgFallback = parseFiniteSetting(localStorage.getItem('auralune_replaygain_fallback'), -6.0);
     const savedRgClipping = localStorage.getItem('auralune_replaygain_prevent_clipping') !== 'false';
     invoke('set_replaygain_config', {
       config: {
