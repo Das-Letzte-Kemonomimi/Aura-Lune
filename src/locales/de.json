@@ -2053,5 +2053,14 @@
     "badgeTitle": "Update verfügbar: {0}",
     "badgeInstalledTitle": "Update installiert — Neustart zum Anwenden",
     "errorPrefix": "Update-Fehler"
+  },
+  "startup": {
+    "initializing": "Auralune wird initialisiert…",
+    "loadingThemes": "Visuelles Design wird angewendet…",
+    "loadingSettings": "Einstellungen & DSP werden geladen…",
+    "loadingDevices": "Audiogeräte werden erkannt…",
+    "loadingQueue": "Wiedergabewarteschlange wird wiederhergestellt…",
+    "loadingLibrary": "Musikbibliothek wird geladen…",
+    "ready": "Bereit"
   }
 }

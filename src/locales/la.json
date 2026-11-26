@@ -2053,5 +2053,14 @@
     "badgeTitle": "Renovatio praesto est: {0}",
     "badgeInstalledTitle": "Renovatio instituta — itera ut applicetur",
     "errorPrefix": "Error renovationis"
+  },
+  "startup": {
+    "initializing": "Auralune praeparatur…",
+    "loadingThemes": "Species visualis applicatur…",
+    "loadingSettings": "Praeferentiae et DSP onerantur…",
+    "loadingDevices": "Instrumenta soni deteguntur…",
+    "loadingQueue": "Ordo cantuum restituitur…",
+    "loadingLibrary": "Bibliotheca musica oneratur…",
+    "ready": "Paratum"
   }
 }

@@ -2053,5 +2053,14 @@
     "badgeTitle": "Päivitys saatavilla: {0}",
     "badgeInstalledTitle": "Päivitys asennettu — käynnistä uudelleen ottaaksesi käyttöön",
     "errorPrefix": "Päivitysvirhe"
+  },
+  "startup": {
+    "initializing": "Käynnistetään Auralune…",
+    "loadingThemes": "Otetaan visuaalinen teema käyttöön…",
+    "loadingSettings": "Ladataan asetuksia ja DSP:tä…",
+    "loadingDevices": "Tunnistetaan äänilaitteita…",
+    "loadingQueue": "Palautetaan toistojonoa…",
+    "loadingLibrary": "Ladataan musiikkikirjastoa…",
+    "ready": "Valmis"
   }
 }

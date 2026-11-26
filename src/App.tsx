@@ -33,6 +33,7 @@ import { useBottomPlaybackDockProps } from './components/layout/useBottomPlaybac
 import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
+import { StartupSplash } from './components/layout/StartupSplash';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { setSetting } from './api/settings';
 import {
@@ -589,7 +590,7 @@ export default function App() {
 
 
   // Services, settings, drag & drop and window events (useAppBootstrap)
-  const { isDraggingOver, setIsDraggingOver } = useAppBootstrap({
+  const { isDraggingOver, setIsDraggingOver, bootState } = useAppBootstrap({
     refreshDevices,
     loadLibrary,
     loadThemes,
@@ -1102,6 +1103,10 @@ export default function App() {
         themeOverlay={themeOverlay}
       />
 
+      {!bootState.isReady && (
+        <StartupSplash bootState={bootState} appVersion={appVersion} loc={loc} />
+      )}
+
       {/* On-screen volume OSD with a configurable position */}
       <VolumeOsd volume={status.volume} position={volumeOsdPosition} unit={volumeUnit} />
 
@@ -1109,7 +1114,10 @@ export default function App() {
       <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} />
 
       {/* Main UI container (hidden without losing state while the Kiosk full-screen mode is active) */}
-      <div className={cn('h-full min-h-0 flex-1 flex-col overflow-hidden', isBigScreen ? 'hidden' : 'flex')}>
+      <div
+        inert={!bootState.isReady ? true : undefined}
+        className={cn('h-full min-h-0 flex-1 flex-col overflow-hidden', isBigScreen ? 'hidden' : 'flex')}
+      >
 
         <DragDropOverlay
           isDraggingOver={isDraggingOver}

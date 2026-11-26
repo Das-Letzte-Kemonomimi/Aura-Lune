@@ -1,6 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAppBootstrap, type UseAppBootstrapOptions } from './useAppBootstrap';
+import {
+  BOOT_EXIT_DURATION_MS,
+  BOOT_SAFETY_TIMEOUT_MS,
+  useAppBootstrap,
+  type UseAppBootstrapOptions,
+} from './useAppBootstrap';
 import { invokeMock } from '../test/ipcMock';
 
 
@@ -134,5 +139,103 @@ describe('useAppBootstrap', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledWith(['/music/x.flac']);
+  });
+
+  describe('bootState', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reaches 100%, begins exit, and marks ready after all startup tasks settle', async () => {
+      vi.useFakeTimers();
+
+      let resolveLibrary!: () => void;
+      const loadLibrary = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveLibrary = resolve;
+          }),
+      );
+
+      const { result } = renderHook(() => useAppBootstrap(makeOptions({ loadLibrary })));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.bootState.isReady).toBe(false);
+      expect(result.current.bootState.isExiting).toBe(false);
+      expect(result.current.bootState.stage).toBe('library');
+      expect(result.current.bootState.progress).toBe(80);
+
+      await act(async () => {
+        resolveLibrary();
+        await Promise.resolve();
+      });
+
+      expect(result.current.bootState.progress).toBe(100);
+      expect(result.current.bootState.stage).toBe('ready');
+      expect(result.current.bootState.isExiting).toBe(true);
+      expect(result.current.bootState.isReady).toBe(false);
+
+      act(() => {
+        vi.advanceTimersByTime(BOOT_EXIT_DURATION_MS);
+      });
+
+      expect(result.current.bootState.isReady).toBe(true);
+    });
+
+    it('still marks ready when a startup loader rejects', async () => {
+      vi.useFakeTimers();
+
+      const loadLibrary = vi.fn().mockRejectedValue(new Error('db busy'));
+      const loadThemes = vi.fn().mockRejectedValue(new Error('theme fail'));
+      const { result } = renderHook(() =>
+        useAppBootstrap(makeOptions({ loadLibrary, loadThemes })),
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.bootState.isExiting).toBe(true);
+      expect(result.current.bootState.progress).toBe(100);
+
+      act(() => {
+        vi.advanceTimersByTime(BOOT_EXIT_DURATION_MS);
+      });
+
+      expect(result.current.bootState.isReady).toBe(true);
+    });
+
+    it('reveals the UI via safety timeout if an initializer stalls', async () => {
+      vi.useFakeTimers();
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const stalledLibrary = vi.fn(() => new Promise<void>(() => {}));
+      const { result } = renderHook(() =>
+        useAppBootstrap(makeOptions({ loadLibrary: stalledLibrary })),
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.bootState.isReady).toBe(false);
+
+      act(() => {
+        vi.advanceTimersByTime(BOOT_SAFETY_TIMEOUT_MS);
+      });
+
+      expect(result.current.bootState.isExiting).toBe(true);
+      expect(result.current.bootState.progress).toBe(100);
+
+      act(() => {
+        vi.advanceTimersByTime(BOOT_EXIT_DURATION_MS);
+      });
+
+      expect(result.current.bootState.isReady).toBe(true);
+      warnSpy.mockRestore();
+    });
   });
 });

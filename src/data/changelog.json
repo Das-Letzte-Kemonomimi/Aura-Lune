@@ -83,6 +83,13 @@
         "de": "Eine kleine Übersteuerungsanzeige neben dem Vorverstärker im DSP Studio leuchtet rot, wenn der Klang zu laut wird und verzerrt. Ein Klick setzt sie zurück.",
         "fi": "DSP Studion esivahvistimen vieressä oleva pieni merkkivalo palaa punaisena, kun ääni on liian kova ja alkaa säröytyä. Napsauta sitä nollataksesi sen.",
         "la": "Parva lux iuxta praeamplificatorem in DSP Studio rubet cum sonus nimis fortis fit et distorquetur. Preme eam ut exstinguas."
+      },
+      {
+        "en": "Added an animated startup splash screen with live loading progress while your theme, audio devices, queue, and music library initialize.",
+        "pl": "Dodano animowany ekran startowy z podglądem postępu podczas ładowania motywu, urządzeń audio, kolejki i biblioteki muzycznej.",
+        "de": "Animierter Startbildschirm mit Live-Fortschrittsanzeige hinzugefügt, während Design, Audiogeräte, Warteschlange und Musikbibliothek geladen werden.",
+        "fi": "Lisätty animoitu käynnistysnäkymä reaaliaikaisella edistymispalkilla, kun teema, äänilaitteet, toistojono ja musiikkikirjasto latautuvat.",
+        "la": "Addita est species initii animata cum indicio progressus, dum species visualis, instrumenta soni, ordo et bibliotheca musica onerantur."
       }
     ],
     "changed": [

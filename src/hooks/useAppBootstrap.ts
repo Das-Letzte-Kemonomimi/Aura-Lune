@@ -30,6 +30,35 @@ export interface UseAppBootstrapOptions {
 /** Time window in which an identical drop from another event channel is ignored. */
 const DUPLICATE_DROP_WINDOW_MS = 1000;
 
+/** Maximum time the startup splash waits for IPC initializers before revealing the UI. */
+export const BOOT_SAFETY_TIMEOUT_MS = 4500;
+
+/** Fade-out duration for the startup splash overlay before unmounting. */
+export const BOOT_EXIT_DURATION_MS = 280;
+
+export type BootStage =
+  | 'themes'
+  | 'settings'
+  | 'devices'
+  | 'queue'
+  | 'library'
+  | 'ready';
+
+export interface BootState {
+  isReady: boolean;
+  isExiting: boolean;
+  progress: number;
+  stage: BootStage;
+}
+
+const BOOT_STAGE_ORDER: Exclude<BootStage, 'ready'>[] = [
+  'themes',
+  'settings',
+  'devices',
+  'queue',
+  'library',
+];
+
 export function useAppBootstrap({
   refreshDevices,
   loadLibrary,
@@ -50,6 +79,12 @@ export function useAppBootstrap({
   stereoWidenerAmount,
 }: UseAppBootstrapOptions) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [bootState, setBootState] = useState<BootState>({
+    isReady: false,
+    isExiting: false,
+    progress: 0,
+    stage: 'themes',
+  });
 
   // The latest drop handler; listeners are registered once, on mount.
   const handleDropPathsRef = useRef(handleDropPaths);
@@ -57,105 +92,173 @@ export function useAppBootstrap({
     handleDropPathsRef.current = handleDropPaths;
   }, [handleDropPaths]);
 
-  // 1. Load the initial app settings from SQLite
+  // Initialise settings, services, the library, themes and the queue, and register drag & drop events
   useEffect(() => {
-    getSetting('eq_enabled_on_startup')
-      .then((val) => {
-        setEqAutoStartup(val === 'true');
-      })
-      .catch((e) => console.warn('Failed to read eq_enabled_on_startup:', e));
+    let disposed = false;
+    let bootFinished = false;
+    let exitTimer: ReturnType<typeof setTimeout> | null = null;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
-    getSetting('app_language')
-      .then((val) => {
-        if (val && (val === 'en' || val === 'pl' || val === 'de' || val === 'fi' || val === 'la')) {
-          setLanguage(val as Language);
+    const loadInitialSettings = () =>
+      Promise.allSettled([
+        getSetting('eq_enabled_on_startup')
+          .then((val) => {
+            if (!disposed) setEqAutoStartup(val === 'true');
+          })
+          .catch((e) => console.warn('Failed to read eq_enabled_on_startup:', e)),
+
+        getSetting('app_language')
+          .then((val) => {
+            if (!disposed && val && (val === 'en' || val === 'pl' || val === 'de' || val === 'fi' || val === 'la')) {
+              setLanguage(val as Language);
+            }
+          })
+          .catch((e) => console.warn('Failed to read app_language:', e)),
+
+        getSetting('seek_fade_enabled')
+          .then((val) => {
+            if (!disposed && val !== null) {
+              setSeekFadeEnabled(val === 'true');
+            }
+          })
+          .catch((e) => console.warn('Failed to read seek_fade_enabled:', e)),
+
+        getSetting('close_to_tray')
+          .then((val) => {
+            if (!disposed) setCloseToTray(val !== 'false');
+          })
+          .catch((e) => console.warn('Failed to read close_to_tray:', e)),
+
+        getSetting('crossfade_duration')
+          .then((val) => {
+            const ms = val ? parseInt(val, 10) : 1500;
+            if (!isNaN(ms)) {
+              if (!disposed) setCrossfadeDuration(ms);
+              invoke('set_crossfade_duration', { durationMs: ms }).catch(() => {});
+            }
+          })
+          .catch((e) => console.warn('Failed to read crossfade_duration:', e)),
+
+        getSetting('bass_boost')
+          .then((val) => {
+            if (!disposed && val) {
+              const num = parseFloat(val);
+              if (!isNaN(num)) setBassBoost(num);
+            }
+          })
+          .catch((e) => console.warn('Failed to read bass_boost:', e)),
+
+        getSetting('stereo_widener_active')
+          .then((val) => {
+            const active = val === 'true';
+            if (!disposed) setStereoWidenerActive(active);
+            invoke('set_stereo_widener', { active, amount: stereoWidenerAmount }).catch(() => {});
+          })
+          .catch((e) => console.warn('Failed to read stereo_widener_active:', e)),
+
+        getSetting('stereo_widener_amount')
+          .then((val) => {
+            if (val) {
+              const amt = parseFloat(val);
+              if (!isNaN(amt)) {
+                if (!disposed) setStereoWidenerAmount(amt);
+                invoke('set_stereo_widener', { active: stereoWidenerActive, amount: amt }).catch(() => {});
+              }
+            }
+          })
+          .catch((e) => console.warn('Failed to read stereo_widener_amount:', e)),
+
+        getSetting('limiter_enabled')
+          .then((val) => {
+            const enabled = val !== 'false';
+            if (!disposed) setLimiterEnabled(enabled);
+            invoke('set_limiter_enabled', { enabled }).catch(() => {});
+          })
+          .catch((e) => console.warn('Failed to read limiter_enabled:', e)),
+
+        // The always-on preamp (DSP Studio); its controls are restored by useDspManager.
+        getSetting('preamp_db')
+          .then((val) => {
+            const preampDb = clampPreampDb(parseFiniteSetting(val, 0));
+            if (preampDb !== 0) invoke('set_preamp', { preampDb }).catch(() => {});
+          })
+          .catch((e) => console.warn('Failed to read preamp_db:', e)),
+      ]);
+
+    const beginBootExit = () => {
+      if (disposed || bootFinished) return;
+      bootFinished = true;
+      if (safetyTimer !== null) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
+      setBootState({
+        isReady: false,
+        isExiting: true,
+        progress: 100,
+        stage: 'ready',
+      });
+      exitTimer = setTimeout(() => {
+        if (!disposed) {
+          setBootState({
+            isReady: true,
+            isExiting: true,
+            progress: 100,
+            stage: 'ready',
+          });
         }
-      })
-      .catch((e) => console.warn('Failed to read app_language:', e));
+      }, BOOT_EXIT_DURATION_MS);
+    };
 
-    getSetting('seek_fade_enabled')
-      .then((val) => {
-        if (val !== null) {
-          setSeekFadeEnabled(val === 'true');
-        }
-      })
-      .catch((e) => console.warn('Failed to read seek_fade_enabled:', e));
+    const completedStages = new Set<Exclude<BootStage, 'ready'>>();
+    const markStageSettled = (stage: Exclude<BootStage, 'ready'>) => {
+      if (disposed || bootFinished) return;
+      completedStages.add(stage);
+      const progress = Math.round((completedStages.size / BOOT_STAGE_ORDER.length) * 100);
+      const nextStage = BOOT_STAGE_ORDER.find((candidate) => !completedStages.has(candidate)) ?? 'ready';
+      setBootState((prev) =>
+        prev.isExiting
+          ? prev
+          : {
+              isReady: false,
+              isExiting: false,
+              progress,
+              stage: nextStage,
+            },
+      );
+    };
 
-    getSetting('close_to_tray')
-      .then((val) => {
-        setCloseToTray(val !== 'false');
-      })
-      .catch((e) => console.warn('Failed to read close_to_tray:', e));
+    const runStage = (stage: Exclude<BootStage, 'ready'>, task: () => unknown) => {
+      let result: Promise<unknown>;
+      try {
+        result = Promise.resolve(task());
+      } catch (err) {
+        result = Promise.reject(err);
+      }
+      return result.finally(() => {
+        markStageSettled(stage);
+      });
+    };
 
-    getSetting('crossfade_duration')
-      .then((val) => {
-        const ms = val ? parseInt(val, 10) : 1500;
-        if (!isNaN(ms)) {
-          setCrossfadeDuration(ms);
-          invoke('set_crossfade_duration', { durationMs: ms }).catch(() => {});
-        }
-      })
-      .catch((e) => console.warn('Failed to read crossfade_duration:', e));
+    safetyTimer = setTimeout(() => {
+      console.warn('Startup bootstrap exceeded safety timeout; revealing UI.');
+      beginBootExit();
+    }, BOOT_SAFETY_TIMEOUT_MS);
 
-    getSetting('bass_boost')
-      .then((val) => {
-        if (val) {
-          const num = parseFloat(val);
-          if (!isNaN(num)) setBassBoost(num);
-        }
-      })
-      .catch((e) => console.warn('Failed to read bass_boost:', e));
-
-    getSetting('stereo_widener_active')
-      .then((val) => {
-        const active = val === 'true';
-        setStereoWidenerActive(active);
-        invoke('set_stereo_widener', { active, amount: stereoWidenerAmount }).catch(() => {});
-      })
-      .catch((e) => console.warn('Failed to read stereo_widener_active:', e));
-
-    getSetting('stereo_widener_amount')
-      .then((val) => {
-        if (val) {
-          const amt = parseFloat(val);
-          if (!isNaN(amt)) {
-            setStereoWidenerAmount(amt);
-            invoke('set_stereo_widener', { active: stereoWidenerActive, amount: amt }).catch(() => {});
-          }
-        }
-      })
-      .catch((e) => console.warn('Failed to read stereo_widener_amount:', e));
-
-    getSetting('limiter_enabled')
-      .then((val) => {
-        const enabled = val !== 'false';
-        setLimiterEnabled(enabled);
-        invoke('set_limiter_enabled', { enabled }).catch(() => {});
-      })
-      .catch((e) => console.warn('Failed to read limiter_enabled:', e));
-
-    // The always-on preamp (DSP Studio); its controls are restored by useDspManager.
-    getSetting('preamp_db')
-      .then((val) => {
-        const preampDb = clampPreampDb(parseFiniteSetting(val, 0));
-        if (preampDb !== 0) invoke('set_preamp', { preampDb }).catch(() => {});
-      })
-      .catch((e) => console.warn('Failed to read preamp_db:', e));
-    // Settings are loaded once on mount; the dependencies are stable setters and initial values.
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 2. Initialise services, the library, themes and the queue, and register drag & drop events
-  useEffect(() => {
     // DSP presets and playlists are loaded by their own hooks (useDspManager / usePlaylistManager).
-    refreshDevices();
-    loadLibrary();
-    loadThemes();
-    refreshQueue();
+    Promise.allSettled([
+      runStage('themes', loadThemes),
+      runStage('settings', loadInitialSettings),
+      runStage('devices', refreshDevices),
+      runStage('queue', refreshQueue),
+      runStage('library', loadLibrary),
+    ]).then(() => {
+      beginBootExit();
+    });
 
     invoke<string>('get_app_version')
       .then((ver) => {
-        if (ver) setAppVersion(ver);
+        if (!disposed && ver) setAppVersion(ver);
       })
       .catch(() => {});
 
@@ -263,7 +366,6 @@ export function useAppBootstrap({
     window.addEventListener('keydown', handleKeyDown);
 
     // Cleanup can happen before the registrations resolve; in that case we unregister right away.
-    let disposed = false;
     let unlistenWebview: (() => void) | null = null;
     let unlistenWindow: (() => void) | null = null;
     let unlistenTauriEvent: (() => void) | null = null;
@@ -351,6 +453,8 @@ export function useAppBootstrap({
 
     return () => {
       disposed = true;
+      if (safetyTimer !== null) clearTimeout(safetyTimer);
+      if (exitTimer !== null) clearTimeout(exitTimer);
       window.removeEventListener('dragstart', handleDragStart);
       window.removeEventListener('dragend', handleDragEnd);
       window.removeEventListener('dragover', handleWindowDragOver);
@@ -369,5 +473,6 @@ export function useAppBootstrap({
   return {
     isDraggingOver,
     setIsDraggingOver,
+    bootState,
   };
 }

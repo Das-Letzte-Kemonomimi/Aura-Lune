@@ -2053,5 +2053,14 @@
     "badgeTitle": "Update available: {0}",
     "badgeInstalledTitle": "Update installed — restart to apply",
     "errorPrefix": "Update error"
+  },
+  "startup": {
+    "initializing": "Initializing Auralune…",
+    "loadingThemes": "Applying visual theme…",
+    "loadingSettings": "Loading preferences & DSP…",
+    "loadingDevices": "Detecting audio devices…",
+    "loadingQueue": "Restoring playback queue…",
+    "loadingLibrary": "Loading music library…",
+    "ready": "Ready"
   }
 }

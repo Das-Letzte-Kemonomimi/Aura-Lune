@@ -2053,5 +2053,14 @@
     "badgeTitle": "Dostępna aktualizacja: {0}",
     "badgeInstalledTitle": "Aktualizacja zainstalowana — uruchom ponownie, aby ją zastosować",
     "errorPrefix": "Błąd aktualizacji"
+  },
+  "startup": {
+    "initializing": "Uruchamianie Auralune…",
+    "loadingThemes": "Stosowanie motywu wizualnego…",
+    "loadingSettings": "Wczytywanie ustawień i DSP…",
+    "loadingDevices": "Wykrywanie urządzeń audio…",
+    "loadingQueue": "Przywracanie kolejki odtwarzania…",
+    "loadingLibrary": "Wczytywanie biblioteki muzycznej…",
+    "ready": "Gotowe"
   }
 }
